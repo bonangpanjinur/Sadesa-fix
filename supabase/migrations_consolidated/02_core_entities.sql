@@ -489,14 +489,18 @@ ALTER TABLE public.courier_deposits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.courier_balance_logs ENABLE ROW LEVEL SECURITY;
 
 -- 5. HELPER FUNCTIONS ---------------------------------------------
-CREATE OR REPLACE FUNCTION public.get_user_merchant_id(_user_id uuid DEFAULT NULL)
+-- Drop any overloaded versions first to prevent ambiguity when called with no args
+DROP FUNCTION IF EXISTS public.get_user_merchant_id(uuid);
+DROP FUNCTION IF EXISTS public.get_user_courier_id(uuid);
+
+CREATE OR REPLACE FUNCTION public.get_user_merchant_id()
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
-  SELECT id FROM public.merchants WHERE user_id = COALESCE(_user_id, auth.uid()) LIMIT 1
+  SELECT id FROM public.merchants WHERE user_id = auth.uid() LIMIT 1
 $$;
 
-CREATE OR REPLACE FUNCTION public.get_user_courier_id(_user_id uuid DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.get_user_courier_id()
 RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS $$
-  SELECT id FROM public.couriers WHERE user_id = COALESCE(_user_id, auth.uid()) LIMIT 1
+  SELECT id FROM public.couriers WHERE user_id = auth.uid() LIMIT 1
 $$;
 
 CREATE OR REPLACE FUNCTION public.is_courier_owner(_user_id uuid, _courier_id uuid)
