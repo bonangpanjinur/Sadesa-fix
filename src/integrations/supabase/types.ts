@@ -3542,8 +3542,16 @@ export type Database = {
         }
         Returns: Json
       }
+      approve_quota_subscription: {
+        Args: { p_admin_notes?: string; p_subscription_id: string }
+        Returns: Json
+      }
       auto_cancel_pending_orders: { Args: never; Returns: undefined }
       auto_complete_delivered_orders: { Args: never; Returns: number }
+      calculate_quota_cost: {
+        Args: { p_product_price: number }
+        Returns: number
+      }
       check_cod_eligibility: {
         Args: {
           p_buyer_id: string
@@ -3626,6 +3634,10 @@ export type Database = {
           p_withdrawal_id: string
         }
         Returns: boolean
+      }
+      reject_quota_subscription: {
+        Args: { p_admin_notes: string; p_subscription_id: string }
+        Returns: Json
       }
       send_notification: {
         Args: {
