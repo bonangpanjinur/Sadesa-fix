@@ -2442,11 +2442,14 @@ export type Database = {
           amount: number
           buyer_id: string
           created_at: string
+          evidence_urls: string[] | null
           id: string
+          merchant_id: string | null
           order_id: string
           processed_at: string | null
           processed_by: string | null
           reason: string
+          refund_type: string | null
           status: string
           updated_at: string
         }
@@ -2455,11 +2458,14 @@ export type Database = {
           amount: number
           buyer_id: string
           created_at?: string
+          evidence_urls?: string[] | null
           id?: string
+          merchant_id?: string | null
           order_id: string
           processed_at?: string | null
           processed_by?: string | null
           reason: string
+          refund_type?: string | null
           status?: string
           updated_at?: string
         }
@@ -2468,15 +2474,32 @@ export type Database = {
           amount?: number
           buyer_id?: string
           created_at?: string
+          evidence_urls?: string[] | null
           id?: string
+          merchant_id?: string | null
           order_id?: string
           processed_at?: string | null
           processed_by?: string | null
           reason?: string
+          refund_type?: string | null
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "refund_requests_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "merchants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_merchant_id_fkey"
+            columns: ["merchant_id"]
+            isOneToOne: false
+            referencedRelation: "public_merchants"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "refund_requests_order_id_fkey"
             columns: ["order_id"]
