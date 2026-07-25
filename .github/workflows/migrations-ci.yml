@@ -1,0 +1,133 @@
+name: Migrations CI
+
+on:
+  push:
+    paths:
+      - "supabase/migrations_consolidated/**"
+      - ".github/workflows/migrations-ci.yml"
+  pull_request:
+    paths:
+      - "supabase/migrations_consolidated/**"
+      - ".github/workflows/migrations-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: Apply consolidated migrations on clean Postgres
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+      MIG_DIR: supabase/migrations_consolidated
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" && break
+            sleep 1
+          done
+
+      - name: Bootstrap Supabase-like roles and schemas
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          -- Roles that Supabase migrations reference
+          DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticator') THEN CREATE ROLE authenticator NOINHERIT LOGIN PASSWORD 'postgres'; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_admin') THEN CREATE ROLE supabase_admin SUPERUSER LOGIN PASSWORD 'postgres'; END IF;
+          END $$;
+          GRANT anon, authenticated, service_role TO authenticator;
+
+          -- Schemas that migrations may reference
+          CREATE SCHEMA IF NOT EXISTS auth;
+          CREATE SCHEMA IF NOT EXISTS storage;
+          CREATE SCHEMA IF NOT EXISTS extensions;
+
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+          -- Minimal auth.users stand-in so FKs resolve
+          CREATE TABLE IF NOT EXISTS auth.users (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            email text,
+            raw_user_meta_data jsonb DEFAULT '{}'::jsonb,
+            created_at timestamptz DEFAULT now()
+          );
+
+          -- auth.uid()/auth.role() stubs
+          CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULLIF(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+          CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT COALESCE(current_setting('request.jwt.claim.role', true), 'anon') $$;
+
+          -- Minimal storage schema stand-in
+          CREATE TABLE IF NOT EXISTS storage.buckets (
+            id text PRIMARY KEY,
+            name text NOT NULL,
+            public boolean DEFAULT false,
+            created_at timestamptz DEFAULT now()
+          );
+          CREATE TABLE IF NOT EXISTS storage.objects (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            bucket_id text REFERENCES storage.buckets(id),
+            name text,
+            owner uuid,
+            created_at timestamptz DEFAULT now(),
+            metadata jsonb DEFAULT '{}'::jsonb
+          );
+          ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+          SQL
+
+      - name: Apply migrations sequentially (first pass — clean state)
+        run: |
+          set -euo pipefail
+          for f in $(ls "$MIG_DIR"/*.sql | sort); do
+            echo "::group::Apply $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Re-apply migrations (second pass — idempotency check)
+        run: |
+          set -euo pipefail
+          for f in $(ls "$MIG_DIR"/*.sql | sort); do
+            echo "::group::Re-apply $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+            echo "::endgroup::"
+          done
+
+      - name: Smoke check — required tables exist
+        run: |
+          psql -v ON_ERROR_STOP=1 -c "
+            SELECT tablename FROM pg_tables
+            WHERE schemaname='public'
+              AND tablename IN ('profiles','user_roles','merchants','products','orders','notifications','app_settings')
+            ORDER BY tablename;
+          "
