@@ -281,3 +281,159 @@ jobs:
           RESET role;
           SQL
 
+      - name: API smoke test — UMKM order create/read RLS scenarios
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          -- ─── Seed: buyer A, buyer B, merchant owner M + a merchant row ──────
+          DO $$
+          DECLARE
+            uid_a uuid := '11111111-1111-1111-1111-111111111111';
+            uid_b uuid := '22222222-2222-2222-2222-222222222222';
+            uid_m uuid := '33333333-3333-3333-3333-333333333333';
+            mid   uuid := '44444444-4444-4444-4444-444444444444';
+          BEGIN
+            INSERT INTO auth.users(id, email) VALUES
+              (uid_a, 'a@test.local'), (uid_b, 'b@test.local'), (uid_m, 'm@test.local')
+            ON CONFLICT DO NOTHING;
+
+            -- Minimal merchant row; tolerate schema drift by only using columns we know exist.
+            BEGIN
+              EXECUTE $q$INSERT INTO public.merchants(id, user_id, name)
+                        VALUES ('44444444-4444-4444-4444-444444444444',
+                                '33333333-3333-3333-3333-333333333333',
+                                'CI Test Merchant')
+                        ON CONFLICT (id) DO NOTHING$q$;
+            EXCEPTION WHEN OTHERS THEN
+              RAISE NOTICE 'Skipping merchant seed (schema drift): %', SQLERRM;
+            END;
+          END $$;
+
+          -- ─── Scenario 1 (success): buyer A creates order, reads it back ────
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '11111111-1111-1111-1111-111111111111';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            INSERT INTO public.orders(id, buyer_id, merchant_id, status, subtotal, total)
+            VALUES ('55555555-5555-5555-5555-555555555501',
+                    '11111111-1111-1111-1111-111111111111',
+                    '44444444-4444-4444-4444-444444444444',
+                    'NEW', 25000, 25000);
+
+            DO $$
+            DECLARE n int;
+            BEGIN
+              SELECT count(*) INTO n FROM public.orders
+                WHERE id = '55555555-5555-5555-5555-555555555501';
+              IF n <> 1 THEN
+                RAISE EXCEPTION 'Scenario 1 FAILED: buyer cannot read own order (got % rows)', n;
+              END IF;
+            END $$;
+          COMMIT;
+
+          -- ─── Scenario 2 (fail): buyer B must NOT read buyer A's order ──────
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '22222222-2222-2222-2222-222222222222';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            DO $$
+            DECLARE n int;
+            BEGIN
+              SELECT count(*) INTO n FROM public.orders
+                WHERE id = '55555555-5555-5555-5555-555555555501';
+              IF n <> 0 THEN
+                RAISE EXCEPTION 'RLS LEAK: buyer B sees buyer A order (got % rows)', n;
+              END IF;
+            END $$;
+          COMMIT;
+
+          -- ─── Scenario 3 (fail): buyer B cannot spoof buyer_id = A on INSERT ─
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '22222222-2222-2222-2222-222222222222';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            DO $$
+            BEGIN
+              BEGIN
+                INSERT INTO public.orders(id, buyer_id, merchant_id, status, subtotal, total)
+                VALUES ('55555555-5555-5555-5555-555555555502',
+                        '11111111-1111-1111-1111-111111111111',  -- spoofed buyer A
+                        '44444444-4444-4444-4444-444444444444',
+                        'NEW', 10000, 10000);
+                RAISE EXCEPTION 'RLS BYPASS: buyer B was able to insert order as buyer A';
+              EXCEPTION
+                WHEN insufficient_privilege OR check_violation THEN
+                  NULL;  -- expected: WITH CHECK / RLS blocks it
+                WHEN OTHERS THEN
+                  IF SQLSTATE = '42501' OR SQLERRM LIKE '%row-level security%' THEN
+                    NULL;
+                  ELSE
+                    RAISE;
+                  END IF;
+              END;
+            END $$;
+          ROLLBACK;
+
+          -- ─── Scenario 4 (fail): anon cannot insert or read orders ──────────
+          BEGIN;
+            SET LOCAL role anon;
+            SET LOCAL "request.jwt.claim.role" = 'anon';
+
+            DO $$
+            BEGIN
+              BEGIN
+                INSERT INTO public.orders(id, buyer_id, merchant_id, status, subtotal, total)
+                VALUES ('55555555-5555-5555-5555-555555555503',
+                        '11111111-1111-1111-1111-111111111111',
+                        '44444444-4444-4444-4444-444444444444',
+                        'NEW', 5000, 5000);
+                RAISE EXCEPTION 'RLS BYPASS: anon was able to insert into orders';
+              EXCEPTION
+                WHEN insufficient_privilege OR check_violation THEN NULL;
+                WHEN OTHERS THEN
+                  IF SQLSTATE = '42501' OR SQLERRM LIKE '%row-level security%' THEN
+                    NULL;
+                  ELSE
+                    RAISE;
+                  END IF;
+              END;
+            END $$;
+
+            DO $$
+            DECLARE n int;
+            BEGIN
+              BEGIN
+                SELECT count(*) INTO n FROM public.orders;
+                IF n > 0 THEN
+                  RAISE EXCEPTION 'RLS LEAK: anon sees % orders (expected 0)', n;
+                END IF;
+              EXCEPTION WHEN insufficient_privilege THEN
+                NULL;  -- also acceptable
+              END;
+            END $$;
+          ROLLBACK;
+
+          -- ─── Scenario 5 (success): merchant owner can read orders for its shop
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '33333333-3333-3333-3333-333333333333';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            DO $$
+            DECLARE n int;
+            BEGIN
+              SELECT count(*) INTO n FROM public.orders
+                WHERE id = '55555555-5555-5555-5555-555555555501';
+              IF n <> 1 THEN
+                RAISE EXCEPTION 'Scenario 5 FAILED: merchant owner cannot read own shop order (got % rows)', n;
+              END IF;
+            END $$;
+          COMMIT;
+
+          -- ─── Cleanup ────────────────────────────────────────────────────────
+          DELETE FROM public.orders WHERE id LIKE '55555555-5555-5555-5555-5555555555%';
+          SQL
+
+
