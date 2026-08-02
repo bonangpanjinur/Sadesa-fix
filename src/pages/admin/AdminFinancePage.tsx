@@ -111,7 +111,7 @@ export default function AdminFinancePage() {
         payment_status: o.payment_status,
         payment_method: o.payment_method,
         created_at: o.created_at,
-        merchant_name: (o.merchants as { name: string } | null)?.name || '-',
+        merchant_name: (o.merchants as unknown as { name: string } | null)?.name || '-',
       }));
     },
     staleTime: 60_000,

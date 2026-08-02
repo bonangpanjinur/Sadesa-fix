@@ -183,7 +183,7 @@ export default function VerifikatorDashboardPage() {
         .select('merchant_id, merchant:merchants(id, name)')
         .eq('group_id', group!.id)
         .eq('status', 'ACTIVE');
-      return data || [];
+      return (data || []) as unknown as Array<{ merchant_id: string; merchant: { id: string; name: string } }>;
     },
     enabled: !!group && billingDialogOpen,
     staleTime: 60_000,

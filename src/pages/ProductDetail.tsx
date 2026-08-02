@@ -69,7 +69,7 @@ export default function ProductDetail() {
           image: productData.image,
           merchantName: productData.merchantName,
         });
-        supabase.rpc('increment_product_view', { product_id: id }).catch(() => {});
+        Promise.resolve(supabase.rpc('increment_product_view', { product_id: id })).catch(() => {});
         trackPageView({ merchantId: productData.merchantId, productId: id, pageType: 'product' });
       }
       return productData;
@@ -100,7 +100,7 @@ export default function ProductDetail() {
         isOpen: merchantData.is_open,
         openTime: merchantData.open_time,
         closeTime: merchantData.close_time,
-        villageName: merchantData.villages?.name || null,
+        villageName: (merchantData.villages as unknown as { name: string } | null)?.name || null,
         isVerified: merchantData.is_verified || false,
         halalStatus: merchantData.halal_status || null,
         slug: merchantData.slug || null,

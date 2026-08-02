@@ -81,7 +81,7 @@ export default function ReviewsPage() {
         return;
       }
 
-      setOrder(orderData);
+      setOrder(orderData as unknown as OrderData);
 
       const { data: itemsData } = await supabase
         .from('order_items')

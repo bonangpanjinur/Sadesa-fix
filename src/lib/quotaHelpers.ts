@@ -57,7 +57,7 @@ export async function fetchMerchantQuotaInfo(merchantId: string): Promise<Mercha
     const totalQuota = subscriptions.reduce((sum, sub) => sum + sub.transaction_quota, 0);
     const usedQuota = subscriptions.reduce((sum, sub) => sum + sub.used_quota, 0);
     const firstSub = subscriptions[0];
-    const pkg = firstSub.package as { name: string } | null;
+    const pkg = firstSub.package as unknown as { name: string } | null;
     const packageName = subscriptions.length > 1 
       ? `${pkg?.name || 'Premium'} (+${subscriptions.length - 1} paket)` 
       : (pkg?.name || 'Premium');

@@ -56,7 +56,7 @@ export default function AdminMerchantsPage() {
       ...m,
       ownerName: m.user_id ? profilesMap[m.user_id]?.full_name || null : null,
       ownerPhone: m.user_id ? profilesMap[m.user_id]?.phone || null : null,
-    }));
+    })) as unknown as MerchantRow[];
   };
 
   const { data: merchants = [], isLoading: loading } = useQuery<MerchantRow[]>({
