@@ -68,7 +68,7 @@ export default function AdminCouriersPage() {
       ...c,
       owner_name: c.user_id ? (profileMap.get(c.user_id)?.full_name || null) : null,
       owner_phone: c.user_id ? (profileMap.get(c.user_id)?.phone || null) : null,
-    }));
+    })) as unknown as CourierRow[];
   };
 
   const { data: couriers = [], isLoading: loading } = useQuery<CourierRow[]>({
