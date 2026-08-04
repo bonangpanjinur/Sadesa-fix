@@ -21,7 +21,7 @@ export function useChatUnread() {
     fetchUnread();
 
     const channel = supabase
-      .channel('chat-unread-global')
+      .channel(`chat-unread-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` },
