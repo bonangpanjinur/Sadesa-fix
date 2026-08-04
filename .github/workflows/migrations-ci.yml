@@ -437,3 +437,181 @@ jobs:
           SQL
 
 
+
+      - name: API smoke test — POS tenants/outlets RLS scenarios
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          -- ─── Seed users: POS owner P, other user Q ──────────────────────────
+          DO $$
+          DECLARE
+            uid_p uuid := '66666666-6666-6666-6666-666666666666';
+            uid_q uuid := '77777777-7777-7777-7777-777777777777';
+          BEGIN
+            INSERT INTO auth.users(id, email) VALUES
+              (uid_p, 'pos-owner@test.local'), (uid_q, 'pos-other@test.local')
+            ON CONFLICT DO NOTHING;
+          END $$;
+
+          -- ─── Guard: tables must be reachable through the Data API ───────────
+          DO $$
+          DECLARE t text;
+          BEGIN
+            FOREACH t IN ARRAY ARRAY['pos_tenants','pos_outlets'] LOOP
+              IF NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename=t) THEN
+                RAISE EXCEPTION 'POS smoke FAILED: table public.% missing', t;
+              END IF;
+              IF NOT (SELECT relrowsecurity FROM pg_class WHERE oid = ('public.'||t)::regclass) THEN
+                RAISE EXCEPTION 'POS smoke FAILED: RLS disabled on public.%', t;
+              END IF;
+              IF NOT has_table_privilege('authenticated', 'public.'||t, 'SELECT') THEN
+                RAISE EXCEPTION 'POS smoke FAILED: authenticated lacks SELECT grant on public.%', t;
+              END IF;
+            END LOOP;
+          END $$;
+
+          -- ─── Scenario 1 (success): owner creates tenant + outlet, reads back ─
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '66666666-6666-6666-6666-666666666666';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            INSERT INTO public.pos_tenants(id, user_id, name)
+            VALUES ('88888888-8888-8888-8888-888888888801',
+                    '66666666-6666-6666-6666-666666666666',
+                    'CI POS Usaha');
+
+            INSERT INTO public.pos_outlets(id, tenant_id, name)
+            VALUES ('99999999-9999-9999-9999-999999999901',
+                    '88888888-8888-8888-8888-888888888801',
+                    'CI Outlet Utama');
+
+            DO $$
+            DECLARE nt int; no int;
+            BEGIN
+              SELECT count(*) INTO nt FROM public.pos_tenants
+                WHERE id = '88888888-8888-8888-8888-888888888801';
+              SELECT count(*) INTO no FROM public.pos_outlets
+                WHERE id = '99999999-9999-9999-9999-999999999901';
+              IF nt <> 1 OR no <> 1 THEN
+                RAISE EXCEPTION 'POS Scenario 1 FAILED: owner cannot read own tenant/outlet (% / % rows)', nt, no;
+              END IF;
+            END $$;
+          COMMIT;
+
+          -- ─── Scenario 2 (fail): other user must NOT see the tenant/outlet ───
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '77777777-7777-7777-7777-777777777777';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            DO $$
+            DECLARE nt int; no int;
+            BEGIN
+              SELECT count(*) INTO nt FROM public.pos_tenants;
+              SELECT count(*) INTO no FROM public.pos_outlets;
+              IF nt <> 0 OR no <> 0 THEN
+                RAISE EXCEPTION 'RLS LEAK: other user sees % tenants / % outlets (expected 0/0)', nt, no;
+              END IF;
+            END $$;
+          COMMIT;
+
+          -- ─── Scenario 3 (fail): other user cannot spoof user_id on tenant ───
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '77777777-7777-7777-7777-777777777777';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            DO $$
+            BEGIN
+              BEGIN
+                INSERT INTO public.pos_tenants(id, user_id, name)
+                VALUES ('88888888-8888-8888-8888-888888888802',
+                        '66666666-6666-6666-6666-666666666666',  -- spoofed owner P
+                        'Spoofed Usaha');
+                RAISE EXCEPTION 'RLS BYPASS: user Q inserted a tenant owned by user P';
+              EXCEPTION
+                WHEN insufficient_privilege OR check_violation THEN NULL;
+                WHEN OTHERS THEN
+                  IF SQLSTATE = '42501' OR SQLERRM LIKE '%row-level security%' THEN NULL; ELSE RAISE; END IF;
+              END;
+            END $$;
+          ROLLBACK;
+
+          -- ─── Scenario 4 (fail): other user cannot attach outlet to P's tenant
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '77777777-7777-7777-7777-777777777777';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            DO $$
+            BEGIN
+              BEGIN
+                INSERT INTO public.pos_outlets(id, tenant_id, name)
+                VALUES ('99999999-9999-9999-9999-999999999902',
+                        '88888888-8888-8888-8888-888888888801',
+                        'Outlet Sisipan');
+                RAISE EXCEPTION 'RLS BYPASS: user Q attached an outlet to another tenant';
+              EXCEPTION
+                WHEN insufficient_privilege OR check_violation THEN NULL;
+                WHEN OTHERS THEN
+                  IF SQLSTATE = '42501' OR SQLERRM LIKE '%row-level security%' THEN NULL; ELSE RAISE; END IF;
+              END;
+            END $$;
+          ROLLBACK;
+
+          -- ─── Scenario 5 (fail): other user cannot update/delete P's tenant ──
+          BEGIN;
+            SET LOCAL role authenticated;
+            SET LOCAL "request.jwt.claim.sub" = '77777777-7777-7777-7777-777777777777';
+            SET LOCAL "request.jwt.claim.role" = 'authenticated';
+
+            DO $$
+            DECLARE n int;
+            BEGIN
+              UPDATE public.pos_tenants SET name = 'Hijacked'
+                WHERE id = '88888888-8888-8888-8888-888888888801';
+              GET DIAGNOSTICS n = ROW_COUNT;
+              IF n <> 0 THEN
+                RAISE EXCEPTION 'RLS BYPASS: user Q updated % row(s) of another tenant', n;
+              END IF;
+
+              DELETE FROM public.pos_outlets
+                WHERE id = '99999999-9999-9999-9999-999999999901';
+              GET DIAGNOSTICS n = ROW_COUNT;
+              IF n <> 0 THEN
+                RAISE EXCEPTION 'RLS BYPASS: user Q deleted % outlet row(s) of another tenant', n;
+              END IF;
+            END $$;
+          ROLLBACK;
+
+          -- ─── Scenario 6 (fail): anon cannot read or insert POS data ─────────
+          BEGIN;
+            SET LOCAL role anon;
+            SET LOCAL "request.jwt.claim.role" = 'anon';
+
+            DO $$
+            DECLARE n int;
+            BEGIN
+              BEGIN
+                SELECT count(*) INTO n FROM public.pos_tenants;
+                IF n > 0 THEN
+                  RAISE EXCEPTION 'RLS LEAK: anon sees % pos_tenants (expected 0)', n;
+                END IF;
+              EXCEPTION WHEN insufficient_privilege THEN NULL;  -- also acceptable
+              END;
+
+              BEGIN
+                INSERT INTO public.pos_tenants(user_id, name)
+                VALUES ('66666666-6666-6666-6666-666666666666', 'Anon Usaha');
+                RAISE EXCEPTION 'RLS BYPASS: anon inserted into pos_tenants';
+              EXCEPTION
+                WHEN insufficient_privilege OR check_violation THEN NULL;
+                WHEN OTHERS THEN
+                  IF SQLSTATE = '42501' OR SQLERRM LIKE '%row-level security%' THEN NULL; ELSE RAISE; END IF;
+              END;
+            END $$;
+          ROLLBACK;
+
+          -- ─── Cleanup ────────────────────────────────────────────────────────
+          DELETE FROM public.pos_tenants WHERE id = '88888888-8888-8888-8888-888888888801';
+          SQL
