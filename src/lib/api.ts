@@ -182,34 +182,36 @@ export async function fetchProducts(): Promise<Product[]> {
   const cached = getCached<Product[]>('products');
   if (cached) return cached;
 
-  // First get merchants with active quota
-  const merchantsWithQuota = await getMerchantsWithActiveQuota();
-
-  const { data, error } = await supabase
-    .from('products')
-    .select(`
-      *,
-      merchants (
-        id,
-        name,
-        is_open,
-        open_time,
-        close_time,
-        location_lat,
-        location_lng,
-        villages (
+  // Quota lookup and the product query are independent — fire both at once.
+  const [merchantsWithQuota, { data, error }] = await Promise.all([
+    getMerchantsWithActiveQuota(),
+    supabase
+      .from('products')
+      .select(`
+        *,
+        merchants (
+          id,
           name,
+          is_open,
+          open_time,
+          close_time,
           location_lat,
-          location_lng
+          location_lng,
+          villages (
+            name,
+            location_lat,
+            location_lng
+          )
         )
-      )
-    `)
-    .limit(200);
+      `)
+      .limit(200),
+  ]);
 
   if (error) {
     console.error('Error fetching products:', error);
     return [];
   }
+
 
   const mappedProducts = (data || []).map(p => {
     const hasQuota = merchantsWithQuota.has(p.merchant_id);
