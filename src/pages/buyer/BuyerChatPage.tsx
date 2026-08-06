@@ -6,12 +6,13 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageCircle, Store, Truck, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { MessageCircle, Store, Truck, ArrowLeft, ShoppingBag, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
+import { logRealtimeStatus, isRealtimeFailure, type RealtimeStatus } from '@/lib/realtimeTelemetry';
 
 interface ChatThread {
   orderId: string;
@@ -32,18 +33,31 @@ export default function BuyerChatPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'buyer_merchant' | 'buyer_courier'>('all');
   const [selectedThread, setSelectedThread] = useState<ChatThread | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
 
   useEffect(() => {
     if (!user) return;
     fetchThreads();
 
+    let active = true;
+    const channelName = `buyer-chats-${user.id}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel('buyer-chats')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => fetchThreads())
-      .subscribe();
+      .channel(channelName)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
+        if (active) fetchThreads();
+      });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    channel.subscribe((status, err) => {
+      const normalized = logRealtimeStatus(channelName, status, err);
+      if (active) setRealtimeStatus(normalized);
+    });
+
+    return () => {
+      active = false;
+      try { channel.unsubscribe(); } catch { /* noop */ }
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const fetchThreads = async () => {
     if (!user) return;
@@ -145,6 +159,18 @@ export default function BuyerChatPage() {
       </div>
 
       <div className="container max-w-md mx-auto px-4 -mt-3">
+        {isRealtimeFailure(realtimeStatus) && (
+          <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+            <WifiOff className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+            <div className="text-xs">
+              <p className="font-medium text-destructive">Chat realtime terputus ({realtimeStatus})</p>
+              <p className="text-muted-foreground">Pesan baru mungkin tertunda. Detail penyebab tercatat di console browser.</p>
+            </div>
+            <Button size="sm" variant="outline" className="ml-auto text-xs h-7" onClick={() => window.location.reload()}>
+              Coba lagi
+            </Button>
+          </div>
+        )}
         <Tabs defaultValue="all" onValueChange={(v) => setActiveTab(v as any)}>
           <div className="bg-card rounded-xl shadow-sm p-1.5 mb-4">
             <TabsList className="w-full bg-transparent h-auto p-0 gap-1">

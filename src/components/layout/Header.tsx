@@ -6,6 +6,7 @@ import { InstallButton } from '@/components/pwa/InstallButton';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
 import { useCart } from '@/contexts/CartContext';
 import { useChatUnread } from '@/hooks/useChatUnread';
+import { isRealtimeFailure } from '@/lib/realtimeTelemetry';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 
 export function Header() {
@@ -16,7 +17,7 @@ export function Header() {
   const mainPages = ['/', '/explore', '/shops', '/products', '/tourism'];
   const showSearchBar = mainPages.includes(location.pathname);
   const { getItemCount } = useCart();
-  const chatUnread = useChatUnread();
+  const { unreadCount: chatUnread, realtimeStatus: chatRealtimeStatus } = useChatUnread();
   const cartCount = getItemCount();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -64,6 +65,12 @@ export function Header() {
               <span className="absolute top-1 right-1 w-4 h-4 bg-destructive rounded-full text-[8px] flex items-center justify-center text-destructive-foreground font-bold">
                 {chatUnread > 9 ? '9+' : chatUnread}
               </span>
+            )}
+            {isRealtimeFailure(chatRealtimeStatus) && (
+              <span
+                className="absolute bottom-1 right-1 w-2 h-2 rounded-full bg-muted-foreground/70 ring-1 ring-background"
+                title={`Realtime chat terputus (${chatRealtimeStatus})`}
+              />
             )}
           </button>
           <button

@@ -2,11 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { logRealtimeStatus, type RealtimeStatus } from '@/lib/realtimeTelemetry';
 
 export function useChatNotification() {
   const { user } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isEnabled, setIsEnabled] = useState(true);
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
   const isEnabledRef = useRef(isEnabled);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
@@ -44,12 +46,13 @@ export function useChatNotification() {
 
   // Set up real-time listener for incoming messages
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setRealtimeStatus('idle'); return; }
 
     let active = true;
 
+    const channelName = `chat-notification-${user.id}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel(`chat-notification-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -68,7 +71,10 @@ export function useChatNotification() {
       );
 
     channelRef.current = channel;
-    channel.subscribe();
+    channel.subscribe((status, err) => {
+      const normalized = logRealtimeStatus(channelName, status, err);
+      if (active) setRealtimeStatus(normalized);
+    });
 
     return () => {
       active = false;
@@ -83,5 +89,6 @@ export function useChatNotification() {
     playNotificationSound,
     isEnabled,
     setIsEnabled,
+    realtimeStatus,
   };
 }
