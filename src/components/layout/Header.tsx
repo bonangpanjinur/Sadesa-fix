@@ -16,7 +16,7 @@ export function Header() {
   const mainPages = ['/', '/explore', '/shops', '/products', '/tourism'];
   const showSearchBar = mainPages.includes(location.pathname);
   const { getItemCount } = useCart();
-  const chatUnread = useChatUnread();
+  const { unreadCount: chatUnread, realtimeStatus: chatRealtimeStatus } = useChatUnread();
   const cartCount = getItemCount();
 
   const handleSearch = (e: React.FormEvent) => {
