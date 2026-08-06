@@ -53,22 +53,26 @@ async function getFreeTierLimit(): Promise<number> {
 
 // Helper to get merchant IDs with active quota (subscriptions OR free tier)
 async function getMerchantsWithActiveQuota(): Promise<Set<string>> {
-  const FREE_TIER_LIMIT = await getFreeTierLimit();
-  // Get all active merchants
-  const { data: allMerchants } = await supabase
-    .from('merchants')
-    .select('id')
-    .eq('status', 'ACTIVE')
-    .eq('registration_status', 'APPROVED');
+  // Run the three independent reads in parallel instead of a request waterfall.
+  const [FREE_TIER_LIMIT, merchantsRes, subsRes] = await Promise.all([
+    getFreeTierLimit(),
+    supabase
+      .from('merchants')
+      .select('id')
+      .eq('status', 'ACTIVE')
+      .eq('registration_status', 'APPROVED'),
+    supabase
+      .from('merchant_subscriptions')
+      .select('merchant_id, transaction_quota, used_quota')
+      .eq('status', 'ACTIVE')
+      .gte('expired_at', new Date().toISOString()),
+  ]);
+
+  const allMerchants = merchantsRes.data;
+  const activeSubs = subsRes.data;
 
   if (!allMerchants) return new Set();
 
-  // Get all active subscriptions
-  const { data: activeSubs } = await supabase
-    .from('merchant_subscriptions')
-    .select('merchant_id, transaction_quota, used_quota')
-    .eq('status', 'ACTIVE')
-    .gte('expired_at', new Date().toISOString());
 
   // Build a map of merchant -> aggregate remaining quota from subscriptions
   const subQuotaMap = new Map<string, number>();
@@ -178,34 +182,36 @@ export async function fetchProducts(): Promise<Product[]> {
   const cached = getCached<Product[]>('products');
   if (cached) return cached;
 
-  // First get merchants with active quota
-  const merchantsWithQuota = await getMerchantsWithActiveQuota();
-
-  const { data, error } = await supabase
-    .from('products')
-    .select(`
-      *,
-      merchants (
-        id,
-        name,
-        is_open,
-        open_time,
-        close_time,
-        location_lat,
-        location_lng,
-        villages (
+  // Quota lookup and the product query are independent — fire both at once.
+  const [merchantsWithQuota, { data, error }] = await Promise.all([
+    getMerchantsWithActiveQuota(),
+    supabase
+      .from('products')
+      .select(`
+        *,
+        merchants (
+          id,
           name,
+          is_open,
+          open_time,
+          close_time,
           location_lat,
-          location_lng
+          location_lng,
+          villages (
+            name,
+            location_lat,
+            location_lng
+          )
         )
-      )
-    `)
-    .limit(200);
+      `)
+      .limit(200),
+  ]);
 
   if (error) {
     console.error('Error fetching products:', error);
     return [];
   }
+
 
   const mappedProducts = (data || []).map(p => {
     const hasQuota = merchantsWithQuota.has(p.merchant_id);

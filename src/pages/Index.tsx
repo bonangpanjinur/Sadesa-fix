@@ -262,7 +262,9 @@ const Index = () => {
     }
   };
 
-  const isLoading = loading || layoutLoading;
+  // Only gate the first paint on products — villages/tourism/layout render
+  // progressively so the homepage never waits on the slowest request.
+  const isLoading = productsLoading;
 
   return (
     <div className="mobile-shell bg-background flex flex-col min-h-screen">
