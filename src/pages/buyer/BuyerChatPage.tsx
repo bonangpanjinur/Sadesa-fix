@@ -159,6 +159,18 @@ export default function BuyerChatPage() {
       </div>
 
       <div className="container max-w-md mx-auto px-4 -mt-3">
+        {isRealtimeFailure(realtimeStatus) && (
+          <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+            <WifiOff className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+            <div className="text-xs">
+              <p className="font-medium text-destructive">Chat realtime terputus ({realtimeStatus})</p>
+              <p className="text-muted-foreground">Pesan baru mungkin tertunda. Detail penyebab tercatat di console browser.</p>
+            </div>
+            <Button size="sm" variant="outline" className="ml-auto text-xs h-7" onClick={() => window.location.reload()}>
+              Coba lagi
+            </Button>
+          </div>
+        )}
         <Tabs defaultValue="all" onValueChange={(v) => setActiveTab(v as any)}>
           <div className="bg-card rounded-xl shadow-sm p-1.5 mb-4">
             <TabsList className="w-full bg-transparent h-auto p-0 gap-1">
