@@ -65,6 +65,12 @@ export function Header() {
                 {chatUnread > 9 ? '9+' : chatUnread}
               </span>
             )}
+            {isRealtimeFailure(chatRealtimeStatus) && (
+              <span
+                className="absolute bottom-1 right-1 w-2 h-2 rounded-full bg-muted-foreground/70 ring-1 ring-background"
+                title={`Realtime chat terputus (${chatRealtimeStatus})`}
+              />
+            )}
           </button>
           <button
             onClick={() => navigate('/cart')}
