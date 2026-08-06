@@ -33,18 +33,31 @@ export default function BuyerChatPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'buyer_merchant' | 'buyer_courier'>('all');
   const [selectedThread, setSelectedThread] = useState<ChatThread | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
 
   useEffect(() => {
     if (!user) return;
     fetchThreads();
 
+    let active = true;
+    const channelName = `buyer-chats-${user.id}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel('buyer-chats')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => fetchThreads())
-      .subscribe();
+      .channel(channelName)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
+        if (active) fetchThreads();
+      });
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    channel.subscribe((status, err) => {
+      const normalized = logRealtimeStatus(channelName, status, err);
+      if (active) setRealtimeStatus(normalized);
+    });
+
+    return () => {
+      active = false;
+      try { channel.unsubscribe(); } catch { /* noop */ }
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   const fetchThreads = async () => {
     if (!user) return;
