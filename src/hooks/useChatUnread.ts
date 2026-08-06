@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export function useChatUnread() {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!user) { setUnreadCount(0); return; }
+
+    let active = true;
 
     const fetchUnread = async () => {
       const { count } = await supabase
@@ -15,6 +19,7 @@ export function useChatUnread() {
         .select('*', { count: 'exact', head: true })
         .eq('receiver_id', user.id)
         .eq('is_read', false);
+      if (!active) return;
       setUnreadCount(count || 0);
     };
 
@@ -25,17 +30,26 @@ export function useChatUnread() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` },
-        () => fetchUnread()
+        () => { if (active) fetchUnread(); }
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` },
-        () => fetchUnread()
-      )
-      .subscribe();
+        () => { if (active) fetchUnread(); }
+      );
 
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
+    channelRef.current = channel;
+    channel.subscribe();
+
+    return () => {
+      active = false;
+      // Detach postgres_changes callbacks before removing, so a re-subscribe
+      // on the next effect run never reuses a stale binding.
+      try { channel.unsubscribe(); } catch { /* noop */ }
+      supabase.removeChannel(channel);
+      if (channelRef.current === channel) channelRef.current = null;
+    };
+  }, [user?.id]);
 
   return unreadCount;
 }

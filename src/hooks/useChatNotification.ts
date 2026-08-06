@@ -1,11 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export function useChatNotification() {
   const { user } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isEnabled, setIsEnabled] = useState(true);
+  const isEnabledRef = useRef(isEnabled);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  // Keep a ref so the realtime callback reads the latest value without
+  // forcing the channel to tear down / re-subscribe on every toggle.
+  useEffect(() => {
+    isEnabledRef.current = isEnabled;
+  }, [isEnabled]);
 
   // Initialize audio element
   useEffect(() => {
@@ -13,14 +22,17 @@ export function useChatNotification() {
       audioRef.current = new Audio('/notification.wav');
       audioRef.current.preload = 'auto';
     }
+    return () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
   }, []);
 
   // Play notification sound
-  const playNotificationSound = () => {
-    if (!isEnabled || !audioRef.current) return;
+  const playNotificationSound = useCallback(() => {
+    if (!isEnabledRef.current || !audioRef.current) return;
 
     try {
-      // Reset audio to beginning and play
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
         console.warn('Failed to play notification sound:', error);
@@ -28,11 +40,13 @@ export function useChatNotification() {
     } catch (error) {
       console.warn('Error playing notification:', error);
     }
-  };
+  }, []);
 
   // Set up real-time listener for incoming messages
   useEffect(() => {
     if (!user) return;
+
+    let active = true;
 
     const channel = supabase
       .channel(`chat-notification-${user.id}-${Math.random().toString(36).slice(2)}`)
@@ -45,18 +59,25 @@ export function useChatNotification() {
           filter: `receiver_id=eq.${user.id}`,
         },
         (payload) => {
+          if (!active) return;
           // Play sound only for new messages from others (not our own)
           if (payload.new.sender_id !== user.id) {
             playNotificationSound();
           }
         }
-      )
-      .subscribe();
+      );
+
+    channelRef.current = channel;
+    channel.subscribe();
 
     return () => {
+      active = false;
+      // Detach postgres_changes bindings first, then drop the channel.
+      try { channel.unsubscribe(); } catch { /* noop */ }
       supabase.removeChannel(channel);
+      if (channelRef.current === channel) channelRef.current = null;
     };
-  }, [user, isEnabled]);
+  }, [user?.id, playNotificationSound]);
 
   return {
     playNotificationSound,
