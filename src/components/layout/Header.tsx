@@ -6,6 +6,7 @@ import { InstallButton } from '@/components/pwa/InstallButton';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
 import { useCart } from '@/contexts/CartContext';
 import { useChatUnread } from '@/hooks/useChatUnread';
+import { isRealtimeFailure } from '@/lib/realtimeTelemetry';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 
 export function Header() {
