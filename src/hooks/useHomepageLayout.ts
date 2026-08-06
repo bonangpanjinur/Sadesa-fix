@@ -27,7 +27,9 @@ const DEFAULT_SETTINGS: HomepageLayoutSettings = {
 
 export function useHomepageLayout() {
   const [settings, setSettings] = useState<HomepageLayoutSettings>(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(true);
+  // Start with defaults already usable so the homepage can paint immediately;
+  // remote settings are applied as soon as they arrive.
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadSettings();
