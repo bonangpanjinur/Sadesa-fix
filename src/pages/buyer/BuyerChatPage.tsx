@@ -6,12 +6,13 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageCircle, Store, Truck, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { MessageCircle, Store, Truck, ArrowLeft, ShoppingBag, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
+import { logRealtimeStatus, isRealtimeFailure, type RealtimeStatus } from '@/lib/realtimeTelemetry';
 
 interface ChatThread {
   orderId: string;
