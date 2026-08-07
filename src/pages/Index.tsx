@@ -56,7 +56,7 @@ const Index = () => {
     staleTime: 60_000,
   });
 
-  const { data: bannerSlides = [] } = useQuery<BannerSlide[]>({
+  const { data: bannerSlides = [], isLoading: bannersLoading } = useQuery<BannerSlide[]>({
     queryKey: ['homepage-banners'],
     queryFn: async () => {
       const promotionsData = await fetchBannerPromotions();
