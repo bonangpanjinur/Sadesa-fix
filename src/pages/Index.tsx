@@ -19,6 +19,7 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
+import { CarouselSkeleton, ProductGridSkeleton, CategoriesSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
 import type { Product, Village, Tourism } from '@/types';
 
@@ -128,6 +129,7 @@ const Index = () => {
         );
       
       case 'popular_tourism':
+        if (tourismLoading) return <CarouselSkeleton count={3} />;
         return popularTourism.length > 0 ? (
           <section className="mt-6 px-5">
             <div className="flex justify-between items-center mb-3">
@@ -156,6 +158,7 @@ const Index = () => {
         ) : null;
       
       case 'promo':
+        if (productsLoading) return <CarouselSkeleton count={3} />;
         return promoProducts.length > 0 ? (
           <section className="mt-6 px-5">
             <div className="flex items-center gap-2 mb-3">
@@ -178,6 +181,7 @@ const Index = () => {
         ) : null;
       
       case 'recommendations':
+        if (productsLoading) return <ProductGridSkeleton count={6} />;
         return sortedProducts.length > 0 ? (
           <section className="mt-6 px-5">
             <div className="flex items-center gap-2 mb-4 sticky top-0 z-20 bg-background/95 backdrop-blur py-3 -mx-5 px-5 border-b border-border">
@@ -226,6 +230,7 @@ const Index = () => {
         ) : null;
       
       case 'villages':
+        if (villagesLoading) return <CarouselSkeleton count={3} />;
         return sortedVillages.length > 0 ? (
           <section className="mt-4 px-5 pb-6">
             <div className="flex justify-between items-center mb-3">
