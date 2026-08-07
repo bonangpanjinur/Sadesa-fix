@@ -20,6 +20,7 @@ import {
 import { fetchBannerPromotions } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton, CategoriesSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
+import { SectionError } from '@/components/home/SectionError';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
 import type { Product, Village, Tourism } from '@/types';
 
@@ -38,25 +39,45 @@ const Index = () => {
   const { getHomepageCategories } = useCategories();
 
   // React Query: parallel data fetching with caching (P3-01)
-  const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+  } = useQuery<Product[]>({
     queryKey: ['homepage-products'],
     queryFn: () => fetchProducts(),
     staleTime: 60_000,
   });
 
-  const { data: villages = [], isLoading: villagesLoading } = useQuery<Village[]>({
+  const {
+    data: villages = [],
+    isLoading: villagesLoading,
+    isError: villagesError,
+    refetch: refetchVillages,
+  } = useQuery<Village[]>({
     queryKey: ['homepage-villages'],
     queryFn: () => fetchVillages(),
     staleTime: 60_000,
   });
 
-  const { data: tourismSpots = [], isLoading: tourismLoading } = useQuery<Tourism[]>({
+  const {
+    data: tourismSpots = [],
+    isLoading: tourismLoading,
+    isError: tourismError,
+    refetch: refetchTourism,
+  } = useQuery<Tourism[]>({
     queryKey: ['homepage-tourism'],
     queryFn: () => fetchTourism(),
     staleTime: 60_000,
   });
 
-  const { data: bannerSlides = [], isLoading: bannersLoading } = useQuery<BannerSlide[]>({
+  const {
+    data: bannerSlides = [],
+    isLoading: bannersLoading,
+    isError: bannersError,
+    refetch: refetchBanners,
+  } = useQuery<BannerSlide[]>({
     queryKey: ['homepage-banners'],
     queryFn: async () => {
       const promotionsData = await fetchBannerPromotions();
@@ -70,6 +91,7 @@ const Index = () => {
     },
     staleTime: 120_000,
   });
+
 
   const loading = productsLoading || villagesLoading || tourismLoading;
 
@@ -104,6 +126,15 @@ const Index = () => {
     switch (sectionId) {
       case 'hero':
         if (bannersLoading && bannerSlides.length === 0) return <HeroSkeleton />;
+        if (bannersError && bannerSlides.length === 0)
+          return (
+            <SectionError
+              compact
+              title="Banner gagal dimuat"
+              message="Promo unggulan tidak dapat ditampilkan saat ini."
+              onRetry={() => refetchBanners()}
+            />
+          );
         return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} />;
       
       case 'categories':
@@ -132,6 +163,14 @@ const Index = () => {
       
       case 'popular_tourism':
         if (tourismLoading) return <CarouselSkeleton count={3} />;
+        if (tourismError)
+          return (
+            <SectionError
+              title="Wisata gagal dimuat"
+              message="Daftar wisata terdekat tidak dapat diambil."
+              onRetry={() => refetchTourism()}
+            />
+          );
         return popularTourism.length > 0 ? (
           <section className="mt-6 px-5">
             <div className="flex justify-between items-center mb-3">
@@ -161,6 +200,14 @@ const Index = () => {
       
       case 'promo':
         if (productsLoading) return <CarouselSkeleton count={3} />;
+        if (productsError)
+          return (
+            <SectionError
+              title="Promo gagal dimuat"
+              message="Produk promo tidak dapat diambil saat ini."
+              onRetry={() => refetchProducts()}
+            />
+          );
         return promoProducts.length > 0 ? (
           <section className="mt-6 px-5">
             <div className="flex items-center gap-2 mb-3">
@@ -184,6 +231,14 @@ const Index = () => {
       
       case 'recommendations':
         if (productsLoading) return <ProductGridSkeleton count={6} />;
+        if (productsError)
+          return (
+            <SectionError
+              title="Produk gagal dimuat"
+              message="Kami tidak dapat mengambil daftar produk terdekat."
+              onRetry={() => refetchProducts()}
+            />
+          );
         return sortedProducts.length > 0 ? (
           <section className="mt-6 px-5">
             <div className="flex items-center gap-2 mb-4 sticky top-0 z-20 bg-background/95 backdrop-blur py-3 -mx-5 px-5 border-b border-border">
@@ -233,6 +288,14 @@ const Index = () => {
       
       case 'villages':
         if (villagesLoading) return <CarouselSkeleton count={3} />;
+        if (villagesError)
+          return (
+            <SectionError
+              title="Desa gagal dimuat"
+              message="Daftar desa terdekat tidak dapat diambil."
+              onRetry={() => refetchVillages()}
+            />
+          );
         return sortedVillages.length > 0 ? (
           <section className="mt-4 px-5 pb-6">
             <div className="flex justify-between items-center mb-3">
