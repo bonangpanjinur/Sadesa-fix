@@ -21,6 +21,7 @@ import { fetchBannerPromotions } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton, CategoriesSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
+import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
 import type { Product, Village, Tourism } from '@/types';
 
