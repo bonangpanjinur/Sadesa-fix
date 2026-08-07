@@ -267,81 +267,41 @@ const Index = () => {
     }
   };
 
-  // Only gate the first paint on products — villages/tourism/layout render
-  // progressively so the homepage never waits on the slowest request.
-  const isLoading = productsLoading;
-
   return (
     <div className="mobile-shell bg-background flex flex-col min-h-screen">
       <Header />
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto pb-24">
-        {isLoading ? (
-          <div className="space-y-4">
-            {/* Hero Skeleton */}
-            <div className="h-44 bg-muted animate-pulse rounded-b-2xl" />
-            {/* Category Pills Skeleton */}
-            <div className="flex gap-2 px-5 overflow-hidden">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="flex flex-col items-center gap-1.5 min-w-[60px]">
-                  <div className="w-12 h-12 rounded-xl bg-muted animate-pulse" />
-                  <div className="w-10 h-2 bg-muted animate-pulse rounded" />
-                </div>
-              ))}
+        <>
+          {enabledSections.map((section) => (
+            <div key={section.id}>
+              {renderSection(section.id)}
             </div>
-            {/* Section Header Skeleton */}
-            <div className="px-5 flex items-center gap-2 mt-2">
-              <div className="w-7 h-7 bg-muted animate-pulse rounded-lg" />
-              <div className="w-28 h-4 bg-muted animate-pulse rounded" />
-            </div>
-            {/* Product Grid Skeleton */}
-            <div className="grid grid-cols-2 gap-3 px-5">
-              {[1,2,3,4].map(i => (
-                <div key={i} className="bg-card rounded-xl border border-border overflow-hidden">
-                  <div className="h-32 bg-muted animate-pulse" />
-                  <div className="p-2.5 space-y-2">
-                    <div className="h-3 w-20 bg-muted animate-pulse rounded" />
-                    <div className="h-4 w-full bg-muted animate-pulse rounded" />
-                    <div className="flex justify-between items-center">
-                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
-                      <div className="h-6 w-6 bg-muted animate-pulse rounded-lg" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
-            {enabledSections.map((section) => (
-              <div key={section.id}>
-                {renderSection(section.id)}
+          ))}
+          {/* Empty state when all data is empty */}
+          {!loading && products.length === 0 && villages.length === 0 && tourismSpots.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
+                <ShoppingBag className="h-10 w-10 text-primary" />
               </div>
-            ))}
-            {/* Empty state when all data is empty */}
-            {products.length === 0 && villages.length === 0 && tourismSpots.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
-                  <ShoppingBag className="h-10 w-10 text-primary" />
-                </div>
-                <h3 className="text-lg font-bold text-foreground mb-2">Selamat Datang! 🎉</h3>
-                <p className="text-sm text-muted-foreground max-w-[280px] mb-6">
-                  Platform ini baru diluncurkan. Jelajahi toko dan desa wisata di sekitar Anda.
-                </p>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => navigate('/shops')} className="rounded-full">
-                    <Store className="h-4 w-4 mr-2" /> Lihat Toko
-                  </Button>
-                  <Button onClick={() => navigate('/tourism')} className="rounded-full">
-                    <Map className="h-4 w-4 mr-2" /> Wisata
-                  </Button>
-                </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">Selamat Datang! 🎉</h3>
+              <p className="text-sm text-muted-foreground max-w-[280px] mb-6">
+                Platform ini baru diluncurkan. Jelajahi toko dan desa wisata di sekitar Anda.
+              </p>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => navigate('/shops')} className="rounded-full">
+                  <Store className="h-4 w-4 mr-2" /> Lihat Toko
+                </Button>
+                <Button onClick={() => navigate('/tourism')} className="rounded-full">
+                  <Map className="h-4 w-4 mr-2" /> Wisata
+                </Button>
               </div>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        </>
       </div>
+
 
       <FloatingCartButton />
       <BottomNav />
