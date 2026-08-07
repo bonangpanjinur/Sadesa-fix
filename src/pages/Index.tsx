@@ -103,9 +103,11 @@ const Index = () => {
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
       case 'hero':
+        if (bannersLoading && bannerSlides.length === 0) return <HeroSkeleton />;
         return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} />;
       
       case 'categories':
+        if (layoutLoading && visibleCategories.length === 0) return <CategoriesSkeleton />;
         return (
           <section className="mt-4 px-5">
             {visibleCategories.length > 0 && (
