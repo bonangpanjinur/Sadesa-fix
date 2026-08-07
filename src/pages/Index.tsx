@@ -21,6 +21,7 @@ import { fetchBannerPromotions } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton, CategoriesSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
+import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
 import type { Product, Village, Tourism } from '@/types';
 
@@ -38,6 +39,22 @@ const Index = () => {
   const { location: userLocation } = useUserLocation();
   const { getHomepageCategories } = useCategories();
 
+  // Wraps a section fetch so any failure is logged with section name,
+  // fetch params, and timestamp before React Query surfaces the error.
+  const withErrorLog = <T,>(
+    section: string,
+    queryKey: string,
+    params: Record<string, unknown>,
+    fn: () => Promise<T>,
+  ) => async (): Promise<T> => {
+    try {
+      return await fn();
+    } catch (error) {
+      logHomeSectionError(section, queryKey, params, error);
+      throw error;
+    }
+  };
+
   // React Query: parallel data fetching with caching (P3-01)
   const {
     data: products = [],
@@ -46,7 +63,9 @@ const Index = () => {
     refetch: refetchProducts,
   } = useQuery<Product[]>({
     queryKey: ['homepage-products'],
-    queryFn: () => fetchProducts(),
+    queryFn: withErrorLog('products', 'homepage-products', { staleTime: 60_000 }, () =>
+      fetchProducts()
+    ),
     staleTime: 60_000,
   });
 
@@ -57,7 +76,9 @@ const Index = () => {
     refetch: refetchVillages,
   } = useQuery<Village[]>({
     queryKey: ['homepage-villages'],
-    queryFn: () => fetchVillages(),
+    queryFn: withErrorLog('villages', 'homepage-villages', { staleTime: 60_000 }, () =>
+      fetchVillages()
+    ),
     staleTime: 60_000,
   });
 
@@ -68,7 +89,9 @@ const Index = () => {
     refetch: refetchTourism,
   } = useQuery<Tourism[]>({
     queryKey: ['homepage-tourism'],
-    queryFn: () => fetchTourism(),
+    queryFn: withErrorLog('popular_tourism', 'homepage-tourism', { staleTime: 60_000 }, () =>
+      fetchTourism()
+    ),
     staleTime: 60_000,
   });
 
@@ -79,7 +102,7 @@ const Index = () => {
     refetch: refetchBanners,
   } = useQuery<BannerSlide[]>({
     queryKey: ['homepage-banners'],
-    queryFn: async () => {
+    queryFn: withErrorLog('hero', 'homepage-banners', { staleTime: 120_000 }, async () => {
       const promotionsData = await fetchBannerPromotions();
       return promotionsData.map(p => ({
         id: p.id,
@@ -88,9 +111,10 @@ const Index = () => {
         image: p.imageUrl,
         linkUrl: p.linkUrl,
       }));
-    },
+    }),
     staleTime: 120_000,
   });
+
 
 
   const loading = productsLoading || villagesLoading || tourismLoading;
