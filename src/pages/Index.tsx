@@ -38,25 +38,45 @@ const Index = () => {
   const { getHomepageCategories } = useCategories();
 
   // React Query: parallel data fetching with caching (P3-01)
-  const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
+  const {
+    data: products = [],
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+  } = useQuery<Product[]>({
     queryKey: ['homepage-products'],
     queryFn: () => fetchProducts(),
     staleTime: 60_000,
   });
 
-  const { data: villages = [], isLoading: villagesLoading } = useQuery<Village[]>({
+  const {
+    data: villages = [],
+    isLoading: villagesLoading,
+    isError: villagesError,
+    refetch: refetchVillages,
+  } = useQuery<Village[]>({
     queryKey: ['homepage-villages'],
     queryFn: () => fetchVillages(),
     staleTime: 60_000,
   });
 
-  const { data: tourismSpots = [], isLoading: tourismLoading } = useQuery<Tourism[]>({
+  const {
+    data: tourismSpots = [],
+    isLoading: tourismLoading,
+    isError: tourismError,
+    refetch: refetchTourism,
+  } = useQuery<Tourism[]>({
     queryKey: ['homepage-tourism'],
     queryFn: () => fetchTourism(),
     staleTime: 60_000,
   });
 
-  const { data: bannerSlides = [], isLoading: bannersLoading } = useQuery<BannerSlide[]>({
+  const {
+    data: bannerSlides = [],
+    isLoading: bannersLoading,
+    isError: bannersError,
+    refetch: refetchBanners,
+  } = useQuery<BannerSlide[]>({
     queryKey: ['homepage-banners'],
     queryFn: async () => {
       const promotionsData = await fetchBannerPromotions();
@@ -70,6 +90,7 @@ const Index = () => {
     },
     staleTime: 120_000,
   });
+
 
   const loading = productsLoading || villagesLoading || tourismLoading;
 
