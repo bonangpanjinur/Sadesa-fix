@@ -138,20 +138,30 @@ async function fetchDirect(url: string, signal?: AbortSignal): Promise<Response 
 
 async function fetchViaLocalProxy(type: string, code: string | undefined, signal?: AbortSignal): Promise<Response | null> {
   try {
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    if (!projectId) return null;
+
     const params = new URLSearchParams({ type });
     if (code) params.append('code', code);
 
-    const response = await fetch(`/api/wilayah?${params.toString()}`, {
-      headers: { 'Content-Type': 'application/json' },
-      signal,
-    });
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/wilayah-proxy?${params.toString()}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '',
+        },
+        signal,
+      },
+    );
     if (response.ok) return response;
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error;
-    console.warn('Local proxy fetch failed:', error);
+    console.warn('Wilayah proxy fetch failed:', error);
   }
   return null;
 }
+
 
 async function fetchViaCorsProxy(url: string, signal?: AbortSignal): Promise<Response | null> {
   try {
