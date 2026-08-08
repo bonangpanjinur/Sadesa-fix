@@ -20,7 +20,7 @@ import { CheckoutAddressForm, createEmptyCheckoutAddress, type CheckoutAddressDa
 import { formatFullAddress } from '@/components/AddressSelector';
 import { fetchCODSettings, quickCODCheck, getBuyerCODStatus } from '@/lib/codSecurity';
 import { validatePhone, isWhatsAppFormat } from '@/lib/phoneValidation';
-import { useMerchantQuota, useMerchantQuotaForOrder, notifyMerchantLowQuota } from '@/hooks/useMerchantQuota';
+import { useMerchantQuota, deductMerchantQuota, notifyMerchantLowQuota } from '@/hooks/useMerchantQuota';
 import { QuotaBlockedAlert } from '@/components/checkout/QuotaBlockedAlert';
 import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
 
@@ -598,7 +598,7 @@ export default function CheckoutPage() {
         }
 
         // Use merchant quota after successful order
-        const quotaUsed = await useMerchantQuotaForOrder(merchantId, creditsToUse);
+        const quotaUsed = await deductMerchantQuota(merchantId, creditsToUse);
         if (quotaUsed) {
           // Check remaining quota and send notification if low/empty
           const quotaStatus = quotaStatuses[merchantId];
