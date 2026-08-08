@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 
 export interface OrderRow {
   id: string;
+  buyer_id?: string | null;
+
   status: string;
   payment_status: string | null;
   payment_method: string | null;
