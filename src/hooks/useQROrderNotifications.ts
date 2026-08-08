@@ -4,6 +4,7 @@
  * pesanan masuk + membunyikan notifikasi audio.
  */
 import { useEffect, useRef, useCallback, useState } from "react";
+import { posBridgeFetch } from '@/lib/posBridge';
 
 export interface QRIncomingOrder {
   order_id: string;
@@ -52,7 +53,7 @@ async function subscribeToQRChannel(tenantId: string) {
   try {
     const token = localStorage.getItem("session_token");
     if (!token) return;
-    await fetch("/api/sse/subscribe", {
+    await posBridgeFetch("/api/sse/subscribe", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

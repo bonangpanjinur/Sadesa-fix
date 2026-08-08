@@ -9,6 +9,7 @@ import { CheckCircle2, ChefHat, Clock, Utensils, Star, RefreshCw, ArrowLeft, Tab
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { posBridgeFetch } from '@/lib/posBridge';
 
 type OrderStatus = 'pending' | 'cooking' | 'ready' | 'served' | 'paid' | 'cancelled';
 
@@ -98,7 +99,7 @@ export default function OrderStatusPage() {
   const fetchStatus = useCallback(async () => {
     if (!tenantId || !orderId) return;
     try {
-      const res = await fetch(`/api/menu/${tenantId}/order/${orderId}`);
+      const res = await posBridgeFetch(`/api/menu/${tenantId}/order/${orderId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Pesanan tidak ditemukan');
       setOrder(data.order);

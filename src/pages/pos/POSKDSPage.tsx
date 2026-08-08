@@ -10,6 +10,7 @@ import {
 import { format, differenceInSeconds, differenceInMinutes } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { posBridgeFetch } from '@/lib/posBridge';
 
 interface TableOrder {
   id: string;
@@ -167,7 +168,7 @@ export default function POSKDSPage() {
     // Daftarkan ke server agar SSE dikirim ke client ini
     const token = localStorage.getItem('session_token');
     if (token) {
-      fetch('/api/sse/subscribe', {
+      posBridgeFetch('/api/sse/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ channel: channelName }),

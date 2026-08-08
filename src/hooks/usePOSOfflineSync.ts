@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
+import { posBridgeFetch } from '@/lib/posBridge';
   cacheProducts,
   getCachedProducts,
   savePendingSale,
@@ -75,7 +76,7 @@ export function usePOSOfflineSync({
   const refreshProductCache = useCallback(async () => {
     if (!outletId || !tenantId) return;
     try {
-      const res = await fetch(
+      const res = await posBridgeFetch(
         `/api/db/query?table=pos_products&outlet_id=${outletId}`,
         {
           headers: { "Content-Type": "application/json" },
@@ -126,7 +127,7 @@ export function usePOSOfflineSync({
 
     try {
       const result = await syncPendingSales(async (sale) => {
-        const res = await fetch("/api/db/pos-sale", {
+        const res = await posBridgeFetch("/api/db/pos-sale", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
