@@ -146,7 +146,7 @@ export default function CourierDashboardPage() {
             osc.start();
             setTimeout(() => { osc.frequency.value = 1100; }, 150);
             setTimeout(() => { osc.stop(); ctx.close(); }, 400);
-          } catch {}
+          } catch (err) { console.warn('[courier] gagal memutar nada notifikasi:', err); }
           toast({ title: '🚀 Pesanan Baru!', description: 'Anda mendapat tugas pengiriman baru' });
           queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier.id] });
         }

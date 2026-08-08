@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { generateVapidKeyPair } from '@/lib/vapid';
+
 
 interface PushSettings {
   enabled: boolean;
@@ -106,18 +108,9 @@ export default function AdminPushNotificationPage() {
 
       if (error) throw error;
 
-      // Also update server env via API
-      await fetch('/api/push/update-vapid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_key: settings.vapid_public_key,
-          private_key: settings.vapid_private_key,
-          email: settings.vapid_email,
-        }),
-      }).catch(() => {});
-
-      toast.success('Pengaturan push notification berhasil disimpan');
+      toast.success(
+        'Pengaturan push notification berhasil disimpan. Private key harus juga disimpan sebagai secret backend (VAPID_PRIVATE_KEY) agar pengiriman aktif.'
+      );
     } catch (err) {
       toast.error('Gagal menyimpan pengaturan');
     } finally {
@@ -128,9 +121,7 @@ export default function AdminPushNotificationPage() {
   const handleGenerateKeys = async () => {
     setGenerating(true);
     try {
-      const res = await fetch('/api/push/generate-vapid');
-      if (!res.ok) throw new Error('Gagal generate keys');
-      const { publicKey, privateKey } = await res.json();
+      const { publicKey, privateKey } = await generateVapidKeyPair();
       setSettings(prev => ({
         ...prev,
         vapid_public_key: publicKey,
@@ -151,19 +142,13 @@ export default function AdminPushNotificationPage() {
     }
     setTesting(true);
     try {
-      const res = await fetch('/api/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: testUserId,
-          title: testTitle,
-          body: testBody,
-          url: '/',
-        }),
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: { user_id: testUserId, title: testTitle, body: testBody, url: '/' },
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Gagal mengirim');
-      toast.success(`Push dikirim ke ${json.sent}/${json.total} subscription`);
+      if (error) throw error;
+      const json = data as { sent?: number; total?: number; message?: string; success?: boolean };
+      if (json?.success === false) throw new Error(json.message || 'Gagal mengirim');
+      toast.success(`Push dikirim ke ${json?.sent ?? 0}/${json?.total ?? 0} subscription`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gagal mengirim test push');
     } finally {
@@ -178,18 +163,18 @@ export default function AdminPushNotificationPage() {
     }
     setBroadcasting(true);
     try {
-      const res = await fetch('/api/push/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          all: true,
           title: broadcastTitle,
           body: broadcastBody,
           url: broadcastUrl || '/',
-        }),
+        },
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Gagal broadcast');
-      toast.success(`Broadcast terkirim ke ${json.sent}/${json.total} user`);
+      if (error) throw error;
+      const json = data as { sent?: number; total?: number; message?: string; success?: boolean };
+      if (json?.success === false) throw new Error(json.message || 'Gagal broadcast');
+      toast.success(`Broadcast terkirim ke ${json?.sent ?? 0}/${json?.total ?? 0} subscription`);
       setBroadcastTitle('');
       setBroadcastBody('');
     } catch (err) {
@@ -198,6 +183,7 @@ export default function AdminPushNotificationPage() {
       setBroadcasting(false);
     }
   };
+
 
   if (loading) {
     return (

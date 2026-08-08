@@ -6,12 +6,13 @@ import { logRealtimeStatus, type RealtimeStatus } from '@/lib/realtimeTelemetry'
 
 export function useChatUnread() {
   const { user } = useAuth();
+  const userId = user?.id;
   const [unreadCount, setUnreadCount] = useState(0);
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
-    if (!user) { setUnreadCount(0); setRealtimeStatus('idle'); return; }
+    if (!userId) { setUnreadCount(0); setRealtimeStatus('idle'); return; }
 
     let active = true;
 
@@ -19,7 +20,7 @@ export function useChatUnread() {
       const { count } = await supabase
         .from('chat_messages')
         .select('*', { count: 'exact', head: true })
-        .eq('receiver_id', user.id)
+        .eq('receiver_id', userId)
         .eq('is_read', false);
       if (!active) return;
       setUnreadCount(count || 0);
@@ -27,17 +28,17 @@ export function useChatUnread() {
 
     fetchUnread();
 
-    const channelName = `chat-unread-${user.id}-${Math.random().toString(36).slice(2)}`;
+    const channelName = `chat-unread-${userId}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` },
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${userId}` },
         () => { if (active) fetchUnread(); }
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` },
+        { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${userId}` },
         () => { if (active) fetchUnread(); }
       );
 
@@ -55,7 +56,7 @@ export function useChatUnread() {
       supabase.removeChannel(channel);
       if (channelRef.current === channel) channelRef.current = null;
     };
-  }, [user?.id]);
+  }, [userId]);
 
   return { unreadCount, realtimeStatus };
 }

@@ -6,6 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { CheckCircle2, Clock, XCircle, RefreshCw, QrCode, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
+import { posBridgeFetch } from '@/lib/posBridge';
 
 interface QRPayDialogProps {
   open: boolean;
@@ -45,7 +46,7 @@ export function QRPayDialog({
 
   const cancelSession = useCallback(async (sid: string) => {
     if (!sid) return;
-    await fetch(`/api/qrpay/cancel/${sid}`, {
+    await posBridgeFetch(`/api/qrpay/cancel/${sid}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${authToken}` },
     }).catch(() => {});
@@ -58,7 +59,7 @@ export function QRPayDialog({
     setBuyerName('');
 
     try {
-      const res = await fetch('/api/qrpay/create', {
+      const res = await posBridgeFetch('/api/qrpay/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +78,7 @@ export function QRPayDialog({
       setStatus('waiting');
 
       // Subscribe SSE ke channel sesi ini
-      await fetch('/api/sse/subscribe', {
+      await posBridgeFetch('/api/sse/subscribe', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +102,7 @@ export function QRPayDialog({
       // Poll status sebagai fallback (SSE mungkin belum terhubung saat subscribe)
       pollRef.current = setInterval(async () => {
         try {
-          const r = await fetch(`/api/qrpay/status/${data.sessionId}`, {
+          const r = await posBridgeFetch(`/api/qrpay/status/${data.sessionId}`, {
             headers: { Authorization: `Bearer ${authToken}` },
           });
           const d = await r.json();
@@ -116,7 +117,7 @@ export function QRPayDialog({
             clearInterval(timerRef.current!);
             setStatus(d.status);
           }
-        } catch {}
+        } catch (err) { console.warn('[qrpay] gagal polling status sesi:', err); }
       }, 2000);
 
     } catch (err: any) {

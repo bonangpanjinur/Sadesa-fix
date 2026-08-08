@@ -184,7 +184,7 @@ export class USBPrinter {
   }
 
   async disconnect() {
-    try { this.writer?.releaseLock(); await this.port?.close(); } catch {}
+    try { this.writer?.releaseLock(); await this.port?.close(); } catch (err) { console.warn('[printer] gagal menutup port USB:', err); }
     this.port = null;
     this.writer = null;
     this.connected = false;
@@ -196,35 +196,23 @@ export class USBPrinter {
   }
 }
 
-// ─── WiFi Printer (via server TCP proxy) ─────────────────────────────────────
+// ─── WiFi Printer (butuh server lokal / jembatan TCP) ────────────────────────
+
+const WIFI_UNAVAILABLE_MESSAGE =
+  'Printer WiFi hanya tersedia saat aplikasi dijalankan bersama server lokal (jembatan TCP). Gunakan printer Bluetooth atau USB.';
 
 export class WiFiPrinter {
   constructor(public ip: string, public port = 9100) {}
 
   async testConnection(): Promise<void> {
-    const res = await fetch("/api/printer/wifi-test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ip: this.ip, port: this.port }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as any).error || "Koneksi printer WiFi gagal");
-    }
+    throw new Error(WIFI_UNAVAILABLE_MESSAGE);
   }
 
-  async send(data: number[]): Promise<void> {
-    const res = await fetch("/api/printer/wifi-print", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ip: this.ip, port: this.port, data }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as any).error || "Gagal kirim ke printer WiFi");
-    }
+  async send(_data: number[]): Promise<void> {
+    throw new Error(WIFI_UNAVAILABLE_MESSAGE);
   }
 }
+
 
 // ─── Bluetooth Printer (Web Bluetooth UART) ───────────────────────────────────
 
@@ -283,7 +271,7 @@ export class BluetoothPrinter {
   }
 
   async disconnect() {
-    try { this.device?.gatt?.disconnect(); } catch {}
+    try { this.device?.gatt?.disconnect(); } catch (err) { console.warn('[printer] gagal memutus Bluetooth:', err); }
     this.device = null;
     this.txChar = null;
     this.connected = false;
@@ -440,7 +428,7 @@ export async function printReceiptBrowser(receipt: ReceiptData): Promise<void> {
     pre{white-space:pre-wrap;word-wrap:break-word}
     @media print{@page{margin:2mm;size:80mm auto}}</style></head>
     <body><pre>${content}</pre>
-    <script>window.onload=()=>{window.print();window.close();}<\/script></body></html>`);
+    <script>window.onload=()=>{window.print();window.close();}${'<'}/script></body></html>`);
   win.document.close();
 }
 

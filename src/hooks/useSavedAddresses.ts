@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -50,7 +50,7 @@ export function useSavedAddresses() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchAddresses = async () => {
+  const fetchAddresses = useCallback(async () => {
     if (!user) {
       setAddresses([]);
       setLoading(false);
@@ -72,11 +72,11 @@ export function useSavedAddresses() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchAddresses();
-  }, [user]);
+  }, [fetchAddresses]);
 
   const addAddress = async (input: SavedAddressInput): Promise<SavedAddress | null> => {
     if (!user) return null;

@@ -102,11 +102,11 @@ export function useWhitelabelProvider() {
           const pwa = newSettings.pwa;
           
           // Theme color
-          let themeMeta = document.querySelector('meta[name="theme-color"]');
+          const themeMeta = document.querySelector('meta[name="theme-color"]');
           if (themeMeta) themeMeta.setAttribute('content', pwa.themeColor);
           
           // Apple mobile web app title
-          let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+          const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
           if (appleTitle) appleTitle.setAttribute('content', pwa.shortName);
 
           // Update icons

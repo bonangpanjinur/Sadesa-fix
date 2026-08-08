@@ -12,6 +12,7 @@ interface PushRequest {
   user_id?: string;
   user_ids?: string[];
   role?: string;
+  all?: boolean;
   title: string;
   body: string;
   icon?: string;
@@ -42,7 +43,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: PushRequest = await req.json();
-    const { user_id, user_ids, role, title, body, icon, url, data } = payload;
+    const { user_id, user_ids, role, all, title, body, icon, url, data } = payload;
 
     // Validate required fields
     if (!title || !body) {
@@ -75,9 +76,11 @@ serve(async (req) => {
 
       const userIds = roleUsers.map((u) => u.user_id);
       subscriptionQuery = subscriptionQuery.in("user_id", userIds);
+    } else if (all === true) {
+      // Broadcast ke seluruh subscription (tanpa filter tambahan)
     } else {
       return new Response(
-        JSON.stringify({ error: "user_id, user_ids, or role is required" }),
+        JSON.stringify({ error: "user_id, user_ids, role, atau all diperlukan" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }

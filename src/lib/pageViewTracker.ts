@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-let trackedPages = new Set<string>();
+const trackedPages = new Set<string>();
 
 export async function trackPageView(options: {
   merchantId?: string;

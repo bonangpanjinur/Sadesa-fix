@@ -84,7 +84,7 @@ export async function subscribeProductRestock(userId: string, productId: string)
       target_id: productId,
       is_active: true,
     }, { onConflict: 'user_id,subscription_type,target_id' });
-  } catch {}
+  } catch (err) { console.warn('[restock] gagal memperbarui langganan notifikasi:', err); }
 }
 
 export async function unsubscribeProductRestock(userId: string, productId: string) {
@@ -95,5 +95,5 @@ export async function unsubscribeProductRestock(userId: string, productId: strin
       .eq('user_id', userId)
       .eq('subscription_type', 'product_restock')
       .eq('target_id', productId);
-  } catch {}
+  } catch (err) { console.warn('[restock] gagal memperbarui langganan notifikasi:', err); }
 }

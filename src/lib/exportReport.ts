@@ -123,7 +123,7 @@ export async function exportToPDF(options: ExportOptions): Promise<void> {
     <tbody>${tableRows}${summaryRows}</tbody>
   </table>
   <div class="footer">Laporan dibuat oleh DesaMart UMKM Platform</div>
-  <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 1000); }<\/script>
+  <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 1000); }${'<'}/script>
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=900,height=700');

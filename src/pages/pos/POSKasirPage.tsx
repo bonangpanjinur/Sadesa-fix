@@ -222,7 +222,7 @@ export default function POSKasirPage() {
     if ((v as any).end_date && now > new Date((v as any).end_date)) { setVoucherError('Voucher sudah kedaluwarsa'); return; }
     if (v.usage_limit && v.used_count >= v.usage_limit) { setVoucherError('Voucher sudah habis'); return; }
     if (subtotal < v.min_purchase) { setVoucherError(`Min. pembelian ${formatCurrency(v.min_purchase)}`); return; }
-    let disc = v.type === 'discount_percent'
+    const disc = v.type === 'discount_percent'
       ? Math.min(subtotal * v.discount_percent / 100, v.max_discount || Infinity)
       : Math.min(v.discount_amount, subtotal);
     setAppliedVoucher(v); setVoucherDiscount(disc);

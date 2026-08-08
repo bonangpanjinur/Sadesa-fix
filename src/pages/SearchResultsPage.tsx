@@ -111,7 +111,7 @@ export default function SearchResultsPage() {
     }
     
     // Filter tourism
-    let filteredTourism = tourismSpots.filter(t => 
+    const filteredTourism = tourismSpots.filter(t => 
       t.name.toLowerCase().includes(query) ||
       t.villageName?.toLowerCase().includes(query)
     );

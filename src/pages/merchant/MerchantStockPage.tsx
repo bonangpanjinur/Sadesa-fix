@@ -96,10 +96,10 @@ export default function MerchantStockPage() {
       const qty = parseInt(adjustQty);
       if (isNaN(qty) || qty < 0) throw new Error('Jumlah tidak valid');
 
-      let stockBefore = adjustDialog.stock;
+      const stockBefore = adjustDialog.stock;
       let stockAfter: number;
       let qtyChange: number;
-      let note = adjustNote.trim() || null;
+      const note = adjustNote.trim() || null;
 
       if (adjustType === 'in') {
         qtyChange = qty;

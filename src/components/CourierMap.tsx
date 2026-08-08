@@ -11,7 +11,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// @ts-ignore
+// @ts-expect-error properti internal Leaflet tidak ada di tipe publik
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: '/motor-icon.png',
@@ -217,7 +217,13 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'couriers', filter: courierId ? `id=eq.${courierId}` : undefined },
         (payload) => {
-          const updated = payload.new as any;
+          const updated = payload.new as {
+            id: string;
+            current_lat: number | null;
+            current_lng: number | null;
+            last_location_update: string | null;
+            is_available: boolean;
+          };
           if (updated.current_lat && updated.current_lng) {
             setCouriers((prev) =>
               prev.map((c) =>

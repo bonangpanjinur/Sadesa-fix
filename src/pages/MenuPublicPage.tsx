@@ -7,6 +7,7 @@ import {
   ShoppingCart, Plus, Minus, Trash2, ChefHat, Send,
   CheckCircle2, Store, Clock, RefreshCw, Eye
 } from 'lucide-react';
+import { posBridgeFetch } from '@/lib/posBridge';
 
 interface Tenant {
   id: string;
@@ -74,8 +75,8 @@ export default function MenuPublicPage() {
     setPageState('loading');
     try {
       const [menuRes, tableRes] = await Promise.all([
-        fetch(`/api/menu/${tenantId}`),
-        tableId ? fetch(`/api/menu/${tenantId}/table/${tableId}`) : Promise.resolve(null),
+        posBridgeFetch(`/api/menu/${tenantId}`),
+        tableId ? posBridgeFetch(`/api/menu/${tenantId}/table/${tableId}`) : Promise.resolve(null),
       ]);
 
       if (!menuRes.ok) {
@@ -150,7 +151,7 @@ export default function MenuPublicPage() {
     }
     setPageState('ordering');
     try {
-      const res = await fetch(`/api/menu/${tenantId}/order`, {
+      const res = await posBridgeFetch(`/api/menu/${tenantId}/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

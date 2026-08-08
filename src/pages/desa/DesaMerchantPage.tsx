@@ -142,17 +142,20 @@ export default function DesaMerchantPage() {
 
       if (error) throw error;
 
-      await fetch('/api/merchant/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('session_token')}` },
-        body: JSON.stringify({
-          merchant_id: merchant.id,
-          merchant_user_id: merchant.user_id,
-          merchant_name: merchant.name,
-          approved: type === 'approve',
-          notes: notes || undefined,
-        }),
-      });
+      // Notifikasi ke pemilik toko (trigger DB juga mengirim notifikasi status)
+      if (merchant.user_id) {
+        await supabase.rpc('send_notification', {
+          p_user_id: merchant.user_id,
+          p_title: type === 'approve' ? 'Toko Disetujui Desa' : 'Toko Ditolak Desa',
+          p_message:
+            type === 'approve'
+              ? `Toko ${merchant.name} telah diverifikasi oleh admin desa.`
+              : `Toko ${merchant.name} ditolak. ${notes || 'Tidak memenuhi syarat.'}`,
+          p_type: type === 'approve' ? 'success' : 'error',
+          p_link: '/merchant',
+        });
+      }
+
 
       toast.success(type === 'approve' ? `${merchant.name} berhasil disetujui` : `${merchant.name} ditolak`);
       setActionDialog({ open: false, type: 'approve', merchant: null });

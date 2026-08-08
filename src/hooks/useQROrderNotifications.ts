@@ -4,6 +4,7 @@
  * pesanan masuk + membunyikan notifikasi audio.
  */
 import { useEffect, useRef, useCallback, useState } from "react";
+import { posBridgeFetch } from '@/lib/posBridge';
 
 export interface QRIncomingOrder {
   order_id: string;
@@ -45,14 +46,14 @@ function playNotificationSound() {
       osc.start(ctx.currentTime + start);
       osc.stop(ctx.currentTime + start + duration + 0.05);
     });
-  } catch (_) {}
+  } catch (err) { console.warn('[qr-order] gagal memutar nada notifikasi:', err); }
 }
 
 async function subscribeToQRChannel(tenantId: string) {
   try {
     const token = localStorage.getItem("session_token");
     if (!token) return;
-    await fetch("/api/sse/subscribe", {
+    await posBridgeFetch("/api/sse/subscribe", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

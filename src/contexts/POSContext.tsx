@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -42,7 +42,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
   const [activeOutlet, setActiveOutlet] = useState<POSOutlet | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchTenant = async () => {
+  const fetchTenant = useCallback(async () => {
     if (!user) return;
     try {
       const { data } = await supabase
@@ -54,9 +54,9 @@ export function POSProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('Error fetching POS tenant:', err);
     }
-  };
+  }, [user]);
 
-  const fetchOutlets = async () => {
+  const fetchOutlets = useCallback(async () => {
     if (!tenant) return;
     try {
       const { data } = await supabase
@@ -67,13 +67,11 @@ export function POSProvider({ children }: { children: ReactNode }) {
         .order('name');
       const outletList = (data || []) as unknown as POSOutlet[];
       setOutlets(outletList);
-      if (!activeOutlet && outletList.length > 0) {
-        setActiveOutlet(outletList[0]);
-      }
+      setActiveOutlet((prev) => prev ?? outletList[0] ?? null);
     } catch (err) {
       console.error('Error fetching outlets:', err);
     }
-  };
+  }, [tenant]);
 
   useEffect(() => {
     const init = async () => {
@@ -83,11 +81,11 @@ export function POSProvider({ children }: { children: ReactNode }) {
     };
     if (user) init();
     else setLoading(false);
-  }, [user]);
+  }, [user, fetchTenant]);
 
   useEffect(() => {
     if (tenant) fetchOutlets();
-  }, [tenant]);
+  }, [tenant, fetchOutlets]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {

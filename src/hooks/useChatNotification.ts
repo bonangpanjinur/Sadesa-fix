@@ -6,6 +6,7 @@ import { logRealtimeStatus, type RealtimeStatus } from '@/lib/realtimeTelemetry'
 
 export function useChatNotification() {
   const { user } = useAuth();
+  const userId = user?.id;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isEnabled, setIsEnabled] = useState(true);
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
@@ -46,11 +47,11 @@ export function useChatNotification() {
 
   // Set up real-time listener for incoming messages
   useEffect(() => {
-    if (!user) { setRealtimeStatus('idle'); return; }
+    if (!userId) { setRealtimeStatus('idle'); return; }
 
     let active = true;
 
-    const channelName = `chat-notification-${user.id}-${Math.random().toString(36).slice(2)}`;
+    const channelName = `chat-notification-${userId}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
       .channel(channelName)
       .on(
@@ -59,12 +60,12 @@ export function useChatNotification() {
           event: 'INSERT',
           schema: 'public',
           table: 'chat_messages',
-          filter: `receiver_id=eq.${user.id}`,
+          filter: `receiver_id=eq.${userId}`,
         },
         (payload) => {
           if (!active) return;
           // Play sound only for new messages from others (not our own)
-          if (payload.new.sender_id !== user.id) {
+          if (payload.new.sender_id !== userId) {
             playNotificationSound();
           }
         }
@@ -83,7 +84,7 @@ export function useChatNotification() {
       supabase.removeChannel(channel);
       if (channelRef.current === channel) channelRef.current = null;
     };
-  }, [user?.id, playNotificationSound]);
+  }, [userId, playNotificationSound]);
 
   return {
     playNotificationSound,

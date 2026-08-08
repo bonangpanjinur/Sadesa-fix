@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, Clock, XCircle, QrCode, Loader2, ShoppingBag } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatPrice } from '@/lib/utils';
+import { posBridgeFetch } from '@/lib/posBridge';
 
 interface SessionInfo {
   sessionId: string;
@@ -32,7 +33,7 @@ export default function QRPayConfirmPage() {
   useEffect(() => {
     if (!token) { setPageStatus('error'); setErrorMsg('Token tidak valid'); return; }
 
-    fetch(`/api/qrpay/info/${token}`)
+    posBridgeFetch(`/api/qrpay/info/${token}`)
       .then(async r => {
         if (r.status === 404) throw new Error('QR Pay tidak ditemukan atau sudah kedaluwarsa');
         if (r.status === 410) {
@@ -84,13 +85,13 @@ export default function QRPayConfirmPage() {
     setPageStatus('confirming');
     try {
       const authToken = localStorage.getItem('session_token') || '';
-      const profileRes = await fetch('/api/auth/me', {
+      const profileRes = await posBridgeFetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const profile = profileRes.ok ? await profileRes.json() : null;
       const buyerName = profile?.full_name || profile?.email || user.email || 'Pembeli';
 
-      const res = await fetch('/api/qrpay/confirm', {
+      const res = await posBridgeFetch('/api/qrpay/confirm', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
