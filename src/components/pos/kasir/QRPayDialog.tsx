@@ -117,7 +117,7 @@ export function QRPayDialog({
             clearInterval(timerRef.current!);
             setStatus(d.status);
           }
-        } catch {}
+        } catch (err) { console.warn('[qrpay] gagal polling status sesi:', err); }
       }, 2000);
 
     } catch (err: any) {

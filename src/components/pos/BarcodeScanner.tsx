@@ -24,7 +24,7 @@ export function BarcodeScanner({ open, onClose, onDetect }: BarcodeScannerProps)
 
   const stopScanning = useCallback(() => {
     if (controlsRef.current) {
-      try { controlsRef.current.stop(); } catch (_) {}
+      try { controlsRef.current.stop(); } catch (err) { console.warn('[barcode] gagal menghentikan scanner:', err); }
       controlsRef.current = null;
     }
     setScanning(false);

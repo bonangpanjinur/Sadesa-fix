@@ -46,7 +46,7 @@ function playNotificationSound() {
       osc.start(ctx.currentTime + start);
       osc.stop(ctx.currentTime + start + duration + 0.05);
     });
-  } catch (_) {}
+  } catch (err) { console.warn('[qr-order] gagal memutar nada notifikasi:', err); }
 }
 
 async function subscribeToQRChannel(tenantId: string) {

@@ -97,7 +97,7 @@ export default function ShopsPage() {
   // Sort shops by proximity first, then filter
   const sortedAndFilteredShops = useMemo(() => {
     // First sort by distance
-    let sorted = [...shops];
+    const sorted = [...shops];
     if (userLocation) {
       sorted.sort((a, b) => {
         const distA = calculateDistance(userLocation.lat, userLocation.lng, a.locationLat, a.locationLng);

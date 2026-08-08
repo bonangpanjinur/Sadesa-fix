@@ -108,7 +108,7 @@ export default function CourierRidesPage() {
 
       const rides = (available || []) as unknown as RideRequest[];
       const passengerIds = [...new Set(rides.map(r => r.passenger_id))];
-      let passengerNames: Record<string, string> = {};
+      const passengerNames: Record<string, string> = {};
 
       if (passengerIds.length > 0) {
         const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', passengerIds);

@@ -69,7 +69,7 @@ export function usePOSOfflineSync({
     try {
       const count = await getPendingSaleCount();
       setPendingCount(count);
-    } catch {}
+    } catch (err) { console.warn('[pos-offline] gagal menghitung antrean penjualan:', err); }
   };
 
   // Fetch fresh products from API and cache them

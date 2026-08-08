@@ -124,7 +124,7 @@ export default function OrderStatusPage() {
   useEffect(() => {
     if (!order) return;
     if (prevStatus.current && prevStatus.current !== order.status) {
-      try { navigator.vibrate?.([100, 50, 100]); } catch {}
+      try { navigator.vibrate?.([100, 50, 100]); } catch (err) { console.warn('[order-status] getaran tidak didukung:', err); }
     }
     prevStatus.current = order.status;
   }, [order?.status]);

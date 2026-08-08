@@ -158,7 +158,7 @@ export default function RegisterMerchantPage() {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setHasDraft(true);
-    } catch {}
+    } catch (err) { console.warn('[register-merchant] gagal menyimpan draf:', err); }
   }, [getValues, referralCode, addressData, merchantLocation, halalStatus, halalCertUrl, ktpUrl]);
 
   // Debounced auto-save

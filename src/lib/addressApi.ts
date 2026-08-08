@@ -119,7 +119,7 @@ export function setBaseUrl(url: string) {
   BASE_URL = url;
   try {
     localStorage.setItem('custom_address_api_url', url);
-  } catch (e) {}
+  } catch (err) { console.warn('[address] gagal menyimpan URL API wilayah:', err); }
 }
 
 async function fetchDirect(url: string, signal?: AbortSignal): Promise<Response | null> {

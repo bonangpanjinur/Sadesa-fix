@@ -70,7 +70,7 @@ export const MerchantGroupCard = () => {
         setCurrentMerchantData(merchant);
 
         let vId = merchant.verifikator_id;
-        let vCode = merchant.verifikator_code;
+        const vCode = merchant.verifikator_code;
         let tGroup = merchant.trade_group;
 
         // Jika verifikator_id belum ada tapi ada verifikator_code, coba cari verifikator_id

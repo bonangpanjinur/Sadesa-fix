@@ -184,7 +184,7 @@ export class USBPrinter {
   }
 
   async disconnect() {
-    try { this.writer?.releaseLock(); await this.port?.close(); } catch {}
+    try { this.writer?.releaseLock(); await this.port?.close(); } catch (err) { console.warn('[printer] gagal menutup port USB:', err); }
     this.port = null;
     this.writer = null;
     this.connected = false;
@@ -271,7 +271,7 @@ export class BluetoothPrinter {
   }
 
   async disconnect() {
-    try { this.device?.gatt?.disconnect(); } catch {}
+    try { this.device?.gatt?.disconnect(); } catch (err) { console.warn('[printer] gagal memutus Bluetooth:', err); }
     this.device = null;
     this.txChar = null;
     this.connected = false;
