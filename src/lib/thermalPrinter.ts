@@ -428,7 +428,7 @@ export async function printReceiptBrowser(receipt: ReceiptData): Promise<void> {
     pre{white-space:pre-wrap;word-wrap:break-word}
     @media print{@page{margin:2mm;size:80mm auto}}</style></head>
     <body><pre>${content}</pre>
-    <script>window.onload=()=>{window.print();window.close();}<\/script></body></html>`);
+    <script>window.onload=()=>{window.print();window.close();}</scr' + 'ipt></body></html>`);
   win.document.close();
 }
 
