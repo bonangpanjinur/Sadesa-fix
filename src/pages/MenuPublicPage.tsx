@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import {
-import { posBridgeFetch } from '@/lib/posBridge';
   ShoppingCart, Plus, Minus, Trash2, ChefHat, Send,
   CheckCircle2, Store, Clock, RefreshCw, Eye
 } from 'lucide-react';
+import { posBridgeFetch } from '@/lib/posBridge';
 
 interface Tenant {
   id: string;

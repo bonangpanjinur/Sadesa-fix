@@ -4,7 +4,6 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-import { posBridgeFetch } from '@/lib/posBridge';
   cacheProducts,
   getCachedProducts,
   savePendingSale,
@@ -13,6 +12,7 @@ import { posBridgeFetch } from '@/lib/posBridge';
   type OfflineProduct,
   type PendingSale,
 } from "@/lib/posOfflineDB";
+import { posBridgeFetch } from '@/lib/posBridge';
 
 interface UsePOSOfflineSyncOptions {
   outletId: string | null;
