@@ -60,23 +60,8 @@ export default defineConfig(() => ({
             }
           },
           {
-            // Cache API DB dengan NetworkFirst (data selalu fresh, fallback ke cache)
-            urlPattern: /\/api\/db\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-db-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 5
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            // Cache data wilayah (jarang berubah)
-            urlPattern: /\/api\/wilayah.*/i,
+            // Cache data wilayah dari edge function (jarang berubah)
+            urlPattern: /\/functions\/v1\/wilayah-proxy.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'wilayah-cache',
@@ -93,6 +78,7 @@ export default defineConfig(() => ({
       }
     }),
   ],
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
