@@ -91,15 +91,8 @@ export default function AdminWhatsAppPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await fetch(`/api/whatsapp/test?phone=${encodeURIComponent(testPhone)}`);
-      const data = await res.json();
-      if (data.success) {
-        setTestResult('success');
-        toast.success('Pesan tes berhasil dikirim!');
-      } else {
-        setTestResult('error');
-        toast.error('Gagal mengirim pesan tes: ' + (data.error || 'Unknown error'));
-      }
+      setTestResult('error');
+      toast.error('Pengiriman pesan tes WhatsApp belum tersedia. Konfigurasi tetap tersimpan dan dipakai untuk tautan WhatsApp.');
     } catch (err: any) {
       setTestResult('error');
       toast.error('Error: ' + (err.message || 'Coba lagi'));
@@ -107,6 +100,7 @@ export default function AdminWhatsAppPage() {
       setTesting(false);
     }
   };
+
 
   if (loading) {
     return (

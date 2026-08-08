@@ -149,11 +149,20 @@ export function useRealtimeOrders({
       ));
 
       // Kirim push notification ke pembeli secara background (fire-and-forget)
-      fetch('/api/push/order-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, newStatus }),
-      }).catch(() => { /* push gagal tidak memblokir UX */ });
+      const order = orders.find((o) => o.id === orderId);
+      if (order?.buyer_id) {
+        supabase.functions
+          .invoke('send-push-notification', {
+            body: {
+              user_id: order.buyer_id,
+              title: 'Status Pesanan Diperbarui',
+              body: `Pesanan #${orderId.slice(0, 8)} sekarang: ${newStatus}`,
+              url: `/orders/${orderId}`,
+            },
+          })
+          .catch(() => { /* push gagal tidak memblokir UX */ });
+      }
+
       
       toast.success('Status pesanan diperbarui');
       return true;
