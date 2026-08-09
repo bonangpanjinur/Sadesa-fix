@@ -61,7 +61,9 @@ async function subscribeToQRChannel(tenantId: string) {
       },
       body: JSON.stringify({ channel: `pos_qr_orders:${tenantId}` }),
     });
-  } catch (_) {}
+  } catch (err) {
+    console.warn('[useQROrderNotifications] gagal berlangganan channel QR order', err);
+  }
 }
 
 export function useQROrderNotifications(tenantId: string | null | undefined) {

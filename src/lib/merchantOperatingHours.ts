@@ -12,11 +12,28 @@ export interface MerchantOperatingStatus {
 /**
  * Check if the current time is within merchant's operating hours
  */
+/**
+ * Current minutes-since-midnight in Asia/Jakarta (WIB).
+ * Merchant operating hours are stored as local Indonesian time, so they must be
+ * compared against WIB and not the visitor's device timezone (which would show
+ * every shop as closed for users/devices outside Indonesia).
+ */
+export function getJakartaMinutesNow(date: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0');
+  return (hour % 24) * 60 + minute;
+}
+
 export function isWithinOperatingHours(openTime: string, closeTime: string): boolean {
   if (!openTime || !closeTime) return true; // If no hours set, assume open
-  
-  const now = new Date();
-  const currentTime = now.getHours() * 60 + now.getMinutes();
+
+  const currentTime = getJakartaMinutesNow();
   
   // Parse time strings (format: "HH:mm" or "HH:mm:ss")
   const [openHours, openMinutes] = openTime.split(':').map(Number);
@@ -82,9 +99,8 @@ export function formatTime(time: string): string {
  * Get time until next open (in minutes)
  */
 export function getTimeUntilOpen(openTime: string): number {
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  
+  const currentMinutes = getJakartaMinutesNow();
+
   const [openHours, openMinutes] = openTime.split(':').map(Number);
   const openTimeMinutes = openHours * 60 + openMinutes;
   
