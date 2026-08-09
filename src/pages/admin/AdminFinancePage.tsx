@@ -78,9 +78,10 @@ export default function AdminFinancePage() {
         return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
       case 'thisMonth':
         return { start: startOfMonth(now), end: endOfMonth(now) };
-      case 'lastMonth':
+      case 'lastMonth': {
         const lastMonth = subDays(startOfMonth(now), 1);
         return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+      }
       case 'custom':
         return { 
           start: customStart ? startOfDay(customStart) : startOfDay(subDays(now, 30)), 
