@@ -1,5 +1,6 @@
 import { supabase } from '../integrations/supabase/client';
 import type { Product, Village, Tourism, Merchant } from '../types';
+import { isWithinOperatingHours } from './merchantOperatingHours';
 
 // Import local images as fallbacks
 import heroVillage from '../assets/hero-village.jpg';
@@ -222,21 +223,8 @@ export async function fetchProducts(): Promise<Product[]> {
     const openTime = merchant?.open_time || '08:00';
     const closeTime = merchant?.close_time || '17:00';
     
-    const now = new Date();
-    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-    const [openHours, openMinutes] = openTime.split(':').map(Number);
-    const [closeHours, closeMinutes] = closeTime.split(':').map(Number);
-    const openTimeMinutes = openHours * 60 + openMinutes;
-    const closeTimeMinutes = closeHours * 60 + closeMinutes;
-    
-    let isWithinHours = false;
-    if (closeTimeMinutes < openTimeMinutes) {
-      isWithinHours = currentTimeMinutes >= openTimeMinutes || currentTimeMinutes <= closeTimeMinutes;
-    } else {
-      isWithinHours = currentTimeMinutes >= openTimeMinutes && currentTimeMinutes <= closeTimeMinutes;
-    }
-    
-    const isMerchantOpen = isManuallyOpen && isWithinHours;
+    // Operating hours are stored in Indonesian local time (WIB).
+    const isMerchantOpen = isManuallyOpen && isWithinOperatingHours(openTime, closeTime);
     
     const isAvailable = hasQuota && isMerchantOpen && p.is_active;
 
@@ -320,21 +308,7 @@ export async function fetchProduct(id: string): Promise<Product | null> {
   const openTime = data.merchants?.open_time || '08:00';
   const closeTime = data.merchants?.close_time || '17:00';
   
-  const now = new Date();
-  const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-  const [openHours, openMinutes] = openTime.split(':').map(Number);
-  const [closeHours, closeMinutes] = closeTime.split(':').map(Number);
-  const openTimeMinutes = openHours * 60 + openMinutes;
-  const closeTimeMinutes = closeHours * 60 + closeMinutes;
-  
-  let isWithinHours = false;
-  if (closeTimeMinutes < openTimeMinutes) {
-    isWithinHours = currentTimeMinutes >= openTimeMinutes || currentTimeMinutes <= closeTimeMinutes;
-  } else {
-    isWithinHours = currentTimeMinutes >= openTimeMinutes && currentTimeMinutes <= closeTimeMinutes;
-  }
-  
-  const isMerchantOpen = isManuallyOpen && isWithinHours;
+  const isMerchantOpen = isManuallyOpen && isWithinOperatingHours(openTime, closeTime);
   const isAvailable = hasQuota && isMerchantOpen && data.is_active;
 
   // Calculate discounted price
