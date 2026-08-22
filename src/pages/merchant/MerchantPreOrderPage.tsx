@@ -34,6 +34,8 @@ const RESERVATION_STATUS: Record<string, { label: string; color: string }> = {
   completed: { label: 'Selesai',    color: 'bg-gray-100 text-gray-600' },
 };
 
+interface ProfileRow { user_id: string; full_name: string | null }
+
 interface TableConfig {
   id: string;
   number: string;
@@ -98,17 +100,17 @@ export default function MerchantPreOrderPage() {
       if (error) throw error;
 
       // Enrich dengan nama buyer / Enrich with buyer name
-      const buyerIds = [...new Set((data || []).map((r: any) => r.buyer_id))];
+      const buyerIds = [...new Set((data || []).map((r) => r.buyer_id))];
       let buyerMap: Record<string, string> = {};
       if (buyerIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('user_id, full_name')
           .in('user_id', buyerIds);
-        buyerMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name || 'Pelanggan']));
+        buyerMap = Object.fromEntries((profiles || []).map((p) => [p.user_id, p.full_name || 'Pelanggan']));
       }
 
-      return (data || []).map((r: any) => ({
+      return (data || []).map((r) => ({
         ...r,
         buyer_name: r.contact_name || buyerMap[r.buyer_id] || 'Pelanggan',
       }));
@@ -165,8 +167,8 @@ export default function MerchantPreOrderPage() {
   const savePoMutation = useMutation({
     mutationFn: async (item: Partial<PreOrderItem>) => {
       const payload = { merchant_id: merchantId, ...item };
-      if ((item as any).id) {
-        const { error } = await supabase.from('preorder_items').update(payload).eq('id', (item as any).id);
+      if (item.id) {
+        const { error } = await supabase.from('preorder_items').update(payload).eq('id', item.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('preorder_items').insert({ ...payload, created_at: new Date().toISOString() });
@@ -179,15 +181,15 @@ export default function MerchantPreOrderPage() {
       setEditingItem(null);
       queryClient.invalidateQueries({ queryKey: ['merchant-preorders'] });
     },
-    onError: (e: any) => toast.error('Gagal: ' + e.message),
+    onError: (e: unknown) => toast.error('Gagal: ' + (e instanceof Error ? e.message : 'Terjadi kesalahan')),
   });
 
   // Simpan meja / Save table
   const saveTableMutation = useMutation({
     mutationFn: async (table: Partial<TableConfig>) => {
       const payload = { merchant_id: merchantId, ...table };
-      if ((table as any).id) {
-        const { error } = await supabase.from('merchant_tables').update(payload).eq('id', (table as any).id);
+      if (table.id) {
+        const { error } = await supabase.from('merchant_tables').update(payload).eq('id', table.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('merchant_tables').insert(payload);
@@ -413,7 +415,7 @@ export default function MerchantPreOrderPage() {
       <Dialog open={dialogOpen} onOpenChange={open => { if (!open) { setDialogOpen(false); setEditingItem(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{(editingItem as any)?.id ? 'Edit Item Pre-order' : 'Tambah Item Pre-order'}</DialogTitle>
+            <DialogTitle>{editingItem?.id ? 'Edit Item Pre-order' : 'Tambah Item Pre-order'}</DialogTitle>
           </DialogHeader>
           {editingItem && (
             <div className="space-y-3 mt-2">
@@ -458,7 +460,7 @@ export default function MerchantPreOrderPage() {
       <Dialog open={tableDialogOpen} onOpenChange={open => { if (!open) { setTableDialogOpen(false); setEditingTable(null); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{(editingTable as any)?.id ? 'Edit Meja' : 'Tambah Meja'}</DialogTitle>
+            <DialogTitle>{editingTable?.id ? 'Edit Meja' : 'Tambah Meja'}</DialogTitle>
           </DialogHeader>
           {editingTable && (
             <div className="space-y-3 mt-2">

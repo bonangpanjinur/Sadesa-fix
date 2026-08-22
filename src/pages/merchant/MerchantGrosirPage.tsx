@@ -52,7 +52,7 @@ interface WholesaleOrder {
   merchant_id: string;
   status: string;
   total: number;
-  items: any[];
+  items: unknown[];
   contact_name: string | null;
   contact_phone: string | null;
   notes: string | null;
@@ -88,8 +88,8 @@ export default function MerchantGrosirPage() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      const productIds = (data || []).map((w: any) => w.product_id).filter(Boolean);
-      let productMap: Record<string, any> = {};
+      const productIds = (data || []).map((w) => w.product_id).filter(Boolean);
+      let productMap: Record<string, { id: string; name: string; price: number; image_url: string | null }> = {};
       if (productIds.length > 0) {
         const { data: products } = await supabase
           .from('products')
@@ -98,7 +98,7 @@ export default function MerchantGrosirPage() {
         productMap = Object.fromEntries((products || []).map(p => [p.id, p]));
       }
 
-      return (data || []).map((w: any) => ({
+      return (data || []).map((w) => ({
         ...w,
         product_name: productMap[w.product_id]?.name || 'Produk',
         product_price: productMap[w.product_id]?.price || 0,
@@ -120,14 +120,14 @@ export default function MerchantGrosirPage() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      const buyerIds = [...new Set((data || []).map((o: any) => o.buyer_id))];
+      const buyerIds = [...new Set((data || []).map((o) => o.buyer_id))];
       let nameMap: Record<string, string> = {};
       if (buyerIds.length > 0) {
         const { data: profiles } = await supabase.from('profiles').select('user_id, full_name').in('user_id', buyerIds);
-        nameMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name || 'Pembeli']));
+        nameMap = Object.fromEntries((profiles || []).map((p) => [p.user_id, p.full_name || 'Pembeli']));
       }
 
-      return (data || []).map((o: any) => ({ ...o, buyer_name: o.contact_name || nameMap[o.buyer_id] || 'Pembeli' }));
+      return (data || []).map((o) => ({ ...o, buyer_name: o.contact_name || nameMap[o.buyer_id] || 'Pembeli' }));
     },
     enabled: !!merchantId && !guardLoading && activeTab === 'pesanan',
     staleTime: 30_000,
@@ -154,8 +154,8 @@ export default function MerchantGrosirPage() {
         notes: wp.notes || null,
         is_active: wp.is_active ?? true,
       };
-      if ((wp as any).id) {
-        const { error } = await supabase.from('wholesale_products').update(payload).eq('id', (wp as any).id);
+      if (wp.id) {
+        const { error } = await supabase.from('wholesale_products').update(payload).eq('id', wp.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('wholesale_products').insert(payload);
@@ -168,7 +168,7 @@ export default function MerchantGrosirPage() {
       setEditingProduct(null);
       queryClient.invalidateQueries({ queryKey: ['merchant-wholesale-products'] });
     },
-    onError: (e: any) => toast.error('Gagal: ' + e.message),
+    onError: (e: unknown) => toast.error('Gagal: ' + (e instanceof Error ? e.message : 'Terjadi kesalahan')),
   });
 
   // Update status pesanan / Update order status
@@ -344,11 +344,11 @@ export default function MerchantGrosirPage() {
       <Dialog open={dialogOpen} onOpenChange={open => { if (!open) { setDialogOpen(false); setEditingProduct(null); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{(editingProduct as any)?.id ? 'Edit Produk Grosir' : 'Tambah Produk Grosir'}</DialogTitle>
+            <DialogTitle>{editingProduct?.id ? 'Edit Produk Grosir' : 'Tambah Produk Grosir'}</DialogTitle>
           </DialogHeader>
           {editingProduct && (
             <div className="space-y-4 mt-2">
-              {!(editingProduct as any).id && (
+              {!editingProduct?.id && (
                 <div className="space-y-1">
                   <Label className="text-sm">Pilih Produk *</Label>
                   <select
@@ -433,7 +433,7 @@ export default function MerchantGrosirPage() {
             <Button variant="outline" onClick={() => { setDialogOpen(false); setEditingProduct(null); }}>Batal</Button>
             <Button
               onClick={() => saveMutation.mutate(editingProduct!)}
-              disabled={(!editingProduct?.product_id && !(editingProduct as any)?.id) || saveMutation.isPending}
+              disabled={(!editingProduct?.product_id && !editingProduct?.id) || saveMutation.isPending}
             >
               <Save className="h-4 w-4 mr-1" /> {saveMutation.isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>
