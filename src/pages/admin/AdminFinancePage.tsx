@@ -58,9 +58,10 @@ export default function AdminFinancePage() {
       const { data } = await supabase.from('app_settings').select('key, value').in('key', ['platform_fee', 'courier_commission']);
       let platform = 5, courier = 80;
       data?.forEach(s => {
-        const val = s.value as Record<string, any>;
-        if (s.key === 'platform_fee' && val?.percent != null) platform = val.percent;
-        if (s.key === 'courier_commission' && val?.percent != null) courier = val.percent;
+        const val = s.value as Record<string, unknown>;
+        const percent = typeof val?.percent === 'number' ? val.percent : null;
+        if (s.key === 'platform_fee' && percent != null) platform = percent;
+        if (s.key === 'courier_commission' && percent != null) courier = percent;
       });
       return { platformFeePercent: platform, courierFeePercent: courier };
     },

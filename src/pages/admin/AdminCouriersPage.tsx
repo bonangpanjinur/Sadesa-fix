@@ -122,8 +122,8 @@ export default function AdminCouriersPage() {
         toast.success('Kurir berhasil dihapus');
       }
       invalidate();
-    } catch (error: any) {
-      toast.error('Gagal menghapus kurir: ' + (error.message || 'Terjadi kesalahan'));
+    } catch (error: unknown) {
+      toast.error('Gagal menghapus kurir: ' + (error instanceof Error ? error.message : 'Terjadi kesalahan'));
     }
   };
 

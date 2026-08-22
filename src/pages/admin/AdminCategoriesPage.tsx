@@ -155,11 +155,11 @@ export default function AdminCategoriesPage() {
 
       setShowDialog(false);
       fetchCategories();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving category:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Gagal menyimpan kategori',
+        description: error instanceof Error ? error.message : 'Gagal menyimpan kategori',
         variant: 'destructive',
       });
     } finally {

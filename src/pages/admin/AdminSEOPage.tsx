@@ -130,7 +130,7 @@ export default function AdminSEOPage() {
       setEditingPage(null);
       queryClient.invalidateQueries({ queryKey: ['admin-seo-metas'] });
     },
-    onError: (e: any) => toast.error('Gagal menyimpan: ' + e.message),
+    onError: (e: unknown) => toast.error('Gagal menyimpan: ' + (e instanceof Error ? e.message : 'Terjadi kesalahan')),
   });
 
   // Simpan redirect / Save redirect
