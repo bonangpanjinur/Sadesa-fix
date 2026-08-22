@@ -158,43 +158,25 @@ export default function AdminUsersPage() {
     try {
       setActionLoading(true);
       
-      // 1. Create user in Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-        options: {
-          data: {
-            full_name: newUser.fullName,
-          }
-        }
+      if (newUser.password.length < 12) {
+        toast.error('Password minimal 12 karakter');
+        return;
+      }
+
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('admin-create-user', {
+        body: {
+          email: newUser.email,
+          password: newUser.password,
+          fullName: newUser.fullName,
+          phone: newUser.phone || null,
+          role: newUser.role,
+        },
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Gagal membuat user auth');
+      if (functionError) throw functionError;
+      if (!functionData?.user?.id) throw new Error('Gagal membuat user');
 
-      const userId = authData.user.id;
-
-      // 2. Profile is usually created by trigger, but let's ensure phone is updated
-      if (newUser.phone) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ phone: newUser.phone })
-          .eq('user_id', userId);
-        
-        if (profileError) console.error('Error updating profile phone:', profileError);
-      }
-
-      // 3. Assign role
-      if (newUser.role !== 'buyer') {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({
-            user_id: userId,
-            role: newUser.role as any
-          });
-        
-        if (roleError) throw roleError;
-      }
+      const userId = functionData.user.id;
 
       await logAdminAction('CREATE_USER', 'user', userId, null, { 
         email: newUser.email, 
