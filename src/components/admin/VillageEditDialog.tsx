@@ -398,9 +398,9 @@ export function VillageEditDialog({
       
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error updating village:', error);
-      toast.error(error.message || 'Gagal memperbarui data desa');
+    } catch (error: unknown) {
+      console.error('Error updating village:', error instanceof Error ? error.message : error);
+      toast.error(error instanceof Error ? error.message : 'Gagal memperbarui data desa');
     } finally {
       setLoading(false);
     }
@@ -477,7 +477,7 @@ export function VillageEditDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none_value">-- Lepas Pengelola --</SelectItem>
-                  {profiles?.map((user: any) => (
+                  {profiles?.map((user: OwnerInfo) => (
                     <SelectItem key={user.user_id} value={user.user_id}>
                       {user.full_name || 'Tanpa Nama'} ({user.phone || user.user_id.slice(0, 8)})
                     </SelectItem>

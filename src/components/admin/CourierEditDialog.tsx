@@ -25,10 +25,28 @@ import {
   type Region,
 } from '@/lib/addressApi';
 
+interface CourierRecord {
+  id: string;
+  name: string | null;
+  user_id: string | null;
+  phone: string | null;
+  email: string | null;
+  province: string | null;
+  city: string | null;
+  district: string | null;
+  subdistrict: string | null;
+  address: string | null;
+  ktp_number: string | null;
+  vehicle_type: string | null;
+  vehicle_plate: string | null;
+  status: string | null;
+  village_id: string | null;
+}
+
 interface CourierEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  courier: any;
+  courier: CourierRecord;
   onSuccess: () => void;
 }
 
@@ -297,8 +315,8 @@ export function CourierEditDialog({ open, onOpenChange, courier, onSuccess }: Co
       toast.success('Data kurir berhasil diperbarui');
       onOpenChange(false);
       onSuccess();
-    } catch (error: any) {
-      console.error('Error updating courier:', error);
+    } catch (error: unknown) {
+      console.error('Error updating courier:', error instanceof Error ? error.message : error);
       toast.error('Gagal memperbarui data kurir');
     } finally {
       setLoading(false);
