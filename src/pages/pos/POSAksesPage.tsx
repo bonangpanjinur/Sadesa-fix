@@ -82,11 +82,11 @@ export default function POSAksesPage() {
     setLoading(true);
     try {
       const [usersRes, accessRes] = await Promise.all([
-        supabase.from('pos_users' as any)
+        supabase.from('pos_users' as never)
           .select('*')
           .eq('tenant_id', tenant.id)
           .order('name'),
-        supabase.from('pos_user_outlet_access' as any)
+        supabase.from('pos_user_outlet_access' as never)
           .select('*, pos_users(name, email), pos_outlets(name)')
           .eq('tenant_id', tenant.id)
           .order('created_at', { ascending: false }),
@@ -117,16 +117,16 @@ export default function POSAksesPage() {
     setSaving(true);
     try {
       if (editingUser) {
-        const { error } = await supabase.from('pos_users' as any)
+        const { error } = await supabase.from('pos_users' as never)
           .update({
             name: userForm.name, email: userForm.email || null,
             role: userForm.role, outlet_id: userForm.outlet_id || null,
             is_active: userForm.is_active, updated_at: new Date().toISOString(),
-          }).eq('id', editingUser.id);
+          }).eq('id', editingUser.id).eq('tenant_id', tenant.id);
         if (error) throw error;
         toast.success('Pengguna diperbarui');
       } else {
-        const { error } = await supabase.from('pos_users' as any).insert({
+        const { error } = await supabase.from('pos_users' as never).insert({
           tenant_id: tenant.id, name: userForm.name,
           email: userForm.email || null, role: userForm.role,
           outlet_id: userForm.outlet_id || null, is_active: true,
@@ -136,21 +136,21 @@ export default function POSAksesPage() {
       }
       setUserDialog(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error('Gagal menyimpan: ' + err.message);
+      } catch (err: unknown) {
+      toast.error('Gagal menyimpan: ' + (err instanceof Error ? err.message : String(err)));
     } finally { setSaving(false); }
   };
 
   const toggleUserActive = async (u: POSUser) => {
-    await supabase.from('pos_users' as any)
-      .update({ is_active: !u.is_active }).eq('id', u.id);
+    await supabase.from('pos_users' as never)
+      .update({ is_active: !u.is_active }).eq('id', u.id).eq('tenant_id', tenant?.id || '');
     toast.success(`Pengguna ${u.is_active ? 'dinonaktifkan' : 'diaktifkan'}`);
     fetchAll();
   };
 
   const deleteUser = async (u: POSUser) => {
     if (!confirm(`Hapus pengguna "${u.name}"? Aksi ini tidak bisa dibatalkan.`)) return;
-    const { error } = await supabase.from('pos_users' as any).delete().eq('id', u.id);
+    const { error } = await supabase.from('pos_users' as never).delete().eq('id', u.id).eq('tenant_id', tenant?.id || '');
     if (error) { toast.error('Gagal hapus: ' + error.message); return; }
     toast.success('Pengguna dihapus');
     fetchAll();
@@ -162,7 +162,7 @@ export default function POSAksesPage() {
     }
     setSaving(true);
     try {
-      const { error } = await supabase.from('pos_user_outlet_access' as any).upsert({
+      const { error } = await supabase.from('pos_user_outlet_access' as never).upsert({
         tenant_id: tenant.id, pos_user_id: accessForm.pos_user_id,
         outlet_id: accessForm.outlet_id, role: accessForm.role,
         is_active: true, granted_by: user?.id,
@@ -171,14 +171,14 @@ export default function POSAksesPage() {
       toast.success('Akses outlet diberikan');
       setAccessDialog(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error('Gagal: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal: ' + (err instanceof Error ? err.message : String(err)));
     } finally { setSaving(false); }
   };
 
   const revokeAccess = async (acc: OutletAccess) => {
-    await supabase.from('pos_user_outlet_access' as any)
-      .update({ is_active: false }).eq('id', acc.id);
+    await supabase.from('pos_user_outlet_access' as never)
+      .update({ is_active: false }).eq('id', acc.id).eq('tenant_id', tenant?.id || '');
     toast.success('Akses dicabut');
     fetchAll();
   };
@@ -194,14 +194,14 @@ export default function POSAksesPage() {
     if (!/^\d+$/.test(pinForm.new_pin)) { toast.error('PIN hanya boleh berisi angka'); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from('pos_users' as any)
-        .update({ pin: pinForm.new_pin }).eq('id', pinForm.pos_user_id);
+      const { error } = await supabase.from('pos_users' as never)
+        .update({ pin: pinForm.new_pin }).eq('id', pinForm.pos_user_id).eq('tenant_id', tenant?.id || '');
       if (error) throw error;
       toast.success('PIN kasir berhasil diperbarui');
       setPinDialog(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error('Gagal set PIN: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal set PIN: ' + (err instanceof Error ? err.message : String(err)));
     } finally { setSaving(false); }
   };
 
@@ -408,12 +408,12 @@ export default function POSAksesPage() {
                         return (
                           <TableRow key={acc.id} className={!acc.is_active ? 'opacity-50' : ''}>
                             <TableCell className="font-medium">
-                              {(acc.pos_users as any)?.name || '-'}
+                              {acc.pos_users?.name || '-'}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <Store className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span className="text-sm">{(acc.pos_outlets as any)?.name || '-'}</span>
+                                <span className="text-sm">{acc.pos_outlets?.name || '-'}</span>
                               </div>
                             </TableCell>
                             <TableCell>
