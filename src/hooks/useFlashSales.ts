@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface FlashSaleRow {
+  id: string;
+  product_id: string;
+  merchant_id: string;
+  original_price: number;
+  flash_price: number;
+  stock_available: number;
+  stock_sold: number;
+  end_time: string;
+  reason: string | null;
+  products: { name: string; image_url: string | null } | null;
+  merchants: { name: string } | null;
+}
+
 interface FlashSale {
   id: string;
   productId: string;
@@ -41,7 +55,7 @@ export function useFlashSales(options: UseFlashSalesOptions = {}) {
       setLoading(true);
       
       let query = supabase
-        .from('flash_sales' as any)
+        .from('flash_sales' as never)
         .select(`
           id,
           product_id,
@@ -62,7 +76,7 @@ export function useFlashSales(options: UseFlashSalesOptions = {}) {
         `)
         .eq('status', 'ACTIVE')
         .gt('end_time', new Date().toISOString())
-        .gt('stock_available', supabase.rpc('get_stock_sold_ref' as any))
+        .gt('stock_available', supabase.rpc('get_stock_sold_ref' as never))
         .order('end_time', { ascending: true })
         .limit(limit);
 
@@ -74,7 +88,7 @@ export function useFlashSales(options: UseFlashSalesOptions = {}) {
 
       if (fetchError) throw fetchError;
 
-      const mappedSales: FlashSale[] = ((data || []) as any[]).map((sale: any) => ({
+      const mappedSales: FlashSale[] = ((data || []) as unknown as FlashSaleRow[]).map((sale) => ({
         id: sale.id,
         productId: sale.product_id,
         productName: sale.products?.name || 'Unknown',
@@ -146,7 +160,7 @@ export function useProductFlashSale(productId: string | undefined) {
     const fetchFlashSale = async () => {
       try {
         const { data, error } = await supabase
-          .from('flash_sales' as any)
+          .from('flash_sales' as never)
           .select(`
             id,
             product_id,
@@ -168,7 +182,7 @@ export function useProductFlashSale(productId: string | undefined) {
         if (error) throw error;
 
         if (data) {
-          const sale = data as any;
+          const sale = data as unknown as FlashSaleRow;
           setFlashSale({
             id: sale.id,
             productId: sale.product_id,

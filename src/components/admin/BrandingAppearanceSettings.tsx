@@ -29,6 +29,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
 
+type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+
+type BrandingSettingValue = string | null | JsonValue;
+
 interface PWASettings {
   appName: string;
   shortName: string;
@@ -112,7 +116,7 @@ const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
 
 interface BrandingAppearanceSettingsProps {
   isSaving?: string | null;
-  onSave?: (key: string, values: any) => Promise<void>;
+  onSave?: (key: string, values: BrandingSettingValue) => Promise<void>;
 }
 
 export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave }: BrandingAppearanceSettingsProps) {
@@ -186,7 +190,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         .maybeSingle();
 
       if (pwaData && pwaData.value) {
-        setPwaSettings({ ...DEFAULT_PWA_SETTINGS, ...(pwaData.value as any) });
+        setPwaSettings({ ...DEFAULT_PWA_SETTINGS, ...(pwaData.value as unknown as Partial<PWASettings>) });
       }
 
       // Fetch SEO
@@ -238,14 +242,14 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         if (existing) {
           await supabase
             .from('app_settings')
-            .update({ value: value as any, updated_at: new Date().toISOString() })
+            .update({ value: value as unknown as JsonValue, updated_at: new Date().toISOString() })
             .eq('id', existing.id);
         } else {
           await supabase
             .from('app_settings')
             .insert({
               key,
-              value: value as any,
+              value: value as unknown as JsonValue,
               category: 'whitelabel',
               description: `Whitelabel setting: ${key}`,
             });
@@ -277,7 +281,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         .upsert({
           key: 'pwa_config',
           category: 'pwa',
-          value: pwaSettings as any,
+          value: pwaSettings as unknown as JsonValue,
           description: 'Progressive Web App configuration',
           updated_at: new Date().toISOString(),
         }, { onConflict: 'key' });
@@ -363,7 +367,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         .upsert({
           key: 'homepage_layout',
           category: 'layout',
-          value: layoutSettings as any,
+          value: layoutSettings as unknown as JsonValue,
           description: 'Homepage layout and sections configuration',
           updated_at: new Date().toISOString(),
         }, { onConflict: 'key' });
