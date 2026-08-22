@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -100,7 +100,7 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
 
   const hasDestination = destinationLat != null && destinationLng != null;
 
-  const fetchCouriers = async () => {
+  const fetchCouriers = useCallback(async () => {
     try {
       let query = supabase
         .from('couriers')
@@ -136,7 +136,7 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
     } finally {
       setLoading(false);
     }
-  };
+  }, [courierId, showAllCouriers]);
 
   useEffect(() => {
     // For self-delivery mode, we don't fetch couriers from DB - we listen to broadcast only
@@ -240,7 +240,7 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [courierId, showAllCouriers, selfDeliveryOrderId]);
+  }, [courierId, showAllCouriers, selfDeliveryOrderId, hasDestination, selfDeliveryLabel, fetchCouriers]);
 
   // Compute fit-bounds points
   const fitPoints: [number, number][] = [];

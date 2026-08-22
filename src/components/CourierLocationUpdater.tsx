@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, Navigation, Loader2, WifiOff, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -29,7 +29,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const isInitialMount = useRef(true);
 
-  const updateLocationToServer = async (lat: number, lng: number) => {
+  const updateLocationToServer = useCallback(async (lat: number, lng: number) => {
     try {
       const { error } = await supabase
         .from('couriers')
@@ -46,9 +46,9 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
     } catch (err) {
       console.error('Error updating location:', err);
     }
-  };
+  }, [courierId, onLocationUpdate]);
 
-  const startTracking = () => {
+  const startTracking = useCallback(() => {
     if (!navigator.geolocation) {
       setError('Geolocation tidak didukung oleh browser Anda');
       return;
@@ -122,7 +122,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
         updateLocationToServer(locationRef.current.lat, locationRef.current.lng);
       }
     }, 30000);
-  };
+  }, [courierId, updateLocationToServer]);
 
   const stopTracking = () => {
     if (watchIdRef.current !== null) {
@@ -165,7 +165,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
     if (isTracking) {
       startTracking();
     }
-  }, []);
+  }, [isTracking, startTracking]);
 
   useEffect(() => {
     return () => {

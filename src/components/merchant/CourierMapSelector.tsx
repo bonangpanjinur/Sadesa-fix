@@ -66,7 +66,7 @@ function FitAllBounds({ points }: { points: [number, number][] }) {
     } else if (points.length === 1) {
       map.setView(points[0], 14);
     }
-  }, [points.length]);
+  }, [points, map]);
   return null;
 }
 

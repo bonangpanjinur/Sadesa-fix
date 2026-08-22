@@ -178,56 +178,7 @@ export function MerchantEditDialog({
     classification_price: 'none',
   });
 
-  // Initialize form + load address codes + load users when dialog opens
-  useEffect(() => {
-    if (!open || !initialData) return;
 
-    setFormData({
-      name: initialData.name || '',
-      user_id: initialData.user_id || '',
-      phone: initialData.phone || '',
-      address: initialData.address || '',
-      province_code: '',
-      province_name: initialData.province || '',
-      regency_code: '',
-      regency_name: initialData.city || '',
-      district_code: '',
-      district_name: initialData.district || '',
-      village_code: '',
-      village_name: initialData.subdistrict || '',
-      open_time: initialData.open_time || '08:00',
-      close_time: initialData.close_time || '17:00',
-      business_category: initialData.business_category || 'kuliner',
-      business_description: initialData.business_description || '',
-      is_open: initialData.is_open ?? true,
-      status: initialData.status || 'ACTIVE',
-      badge: initialData.badge || 'none',
-      order_mode: initialData.order_mode || 'ADMIN_ASSISTED',
-      is_verified: initialData.is_verified ?? false,
-      image_url: initialData.image_url || null,
-      cover_image_url: initialData.cover_image_url || null,
-      location_lat: initialData.location_lat ?? null,
-      location_lng: initialData.location_lng ?? null,
-      bank_name: initialData.bank_name || '',
-      bank_account_number: initialData.bank_account_number || '',
-      bank_account_name: initialData.bank_account_name || '',
-      qris_image_url: initialData.qris_image_url || null,
-      payment_cod_enabled: initialData.payment_cod_enabled ?? true,
-      payment_transfer_enabled: initialData.payment_transfer_enabled ?? true,
-      verifikator_code: initialData.verifikator_code || '',
-      classification_price: initialData.classification_price || 'none',
-    });
-
-    if (initialData.verifikator_code) {
-      validateVerifikatorCode(initialData.verifikator_code);
-    } else {
-      setTradeGroupName(null);
-      setIsCodeValid(null);
-    }
-
-    loadOwnerAndUsers(initialData.user_id);
-    resolveAddressCodes(initialData.province, initialData.city, initialData.district, initialData.subdistrict);
-  }, [open, initialData]);
 
   // Debounce effect for verifikator code
   useEffect(() => {
@@ -237,17 +188,10 @@ export function MerchantEditDialog({
     return () => clearTimeout(timer);
   }, [formData.verifikator_code]);
 
-  useEffect(() => {
-    if (debouncedCode) {
-      validateVerifikatorCode(debouncedCode);
-    } else {
-      setTradeGroupName(null);
-      setIsCodeValid(null);
-    }
-  }, [debouncedCode]);
+
 
   // --- Owner / User logic ---
-  const validateVerifikatorCode = async (code: string) => {
+  const validateVerifikatorCode = useCallback(async (code: string) => {
     if (!code) {
       setTradeGroupName(null);
       setIsCodeValid(null);
@@ -278,9 +222,9 @@ export function MerchantEditDialog({
     } finally {
       setIsValidatingCode(false);
     }
-  };
+  }, []);
 
-  const loadOwnerAndUsers = async (currentUserId?: string | null) => {
+  const loadOwnerAndUsers = useCallback(async (currentUserId?: string | null) => {
     setLoadingUsers(true);
     try {
       // 1. Load current owner profile
@@ -333,10 +277,10 @@ export function MerchantEditDialog({
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, [merchantId]);
 
   // --- Address name-to-code resolution ---
-  const resolveAddressCodes = async (
+  const resolveAddressCodes = useCallback(async (
     provinceName: string | null,
     cityName: string | null,
     districtName: string | null,
@@ -389,7 +333,67 @@ export function MerchantEditDialog({
     } finally {
       setLoadingAddr(false);
     }
-  };
+  }, []);
+
+  // Initialize form + load address codes + load users when dialog opens
+  useEffect(() => {
+    if (!open || !initialData) return;
+
+    setFormData({
+      name: initialData.name || '',
+      user_id: initialData.user_id || '',
+      phone: initialData.phone || '',
+      address: initialData.address || '',
+      province_code: '',
+      province_name: initialData.province || '',
+      regency_code: '',
+      regency_name: initialData.city || '',
+      district_code: '',
+      district_name: initialData.district || '',
+      village_code: '',
+      village_name: initialData.subdistrict || '',
+      open_time: initialData.open_time || '08:00',
+      close_time: initialData.close_time || '17:00',
+      business_category: initialData.business_category || 'kuliner',
+      business_description: initialData.business_description || '',
+      is_open: initialData.is_open ?? true,
+      status: initialData.status || 'ACTIVE',
+      badge: initialData.badge || 'none',
+      order_mode: initialData.order_mode || 'ADMIN_ASSISTED',
+      is_verified: initialData.is_verified ?? false,
+      image_url: initialData.image_url || null,
+      cover_image_url: initialData.cover_image_url || null,
+      location_lat: initialData.location_lat ?? null,
+      location_lng: initialData.location_lng ?? null,
+      bank_name: initialData.bank_name || '',
+      bank_account_number: initialData.bank_account_number || '',
+      bank_account_name: initialData.bank_account_name || '',
+      qris_image_url: initialData.qris_image_url || null,
+      payment_cod_enabled: initialData.payment_cod_enabled ?? true,
+      payment_transfer_enabled: initialData.payment_transfer_enabled ?? true,
+      verifikator_code: initialData.verifikator_code || '',
+      classification_price: initialData.classification_price || 'none',
+    });
+
+    if (initialData.verifikator_code) {
+      validateVerifikatorCode(initialData.verifikator_code);
+    } else {
+      setTradeGroupName(null);
+      setIsCodeValid(null);
+    }
+
+    loadOwnerAndUsers(initialData.user_id);
+    resolveAddressCodes(initialData.province, initialData.city, initialData.district, initialData.subdistrict);
+  }, [open, initialData, validateVerifikatorCode, loadOwnerAndUsers, resolveAddressCodes]);
+
+  useEffect(() => {
+    if (debouncedCode) {
+      validateVerifikatorCode(debouncedCode);
+    } else {
+      setTradeGroupName(null);
+      setIsCodeValid(null);
+    }
+  }, [debouncedCode, validateVerifikatorCode]);
 
   // --- Address dropdown handlers ---
   const handleProvinceChange = async (code: string) => {

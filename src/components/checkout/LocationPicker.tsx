@@ -41,9 +41,7 @@ function MapCenterUpdater({ center, zoom }: { center: { lat: number; lng: number
   const map = useMap();
   
   useEffect(() => {
-    if (center) {
-      map.setView([center.lat, center.lng], zoom || map.getZoom(), { animate: true });
-    }
+    map.setView([center.lat, center.lng], zoom || map.getZoom(), { animate: true });
   }, [center.lat, center.lng, zoom, map]);
   
   return null;

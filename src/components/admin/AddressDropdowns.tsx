@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
@@ -65,10 +65,68 @@ export function AddressDropdowns({
   const [errorDistricts, setErrorDistricts] = useState(false);
   const [errorVillages, setErrorVillages] = useState(false);
 
+  const loadProvinces = useCallback(async () => {
+    setLoadingProvinces(true);
+    try {
+      const data = await fetchProvinces();
+      setProvinces(data);
+    } catch (error) {
+      console.error('Error loading provinces:', error);
+    } finally {
+      setLoadingProvinces(false);
+    }
+  }, []);
+
+  const loadRegencies = useCallback(async (code: string) => {
+    setLoadingRegencies(true);
+    setErrorRegencies(false);
+    try {
+      const data = await fetchRegencies(code);
+      setRegencies(data);
+      if (data.length === 0) setErrorRegencies(true);
+    } catch (error) {
+      console.error('Error loading regencies:', error);
+      setErrorRegencies(true);
+    } finally {
+      setLoadingRegencies(false);
+    }
+  }, []);
+
+  const loadDistricts = useCallback(async (code: string) => {
+    setLoadingDistricts(true);
+    setErrorDistricts(false);
+    try {
+      const data = await fetchDistricts(code);
+      setDistricts(data);
+      if (data.length === 0) setErrorDistricts(true);
+    } catch (error) {
+      console.error('Error loading districts:', error);
+      setErrorDistricts(true);
+    } finally {
+      setLoadingDistricts(false);
+    }
+  }, []);
+
+  const loadVillages = useCallback(async (code: string) => {
+    setLoadingVillages(true);
+    setErrorVillages(false);
+    try {
+      const data = await fetchVillages(code);
+      setVillages(data);
+      if (data.length === 0) setErrorVillages(true);
+    } catch (error) {
+      console.error('Error loading villages:', error);
+      setErrorVillages(true);
+    } finally {
+      setLoadingVillages(false);
+    }
+  }, []);
+
+
   // Load provinces on mount
   useEffect(() => {
     loadProvinces();
-  }, []);
+  }, [loadProvinces]);
 
   // Load dependent data when codes change (for edit mode)
   useEffect(() => {
@@ -88,7 +146,7 @@ export function AddressDropdowns({
       }
       loadRegencies(provinceCode);
     }
-  }, [provinceCode, provinces.length]);
+  }, [provinceCode, provinceName, regencyCode, regencyName, districtCode, districtName, villageCode, villageName, provinces, onChange, loadRegencies]);
 
   useEffect(() => {
     if (regencyCode && regencies.length > 0) {
@@ -107,7 +165,7 @@ export function AddressDropdowns({
       }
       loadDistricts(regencyCode);
     }
-  }, [regencyCode, regencies.length]);
+  }, [regencyCode, provinceCode, provinceName, regencyName, districtCode, districtName, villageCode, villageName, regencies, onChange, loadDistricts]);
 
   useEffect(() => {
     if (districtCode && districts.length > 0) {
@@ -126,7 +184,7 @@ export function AddressDropdowns({
       }
       loadVillages(districtCode);
     }
-  }, [districtCode, districts.length]);
+  }, [districtCode, provinceCode, provinceName, regencyCode, regencyName, districtName, villageCode, villageName, districts, onChange, loadVillages]);
 
   useEffect(() => {
     if (villageCode && villages.length > 0) {
@@ -144,64 +202,7 @@ export function AddressDropdowns({
         });
       }
     }
-  }, [villageCode, villages.length]);
-
-  const loadProvinces = async () => {
-    setLoadingProvinces(true);
-    try {
-      const data = await fetchProvinces();
-      setProvinces(data);
-    } catch (error) {
-      console.error('Error loading provinces:', error);
-    } finally {
-      setLoadingProvinces(false);
-    }
-  };
-
-  const loadRegencies = async (code: string) => {
-    setLoadingRegencies(true);
-    setErrorRegencies(false);
-    try {
-      const data = await fetchRegencies(code);
-      setRegencies(data);
-      if (data.length === 0) setErrorRegencies(true);
-    } catch (error) {
-      console.error('Error loading regencies:', error);
-      setErrorRegencies(true);
-    } finally {
-      setLoadingRegencies(false);
-    }
-  };
-
-  const loadDistricts = async (code: string) => {
-    setLoadingDistricts(true);
-    setErrorDistricts(false);
-    try {
-      const data = await fetchDistricts(code);
-      setDistricts(data);
-      if (data.length === 0) setErrorDistricts(true);
-    } catch (error) {
-      console.error('Error loading districts:', error);
-      setErrorDistricts(true);
-    } finally {
-      setLoadingDistricts(false);
-    }
-  };
-
-  const loadVillages = async (code: string) => {
-    setLoadingVillages(true);
-    setErrorVillages(false);
-    try {
-      const data = await fetchVillages(code);
-      setVillages(data);
-      if (data.length === 0) setErrorVillages(true);
-    } catch (error) {
-      console.error('Error loading villages:', error);
-      setErrorVillages(true);
-    } finally {
-      setLoadingVillages(false);
-    }
-  };
+  }, [villageCode, provinceCode, provinceName, regencyCode, regencyName, districtCode, districtName, villageName, villages, onChange]);
 
   const handleProvinceChange = async (code: string) => {
     const selected = provinces.find(p => p.code === code);

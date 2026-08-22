@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Save, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,42 +87,15 @@ export function CourierEditDialog({ open, onOpenChange, courier, onSuccess }: Co
     village_id: '',
   });
 
-  useEffect(() => {
-    if (!open || !courier) return;
 
-    setFormData({
-      name: courier.name || '',
-      user_id: courier.user_id || '',
-      phone: courier.phone || '',
-      email: courier.email || '',
-      province_code: '',
-      province_name: courier.province || '',
-      regency_code: '',
-      regency_name: courier.city || '',
-      district_code: '',
-      district_name: courier.district || '',
-      village_code: '',
-      village_name: courier.subdistrict || '',
-      address: courier.address || '',
-      ktp_number: courier.ktp_number || '',
-      vehicle_type: courier.vehicle_type || 'motor',
-      vehicle_plate: courier.vehicle_plate || '',
-      status: courier.status || 'ACTIVE',
-      village_id: courier.village_id || '',
-    });
 
-    fetchVillagesData();
-    resolveAddressCodes(courier.province, courier.city, courier.district, courier.subdistrict);
-    loadOwnerAndUsers(courier.user_id);
-  }, [open, courier]);
-
-  const fetchVillagesData = async () => {
+  const fetchVillagesData = useCallback(async () => {
     const { data } = await supabase.from('villages').select('id, name, subdistrict').order('name');
     if (data) setVillages(data);
-  };
+  }, []);
 
   // --- Owner logic ---
-  const loadOwnerAndUsers = async (currentUserId?: string | null) => {
+  const loadOwnerAndUsers = useCallback(async (currentUserId?: string | null) => {
     setLoadingUsers(true);
     try {
       if (currentUserId) {
@@ -151,10 +124,10 @@ export function CourierEditDialog({ open, onOpenChange, courier, onSuccess }: Co
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, [courier?.id]);
 
   // --- Address resolution ---
-  const resolveAddressCodes = async (prov: string | null, city: string | null, dist: string | null, sub: string | null) => {
+  const resolveAddressCodes = useCallback(async (prov: string | null, city: string | null, dist: string | null, sub: string | null) => {
     if (!prov) {
       const provList = await fetchProvinces();
       setProvinces(provList);
@@ -195,7 +168,36 @@ export function CourierEditDialog({ open, onOpenChange, courier, onSuccess }: Co
     } finally {
       setLoadingAddr(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!open || !courier) return;
+
+    setFormData({
+      name: courier.name || '',
+      user_id: courier.user_id || '',
+      phone: courier.phone || '',
+      email: courier.email || '',
+      province_code: '',
+      province_name: courier.province || '',
+      regency_code: '',
+      regency_name: courier.city || '',
+      district_code: '',
+      district_name: courier.district || '',
+      village_code: '',
+      village_name: courier.subdistrict || '',
+      address: courier.address || '',
+      ktp_number: courier.ktp_number || '',
+      vehicle_type: courier.vehicle_type || 'motor',
+      vehicle_plate: courier.vehicle_plate || '',
+      status: courier.status || 'ACTIVE',
+      village_id: courier.village_id || '',
+    });
+
+    fetchVillagesData();
+    resolveAddressCodes(courier.province, courier.city, courier.district, courier.subdistrict);
+    loadOwnerAndUsers(courier.user_id);
+  }, [open, courier, fetchVillagesData, resolveAddressCodes, loadOwnerAndUsers]);
 
   // --- Address handlers ---
   const handleProvinceChange = async (code: string) => {

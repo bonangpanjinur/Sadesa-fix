@@ -100,7 +100,7 @@ export function MerchantLocationPicker({
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     }
-  }, []); // Only on mount
+  }, [value, onChange]); // Runs only while no value is set
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
     if (!disabled) {

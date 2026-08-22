@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Package, CreditCard } from 'lucide-react';
 import {
   Dialog,
@@ -59,13 +59,7 @@ export function AssignPackageDialog({
   const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
-  useEffect(() => {
-    if (open) {
-      fetchData();
-    }
-  }, [open, merchantId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoadingData(true);
     try {
       // Fetch available packages (all active packages since they are now general)
@@ -99,7 +93,13 @@ export function AssignPackageDialog({
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    if (open) {
+      fetchData();
+    }
+  }, [open, fetchData]);
 
   const handleAssign = async () => {
     if (!selectedPackageId) {

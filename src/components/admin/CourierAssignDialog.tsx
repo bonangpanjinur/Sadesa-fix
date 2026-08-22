@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Truck, MapPin, Package, Loader2, Zap, User, Map, List } from 'lucide-react';
 import {
   Dialog,
@@ -51,13 +51,7 @@ export function CourierAssignDialog({
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
-  useEffect(() => {
-    if (open) {
-      loadCouriers();
-    }
-  }, [open, merchantLat, merchantLng]);
-
-  const loadCouriers = async () => {
+  const loadCouriers = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getAvailableCouriers(merchantLat, merchantLng);
@@ -67,7 +61,13 @@ export function CourierAssignDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantLat, merchantLng]);
+
+  useEffect(() => {
+    if (open) {
+      loadCouriers();
+    }
+  }, [open, loadCouriers]);
 
   const handleAutoAssign = async () => {
     setAutoAssigning(true);
