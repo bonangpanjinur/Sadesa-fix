@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,9 +41,7 @@ export default function AdminRidesPage() {
   const [search, setSearch] = useState('');
   const [stats, setStats] = useState({ total: 0, active: 0, completed: 0, revenue: 0 });
 
-  useEffect(() => { fetchRides(); }, [statusFilter]);
-
-  const fetchRides = async () => {
+  const fetchRides = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
@@ -73,7 +71,9 @@ export default function AdminRidesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
+
+  useEffect(() => { fetchRides(); }, [fetchRides]);
 
   const filteredRides = rides.filter(r =>
     !search || r.pickup_address.toLowerCase().includes(search.toLowerCase()) || r.destination_address.toLowerCase().includes(search.toLowerCase())
