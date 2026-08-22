@@ -27,6 +27,40 @@ import { Link } from 'react-router-dom';
 import { calculateCreditCost } from '@/lib/quotaApi';
 import { fetchQuotaTiers } from '@/lib/quotaApi';
 
+interface POSTransactionItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+}
+
+interface POSTransaction {
+  id: string;
+  transaction_number: string;
+  customer_name: string | null;
+  items: POSTransactionItem[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  payment_method: string;
+  payment_amount: number;
+  change_amount: number;
+  notes: string | null;
+  created_at: string;
+}
+
+interface POSSettings {
+  invoice_header?: string | null;
+  invoice_footer?: string | null;
+  show_logo?: boolean;
+  show_address?: boolean;
+  show_phone?: boolean;
+  paper_size?: string;
+  font_size?: string;
+}
+
 interface ProductItem {
   id: string;
   name: string;
@@ -66,11 +100,11 @@ export default function MerchantPOSPage() {
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [lastTransaction, setLastTransaction] = useState<any>(null);
+  const [lastTransaction, setLastTransaction] = useState<POSTransaction | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [posActive, setPosActive] = useState<boolean | null>(null);
-  const [posSettings, setPosSettings] = useState<any>(null);
+  const [posSettings, setPosSettings] = useState<POSSettings | null>(null);
 
   // Load merchant data & check POS access
   useEffect(() => {
@@ -106,7 +140,7 @@ export default function MerchantPOSPage() {
           .select('*')
           .eq('merchant_id', merchant.id)
           .maybeSingle();
-        setPosSettings(settings);
+        setPosSettings(settings as POSSettings | null);
 
         // Load products
         const { data: prods } = await supabase
@@ -259,7 +293,7 @@ export default function MerchantPOSPage() {
           merchant_id: merchantId,
           transaction_number: txNumber,
           customer_name: customerName || null,
-          items: items as any,
+          items,
           subtotal: cartTotal,
           total: cartTotal,
           payment_method: paymentMethod,
@@ -298,8 +332,8 @@ export default function MerchantPOSPage() {
       setPaymentAmount('');
       setReceiptOpen(true);
       toast.success(`Transaksi berhasil! Kuota terpakai: ${totalCredits} kredit`);
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal memproses transaksi');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal memproses transaksi');
     } finally {
       setProcessing(false);
     }

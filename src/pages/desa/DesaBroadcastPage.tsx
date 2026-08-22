@@ -14,6 +14,21 @@ import { Send, Bell, Users, Store, CheckCircle, Clock, Megaphone } from 'lucide-
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface BroadcastMerchant {
+  user_id: string | null;
+}
+
+interface BroadcastPayload {
+  village_id: string;
+  sent_by: string;
+  title: string;
+  message: string;
+  target_audience: string;
+  sent_count: number;
+  status: string;
+  sent_at: string;
+}
+
 interface BroadcastItem {
   id: string;
   title: string;
@@ -48,7 +63,7 @@ export default function DesaBroadcastPage() {
     if (!villageId) return;
     setLoading(true);
     const [broadcastRes, merchantRes] = await Promise.all([
-      supabase.from('broadcast_messages' as any)
+      supabase.from('broadcast_messages')
         .select('*')
         .eq('village_id', villageId)
         .order('created_at', { ascending: false }),
@@ -78,7 +93,7 @@ export default function DesaBroadcastPage() {
         .eq('village_id', villageId)
         .eq('registration_status', 'APPROVED');
 
-      const userIds = (merchants || []).map((m: any) => m.user_id).filter(Boolean);
+      const userIds = (merchants as BroadcastMerchant[] || []).map((m) => m.user_id).filter((id): id is string => Boolean(id));
 
       // Insert notifications
       if (userIds.length > 0) {
@@ -94,7 +109,7 @@ export default function DesaBroadcastPage() {
       }
 
       // Save broadcast record
-      await supabase.from('broadcast_messages' as any).insert({
+      const broadcastPayload: BroadcastPayload = {
         village_id: villageId,
         sent_by: user.id,
         title: form.title,
@@ -103,14 +118,14 @@ export default function DesaBroadcastPage() {
         sent_count: userIds.length,
         status: 'sent',
         sent_at: new Date().toISOString(),
-      });
-
+      };
+      await supabase.from('broadcast_messages').insert(broadcastPayload);
       toast.success(`Pengumuman terkirim ke ${userIds.length} merchant`);
       setDialogOpen(false);
       setForm({ title: '', message: '', target: 'merchant' });
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal mengirim pengumuman');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal mengirim pengumuman');
     } finally {
       setSending(false);
     }

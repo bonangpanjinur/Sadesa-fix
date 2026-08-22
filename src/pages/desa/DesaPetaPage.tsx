@@ -11,7 +11,8 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 // Fix leaflet default icon
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+const leafletIconPrototype = L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: string };
+delete leafletIconPrototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
@@ -31,6 +32,28 @@ const tourismIcon = L.divIcon({
   iconAnchor: [14, 28],
   className: '',
 });
+
+interface VillageMapData {
+  village_id: string;
+  villages: { location_lat: number | null; location_lng: number | null } | { location_lat: number | null; location_lng: number | null }[] | null;
+}
+
+interface MerchantMapRow {
+  id: string;
+  name: string;
+  business_category: string | null;
+  phone: string | null;
+  address: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
+}
+
+interface TourismMapRow {
+  id: string;
+  name: string;
+  location_lat: number | null;
+  location_lng: number | null;
+}
 
 interface MapItem {
   id: string;
@@ -62,7 +85,7 @@ export default function DesaPetaPage() {
         .maybeSingle();
       if (data?.village_id) {
         setVillageId(data.village_id);
-        const v = (data as any).villages;
+        const v = Array.isArray(data.villages) ? data.villages[0] : data.villages;
         if (v?.location_lat && v?.location_lng) {
           setCenter([Number(v.location_lat), Number(v.location_lng)]);
         }
@@ -79,7 +102,7 @@ export default function DesaPetaPage() {
       supabase.from('tourism').select('id, name, location_lat, location_lng').eq('village_id', villageId).eq('is_active', true).not('location_lat', 'is', null),
     ]);
 
-    const merchants: MapItem[] = ((merchantRes.data || []) as any[]).map(m => ({
+    const merchants: MapItem[] = (merchantRes.data as MerchantMapRow[] || []).map((m) => ({
       id: m.id,
       name: m.name,
       type: 'merchant' as const,
@@ -90,7 +113,7 @@ export default function DesaPetaPage() {
       address: m.address,
     })).filter(m => m.lat && m.lng);
 
-    const tourism: MapItem[] = ((tourismRes.data || []) as any[]).map(t => ({
+    const tourism: MapItem[] = (tourismRes.data as TourismMapRow[] || []).map((t) => ({
       id: t.id,
       name: t.name,
       type: 'tourism' as const,

@@ -11,6 +11,24 @@ import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { getSettingByKey } from '@/lib/adminApi';
 
+interface POSSubscription {
+  id: string;
+  merchant_id: string;
+  package_id: string | null;
+  status: string;
+  is_trial: boolean;
+  payment_amount: number | null;
+  payment_status: string | null;
+  payment_proof_url: string | null;
+  started_at: string | null;
+  expired_at: string | null;
+  rejection_reason: string | null;
+}
+
+interface POSConfig {
+  trial_days?: number;
+}
+
 interface POSPackage {
   id: string;
   name: string;
@@ -28,7 +46,7 @@ export default function MerchantPOSSubscribePage() {
   const [selectedPkg, setSelectedPkg] = useState<string | null>(null);
   const [paymentProof, setPaymentProof] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [existingSub, setExistingSub] = useState<any>(null);
+  const [existingSub, setExistingSub] = useState<POSSubscription | null>(null);
   const [trialDays, setTrialDays] = useState(30);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
 
@@ -61,7 +79,7 @@ export default function MerchantPOSSubscribePage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        setExistingSub(sub);
+        setExistingSub(sub as POSSubscription | null);
 
         // Check if trial was used
         const { count } = await supabase
@@ -74,7 +92,8 @@ export default function MerchantPOSSubscribePage() {
         // Get trial days config
         const config = await getSettingByKey('pos_config');
         if (config?.value) {
-          setTrialDays((config.value as any).trial_days || 30);
+          const posConfig = config.value as POSConfig;
+          setTrialDays(posConfig.trial_days || 30);
         }
       } catch (err) {
         console.error(err);
@@ -105,8 +124,8 @@ export default function MerchantPOSSubscribePage() {
       if (error) throw error;
       toast.success(`Trial ${trialDays} hari berhasil diaktifkan!`);
       window.location.reload();
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal mengaktifkan trial');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal mengaktifkan trial');
     } finally {
       setSubmitting(false);
     }
@@ -141,8 +160,8 @@ export default function MerchantPOSSubscribePage() {
       if (error) throw error;
       toast.success('Permintaan berhasil dikirim! Menunggu persetujuan admin.');
       window.location.reload();
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal mengirim permintaan');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal mengirim permintaan');
     } finally {
       setSubmitting(false);
     }
