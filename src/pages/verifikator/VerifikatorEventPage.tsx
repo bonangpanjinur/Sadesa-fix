@@ -10,6 +10,21 @@ import { Calendar, MapPin, RefreshCw } from 'lucide-react';
 import { format, isAfter } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface AssignmentRow {
+  villages: { id: string; name: string } | null;
+}
+
+interface EventRow {
+  id: string;
+  name: string;
+  event_type: string;
+  location: string | null;
+  start_date: string;
+  end_date: string | null;
+  organizer: string | null;
+  villages: { name: string } | null;
+}
+
 interface VillageEvent {
   id: string;
   name: string;
@@ -35,24 +50,24 @@ export default function VerifikatorEventPage() {
 
   const fetchVillages = useCallback(async () => {
     if (!user) return;
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from('verifikator_assignments')
       .select('villages(id, name)')
       .eq('verifikator_id', user.id);
-    setVillages(((data || []) as any[]).map((a: any) => a.villages).filter(Boolean) as { id: string; name: string }[]);
+    setVillages(((data || []) as unknown as AssignmentRow[]).map((a) => a.villages).filter(Boolean) as { id: string; name: string }[]);
   }, [user]);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
       let q = supabase
-        .from('village_events' as any)
+        .from('village_events' as never)
         .select('*, villages(name)')
         .order('start_date', { ascending: false });
       if (selectedVillage !== 'all') q = q.eq('village_id', selectedVillage);
 
       const { data } = await q;
-      setEvents(((data || []) as any[]).map(e => ({
+      setEvents(((data || []) as unknown as EventRow[]).map((e) => ({
         ...e,
         village_name: e.villages?.name || '',
       })));
