@@ -23,7 +23,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
   const { unreadCount: chatUnread, realtimeStatus: chatRealtimeStatus } = useChatUnread();
   const [unreadCount, setUnreadCount] = useState(0);
   const [activeOrders, setActiveOrders] = useState(0);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -79,7 +79,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `buyer_id=eq.${user.id}` },
         (payload) => {
-          const updatedOrder = payload.new as any;
+          const updatedOrder = payload.new as { status?: string };
           const activeStatuses = ['NEW', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PROCESSED', 'ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT', 'DELIVERED'];
           if (activeStatuses.includes(updatedOrder.status)) {
             fetchBadges();

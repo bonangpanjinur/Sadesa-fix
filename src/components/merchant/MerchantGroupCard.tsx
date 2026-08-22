@@ -9,6 +9,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface MerchantMembership {
+  id: string;
+  verifikator_id: string | null;
+  group_id: string | null;
+  verifikator_code: string | null;
+  trade_group: string | null;
+}
+
 interface VerifikatorInfo {
   id: string;
   full_name: string | null;
@@ -33,13 +41,13 @@ export const MerchantGroupCard = () => {
   // State untuk form pencarian
   const [loading, setLoading] = useState(false);
   const [searchCode, setSearchCode] = useState("");
-  const [searchedCodeData, setSearchedCodeData] = useState<any | null>(null);
+  const [searchedCodeData, setSearchedCodeData] = useState<{ code: string; verifikator_id: string; trade_group: string | null } | null>(null);
   const [searchedVerifikator, setSearchedVerifikator] = useState<VerifikatorInfo | null>(null);
 
   // State untuk data keanggotaan saat ini
   const [initialLoading, setInitialLoading] = useState(true);
   const [isJoined, setIsJoined] = useState(false);
-  const [currentMerchantData, setCurrentMerchantData] = useState<any | null>(null);
+  const [currentMerchantData, setCurrentMerchantData] = useState<MerchantMembership | null>(null);
   const [currentVerifikator, setCurrentVerifikator] = useState<VerifikatorInfo | null>(null);
   const [currentGroup, setCurrentGroup] = useState<GroupInfo | null>(null);
 

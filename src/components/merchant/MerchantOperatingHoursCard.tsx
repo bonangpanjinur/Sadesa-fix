@@ -69,7 +69,7 @@ export function MerchantOperatingHoursCard({ merchantId }: Props) {
     queryKey: ['merchant-operating-hours', merchantId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('merchant_operating_hours' as any)
+        .from('merchant_operating_hours')
         .select('day_of_week, open_time, close_time, is_closed')
         .eq('merchant_id', merchantId)
         .order('day_of_week', { ascending: true });
@@ -105,7 +105,7 @@ export function MerchantOperatingHoursCard({ merchantId }: Props) {
       }));
 
       const { error } = await supabase
-        .from('merchant_operating_hours' as any)
+        .from('merchant_operating_hours')
         .upsert(rows, { onConflict: 'merchant_id,day_of_week' });
 
       if (error) throw error;
