@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, Download, Calendar, TrendingUp, ShoppingBag, DollarSign, Store } from 'lucide-react';
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -52,7 +52,7 @@ export default function AdminReportsPage() {
   const [customStart, setCustomStart] = useState<Date | undefined>(undefined);
   const [customEnd, setCustomEnd] = useState<Date | undefined>(undefined);
 
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const now = new Date();
     switch (dateRange) {
       case '7days':
@@ -73,9 +73,9 @@ export default function AdminReportsPage() {
       default:
         return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
     }
-  };
+  }, [dateRange, customStart, customEnd]);
 
-  const loadReports = async () => {
+  const loadReports = useCallback(async () => {
     try {
       setLoading(true);
       const { start, end } = getDateRange();
@@ -108,11 +108,11 @@ export default function AdminReportsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getDateRange]);
 
   useEffect(() => {
     loadReports();
-  }, [dateRange, customStart, customEnd]);
+  }, [loadReports]);
 
   // Summary calculations
   const summary = useMemo(() => {
