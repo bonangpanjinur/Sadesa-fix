@@ -22,6 +22,34 @@ export interface HeldBill {
   customer_id?: string | null;
 }
 
+export interface LastSale {
+  saleNumber: string;
+  total: number;
+  change: number;
+  paymentMethod: string;
+  customerName: string;
+  items: CartItem[];
+  pointsEarned: number;
+  pointsRedeemed: number;
+  pointsDiscount: number;
+  promoDiscount: number;
+  voucherDiscount: number;
+  appliedPromoName: string | null;
+  appliedVoucherCode: string | null;
+  newPointsBalance: number | null;
+  subtotal?: number;
+  taxAmount?: number;
+  paidAmount?: number;
+}
+
+export interface ReceiptStore {
+  name?: string;
+  address?: string;
+  phone?: string;
+  receipt_header?: string;
+  receipt_footer?: string;
+}
+
 export interface CustomerBalance {
   total_purchase: number;
   transaction_count: number;

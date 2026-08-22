@@ -19,7 +19,7 @@ import { POSHeldBills } from '@/components/pos/kasir/POSHeldBills';
 import { QRPayDialog } from '@/components/pos/kasir/QRPayDialog';
 import { cn } from '@/lib/utils';
 import type {
-  CartItem, HeldBill, Customer, CustomerBalance, LoyaltyProgram,
+  CartItem, HeldBill, Customer, CustomerBalance, LastSale, ReceiptStore, LoyaltyProgram,
   Promotion, Voucher, Product, Variant,
 } from '@/components/pos/kasir/types';
 
@@ -79,7 +79,7 @@ export default function POSKasirPage() {
   const [splitAmount2, setSplitAmount2] = useState('');
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
-  const [lastSale, setLastSale] = useState<any>(null);
+  const [lastSale, setLastSale] = useState<LastSale | null>(null);
 
   // QR Pay
   const [qrPayDialog, setQrPayDialog] = useState(false);
@@ -453,7 +453,7 @@ export default function POSKasirPage() {
 
       clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
       setPaymentAmount(''); setPaymentDialog(false); setSuccessDialog(true); fetchProducts();
-    } catch (err: any) { toast.error('Gagal memproses transaksi: ' + err.message); }
+    } catch (err: unknown) { toast.error('Gagal memproses transaksi: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui')); }
   };
 
   // ── Hold Bill ────────────────────────────────────────────
@@ -510,17 +510,17 @@ export default function POSKasirPage() {
         setThermalConnected(true);
         toast.success(`Printer WiFi: ${settings.wifiIp}:${settings.wifiPort}`);
       }
-    } catch (err: any) { toast.error('Gagal menghubungkan printer: ' + (err.message || 'Coba lagi')); }
+    } catch (err: unknown) { toast.error('Gagal menghubungkan printer: ' + (err instanceof Error ? err.message : 'Coba lagi')); }
     finally { setThermalConnecting(false); }
   };
 
   const buildReceiptData = (): ReceiptData => ({
-    storeName: (tenant as any)?.name || 'Toko', storeAddress: (tenant as any)?.address,
-    storePhone: (tenant as any)?.phone, receiptHeader: (tenant as any)?.receipt_header,
-    receiptFooter: (tenant as any)?.receipt_footer, invoiceNo: lastSale.saleNumber,
+    storeName: (tenant as unknown as ReceiptStore)?.name || 'Toko', storeAddress: (tenant as unknown as ReceiptStore)?.address,
+    storePhone: (tenant as unknown as ReceiptStore)?.phone, receiptHeader: (tenant as unknown as ReceiptStore)?.receipt_header,
+    receiptFooter: (tenant as unknown as ReceiptStore)?.receipt_footer, invoiceNo: lastSale.saleNumber,
     date: new Date(), cashierName: user?.email,
     customerName: lastSale.customerName !== 'Umum' ? lastSale.customerName : undefined,
-    items: lastSale.items.map((i: any) => ({ name: i.variantName ? `${i.name} (${i.variantName})` : i.name, qty: i.qty, price: i.price, discount: i.discount || 0 })),
+    items: lastSale.items.map((i: CartItem) => ({ name: i.variantName ? `${i.name} (${i.variantName})` : i.name, qty: i.qty, price: i.price, discount: i.discount || 0 })),
     subtotal: lastSale.subtotal ?? lastSale.total,
     discountAmount: lastSale.promoDiscount + lastSale.voucherDiscount + lastSale.pointsDiscount,
     taxAmount: lastSale.taxAmount ?? 0, total: lastSale.total,
@@ -535,8 +535,8 @@ export default function POSKasirPage() {
       try {
         await uniPrinter.printReceipt(receiptData);
         return;
-      } catch (err: any) {
-        toast.error('Printer gagal: ' + err.message + '. Beralih ke cetak browser.');
+      } catch (err: unknown) {
+        toast.error('Printer gagal: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui') + '. Beralih ke cetak browser.');
         setThermalConnected(false);
       }
     }
@@ -545,8 +545,8 @@ export default function POSKasirPage() {
 
   const sendReceiptViaWhatsApp = () => {
     if (!lastSale) return;
-    const storeName = (tenant as any)?.name || 'Toko';
-    const storePhone = (tenant as any)?.phone || '';
+    const storeName = (tenant as unknown as ReceiptStore)?.name || 'Toko';
+    const storePhone = (tenant as unknown as ReceiptStore)?.phone || '';
     const now = new Date();
     const tgl = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const payLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', debit: 'Debit', qr_pay: 'QR Pay' };
@@ -595,17 +595,17 @@ export default function POSKasirPage() {
 
   const exportReceiptPDF = () => {
     if (!lastSale) return;
-    const storeName = (tenant as any)?.name || 'Toko';
-    const storeAddress = (tenant as any)?.address || '';
-    const storePhone = (tenant as any)?.phone || '';
-    const receiptHeader = (tenant as any)?.receipt_header || '';
-    const receiptFooter = (tenant as any)?.receipt_footer || 'Terima kasih telah berbelanja!';
+    const storeName = (tenant as unknown as ReceiptStore)?.name || 'Toko';
+    const storeAddress = (tenant as unknown as ReceiptStore)?.address || '';
+    const storePhone = (tenant as unknown as ReceiptStore)?.phone || '';
+    const receiptHeader = (tenant as unknown as ReceiptStore)?.receipt_header || '';
+    const receiptFooter = (tenant as unknown as ReceiptStore)?.receipt_footer || 'Terima kasih telah berbelanja!';
     const now = new Date();
     const tgl = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const payLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', debit: 'Debit', qr_pay: 'QR Pay' };
     const methodLabel = payLabel[lastSale.paymentMethod] || lastSale.paymentMethod;
 
-    const itemRows = lastSale.items.map((item: any) => {
+    const itemRows = lastSale.items.map((item: CartItem) => {
       const name = item.variantName ? `${item.name} (${item.variantName})` : item.name;
       const sub = item.price * item.qty - (item.discount || 0);
       const discRow = (item.discount || 0) > 0
