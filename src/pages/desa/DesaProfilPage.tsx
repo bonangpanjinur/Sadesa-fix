@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { validateUploadFile } from '@/lib/fileValidation';
 
 interface VillageProfile {
   id: string;
@@ -93,11 +94,11 @@ export default function DesaProfilPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !village) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error('Maks 5MB'); return; }
+    const validation = validateUploadFile(file);
+    if (validation.valid === false) { toast.error(validation.error); return; }
     setUploadingImg(true);
     try {
-      const ext = file.name.split('.').pop();
-      const path = `villages/${village.id}/cover-${Date.now()}.${ext}`;
+      const path = `villages/${village.id}/cover-${crypto.randomUUID()}.${validation.extension}`;
       await supabase.storage.from('merchant-gallery').upload(path, file, { upsert: true });
       const { data: urlData } = supabase.storage.from('merchant-gallery').getPublicUrl(path);
       updateField('image_url', urlData?.publicUrl || path);
@@ -115,9 +116,9 @@ export default function DesaProfilPage() {
     try {
       const uploaded: string[] = [];
       for (const file of files) {
-        if (file.size > 5 * 1024 * 1024) continue;
-        const ext = file.name.split('.').pop();
-        const path = `villages/${village.id}/gallery-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const validation = validateUploadFile(file);
+        if (validation.valid === false) continue;
+        const path = `villages/${village.id}/gallery-${crypto.randomUUID()}.${validation.extension}`;
         await supabase.storage.from('merchant-gallery').upload(path, file);
         const { data: urlData } = supabase.storage.from('merchant-gallery').getPublicUrl(path);
         uploaded.push(urlData?.publicUrl || path);

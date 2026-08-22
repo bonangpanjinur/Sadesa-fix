@@ -31,6 +31,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
+import { validateUploadFile } from '@/lib/fileValidation';
 import { fetchMerchantQuotaInfo, fetchQuotaUsageLogs, type MerchantQuotaInfo, type QuotaUsageLog } from '@/lib/quotaHelpers';
 
 interface Subscription {
@@ -203,25 +204,12 @@ export default function MerchantSubscriptionPage() {
     setPendingSubscription(null);
   };
 
-  const validateFile = (file: File): { valid: boolean; error?: string } => {
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-
-    if (file.size > maxSize) {
-      return { valid: false, error: 'Ukuran file tidak boleh lebih dari 5MB' };
-    }
-
-    if (!allowedTypes.includes(file.type)) {
-      return { valid: false, error: 'Format file harus JPG, PNG, WebP, atau PDF' };
-    }
-
-    return { valid: true };
-  };
+  const validateFile = (file: File) => validateUploadFile(file, { documents: true });
 
   const handleFileSelect = (file: File) => {
     const validation = validateFile(file);
     
-    if (!validation.valid) {
+    if (validation.valid === false) {
       toast.error(validation.error);
       return;
     }
@@ -270,9 +258,9 @@ export default function MerchantSubscriptionPage() {
     setUploading(true);
     setUploadProgress(0);
     try {
-      const fileExt = selectedFile.name.split('.').pop();
-      const randomId = Math.random().toString(36).substring(7);
-      const fileName = `payment-proofs/${merchant.id}/new-${Date.now()}-${randomId}.${fileExt}`;
+      const validation = validateUploadFile(selectedFile, { documents: true });
+      if (validation.valid === false) throw new Error(validation.error);
+      const fileName = `payment-proofs/${merchant.id}/new-${crypto.randomUUID()}.${validation.extension}`;
       const filePath = fileName;
 
       // Simulate progress

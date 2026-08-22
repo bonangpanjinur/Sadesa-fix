@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { validateUploadFile } from '@/lib/fileValidation';
 
 interface GalleryItem {
   id: string;
@@ -76,12 +77,12 @@ export default function MerchantGalleryPage() {
     setUploading(true);
     try {
       for (const file of files) {
-        if (file.size > 5 * 1024 * 1024) {
-          toast.error(`${file.name} terlalu besar (maks 5MB)`);
+        const validation = validateUploadFile(file);
+        if (validation.valid === false) {
+          toast.error(`${file.name}: ${validation.error}`);
           continue;
         }
-        const ext = file.name.split('.').pop();
-        const path = `${merchantId}/${Date.now()}.${ext}`;
+        const path = `${merchantId}/${crypto.randomUUID()}.${validation.extension}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('merchant-gallery')
           .upload(path, file);
