@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, MapPin, Phone, Mail, User, Check, X, Edit, 
@@ -82,13 +82,7 @@ export default function AdminVillageDetailPage() {
     totalTourism: 0,
   });
 
-  useEffect(() => {
-    if (id) {
-      fetchVillageData();
-    }
-  }, [id]);
-
-  const fetchVillageData = async () => {
+  const fetchVillageData = useCallback(async () => {
     try {
       // Fetch village details
       const { data: villageData, error: villageError } = await supabase
@@ -153,7 +147,7 @@ export default function AdminVillageDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   const handleApprove = async () => {
     if (!id) return;
@@ -179,6 +173,10 @@ export default function AdminVillageDetailPage() {
       toast.error('Gagal menolak desa wisata');
     }
   };
+
+  useEffect(() => {
+    if (id) fetchVillageData();
+  }, [id, fetchVillageData]);
 
   const handleDelete = async () => {
     if (!id) return;
