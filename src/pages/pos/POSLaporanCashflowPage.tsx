@@ -60,12 +60,18 @@ const EXPENSE_LABELS: Record<string, string> = {
   lain_keluar: 'Pengeluaran Lain-lain',
 };
 
-const CustomTooltip = ({ active, payload, label, formatCurrency }: any) => {
+interface CashflowSale { total: number; payment_method: string | null; created_at: string; }
+interface CashMutation { type: string; category: string | null; amount: number; description: string | null; created_at: string; }
+interface PurchaseRow { total_amount: number; status: string; created_at: string; }
+interface ChartTooltipPayload { name: string; color?: string; value: number; }
+interface CustomTooltipProps { active?: boolean; payload?: ChartTooltipPayload[]; label?: string; formatCurrency: (value: number) => string; }
+
+const CustomTooltip = ({ active, payload, label, formatCurrency }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-background border border-border rounded-lg p-3 shadow-lg text-sm">
       <p className="font-medium mb-2">{label}</p>
-      {payload.map((entry: any) => (
+      {payload.map((entry) => (
         <div key={entry.name} className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: entry.color }} />
           <span className="text-muted-foreground">{entry.name}:</span>
@@ -107,7 +113,7 @@ export default function POSLaporanCashflowPage() {
     try {
       // Fetch sales (cash inflow by payment method)
       const { data: sales } = await supabase
-        .from('pos_sales' as any)
+        .from('pos_sales' as never)
         .select('total, payment_method, created_at')
         .eq('tenant_id', tenant.id)
         .eq('outlet_id', activeOutlet.id)
@@ -118,7 +124,7 @@ export default function POSLaporanCashflowPage() {
 
       // Fetch cash mutations (all in/out)
       const { data: mutations } = await supabase
-        .from('pos_cash_mutations' as any)
+        .from('pos_cash_mutations' as never)
         .select('type, category, amount, description, created_at')
         .eq('tenant_id', tenant.id)
         .eq('outlet_id', activeOutlet.id)
@@ -128,7 +134,7 @@ export default function POSLaporanCashflowPage() {
 
       // Fetch purchases (cash outflow)
       const { data: purchases } = await supabase
-        .from('pos_purchase_orders' as any)
+        .from('pos_purchase_orders' as never)
         .select('total_amount, status, created_at')
         .eq('tenant_id', tenant.id)
         .eq('outlet_id', activeOutlet.id)
@@ -137,18 +143,18 @@ export default function POSLaporanCashflowPage() {
         .lte('created_at', end.toISOString())
         .order('created_at');
 
-      const salesArr = (sales || []) as any[];
-      const mutArr = (mutations || []) as any[];
-      const purchArr = (purchases || []) as any[];
+      const salesArr = (sales || []) as unknown as CashflowSale[];
+      const mutArr = (mutations || []) as unknown as CashMutation[];
+      const purchArr = (purchases || []) as unknown as PurchaseRow[];
 
       // Build income breakdown by payment method
       const incomeByCat: Record<string, number> = {};
-      salesArr.forEach((s: any) => {
+      salesArr.forEach((s) => {
         const key = `sales_${s.payment_method}`;
         incomeByCat[key] = (incomeByCat[key] || 0) + Number(s.total);
       });
       // Add cash mutations type=in
-      mutArr.filter((m: any) => m.type === 'in').forEach((m: any) => {
+      mutArr.filter(m => m.type === 'in').forEach((m) => {
         const key = m.category || 'lain_masuk';
         // skip sales_cash from mutations (already counted from sales)
         if (key !== 'sales_cash') {
@@ -158,11 +164,11 @@ export default function POSLaporanCashflowPage() {
 
       // Build expense breakdown
       const expenseByCat: Record<string, number> = {};
-      mutArr.filter((m: any) => m.type === 'out').forEach((m: any) => {
+      mutArr.filter(m => m.type === 'out').forEach((m) => {
         const key = m.category || 'lain_keluar';
         expenseByCat[key] = (expenseByCat[key] || 0) + Number(m.amount);
       });
-      purchArr.forEach((p: any) => {
+      purchArr.forEach((p) => {
         expenseByCat['purchase'] = (expenseByCat['purchase'] || 0) + Number(p.total_amount);
       });
 
@@ -192,14 +198,14 @@ export default function POSLaporanCashflowPage() {
           const dayStr = format(day, 'yyyy-MM-dd');
           const dayLabel = format(day, 'dd/MM', { locale: idLocale });
           const masuk = salesArr
-            .filter((s: any) => format(new Date(s.created_at), 'yyyy-MM-dd') === dayStr)
-            .reduce((sum: number, s: any) => sum + Number(s.total), 0)
-            + mutArr.filter((m: any) => m.type === 'in' && m.category !== 'sales_cash' && format(new Date(m.created_at), 'yyyy-MM-dd') === dayStr)
-              .reduce((sum: number, m: any) => sum + Number(m.amount), 0);
-          const keluar = mutArr.filter((m: any) => m.type === 'out' && format(new Date(m.created_at), 'yyyy-MM-dd') === dayStr)
-            .reduce((sum: number, m: any) => sum + Number(m.amount), 0)
-            + purchArr.filter((p: any) => format(new Date(p.created_at), 'yyyy-MM-dd') === dayStr)
-              .reduce((sum: number, p: any) => sum + Number(p.total_amount), 0);
+            .filter((s) => format(new Date(s.created_at), 'yyyy-MM-dd') === dayStr)
+            .reduce((sum: number, s) => sum + Number(s.total), 0)
+            + mutArr.filter((m) => m.type === 'in' && m.category !== 'sales_cash' && format(new Date(m.created_at), 'yyyy-MM-dd') === dayStr)
+              .reduce((sum: number, m) => sum + Number(m.amount), 0);
+          const keluar = mutArr.filter((m) => m.type === 'out' && format(new Date(m.created_at), 'yyyy-MM-dd') === dayStr)
+            .reduce((sum: number, m) => sum + Number(m.amount), 0)
+            + purchArr.filter((p) => format(new Date(p.created_at), 'yyyy-MM-dd') === dayStr)
+              .reduce((sum: number, p) => sum + Number(p.total_amount), 0);
           return { label: dayLabel, masuk, keluar, net: masuk - keluar };
         });
       } else {
@@ -209,14 +215,14 @@ export default function POSLaporanCashflowPage() {
           const mEnd = endOfMonth(month);
           const label = format(month, 'MMM yy', { locale: idLocale });
           const masuk = salesArr
-            .filter((s: any) => { const d = new Date(s.created_at); return d >= mStart && d <= mEnd; })
-            .reduce((sum: number, s: any) => sum + Number(s.total), 0)
-            + mutArr.filter((m: any) => { const d = new Date(m.created_at); return m.type === 'in' && m.category !== 'sales_cash' && d >= mStart && d <= mEnd; })
-              .reduce((sum: number, m: any) => sum + Number(m.amount), 0);
-          const keluar = mutArr.filter((m: any) => { const d = new Date(m.created_at); return m.type === 'out' && d >= mStart && d <= mEnd; })
-            .reduce((sum: number, m: any) => sum + Number(m.amount), 0)
-            + purchArr.filter((p: any) => { const d = new Date(p.created_at); return d >= mStart && d <= mEnd; })
-              .reduce((sum: number, p: any) => sum + Number(p.total_amount), 0);
+            .filter((s) => { const d = new Date(s.created_at); return d >= mStart && d <= mEnd; })
+            .reduce((sum: number, s) => sum + Number(s.total), 0)
+            + mutArr.filter((m) => { const d = new Date(m.created_at); return m.type === 'in' && m.category !== 'sales_cash' && d >= mStart && d <= mEnd; })
+              .reduce((sum: number, m) => sum + Number(m.amount), 0);
+          const keluar = mutArr.filter((m) => { const d = new Date(m.created_at); return m.type === 'out' && d >= mStart && d <= mEnd; })
+            .reduce((sum: number, m) => sum + Number(m.amount), 0)
+            + purchArr.filter((p) => { const d = new Date(p.created_at); return d >= mStart && d <= mEnd; })
+              .reduce((sum: number, p) => sum + Number(p.total_amount), 0);
           return { label, masuk, keluar, net: masuk - keluar };
         });
       }
@@ -240,8 +246,8 @@ export default function POSLaporanCashflowPage() {
   const netPositive = data.netCashflow >= 0;
 
   const exportPDF = () => {
-    const storeName = (tenant as any)?.name || 'Toko';
-    const outletName = activeOutlet ? (activeOutlet as any).name : '';
+    const storeName = (tenant as unknown as { name?: string })?.name || 'Toko';
+    const outletName = activeOutlet ? (activeOutlet as unknown as { name?: string }).name : '';
     const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || period;
     const now = format(new Date(), 'dd MMMM yyyy HH:mm', { locale: idLocale });
     const fc = (n: number) => `Rp ${Math.abs(n).toLocaleString('id-ID')}`;
