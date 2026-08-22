@@ -14,6 +14,21 @@ import { ArrowLeft, TrendingUp, Package, CheckCircle, Clock, Award } from 'lucid
 import { subDays, format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 
+interface CourierOrder {
+  id: string;
+  status: string;
+  created_at: string;
+  assigned_at: string | null;
+  delivered_at: string | null;
+  total: number | null;
+}
+
+interface CourierEarning {
+  amount: number | null;
+  created_at: string;
+  status: string;
+}
+
 interface DailyStat {
   date: string;
   deliveries: number;
@@ -65,10 +80,10 @@ export default function CourierPerformaPage() {
           .gte('created_at', startDate.toISOString()),
       ]);
 
-      const orders = (ordersRes.data || []) as any[];
-      const earnings = (earningsRes.data || []) as any[];
+      const orders = (ordersRes.data || []) as CourierOrder[];
+      const earnings = (earningsRes.data || []) as CourierEarning[];
       const completed = orders.filter(o => o.status === 'DELIVERED' || o.status === 'COMPLETED');
-      const totalEarnings = earnings.reduce((s: number, e: any) => s + e.amount, 0);
+      const totalEarnings = earnings.reduce((s, e) => s + (e.amount || 0), 0);
 
       const onTime = completed.filter(o => {
         if (!o.assigned_at || !o.delivered_at) return false;
@@ -82,11 +97,11 @@ export default function CourierPerformaPage() {
         const key = format(d, 'dd/MM');
         dailyMap[key] = { date: key, deliveries: 0, earnings: 0, onTime: 0 };
       }
-      completed.forEach((o: any) => {
+      completed.forEach((o) => {
         const key = format(new Date(o.created_at), 'dd/MM');
         if (dailyMap[key]) dailyMap[key].deliveries += 1;
       });
-      earnings.forEach((e: any) => {
+      earnings.forEach((e) => {
         const key = format(new Date(e.created_at), 'dd/MM');
         if (dailyMap[key]) dailyMap[key].earnings += e.amount;
       });

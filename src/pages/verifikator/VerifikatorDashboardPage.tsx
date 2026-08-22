@@ -53,6 +53,18 @@ interface KasPayment {
   merchant: { name: string };
 }
 
+interface GroupMember {
+  merchant_id: string;
+  merchant: { id: string; name: string } | { id: string; name: string }[] | null;
+}
+
+interface DashboardError {
+  code?: string;
+  message?: string;
+}
+
+const getDashboardError = (error: unknown): DashboardError => error instanceof Error ? { message: error.message } : typeof error === 'object' && error !== null ? error as DashboardError : {};
+
 interface DashboardData {
   codeInfo: CodeInfo | null;
   group: TradeGroup | null;
@@ -175,7 +187,7 @@ export default function VerifikatorDashboardPage() {
   });
 
   // Query: anggota grup untuk dialog tagihan individual
-  const { data: groupMembers = [], refetch: refetchMembers } = useQuery<Array<{ merchant_id: string; merchant: { id: string; name: string } }>>({
+  const { data: groupMembers = [], refetch: refetchMembers } = useQuery<GroupMember[]>({
     queryKey: ['group-members', group?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -183,7 +195,7 @@ export default function VerifikatorDashboardPage() {
         .select('merchant_id, merchant:merchants(id, name)')
         .eq('group_id', group!.id)
         .eq('status', 'ACTIVE');
-      return (data || []) as unknown as Array<{ merchant_id: string; merchant: { id: string; name: string } }>;
+      return (data || []) as unknown as GroupMember[];
     },
     enabled: !!group && billingDialogOpen,
     staleTime: 60_000,
@@ -214,9 +226,10 @@ export default function VerifikatorDashboardPage() {
       setSetupDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['verifikator-dashboard', user?.id] });
     },
-    onError: (err: any) => {
-      if (err.code === '23505') toast.error('Kode referral sudah digunakan');
-      else toast.error('Gagal membuat kelompok: ' + err.message);
+    onError: (err: unknown) => {
+      const error = getDashboardError(err);
+      if (error.code === '23505') toast.error('Kode referral sudah digunakan');
+      else toast.error('Gagal membuat kelompok: ' + (error.message || 'Terjadi kesalahan'));
     },
   });
 
@@ -236,7 +249,10 @@ export default function VerifikatorDashboardPage() {
       setEditDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['verifikator-dashboard', user?.id] });
     },
-    onError: (err: any) => toast.error('Gagal memperbarui: ' + err.message),
+    onError: (err: unknown) => {
+      const error = getDashboardError(err);
+      toast.error('Gagal memperbarui: ' + (error.message || 'Terjadi kesalahan'));
+    },
   });
 
   // Mutation: tandai lunas
@@ -314,7 +330,10 @@ export default function VerifikatorDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['kas-payments', group?.id, selectedMonth, selectedYear] });
       queryClient.invalidateQueries({ queryKey: ['verifikator-dashboard', user?.id] });
     },
-    onError: (err: any) => toast.error('Gagal membuat tagihan: ' + err.message),
+    onError: (err: unknown) => {
+      const error = getDashboardError(err);
+      toast.error('Gagal membuat tagihan: ' + (error.message || 'Terjadi kesalahan'));
+    },
   });
 
   // Mutation: tagihan individual
@@ -349,9 +368,10 @@ export default function VerifikatorDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['kas-payments', group?.id, selectedMonth, selectedYear] });
       queryClient.invalidateQueries({ queryKey: ['verifikator-dashboard', user?.id] });
     },
-    onError: (err: any) => {
-      if (err.code === '23505') toast.error('Tagihan untuk bulan ini sudah ada');
-      else toast.error('Gagal membuat tagihan: ' + err.message);
+    onError: (err: unknown) => {
+      const error = getDashboardError(err);
+      if (error.code === '23505') toast.error('Tagihan untuk bulan ini sudah ada');
+      else toast.error('Gagal membuat tagihan: ' + (error.message || 'Terjadi kesalahan'));
     },
   });
 
@@ -664,7 +684,7 @@ export default function VerifikatorDashboardPage() {
                 <SelectTrigger><SelectValue placeholder="Pilih merchant..." /></SelectTrigger>
                 <SelectContent>
                   {groupMembers.map(m => (
-                    <SelectItem key={m.merchant_id} value={m.merchant_id}>{(m.merchant as any)?.name || m.merchant_id}</SelectItem>
+                    <SelectItem key={m.merchant_id} value={m.merchant_id}>{(Array.isArray(m.merchant) ? m.merchant[0]?.name : m.merchant?.name) || m.merchant_id}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
