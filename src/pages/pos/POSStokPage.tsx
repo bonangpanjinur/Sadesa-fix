@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,38 +53,38 @@ export default function POSStokPage() {
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [selectedStock, setSelectedStock] = useState<StockItem | null>(null);
   const [adjustForm, setAdjustForm] = useState({ type: 'adjustment', quantity: '', notes: '' });
-  const { user } = { user: null as any };
 
-  useEffect(() => {
-    if (tenant && activeOutlet) {
-      fetchStocks();
-      fetchMutations();
-    }
-  }, [tenant, activeOutlet]);
 
-  const fetchStocks = async () => {
+  const fetchStocks = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     const { data } = await supabase
-      .from('pos_stock' as any)
+      .from('pos_stock' as never)
       .select('*, pos_products(name, sku, unit, price, cost_price, is_active)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .order('pos_products(name)');
     setStocks((data || []) as unknown as StockItem[]);
     setLoading(false);
-  };
+  }, [tenant, activeOutlet]);
 
-  const fetchMutations = async () => {
+  const fetchMutations = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     const { data } = await supabase
-      .from('pos_stock_mutations' as any)
+      .from('pos_stock_mutations' as never)
       .select('*, pos_products(name)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .order('created_at', { ascending: false })
       .limit(100);
     setMutations((data || []) as unknown as Mutation[]);
-  };
+  }, [tenant, activeOutlet]);
+
+  useEffect(() => {
+    if (tenant && activeOutlet) {
+      void fetchStocks();
+      void fetchMutations();
+    }
+  }, [tenant, activeOutlet, fetchStocks, fetchMutations]);
 
   const filtered = stocks.filter(s =>
     (s.pos_products?.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -117,8 +117,8 @@ export default function POSStokPage() {
     }
 
     try {
-      await supabase.from('pos_stock' as any).update({ quantity: quantityAfter }).eq('id', selectedStock.id);
-      await supabase.from('pos_stock_mutations' as any).insert({
+      await supabase.from('pos_stock' as never).update({ quantity: quantityAfter }).eq('id', selectedStock.id);
+      await supabase.from('pos_stock_mutations' as never).insert({
         tenant_id: tenant.id,
         product_id: selectedStock.product_id,
         outlet_id: activeOutlet.id,
@@ -132,13 +132,13 @@ export default function POSStokPage() {
       setAdjustDialog(false);
       fetchStocks();
       fetchMutations();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
   const handleMinStockUpdate = async (stockId: string, minStock: number) => {
-    await supabase.from('pos_stock' as any).update({ min_stock: minStock }).eq('id', stockId);
+    await supabase.from('pos_stock' as never).update({ min_stock: minStock }).eq('id', stockId);
     fetchStocks();
   };
 
