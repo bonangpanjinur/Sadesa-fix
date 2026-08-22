@@ -47,6 +47,9 @@ interface SyncedProduct {
   pos_products: { name: string; sku: string | null; price: number } | null;
 }
 
+interface IntegrationSettingsForm { merchant_id: string; auto_import_orders: boolean; auto_sync_stock: boolean; auto_sync_price: boolean; sync_interval_minutes: number; }
+interface MarketplaceOrderItem { name: string; qty: number; price: number; subtotal: number; }
+
 interface MarketplaceOrder {
   id: string;
   marketplace_order_id: string | null;
@@ -56,7 +59,7 @@ interface MarketplaceOrder {
   status: string;
   imported_at: string;
   processed_at: string | null;
-  items: any[];
+  items: MarketplaceOrderItem[];
 }
 
 interface SyncLog {
@@ -102,7 +105,7 @@ export default function POSIntegrasiPage() {
   const [search, setSearch] = useState('');
 
   const [settingsDialog, setSettingsDialog] = useState(false);
-  const [settingsForm, setSettingsForm] = useState<any>({});
+  const [settingsForm, setSettingsForm] = useState<Partial<IntegrationSettingsForm>>({});
 
   const [linkDialog, setLinkDialog] = useState(false);
   const [linkProductId, setLinkProductId] = useState('');
@@ -116,12 +119,12 @@ export default function POSIntegrasiPage() {
     setLoading(true);
 
     const [{ data: sett }, { data: prods }, { data: orders }, { data: logs }, { data: merch }, { data: posProds }] = await Promise.all([
-      supabase.from('pos_integration_settings' as any).select('*').eq('tenant_id', tenant.id).maybeSingle(),
-      supabase.from('pos_marketplace_sync' as any).select('*, pos_products(name, sku, price)').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
-      supabase.from('pos_marketplace_orders' as any).select('*').eq('tenant_id', tenant.id).order('imported_at', { ascending: false }).limit(50),
-      supabase.from('pos_sync_logs' as any).select('*').eq('tenant_id', tenant.id).order('started_at', { ascending: false }).limit(20),
+      supabase.from('pos_integration_settings' as never).select('*').eq('tenant_id', tenant.id).maybeSingle(),
+      supabase.from('pos_marketplace_sync' as never).select('*, pos_products(name, sku, price)').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+      supabase.from('pos_marketplace_orders' as never).select('*').eq('tenant_id', tenant.id).order('imported_at', { ascending: false }).limit(50),
+      supabase.from('pos_sync_logs' as never).select('*').eq('tenant_id', tenant.id).order('started_at', { ascending: false }).limit(20),
       supabase.from('merchants').select('id, name').eq('user_id', user!.id).eq('registration_status', 'APPROVED'),
-      supabase.from('pos_products' as any).select('id, name, sku, price').eq('tenant_id', tenant.id).eq('is_active', true).order('name'),
+      supabase.from('pos_products' as never).select('id, name, sku, price').eq('tenant_id', tenant.id).eq('is_active', true).order('name'),
     ]);
 
     setSettings(sett as unknown as IntegrationSettings | null);
@@ -165,8 +168,8 @@ export default function POSIntegrasiPage() {
       updated_at: new Date().toISOString(),
     };
     const { error } = settings
-      ? await supabase.from('pos_integration_settings' as any).update(payload).eq('id', settings.id)
-      : await supabase.from('pos_integration_settings' as any).insert(payload);
+      ? await supabase.from('pos_integration_settings' as never).update(payload).eq('id', settings.id)
+      : await supabase.from('pos_integration_settings' as never).insert(payload);
     if (error) { toast.error('Gagal menyimpan pengaturan'); return; }
     toast.success('Pengaturan integrasi disimpan');
     setSettingsDialog(false);
@@ -188,14 +191,14 @@ export default function POSIntegrasiPage() {
       processed = syncItems.length;
       for (const item of syncItems) {
         const { data: stock } = await supabase
-          .from('pos_stock' as any)
+          .from('pos_stock' as never)
           .select('quantity')
           .eq('product_id', item.pos_product_id)
           .maybeSingle();
         if (stock) {
           const { error } = await supabase
             .from('products')
-            .update({ stock: (stock as any).quantity, updated_at: new Date().toISOString() })
+            .update({ stock: (stock as unknown as { quantity: number }).quantity, updated_at: new Date().toISOString() })
             .eq('id', item.marketplace_product_id!);
           if (!error) success++;
           else failed++;
@@ -213,18 +216,18 @@ export default function POSIntegrasiPage() {
         .limit(20);
       processed = (newOrders || []).length;
       for (const order of (newOrders || [])) {
-        const items = ((order as any).order_items || []).map((oi: any) => ({
+        const items = ((order as unknown as { order_items?: Array<{ products?: { name: string }; quantity: number; price: number }> }).order_items || []).map((oi) => ({
           name: oi.products?.name || 'Produk',
           qty: oi.quantity,
           price: oi.price,
           subtotal: oi.quantity * oi.price,
         }));
-        const { error } = await supabase.from('pos_marketplace_orders' as any).insert({
+        const { error } = await supabase.from('pos_marketplace_orders' as never).insert({
           tenant_id: tenant.id,
           marketplace_order_id: order.id,
-          order_number: (order as any).order_number || order.id.substring(0, 8).toUpperCase(),
-          customer_name: (order as any).buyer_name || 'Pelanggan Marketplace',
-          total: (order as any).total_amount || 0,
+          order_number: (order as unknown as { order_number?: string }).order_number || order.id.substring(0, 8).toUpperCase(),
+          customer_name: (order as unknown as { buyer_name?: string }).buyer_name || 'Pelanggan Marketplace',
+          total: (order as unknown as { total_amount?: number }).total_amount || 0,
           payment_method: 'marketplace',
           status: 'pending',
           items,
@@ -241,7 +244,7 @@ export default function POSIntegrasiPage() {
     }
 
     // Simpan log
-    await supabase.from('pos_sync_logs' as any).insert({
+    await supabase.from('pos_sync_logs' as never).insert({
       tenant_id: tenant.id,
       sync_type: type,
       status: failed > 0 && success === 0 ? 'error' : failed > 0 ? 'partial' : 'success',
@@ -269,7 +272,7 @@ export default function POSIntegrasiPage() {
       sync_price: true,
       updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase.from('pos_marketplace_sync' as any).upsert(payload, { onConflict: 'tenant_id,pos_product_id' });
+    const { error } = await supabase.from('pos_marketplace_sync' as never).upsert(payload, { onConflict: 'tenant_id,pos_product_id' });
     if (error) { toast.error('Gagal menautkan produk'); return; }
     toast.success('Produk berhasil ditautkan');
     setLinkDialog(false);
@@ -277,7 +280,7 @@ export default function POSIntegrasiPage() {
   };
 
   const processOrder = async (order: MarketplaceOrder) => {
-    await supabase.from('pos_marketplace_orders' as any)
+    await supabase.from('pos_marketplace_orders' as never)
       .update({ status: 'processed', processed_at: new Date().toISOString() })
       .eq('id', order.id);
     toast.success('Order ditandai diproses');
@@ -596,7 +599,7 @@ export default function POSIntegrasiPage() {
           <div className="space-y-4">
             <div>
               <Label>Toko Marketplace *</Label>
-              <Select value={settingsForm.merchant_id || ''} onValueChange={v => setSettingsForm((f: any) => ({ ...f, merchant_id: v }))}>
+              <Select value={settingsForm.merchant_id || ''} onValueChange={v => setSettingsForm((f) => ({ ...f, merchant_id: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih toko marketplace Anda" />
                 </SelectTrigger>
@@ -626,7 +629,7 @@ export default function POSIntegrasiPage() {
                     <div className="text-sm">{item.label}</div>
                     <div className="text-xs text-muted-foreground">{item.desc}</div>
                   </div>
-                  <Switch checked={settingsForm[item.key]} onCheckedChange={v => setSettingsForm((f: any) => ({ ...f, [item.key]: v }))} />
+                  <Switch checked={Boolean(settingsForm[item.key as keyof IntegrationSettingsForm])} onCheckedChange={v => setSettingsForm((f) => ({ ...f, [item.key]: v }))} />
                 </div>
               ))}
             </div>
@@ -634,7 +637,7 @@ export default function POSIntegrasiPage() {
               <div>
                 <Label>Interval Sinkronisasi (menit)</Label>
                 <Select value={String(settingsForm.sync_interval_minutes)}
-                  onValueChange={v => setSettingsForm((f: any) => ({ ...f, sync_interval_minutes: Number(v) }))}>
+                  onValueChange={v => setSettingsForm((f) => ({ ...f, sync_interval_minutes: Number(v) }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {[15, 30, 60, 120, 360].map(v => <SelectItem key={v} value={String(v)}>Setiap {v} menit</SelectItem>)}
@@ -701,7 +704,7 @@ export default function POSIntegrasiPage() {
               <div>
                 <p className="text-sm font-medium mb-2">Item Pesanan</p>
                 <div className="space-y-1">
-                  {(selectedOrder.items || []).map((item: any, i: number) => (
+                  {(selectedOrder.items || []).map((item, i: number) => (
                     <div key={i} className="flex justify-between text-sm p-2 bg-muted rounded">
                       <span>{item.name} × {item.qty}</span>
                       <span className="font-medium">{formatCurrency(item.subtotal)}</span>
