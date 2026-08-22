@@ -38,22 +38,22 @@ export default function POSSetupPage() {
     setLoading(true);
     try {
       const { data: tenant, error: tErr } = await supabase
-        .from('pos_tenants' as any)
+        .from('pos_tenants' as never)
         .insert({ ...tenantData, user_id: user.id })
         .select()
         .single();
       if (tErr) throw tErr;
 
       const { error: oErr } = await supabase
-        .from('pos_outlets' as any)
-        .insert({ ...outletData, tenant_id: (tenant as any).id });
+        .from('pos_outlets' as never)
+        .insert({ ...outletData, tenant_id: (tenant as unknown as { id: string }).id });
       if (oErr) throw oErr;
 
       toast.success('Usaha berhasil dibuat! Selamat datang di DesaMart POS.');
       navigate('/pos', { replace: true });
       window.location.reload();
-    } catch (err: any) {
-      toast.error('Gagal membuat usaha: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal membuat usaha: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
