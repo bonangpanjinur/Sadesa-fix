@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,9 +44,7 @@ export default function DesaBroadcastPage() {
     fetchVillage();
   }, [user]);
 
-  useEffect(() => { if (villageId) fetchData(); }, [villageId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!villageId) return;
     setLoading(true);
     const [broadcastRes, merchantRes] = await Promise.all([
@@ -62,7 +60,9 @@ export default function DesaBroadcastPage() {
     setBroadcasts((broadcastRes.data || []) as unknown as BroadcastItem[]);
     setMerchantCount(merchantRes.count || 0);
     setLoading(false);
-  };
+  }, [villageId]);
+
+  useEffect(() => { if (villageId) fetchData(); }, [villageId, fetchData]);
 
   const handleSend = async () => {
     if (!form.title.trim() || !form.message.trim() || !villageId || !user) {
