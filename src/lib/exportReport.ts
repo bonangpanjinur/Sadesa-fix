@@ -15,19 +15,19 @@ export interface ExportOptions {
   subtitle?: string;
   filename: string;
   columns: ExportColumn[];
-  rows: Record<string, any>[];
+  rows: object[];
   summary?: Record<string, { label: string; value: string | number }>;
   storeName?: string;
   period?: string;
 }
 
-function formatCell(value: any, format?: string): string {
+function formatCell(value: unknown, format?: string): string {
   if (value === null || value === undefined) return '-';
   switch (format) {
     case 'currency':
       return `Rp ${Number(value).toLocaleString('id-ID')}`;
     case 'date':
-      return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return new Date(String(value)).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
     case 'percent':
       return `${Number(value).toFixed(1)}%`;
     case 'number':
@@ -55,7 +55,7 @@ export function exportToCSV(options: ExportOptions): void {
   for (const row of rows) {
     lines.push(
       columns.map((c) => {
-        const val = formatCell(row[c.key], c.format);
+        const val = formatCell((row as Record<string, unknown>)[c.key], c.format);
         return `"${val.replace(/"/g, '""')}"`;
       }).join(',')
     );
@@ -133,7 +133,7 @@ export async function exportToPDF(options: ExportOptions): Promise<void> {
 }
 
 /** Export POS transactions to Excel-compatible CSV */
-export function exportPOSSales(sales: any[], period: string, storeName?: string) {
+export function exportPOSSales(sales: object[], period: string, storeName?: string) {
   exportToCSV({
     title: 'Laporan Penjualan POS',
     storeName,
@@ -153,14 +153,14 @@ export function exportPOSSales(sales: any[], period: string, storeName?: string)
     ],
     rows: sales,
     summary: {
-      total: { label: 'Total Omzet', value: sales.reduce((s, r) => s + Number(r.total || 0), 0) },
+      total: { label: 'Total Omzet', value: sales.reduce((s, r) => s + Number((r as { total?: unknown }).total || 0), 0) },
       count: { label: 'Jumlah Transaksi', value: sales.length },
     },
   });
 }
 
 /** Export POS products report */
-export function exportPOSProducts(products: any[], storeName?: string) {
+export function exportPOSProducts(products: object[], storeName?: string) {
   exportToCSV({
     title: 'Laporan Produk POS',
     storeName,
@@ -181,7 +181,7 @@ export function exportPOSProducts(products: any[], storeName?: string) {
 }
 
 /** Export marketplace orders */
-export function exportMarketplaceOrders(orders: any[], period: string) {
+export function exportMarketplaceOrders(orders: object[], period: string) {
   exportToCSV({
     title: 'Laporan Pesanan Marketplace',
     period,
@@ -199,7 +199,7 @@ export function exportMarketplaceOrders(orders: any[], period: string) {
     ],
     rows: orders,
     summary: {
-      total: { label: 'Total GMV', value: orders.reduce((s, r) => s + Number(r.total || 0), 0) },
+      total: { label: 'Total GMV', value: orders.reduce((s, r) => s + Number((r as { total?: unknown }).total || 0), 0) },
       count: { label: 'Jumlah Pesanan', value: orders.length },
     },
   });
