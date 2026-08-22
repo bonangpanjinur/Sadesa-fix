@@ -108,7 +108,7 @@ export default function AdminIklanPage() {
   const { data: packages = [], refetch: refetchPkgs } = useQuery<AdPackage[]>({
     queryKey: ['admin-ad-packages'],
     queryFn: async () => {
-      const { data } = await (supabase as any).from('ad_packages').select('*').order('price_per_day');
+      const { data } = await supabase.from('ad_packages').select('*').order('price_per_day');
       return data || [];
     },
     staleTime: 60_000,
@@ -118,7 +118,7 @@ export default function AdminIklanPage() {
   const { data: ads = [], isLoading: adsLoading, refetch: refetchAds } = useQuery<MerchantAd[]>({
     queryKey: ['admin-merchant-ads', filterStatus],
     queryFn: async () => {
-      let q = (supabase as any)
+      let q = supabase
         .from('merchant_ads')
         .select('*, merchant:merchant_id(name, phone)')
         .order('created_at', { ascending: false });
@@ -142,7 +142,7 @@ export default function AdminIklanPage() {
       const startDate = new Date();
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + ad.duration_days);
-      const { error } = await (supabase as any).from('merchant_ads').update({
+      const { error } = await supabase.from('merchant_ads').update({
         status: 'active',
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
@@ -159,7 +159,7 @@ export default function AdminIklanPage() {
   // Reject ad
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const { error } = await (supabase as any).from('merchant_ads').update({
+      const { error } = await supabase.from('merchant_ads').update({
         status: 'rejected',
         rejection_reason: reason,
       }).eq('id', id);
@@ -178,7 +178,7 @@ export default function AdminIklanPage() {
   // Expire ad
   const expireMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from('merchant_ads').update({ status: 'expired' }).eq('id', id);
+      const { error } = await supabase.from('merchant_ads').update({ status: 'expired' }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -194,14 +194,14 @@ export default function AdminIklanPage() {
       if (!pkgForm.name?.trim()) throw new Error('Nama paket wajib diisi');
       if (!pkgForm.price_per_day || pkgForm.price_per_day <= 0) throw new Error('Harga harus > 0');
       if (editingPkg) {
-        const { error } = await (supabase as any).from('ad_packages').update({
+        const { error } = await supabase.from('ad_packages').update({
           name: pkgForm.name, placement_type: pkgForm.placement_type,
           description: pkgForm.description, price_per_day: pkgForm.price_per_day,
           max_days: pkgForm.max_days, is_active: pkgForm.is_active,
         }).eq('id', editingPkg.id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase as any).from('ad_packages').insert({
+        const { error } = await supabase.from('ad_packages').insert({
           name: pkgForm.name, placement_type: pkgForm.placement_type,
           description: pkgForm.description, price_per_day: pkgForm.price_per_day,
           max_days: pkgForm.max_days, is_active: pkgForm.is_active,
@@ -221,7 +221,7 @@ export default function AdminIklanPage() {
 
   const deletePkgMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from('ad_packages').delete().eq('id', id);
+      const { error } = await supabase.from('ad_packages').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -233,7 +233,7 @@ export default function AdminIklanPage() {
 
   const seedPackages = async () => {
     try {
-      const { error } = await (supabase as any).from('ad_packages').insert(DEFAULT_PACKAGES_SEED);
+      const { error } = await supabase.from('ad_packages').insert(DEFAULT_PACKAGES_SEED);
       if (error) throw error;
       toast.success('Paket default berhasil ditambahkan');
       refetchPkgs();

@@ -13,6 +13,23 @@ import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Percent, Edit2, Plus, Save, TrendingUp, Store } from 'lucide-react';
 
+interface CommissionOrder {
+  total: number | null;
+}
+
+type CommissionType = CommissionRule['type'];
+
+interface CommissionPayload {
+  name: string;
+  type: CommissionType;
+  target_id: string | null;
+  target_name: string | null;
+  commission_percent: number;
+  min_amount: number;
+  max_commission: number | null;
+  is_active: boolean;
+}
+
 interface CommissionRule {
   id: string;
   name: string;
@@ -48,7 +65,7 @@ export default function AdminKomisiPage() {
   const fetchData = async () => {
     setLoading(true);
     const [rulesRes, merchantRes, ordersRes] = await Promise.all([
-      supabase.from('commission_rules' as any).select('*').order('created_at', { ascending: false }),
+      supabase.from('commission_rules').select('*').order('created_at', { ascending: false }),
       supabase.from('merchants').select('id, name').eq('registration_status', 'APPROVED').limit(100),
       supabase.from('orders').select('total').eq('status', 'COMPLETED').gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString()),
     ]);
@@ -59,7 +76,7 @@ export default function AdminKomisiPage() {
 
     const active = r.filter(x => x.is_active);
     const avgPct = active.length > 0 ? active.reduce((s, x) => s + x.commission_percent, 0) / active.length : 5;
-    const totalOrders = ((ordersRes.data || []) as any[]).reduce((s, o) => s + (o.total || 0), 0);
+    const totalOrders = ((ordersRes.data || []) as CommissionOrder[]).reduce((s, o) => s + (o.total || 0), 0);
 
     setStats({
       totalRules: r.length,
@@ -98,7 +115,7 @@ export default function AdminKomisiPage() {
 
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: CommissionPayload = {
         name: form.name.trim(),
         type: form.type,
         target_id: form.target_id || null,
@@ -110,25 +127,25 @@ export default function AdminKomisiPage() {
       };
 
       if (editing) {
-        const { error } = await supabase.from('commission_rules' as any).update(payload).eq('id', editing.id);
+        const { error } = await supabase.from('commission_rules').update(payload).eq('id', editing.id);
         if (error) throw error;
         toast.success('Aturan komisi diperbarui');
       } else {
-        const { error } = await supabase.from('commission_rules' as any).insert(payload);
+        const { error } = await supabase.from('commission_rules').insert(payload);
         if (error) throw error;
         toast.success('Aturan komisi ditambahkan');
       }
       setDialogOpen(false);
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan');
     } finally {
       setSaving(false);
     }
   };
 
   const toggleActive = async (rule: CommissionRule) => {
-    await supabase.from('commission_rules' as any).update({ is_active: !rule.is_active }).eq('id', rule.id);
+    await supabase.from('commission_rules').update({ is_active: !rule.is_active }).eq('id', rule.id);
     fetchData();
     toast.success(`Aturan ${rule.is_active ? 'dinonaktifkan' : 'diaktifkan'}`);
   };
@@ -246,7 +263,7 @@ export default function AdminKomisiPage() {
             </div>
             <div>
               <Label>Tipe</Label>
-              <Select value={form.type} onValueChange={(v: any) => setForm(p => ({ ...p, type: v, target_id: '', target_name: '' }))}>
+              <Select value={form.type} onValueChange={(v: CommissionType) => setForm(p => ({ ...p, type: v, target_id: '', target_name: '' }))}>
                 <SelectTrigger className="mt-1">
                   <SelectValue />
                 </SelectTrigger>

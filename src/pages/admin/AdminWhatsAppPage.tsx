@@ -16,13 +16,19 @@ import { MessageCircle, Save, TestTube, CheckCircle, AlertCircle, Loader2, Info 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+type WAProvider = 'fonnte' | 'wablas' | 'custom';
+
 interface WASettings {
   enabled: boolean;
-  provider: 'fonnte' | 'wablas' | 'custom';
+  provider: WAProvider;
   api_key: string;
   api_url: string;
   sender_number: string;
 }
+
+const isWAProvider = (value: unknown): value is WAProvider => value === 'fonnte' || value === 'wablas' || value === 'custom';
+
+const isWASettings = (value: unknown): value is Partial<WASettings> => typeof value === 'object' && value !== null;
 
 const DEFAULT_SETTINGS: WASettings = {
   enabled: false,
@@ -56,13 +62,14 @@ export default function AdminWhatsAppPage() {
     setLoading(true);
     try {
       const { data } = await supabase
-        .from('app_settings' as any)
+        .from('app_settings')
         .select('value')
         .eq('key', 'whatsapp_settings')
         .maybeSingle();
 
-      if (data && (data as any).value) {
-        setSettings({ ...DEFAULT_SETTINGS, ...(data as any).value });
+      if (data?.value && isWASettings(data.value)) {
+        const provider = isWAProvider(data.value.provider) ? data.value.provider : DEFAULT_SETTINGS.provider;
+        setSettings({ ...DEFAULT_SETTINGS, ...data.value, provider });
       }
     } catch (err) {
       console.error('Failed to fetch WA settings:', err);
@@ -75,12 +82,12 @@ export default function AdminWhatsAppPage() {
     setSaving(true);
     try {
       await supabase
-        .from('app_settings' as any)
+        .from('app_settings')
         .upsert({ key: 'whatsapp_settings', value: settings }, { onConflict: 'key' });
 
       toast.success('Pengaturan WhatsApp berhasil disimpan');
-    } catch (err: any) {
-      toast.error('Gagal menyimpan: ' + (err.message || 'Coba lagi'));
+    } catch (err: unknown) {
+      toast.error('Gagal menyimpan: ' + (err instanceof Error ? err.message : 'Coba lagi'));
     } finally {
       setSaving(false);
     }
@@ -93,9 +100,9 @@ export default function AdminWhatsAppPage() {
     try {
       setTestResult('error');
       toast.error('Pengiriman pesan tes WhatsApp belum tersedia. Konfigurasi tetap tersimpan dan dipakai untuk tautan WhatsApp.');
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTestResult('error');
-      toast.error('Error: ' + (err.message || 'Coba lagi'));
+      toast.error('Error: ' + (err instanceof Error ? err.message : 'Coba lagi'));
     } finally {
       setTesting(false);
     }
@@ -152,7 +159,7 @@ export default function AdminWhatsAppPage() {
                   <Label>Provider</Label>
                   <Select
                     value={settings.provider}
-                    onValueChange={(v) => setSettings({ ...settings, provider: v as any })}
+                    onValueChange={(v) => { if (isWAProvider(v)) setSettings({ ...settings, provider: v }); }}
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue />

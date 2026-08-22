@@ -15,6 +15,11 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { formatPrice } from '@/lib/utils';
 
+interface CashbackTransaction {
+  amount: number;
+  user_id: string;
+}
+
 interface CashbackRule {
   id: string;
   name: string;
@@ -48,13 +53,13 @@ export default function AdminCashbackPage() {
 
   const fetchData = async () => {
     const [rulesRes, txRes] = await Promise.all([
-      (supabase as any).from('cashback_rules').select('*').order('created_at', { ascending: false }),
-      (supabase as any).from('cashback_transactions').select('amount, user_id').eq('status', 'confirmed'),
+      supabase.from('cashback_rules').select('*').order('created_at', { ascending: false }),
+      supabase.from('cashback_transactions').select('amount, user_id').eq('status', 'confirmed'),
     ]);
     setRules((rulesRes.data || []) as CashbackRule[]);
-    const txs = (txRes.data || []) as any[];
-    setTotalPaid(txs.reduce((s: number, t: any) => s + t.amount, 0));
-    setTotalUsers(new Set(txs.map((t: any) => t.user_id)).size);
+    const txs = (txRes.data || []) as CashbackTransaction[];
+    setTotalPaid(txs.reduce((s, t) => s + t.amount, 0));
+    setTotalUsers(new Set(txs.map(t => t.user_id)).size);
     setLoading(false);
   };
 
@@ -74,18 +79,18 @@ export default function AdminCashbackPage() {
       valid_until: form.valid_until ? new Date(form.valid_until as string).toISOString() : null,
     };
     if (editing) {
-      const { error } = await (supabase as any).from('cashback_rules').update(payload).eq('id', editing.id);
+      const { error } = await supabase.from('cashback_rules').update(payload).eq('id', editing.id);
       if (!error) { toast.success('Aturan cashback diperbarui'); fetchData(); setDialogOpen(false); }
       else toast.error('Gagal memperbarui');
     } else {
-      const { error } = await (supabase as any).from('cashback_rules').insert(payload);
+      const { error } = await supabase.from('cashback_rules').insert(payload);
       if (!error) { toast.success('Aturan cashback ditambahkan'); fetchData(); setDialogOpen(false); }
       else toast.error('Gagal menambahkan');
     }
   };
 
   const toggleActive = async (r: CashbackRule) => {
-    await (supabase as any).from('cashback_rules').update({ is_active: !r.is_active }).eq('id', r.id);
+    await supabase.from('cashback_rules').update({ is_active: !r.is_active }).eq('id', r.id);
     setRules(prev => prev.map(x => x.id === r.id ? { ...x, is_active: !x.is_active } : x));
     toast.success(r.is_active ? 'Aturan dinonaktifkan' : 'Aturan diaktifkan');
   };
