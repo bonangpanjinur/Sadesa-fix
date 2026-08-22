@@ -69,11 +69,23 @@ export default function DesaEventPage() {
     fetchVillage();
   }, [user]);
 
-  const fetchEvents = useCallback(async () => {
+  interface EventPayload {
+  village_id: string;
+  name: string;
+  description: string | null;
+  event_type: string;
+  location: string | null;
+  start_date: string;
+  end_date: string | null;
+  organizer: string | null;
+  status: string;
+}
+
+const fetchEvents = useCallback(async () => {
     if (!villageId) return;
     setLoading(true);
     const { data } = await supabase
-      .from('village_events' as any)
+      .from('village_events')
       .select('*')
       .eq('village_id', villageId)
       .order('start_date', { ascending: false });
@@ -110,7 +122,7 @@ export default function DesaEventPage() {
     }
     setSaving(true);
     try {
-      const payload: any = {
+      const payload: EventPayload = {
         village_id: villageId,
         name: form.name.trim(),
         description: form.description || null,
@@ -123,18 +135,18 @@ export default function DesaEventPage() {
       };
 
       if (editing) {
-        const { error } = await supabase.from('village_events' as any).update(payload).eq('id', editing.id);
+        const { error } = await supabase.from('village_events').update(payload).eq('id', editing.id);
         if (error) throw error;
         toast.success('Event berhasil diperbarui');
       } else {
-        const { error } = await supabase.from('village_events' as any).insert(payload);
+        const { error } = await supabase.from('village_events').insert(payload);
         if (error) throw error;
         toast.success('Event berhasil ditambahkan');
       }
       setDialogOpen(false);
       fetchEvents();
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan event');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan event');
     } finally {
       setSaving(false);
     }
@@ -142,7 +154,7 @@ export default function DesaEventPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Yakin hapus event ini?')) return;
-    const { error } = await supabase.from('village_events' as any).delete().eq('id', id);
+    const { error } = await supabase.from('village_events').delete().eq('id', id);
     if (error) { toast.error('Gagal menghapus event'); return; }
     toast.success('Event dihapus');
     fetchEvents();

@@ -14,6 +14,17 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 
+interface LoyaltyOrder {
+  id: string;
+  total: number | null;
+  created_at: string;
+}
+
+interface LoyaltyProfile {
+  loyalty_points: number | null;
+  loyalty_tier: string | null;
+}
+
 interface LoyaltyData {
   points: number;
   tier: string;
@@ -58,14 +69,14 @@ export default function LoyaltyPage() {
     queryKey: ['loyalty', user?.id],
     queryFn: async () => {
       const [{ data: orders }, { data: profile }] = await Promise.all([
-        (supabase as any).from('orders').select('total, created_at, id').eq('buyer_id', user!.id).eq('status', 'COMPLETED').order('created_at', { ascending: false }),
+        supabase.from('orders').select('total, created_at, id').eq('buyer_id', user!.id).eq('status', 'COMPLETED').order('created_at', { ascending: false }),
         supabase.from('profiles').select('loyalty_points, loyalty_tier').eq('id', user!.id).maybeSingle(),
       ]);
 
-      const allOrders = (orders || []) as any[];
-      const totalSpent = allOrders.reduce((s: number, o: any) => s + (o.total || 0), 0);
+      const allOrders = (orders || []) as LoyaltyOrder[];
+      const totalSpent = allOrders.reduce((s, o) => s + (o.total || 0), 0);
       const earnedFromOrders = Math.floor(totalSpent / 10000) * 10;
-      const points = (profile as any)?.loyalty_points ?? earnedFromOrders;
+      const points = (profile as LoyaltyProfile | null)?.loyalty_points ?? earnedFromOrders;
       const nextTier = TIERS.find(t => t.min > points);
 
       const loyaltyData: LoyaltyData = {
@@ -78,7 +89,7 @@ export default function LoyaltyPage() {
       };
 
       const history: PointHistory[] = allOrders.slice(0, 20)
-        .map((o: any) => ({
+        .map((o) => ({
           id: o.id,
           type: 'earn',
           points: Math.floor((o.total || 0) / 10000) * 10,
