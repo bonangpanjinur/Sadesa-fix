@@ -29,6 +29,11 @@ interface VerifikatorEarning {
   package?: { name: string };
 }
 
+interface VerifikatorProfile {
+  full_name: string;
+  phone: string;
+}
+
 interface VerifikatorWithdrawal {
   id: string;
   verifikator_id: string;
@@ -40,7 +45,7 @@ interface VerifikatorWithdrawal {
   admin_notes: string | null;
   processed_at: string | null;
   created_at: string;
-  profile?: { full_name: string; phone: string };
+  profile?: VerifikatorProfile;
 }
 
 interface Stats {
@@ -93,7 +98,7 @@ export default function AdminVerifikatorCommissionsPage() {
 
         const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
         withdrawalsData.forEach(w => {
-          (w as any).profile = profileMap.get(w.verifikator_id);
+          w.profile = profileMap.get(w.verifikator_id);
         });
       }
 
@@ -140,10 +145,10 @@ export default function AdminVerifikatorCommissionsPage() {
       setSelectedWithdrawal(null);
       setAdminNotes('');
       loadData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Gagal memproses withdrawal',
+        description: error instanceof Error ? error.message : 'Gagal memproses withdrawal',
         variant: 'destructive',
       });
     } finally {
@@ -261,7 +266,7 @@ export default function AdminVerifikatorCommissionsPage() {
                       <div className="flex items-start justify-between">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium">{(withdrawal as any).profile?.full_name || 'Verifikator'}</p>
+                            <p className="font-medium">{withdrawal.profile?.full_name || 'Verifikator'}</p>
                             {getStatusBadge(withdrawal.status)}
                           </div>
                           <p className="text-lg font-bold text-primary">{formatCurrency(withdrawal.amount)}</p>
@@ -341,7 +346,7 @@ export default function AdminVerifikatorCommissionsPage() {
           {selectedWithdrawal && (
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg space-y-2">
-                <p className="font-medium">{(selectedWithdrawal as any).profile?.full_name}</p>
+                <p className="font-medium">{selectedWithdrawal.profile?.full_name}</p>
                 <p className="text-2xl font-bold text-primary">{formatCurrency(selectedWithdrawal.amount)}</p>
                 <div className="text-sm">
                   <p>{selectedWithdrawal.bank_name}</p>

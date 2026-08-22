@@ -58,7 +58,7 @@ export default function AdminApiKeysPage() {
   }, []);
 
   const fetchKeys = async () => {
-    const { data } = await (supabase as any).from('api_keys').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('api_keys').select('*').order('created_at', { ascending: false });
     setKeys((data || []) as ApiKey[]);
     setLoading(false);
   };
@@ -71,7 +71,7 @@ export default function AdminApiKeysPage() {
     const prefix = rawKey.substring(0, 8);
     const expires_at = form.expires_days ? new Date(Date.now() + parseInt(form.expires_days) * 86400000).toISOString() : null;
 
-    const { data, error } = await (supabase as any).from('api_keys').insert({
+    const { data, error } = await supabase.from('api_keys').insert({
       name: form.name,
       key_prefix: prefix,
       key_hash: rawKey,
@@ -89,13 +89,13 @@ export default function AdminApiKeysPage() {
   };
 
   const toggleActive = async (key: ApiKey) => {
-    await (supabase as any).from('api_keys').update({ is_active: !key.is_active }).eq('id', key.id);
+    await supabase.from('api_keys').update({ is_active: !key.is_active }).eq('id', key.id);
     setKeys(prev => prev.map(k => k.id === key.id ? { ...k, is_active: !k.is_active } : k));
     toast.success(key.is_active ? 'API key dinonaktifkan' : 'API key diaktifkan');
   };
 
   const deleteKey = async (id: string) => {
-    await (supabase as any).from('api_keys').delete().eq('id', id);
+    await supabase.from('api_keys').delete().eq('id', id);
     setKeys(prev => prev.filter(k => k.id !== id));
     toast.success('API key dihapus');
   };
