@@ -56,7 +56,7 @@ export default function POSMenuQRPage() {
     setLoading(true);
     try {
       let q = supabase
-        .from('pos_tables' as any)
+        .from('pos_tables' as never)
         .select('*')
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
@@ -65,8 +65,8 @@ export default function POSMenuQRPage() {
       if (activeOutlet) q = q.eq('outlet_id', activeOutlet.id);
       const { data } = await q;
       setTables((data || []) as unknown as TableItem[]);
-    } catch (err: any) {
-      toast.error('Gagal memuat meja: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal memuat meja: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
