@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { OrderChat, ChatType } from '@/components/chat/OrderChat';
@@ -35,31 +35,7 @@ export default function BuyerChatPage() {
   const [selectedThread, setSelectedThread] = useState<ChatThread | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
 
-  useEffect(() => {
-    if (!user) return;
-    fetchThreads();
-
-    let active = true;
-    const channelName = `buyer-chats-${user.id}-${Math.random().toString(36).slice(2)}`;
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
-        if (active) fetchThreads();
-      });
-
-    channel.subscribe((status, err) => {
-      const normalized = logRealtimeStatus(channelName, status, err);
-      if (active) setRealtimeStatus(normalized);
-    });
-
-    return () => {
-      active = false;
-      try { channel.unsubscribe(); } catch { /* noop */ }
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id]);
-
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
     if (!user) return;
     try {
       const { data: messages } = await supabase
@@ -143,7 +119,31 @@ export default function BuyerChatPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchThreads();
+
+    let active = true;
+    const channelName = `buyer-chats-${user.id}-${Math.random().toString(36).slice(2)}`;
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
+        if (active) fetchThreads();
+      });
+
+    channel.subscribe((status, err) => {
+      const normalized = logRealtimeStatus(channelName, status, err);
+      if (active) setRealtimeStatus(normalized);
+    });
+
+    return () => {
+      active = false;
+      try { channel.unsubscribe(); } catch { /* noop */ }
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchThreads]);
 
   const filtered = activeTab === 'all' ? threads : threads.filter(t => t.chatType === activeTab);
 

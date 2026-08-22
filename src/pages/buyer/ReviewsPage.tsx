@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -40,13 +40,7 @@ export default function ReviewsPage() {
   const [uploadingImages, setUploadingImages] = useState<Record<string, boolean>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  useEffect(() => {
-    if (orderId && user) {
-      fetchOrderData();
-    }
-  }, [orderId, user]);
-
-  const fetchOrderData = async () => {
+  const fetchOrderData = useCallback(async () => {
     try {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
@@ -109,7 +103,13 @@ export default function ReviewsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, user, navigate]);
+
+  useEffect(() => {
+    if (orderId && user) {
+      fetchOrderData();
+    }
+  }, [orderId, user, fetchOrderData]);
 
   const handleImageSelect = (productId: string, files: FileList | null) => {
     if (!files) return;

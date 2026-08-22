@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -41,18 +41,6 @@ export default function MerchantChatPage() {
     }
   }, [guardMerchantId]);
 
-  useEffect(() => {
-    if (!merchantId || !user) return;
-    fetchThreads();
-
-    const channel = supabase
-      .channel('merchant-chats')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => fetchThreads())
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [merchantId, user]);
-
   // Auto-open chat from orderId query param (notification quick action)
   useEffect(() => {
     const orderId = searchParams.get('orderId');
@@ -64,7 +52,7 @@ export default function MerchantChatPage() {
     }
   }, [searchParams, threads, selectedThread]);
 
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
     if (!merchantId || !user) return;
 
     try {
@@ -150,7 +138,19 @@ export default function MerchantChatPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId, user]);
+
+  useEffect(() => {
+    if (!merchantId || !user) return;
+    fetchThreads();
+
+    const channel = supabase
+      .channel(`merchant-chats-${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => fetchThreads())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [merchantId, user, fetchThreads]);
 
   if (loading) {
     return (
