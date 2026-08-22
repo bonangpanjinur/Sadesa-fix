@@ -37,7 +37,7 @@ export default function POSSupplierPage() {
     queryKey: ['pos-suppliers', tenant?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from('pos_suppliers' as any)
+        .from('pos_suppliers' as never)
         .select('*')
         .eq('tenant_id', tenant!.id)
         .order('name');
@@ -57,9 +57,9 @@ export default function POSSupplierPage() {
         notes: form.notes || null, tenant_id: tenant.id,
       };
       if (editing) {
-        await supabase.from('pos_suppliers' as any).update(payload).eq('id', editing.id);
+        await supabase.from('pos_suppliers' as never).update(payload).eq('id', editing.id);
       } else {
-        await supabase.from('pos_suppliers' as any).insert(payload);
+        await supabase.from('pos_suppliers' as never).insert(payload);
       }
     },
     onSuccess: () => {
@@ -67,12 +67,12 @@ export default function POSSupplierPage() {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['pos-suppliers', tenant?.id] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : String(err)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await supabase.from('pos_suppliers' as any).update({ is_active: false }).eq('id', id);
+      await supabase.from('pos_suppliers' as never).update({ is_active: false }).eq('id', id);
     },
     onSuccess: () => {
       toast.success('Supplier dinonaktifkan');
