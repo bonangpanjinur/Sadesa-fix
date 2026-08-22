@@ -12,6 +12,28 @@ import { subMonths, format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { formatPrice } from '@/lib/utils';
 
+interface VillageRef {
+  id: string;
+  name: string;
+}
+
+interface AssignmentRow {
+  villages: VillageRef | VillageRef[] | null;
+}
+
+interface EconomyOrder {
+  total: number | null;
+  created_at: string;
+  merchant_id: string;
+  merchants: { village_id: string | null; villages?: { name: string | null } | { name: string | null }[] | null } | { village_id: string | null; villages?: { name: string | null } | { name: string | null }[] | null }[] | null;
+}
+
+interface EconomyMerchant {
+  id: string;
+  name: string;
+  village_id: string | null;
+}
+
 export default function VerifikatorEkonomiPage() {
   const { user } = useAuth();
   const [villages, setVillages] = useState<{ id: string; name: string }[]>([]);
@@ -28,12 +50,12 @@ export default function VerifikatorEkonomiPage() {
 
   const fetchVillages = useCallback(async () => {
     if (!user) return;
-    const { data: assignments } = await (supabase as any)
+    const { data: assignments } = await supabase
       .from('verifikator_assignments')
       .select('villages(id, name)')
       .eq('verifikator_id', user.id);
 
-    const vlist = ((assignments || []) as any[]).map(a => a.villages).filter(Boolean) as { id: string; name: string }[];
+    const vlist = (assignments as AssignmentRow[] || []).flatMap(a => Array.isArray(a.villages) ? a.villages : a.villages ? [a.villages] : []);
     setVillages(vlist);
   }, [user]);
 
@@ -52,10 +74,13 @@ export default function VerifikatorEkonomiPage() {
           .eq('status', 'COMPLETED'),
       ] as const);
 
-      const merchants = merchantsRes.data || [];
-      const orders = ((ordersRes.data || []) as any[]).filter(o => villageIds.includes(o.merchants?.village_id));
+      const merchants = (merchantsRes.data || []) as EconomyMerchant[];
+      const orders = (ordersRes.data as EconomyOrder[] || []).filter(o => {
+        const merchant = Array.isArray(o.merchants) ? o.merchants[0] : o.merchants;
+        return villageIds.includes(merchant?.village_id ?? '');
+      });
 
-      const totalOmzet = orders.reduce((s: number, o: any) => s + (o.total || 0), 0);
+      const totalOmzet = orders.reduce((s, o) => s + (o.total || 0), 0);
       setStats({ totalOmzet, totalTransaksi: orders.length, activeMerchants: merchants.length });
 
       // Monthly data
@@ -64,7 +89,7 @@ export default function VerifikatorEkonomiPage() {
         const key = format(subMonths(new Date(), i), 'MMM yy', { locale: idLocale });
         monthly[key] = { omzet: 0, transaksi: 0 };
       }
-      orders.forEach((o: any) => {
+      orders.forEach((o) => {
         const key = format(new Date(o.created_at), 'MMM yy', { locale: idLocale });
         if (monthly[key]) { monthly[key].omzet += o.total || 0; monthly[key].transaksi += 1; }
       });
@@ -73,9 +98,10 @@ export default function VerifikatorEkonomiPage() {
       // Village ranking
       const vMap: Record<string, { name: string; omzet: number; merchants: number }> = {};
       villages.forEach(v => { vMap[v.id] = { name: v.name, omzet: 0, merchants: 0 }; });
-      merchants.forEach((m: any) => { if (vMap[m.village_id]) vMap[m.village_id].merchants += 1; });
-      orders.forEach((o: any) => {
-        const vid = o.merchants?.village_id;
+      merchants.forEach((m) => { if (vMap[m.village_id]) vMap[m.village_id].merchants += 1; });
+      orders.forEach((o) => {
+        const merchant = Array.isArray(o.merchants) ? o.merchants[0] : o.merchants;
+        const vid = merchant?.village_id;
         if (vid && vMap[vid]) vMap[vid].omzet += o.total || 0;
       });
       setVillageRanking(Object.values(vMap).sort((a, b) => b.omzet - a.omzet));
