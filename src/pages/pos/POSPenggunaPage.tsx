@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,14 +45,14 @@ export default function POSPenggunaPage() {
   const [showPin, setShowPin] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', role: 'kasir', outlet_id: '', pin: '', is_active: true });
 
-  useEffect(() => { if (tenant) fetchUsers(); }, [tenant]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     if (!tenant) return;
-    const { data } = await supabase.from('pos_users' as any).select('*').eq('tenant_id', tenant.id).order('name');
+    const { data } = await supabase.from('pos_users' as never).select('*').eq('tenant_id', tenant.id).order('name');
     setUsers((data || []) as unknown as POSUser[]);
     setLoading(false);
-  };
+  }, [tenant]);
+
+  useEffect(() => { if (tenant) void fetchUsers(); }, [tenant, fetchUsers]);
 
   const openAdd = () => {
     setEditing(null);
@@ -69,23 +69,32 @@ export default function POSPenggunaPage() {
   const handleSave = async () => {
     if (!tenant) return;
     if (!form.name.trim()) { toast.error('Nama pengguna wajib diisi'); return; }
-    const payload: any = {
+    const payload: {
+      name: string;
+      email: string | null;
+      phone: string | null;
+      role: string;
+      outlet_id: string | null;
+      is_active: boolean;
+      tenant_id: string;
+      pin?: string;
+    } = {
       name: form.name.trim(), email: form.email || null, phone: form.phone || null,
       role: form.role, outlet_id: form.outlet_id || null, is_active: form.is_active, tenant_id: tenant.id,
     };
     if (form.pin) payload.pin = form.pin;
     try {
       if (editing) {
-        await supabase.from('pos_users' as any).update(payload).eq('id', editing.id);
+        await supabase.from('pos_users' as never).update(payload).eq('id', editing.id);
         toast.success('Data pengguna diperbarui');
       } else {
-        await supabase.from('pos_users' as any).insert(payload);
+        await supabase.from('pos_users' as never).insert(payload);
         toast.success('Pengguna berhasil ditambahkan');
       }
       setDialogOpen(false);
       fetchUsers();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
