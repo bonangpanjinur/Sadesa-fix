@@ -42,6 +42,11 @@ interface Campaign {
   created_at: string;
 }
 
+interface DonationProfile {
+  user_id: string;
+  full_name: string | null;
+}
+
 interface Donation {
   id: string;
   campaign_id: string;
@@ -122,14 +127,14 @@ export default function DesaDonasiPage() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      const donorIds = (data || []).filter((d: any) => d.donor_id && !d.is_anonymous).map((d: any) => d.donor_id);
+      const donorIds = (data || []).filter((d: Donation) => d.donor_id && !d.is_anonymous).map((d: Donation) => d.donor_id);
       let nameMap: Record<string, string> = {};
       if (donorIds.length > 0) {
         const { data: profiles } = await supabase.from('profiles').select('user_id, full_name').in('user_id', donorIds);
-        nameMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name || 'Donatur']));
+        nameMap = Object.fromEntries((profiles as DonationProfile[] || []).map((p) => [p.user_id, p.full_name || 'Donatur']));
       }
 
-      return (data || []).map((d: any) => ({
+      return (data || []).map((d: Donation) => ({
         ...d,
         donor_name: d.is_anonymous ? 'Anonim' : (nameMap[d.donor_id] || 'Donatur'),
       }));
@@ -152,8 +157,8 @@ export default function DesaDonasiPage() {
         deadline: c.deadline || null,
         is_active: c.is_active ?? true,
       };
-      if ((c as any).id) {
-        const { error } = await supabase.from('donation_campaigns').update(payload).eq('id', (c as any).id);
+      if (c.id) {
+        const { error } = await supabase.from('donation_campaigns').update(payload).eq('id', c.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('donation_campaigns').insert({
@@ -171,7 +176,7 @@ export default function DesaDonasiPage() {
       setEditingCampaign(null);
       queryClient.invalidateQueries({ queryKey: ['desa-campaigns'] });
     },
-    onError: (e: any) => toast.error('Gagal: ' + e.message),
+    onError: (e: unknown) => toast.error('Gagal: ' + (e instanceof Error ? e.message : 'Terjadi kesalahan')),
   });
 
   // Toggle aktif / Toggle active
@@ -388,7 +393,7 @@ export default function DesaDonasiPage() {
       <Dialog open={dialogOpen} onOpenChange={open => { if (!open) { setDialogOpen(false); setEditingCampaign(null); } }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{(editingCampaign as any)?.id ? 'Edit Kampanye' : 'Buat Kampanye Donasi'}</DialogTitle>
+            <DialogTitle>{editingCampaign?.id ? 'Edit Kampanye' : 'Buat Kampanye Donasi'}</DialogTitle>
           </DialogHeader>
 
           {editingCampaign && (

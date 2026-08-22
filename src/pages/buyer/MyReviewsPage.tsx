@@ -9,6 +9,27 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
+interface ReviewRow {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  merchant_reply: string | null;
+  product_id: string | null;
+  merchant_id: string | null;
+}
+
+interface ProductReviewInfo {
+  id: string;
+  name: string;
+  image_url: string | null;
+}
+
+interface MerchantReviewInfo {
+  id: string;
+  name: string;
+}
+
 interface ReviewItem {
   id: string;
   rating: number;
@@ -26,27 +47,27 @@ export default function MyReviewsPage() {
   const { data: reviews = [], isLoading: loading } = useQuery<ReviewItem[]>({
     queryKey: ['my-reviews', user?.id],
     queryFn: async () => {
-      const result: any = await supabase
-        .from('reviews' as any)
+      const { data, error } = await supabase
+        .from('reviews')
         .select('id, rating, comment, created_at, merchant_reply, product_id, merchant_id')
         .eq('buyer_id', user!.id)
         .order('created_at', { ascending: false });
 
-      const data = result.data as any[];
-      if (result.error) throw result.error;
+      const rows = (data || []) as ReviewRow[];
+      if (error) throw error;
 
-      const productIds = [...new Set((data || []).map((r: any) => r.product_id).filter(Boolean))];
-      const merchantIds = [...new Set((data || []).map((r: any) => r.merchant_id).filter(Boolean))];
+      const productIds = [...new Set(rows.map(r => r.product_id).filter(Boolean))];
+      const merchantIds = [...new Set(rows.map(r => r.merchant_id).filter(Boolean))];
 
       const [productsResult, merchantsResult] = await Promise.all([
         productIds.length > 0 ? supabase.from('products').select('id, name, image_url').in('id', productIds) : Promise.resolve({ data: [] }),
         merchantIds.length > 0 ? supabase.from('merchants').select('id, name').in('id', merchantIds) : Promise.resolve({ data: [] }),
       ]);
 
-      const productsMap = new Map((productsResult.data || []).map((p: any) => [p.id, { name: p.name, image_url: p.image_url }]));
-      const merchantsMap = new Map((merchantsResult.data || []).map((m: any) => [m.id, { name: m.name }]));
+      const productsMap = new Map((productsResult.data as ProductReviewInfo[] || []).map((p) => [p.id, { name: p.name, image_url: p.image_url }]));
+      const merchantsMap = new Map((merchantsResult.data as MerchantReviewInfo[] || []).map((m) => [m.id, { name: m.name }]));
 
-      return (data || []).map((r: any) => ({
+      return rows.map((r) => ({
         ...r,
         product: r.product_id ? productsMap.get(r.product_id) || null : null,
         merchant: r.merchant_id ? merchantsMap.get(r.merchant_id) || null : null,

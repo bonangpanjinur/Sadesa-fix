@@ -14,6 +14,12 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+interface ReferralProfile {
+  id?: string;
+  referral_code?: string | null;
+  referred_by?: string | null;
+}
+
 interface ReferralUsage {
   id: string;
   referred_id: string;
@@ -38,13 +44,13 @@ export default function ReferralPage() {
     queryKey: ['referral', user?.id],
     queryFn: async () => {
       const { data: profile } = await supabase.from('profiles').select('referral_code, referred_by').eq('id', user!.id).maybeSingle();
-      let code = (profile as any)?.referral_code;
+      let code = (profile as ReferralProfile | null)?.referral_code;
       if (!code) {
         code = generateCode(user!.id);
         await supabase.from('profiles').update({ referral_code: code }).eq('id', user!.id);
       }
 
-      const { data: usageData } = await (supabase as any).from('referral_usages').select('*').eq('referrer_id', user!.id).order('created_at', { ascending: false });
+      const { data: usageData } = await supabase.from('referral_usages').select('*').eq('referrer_id', user!.id).order('created_at', { ascending: false });
       const list = (usageData || []) as ReferralUsage[];
       return {
         referralCode: code,
@@ -65,14 +71,14 @@ export default function ReferralPage() {
       if (!inputCode.trim()) return;
       const { data: referrerProfile } = await supabase.from('profiles').select('id').eq('referral_code', inputCode.trim().toUpperCase()).maybeSingle();
       if (!referrerProfile) throw new Error('Kode referral tidak ditemukan');
-      if ((referrerProfile as any).id === user!.id) throw new Error('Tidak bisa menggunakan kode referral sendiri');
+      if (referrerProfile.id === user!.id) throw new Error('Tidak bisa menggunakan kode referral sendiri');
 
       const { data: myProfile } = await supabase.from('profiles').select('referred_by').eq('id', user!.id).maybeSingle();
-      if ((myProfile as any)?.referred_by) throw new Error('Kamu sudah pernah memasukkan kode referral');
+      if ((myProfile as ReferralProfile | null)?.referred_by) throw new Error('Kamu sudah pernah memasukkan kode referral');
 
-      await supabase.from('profiles').update({ referred_by: (referrerProfile as any).id }).eq('id', user!.id);
-      await (supabase as any).from('referral_usages').insert({
-        referrer_id: (referrerProfile as any).id,
+      await supabase.from('profiles').update({ referred_by: referrerProfile.id }).eq('id', user!.id);
+      await supabase.from('referral_usages').insert({
+        referrer_id: referrerProfile.id,
         referred_id: user!.id,
         referral_code: inputCode.trim().toUpperCase(),
         referrer_reward: REFERRER_REWARD,
@@ -85,7 +91,7 @@ export default function ReferralPage() {
       setInputCode('');
       queryClient.invalidateQueries({ queryKey: ['referral', user?.id] });
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal memasukkan kode referral'),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Gagal memasukkan kode referral'),
   });
 
   const copyCode = () => { navigator.clipboard.writeText(referralCode); toast.success('Kode referral disalin!'); };
