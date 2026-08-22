@@ -34,7 +34,7 @@ export function MultipleImageUpload({
   const fetchImages = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('product_images' as any)
+        .from('product_images' as never)
         .select('*')
         .eq('product_id', productId)
         .order('sort_order', { ascending: true });
@@ -87,7 +87,7 @@ export function MultipleImageUpload({
           .getPublicUrl(fileName);
 
         // Insert to database
-        const { error: dbError } = await supabase.from('product_images' as any).insert({
+        const { error: dbError } = await supabase.from('product_images' as never).insert({
           product_id: productId,
           image_url: publicUrl,
           sort_order: images.length + i,
@@ -99,9 +99,9 @@ export function MultipleImageUpload({
 
       toast.success('Gambar berhasil diupload');
       fetchImages();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error uploading:', error);
-      const errorMessage = error.message || 'Gagal mengupload gambar';
+      const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload gambar';
       if (errorMessage.includes('Bucket not found')) {
         toast.error('Error: Bucket storage "products" tidak ditemukan. Silakan jalankan migrasi SQL.');
       } else {
@@ -122,7 +122,7 @@ export function MultipleImageUpload({
 
       // Delete from database
       const { error } = await supabase
-        .from('product_images' as any)
+        .from('product_images' as never)
         .delete()
         .eq('id', imageId);
 
@@ -139,13 +139,13 @@ export function MultipleImageUpload({
     try {
       // Remove primary from all
       await supabase
-        .from('product_images' as any)
+        .from('product_images' as never)
         .update({ is_primary: false })
         .eq('product_id', productId);
 
       // Set new primary
       const { error } = await supabase
-        .from('product_images' as any)
+        .from('product_images' as never)
         .update({ is_primary: true })
         .eq('id', imageId);
 
@@ -165,7 +165,7 @@ export function MultipleImageUpload({
       // Update sort order in database
       for (let i = 0; i < newOrder.length; i++) {
         await supabase
-          .from('product_images' as any)
+          .from('product_images' as never)
           .update({ sort_order: i })
           .eq('id', newOrder[i].id);
       }

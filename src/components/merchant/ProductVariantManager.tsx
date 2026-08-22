@@ -14,6 +14,13 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+interface ProductVariantRow {
+  id: string;
+  product_id: string;
+  name: string;
+  options: VariantOption[] | null;
+}
+
 interface VariantOption {
   value: string;
   stock: number;
@@ -55,13 +62,13 @@ export function ProductVariantManager({
   const fetchVariants = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('product_variants' as any)
+        .from('product_variants' as never)
         .select('*')
         .eq('product_id', productId);
 
       if (error) throw error;
 
-      const mapped = ((data || []) as any[]).map(v => ({
+      const mapped = ((data || []) as unknown as ProductVariantRow[]).map((v) => ({
         id: v.id,
         product_id: v.product_id,
         name: v.name,
@@ -87,7 +94,7 @@ export function ProductVariantManager({
     }
 
     try {
-      const { error } = await supabase.from('product_variants' as any).insert({
+      const { error } = await supabase.from('product_variants' as never).insert({
         product_id: productId,
         name: newVariantName,
         options: [],
@@ -108,7 +115,7 @@ export function ProductVariantManager({
 
     try {
       const { error } = await supabase
-        .from('product_variants' as any)
+        .from('product_variants' as never)
         .delete()
         .eq('id', variantId);
 
@@ -141,7 +148,7 @@ export function ProductVariantManager({
 
     try {
       const { error } = await supabase
-        .from('product_variants' as any)
+        .from('product_variants' as never)
         .update({ options: updatedOptions })
         .eq('id', variantId);
 
@@ -164,7 +171,7 @@ export function ProductVariantManager({
 
     try {
       const { error } = await supabase
-        .from('product_variants' as any)
+        .from('product_variants' as never)
         .update({ options: updatedOptions })
         .eq('id', variantId);
 
