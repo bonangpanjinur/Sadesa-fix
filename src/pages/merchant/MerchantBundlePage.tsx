@@ -35,6 +35,8 @@ interface BundleItem {
   product?: Product;
 }
 
+interface BundleRow extends Omit<Bundle, 'items'> { items: BundleItem[] | null }
+
 interface Bundle {
   id: string;
   name: string;
@@ -82,7 +84,7 @@ export default function MerchantBundlePage() {
       if (error) throw error;
 
       // Enrich items dengan data produk / Enrich items with product data
-      const enriched = await Promise.all((data || []).map(async (b: any) => {
+      const enriched = await Promise.all((data || []).map(async (b) => {
         const items: BundleItem[] = b.items || [];
         const productIds = items.map(i => i.product_id).filter(Boolean);
         let products: Product[] = [];
@@ -149,8 +151,8 @@ export default function MerchantBundlePage() {
         valid_until: b.valid_until || null,
         items: (b.items || []).map(i => ({ product_id: i.product_id, quantity: i.quantity })),
       };
-      if ((b as any).id) {
-        const { error } = await supabase.from('product_bundles').update(payload).eq('id', (b as any).id);
+      if (b.id) {
+        const { error } = await supabase.from('product_bundles').update(payload).eq('id', b.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('product_bundles').insert({ ...payload, created_at: new Date().toISOString() });
@@ -163,7 +165,7 @@ export default function MerchantBundlePage() {
       setEditingBundle(null);
       queryClient.invalidateQueries({ queryKey: ['merchant-bundles', merchantId] });
     },
-    onError: (e: any) => toast.error('Gagal menyimpan bundle: ' + e.message),
+    onError: (e: unknown) => toast.error('Gagal menyimpan bundle: ' + (e instanceof Error ? e.message : 'Terjadi kesalahan')),
   });
 
   // Toggle aktif / Toggle active
@@ -363,7 +365,7 @@ export default function MerchantBundlePage() {
       <Dialog open={dialogOpen} onOpenChange={open => { if (!open) { setDialogOpen(false); setEditingBundle(null); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{(editingBundle as any)?.id ? 'Edit Bundle' : 'Buat Bundle Baru'}</DialogTitle>
+            <DialogTitle>{editingBundle?.id ? 'Edit Bundle' : 'Buat Bundle Baru'}</DialogTitle>
           </DialogHeader>
 
           {editingBundle && (
