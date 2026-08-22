@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { VerifikatorLayout } from '@/components/verifikator/VerifikatorLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,15 +22,11 @@ export default function VerifikatorEkonomiPage() {
   const [monthlyData, setMonthlyData] = useState<{ month: string; omzet: number; transaksi: number }[]>([]);
   const [villageRanking, setVillageRanking] = useState<{ name: string; omzet: number; merchants: number }[]>([]);
 
-  useEffect(() => {
-    fetchVillages();
-  }, [user]);
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedVillage, period]);
 
-  const fetchVillages = async () => {
+
+
+  const fetchVillages = useCallback(async () => {
     if (!user) return;
     const { data: assignments } = await (supabase as any)
       .from('verifikator_assignments')
@@ -39,9 +35,9 @@ export default function VerifikatorEkonomiPage() {
 
     const vlist = ((assignments || []) as any[]).map(a => a.villages).filter(Boolean) as { id: string; name: string }[];
     setVillages(vlist);
-  };
+  }, [user]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const startDate = subMonths(new Date(), Number(period));
@@ -88,7 +84,14 @@ export default function VerifikatorEkonomiPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period, selectedVillage, villages]);
+
+  useEffect(() => {
+    fetchVillages();
+  }, [fetchVillages]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   return (
     <VerifikatorLayout title="Laporan Ekonomi Desa" subtitle="Monitoring omzet UMKM di wilayah Anda">
