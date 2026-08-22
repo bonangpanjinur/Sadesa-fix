@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Zap, Plus, Clock, Trash2, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -72,11 +72,7 @@ export function FlashSaleManager({ merchantId }: FlashSaleManagerProps) {
     duration_hours: '2',
   });
 
-  useEffect(() => {
-    fetchData();
-  }, [merchantId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Fetch flash sales from raw query due to new table not in types yet
       const { data: sales, error: salesError } = await supabase
@@ -118,9 +114,13 @@ export function FlashSaleManager({ merchantId }: FlashSaleManagerProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
 
-  const handleCreate = async () => {
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSubmit = async () => {
     if (!form.product_id || !form.flash_price || !form.stock_available) {
       toast.error('Lengkapi semua data');
       return;
@@ -384,7 +384,7 @@ export function FlashSaleManager({ merchantId }: FlashSaleManagerProps) {
               </Select>
             </div>
 
-            <Button className="w-full" onClick={handleCreate} disabled={saving}>
+            <Button className="w-full" onClick={handleSubmit} disabled={saving}>
               {saving ? 'Membuat...' : 'Buat Flash Sale'}
             </Button>
           </div>

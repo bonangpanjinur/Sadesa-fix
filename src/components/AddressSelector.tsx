@@ -110,7 +110,7 @@ export function AddressSelector({
     };
 
     initializeData();
-  }, []);
+  }, [value.province, value.city, value.district]);
 
   // Load cities when province changes (after initial load)
   useEffect(() => {

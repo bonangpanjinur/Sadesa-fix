@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -37,15 +37,7 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchProfile();
-    } else if (!authLoading) {
-      setLoading(false);
-    }
-  }, [user, authLoading]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -65,7 +57,15 @@ export default function AccountPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      fetchProfile();
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [user, authLoading, fetchProfile]);
 
   const handleProfileSave = async () => {
     setEditing(false);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { OrderChat, ChatType } from '@/components/chat/OrderChat';
@@ -29,19 +29,7 @@ export default function CourierChatPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'buyer_courier' | 'merchant_courier'>('all');
   const [selectedThread, setSelectedThread] = useState<ChatThread | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    fetchThreads();
-
-    const channel = supabase
-      .channel('courier-chats')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => fetchThreads())
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
-
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
     if (!user) return;
     try {
       const { data: messages } = await supabase
@@ -122,9 +110,21 @@ export default function CourierChatPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const filtered = activeTab === 'all' ? threads : threads.filter(t => t.chatType === activeTab);
+  useEffect(() => {
+    if (!user) return;
+    fetchThreads();
+
+    const channel = supabase
+      .channel(`courier-chats-${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, fetchThreads)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, fetchThreads]);
+
+  const filteredThreads = activeTab === 'all' ? threads : threads.filter(t => t.chatType === activeTab);
 
   return (
     <CourierLayout title="Chat" subtitle="Percakapan dengan pembeli & penjual">
@@ -146,7 +146,7 @@ export default function CourierChatPage() {
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filteredThreads.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <MessageCircle className="h-16 w-16 text-muted-foreground/30 mb-4" />
           <p className="text-muted-foreground">Belum ada percakapan</p>
@@ -154,7 +154,7 @@ export default function CourierChatPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map(thread => (
+          {filteredThreads.map(thread => (
             <Card key={`${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => setSelectedThread(thread)}>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">

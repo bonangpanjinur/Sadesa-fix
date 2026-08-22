@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,13 +43,7 @@ export const MerchantGroupCard = () => {
   const [currentVerifikator, setCurrentVerifikator] = useState<VerifikatorInfo | null>(null);
   const [currentGroup, setCurrentGroup] = useState<GroupInfo | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      checkCurrentMembership();
-    }
-  }, [user]);
-
-  const checkCurrentMembership = async () => {
+  const checkCurrentMembership = useCallback(async () => {
     try {
       setInitialLoading(true);
       // 1. Ambil data merchant untuk cek verifikator_id, group_id, dan verifikator_code
@@ -127,8 +121,14 @@ export const MerchantGroupCard = () => {
       console.error('Error checking membership:', error);
     } finally {
       setInitialLoading(false);
+        }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      checkCurrentMembership();
     }
-  };
+  }, [user, checkCurrentMembership]);
 
   const searchVerifikator = async () => {
     const trimmedCode = searchCode.trim().toUpperCase();

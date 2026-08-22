@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Star, MessageSquare, Send, Image, User } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,11 +47,7 @@ export function CustomerReviews({ merchantId }: CustomerReviewsProps) {
     setLightboxOpen(true);
   };
 
-  useEffect(() => {
-    fetchReviews();
-  }, [merchantId]);
-
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       // Fetch reviews with product info
       const { data: reviewData, error } = await supabase
@@ -90,9 +86,13 @@ export function CustomerReviews({ merchantId }: CustomerReviewsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
 
-  const submitReply = async (reviewId: string) => {
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  const handleReply = async (reviewId: string) => {
     if (!replyText.trim()) return;
 
     setSending(true);
@@ -323,7 +323,7 @@ export function CustomerReviews({ merchantId }: CustomerReviewsProps) {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => submitReply(review.id)}
+                          onClick={() => handleReply(review.id)}
                           disabled={sending || !replyText.trim()}
                         >
                           <Send className="h-4 w-4 mr-1" />

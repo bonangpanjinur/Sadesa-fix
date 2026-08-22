@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { MapPin, Navigation, Loader2, WifiOff, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -28,7 +28,7 @@ export function MerchantDeliveryTracker({ orderId, merchantId, onLocationUpdate 
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const isInitialMount = useRef(true);
 
-  const updateLocationToServer = async (lat: number, lng: number) => {
+  const updateLocationToServer = useCallback(async (lat: number, lng: number) => {
     try {
       await supabase
         .from('merchants')
@@ -41,9 +41,9 @@ export function MerchantDeliveryTracker({ orderId, merchantId, onLocationUpdate 
     } catch (err) {
       console.error('Error updating merchant location:', err);
     }
-  };
+  }, [merchantId, onLocationUpdate]);
 
-  const startTracking = () => {
+  const startTracking = useCallback(() => {
     if (!navigator.geolocation) {
       setError('Geolocation tidak didukung oleh browser Anda');
       return;
@@ -105,7 +105,7 @@ export function MerchantDeliveryTracker({ orderId, merchantId, onLocationUpdate 
         updateLocationToServer(locationRef.current.lat, locationRef.current.lng);
       }
     }, 30000);
-  };
+  }, [merchantId, orderId, updateLocationToServer]);
 
   const stopTracking = () => {
     if (watchIdRef.current !== null) {
@@ -138,7 +138,7 @@ export function MerchantDeliveryTracker({ orderId, merchantId, onLocationUpdate 
     if (!isInitialMount.current) return;
     isInitialMount.current = false;
     if (isTracking) startTracking();
-  }, []);
+  }, [isTracking, startTracking]);
 
   useEffect(() => {
     return () => {

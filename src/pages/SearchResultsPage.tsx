@@ -69,9 +69,9 @@ export default function SearchResultsPage() {
     enabled: !!initialQuery && initialQuery.length >= 2,
   });
 
-  const products = searchResults?.products ?? [];
-  const villages = searchResults?.villages ?? [];
-  const tourismSpots = searchResults?.tourismSpots ?? [];
+  const products = useMemo(() => searchResults?.products ?? [], [searchResults?.products]);
+  const villages = useMemo(() => searchResults?.villages ?? [], [searchResults?.villages]);
+  const tourismSpots = useMemo(() => searchResults?.tourismSpots ?? [], [searchResults?.tourismSpots]);
 
   // Update URL when search changes
   useEffect(() => {

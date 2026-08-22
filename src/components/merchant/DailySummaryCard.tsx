@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, ShoppingCart, DollarSign, Clock, Download } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,11 +16,7 @@ export function DailySummaryCard({ merchantId }: DailySummaryCardProps) {
   const [pendingOrders, setPendingOrders] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDailySummary();
-  }, [merchantId]);
-
-  const fetchDailySummary = async () => {
+  const fetchDailySummary = useCallback(async () => {
     try {
       const today = new Date();
       const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
@@ -58,7 +54,11 @@ export function DailySummaryCard({ merchantId }: DailySummaryCardProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    fetchDailySummary();
+  }, [fetchDailySummary]);
 
   const percentChange = yesterdayRevenue > 0
     ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100

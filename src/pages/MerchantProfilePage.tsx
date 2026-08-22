@@ -209,7 +209,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
       }
     }
     loadData();
-  }, [id]);
+  }, [id, navigate]);
 
   const getPriceLabel = (classification: string | null) => {
     switch (classification) {
