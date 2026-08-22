@@ -11,6 +11,25 @@ import { formatPrice } from '@/lib/utils';
 import { ArrowLeft, Sparkles, Star, ShoppingCart } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
+import type { Product } from '@/types';
+
+interface RecommendationOrderItem {
+  product_id: string | null;
+  products: { category: string | null; merchant_id: string | null } | { category: string | null; merchant_id: string | null }[] | null;
+}
+
+interface RecommendationProductRow {
+  id: string;
+  name: string;
+  price: number;
+  is_promo: boolean | null;
+  discount_percent: number | null;
+  image_url: string | null;
+  category: string;
+  rating_avg: number | null;
+  sold_count: number | null;
+  merchants: { name: string | null } | { name: string | null }[] | null;
+}
 
 interface RecommendedProduct {
   id: string;
@@ -45,7 +64,7 @@ export default function RekomendasisPage() {
           .eq('buyer_id', user.id)
           .limit(30);
 
-        const orderIds = (userOrders || []).map((o: any) => o.id);
+        const orderIds = (userOrders || []).map(o => o.id);
 
         const { data: orderItems } = orderIds.length > 0
           ? await supabase
@@ -58,9 +77,10 @@ export default function RekomendasisPage() {
         const orderedCategories = new Set<string>();
         const orderedMerchants = new Set<string>();
 
-        ((orderItems || []) as any[]).forEach(oi => {
-          if (oi.products?.category) orderedCategories.add(oi.products.category);
-          if (oi.products?.merchant_id) orderedMerchants.add(oi.products.merchant_id);
+        (orderItems as RecommendationOrderItem[] || []).forEach((oi) => {
+          const product = Array.isArray(oi.products) ? oi.products[0] : oi.products;
+          if (product?.category) orderedCategories.add(product.category);
+          if (product?.merchant_id) orderedMerchants.add(product.merchant_id);
         });
 
         // Recommend from same categories
@@ -71,11 +91,11 @@ export default function RekomendasisPage() {
             .select('*, merchants(name)')
             .in('category', cats)
             .eq('is_active', true)
-            .not('id', 'in', `(${(orderItems || []).map((oi: any) => oi.product_id).join(',') || "''"})`)
+            .not('id', 'in', `(${(orderItems as RecommendationOrderItem[] || []).map((oi) => oi.product_id).join(',') || "''"})`)
             .order('sold_count', { ascending: false })
             .limit(8);
 
-          ((catProducts || []) as any[]).forEach(p => {
+          (catProducts as RecommendationProductRow[] || []).forEach((p) => {
             recommendations.push({
               id: p.id,
               name: p.name,
@@ -83,7 +103,7 @@ export default function RekomendasisPage() {
               originalPrice: p.is_promo && p.discount_percent > 0 ? p.price : undefined,
               image_url: p.image_url,
               category: p.category,
-              merchant_name: p.merchants?.name || '',
+              merchant_name: (Array.isArray(p.merchants) ? p.merchants[0]?.name : p.merchants?.name) || '',
               rating_avg: p.rating_avg || 0,
               sold_count: p.sold_count || 0,
               reason: `Sesuai kategori favorit kamu`,
@@ -101,7 +121,7 @@ export default function RekomendasisPage() {
           .order('sold_count', { ascending: false })
           .limit(12 - recommendations.length);
 
-        ((bestSellers || []) as any[]).forEach(p => {
+        (bestSellers as RecommendationProductRow[] || []).forEach((p) => {
           if (!recommendations.find(r => r.id === p.id)) {
             recommendations.push({
               id: p.id,
@@ -110,7 +130,7 @@ export default function RekomendasisPage() {
               originalPrice: p.is_promo && p.discount_percent > 0 ? p.price : undefined,
               image_url: p.image_url,
               category: p.category,
-              merchant_name: p.merchants?.name || '',
+              merchant_name: (Array.isArray(p.merchants) ? p.merchants[0]?.name : p.merchants?.name) || '',
               rating_avg: p.rating_avg || 0,
               sold_count: p.sold_count || 0,
               reason: 'Paling banyak terjual',
@@ -133,15 +153,20 @@ export default function RekomendasisPage() {
 
   const handleAddToCart = (p: RecommendedProduct, e: React.MouseEvent) => {
     e.stopPropagation();
-    addItem({
+    const cartProduct: Product = {
       id: p.id,
       name: p.name,
+      description: '',
       price: p.price,
       image: p.image_url || '',
       merchantId: '',
       merchantName: p.merchant_name,
       stock: 99,
-    } as any, 1);
+      category: p.category,
+      isActive: true,
+      isPromo: p.originalPrice !== undefined,
+    };
+    addItem(cartProduct, 1);
     toast.success('Ditambahkan ke keranjang');
   };
 

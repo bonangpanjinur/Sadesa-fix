@@ -14,6 +14,19 @@ import { subMonths, format, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { formatPrice } from '@/lib/utils';
 
+interface DesaEconomyMerchant {
+  id: string;
+  name: string;
+  business_category: string | null;
+}
+
+interface DesaEconomyOrder {
+  total: number | null;
+  created_at: string;
+  merchant_id: string;
+  merchants: { name: string | null; business_category: string | null; village_id: string | null } | { name: string | null; business_category: string | null; village_id: string | null }[] | null;
+}
+
 export default function DesaEkonomiPage() {
   const { user } = useAuth();
   const [villageId, setVillageId] = useState<string | null>(null);
@@ -48,10 +61,13 @@ export default function DesaEkonomiPage() {
         supabase.from('orders').select('total, created_at, merchant_id, merchants(name, business_category, village_id)').gte('created_at', startDate.toISOString()).eq('status', 'COMPLETED'),
       ] as const);
 
-      const merchants = merchantsRes.data || [];
-      const orders = ((ordersRes.data || []) as any[]).filter(o => o.merchants?.village_id === villageId);
+      const merchants = (merchantsRes.data || []) as DesaEconomyMerchant[];
+      const orders = (ordersRes.data as DesaEconomyOrder[] || []).filter(o => {
+        const merchant = Array.isArray(o.merchants) ? o.merchants[0] : o.merchants;
+        return merchant?.village_id === villageId;
+      });
 
-      const totalOmzet = orders.reduce((s: number, o: any) => s + (o.total || 0), 0);
+      const totalOmzet = orders.reduce((s, o) => s + (o.total || 0), 0);
       setStats({
         totalOmzet,
         totalTransaksi: orders.length,
@@ -66,7 +82,7 @@ export default function DesaEkonomiPage() {
         const key = format(d, 'MMM yy', { locale: idLocale });
         monthly[key] = { omzet: 0, transaksi: 0 };
       }
-      orders.forEach((o: any) => {
+      orders.forEach((o) => {
         const key = format(new Date(o.created_at), 'MMM yy', { locale: idLocale });
         if (monthly[key]) {
           monthly[key].omzet += o.total || 0;
@@ -77,9 +93,10 @@ export default function DesaEkonomiPage() {
 
       // Top merchants
       const merchantMap: Record<string, { name: string; omzet: number; transaksi: number }> = {};
-      orders.forEach((o: any) => {
+      orders.forEach((o) => {
         const mid = o.merchant_id;
-        const name = o.merchants?.name || 'Unknown';
+        const merchant = Array.isArray(o.merchants) ? o.merchants[0] : o.merchants;
+        const name = merchant?.name || 'Unknown';
         if (!merchantMap[mid]) merchantMap[mid] = { name, omzet: 0, transaksi: 0 };
         merchantMap[mid].omzet += o.total || 0;
         merchantMap[mid].transaksi += 1;
@@ -88,9 +105,10 @@ export default function DesaEkonomiPage() {
 
       // By category
       const catMap: Record<string, number> = {};
-      merchants.forEach((m: any) => { catMap[m.business_category || 'Lainnya'] = 0; });
-      orders.forEach((o: any) => {
-        const cat = o.merchants?.business_category || 'Lainnya';
+      merchants.forEach((m) => { catMap[m.business_category || 'Lainnya'] = 0; });
+      orders.forEach((o) => {
+        const merchant = Array.isArray(o.merchants) ? o.merchants[0] : o.merchants;
+        const cat = merchant?.business_category || 'Lainnya';
         catMap[cat] = (catMap[cat] || 0) + (o.total || 0);
       });
       setCategoryData(Object.entries(catMap).map(([category, omzet]) => ({ category, omzet })).sort((a, b) => b.omzet - a.omzet));
