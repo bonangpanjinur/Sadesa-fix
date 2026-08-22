@@ -47,6 +47,10 @@ interface SesiStat {
   closedAt: string | null;
 }
 
+interface CashierSaleItem { qty: number; }
+interface CashierSale { total: number; discount_amount: number | null; cashier_id: string | null; cashier_name: string | null; created_at: string; pos_sale_items?: CashierSaleItem[]; }
+interface CashierSession { session_number: string; cashier_name: string; opening_balance: number; closing_balance: number | null; difference: number | null; cash_sales_total: number; cash_in_total: number; cash_out_total: number; opened_at: string; closed_at: string | null; }
+
 const PERIOD_OPTIONS = [
   { value: 'today', label: 'Hari Ini' },
   { value: 'week', label: 'Minggu Ini' },
@@ -84,7 +88,7 @@ export default function POSLaporanKasirPage() {
 
     try {
       const [salesRes, sesiRes] = await Promise.all([
-        supabase.from('pos_sales' as any)
+        supabase.from('pos_sales' as never)
           .select('id, total, discount_amount, cashier_id, cashier_name, created_at, pos_sale_items(qty)')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
@@ -92,7 +96,7 @@ export default function POSLaporanKasirPage() {
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString())
           .order('created_at'),
-        supabase.from('pos_cash_sessions' as any)
+        supabase.from('pos_cash_sessions' as never)
           .select('*')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
@@ -101,11 +105,11 @@ export default function POSLaporanKasirPage() {
           .order('opened_at', { ascending: false }),
       ]);
 
-      const sales = (salesRes.data || []) as any[];
-      const sesi = (sesiRes.data || []) as any[];
+      const sales = (salesRes.data || []) as unknown as CashierSale[];
+      const sesi = (sesiRes.data || []) as unknown as CashierSession[];
 
       const kasirMap: Record<string, KasirStat> = {};
-      sales.forEach((s: any) => {
+      sales.forEach((s) => {
         const key = s.cashier_name || 'Tidak Diketahui';
         if (!kasirMap[key]) {
           kasirMap[key] = {
@@ -116,7 +120,7 @@ export default function POSLaporanKasirPage() {
         kasirMap[key].totalTransaksi++;
         kasirMap[key].totalOmzet += Number(s.total);
         kasirMap[key].totalDiskon += Number(s.discount_amount || 0);
-        kasirMap[key].totalItem += (s.pos_sale_items || []).reduce((a: number, i: any) => a + Number(i.qty), 0);
+        kasirMap[key].totalItem += (s.pos_sale_items || []).reduce((a: number, i: CashierSaleItem) => a + Number(i.qty), 0);
       });
 
       const kasirList = Object.values(kasirMap).map(k => ({
@@ -125,7 +129,7 @@ export default function POSLaporanKasirPage() {
       })).sort((a, b) => b.totalOmzet - a.totalOmzet);
 
       setKasirStats(kasirList);
-      setSesiStats(sesi.map((s: any) => ({
+      setSesiStats(sesi.map((s) => ({
         sessionNumber: s.session_number,
         kasirName: s.cashier_name,
         openingBalance: Number(s.opening_balance),
@@ -138,10 +142,10 @@ export default function POSLaporanKasirPage() {
         closedAt: s.closed_at,
       })));
 
-      const filteredSales = selectedKasir === 'all' ? sales : sales.filter((s: any) => s.cashier_name === selectedKasir);
+      const filteredSales = selectedKasir === 'all' ? sales : sales.filter((s) => s.cashier_name === selectedKasir);
       const hourMap: Record<number, { transaksi: number; omzet: number }> = {};
       for (let h = 0; h < 24; h++) hourMap[h] = { transaksi: 0, omzet: 0 };
-      filteredSales.forEach((s: any) => {
+      filteredSales.forEach((s) => {
         const h = new Date(s.created_at).getHours();
         hourMap[h].transaksi++;
         hourMap[h].omzet += Number(s.total);
@@ -366,7 +370,7 @@ export default function POSLaporanKasirPage() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => v >= 1000000 ? `${(v/1000000).toFixed(1)}jt` : `${(v/1000).toFixed(0)}rb`} />
                         <YAxis type="category" dataKey="kasirName" tick={{ fontSize: 11 }} width={60} />
-                        <Tooltip formatter={(val: any) => formatCurrency(val)} />
+                        <Tooltip formatter={(val) => formatCurrency(Number(val))} />
                         <Bar dataKey="totalOmzet" name="Omzet" radius={[0, 4, 4, 0]}>
                           {kasirStats.map((_, idx) => (
                             <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
@@ -441,7 +445,7 @@ export default function POSLaporanKasirPage() {
                       <XAxis dataKey="hour" tick={{ fontSize: 10 }} />
                       <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
                       <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={v => v >= 1000000 ? `${(v/1000000).toFixed(1)}jt` : `${(v/1000).toFixed(0)}rb`} />
-                      <Tooltip formatter={(val: any, name: any) => name === 'Transaksi' ? val : formatCurrency(val)} />
+                      <Tooltip formatter={(val, name) => String(name) === 'Transaksi' ? Number(val) : formatCurrency(Number(val))} />
                       <Legend />
                       <Bar yAxisId="left" dataKey="transaksi" fill="#10b981" name="Transaksi" radius={[2, 2, 0, 0]} />
                       <Bar yAxisId="right" dataKey="omzet" fill="#3b82f6" name="Omzet" radius={[2, 2, 0, 0]} />
