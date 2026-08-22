@@ -143,9 +143,9 @@ export default function AdminRolesPage() {
       toast.success(`Role untuk ${editingUser.full_name} berhasil diperbarui`);
       setEditingUser(null);
       fetchUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving roles:', error);
-      toast.error(error.message || 'Gagal menyimpan role');
+      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan role');
     } finally {
       setSaving(false);
     }
@@ -167,7 +167,9 @@ export default function AdminRolesPage() {
     return matchesSearch && matchesRole;
   });
 
-  const getRoleBadgeVariant = (role: string) => {
+  type RoleBadgeVariant = 'default' | 'destructive' | 'secondary' | 'outline';
+
+  const getRoleBadgeVariant = (role: string): RoleBadgeVariant => {
     switch (role) {
       case 'admin':
         return 'destructive';
@@ -285,7 +287,7 @@ export default function AdminRolesPage() {
                                 <Badge variant="outline" className="text-[10px] font-normal opacity-50">TIDAK ADA ROLE</Badge>
                               ) : (
                                 user.roles.map((role) => (
-                                  <Badge key={role} variant={getRoleBadgeVariant(role) as any} className="text-[10px] px-1.5 py-0">
+                                  <Badge key={role} variant={getRoleBadgeVariant(role)} className="text-[10px] px-1.5 py-0">
                                     {AVAILABLE_ROLES.find((r) => r.id === role)?.label || role}
                                   </Badge>
                                 ))

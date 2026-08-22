@@ -157,7 +157,7 @@ export default function AdminTransactionQuotaPage() {
 
       if (reqError) throw reqError;
       
-      setRequests((reqData || []) as any[]);
+      setRequests((reqData || []) as PackageRequest[]);
 
       // Fetch tiers
       const { data: tierData, error: tierError } = await supabase
@@ -207,7 +207,7 @@ export default function AdminTransactionQuotaPage() {
           .insert({
             ...packageFormData,
             classification_price: 'CUSTOM',
-          } as any);
+          });
 
         if (error) throw error;
         toast.success('Paket berhasil ditambahkan');

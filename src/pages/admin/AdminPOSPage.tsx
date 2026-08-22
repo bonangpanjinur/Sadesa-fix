@@ -29,6 +29,15 @@ interface POSPackage {
   sort_order: number;
 }
 
+interface POSSubscriptionRow extends POSSubscription {
+  merchants?: { name: string | null } | null;
+  pos_packages?: { name: string | null } | null;
+}
+
+interface POSConfig {
+  trial_days?: number;
+}
+
 interface POSSubscription {
   id: string;
   merchant_id: string;
@@ -69,13 +78,13 @@ export default function AdminPOSPage() {
       ]);
 
       setPackages(pkgsRes.data || []);
-      setSubscriptions((subsRes.data || []).map((s: any) => ({
+      setSubscriptions((subsRes.data || []).map((s: POSSubscriptionRow) => ({
         ...s,
         merchant_name: s.merchants?.name || '-',
         package_name: s.pos_packages?.name || (s.is_trial ? 'Trial Gratis' : '-'),
       })));
       if (config?.value) {
-        setTrialDays((config.value as any).trial_days || 30);
+        setTrialDays(((config.value as POSConfig).trial_days) || 30);
       }
     } catch (err) {
       console.error(err);

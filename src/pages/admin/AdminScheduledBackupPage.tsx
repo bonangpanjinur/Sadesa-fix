@@ -36,6 +36,17 @@ import { Plus, Pencil, Trash2, Clock, Database, Loader2, Play, Calendar } from '
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
+interface BackupLog {
+  id: string;
+  schedule_id: string | null;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  error_message: string | null;
+  backup_type: string | null;
+  tables_included: string[] | null;
+}
+
 interface BackupSchedule {
   id: string;
   name: string;
@@ -64,7 +75,7 @@ const AVAILABLE_TABLES = [
 export default function AdminScheduledBackupPage() {
   const { toast } = useToast();
   const [schedules, setSchedules] = useState<BackupSchedule[]>([]);
-  const [backupLogs, setBackupLogs] = useState<any[]>([]);
+  const [backupLogs, setBackupLogs] = useState<BackupLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<BackupSchedule | null>(null);
@@ -204,11 +215,11 @@ export default function AdminScheduledBackupPage() {
 
       setShowDialog(false);
       fetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving schedule:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Gagal menyimpan jadwal',
+        description: error instanceof Error ? error.message : 'Gagal menyimpan jadwal',
         variant: 'destructive',
       });
     } finally {
