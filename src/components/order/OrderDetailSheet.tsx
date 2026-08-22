@@ -16,6 +16,12 @@ interface OrderDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface OrderDetailRow extends Omit<OrderDetail, 'merchant' | 'courier' | 'items'> {
+  merchants: OrderDetail['merchant'] | OrderDetail['merchant'][];
+  couriers: OrderDetail['courier'] | OrderDetail['courier'][];
+  order_items: OrderDetail['items'];
+}
+
 interface OrderDetail {
   id: string;
   status: string;
@@ -92,8 +98,8 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
         setOrder({
           ...data,
           merchant_id: data.merchant_id,
-          merchant: data.merchants as any,
-          courier: data.couriers as any,
+          merchant: Array.isArray(data.merchants) ? data.merchants[0] ?? null : data.merchants,
+          courier: Array.isArray(data.couriers) ? data.couriers[0] ?? null : data.couriers,
           items: data.order_items || [],
         });
       }

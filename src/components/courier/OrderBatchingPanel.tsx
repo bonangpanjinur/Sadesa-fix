@@ -60,8 +60,8 @@ export function OrderBatchingPanel({ courierId, activeOrders, onRefresh }: Order
       if (!res.ok) throw new Error(json.error || 'Gagal memuat pesanan');
       setAvailableOrders(json.orders || []);
       setCanAccept(json.can_accept ?? 0);
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal memuat daftar pesanan');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal memuat daftar pesanan');
     } finally {
       setLoading(false);
     }
@@ -97,8 +97,8 @@ export function OrderBatchingPanel({ courierId, activeOrders, onRefresh }: Order
       setSelected(new Set());
       setExpanded(false);
       onRefresh();
-    } catch (err: any) {
-      toast.error('Gagal menerima batch: ' + (err.message || 'Coba lagi'));
+    } catch (err: unknown) {
+      toast.error('Gagal menerima batch: ' + (err instanceof Error ? err.message : 'Coba lagi'));
     } finally {
       setAccepting(false);
     }

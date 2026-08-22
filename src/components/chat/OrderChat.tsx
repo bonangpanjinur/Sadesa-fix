@@ -12,6 +12,14 @@ import { formatPrice } from '@/lib/utils';
 
 export type ChatType = 'buyer_merchant' | 'buyer_courier' | 'merchant_courier';
 
+interface JoinedUser {
+  user_id: string | null;
+}
+
+type JoinedUserRelation = JoinedUser | JoinedUser[] | null;
+
+const getJoinedUserId = (relation: JoinedUserRelation): string | null => Array.isArray(relation) ? relation[0]?.user_id ?? null : relation?.user_id ?? null;
+
 interface ChatMessage {
   id: string;
   sender_id: string;
@@ -104,17 +112,17 @@ export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose
       }
 
       // Safely extract merchant and courier user_ids from joined data
-      const merchantData = order.merchants as any;
-      const courierData = order.couriers as any;
+      const merchantUserId = getJoinedUserId(order.merchants as JoinedUserRelation);
+      const courierUserId = getJoinedUserId(order.couriers as JoinedUserRelation);
 
       setOrderInfo({
         shortId: order.id.substring(0, 8).toUpperCase(),
         total: order.total,
         buyerId: order.buyer_id,
         merchantId: order.merchant_id,
-        merchantUserId: merchantData?.user_id || null,
+        merchantUserId,
         courierId: order.courier_id,
-        courierUserId: courierData?.user_id || null,
+        courierUserId,
         items: items.map(i => ({
           productName: i.product_name,
           quantity: i.quantity,

@@ -16,6 +16,10 @@ interface GroupAnnouncementDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface GroupMember {
+  merchant: { user_id: string | null } | { user_id: string | null }[] | null;
+}
+
 interface Announcement {
   id: string;
   title: string;
@@ -76,8 +80,8 @@ export function GroupAnnouncementDialog({ groupId, open, onOpenChange }: GroupAn
         .eq('status', 'ACTIVE');
 
       let sentCount = 0;
-      for (const m of members || []) {
-        const userId = (m.merchant as any)?.user_id;
+      for (const m of (members as GroupMember[] || [])) {
+        const userId = Array.isArray(m.merchant) ? m.merchant[0]?.user_id : m.merchant?.user_id;
         if (userId) {
           await supabase.from('notifications').insert({
             user_id: userId,
@@ -93,8 +97,8 @@ export function GroupAnnouncementDialog({ groupId, open, onOpenChange }: GroupAn
       setTitle('');
       setMessage('');
       fetchHistory();
-    } catch (error: any) {
-      toast.error('Gagal mengirim: ' + error.message);
+    } catch (error: unknown) {
+      toast.error('Gagal mengirim: ' + (error instanceof Error ? error.message : 'Terjadi kesalahan'));
     } finally {
       setSending(false);
     }
