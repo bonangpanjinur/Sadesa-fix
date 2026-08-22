@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Package, Clock, CheckCircle, XCircle, TrendingUp, Wallet } from 'lucide-react';
 import { motion, useInView, useSpring, useMotionValue } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -53,11 +53,7 @@ export function QuickStats({ merchantId }: QuickStatsProps) {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchStats();
-  }, [merchantId]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -95,7 +91,11 @@ export function QuickStats({ merchantId }: QuickStatsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const statItems = [
     { 

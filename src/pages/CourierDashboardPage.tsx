@@ -153,7 +153,7 @@ export default function CourierDashboardPage() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [courier?.id]);
+  }, [courier?.id, queryClient]);
 
   const toggleAvailability = async (checked: boolean) => {
     if (!courier) return;
