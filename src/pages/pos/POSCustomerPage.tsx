@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,18 +52,18 @@ export default function POSCustomerPage() {
   const [qrDialog, setQrDialog] = useState(false);
   const [qrCustomer, setQrCustomer] = useState<Customer | null>(null);
 
-  useEffect(() => { if (tenant) fetchCustomers(); }, [tenant]);
-
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     if (!tenant) return;
     const { data } = await supabase
-      .from('pos_customers' as any)
+      .from('pos_customers' as never)
       .select('*')
       .eq('tenant_id', tenant.id)
       .order('name');
     setCustomers((data || []) as unknown as Customer[]);
     setLoading(false);
-  };
+  }, [tenant]);
+
+  useEffect(() => { if (tenant) void fetchCustomers(); }, [tenant, fetchCustomers]);
 
   const filtered = customers.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -101,16 +101,16 @@ export default function POSCustomerPage() {
     };
     try {
       if (editing) {
-        await supabase.from('pos_customers' as any).update(payload).eq('id', editing.id);
+        await supabase.from('pos_customers' as never).update(payload).eq('id', editing.id);
         toast.success('Data customer diperbarui');
       } else {
-        await supabase.from('pos_customers' as any).insert(payload);
+        await supabase.from('pos_customers' as never).insert(payload);
         toast.success('Customer berhasil ditambahkan');
       }
       setDialogOpen(false);
       fetchCustomers();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
