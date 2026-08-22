@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+interface RatingRow { rating: number }
+
 interface CourierRatingDialogProps {
   open: boolean;
   onClose: () => void;
@@ -48,7 +50,7 @@ export function CourierRatingDialog({ open, onClose, orderId, courierId, courier
     setSubmitting(true);
     try {
       // Save courier rating
-      await supabase.from('reviews' as any).insert({
+      await supabase.from('reviews' as never).insert({
         user_id: user.id,
         target_type: 'courier',
         target_id: courierId,
@@ -60,26 +62,27 @@ export function CourierRatingDialog({ open, onClose, orderId, courierId, courier
 
       // Update courier avg rating
       const { data: allRatings } = await supabase
-        .from('reviews' as any)
+        .from('reviews' as never)
         .select('rating')
         .eq('target_type', 'courier')
         .eq('target_id', courierId);
 
       if (allRatings && allRatings.length > 0) {
-        const avg = (allRatings as any[]).reduce((s, r) => s + r.rating, 0) / allRatings.length;
-        await supabase.from('couriers' as any).update({
+        const avg = (allRatings as unknown as RatingRow[]).reduce((sum, row) => sum + row.rating, 0) / allRatings.length;
+        await supabase.from('couriers' as never).update({
           rating_avg: Math.round(avg * 10) / 10,
           rating_count: allRatings.length,
         }).eq('id', courierId);
       }
 
       // Mark order as rated
-      await supabase.from('orders' as any).update({ courier_rated: true }).eq('id', orderId);
+      await supabase.from('orders' as never).update({ courier_rated: true }).eq('id', orderId);
 
       toast.success('Rating kurir berhasil dikirim! Terima kasih');
       onClose();
-    } catch (err: any) {
-      toast.error('Gagal mengirim rating: ' + (err.message || 'Coba lagi'));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Coba lagi';
+      toast.error('Gagal mengirim rating: ' + message);
     } finally {
       setSubmitting(false);
     }
