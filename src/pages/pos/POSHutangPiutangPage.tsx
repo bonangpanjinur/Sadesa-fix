@@ -77,7 +77,7 @@ export default function POSHutangPiutangPage() {
     if (!tenant || !activeOutlet) return;
     setLoading(true);
     try {
-      const res = await supabase.from('pos_debts' as any)
+      const res = await supabase.from('pos_debts' as never)
         .select('*')
         .eq('tenant_id', tenant.id)
         .eq('outlet_id', activeOutlet.id)
@@ -161,7 +161,7 @@ export default function POSHutangPiutangPage() {
     setSaving(true);
     try {
       const amount = Number(form.amount);
-      await supabase.from('pos_debts' as any).insert({
+      await supabase.from('pos_debts' as never).insert({
         tenant_id: tenant.id, outlet_id: activeOutlet.id,
         type: form.type, party_name: form.party_name,
         phone: form.phone || null,
@@ -183,12 +183,12 @@ export default function POSHutangPiutangPage() {
     if (amount > selectedDebt.remaining) { toast.error('Jumlah melebihi sisa'); return; }
     setSaving(true);
     try {
-      await supabase.from('pos_debt_payments' as any).insert({
+      await supabase.from('pos_debt_payments' as never).insert({
         debt_id: selectedDebt.id, amount,
         payment_date: payForm.payment_date, notes: payForm.notes || null,
       });
       const newRemaining = selectedDebt.remaining - amount;
-      await supabase.from('pos_debts' as any).update({
+      await supabase.from('pos_debts' as never).update({
         remaining: newRemaining, status: newRemaining <= 0 ? 'paid' : 'active',
       }).eq('id', selectedDebt.id);
       toast.success('Pembayaran dicatat');
@@ -340,7 +340,7 @@ export default function POSHutangPiutangPage() {
 
         {/* Filters */}
         <div className="flex gap-3">
-          <Select value={filterType} onValueChange={(v:any)=>setFilterType(v)}>
+          <Select value={filterType} onValueChange={(v: string)=>setFilterType(v as 'all' | 'payable' | 'receivable')}>
             <SelectTrigger className="w-36 h-9"><SelectValue/></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua</SelectItem>
