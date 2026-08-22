@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,13 +39,7 @@ export function MerchantAnalyticsChart({ merchantId }: MerchantAnalyticsChartPro
   });
   const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('7d');
 
-  useEffect(() => {
-    if (merchantId) {
-      fetchAnalytics();
-    }
-  }, [merchantId, period]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
@@ -131,7 +125,11 @@ export function MerchantAnalyticsChart({ merchantId }: MerchantAnalyticsChartPro
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId, period]);
+
+  useEffect(() => {
+    if (merchantId) fetchAnalytics();
+  }, [merchantId, period, fetchAnalytics]);
 
   if (loading) {
     return (
