@@ -259,7 +259,7 @@ export default function RegisterMerchantPage() {
     checkVillageMatch();
   }, [addressData.villageCode, addressData.villageName]);
 
-  const validateReferralCode = async (code: string) => {
+  const validateReferralCode = useCallback(async (code: string) => {
     if (code.length < 3) {
       setReferralInfo({ isValid: false, tradeGroup: '', description: '', isLoading: false });
       return;
@@ -292,14 +292,14 @@ export default function RegisterMerchantPage() {
       console.error('Error validating referral:', error);
       setReferralInfo({ isValid: false, tradeGroup: '', description: '', isLoading: false });
     }
-  };
+  }, [setValue]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (referralCode) validateReferralCode(referralCode);
     }, 500);
     return () => clearTimeout(timer);
-  }, [referralCode]);
+  }, [referralCode, validateReferralCode]);
 
   const onSubmit = async (data: MerchantFormData) => {
     if (referralCode && referralCode.length > 0 && !referralInfo.isValid) {

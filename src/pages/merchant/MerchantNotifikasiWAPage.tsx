@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   MessageCircle, Phone, Bell, BellOff, Package, Send, Clock, RefreshCw,
   AlertTriangle, CheckCircle2, Users, Zap, ChevronRight, Copy, Info
@@ -81,19 +81,13 @@ export default function MerchantNotifikasiWAPage() {
   );
   const [loadingData, setLoadingData] = useState(true);
 
-  useEffect(() => {
-    if (!merchantId) return;
-    fetchAll();
-    loadWaNumber();
-  }, [merchantId]);
-
-  const loadWaNumber = () => {
+  const loadWaNumber = useCallback(() => {
     const saved = localStorage.getItem(`merchant_wa_${merchantId}`);
     if (saved) {
       setWaNumber(saved);
       setSavedWaNumber(saved);
     }
-  };
+  }, [merchantId]);
 
   const saveWaNumber = async () => {
     if (!waNumber.trim()) {
@@ -121,7 +115,7 @@ export default function MerchantNotifikasiWAPage() {
     }
   };
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     if (!merchantId) return;
     setLoadingData(true);
     try {
@@ -192,7 +186,13 @@ export default function MerchantNotifikasiWAPage() {
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    if (!merchantId) return;
+    fetchAll();
+    loadWaNumber();
+  }, [merchantId, fetchAll, loadWaNumber]);
 
   const openWA = (phone: string, msg: string) => {
     const cleaned = phone.replace(/\D/g, '');
