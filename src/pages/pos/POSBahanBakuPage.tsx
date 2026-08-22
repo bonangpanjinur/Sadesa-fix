@@ -84,7 +84,7 @@ export default function POSBahanBakuPage() {
     setLoading(true);
     try {
       let q = supabase
-        .from('pos_raw_materials' as any)
+        .from('pos_raw_materials' as never)
         .select('*')
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
@@ -93,8 +93,8 @@ export default function POSBahanBakuPage() {
       const { data, error } = await q;
       if (error) throw error;
       setMaterials((data || []) as unknown as RawMaterial[]);
-    } catch (err: any) {
-      toast.error('Gagal memuat bahan baku: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal memuat bahan baku: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ export default function POSBahanBakuPage() {
     if (!tenant) return;
     try {
       const { data, error } = await supabase
-        .from('pos_raw_material_mutations' as any)
+        .from('pos_raw_material_mutations' as never)
         .select('*, pos_raw_materials(name)')
         .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false })
@@ -157,24 +157,24 @@ export default function POSBahanBakuPage() {
 
       if (editItem) {
         const { error } = await supabase
-          .from('pos_raw_materials' as any)
+          .from('pos_raw_materials' as never)
           .update({ ...payload, updated_at: new Date().toISOString() })
           .eq('id', editItem.id);
         if (error) throw error;
         toast.success('Bahan baku berhasil diperbarui');
       } else {
         const { data: newMat, error } = await supabase
-          .from('pos_raw_materials' as any)
+          .from('pos_raw_materials' as never)
           .insert(payload)
           .select()
           .single();
         if (error) throw error;
 
         if (payload.current_stock > 0) {
-          await supabase.from('pos_raw_material_mutations' as any).insert({
+          await supabase.from('pos_raw_material_mutations' as never).insert({
             tenant_id: tenant.id,
             outlet_id: activeOutlet?.id || null,
-            raw_material_id: (newMat as any).id,
+            raw_material_id: (newMat as unknown as { id: string }).id,
             type: 'initial',
             qty: payload.current_stock,
             qty_before: 0,
@@ -187,8 +187,8 @@ export default function POSBahanBakuPage() {
       setDialogOpen(false);
       fetchMaterials();
       fetchMutations();
-    } catch (err: any) {
-      toast.error('Gagal menyimpan: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal menyimpan: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -198,14 +198,14 @@ export default function POSBahanBakuPage() {
     if (!deleteTarget) return;
     try {
       await supabase
-        .from('pos_raw_materials' as any)
+        .from('pos_raw_materials' as never)
         .update({ is_active: false })
         .eq('id', deleteTarget.id);
       toast.success('Bahan baku dihapus');
       setDeleteDialog(false);
       fetchMaterials();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -230,11 +230,11 @@ export default function POSBahanBakuPage() {
       const qtyAfter = Math.max(0, qtyBefore + delta);
 
       await supabase
-        .from('pos_raw_materials' as any)
+        .from('pos_raw_materials' as never)
         .update({ current_stock: qtyAfter, updated_at: new Date().toISOString() })
         .eq('id', selectedMaterial.id);
 
-      await supabase.from('pos_raw_material_mutations' as any).insert({
+      await supabase.from('pos_raw_material_mutations' as never).insert({
         tenant_id: tenant.id,
         outlet_id: activeOutlet?.id || null,
         raw_material_id: selectedMaterial.id,
@@ -249,8 +249,8 @@ export default function POSBahanBakuPage() {
       setStockDialog(false);
       fetchMaterials();
       fetchMutations();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setStockSaving(false);
     }
@@ -324,7 +324,7 @@ export default function POSBahanBakuPage() {
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <Select value={filterStatus} onValueChange={(v: any) => setFilterStatus(v)}>
+              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | 'low' | 'active')}>
                 <SelectTrigger className="h-9 w-36">
                   <SelectValue />
                 </SelectTrigger>
@@ -434,7 +434,7 @@ export default function POSBahanBakuPage() {
                               }
                             </div>
                             <div>
-                              <p className="text-sm font-medium">{(mu.pos_raw_materials as any)?.name || '—'}</p>
+                              <p className="text-sm font-medium">{mu.pos_raw_materials?.name || '—'}</p>
                               <p className="text-xs text-muted-foreground">{mu.notes || '—'}</p>
                             </div>
                           </div>
