@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,7 +29,7 @@ interface Return {
 }
 
 interface Sale { id: string; sale_number: string; total: number; customer_name: string | null; pos_sale_items: SaleItem[]; }
-interface SaleItem { id: string; product_name: string; qty: number; price: number; subtotal: number; }
+interface SaleItem { id: string; product_id: string | null; product_name: string; qty: number; price: number; subtotal: number; }
 
 export default function POSReturPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
@@ -42,26 +42,27 @@ export default function POSReturPage() {
   const [returnItems, setReturnItems] = useState<{ item: SaleItem; qty: number; selected: boolean }[]>([]);
   const [form, setForm] = useState({ reason: '', refund_method: 'cash', restock: true });
 
-  useEffect(() => { if (tenant && activeOutlet) fetchReturns(); }, [tenant, activeOutlet]);
-
-  const fetchReturns = async () => {
+  const fetchReturns = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     const { data } = await supabase
-      .from('pos_sale_returns' as any)
+      .from('pos_sale_returns' as never)
       .select('*, pos_sales(sale_number, customer_name)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .order('created_at', { ascending: false });
     setReturns((data || []) as unknown as Return[]);
     setLoading(false);
-  };
+  }, [tenant, activeOutlet]);
+
+  useEffect(() => { if (tenant && activeOutlet) void fetchReturns(); }, [tenant, activeOutlet, fetchReturns]);
 
   const searchSale = async () => {
     if (!tenant || !saleSearch.trim()) return;
     const { data } = await supabase
-      .from('pos_sales' as any)
+      .from('pos_sales' as never)
       .select('*, pos_sale_items(*)')
       .eq('tenant_id', tenant.id)
+      .eq('outlet_id', activeOutlet.id)
       .ilike('sale_number', `%${saleSearch}%`)
       .eq('status', 'completed')
       .limit(1)
@@ -85,7 +86,7 @@ export default function POSReturPage() {
 
     try {
       const returnNumber = `RTN-${Date.now()}`;
-      const { data: ret, error } = await supabase.from('pos_sale_returns' as any).insert({
+      const { data: ret, error } = await supabase.from('pos_sale_returns' as never).insert({
         tenant_id: tenant.id, sale_id: foundSale.id, outlet_id: activeOutlet.id,
         return_number: returnNumber, reason: form.reason || null,
         refund_method: form.refund_method, total_refund: totalRefund,
@@ -93,18 +94,19 @@ export default function POSReturPage() {
       }).select().single();
       if (error) throw error;
 
-      await supabase.from('pos_sale_return_items' as any).insert(
+      await supabase.from('pos_sale_return_items' as never).insert(
         selected.map(ri => ({
-          return_id: (ret as any).id, sale_item_id: ri.item.id, product_id: null,
+          return_id: (ret as unknown as { id: string }).id, sale_item_id: ri.item.id, product_id: ri.item.product_id,
           product_name: ri.item.product_name, qty: ri.qty, price: ri.item.price, subtotal: ri.item.price * ri.qty,
         }))
       );
 
       if (form.restock) {
         for (const ri of selected) {
-          const { data: stockData } = await supabase.from('pos_stock' as any).select('id, quantity').eq('outlet_id', activeOutlet.id).limit(1).single();
+          const { data: stockData } = await supabase.from('pos_stock' as never).select('id, quantity').eq('outlet_id', activeOutlet.id).eq('product_id', ri.item.product_id || '').limit(1).single();
           if (stockData) {
-            await supabase.from('pos_stock' as any).update({ quantity: (stockData as any).quantity + ri.qty }).eq('id', (stockData as any).id);
+            const stock = stockData as unknown as { id: string; quantity: number };
+            await supabase.from('pos_stock' as never).update({ quantity: stock.quantity + ri.qty }).eq('id', stock.id);
           }
         }
       }
@@ -114,8 +116,8 @@ export default function POSReturPage() {
       setFoundSale(null);
       setSaleSearch('');
       fetchReturns();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -159,7 +161,7 @@ export default function POSReturPage() {
                         <Badge variant="outline" className="text-xs">{r.refund_method === 'cash' ? 'Tunai' : 'Kredit Toko'}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Dari: {(r.pos_sales as any)?.sale_number} • {r.reason || 'Tanpa keterangan'}
+                        Dari: {r.pos_sales?.sale_number} • {r.reason || 'Tanpa keterangan'}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
