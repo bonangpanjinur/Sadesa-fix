@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,23 +14,25 @@ import { id as idLocale } from 'date-fns/locale';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
+interface ChartPoint { label: string; total: number; count: number; }
+interface TopProduct { name: string; qty: number; total: number; }
+interface PaymentMethod { name: string; value: number; }
+interface SaleItem { product_name: string; qty: number; subtotal: number; }
+interface SaleRow { total: number; discount_amount: number; payment_method: string; created_at: string; pos_sale_items?: SaleItem[]; }
+
 export default function POSLaporanPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
   const [period, setPeriod] = useState('month');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalOmzet: 0, totalTransactions: 0, avgBasket: 0, totalDiscount: 0,
-    salesChart: [] as any[],
-    topProducts: [] as any[],
-    paymentMethods: [] as any[],
+    salesChart: [] as ChartPoint[],
+    topProducts: [] as TopProduct[],
+    paymentMethods: [] as PaymentMethod[],
     periodLabel: '',
   });
 
-  useEffect(() => {
-    if (tenant && activeOutlet) fetchReport();
-  }, [tenant, activeOutlet, period]);
-
-  const getRange = () => {
+  const getRange = useCallback(() => {
     const now = new Date();
     switch (period) {
       case 'today': return { start: startOfDay(now), end: endOfDay(now) };
@@ -39,16 +41,16 @@ export default function POSLaporanPage() {
       case 'year': return { start: startOfYear(now), end: endOfYear(now) };
       default: return { start: startOfMonth(now), end: endOfMonth(now) };
     }
-  };
+  }, [period]);
 
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     setLoading(true);
     const { start, end } = getRange();
 
     try {
       const { data: salesData } = await supabase
-        .from('pos_sales' as any)
+        .from('pos_sales' as never)
         .select('*, pos_sale_items(*)')
         .eq('tenant_id', tenant.id)
         .eq('outlet_id', activeOutlet.id)
@@ -57,7 +59,7 @@ export default function POSLaporanPage() {
         .lte('created_at', end.toISOString())
         .order('created_at');
 
-      const sales = (salesData || []) as any[];
+      const sales = (salesData || []) as unknown as SaleRow[];
       const totalOmzet = sales.reduce((s, r) => s + Number(r.total), 0);
       const totalTransactions = sales.length;
       const totalDiscount = sales.reduce((s, r) => s + Number(r.discount_amount), 0);
@@ -70,7 +72,7 @@ export default function POSLaporanPage() {
       const paymentMethods = Object.entries(paymentMap).map(([key, val]) => ({ name: paymentLabels[key] || key, value: val }));
 
       // Sales chart
-      let salesChart: any[] = [];
+      let salesChart: ChartPoint[] = [];
       if (period === 'today') {
         for (let h = 0; h < 24; h++) {
           const hourSales = sales.filter(s => new Date(s.created_at).getHours() === h);
@@ -98,7 +100,7 @@ export default function POSLaporanPage() {
       // Top products from sale items
       const productMap: Record<string, { name: string; qty: number; total: number }> = {};
       sales.forEach(s => {
-        (s.pos_sale_items || []).forEach((item: any) => {
+        (s.pos_sale_items || []).forEach((item: SaleItem) => {
           const key = item.product_name;
           if (!productMap[key]) productMap[key] = { name: key, qty: 0, total: 0 };
           productMap[key].qty += Number(item.qty);
@@ -114,7 +116,11 @@ export default function POSLaporanPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenant, activeOutlet, getRange, period]);
+
+  useEffect(() => {
+    if (tenant && activeOutlet) void fetchReport();
+  }, [tenant, activeOutlet, fetchReport]);
 
   function addDays(date: Date, days: number) {
     const result = new Date(date);
