@@ -38,6 +38,9 @@ interface POItem {
   subtotal: number;
 }
 
+interface StockRow { id: string; quantity: number; }
+interface PurchaseOrderInsert { id: string; }
+
 interface PurchaseOrder {
   id: string;
   po_number: string;
@@ -112,17 +115,17 @@ export default function POSPembelianPage() {
     if (!tenant || !activeOutlet) return;
     setLoading(true);
     const [poRes, supRes, prodRes] = await Promise.all([
-      supabase.from('pos_purchase_orders' as any)
+      supabase.from('pos_purchase_orders' as never)
         .select('*, pos_purchase_order_items(*)')
         .eq('tenant_id', tenant.id)
         .eq('outlet_id', activeOutlet.id)
         .order('created_at', { ascending: false }),
-      supabase.from('pos_suppliers' as any)
+      supabase.from('pos_suppliers' as never)
         .select('id,name,phone,contact_person')
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
         .order('name'),
-      supabase.from('pos_products' as any)
+      supabase.from('pos_products' as never)
         .select('id,name,sku,unit,cost_price,price')
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
@@ -157,7 +160,7 @@ export default function POSPembelianPage() {
   const addItem = () => setItems(prev => [...prev, { ...EMPTY_ITEM }]);
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
 
-  const updateItem = (idx: number, field: keyof POItem, value: any) => {
+  const updateItem = (idx: number, field: keyof POItem, value: string | number | null) => {
     setItems(prev => {
       const next = [...prev];
       next[idx] = { ...next[idx], [field]: value };
@@ -218,7 +221,7 @@ export default function POSPembelianPage() {
       const taxAmt = sub * (form.tax_rate / 100);
       const total = sub - form.discount_amount + taxAmt;
 
-      const { data: poData, error: poError } = await supabase.from('pos_purchase_orders' as any).insert({
+      const { data: poData, error: poError } = await supabase.from('pos_purchase_orders' as never).insert({
         tenant_id: tenant.id,
         outlet_id: activeOutlet.id,
         supplier_id: form.supplier_id || null,
@@ -239,7 +242,7 @@ export default function POSPembelianPage() {
       if (poError) throw poError;
 
       const itemsPayload = validItems.map(item => ({
-        purchase_order_id: (poData as any).id,
+        purchase_order_id: (poData as unknown as PurchaseOrderInsert).id,
         product_id: item.product_id || null,
         product_name: item.product_name,
         sku: item.sku || null,
@@ -252,21 +255,21 @@ export default function POSPembelianPage() {
         notes: null,
       }));
 
-      const { error: itemsError } = await supabase.from('pos_purchase_order_items' as any).insert(itemsPayload);
+      const { error: itemsError } = await supabase.from('pos_purchase_order_items' as never).insert(itemsPayload);
       if (itemsError) throw itemsError;
 
       toast.success(`Purchase Order ${form.po_number} berhasil dibuat`);
       setDialogOpen(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error('Gagal menyimpan PO: ' + (err.message || err));
+    } catch (err: unknown) {
+      toast.error('Gagal menyimpan PO: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
   };
 
   const updateStatus = async (po: PurchaseOrder, newStatus: string) => {
-    const { error } = await supabase.from('pos_purchase_orders' as any)
+    const { error } = await supabase.from('pos_purchase_orders' as never)
       .update({ status: newStatus, updated_by: user?.id })
       .eq('id', po.id);
     if (error) { toast.error('Gagal update status'); return; }
@@ -300,29 +303,29 @@ export default function POSPembelianPage() {
         const newQtyReceived = item.qty_received + receiveQty;
         if (newQtyReceived < item.qty_ordered) allReceived = false;
 
-        await supabase.from('pos_purchase_order_items' as any)
+        await supabase.from('pos_purchase_order_items' as never)
           .update({ qty_received: newQtyReceived })
           .eq('id', item.id);
 
         if (item.product_id) {
-          const { data: existing } = await supabase.from('pos_stock' as any)
+          const { data: existing } = await supabase.from('pos_stock' as never)
             .select('id, quantity')
             .eq('product_id', item.product_id)
             .eq('outlet_id', activeOutlet.id)
             .maybeSingle();
 
           if (existing) {
-            const newQty = Number((existing as any).quantity) + receiveQty;
-            await supabase.from('pos_stock' as any)
+            const newQty = Number((existing as unknown as StockRow).quantity) + receiveQty;
+            await supabase.from('pos_stock' as never)
               .update({ quantity: newQty, updated_at: new Date().toISOString() })
-              .eq('id', (existing as any).id);
-            await supabase.from('pos_stock_mutations' as any).insert({
+              .eq('id', (existing as unknown as StockRow).id);
+            await supabase.from('pos_stock_mutations' as never).insert({
               tenant_id: tenant.id,
               product_id: item.product_id,
               outlet_id: activeOutlet.id,
               type: 'purchase',
               quantity: receiveQty,
-              quantity_before: Number((existing as any).quantity),
+              quantity_before: Number((existing as unknown as StockRow).quantity),
               quantity_after: newQty,
               reference_id: selectedPO.id,
               reference_type: 'purchase_order',
@@ -330,14 +333,14 @@ export default function POSPembelianPage() {
               created_by: user.id,
             });
           } else {
-            await supabase.from('pos_stock' as any).insert({
+            await supabase.from('pos_stock' as never).insert({
               tenant_id: tenant.id,
               product_id: item.product_id,
               outlet_id: activeOutlet.id,
               quantity: receiveQty,
               min_stock: 0,
             });
-            await supabase.from('pos_stock_mutations' as any).insert({
+            await supabase.from('pos_stock_mutations' as never).insert({
               tenant_id: tenant.id,
               product_id: item.product_id,
               outlet_id: activeOutlet.id,
@@ -357,15 +360,15 @@ export default function POSPembelianPage() {
       if (!anyReceived) { toast.error('Tidak ada barang yang diterima'); setSaving(false); return; }
 
       const newStatus = allReceived ? 'received' : 'partial';
-      await supabase.from('pos_purchase_orders' as any)
+      await supabase.from('pos_purchase_orders' as never)
         .update({ status: newStatus, received_date: new Date().toISOString(), updated_by: user.id })
         .eq('id', selectedPO.id);
 
       toast.success('Penerimaan barang berhasil disimpan & stok diperbarui');
       setReceiveDialogOpen(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error('Gagal menyimpan penerimaan: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal menyimpan penerimaan: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
