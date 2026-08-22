@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { CheckCircle2, ChefHat, Clock, Utensils, Star, RefreshCw, ArrowLeft, Table2 } from 'lucide-react';
+import { CheckCircle2, ChefHat, Clock, Utensils, Star, RefreshCw, ArrowLeft, Table2, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -31,7 +31,7 @@ interface OrderData {
 
 const STEPS: Array<{
   key: OrderStatus[];
-  icon: any;
+  icon: LucideIcon;
   label: string;
   sublabel: string;
   color: string;
@@ -95,6 +95,7 @@ export default function OrderStatusPage() {
   const [error, setError] = useState('');
   const [lastPolled, setLastPolled] = useState(new Date());
   const prevStatus = useRef<OrderStatus | null>(null);
+  const currentStatus = order?.status;
 
   const fetchStatus = useCallback(async () => {
     if (!tenantId || !orderId) return;
@@ -105,8 +106,8 @@ export default function OrderStatusPage() {
       setOrder(data.order);
       setLastPolled(new Date());
       setError('');
-    } catch (err: any) {
-      setError(err.message || 'Gagal memuat status pesanan');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Gagal memuat status pesanan');
     } finally {
       setLoading(false);
     }
@@ -122,12 +123,12 @@ export default function OrderStatusPage() {
 
   // Deteksi perubahan status dan vibrate HP
   useEffect(() => {
-    if (!order) return;
-    if (prevStatus.current && prevStatus.current !== order.status) {
+    if (!currentStatus) return;
+    if (prevStatus.current && prevStatus.current !== currentStatus) {
       try { navigator.vibrate?.([100, 50, 100]); } catch (err) { console.warn('[order-status] getaran tidak didukung:', err); }
     }
-    prevStatus.current = order.status;
-  }, [order?.status]);
+    prevStatus.current = currentStatus;
+  }, [currentStatus]);
 
   if (loading) {
     return (

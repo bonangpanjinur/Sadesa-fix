@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Copy, CheckCircle, CreditCard, QrCode, Clock, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -41,12 +41,7 @@ export default function PaymentConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    if (!orderId || !user) return;
-    loadOrderAndPaymentInfo();
-  }, [orderId, user]);
-
-  const loadOrderAndPaymentInfo = async () => {
+  const loadOrderAndPaymentInfo = useCallback(async () => {
     try {
       // Fetch order
       const { data: orderData, error: orderError } = await supabase
@@ -103,7 +98,12 @@ export default function PaymentConfirmationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, user, navigate]);
+
+  useEffect(() => {
+    if (!orderId || !user) return;
+    void loadOrderAndPaymentInfo();
+  }, [orderId, user, loadOrderAndPaymentInfo]);
 
   const handleCopyAccount = () => {
     if (paymentInfo?.bankAccountNumber) {

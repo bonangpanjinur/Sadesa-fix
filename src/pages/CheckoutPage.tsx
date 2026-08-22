@@ -197,6 +197,7 @@ export default function CheckoutPage() {
 
   // Get unique merchant IDs for quota check
   const merchantIds = useMemo(() => Object.keys(itemsByMerchant), [itemsByMerchant]);
+  const firstMerchantId = merchantIds[0];
 
   // Check merchant quotas
   const { 
@@ -213,13 +214,13 @@ export default function CheckoutPage() {
   // Load merchant location and payment settings
   useEffect(() => {
     const fetchMerchantData = async () => {
-      if (merchantIds.length === 0) return;
+      if (!firstMerchantId) return;
       
       // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
       const { data } = await supabase
         .from('merchants')
         .select('location_lat, location_lng, payment_cod_enabled, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
-        .eq('id', merchantIds[0])
+        .eq('id', firstMerchantId)
         .maybeSingle();
       
       if (data) {
@@ -272,7 +273,7 @@ export default function CheckoutPage() {
     };
     
     fetchMerchantData();
-  }, [merchantIds.join(','), xenditAvailable]);
+  }, [firstMerchantId, xenditAvailable]);
 
   useEffect(() => {
     const loadMerchantOperatingHours = async () => {
@@ -306,7 +307,7 @@ export default function CheckoutPage() {
     };
 
     loadMerchantOperatingHours();
-  }, [merchantIds.join(',')]);
+  }, [merchantIds]);
 
   // Get closed merchants
   const closedMerchants = useMemo(() => {
@@ -447,7 +448,7 @@ export default function CheckoutPage() {
         throw new Error('Gagal memeriksa stok produk');
       }
 
-      const stockMap = new Map(((currentStocks || []) as any[]).map((p: any) => [p.id, p]));
+      const stockMap = new Map((currentStocks ?? []).map((product) => [product.id, product]));
       const outOfStockItems: string[] = [];
 
       for (const item of items) {
@@ -655,20 +656,21 @@ export default function CheckoutPage() {
           ? 'Pesanan Anda menunggu konfirmasi dari penjual' 
           : 'Pesanan Anda telah masuk ke sistem',
       });
-    } catch (error: any) {
+      } catch (error: unknown) {
       console.error('Checkout error:', error);
       
       // Extract more specific error message
       let errorMessage = 'Terjadi kesalahan, silakan coba lagi';
-      if (error?.message) {
-        if (error.message.includes('violates row-level security')) {
+      const rawMessage = error instanceof Error ? error.message : '';
+      if (rawMessage) {
+        if (rawMessage.includes('violates row-level security')) {
           errorMessage = 'Anda tidak memiliki izin untuk membuat pesanan. Pastikan sudah login.';
-        } else if (error.message.includes('violates foreign key')) {
+        } else if (rawMessage.includes('violates foreign key')) {
           errorMessage = 'Data merchant atau produk tidak valid.';
-        } else if (error.message.includes('null value')) {
+        } else if (rawMessage.includes('null value')) {
           errorMessage = 'Data belum lengkap. Pastikan semua field terisi.';
         } else {
-          errorMessage = error.message;
+          errorMessage = rawMessage;
         }
       }
       
