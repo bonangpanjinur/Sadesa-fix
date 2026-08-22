@@ -34,6 +34,8 @@ interface PosUser {
   role: string;
 }
 
+interface ScheduleRow extends Schedule { pos_shifts?: Shift; pos_users?: PosUser; }
+
 interface Schedule {
   id: string;
   pos_user_id: string;
@@ -66,31 +68,33 @@ export default function POSJadwalPage() {
   const weekDays = Array.from({length:7}, (_, i) => addDays(weekStart, i));
 
   const fetchAll = useCallback(async () => {
-    if (!tenant) return;
+    if (!tenant || !activeOutlet) return;
     setLoading(true);
+    const reportWeekStart = addDays(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset * 7);
+    const reportWeekDays = Array.from({ length: 7 }, (_, i) => addDays(reportWeekStart, i));
     try {
       const [shiftRes, userRes, schedRes] = await Promise.all([
-        supabase.from('pos_shifts' as any).select('*').eq('tenant_id', tenant.id).order('name'),
-        supabase.from('pos_users' as any).select('id, full_name, role').eq('tenant_id', tenant.id).eq('is_active', true),
-        supabase.from('pos_schedules' as any)
+        supabase.from('pos_shifts' as never).select('*').eq('tenant_id', tenant.id).order('name'),
+        supabase.from('pos_users' as never).select('id, full_name, role').eq('tenant_id', tenant.id).eq('is_active', true),
+        supabase.from('pos_schedules' as never)
           .select('*, pos_shifts(*), pos_users(id, full_name, role)')
           .eq('tenant_id', tenant.id)
-          .gte('date', format(weekDays[0], 'yyyy-MM-dd'))
-          .lte('date', format(weekDays[6], 'yyyy-MM-dd')),
+          .eq('outlet_id', activeOutlet.id)
+          .gte('date', format(reportWeekDays[0], 'yyyy-MM-dd'))
+          .lte('date', format(reportWeekDays[6], 'yyyy-MM-dd')),
       ]);
-      setShifts((shiftRes.data || []) as any);
-      setUsers((userRes.data || []) as any);
-      setSchedules((schedRes.data || []).map((s:any) => ({
-        ...s,
-        shift: s.pos_shifts,
-        user: s.pos_users,
-      })) as any);
+      setShifts((shiftRes.data || []) as unknown as Shift[]);
+      setUsers((userRes.data || []) as unknown as PosUser[]);
+      setSchedules((schedRes.data || []).map((raw) => {
+        const schedule = raw as unknown as ScheduleRow;
+        return { ...schedule, shift: schedule.pos_shifts, user: schedule.pos_users };
+      }));
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [tenant, weekOffset]);
+  }, [tenant, activeOutlet, weekOffset]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -102,10 +106,10 @@ export default function POSJadwalPage() {
     try {
       const payload = { tenant_id: tenant.id, ...shiftForm };
       if (editingShift) {
-        await supabase.from('pos_shifts' as any).update(payload).eq('id', editingShift.id);
+        await supabase.from('pos_shifts' as never).update(payload).eq('id', editingShift.id);
         toast.success('Shift diperbarui');
       } else {
-        await supabase.from('pos_shifts' as any).insert(payload);
+        await supabase.from('pos_shifts' as never).insert(payload);
         toast.success('Shift ditambahkan');
       }
       setShiftDialog(false);
@@ -116,7 +120,7 @@ export default function POSJadwalPage() {
 
   const deleteShift = async (id: string) => {
     if (!confirm('Hapus shift ini?')) return;
-    await supabase.from('pos_shifts' as any).delete().eq('id', id);
+    await supabase.from('pos_shifts' as never).delete().eq('id', id);
     toast.success('Shift dihapus');
     fetchAll();
   };
@@ -127,7 +131,7 @@ export default function POSJadwalPage() {
     }
     setSaving(true);
     try {
-      await supabase.from('pos_schedules' as any).upsert({
+      await supabase.from('pos_schedules' as never).upsert({
         tenant_id: tenant.id,
         outlet_id: activeOutlet.id,
         ...schedForm,
