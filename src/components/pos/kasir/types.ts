@@ -70,6 +70,8 @@ export interface Voucher {
   per_customer_limit: number;
   used_count: number;
   usage_limit: number | null;
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 export interface Product {

@@ -172,7 +172,7 @@ export default function POSKasirPage() {
 
   const fetchCustomerPoints = async (customerId: string) => {
     if (!tenant) return;
-    const { data } = await supabase.from('pos_customers' as any)
+    const { data } = await supabase.from('pos_customers' as never)
       .select('loyalty_points, loyalty_tier').eq('id', customerId).eq('tenant_id', tenant.id).maybeSingle();
     if (data) { setCustomerPoints((data as unknown as { loyalty_points?: number }).loyalty_points || 0); setCustomerTier((data as unknown as { loyalty_tier?: string }).loyalty_tier || 'Bronze'); }
   };
@@ -213,13 +213,13 @@ export default function POSKasirPage() {
     const code = voucherCode.trim().toUpperCase();
     if (!code || !tenant) return;
     setVoucherError('');
-    const { data } = await supabase.from('pos_vouchers' as any).select('*')
+    const { data } = await supabase.from('pos_vouchers' as never).select('*')
       .eq('tenant_id', tenant.id).eq('code', code).eq('is_active', true).maybeSingle();
     if (!data) { setVoucherError('Kode voucher tidak valid atau tidak aktif'); return; }
     const v = data as unknown as Voucher;
     const now = new Date();
-    if ((v as any).start_date && now < new Date((v as any).start_date)) { setVoucherError('Voucher belum berlaku'); return; }
-    if ((v as any).end_date && now > new Date((v as any).end_date)) { setVoucherError('Voucher sudah kedaluwarsa'); return; }
+    if (v.start_date && now < new Date(v.start_date)) { setVoucherError('Voucher belum berlaku'); return; }
+    if (v.end_date && now > new Date(v.end_date)) { setVoucherError('Voucher sudah kedaluwarsa'); return; }
     if (v.usage_limit && v.used_count >= v.usage_limit) { setVoucherError('Voucher sudah habis'); return; }
     if (subtotal < v.min_purchase) { setVoucherError(`Min. pembelian ${formatCurrency(v.min_purchase)}`); return; }
     const disc = v.type === 'discount_percent'
@@ -234,7 +234,7 @@ export default function POSKasirPage() {
   // ── Cart actions ─────────────────────────────────────────
   const addToCart = async (product: Product, variantId?: string, variantName?: string, variantPrice?: number) => {
     if (product.has_variants && !variantId) {
-      const { data } = await supabase.from('pos_product_variants' as any).select('*').eq('product_id', product.id).eq('is_active', true);
+      const { data } = await supabase.from('pos_product_variants' as never).select('*').eq('product_id', product.id).eq('is_active', true);
       setVariants((data || []) as unknown as Variant[]); setSelectedProduct(product); setVariantDialog(true); return;
     }
     const price = variantPrice ?? product.price;
@@ -291,7 +291,7 @@ export default function POSKasirPage() {
   // ── Customer search ──────────────────────────────────────
   const searchCustomers = async (q: string) => {
     if (!tenant || !q) { setCustomers([]); return; }
-    const { data } = await supabase.from('pos_customers' as any)
+    const { data } = await supabase.from('pos_customers' as never)
       .select('id, name, phone, is_member, loyalty_points, loyalty_tier')
       .eq('tenant_id', tenant.id).ilike('name', `%${q}%`).limit(6);
     setCustomers((data || []) as unknown as Customer[]);
@@ -415,7 +415,7 @@ export default function POSKasirPage() {
       }
 
       if (selectedCustomer) {
-        const { data: cust } = await supabase.from('pos_customers' as any)
+        const { data: cust } = await supabase.from('pos_customers' as never)
           .select('total_purchase, transaction_count, loyalty_points').eq('id', selectedCustomer.id).single();
         if (cust) {
           const currentPts = (cust as any).loyalty_points || 0;
@@ -425,7 +425,7 @@ export default function POSKasirPage() {
             const tiers = [...loyaltyProgram.tiers].sort((a, b) => b.min_points - a.min_points);
             for (const t of tiers) { if (newPts >= t.min_points) { newTier = t.name; break; } }
           }
-          await supabase.from('pos_customers' as any).update({
+          await supabase.from('pos_customers' as never).update({
             total_purchase: ((cust as any).total_purchase || 0) + total,
             transaction_count: ((cust as any).transaction_count || 0) + 1,
             last_purchase_at: new Date().toISOString(), loyalty_points: newPts, loyalty_tier: newTier,
@@ -434,7 +434,7 @@ export default function POSKasirPage() {
       }
 
       if (appliedVoucher) {
-        await supabase.from('pos_vouchers' as any).update({ used_count: (appliedVoucher.used_count || 0) + 1 }).eq('id', appliedVoucher.id);
+        await supabase.from('pos_vouchers' as never).update({ used_count: (appliedVoucher.used_count || 0) + 1 }).eq('id', appliedVoucher.id);
         await supabase.from('pos_voucher_usages' as any).insert({ voucher_id: appliedVoucher.id, sale_id: saleId, customer_id: selectedCustomer?.id || null, discount_given: voucherDiscount });
       }
       if (appliedPromo && promoDiscount > 0) {
