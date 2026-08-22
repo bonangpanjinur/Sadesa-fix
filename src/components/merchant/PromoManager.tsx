@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Percent, Calendar, Package, Edit, Trash2, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,11 +48,7 @@ export function PromoManager({ merchantId }: PromoManagerProps) {
   const [discountEndDate, setDiscountEndDate] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [merchantId]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -68,7 +64,11 @@ export function PromoManager({ merchantId }: PromoManagerProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const promoProducts = products.filter(p => p.is_promo && p.discount_percent > 0);
   const regularProducts = products.filter(p => !p.is_promo || p.discount_percent === 0);

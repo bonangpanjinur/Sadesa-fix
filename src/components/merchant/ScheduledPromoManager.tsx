@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Calendar, Clock, Percent, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,11 +38,7 @@ export function ScheduledPromoManager({ merchantId }: ScheduledPromoManagerProps
   const [endDate, setEndDate] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [merchantId]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -58,7 +54,11 @@ export function ScheduledPromoManager({ merchantId }: ScheduledPromoManagerProps
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleSchedulePromo = async () => {
     if (!selectedProduct) {

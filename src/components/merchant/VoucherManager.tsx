@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Plus, Ticket, Trash2, Edit2, Copy, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,11 +66,7 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
     is_active: true,
   });
 
-  useEffect(() => {
-    fetchVouchers();
-  }, [merchantId]);
-
-  const fetchVouchers = async () => {
+  const fetchVouchers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('vouchers')
@@ -85,7 +81,11 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    fetchVouchers();
+  }, [fetchVouchers]);
 
   const generateCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
