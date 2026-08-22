@@ -74,19 +74,19 @@ export default function POSResepPage() {
     try {
       const [prodRes, matRes, recipeRes] = await Promise.all([
         supabase
-          .from('pos_products' as any)
+          .from('pos_products' as never)
           .select('id, name, unit, price, cost_price')
           .eq('tenant_id', tenant.id)
           .eq('is_active', true)
           .order('name'),
         supabase
-          .from('pos_raw_materials' as any)
+          .from('pos_raw_materials' as never)
           .select('id, name, unit, cost_per_unit, current_stock')
           .eq('tenant_id', tenant.id)
           .eq('is_active', true)
           .order('name'),
         supabase
-          .from('pos_recipes' as any)
+          .from('pos_recipes' as never)
           .select('*, pos_raw_materials(name, unit, cost_per_unit, current_stock)')
           .eq('tenant_id', tenant.id)
           .order('product_id'),
@@ -95,8 +95,8 @@ export default function POSResepPage() {
       setProducts((prodRes.data || []) as unknown as Product[]);
       setMaterials((matRes.data || []) as unknown as RawMaterial[]);
       setRecipes((recipeRes.data || []) as unknown as RecipeItem[]);
-    } catch (err: any) {
-      toast.error('Gagal memuat data: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal memuat data: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -125,7 +125,7 @@ export default function POSResepPage() {
 
     setSaving(true);
     try {
-      const { error } = await supabase.from('pos_recipes' as any).insert({
+      const { error } = await supabase.from('pos_recipes' as never).insert({
         tenant_id: tenant.id,
         product_id: selectedProductId,
         raw_material_id: newIngredient.raw_material_id,
@@ -137,8 +137,8 @@ export default function POSResepPage() {
       toast.success('Bahan berhasil ditambahkan ke resep');
       setDialogOpen(false);
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -148,15 +148,15 @@ export default function POSResepPage() {
     if (!deleteTarget) return;
     try {
       const { error } = await supabase
-        .from('pos_recipes' as any)
+        .from('pos_recipes' as never)
         .delete()
         .eq('id', deleteTarget.id);
       if (error) throw error;
       toast.success('Bahan dihapus dari resep');
       setDeleteDialog(false);
       fetchData();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -171,7 +171,7 @@ export default function POSResepPage() {
     .map(p => {
       const items = recipes.filter(r => r.product_id === p.id);
       const totalCost = items.reduce((sum, r) => {
-        const mat = r.pos_raw_materials as any;
+        const mat = r.pos_raw_materials;
         return sum + (mat?.cost_per_unit || 0) * r.qty_needed;
       }, 0);
       return { product: p, items, totalCost };
@@ -183,7 +183,7 @@ export default function POSResepPage() {
 
   const canMakeProduct = (group: RecipeGroup) => {
     return group.items.every(item => {
-      const mat = item.pos_raw_materials as any;
+      const mat = item.pos_raw_materials;
       return (mat?.current_stock || 0) >= item.qty_needed;
     });
   };
@@ -328,7 +328,7 @@ export default function POSResepPage() {
                     <CardContent>
                       <div className="space-y-2">
                         {group.items.map(item => {
-                          const mat = item.pos_raw_materials as any;
+                          const mat = item.pos_raw_materials;
                           const hasStock = (mat?.current_stock || 0) >= item.qty_needed;
                           const itemCost = (mat?.cost_per_unit || 0) * item.qty_needed;
                           return (
