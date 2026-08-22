@@ -162,7 +162,7 @@ export function QRPayDialog({
     return () => {
       if (!open) cleanup();
     };
-  }, [open]);
+  }, [open, amount, tenantId, createSession, cleanup]);
 
   // Cancel saat tutup manual (status masih waiting)
   const handleClose = () => {

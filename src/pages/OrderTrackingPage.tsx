@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -86,61 +86,15 @@ export default function OrderTrackingPage() {
   const [merchantInfo, setMerchantInfo] = useState<{ userId: string; name: string } | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const courierRef = useRef<CourierInfo | null>(null);
+  const orderRef = useRef<OrderDetails | null>(null);
+  const fetchCourierInfoRef = useRef<((courierId: string) => Promise<void>) | null>(null);
   const [etaInfo, setEtaInfo] = useState<{ etaFormatted: string; distanceFormatted: string } | null>(null);
 
   // Keep ref in sync
   useEffect(() => { courierRef.current = courier; }, [courier]);
+  useEffect(() => { orderRef.current = order; }, [order]);
 
-  useEffect(() => {
-    if (!authLoading && user && orderId) {
-      fetchOrderDetails();
-      
-      const channel = supabase
-        .channel(`order-tracking-${orderId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'orders',
-            filter: `id=eq.${orderId}`,
-          },
-          (payload) => {
-            const updated = payload.new as OrderDetails;
-            setOrder(updated);
-            if (updated.courier_id && !courierRef.current) {
-              fetchCourierInfo(updated.courier_id);
-            }
-          }
-        )
-        .subscribe();
-
-      // Subscribe to courier broadcast for live ETA
-      const etaChannel = supabase.channel(`eta-tracking-${orderId}`);
-      etaChannel
-        .on('broadcast', { event: 'location-update' }, (payload) => {
-          const loc = payload.payload as { lat: number; lng: number };
-          if (loc.lat && loc.lng && order?.delivery_lat && order?.delivery_lng) {
-            const estimate = getDeliveryEstimate(
-              { lat: loc.lat, lng: loc.lng },
-              { lat: order.delivery_lat, lng: order.delivery_lng },
-              (courier?.vehicle_type as VehicleType) || 'motor'
-            );
-            setEtaInfo({ etaFormatted: estimate.etaFormatted, distanceFormatted: estimate.distanceFormatted });
-          }
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-        supabase.removeChannel(etaChannel);
-      };
-    } else if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [user, authLoading, orderId]);
-
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = useCallback(async () => {
     if (!orderId) return;
 
     try {
@@ -183,7 +137,7 @@ export default function OrderTrackingPage() {
 
       // Fetch courier if assigned
       if (orderData.courier_id) {
-        fetchCourierInfo(orderData.courier_id);
+        fetchCourierInfoRef.current?.(orderData.courier_id);
       }
     } catch (error) {
       console.error('Error fetching order:', error);
@@ -191,9 +145,9 @@ export default function OrderTrackingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, user, navigate]);
 
-  const fetchCourierInfo = async (courierId: string) => {
+  const fetchCourierInfo = useCallback(async (courierId: string) => {
     const { data: courierData, error: courierError } = await supabase
       .from('couriers')
       .select('id, name, phone, vehicle_type, current_lat, current_lng')
@@ -203,16 +157,50 @@ export default function OrderTrackingPage() {
     if (!courierError && courierData) {
       setCourier(courierData);
       // Calculate initial ETA if courier has GPS and order has delivery coords
-      if (courierData.current_lat && courierData.current_lng && order?.delivery_lat && order?.delivery_lng) {
+      const currentOrder = orderRef.current;
+      if (courierData.current_lat && courierData.current_lng && currentOrder?.delivery_lat && currentOrder?.delivery_lng) {
         const estimate = getDeliveryEstimate(
           { lat: Number(courierData.current_lat), lng: Number(courierData.current_lng) },
-          { lat: Number(order.delivery_lat), lng: Number(order.delivery_lng) },
+          { lat: Number(currentOrder.delivery_lat), lng: Number(currentOrder.delivery_lng) },
           (courierData.vehicle_type as VehicleType) || 'motor'
         );
         setEtaInfo({ etaFormatted: estimate.etaFormatted, distanceFormatted: estimate.distanceFormatted });
       }
     }
-  };
+  }, []);
+
+  fetchCourierInfoRef.current = fetchCourierInfo;
+
+  useEffect(() => {
+    if (!authLoading && user && orderId) {
+      fetchOrderDetails();
+      const channel = supabase
+        .channel(`order-tracking-${orderId}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, (payload) => {
+          const updated = payload.new as OrderDetails;
+          setOrder(updated);
+          if (updated.courier_id && !courierRef.current) fetchCourierInfo(updated.courier_id);
+        })
+        .subscribe();
+      const etaChannel = supabase.channel(`eta-tracking-${orderId}`);
+      etaChannel.on('broadcast', { event: 'location-update' }, (payload) => {
+        const loc = payload.payload as { lat: number; lng: number };
+        const currentOrder = orderRef.current;
+        const currentCourier = courierRef.current;
+        if (loc.lat && loc.lng && currentOrder?.delivery_lat && currentOrder?.delivery_lng) {
+          const estimate = getDeliveryEstimate(
+            { lat: loc.lat, lng: loc.lng },
+            { lat: currentOrder.delivery_lat, lng: currentOrder.delivery_lng },
+            (currentCourier?.vehicle_type as VehicleType) || 'motor'
+          );
+          setEtaInfo({ etaFormatted: estimate.etaFormatted, distanceFormatted: estimate.distanceFormatted });
+        }
+      }).subscribe();
+      return () => { supabase.removeChannel(channel); supabase.removeChannel(etaChannel); };
+    } else if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, orderId, navigate, fetchOrderDetails, fetchCourierInfo]);
 
   const handleCompleteOrder = async () => {
     if (!order || !user) return;
