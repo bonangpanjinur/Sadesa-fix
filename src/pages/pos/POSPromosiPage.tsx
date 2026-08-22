@@ -87,6 +87,10 @@ function promoStatusBadge(promo: Promotion | Voucher) {
   return <Badge className="bg-emerald-100 text-emerald-700">Aktif</Badge>;
 }
 
+type NumericInput = number | string;
+interface PromoFormState { name: string; description: string; type: string; discount_percent: NumericInput; discount_amount: NumericInput; min_purchase: NumericInput; max_discount: NumericInput; buy_qty: NumericInput; get_qty: NumericInput; bundle_price: NumericInput; happy_hour_start: string; happy_hour_end: string; happy_hour_days: number[]; applies_to: string; start_date: string; end_date: string; is_active: boolean; usage_limit: NumericInput; }
+interface VoucherFormState { code: string; name: string; description: string; type: string; discount_percent: NumericInput; discount_amount: NumericInput; min_purchase: NumericInput; max_discount: NumericInput; start_date: string; end_date: string; is_active: boolean; usage_limit: NumericInput; per_customer_limit: NumericInput; }
+
 const emptyPromo = {
   name: '', description: '', type: 'discount_percent',
   discount_percent: 0, discount_amount: 0, min_purchase: 0, max_discount: '',
@@ -123,8 +127,8 @@ export default function POSPromosiPage() {
   const [voucherDialog, setVoucherDialog] = useState(false);
   const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
   const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null);
-  const [promoForm, setPromoForm] = useState<any>(emptyPromo);
-  const [voucherForm, setVoucherForm] = useState<any>(emptyVoucher);
+  const [promoForm, setPromoForm] = useState<PromoFormState>(emptyPromo);
+  const [voucherForm, setVoucherForm] = useState<VoucherFormState>(emptyVoucher);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'promo' | 'voucher'; id: string } | null>(null);
 
   const [stats, setStats] = useState({ totalPromos: 0, activePromos: 0, totalVouchers: 0, activeVouchers: 0 });
@@ -133,8 +137,8 @@ export default function POSPromosiPage() {
     if (!tenant) return;
     setLoading(true);
     const [{ data: pd }, { data: vd }] = await Promise.all([
-      supabase.from('pos_promotions' as any).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
-      supabase.from('pos_vouchers' as any).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+      supabase.from('pos_promotions' as never).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+      supabase.from('pos_vouchers' as never).select('*').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
     ]);
     const p = (pd || []) as unknown as Promotion[];
     const v = (vd || []) as unknown as Voucher[];
@@ -170,7 +174,7 @@ export default function POSPromosiPage() {
 
   const savePromo = async () => {
     if (!tenant || !promoForm.name.trim()) return toast.error('Nama promosi wajib diisi');
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       tenant_id: tenant.id,
       name: promoForm.name.trim(),
       description: promoForm.description || null,
@@ -193,8 +197,8 @@ export default function POSPromosiPage() {
       updated_at: new Date().toISOString(),
     };
     const { error } = editingPromo
-      ? await supabase.from('pos_promotions' as any).update(payload).eq('id', editingPromo.id)
-      : await supabase.from('pos_promotions' as any).insert(payload);
+      ? await supabase.from('pos_promotions' as never).update(payload).eq('id', editingPromo.id)
+      : await supabase.from('pos_promotions' as never).insert(payload);
     if (error) { toast.error('Gagal menyimpan promosi'); return; }
     toast.success(editingPromo ? 'Promosi diperbarui' : 'Promosi dibuat');
     setPromoDialog(false);
@@ -202,7 +206,7 @@ export default function POSPromosiPage() {
   };
 
   const togglePromo = async (p: Promotion) => {
-    await supabase.from('pos_promotions' as any).update({ is_active: !p.is_active }).eq('id', p.id);
+    await supabase.from('pos_promotions' as never).update({ is_active: !p.is_active }).eq('id', p.id);
     fetchAll();
   };
 
@@ -227,7 +231,7 @@ export default function POSPromosiPage() {
   const saveVoucher = async () => {
     if (!tenant || !voucherForm.code.trim()) return toast.error('Kode voucher wajib diisi');
     if (!voucherForm.name.trim()) return toast.error('Nama voucher wajib diisi');
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       tenant_id: tenant.id,
       code: voucherForm.code.trim().toUpperCase(),
       name: voucherForm.name.trim(),
@@ -245,8 +249,8 @@ export default function POSPromosiPage() {
       updated_at: new Date().toISOString(),
     };
     const { error } = editingVoucher
-      ? await supabase.from('pos_vouchers' as any).update(payload).eq('id', editingVoucher.id)
-      : await supabase.from('pos_vouchers' as any).insert(payload);
+      ? await supabase.from('pos_vouchers' as never).update(payload).eq('id', editingVoucher.id)
+      : await supabase.from('pos_vouchers' as never).insert(payload);
     if (error) { toast.error(error.message.includes('unique') ? 'Kode voucher sudah digunakan' : 'Gagal menyimpan voucher'); return; }
     toast.success(editingVoucher ? 'Voucher diperbarui' : 'Voucher dibuat');
     setVoucherDialog(false);
@@ -254,16 +258,16 @@ export default function POSPromosiPage() {
   };
 
   const toggleVoucher = async (v: Voucher) => {
-    await supabase.from('pos_vouchers' as any).update({ is_active: !v.is_active }).eq('id', v.id);
+    await supabase.from('pos_vouchers' as never).update({ is_active: !v.is_active }).eq('id', v.id);
     fetchAll();
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     if (deleteTarget.type === 'promo') {
-      await supabase.from('pos_promotions' as any).delete().eq('id', deleteTarget.id);
+      await supabase.from('pos_promotions' as never).delete().eq('id', deleteTarget.id);
     } else {
-      await supabase.from('pos_vouchers' as any).delete().eq('id', deleteTarget.id);
+      await supabase.from('pos_vouchers' as never).delete().eq('id', deleteTarget.id);
     }
     toast.success('Berhasil dihapus');
     setDeleteTarget(null);
@@ -535,11 +539,11 @@ export default function POSPromosiPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <Label>Nama Promosi *</Label>
-                <Input value={promoForm.name} onChange={e => setPromoForm((f: any) => ({ ...f, name: e.target.value }))} placeholder="Contoh: Diskon Lebaran 20%" />
+                <Input value={promoForm.name} onChange={e => setPromoForm((f) => ({ ...f, name: e.target.value }))} placeholder="Contoh: Diskon Lebaran 20%" />
               </div>
               <div className="col-span-2">
                 <Label>Tipe Promosi</Label>
-                <Select value={promoForm.type} onValueChange={v => setPromoForm((f: any) => ({ ...f, type: v }))}>
+                <Select value={promoForm.type} onValueChange={v => setPromoForm((f) => ({ ...f, type: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PROMO_TYPES.map(t => (
@@ -555,12 +559,12 @@ export default function POSPromosiPage() {
                 <div>
                   <Label>Diskon (%)</Label>
                   <Input type="number" min={0} max={100} value={promoForm.discount_percent}
-                    onChange={e => setPromoForm((f: any) => ({ ...f, discount_percent: e.target.value }))} />
+                    onChange={e => setPromoForm((f) => ({ ...f, discount_percent: e.target.value }))} />
                 </div>
                 <div>
                   <Label>Maks. Diskon (Rp, opsional)</Label>
                   <Input type="number" min={0} value={promoForm.max_discount}
-                    onChange={e => setPromoForm((f: any) => ({ ...f, max_discount: e.target.value }))}
+                    onChange={e => setPromoForm((f) => ({ ...f, max_discount: e.target.value }))}
                     placeholder="Tidak terbatas" />
                 </div>
               </div>
@@ -569,7 +573,7 @@ export default function POSPromosiPage() {
               <div>
                 <Label>Diskon Nominal (Rp)</Label>
                 <Input type="number" min={0} value={promoForm.discount_amount}
-                  onChange={e => setPromoForm((f: any) => ({ ...f, discount_amount: e.target.value }))} />
+                  onChange={e => setPromoForm((f) => ({ ...f, discount_amount: e.target.value }))} />
               </div>
             )}
             {promoForm.type === 'buy_x_get_y' && (
@@ -577,12 +581,12 @@ export default function POSPromosiPage() {
                 <div>
                   <Label>Beli (Qty)</Label>
                   <Input type="number" min={1} value={promoForm.buy_qty}
-                    onChange={e => setPromoForm((f: any) => ({ ...f, buy_qty: e.target.value }))} />
+                    onChange={e => setPromoForm((f) => ({ ...f, buy_qty: e.target.value }))} />
                 </div>
                 <div>
                   <Label>Gratis (Qty)</Label>
                   <Input type="number" min={1} value={promoForm.get_qty}
-                    onChange={e => setPromoForm((f: any) => ({ ...f, get_qty: e.target.value }))} />
+                    onChange={e => setPromoForm((f) => ({ ...f, get_qty: e.target.value }))} />
                 </div>
               </div>
             )}
@@ -590,7 +594,7 @@ export default function POSPromosiPage() {
               <div>
                 <Label>Harga Bundle (Rp)</Label>
                 <Input type="number" min={0} value={promoForm.bundle_price}
-                  onChange={e => setPromoForm((f: any) => ({ ...f, bundle_price: e.target.value }))}
+                  onChange={e => setPromoForm((f) => ({ ...f, bundle_price: e.target.value }))}
                   placeholder="Harga spesial paket" />
               </div>
             )}
@@ -600,18 +604,18 @@ export default function POSPromosiPage() {
                   <div>
                     <Label>Diskon (%)</Label>
                     <Input type="number" min={0} max={100} value={promoForm.discount_percent}
-                      onChange={e => setPromoForm((f: any) => ({ ...f, discount_percent: e.target.value }))} />
+                      onChange={e => setPromoForm((f) => ({ ...f, discount_percent: e.target.value }))} />
                   </div>
                   <div />
                   <div>
                     <Label>Jam Mulai</Label>
                     <Input type="time" value={promoForm.happy_hour_start}
-                      onChange={e => setPromoForm((f: any) => ({ ...f, happy_hour_start: e.target.value }))} />
+                      onChange={e => setPromoForm((f) => ({ ...f, happy_hour_start: e.target.value }))} />
                   </div>
                   <div>
                     <Label>Jam Selesai</Label>
                     <Input type="time" value={promoForm.happy_hour_end}
-                      onChange={e => setPromoForm((f: any) => ({ ...f, happy_hour_end: e.target.value }))} />
+                      onChange={e => setPromoForm((f) => ({ ...f, happy_hour_end: e.target.value }))} />
                   </div>
                 </div>
                 <div>
@@ -624,7 +628,7 @@ export default function POSPromosiPage() {
                           const days: number[] = promoForm.happy_hour_days.includes(i)
                             ? promoForm.happy_hour_days.filter((d: number) => d !== i)
                             : [...promoForm.happy_hour_days, i];
-                          setPromoForm((f: any) => ({ ...f, happy_hour_days: days }));
+                          setPromoForm((f) => ({ ...f, happy_hour_days: days }));
                         }}>{day}</button>
                     ))}
                   </div>
@@ -635,7 +639,7 @@ export default function POSPromosiPage() {
             <div>
               <Label>Min. Pembelian (Rp)</Label>
               <Input type="number" min={0} value={promoForm.min_purchase}
-                onChange={e => setPromoForm((f: any) => ({ ...f, min_purchase: e.target.value }))}
+                onChange={e => setPromoForm((f) => ({ ...f, min_purchase: e.target.value }))}
                 placeholder="0 = tidak ada minimum" />
             </div>
 
@@ -643,31 +647,31 @@ export default function POSPromosiPage() {
               <div>
                 <Label>Tanggal Mulai</Label>
                 <Input type="date" value={promoForm.start_date}
-                  onChange={e => setPromoForm((f: any) => ({ ...f, start_date: e.target.value }))} />
+                  onChange={e => setPromoForm((f) => ({ ...f, start_date: e.target.value }))} />
               </div>
               <div>
                 <Label>Tanggal Selesai</Label>
                 <Input type="date" value={promoForm.end_date}
-                  onChange={e => setPromoForm((f: any) => ({ ...f, end_date: e.target.value }))} />
+                  onChange={e => setPromoForm((f) => ({ ...f, end_date: e.target.value }))} />
               </div>
             </div>
 
             <div>
               <Label>Batas Penggunaan (opsional)</Label>
               <Input type="number" min={0} value={promoForm.usage_limit}
-                onChange={e => setPromoForm((f: any) => ({ ...f, usage_limit: e.target.value }))}
+                onChange={e => setPromoForm((f) => ({ ...f, usage_limit: e.target.value }))}
                 placeholder="Tidak terbatas" />
             </div>
 
             <div>
               <Label>Deskripsi (opsional)</Label>
               <Textarea rows={2} value={promoForm.description}
-                onChange={e => setPromoForm((f: any) => ({ ...f, description: e.target.value }))}
+                onChange={e => setPromoForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="Keterangan tambahan promosi" />
             </div>
 
             <div className="flex items-center gap-2">
-              <Switch checked={promoForm.is_active} onCheckedChange={v => setPromoForm((f: any) => ({ ...f, is_active: v }))} />
+              <Switch checked={promoForm.is_active} onCheckedChange={v => setPromoForm((f) => ({ ...f, is_active: v }))} />
               <Label>Aktif</Label>
             </div>
           </div>
@@ -690,21 +694,21 @@ export default function POSPromosiPage() {
             <div>
               <Label>Kode Voucher *</Label>
               <div className="flex gap-2">
-                <Input value={voucherForm.code} onChange={e => setVoucherForm((f: any) => ({ ...f, code: e.target.value.toUpperCase() }))}
+                <Input value={voucherForm.code} onChange={e => setVoucherForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
                   className="font-mono font-bold uppercase" placeholder="KODE123" />
-                <Button variant="outline" size="icon" onClick={() => setVoucherForm((f: any) => ({ ...f, code: generateCode() }))}>
+                <Button variant="outline" size="icon" onClick={() => setVoucherForm((f) => ({ ...f, code: generateCode() }))}>
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
             </div>
             <div>
               <Label>Nama Voucher *</Label>
-              <Input value={voucherForm.name} onChange={e => setVoucherForm((f: any) => ({ ...f, name: e.target.value }))}
+              <Input value={voucherForm.name} onChange={e => setVoucherForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="Contoh: Voucher Pelanggan Setia" />
             </div>
             <div>
               <Label>Tipe Diskon</Label>
-              <Select value={voucherForm.type} onValueChange={v => setVoucherForm((f: any) => ({ ...f, type: v }))}>
+              <Select value={voucherForm.type} onValueChange={v => setVoucherForm((f) => ({ ...f, type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="discount_percent">💯 Diskon Persen (%)</SelectItem>
@@ -716,7 +720,7 @@ export default function POSPromosiPage() {
               <div>
                 <Label>{voucherForm.type === 'discount_percent' ? 'Diskon (%)' : 'Diskon (Rp)'}</Label>
                 <Input type="number" min={0} value={voucherForm.type === 'discount_percent' ? voucherForm.discount_percent : voucherForm.discount_amount}
-                  onChange={e => setVoucherForm((f: any) => ({
+                  onChange={e => setVoucherForm((f) => ({
                     ...f,
                     [voucherForm.type === 'discount_percent' ? 'discount_percent' : 'discount_amount']: e.target.value
                   }))} />
@@ -725,7 +729,7 @@ export default function POSPromosiPage() {
                 <div>
                   <Label>Maks. Diskon (Rp)</Label>
                   <Input type="number" min={0} value={voucherForm.max_discount}
-                    onChange={e => setVoucherForm((f: any) => ({ ...f, max_discount: e.target.value }))}
+                    onChange={e => setVoucherForm((f) => ({ ...f, max_discount: e.target.value }))}
                     placeholder="Tidak terbatas" />
                 </div>
               )}
@@ -733,38 +737,38 @@ export default function POSPromosiPage() {
             <div>
               <Label>Min. Pembelian (Rp)</Label>
               <Input type="number" min={0} value={voucherForm.min_purchase}
-                onChange={e => setVoucherForm((f: any) => ({ ...f, min_purchase: e.target.value }))} />
+                onChange={e => setVoucherForm((f) => ({ ...f, min_purchase: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Berlaku Mulai</Label>
                 <Input type="date" value={voucherForm.start_date}
-                  onChange={e => setVoucherForm((f: any) => ({ ...f, start_date: e.target.value }))} />
+                  onChange={e => setVoucherForm((f) => ({ ...f, start_date: e.target.value }))} />
               </div>
               <div>
                 <Label>Berlaku Hingga</Label>
                 <Input type="date" value={voucherForm.end_date}
-                  onChange={e => setVoucherForm((f: any) => ({ ...f, end_date: e.target.value }))} />
+                  onChange={e => setVoucherForm((f) => ({ ...f, end_date: e.target.value }))} />
               </div>
               <div>
                 <Label>Maks. Penggunaan Total</Label>
                 <Input type="number" min={0} value={voucherForm.usage_limit}
-                  onChange={e => setVoucherForm((f: any) => ({ ...f, usage_limit: e.target.value }))}
+                  onChange={e => setVoucherForm((f) => ({ ...f, usage_limit: e.target.value }))}
                   placeholder="Tidak terbatas" />
               </div>
               <div>
                 <Label>Maks. per Pelanggan</Label>
                 <Input type="number" min={1} value={voucherForm.per_customer_limit}
-                  onChange={e => setVoucherForm((f: any) => ({ ...f, per_customer_limit: e.target.value }))} />
+                  onChange={e => setVoucherForm((f) => ({ ...f, per_customer_limit: e.target.value }))} />
               </div>
             </div>
             <div>
               <Label>Deskripsi (opsional)</Label>
               <Textarea rows={2} value={voucherForm.description}
-                onChange={e => setVoucherForm((f: any) => ({ ...f, description: e.target.value }))} />
+                onChange={e => setVoucherForm((f) => ({ ...f, description: e.target.value }))} />
             </div>
             <div className="flex items-center gap-2">
-              <Switch checked={voucherForm.is_active} onCheckedChange={v => setVoucherForm((f: any) => ({ ...f, is_active: v }))} />
+              <Switch checked={voucherForm.is_active} onCheckedChange={v => setVoucherForm((f) => ({ ...f, is_active: v }))} />
               <Label>Aktif</Label>
             </div>
           </div>
