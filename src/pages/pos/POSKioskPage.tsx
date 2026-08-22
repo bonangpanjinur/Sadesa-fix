@@ -54,10 +54,6 @@ export default function POSKioskPage() {
 
   const tenantId = tenant?.id;
 
-  useEffect(() => {
-    if (tenantId) fetchProducts();
-  }, [tenantId]);
-
   const resetIdle = useCallback(() => {
     if (idleTimer) clearTimeout(idleTimer);
     const t = setTimeout(() => {
@@ -77,21 +73,21 @@ export default function POSKioskPage() {
       events.forEach(e => window.removeEventListener(e, resetIdle));
       if (idleTimer) clearTimeout(idleTimer);
     };
-  }, [resetIdle]);
+  }, [resetIdle, idleTimer]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
-      const { data } = await (supabase as any)
+      const { data } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
         .from('pos_products')
         .select('id, name, price, image_url, sku, barcode, unit, category, pos_stock(quantity)')
         .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('name');
 
-      const mapped = ((data || []) as any[]).map((p: any) => ({
-        ...p,
-        stock_qty: p.pos_stock?.[0]?.quantity ?? 999,
-      })).filter((p: KioskProduct) => p.stock_qty > 0);
+      const mapped = (data || []).map((raw) => {
+        const product = raw as unknown as KioskProduct & { pos_stock?: Array<{ quantity: number }> };
+        return { ...product, stock_qty: product.pos_stock?.[0]?.quantity ?? 999 };
+      }).filter((product) => product.stock_qty > 0);
 
       setProducts(mapped);
     } catch (err) {
@@ -99,7 +95,11 @@ export default function POSKioskPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenantId]);
+
+  useEffect(() => {
+    if (tenantId) void fetchProducts();
+  }, [tenantId, fetchProducts]);
 
   const categories = ['Semua', ...Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[]];
 
@@ -141,7 +141,7 @@ export default function POSKioskPage() {
     setProcessing(true);
     try {
       const saleNumber = `KIOSK-${Date.now()}`;
-      const { data: sale, error } = await (supabase as any)
+      const { data: sale, error } = await (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> })
         .from('pos_sales')
         .insert({
           tenant_id: tenantId,
@@ -159,8 +159,8 @@ export default function POSKioskPage() {
       if (error) throw error;
 
       await Promise.all(cart.map(item =>
-        (supabase as any).from('pos_sale_items').insert({
-          sale_id: sale.id,
+        (supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }).from('pos_sale_items').insert({
+          sale_id: (sale as unknown as { id: string }).id,
           product_id: item.id,
           quantity: item.qty,
           unit_price: item.price,
