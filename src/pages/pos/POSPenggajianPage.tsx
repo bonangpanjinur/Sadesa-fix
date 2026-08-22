@@ -16,6 +16,10 @@ import { Plus, RefreshCw, AlertCircle, Download, DollarSign, Users, FileText, Pr
 import { format, getDaysInMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface PayrollSalaryRow extends Salary { pos_users?: PosUser; }
+interface PayrollItemRow extends PayrollItem { pos_users?: PosUser; }
+interface AttendanceRow { status: string; }
+
 interface PosUser { id: string; full_name: string; role: string; }
 interface Salary { id: string; pos_user_id: string; salary_type: string; base_amount: number; overtime_rate: number; user?: PosUser; }
 interface PayrollItem {
@@ -54,25 +58,25 @@ export default function POSPenggajianPage() {
     setLoading(true);
     try {
       const [userRes, salaryRes, periodRes] = await Promise.all([
-        supabase.from('pos_users' as any).select('id, full_name, role').eq('tenant_id', tenant.id).eq('is_active', true),
-        supabase.from('pos_employee_salaries' as any).select('*, pos_users(id, full_name, role)').eq('tenant_id', tenant.id),
-        supabase.from('pos_payroll_periods' as any).select('*').eq('tenant_id', tenant.id).order('year', {ascending:false}).order('month', {ascending:false}).limit(12),
+        supabase.from('pos_users' as never).select('id, full_name, role').eq('tenant_id', tenant.id).eq('is_active', true),
+        supabase.from('pos_employee_salaries' as never).select('*, pos_users(id, full_name, role)').eq('tenant_id', tenant.id),
+        supabase.from('pos_payroll_periods' as never).select('*').eq('tenant_id', tenant.id).order('year', {ascending:false}).order('month', {ascending:false}).limit(12),
       ]);
-      setUsers((userRes.data||[]) as PosUser[]);
-      setSalaries(((salaryRes.data||[]) as any[]).map((s:any)=>({...s, user:s.pos_users})));
+      setUsers((userRes.data || []) as unknown as PosUser[]);
+      setSalaries(((salaryRes.data || []) as unknown as PayrollSalaryRow[]).map((s) => ({ ...s, user: s.pos_users })));
       const p = (periodRes.data||[]) as PayrollPeriod[];
       setPeriods(p);
-      if (p.length > 0 && !selectedPeriod) setSelectedPeriod(p[0].id);
+      if (p.length > 0) setSelectedPeriod(current => current || p[0].id);
     } catch(e){ console.error(e); }
     finally { setLoading(false); }
   }, [tenant]);
 
   const fetchItems = useCallback(async () => {
     if (!tenant || !selectedPeriod) return;
-    const res = await supabase.from('pos_payroll_items' as any)
+    const res = await supabase.from('pos_payroll_items' as never)
       .select('*, pos_users(id, full_name, role)')
       .eq('period_id', selectedPeriod);
-    setItems(((res.data||[]) as any[]).map((i:any)=>({...i, user:i.pos_users})));
+    setItems(((res.data || []) as unknown as PayrollItemRow[]).map((i) => ({ ...i, user: i.pos_users })));
   }, [tenant, selectedPeriod]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -86,9 +90,9 @@ export default function POSPenggajianPage() {
     try {
       const payload = { tenant_id: tenant.id, pos_user_id: salaryForm.pos_user_id, salary_type: salaryForm.salary_type, base_amount: Number(salaryForm.base_amount), overtime_rate: Number(salaryForm.overtime_rate)||0 };
       if (editingSalary) {
-        await supabase.from('pos_employee_salaries' as any).update(payload).eq('id', editingSalary.id);
+        await supabase.from('pos_employee_salaries' as never).update(payload).eq('id', editingSalary.id);
       } else {
-        await supabase.from('pos_employee_salaries' as any).upsert(payload, { onConflict: 'tenant_id,pos_user_id' });
+        await supabase.from('pos_employee_salaries' as never).upsert(payload, { onConflict: 'tenant_id,pos_user_id' });
       }
       toast.success('Data gaji disimpan');
       setSalaryDialog(false);
@@ -101,8 +105,8 @@ export default function POSPenggajianPage() {
     if (!tenant) return;
     const exists = periods.find(p => p.month === selectedMonth && p.year === selectedYear);
     if (exists) { toast.info('Periode sudah ada'); setSelectedPeriod(exists.id); return; }
-    const res = await supabase.from('pos_payroll_periods' as any).insert({ tenant_id: tenant.id, month: selectedMonth, year: selectedYear, status: 'draft' }).select().single();
-    if ((res as any).data) { toast.success('Periode dibuat'); fetchAll(); }
+    const res = await supabase.from('pos_payroll_periods' as never).insert({ tenant_id: tenant.id, month: selectedMonth, year: selectedYear, status: 'draft' }).select().single();
+    if (res.data) { toast.success('Periode dibuat'); fetchAll(); }
   };
 
   const processPayroll = async () => {
@@ -112,18 +116,18 @@ export default function POSPenggajianPage() {
     const daysInMonth = getDaysInMonth(new Date(period.year, period.month - 1));
 
     for (const sal of salaries) {
-      const attRes = await supabase.from('pos_attendances' as any)
+      const attRes = await supabase.from('pos_attendances' as never)
         .select('status').eq('pos_user_id', sal.pos_user_id)
         .gte('date', `${period.year}-${String(period.month).padStart(2,'0')}-01`)
         .lte('date', `${period.year}-${String(period.month).padStart(2,'0')}-${daysInMonth}`);
-      const atts = (attRes.data||[]) as any[];
+      const atts = (attRes.data || []) as unknown as AttendanceRow[];
       const presentDays = atts.filter(a=>['present','late'].includes(a.status)).length;
 
       let baseSalary = 0;
       if (sal.salary_type === 'monthly') baseSalary = sal.base_amount;
       else if (sal.salary_type === 'daily') baseSalary = sal.base_amount * presentDays;
 
-      await supabase.from('pos_payroll_items' as any).upsert({
+      await supabase.from('pos_payroll_items' as never).upsert({
         period_id: selectedPeriod, pos_user_id: sal.pos_user_id,
         working_days: daysInMonth, present_days: presentDays,
         base_salary: baseSalary, allowances: 0, deductions: 0, overtime_pay: 0,
@@ -136,7 +140,7 @@ export default function POSPenggajianPage() {
 
   const finalizePeriod = async () => {
     if (!selectedPeriod) return;
-    await supabase.from('pos_payroll_periods' as any).update({ status: 'finalized', processed_at: new Date().toISOString() }).eq('id', selectedPeriod);
+    await supabase.from('pos_payroll_periods' as never).update({ status: 'finalized', processed_at: new Date().toISOString() }).eq('id', selectedPeriod);
     toast.success('Periode gaji difinalisasi');
     fetchAll();
   };
