@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, X, Palette, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,11 +52,7 @@ export function ProductVariantManager({
   const [editingVariant, setEditingVariant] = useState<string | null>(null);
   const [newOption, setNewOption] = useState({ value: '', stock: '10', price_adj: '0' });
 
-  useEffect(() => {
-    fetchVariants();
-  }, [productId]);
-
-  const fetchVariants = async () => {
+  const fetchVariants = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('product_variants' as any)
@@ -78,7 +74,11 @@ export function ProductVariantManager({
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId, onVariantsChange]);
+
+  useEffect(() => {
+    fetchVariants();
+  }, [fetchVariants]);
 
   const addVariant = async () => {
     if (!newVariantName.trim()) {

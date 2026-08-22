@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Save, Trash2, Package, AlertTriangle, Loader2 } from 'lucide-react';
@@ -70,11 +70,7 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
     min_stock_alert: '5',
   });
 
-  useEffect(() => {
-    fetchData();
-  }, [productId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [productRes, categoriesRes] = await Promise.all([
         supabase
@@ -115,7 +111,11 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
     } finally {
       setLoading(false);
     }
-  };
+  }, [productId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleSave = async () => {
     if (!form.name.trim()) {

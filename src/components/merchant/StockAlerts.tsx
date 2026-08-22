@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Package, Plus, Minus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,11 +24,7 @@ export function StockAlerts({ merchantId }: StockAlertsProps) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchLowStockProducts();
-  }, [merchantId]);
-
-  const fetchLowStockProducts = async () => {
+  const fetchLowStockProducts = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -46,7 +42,11 @@ export function StockAlerts({ merchantId }: StockAlertsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    fetchLowStockProducts();
+  }, [fetchLowStockProducts]);
 
   const updateStock = async (productId: string, newStock: number) => {
     if (newStock < 0) return;
