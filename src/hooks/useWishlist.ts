@@ -25,7 +25,7 @@ export function useWishlist() {
 
     try {
       const { data, error } = await supabase
-        .from('wishlists' as any)
+        .from('wishlists')
         .select('*')
         .eq('user_id', user.id);
 
@@ -53,7 +53,7 @@ export function useWishlist() {
 
     try {
       const { error } = await supabase
-        .from('wishlists' as any)
+        .from('wishlists')
         .insert({ user_id: user.id, product_id: productId });
 
       if (error) throw error;
@@ -62,8 +62,9 @@ export function useWishlist() {
       toast.success('Ditambahkan ke wishlist');
       fetchWishlist();
       return true;
-    } catch (error: any) {
-      if (error.code === '23505') {
+    } catch (error: unknown) {
+      const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+      if (code === '23505') {
         toast.info('Sudah ada di wishlist');
       } else {
         toast.error('Gagal menambahkan ke wishlist');
@@ -77,7 +78,7 @@ export function useWishlist() {
 
     try {
       const { error } = await supabase
-        .from('wishlists' as any)
+        .from('wishlists')
         .delete()
         .eq('user_id', user.id)
         .eq('product_id', productId);

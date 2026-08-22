@@ -20,7 +20,7 @@ interface WishlistItemData {
     name: string;
     price: number;
     image_url: string | null;
-    merchants: { name: string } | null;
+    merchants: { name: string } | { name: string }[] | null;
   } | null;
 }
 
@@ -34,7 +34,14 @@ interface FavoriteMerchant {
     rating_avg: number | null;
     rating_count: number | null;
     is_open: boolean;
-  } | null;
+  } | {
+    id: string;
+    name: string;
+    image_url: string | null;
+    rating_avg: number | null;
+    rating_count: number | null;
+    is_open: boolean;
+  }[] | null;
 }
 
 export default function WishlistPage() {
@@ -47,7 +54,7 @@ export default function WishlistPage() {
     queryKey: ['wishlist', user?.id],
     queryFn: async () => {
       const { data, error } = await (supabase
-        .from('wishlists' as any)
+        .from('wishlists')
         .select(`id, product_id, products(id, name, price, image_url, merchants(name))`)
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false }));
@@ -61,7 +68,7 @@ export default function WishlistPage() {
   const { data: favorites = [], isLoading: favLoading } = useQuery<FavoriteMerchant[]>({
     queryKey: ['merchant-favorites', user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('merchant_favorites')
         .select(`id, merchant_id, merchants(id, name, image_url, rating_avg, rating_count, is_open)`)
         .eq('user_id', user!.id)
@@ -75,7 +82,7 @@ export default function WishlistPage() {
 
   const removeWishlistMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('wishlists' as any).delete().eq('id', id);
+      const { error } = await supabase.from('wishlists').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -87,7 +94,7 @@ export default function WishlistPage() {
 
   const removeFavoriteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from('merchant_favorites').delete().eq('id', id);
+      const { error } = await supabase.from('merchant_favorites').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -110,10 +117,11 @@ export default function WishlistPage() {
       if (!productData.is_active) { toast.error('Produk sudah tidak tersedia'); return; }
       if (productData.stock <= 0) { toast.error('Stok produk habis'); return; }
 
+      const productMerchant = Array.isArray(item.products.merchants) ? item.products.merchants[0] : item.products.merchants;
       addToCart({
         id: item.products.id,
         merchantId: productData.merchant_id || '',
-        merchantName: item.products.merchants?.name || 'Toko',
+        merchantName: productMerchant?.name || 'Toko',
         name: item.products.name,
         description: '',
         price: item.products.price,
@@ -223,7 +231,7 @@ export default function WishlistPage() {
                               {item.products.name}
                             </h3>
                           </Link>
-                          <p className="text-xs text-muted-foreground">{item.products.merchants?.name || 'Toko'}</p>
+                          <p className="text-xs text-muted-foreground">{(Array.isArray(item.products.merchants) ? item.products.merchants[0]?.name : item.products.merchants?.name) || 'Toko'}</p>
                           <p className="font-bold text-primary mt-1">{formatPrice(item.products.price)}</p>
                           <div className="flex gap-2 mt-2">
                             <Button size="sm" onClick={() => handleAddToCart(item)}>
@@ -264,8 +272,8 @@ export default function WishlistPage() {
               ) : (
                 <div className="space-y-3">
                   {favorites.map((fav, index) => {
-                    if (!fav.merchants) return null;
-                    const m = fav.merchants;
+                    const m = Array.isArray(fav.merchants) ? fav.merchants[0] : fav.merchants;
+                    if (!m) return null;
                     return (
                       <motion.div
                         key={fav.id}

@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
+import type { Product } from '@/types';
+
+interface ReorderProduct extends Product {
+  is_active: boolean;
+  image_url: string | null;
+  merchant_id: string;
+  merchants: { id: string; name: string; is_open: boolean | null; status: string | null; registration_status: string | null } | { id: string; name: string; is_open: boolean | null; status: string | null; registration_status: string | null }[] | null;
+}
 
 interface ReorderItem {
   product_id?: string | null;
@@ -45,7 +53,7 @@ export function useReorder() {
         return { added: 0, skipped: items.length };
       }
 
-      const productMap = new Map(((productsData || []) as any[]).map((p: any) => [p.id, p]));
+      const productMap = new Map((productsData as ReorderProduct[] || []).map((p) => [p.id, p]));
       let added = 0;
       let skipped = 0;
 
@@ -55,7 +63,7 @@ export function useReorder() {
         const product = productMap.get(pid);
         if (!product || !product.is_active) { skipped++; continue; }
 
-        const merchant = product.merchants as any;
+        const merchant = Array.isArray(product.merchants) ? product.merchants[0] : product.merchants;
         if (!merchant || merchant.status !== 'ACTIVE' || merchant.registration_status !== 'APPROVED') {
           skipped++;
           continue;
@@ -79,7 +87,7 @@ export function useReorder() {
             isAvailable: true,
             isMerchantOpen: merchant?.is_open ?? true,
             hasQuota: true,
-          } as any,
+          } satisfies Product,
           Math.min(item.quantity, stock),
         );
         added++;

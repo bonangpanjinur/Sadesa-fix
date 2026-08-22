@@ -13,6 +13,23 @@ import { ArrowLeft, Ticket, Search, Copy, CheckCircle, Tag, Percent } from 'luci
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface VoucherRow {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  type: string;
+  discount_percent: number | null;
+  discount_amount: number | null;
+  min_purchase: number | null;
+  max_discount: number | null;
+  end_date: string;
+  usage_limit: number | null;
+  used_count: number | null;
+  merchant_id: string | null;
+  merchants: { name: string | null } | { name: string | null }[] | null;
+}
+
 interface Voucher {
   id: string;
   code: string;
@@ -47,13 +64,13 @@ export default function VoucherPage() {
     try {
       const now = new Date().toISOString();
       const { data } = await supabase
-        .from('vouchers' as any)
+        .from('vouchers')
         .select('*, merchants(name)')
         .eq('is_active', true)
         .gte('end_date', now)
         .order('created_at', { ascending: false });
 
-      setVouchers(((data || []) as any[]).map(v => ({
+      setVouchers((data as VoucherRow[] || []).map((v) => ({
         id: v.id,
         code: v.code,
         name: v.name,
@@ -67,7 +84,7 @@ export default function VoucherPage() {
         usage_limit: v.usage_limit,
         used_count: v.used_count || 0,
         merchant_id: v.merchant_id,
-        merchant_name: v.merchants?.name || null,
+        merchant_name: (Array.isArray(v.merchants) ? v.merchants[0]?.name : v.merchants?.name) || null,
       })));
     } catch (err) {
       console.error('Error:', err);
@@ -89,7 +106,7 @@ export default function VoucherPage() {
     setChecking(true);
     try {
       const { data } = await supabase
-        .from('vouchers' as any)
+        .from('vouchers')
         .select('*, merchants(name)')
         .eq('code', manualCode.trim().toUpperCase())
         .eq('is_active', true)
@@ -100,7 +117,7 @@ export default function VoucherPage() {
         return;
       }
 
-      const v = data as any;
+      const v = data as VoucherRow;
       if (new Date(v.end_date) < new Date()) {
         toast.error('Voucher sudah kedaluwarsa');
         return;
