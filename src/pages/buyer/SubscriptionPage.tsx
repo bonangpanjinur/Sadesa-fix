@@ -40,7 +40,7 @@ export default function SubscriptionPage() {
   const { data: subs = [], isLoading: loading } = useQuery<Subscription[]>({
     queryKey: ['subscriptions', user?.id],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('product_subscriptions')
         .select('*, products(name, price, image_url, unit), merchants(name)')
         .eq('user_id', user!.id)
@@ -53,7 +53,7 @@ export default function SubscriptionPage() {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      await (supabase as any).from('product_subscriptions').update({ is_active: !isActive }).eq('id', id);
+      await supabase.from('product_subscriptions').update({ is_active: !isActive }).eq('id', id);
       return !isActive;
     },
     onSuccess: (newActive, { id }) => {
@@ -65,7 +65,7 @@ export default function SubscriptionPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await (supabase as any).from('product_subscriptions').delete().eq('id', id);
+      await supabase.from('product_subscriptions').delete().eq('id', id);
     },
     onSuccess: () => {
       toast.success('Langganan dihapus');

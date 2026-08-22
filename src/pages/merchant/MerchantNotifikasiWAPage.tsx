@@ -106,7 +106,7 @@ export default function MerchantNotifikasiWAPage() {
       setSavedWaNumber(normalised);
       setWaNumber(normalised);
 
-      await supabase.from('merchants').update({ phone: normalised } as any).eq('id', merchantId!);
+      await supabase.from('merchants').update({ phone: normalised }).eq('id', merchantId!);
       toast.success('Nomor WA berhasil disimpan');
     } catch {
       toast.error('Gagal menyimpan nomor WA');
@@ -154,9 +154,9 @@ export default function MerchantNotifikasiWAPage() {
 
       setPendingOrders((pendingRes.data || []) as Order[]);
 
-      const low = (lowStockRes.data || []).filter(
-        (p: any) => p.stock <= (p.min_stock_alert || 5)
-      ) as LowStockProduct[];
+      const low = (lowStockRes.data as LowStockProduct[] || []).filter(
+        (p) => p.stock <= (p.min_stock_alert || 5)
+      );
       setLowStockProducts(low);
 
       const todayOrders = todayOrdersRes.data || [];
@@ -168,7 +168,7 @@ export default function MerchantNotifikasiWAPage() {
       });
 
       const buyerMap = new Map<string, BuyerContact>();
-      for (const o of (allBuyersRes.data || []) as any[]) {
+      for (const o of (allBuyersRes.data as Pick<Order, 'delivery_name' | 'delivery_phone' | 'created_at'>[] || [])) {
         if (!o.delivery_phone) continue;
         const phone = o.delivery_phone.replace(/\D/g, '');
         if (buyerMap.has(phone)) {

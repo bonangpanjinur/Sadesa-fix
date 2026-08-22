@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MapPin, Camera, Globe, Phone, Mail, Instagram, Facebook, QrCode, Download, Plus, X } from 'lucide-react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { Button } from '@/components/ui/button';
@@ -60,30 +60,31 @@ export default function DesaProfilPage() {
       return data as unknown as VillageProfile | null;
     },
     enabled: !!user,
-    onSuccess: (data) => {
-      if (data && !initDone) {
-        setForm({
-          name: data.name || '',
-          description: data.description || '',
-          district: data.district || '',
-          regency: data.regency || '',
-          province: data.province || '',
-          contact_name: data.contact_name || '',
-          contact_phone: data.contact_phone || '',
-          contact_email: data.contact_email || '',
-          website: data.website || '',
-          image_url: data.image_url || null,
-          gallery_urls: data.gallery_urls || [],
-          social_media: data.social_media || {},
-          location_lat: data.location_lat || null,
-          location_lng: data.location_lng || null,
-        });
-        setInitDone(true);
-      }
-    },
-  } as any);
+  });
 
-  const updateField = (key: keyof VillageProfile, value: any) => {
+  useEffect(() => {
+    if (village && !initDone) {
+      setForm({
+        name: village.name || '',
+        description: village.description || '',
+        district: village.district || '',
+        regency: village.regency || '',
+        province: village.province || '',
+        contact_name: village.contact_name || '',
+        contact_phone: village.contact_phone || '',
+        contact_email: village.contact_email || '',
+        website: village.website || '',
+        image_url: village.image_url || null,
+        gallery_urls: village.gallery_urls || [],
+        social_media: village.social_media || {},
+        location_lat: village.location_lat || null,
+        location_lng: village.location_lng || null,
+      });
+      setInitDone(true);
+    }
+  }, [village, initDone]);
+
+  const updateField = <K extends keyof VillageProfile>(key: K, value: VillageProfile[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
 
@@ -167,8 +168,8 @@ export default function DesaProfilPage() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['desa-profil'] });
       toast.success('Profil desa berhasil disimpan!');
-    } catch (err: any) {
-      toast.error('Gagal menyimpan: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal menyimpan: ' + (err instanceof Error ? err.message : 'Terjadi kesalahan'));
     } finally {
       setSaving(false);
     }

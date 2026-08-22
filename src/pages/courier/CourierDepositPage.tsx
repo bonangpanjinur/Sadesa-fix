@@ -25,11 +25,18 @@ interface DepositRecord {
   processed_at: string | null;
 }
 
+interface AdminBankInfo {
+  bank_name: string;
+  bank_account_number: string;
+  bank_account_name: string;
+  qris_image_url?: string;
+}
+
 interface DepositData {
   courierId: string;
   availableBalance: number;
   deposits: DepositRecord[];
-  adminBankInfo: { bank_name: string; bank_account_number: string; bank_account_name: string; qris_image_url?: string } | null;
+  adminBankInfo: AdminBankInfo | null;
 }
 
 export default function CourierDepositPage() {
@@ -43,7 +50,7 @@ export default function CourierDepositPage() {
     if (!authLoading && !user) navigate('/auth');
   }, [user, authLoading, navigate]);
 
-  const { data, isLoading: loading } = useQuery<DepositData>({
+  const { data, isLoading: loading } = useQuery<DepositData | null>({
     queryKey: ['courier-deposit', user?.id],
     queryFn: async () => {
       const { data: courier } = await supabase
@@ -54,7 +61,7 @@ export default function CourierDepositPage() {
 
       if (!courier || courier.registration_status !== 'APPROVED') {
         navigate('/courier');
-        return null as any;
+        return null;
       }
 
       const [{ data: deps }, { data: bankSetting }] = await Promise.all([
@@ -66,7 +73,7 @@ export default function CourierDepositPage() {
         courierId: courier.id,
         availableBalance: courier.available_balance || 0,
         deposits: deps || [],
-        adminBankInfo: bankSetting?.value ? (bankSetting.value as any) : null,
+        adminBankInfo: bankSetting?.value ? bankSetting.value as AdminBankInfo : null,
       };
     },
     enabled: !!user && !authLoading,
@@ -93,7 +100,7 @@ export default function CourierDepositPage() {
       setProofUrl('');
       queryClient.invalidateQueries({ queryKey: ['courier-deposit', user?.id] });
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal mengajukan setoran'),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Gagal mengajukan setoran'),
   });
 
   if (authLoading || loading) {

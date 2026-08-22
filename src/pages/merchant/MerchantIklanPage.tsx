@@ -124,7 +124,7 @@ export default function MerchantIklanPage() {
   const { data: packages = DEFAULT_PACKAGES } = useQuery<AdPackage[]>({
     queryKey: ['ad-packages'],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('ad_packages')
         .select('*')
         .eq('is_active', true)
@@ -138,7 +138,7 @@ export default function MerchantIklanPage() {
   const { data: ads = [], isLoading: adsLoading, refetch } = useQuery<MerchantAd[]>({
     queryKey: ['merchant-ads', merchantId],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from('merchant_ads')
         .select('*, package:package_id(name, placement_type)')
         .eq('merchant_id', merchantId!)
@@ -159,7 +159,7 @@ export default function MerchantIklanPage() {
 
       const total = selectedPackage.price_per_day * form.duration_days;
 
-      const { error } = await (supabase as any).from('merchant_ads').insert({
+      const { error } = await supabase.from('merchant_ads').insert({
         merchant_id: merchantId,
         package_id: selectedPackage.id.startsWith('default') ? null : selectedPackage.id,
         placement_type: selectedPackage.placement_type,
