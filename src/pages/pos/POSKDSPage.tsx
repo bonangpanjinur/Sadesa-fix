@@ -5,12 +5,20 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import {
   ChefHat, Clock, CheckCircle, ArrowLeft, RefreshCw,
-  Flame, Bell, Table2, Maximize2, Minimize2, QrCode
+  Flame, Bell, Table2, Maximize2, Minimize2, QrCode, type LucideIcon
 } from 'lucide-react';
 import { format, differenceInSeconds, differenceInMinutes } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import { posBridgeFetch } from '@/lib/posBridge';
+
+interface OrderStatusUpdate {
+  status: TableOrder['status'];
+  updated_at: string;
+  cooking_started_at?: string;
+  ready_at?: string;
+  served_at?: string;
+}
 
 interface TableOrder {
   id: string;
@@ -48,7 +56,7 @@ const STATUS_CONFIG = {
   },
 };
 
-const COLUMNS: Array<{ key: 'pending' | 'cooking' | 'ready'; label: string; icon: any; color: string }> = [
+const COLUMNS: Array<{ key: 'pending' | 'cooking' | 'ready'; label: string; icon: LucideIcon; color: string }> = [
   { key: 'pending',  label: 'Antrian',        icon: Clock,       color: 'text-yellow-400' },
   { key: 'cooking',  label: 'Sedang Dimasak',  icon: Flame,       color: 'text-orange-400' },
   { key: 'ready',    label: 'Siap Disajikan',  icon: CheckCircle, color: 'text-emerald-400' },
@@ -72,8 +80,8 @@ function ElapsedTimer({ since, warnAfter = 10 }: { since: string; warnAfter?: nu
   );
 }
 
-function parseItems(raw: any): TableOrder['items'] {
-  if (Array.isArray(raw)) return raw;
+function parseItems(raw: unknown): TableOrder['items'] {
+  if (Array.isArray(raw)) return raw as TableOrder['items'];
   if (typeof raw === 'string') {
     try { return JSON.parse(raw); } catch { return []; }
   }
@@ -117,19 +125,19 @@ export default function POSKDSPage() {
     if (!tenant) return;
     try {
       let q = supabase
-        .from('pos_table_orders' as any)
+        .from('pos_table_orders' as never)
         .select('id, table_id, table_name, order_number, status, items, notes, customer_name, source, cooking_started_at, ready_at, created_at')
         .eq('tenant_id', tenant.id)
         .in('status', ['pending', 'cooking', 'ready'])
         .order('created_at', { ascending: true });
-      if (activeOutlet) q = (q as any).eq('outlet_id', activeOutlet.id);
+      if (activeOutlet) q = q.eq('outlet_id', activeOutlet.id);
       const { data, error } = await q;
       if (error) throw error;
 
-      const newOrders = ((data || []) as any[]).map(o => ({
-        ...o,
-        items: parseItems(o.items),
-      })) as TableOrder[];
+      const newOrders = (data || []).map((raw) => {
+        const order = raw as unknown as Omit<TableOrder, 'items'> & { items: unknown };
+        return { ...order, items: parseItems(order.items) };
+      });
 
       const newIds = new Set(newOrders.map(o => o.id));
       const hasNew = newOrders.some(o => !prevOrderIds.current.has(o.id));
@@ -138,7 +146,7 @@ export default function POSKDSPage() {
 
       setOrders(newOrders);
       setLastUpdate(new Date());
-    } catch (err: any) {
+    } catch {
       // silent fail — fallback timer will retry
     } finally {
       setLoading(false);
@@ -191,8 +199,8 @@ export default function POSKDSPage() {
     return () => clearInterval(id);
   }, [fetchOrders]);
 
-  const updateStatus = async (orderId: string, newStatus: string) => {
-    const updates: any = { status: newStatus, updated_at: new Date().toISOString() };
+  const updateStatus = async (orderId: string, newStatus: TableOrder['status']) => {
+    const updates: OrderStatusUpdate = { status: newStatus, updated_at: new Date().toISOString() };
     if (newStatus === 'cooking') updates.cooking_started_at = new Date().toISOString();
     if (newStatus === 'ready')   updates.ready_at = new Date().toISOString();
     if (newStatus === 'served')  updates.served_at = new Date().toISOString();
@@ -204,14 +212,14 @@ export default function POSKDSPage() {
 
     try {
       const { error } = await supabase
-        .from('pos_table_orders' as any)
+        .from('pos_table_orders' as never)
         .update(updates)
         .eq('id', orderId);
       if (error) throw error;
       playBeep('action');
       setLastUpdate(new Date());
-    } catch (err: any) {
-      toast.error('Gagal update status: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal update status: ' + (err instanceof Error ? err.message : String(err)));
       fetchOrders(); // rollback
     }
   };
@@ -247,7 +255,7 @@ export default function POSKDSPage() {
             <div>
               <h1 className="font-bold text-lg leading-none">Kitchen Display System</h1>
               <p className="text-xs text-gray-400">
-                {tenant?.name}{activeOutlet ? ` — ${(activeOutlet as any).name}` : ''}
+                {tenant?.name}{activeOutlet ? ` — ${activeOutlet.name}` : ''}
               </p>
             </div>
           </div>
