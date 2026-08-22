@@ -131,7 +131,7 @@ export default function POSKasirPage() {
 
   const fetchProducts = async () => {
     if (!tenant || !activeOutlet) return;
-    const { data } = await supabase.from('pos_products' as any)
+    const { data } = await supabase.from('pos_products' as never)
       .select('*, pos_categories(name), pos_stock(quantity)')
       .eq('tenant_id', tenant.id).eq('is_active', true).order('name');
     setProducts((data || []) as unknown as Product[]);
@@ -140,22 +140,22 @@ export default function POSKasirPage() {
 
   const fetchCategories = async () => {
     if (!tenant) return;
-    const { data } = await supabase.from('pos_categories' as any).select('id, name')
+    const { data } = await supabase.from('pos_categories' as never).select('id, name')
       .eq('tenant_id', tenant.id).order('name');
     setCategories((data || []) as unknown as { id: string; name: string }[]);
   };
 
   const fetchHeldBills = async () => {
     if (!tenant || !activeOutlet || !user) return;
-    const { data } = await supabase.from('pos_held_bills' as any).select('*')
+    const { data } = await supabase.from('pos_held_bills' as never).select('*')
       .eq('tenant_id', tenant.id).eq('outlet_id', activeOutlet.id)
       .eq('cashier_id', user.id).order('created_at');
-    setHeldBills((data || []).map((h: any) => ({ ...h, items: h.items || [] })));
+    setHeldBills((data || []).map((h) => ({ ...h, items: h.items || [] })) as unknown as HeldBill[]);
   };
 
   const fetchLoyaltyProgram = async () => {
     if (!tenant) return;
-    const { data } = await supabase.from('pos_loyalty_programs' as any).select('*')
+    const { data } = await supabase.from('pos_loyalty_programs' as never).select('*')
       .eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle();
     setLoyaltyProgram(data as unknown as LoyaltyProgram | null);
   };
@@ -163,7 +163,7 @@ export default function POSKasirPage() {
   const fetchActivePromos = async () => {
     if (!tenant) return;
     const now = new Date().toISOString();
-    const { data } = await supabase.from('pos_promotions' as any).select('*')
+    const { data } = await supabase.from('pos_promotions' as never).select('*')
       .eq('tenant_id', tenant.id).eq('is_active', true)
       .or(`start_date.is.null,start_date.lte.${now}`)
       .or(`end_date.is.null,end_date.gte.${now}`);
@@ -174,7 +174,7 @@ export default function POSKasirPage() {
     if (!tenant) return;
     const { data } = await supabase.from('pos_customers' as any)
       .select('loyalty_points, loyalty_tier').eq('id', customerId).eq('tenant_id', tenant.id).maybeSingle();
-    if (data) { setCustomerPoints((data as any).loyalty_points || 0); setCustomerTier((data as any).loyalty_tier || 'Bronze'); }
+    if (data) { setCustomerPoints((data as unknown as { loyalty_points?: number }).loyalty_points || 0); setCustomerTier((data as unknown as { loyalty_tier?: string }).loyalty_tier || 'Bronze'); }
   };
 
   // ── Promosi ──────────────────────────────────────────────
@@ -438,7 +438,7 @@ export default function POSKasirPage() {
         await supabase.from('pos_voucher_usages' as any).insert({ voucher_id: appliedVoucher.id, sale_id: saleId, customer_id: selectedCustomer?.id || null, discount_given: voucherDiscount });
       }
       if (appliedPromo && promoDiscount > 0) {
-        await supabase.from('pos_promotions' as any).update({ used_count: (appliedPromo as any).used_count + 1 }).eq('id', appliedPromo.id);
+        await supabase.from('pos_promotions' as never).update({ used_count: (appliedPromo as any).used_count + 1 }).eq('id', appliedPromo.id);
       }
 
       setLastSale({
@@ -458,7 +458,7 @@ export default function POSKasirPage() {
   // ── Hold Bill ────────────────────────────────────────────
   const holdBill = async () => {
     if (!tenant || !activeOutlet || !user || cart.length === 0) return;
-    await supabase.from('pos_held_bills' as any).insert({
+    await supabase.from('pos_held_bills' as never).insert({
       tenant_id: tenant.id, outlet_id: activeOutlet.id, cashier_id: user.id,
       label: `Bill ${heldBills.length + 1}`,
       customer_name: selectedCustomer?.name || customerName || null,
@@ -470,7 +470,7 @@ export default function POSKasirPage() {
 
   const resumeBill = async (bill: HeldBill) => {
     setCart(bill.items); setDiscount(bill.discount_amount); setNotes(bill.notes); setCustomerName(bill.customer_name || '');
-    await supabase.from('pos_held_bills' as any).delete().eq('id', bill.id);
+    await supabase.from('pos_held_bills' as never).delete().eq('id', bill.id);
     await fetchHeldBills(); setHeldBillsDialog(false); toast.success('Transaksi dilanjutkan');
   };
 
