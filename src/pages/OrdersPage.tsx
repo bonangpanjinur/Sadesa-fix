@@ -33,6 +33,7 @@ interface BuyerOrderItem {
   quantity: number;
   product_name: string;
   product_price: number;
+  product_id?: string | null;
   products: { name: string; image_url: string | null } | null;
 }
 
@@ -47,6 +48,9 @@ interface BuyerOrder {
   is_self_delivery?: boolean;
   has_review?: boolean;
   payment_method?: string | null;
+  courier_id?: string | null;
+  courier_name?: string | null;
+  courier_rated?: boolean;
 }
 
 // Database-aligned status config
@@ -104,7 +108,10 @@ function getOrderProgress(status: string): number {
 }
 
 async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
-  let data: any[] | null = null;
+  type OrderRow = Omit<BuyerOrder, 'order_items'> & {
+    order_items?: BuyerOrderItem[];
+  };
+  let data: OrderRow[] | null = null;
 
   // Level 1: Full query with all relations including nested products
   const r1 = await supabase
@@ -114,7 +121,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
     .order("created_at", { ascending: false });
 
   if (!r1.error) {
-    data = r1.data;
+    data = r1.data as unknown as OrderRow[];
   } else {
     console.warn("L1 failed:", r1.error.message);
     const r2 = await supabase
@@ -123,7 +130,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
       .eq("buyer_id", userId)
       .order("created_at", { ascending: false });
     if (!r2.error) {
-      data = r2.data;
+      data = r2.data as unknown as OrderRow[];
     } else {
       console.warn("L2 failed:", r2.error.message);
       const r3 = await supabase
@@ -132,7 +139,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
         .eq("buyer_id", userId)
         .order("created_at", { ascending: false });
       if (!r3.error) {
-        data = r3.data;
+        data = r3.data as unknown as OrderRow[];
       } else {
         console.warn("L3 failed:", r3.error.message);
         const r4 = await supabase
@@ -141,7 +148,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
           .eq("buyer_id", userId)
           .order("created_at", { ascending: false });
         if (!r4.error) {
-          data = r4.data;
+          data = r4.data as unknown as OrderRow[];
         } else {
           throw new Error("All query levels failed: " + r4.error.message);
         }
@@ -151,16 +158,16 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
 
   // Fill missing product images
   if (data && data.length > 0) {
-    const needsImages = data.some((o: any) => o.order_items?.some((i: any) => i.product_id && !i.products));
+    const needsImages = data.some((o) => o.order_items?.some((i) => i.product_id && !i.products));
     if (needsImages) {
-      const productIds = [...new Set(data.flatMap((o: any) => (o.order_items || []).filter((i: any) => i.product_id && !i.products).map((i: any) => i.product_id)))] as string[];
+      const productIds = [...new Set(data.flatMap((o) => (o.order_items || []).filter((i) => i.product_id && !i.products).map((i) => i.product_id)))] as string[];
       if (productIds.length > 0) {
         const { data: productsData } = await supabase.from('products').select('id, name, image_url').in('id', productIds);
         if (productsData) {
           const productMap = Object.fromEntries(productsData.map(p => [p.id, p]));
-          data = data.map((o: any) => ({
+          data = data.map((o) => ({
             ...o,
-            order_items: (o.order_items || []).map((i: any) => ({
+            order_items: (o.order_items || []).map((i) => ({
               ...i,
               products: i.products || (i.product_id && productMap[i.product_id] ? { name: productMap[i.product_id].name, image_url: productMap[i.product_id].image_url } : null),
             })),
@@ -172,12 +179,12 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
 
   // Fill missing merchant user_id
   if (data && data.length > 0) {
-    const merchantIdsNeedingUserId = [...new Set(data.filter((o: any) => o.merchant_id && (!o.merchants || !o.merchants.user_id)).map((o: any) => o.merchant_id))] as string[];
+    const merchantIdsNeedingUserId = [...new Set(data.filter((o) => o.merchant_id && (!o.merchants || !o.merchants.user_id)).map((o) => o.merchant_id))] as string[];
     if (merchantIdsNeedingUserId.length > 0) {
       const { data: merchantsData } = await supabase.from('merchants').select('id, user_id, name, phone').in('id', merchantIdsNeedingUserId);
       if (merchantsData) {
         const merchantMap = Object.fromEntries(merchantsData.map(m => [m.id, m]));
-        data = data.map((o: any) => {
+        data = data.map((o) => {
           if (o.merchant_id && merchantMap[o.merchant_id]) {
             const m = merchantMap[o.merchant_id];
             return { ...o, merchants: { name: o.merchants?.name || m.name, phone: o.merchants?.phone || m.phone, user_id: o.merchants?.user_id || m.user_id } };
@@ -244,15 +251,16 @@ const OrdersPage = () => {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `buyer_id=eq.${user.id}` },
         (payload) => {
-          const newStatus = (payload.new as any).status;
+          const newOrder = payload.new as { id: string; status: string };
+          const newStatus = newOrder.status;
           queryClient.setQueryData<BuyerOrder[]>(['buyer-orders', user.id], (prev = []) => {
-            const oldOrder = prev.find(o => o.id === payload.new.id);
+            const oldOrder = prev.find(o => o.id === newOrder.id);
             if (oldOrder && oldOrder.status !== newStatus) {
               const statusLabel = STATUS_CONFIG[newStatus]?.label || newStatus;
-              toast({ title: `Pesanan #${(payload.new.id as string).substring(0, 8).toUpperCase()}`, description: `Status berubah: ${statusLabel}` });
+              toast({ title: `Pesanan #${newOrder.id.substring(0, 8).toUpperCase()}`, description: `Status berubah: ${statusLabel}` });
             }
             return prev.map(order =>
-              order.id === payload.new.id ? { ...order, status: newStatus } : order
+              order.id === newOrder.id ? { ...order, status: newStatus } : order
             );
           });
         }
@@ -423,7 +431,7 @@ const OrdersPage = () => {
               filteredOrders.map((order) => {
                 const firstItem = order.order_items?.[0];
                 // Support both image_url from DB and image from mapped Product interface
-                const imageUrl = firstItem?.products?.image_url || (firstItem?.products as any)?.image;
+                const imageUrl = firstItem?.products?.image_url;
                 const productName = firstItem?.product_name || firstItem?.products?.name || "Produk";
                 const itemCount = order.order_items?.length || 0;
                 const statusConf = STATUS_CONFIG[order.status] || STATUS_CONFIG.NEW;
@@ -525,7 +533,7 @@ const OrdersPage = () => {
                               >
                                 <X className="w-3 h-3 mr-1" /> Batalkan
                               </Button>
-                              {['NEW', 'PENDING_PAYMENT'].includes(order.status) && (order as any).payment_method !== 'COD' ? (
+                              {['NEW', 'PENDING_PAYMENT'].includes(order.status) && order.payment_method !== 'COD' ? (
                                 <Button
                                   size="sm"
                                   className="text-xs h-8 rounded-full px-4"
@@ -562,7 +570,7 @@ const OrdersPage = () => {
                                   <Star className="w-3 h-3 mr-1 fill-amber-400 text-amber-400" /> Beri Rating
                                 </Button>
                               )}
-                              {!(order as any).courier_rated && (order as any).courier_id && (
+                              {!order.courier_rated && order.courier_id && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -572,8 +580,8 @@ const OrdersPage = () => {
                                     setRatingOrder({
                                       id: order.id,
                                       orderNumber: order.id.slice(0, 8).toUpperCase(),
-                                      courierId: (order as any).courier_id,
-                                      courierName: (order as any).courier_name || 'Kurir',
+                                      courierId: order.courier_id!,
+                                      courierName: order.courier_name || 'Kurir',
                                     });
                                   }}
                                 >

@@ -59,6 +59,19 @@ interface CourierInfo {
   vehicle_type: string;
 }
 
+type OrderItem = {
+  id: string;
+  product_name: string;
+  quantity: number;
+  product_price: number;
+  subtotal: number;
+  product_id: string | null;
+  products?: { image_url: string | null } | null;
+};
+
+type DeliveryCardStatus = 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
+const DELIVERY_CARD_STATUSES: readonly DeliveryCardStatus[] = ['NEW', 'PROCESSING', 'ASSIGNED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
+
 export default function OrderTrackingPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
@@ -71,7 +84,7 @@ export default function OrderTrackingPage() {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState<{ type: ChatType; userId: string; name: string } | null>(null);
   const [merchantInfo, setMerchantInfo] = useState<{ userId: string; name: string } | null>(null);
-  const [orderItems, setOrderItems] = useState<Array<{ id: string; product_name: string; quantity: number; product_price: number; subtotal: number; product_id: string | null; products?: { image_url: string | null } | null }>>([]);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const courierRef = useRef<CourierInfo | null>(null);
   const [etaInfo, setEtaInfo] = useState<{ etaFormatted: string; distanceFormatted: string } | null>(null);
 
@@ -154,7 +167,7 @@ export default function OrderTrackingPage() {
         .from('order_items')
         .select('id, product_name, quantity, product_price, subtotal, product_id, products(image_url)')
         .eq('order_id', orderId);
-      setOrderItems((itemsData as any) || []);
+      setOrderItems((itemsData ?? []) as unknown as OrderItem[]);
 
       // Fetch merchant info for chat
       if (orderData.merchant_id) {
@@ -273,7 +286,7 @@ export default function OrderTrackingPage() {
         >
           <DeliveryStatusCard 
             order={{
-              status: order.status as any,
+              status: DELIVERY_CARD_STATUSES.includes(order.status as DeliveryCardStatus) ? order.status as DeliveryCardStatus : 'NEW',
               created_at: order.created_at,
               assigned_at: order.assigned_at,
               picked_up_at: order.picked_up_at,
