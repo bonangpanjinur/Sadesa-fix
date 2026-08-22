@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -21,11 +21,7 @@ export function PushNotificationSettings() {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
 
-  useEffect(() => {
-    checkStatus();
-  }, [user]);
-
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     const isSupported = await isPushSupported();
     setSupported(isSupported);
 
@@ -40,7 +36,11 @@ export function PushNotificationSettings() {
     }
 
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    checkStatus();
+  }, [checkStatus]);
 
   const handleToggle = async (enabled: boolean) => {
     if (!user) {

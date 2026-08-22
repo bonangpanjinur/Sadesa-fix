@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Megaphone, Send, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -31,11 +31,7 @@ export function GroupAnnouncementDialog({ groupId, open, onOpenChange }: GroupAn
   const [history, setHistory] = useState<Announcement[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  useEffect(() => {
-    if (open) fetchHistory();
-  }, [open, groupId]);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
       const { data } = await supabase
@@ -50,7 +46,11 @@ export function GroupAnnouncementDialog({ groupId, open, onOpenChange }: GroupAn
     } finally {
       setLoadingHistory(false);
     }
-  };
+  }, [groupId]);
+
+  useEffect(() => {
+    if (open) fetchHistory();
+  }, [open, fetchHistory]);
 
   const handleSend = async () => {
     if (!title.trim() || !message.trim()) {
