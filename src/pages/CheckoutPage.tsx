@@ -564,6 +564,7 @@ export default function CheckoutPage() {
           });
           if (stockError) {
             console.error('Stock decrement error:', stockError);
+            throw new Error('Stok produk tidak mencukupi atau produk sudah tidak tersedia');
           }
         }
 
