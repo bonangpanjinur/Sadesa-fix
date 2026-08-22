@@ -19,7 +19,7 @@ import { POSHeldBills } from '@/components/pos/kasir/POSHeldBills';
 import { QRPayDialog } from '@/components/pos/kasir/QRPayDialog';
 import { cn } from '@/lib/utils';
 import type {
-  CartItem, HeldBill, Customer, CustomerBalance, LastSale, ReceiptStore, LoyaltyProgram,
+  CartItem, HeldBill, Customer, CustomerBalance, LastSale, ReceiptStore, SaleRow, StockRow, RecipeRow, LoyaltyProgram,
   Promotion, Voucher, Product, Variant,
 } from '@/components/pos/kasir/types';
 
@@ -327,7 +327,7 @@ export default function POSKasirPage() {
     }
     try {
       const saleNumber = `TRX-${Date.now()}`;
-      const { data: sale, error } = await supabase.from('pos_sales' as any).insert({
+      const { data: sale, error } = await supabase.from('pos_sales' as never).insert({
         tenant_id: tenant.id, outlet_id: activeOutlet.id, sale_number: saleNumber,
         cashier_id: user.id, cashier_name: user.email,
         customer_id: selectedCustomer?.id || null,
@@ -342,9 +342,9 @@ export default function POSKasirPage() {
         loyalty_points_earned: pointsEarned, loyalty_points_redeemed: usePoints ? pointsToRedeem : 0, loyalty_discount: pointsDiscount,
       }).select().single();
       if (error) throw error;
-      const saleId = (sale as any).id;
+      const saleId = (sale as unknown as SaleRow).id;
 
-      await supabase.from('pos_sale_items' as any).insert(
+      await supabase.from('pos_sale_items' as never).insert(
         cart.map(item => ({
           sale_id: saleId, product_id: item.productId, variant_id: item.variantId || null,
           product_name: item.name, variant_name: item.variantName || null, qty: item.qty,
@@ -355,17 +355,18 @@ export default function POSKasirPage() {
       );
 
       for (const item of cart) {
-        const stockQuery = supabase.from('pos_stock' as any).select('id, quantity').eq('product_id', item.productId).eq('outlet_id', activeOutlet.id);
+        const stockQuery = supabase.from('pos_stock' as never).select('id, quantity').eq('product_id', item.productId).eq('outlet_id', activeOutlet.id);
         const { data: stockD } = item.variantId
           ? await stockQuery.eq('variant_id', item.variantId).single()
           : await stockQuery.is('variant_id', null).single();
         if (stockD) {
-          const newQty = Math.max(0, (stockD as any).quantity - item.qty);
-          await supabase.from('pos_stock' as any).update({ quantity: newQty }).eq('id', (stockD as any).id);
+          const stock = stockD as unknown as StockRow;
+          const newQty = Math.max(0, stock.quantity - item.qty);
+          await supabase.from('pos_stock' as never).update({ quantity: newQty }).eq('id', (stockD as unknown as StockRow).id);
           if (!item.variantId) {
-            await supabase.from('pos_stock_mutations' as any).insert({
+            await supabase.from('pos_stock_mutations' as never).insert({
               tenant_id: tenant.id, product_id: item.productId, outlet_id: activeOutlet.id,
-              type: 'sale', quantity: -item.qty, quantity_before: (stockD as any).quantity, quantity_after: newQty,
+              type: 'sale', quantity: -item.qty, quantity_before: (stockD as unknown as StockRow).quantity, quantity_after: newQty,
               reference_id: saleId, reference_type: 'pos_sale', created_by: user.id,
             });
           }
@@ -376,25 +377,25 @@ export default function POSKasirPage() {
       try {
         const productIds = [...new Set(cart.map(i => i.productId))];
         const { data: recipes } = await supabase
-          .from('pos_recipes' as any)
+          .from('pos_recipes' as never)
           .select('*, pos_raw_materials(id, name, current_stock, unit)')
           .in('product_id', productIds)
           .eq('tenant_id', tenant.id);
 
         if (recipes && recipes.length > 0) {
           for (const item of cart) {
-            const itemRecipes = (recipes as any[]).filter(r => r.product_id === item.productId);
+            const itemRecipes = (recipes as unknown as RecipeRow[]).filter(r => r.product_id === item.productId);
             for (const recipe of itemRecipes) {
-              const mat = recipe.pos_raw_materials as any;
+              const mat = recipe.pos_raw_materials;
               if (!mat) continue;
               const totalUsage = recipe.qty_needed * item.qty;
               const qtyBefore = mat.current_stock;
               const qtyAfter = Math.max(0, qtyBefore - totalUsage);
               await supabase
-                .from('pos_raw_materials' as any)
+                .from('pos_raw_materials' as never)
                 .update({ current_stock: qtyAfter, updated_at: new Date().toISOString() })
                 .eq('id', mat.id);
-              await supabase.from('pos_raw_material_mutations' as any).insert({
+              await supabase.from('pos_raw_material_mutations' as never).insert({
                 tenant_id: tenant.id,
                 outlet_id: activeOutlet.id,
                 raw_material_id: mat.id,
@@ -480,7 +481,7 @@ export default function POSKasirPage() {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
       (p.sku && p.sku.toLowerCase().includes(search.toLowerCase())) ||
       (p.barcode && p.barcode.includes(search));
-    const matchCat = filterCat === 'all' || (p as any).category_id === filterCat;
+    const matchCat = filterCat === 'all' || p.category_id === filterCat;
     return matchSearch && matchCat;
   });
 

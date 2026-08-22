@@ -109,6 +109,28 @@ export interface Voucher {
   end_date?: string | null;
 }
 
+export interface SaleRow {
+  id: string;
+}
+
+export interface StockRow {
+  id: string;
+  quantity: number;
+}
+
+export interface RawMaterialRow {
+  id: string;
+  name: string;
+  current_stock: number;
+  unit: string;
+}
+
+export interface RecipeRow {
+  product_id: string;
+  qty_needed: number;
+  pos_raw_materials: RawMaterialRow | null;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -124,6 +146,7 @@ export interface Product {
   is_active: boolean;
   pos_categories?: { name: string } | null;
   pos_stock?: { quantity: number }[];
+  category_id?: string | null;
 }
 
 export interface Variant {
