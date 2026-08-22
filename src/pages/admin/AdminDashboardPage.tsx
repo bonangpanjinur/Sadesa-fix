@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Store, MapPin, Bike, Clock, CheckCheck, X, Calendar, RefreshCw } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -66,7 +66,7 @@ export default function AdminDashboardPage() {
   const [bulkReason, setBulkReason] = useState('');
   const [bulkLoading, setBulkLoading] = useState(false);
 
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const now = new Date();
     switch (dateRange) {
       case '7days':
@@ -78,7 +78,7 @@ export default function AdminDashboardPage() {
       default:
         return { start: startOfDay(subDays(now, 14)), end: endOfDay(now), days: 14 };
     }
-  };
+  }, [dateRange]);
 
   // React Query: parallel fetching with caching (P3-01)
   const { data: pendingMerchants = [], isLoading: merchantsLoading } = useQuery<Merchant[]>({
@@ -145,7 +145,7 @@ export default function AdminDashboardPage() {
     }
     
     return result;
-  }, [orders, dateRange]);
+  }, [orders, getDateRange]);
 
 
   // Selection handlers
