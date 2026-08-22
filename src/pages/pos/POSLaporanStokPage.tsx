@@ -49,6 +49,10 @@ interface Mutation {
   productSku: string;
 }
 
+interface StockReportProduct { name: string; sku: string | null; unit: string | null; }
+interface StockReportRow { product_id: string; quantity: number; min_stock: number; pos_products?: StockReportProduct | null; }
+interface MutationReportRow { id: string; product_id: string; type: string; quantity: number; quantity_before: number | null; quantity_after: number | null; reference_type: string | null; notes: string | null; created_at: string; pos_products?: { name: string; sku: string | null } | null; }
+
 const MUTATION_TYPE_CONFIG: Record<string, { label: string; color: string; direction: 'in' | 'out' }> = {
   sale: { label: 'Penjualan', color: 'bg-red-100 text-red-700', direction: 'out' },
   purchase: { label: 'Pembelian', color: 'bg-emerald-100 text-emerald-700', direction: 'in' },
@@ -81,11 +85,11 @@ export default function POSLaporanStokPage() {
 
     try {
       const [stockRes, mutRes] = await Promise.all([
-        supabase.from('pos_stock' as any)
+        supabase.from('pos_stock' as never)
           .select('*, pos_products(id, name, sku, unit)')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id),
-        supabase.from('pos_stock_mutations' as any)
+        supabase.from('pos_stock_mutations' as never)
           .select('*, pos_products(name, sku)')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
@@ -95,11 +99,11 @@ export default function POSLaporanStokPage() {
           .limit(500),
       ]);
 
-      const stocks = (stockRes.data || []) as any[];
-      const muts = (mutRes.data || []) as any[];
+      const stocks = (stockRes.data || []) as unknown as StockReportRow[];
+      const muts = (mutRes.data || []) as unknown as MutationReportRow[];
 
       const mutMap: Record<string, { in: number; out: number; sales: number; purchase: number; adjust: number }> = {};
-      muts.forEach((m: any) => {
+      muts.forEach((m) => {
         const id = m.product_id;
         if (!mutMap[id]) mutMap[id] = { in: 0, out: 0, sales: 0, purchase: 0, adjust: 0 };
         const qty = Math.abs(Number(m.quantity));
@@ -111,7 +115,7 @@ export default function POSLaporanStokPage() {
         if (m.type?.includes('adjust')) mutMap[id].adjust += qty;
       });
 
-      const summary: StokSummary[] = stocks.map((s: any) => ({
+      const summary: StokSummary[] = stocks.map((s) => ({
         productId: s.product_id,
         productName: s.pos_products?.name || 'Produk Terhapus',
         sku: s.pos_products?.sku || '-',
@@ -127,7 +131,7 @@ export default function POSLaporanStokPage() {
 
       setStokSummary(summary);
       setLowStock(summary.filter(s => s.currentStock <= s.minStock));
-      setMutations(muts.map((m: any) => ({
+      setMutations(muts.map((m) => ({
         id: m.id,
         type: m.type,
         quantity: Number(m.quantity),
