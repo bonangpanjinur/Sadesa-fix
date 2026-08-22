@@ -46,7 +46,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     try {
       const { data } = await supabase
-        .from('pos_tenants' as any)
+        .from('pos_tenants')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -60,7 +60,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
     if (!tenant) return;
     try {
       const { data } = await supabase
-        .from('pos_outlets' as any)
+        .from('pos_outlets')
         .select('*')
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)

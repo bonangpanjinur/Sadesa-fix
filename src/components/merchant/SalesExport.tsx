@@ -8,6 +8,12 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+interface SalesOrderItem {
+  product_name: string;
+  quantity: number;
+  subtotal: number;
+}
+
 interface SalesExportProps {
   merchantId: string;
   merchantName?: string;
@@ -84,7 +90,7 @@ export function SalesExport({ merchantId, merchantName }: SalesExportProps) {
       const tableData = orders.map(o => [
         new Date(o.created_at).toLocaleDateString('id-ID'),
         `#${o.id.slice(0, 8)}`,
-        o.order_items?.map((i: any) => `${i.product_name} (${i.quantity}x)`).join(', ') || '-',
+        o.order_items?.map((i: SalesOrderItem) => `${i.product_name} (${i.quantity}x)`).join(', ') || '-',
         o.payment_method || '-',
         formatPrice(o.subtotal),
         formatPrice(o.shipping_cost),
@@ -134,7 +140,7 @@ export function SalesExport({ merchantId, merchantName }: SalesExportProps) {
 
       const headers = 'Tanggal,ID Pesanan,Produk,Metode Bayar,Subtotal,Ongkir,Total\n';
       const rows = orders.map(o =>
-        `${new Date(o.created_at).toLocaleDateString('id-ID')},${o.id.slice(0, 8)},"${o.order_items?.map((i: any) => `${i.product_name}(${i.quantity}x)`).join('; ') || '-'}",${o.payment_method || '-'},${o.subtotal},${o.shipping_cost},${o.total}`
+        `${new Date(o.created_at).toLocaleDateString('id-ID')},${o.id.slice(0, 8)},"${o.order_items?.map((i: SalesOrderItem) => `${i.product_name}(${i.quantity}x)`).join('; ') || '-'}",${o.payment_method || '-'},${o.subtotal},${o.shipping_cost},${o.total}`
       ).join('\n');
 
       const blob = new Blob([headers + rows], { type: 'text/csv' });

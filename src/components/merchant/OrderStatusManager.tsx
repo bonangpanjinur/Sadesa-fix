@@ -56,7 +56,7 @@ interface OrderStatusManagerProps {
   merchantId: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ComponentType<any> }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   'PENDING_CONFIRMATION': { label: 'Konfirmasi', color: 'bg-warning', icon: Clock },
   'PENDING_PAYMENT': { label: 'Menunggu Bayar', color: 'bg-warning', icon: CreditCard },
   'NEW': { label: 'Baru', color: 'bg-info', icon: Package },
@@ -110,7 +110,13 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
   const updateOrderStatus = async (orderId: string, newStatus: string, courierId?: string | null) => {
     setUpdating(true);
     try {
-      const updateData: Record<string, any> = { 
+      const updateData: {
+        status: string;
+        updated_at: string;
+        confirmed_at?: string;
+        courier_id?: string;
+        assigned_at?: string;
+      } = { 
         status: newStatus,
         updated_at: new Date().toISOString()
       };

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, Navigation, Loader2, WifiOff, CheckCircle } from 'lucide-react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -25,7 +26,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
   const [error, setError] = useState<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const isInitialMount = useRef(true);
 
@@ -83,7 +84,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
     );
 
     // Initialize broadcast channel
-    const channel = supabase.channel(`courier-tracking-${courierId}`) as any;
+    const channel = supabase.channel(`courier-tracking-${courierId}`);
     channel.subscribe((status: string) => {
       if (status === 'SUBSCRIBED') {
         channelRef.current = channel;
