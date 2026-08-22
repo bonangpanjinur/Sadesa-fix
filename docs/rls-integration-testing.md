@@ -43,3 +43,17 @@ Fixture harus dibuat pada project Supabase test atau staging, bukan production. 
 | Authenticated user membaca password reset token | Tidak ada baris yang terlihat; idealnya ditolak dengan `42501`. |
 
 Suite ini adalah baseline awal. Tahap berikutnya sebaiknya menambahkan test untuk insert/update/delete, outlet-level access POS, withdrawal, courier assignment, dan role escalation. Untuk test mutation, setiap fixture harus memiliki cleanup atau memakai transaction/RPC khusus test agar data tidak tertinggal.
+
+## Mutation dan POS outlet fixture
+
+Mutation suite juga membutuhkan environment variable berikut:
+
+```bash
+export RLS_TEST_POS_TENANT_OWN_ID="<tenant-yang-dimiliki-merchant-fixture>"
+export RLS_TEST_POS_TENANT_OTHER_ID="<tenant-milik-tenant-lain>"
+export RLS_TEST_POS_OUTLET_OWN_ID="<outlet-tenant-sendiri>"
+export RLS_TEST_POS_OUTLET_OTHER_ID="<outlet-tenant-lain>"
+export RLS_TEST_POS_PRODUCT_OTHER_ID="<produk-pos-tenant-lain>"
+```
+
+Skenario delete menggunakan `RLS_TEST_POS_OUTLET_OTHER_ID`. Karena operasi delete bersifat nyata, ID tersebut harus menunjuk ke outlet disposable pada project staging/test. Jangan menunjuk ke outlet produksi. Test akan memeriksa bahwa operasi lintas tenant menghasilkan baris kosong atau error authorization `42501`. Jika operasi ternyata berhasil karena policy salah, test akan gagal; operasi insert memiliki cleanup defensif, sedangkan fixture delete tetap harus dipulihkan dari staging seed.

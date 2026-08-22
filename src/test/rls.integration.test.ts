@@ -12,6 +12,11 @@ type RlsConfig = {
   merchantOtherId: string;
   buyerOwnOrderId: string;
   buyerOtherOrderId: string;
+  posTenantOwnId: string;
+  posTenantOtherId: string;
+  posOutletOwnId: string;
+  posOutletOtherId: string;
+  posProductOtherId: string;
 };
 
 function required(name: string): string {
@@ -35,6 +40,11 @@ function loadConfig(): RlsConfig | null {
     merchantOtherId: required('RLS_TEST_MERCHANT_OTHER_ID'),
     buyerOwnOrderId: required('RLS_TEST_BUYER_OWN_ORDER_ID'),
     buyerOtherOrderId: required('RLS_TEST_BUYER_OTHER_ORDER_ID'),
+    posTenantOwnId: required('RLS_TEST_POS_TENANT_OWN_ID'),
+    posTenantOtherId: required('RLS_TEST_POS_TENANT_OTHER_ID'),
+    posOutletOwnId: required('RLS_TEST_POS_OUTLET_OWN_ID'),
+    posOutletOtherId: required('RLS_TEST_POS_OUTLET_OTHER_ID'),
+    posProductOtherId: required('RLS_TEST_POS_PRODUCT_OTHER_ID'),
   };
 }
 
@@ -120,6 +130,70 @@ describeRls('RLS integration: multi-tenant isolation', () => {
 
     expect(data || []).toHaveLength(0);
     expect(error === null || error?.code === '42501').toBe(true);
+  });
+
+  it('merchant can read own POS outlet but not another tenant outlet', async () => {
+    const { data, error } = await merchant
+      .from('pos_outlets')
+      .select('id, tenant_id')
+      .in('id', [config!.posOutletOwnId, config!.posOutletOtherId]);
+
+    expect(error).toBeNull();
+    expect((data || []).map((row) => row.id)).toContain(config!.posOutletOwnId);
+    expect((data || []).map((row) => row.id)).not.toContain(config!.posOutletOtherId);
+  });
+
+  it('merchant cannot insert a POS outlet into another tenant', async () => {
+    const probeId = crypto.randomUUID();
+    const { data, error } = await merchant
+      .from('pos_outlets')
+      .insert({ id: probeId, tenant_id: config!.posTenantOtherId, name: 'RLS INSERT PROBE' })
+      .select('id')
+      .maybeSingle();
+
+    expect(data).toBeNull();
+    expect(error === null || error?.code === '42501').toBe(true);
+
+    // Defensive cleanup for a misconfigured staging policy. This never runs
+    // against production because the suite requires explicit fixture mode.
+    if (data?.id) await merchant.from('pos_outlets').delete().eq('id', probeId);
+  });
+
+  it('merchant cannot update a POS product from another tenant', async () => {
+    const { data, error } = await merchant
+      .from('pos_products')
+      .update({ name: 'RLS UPDATE PROBE' })
+      .eq('id', config!.posProductOtherId)
+      .select('id')
+      .maybeSingle();
+
+    expect(data).toBeNull();
+    expect(error === null || error?.code === '42501').toBe(true);
+  });
+
+  it('merchant cannot delete an outlet from another tenant', async () => {
+    const { data, error } = await merchant
+      .from('pos_outlets')
+      .delete()
+      .eq('id', config!.posOutletOtherId)
+      .eq('tenant_id', config!.posTenantOtherId)
+      .select('id')
+      .maybeSingle();
+
+    expect(data).toBeNull();
+    expect(error === null || error?.code === '42501').toBe(true);
+  });
+
+  it('merchant cannot read stock belonging to another POS tenant', async () => {
+    const { data, error } = await merchant
+      .from('pos_stock')
+      .select('id, tenant_id, outlet_id')
+      .eq('tenant_id', config!.posTenantOtherId)
+      .eq('outlet_id', config!.posOutletOtherId)
+      .limit(10);
+
+    expect(error).toBeNull();
+    expect(data || []).toHaveLength(0);
   });
 });
 
