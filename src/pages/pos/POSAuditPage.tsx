@@ -27,8 +27,8 @@ interface AuditLog {
   entity_type: string | null;
   entity_id: string | null;
   description: string;
-  old_values: any;
-  new_values: any;
+  old_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
   created_at: string;
   outlet_id: string | null;
 }
@@ -106,7 +106,7 @@ export default function POSAuditPage() {
     const end = endOfDay(parseISO(dateEnd));
 
     try {
-      let query = supabase.from('pos_audit_logs' as any)
+      let query = supabase.from('pos_audit_logs' as never)
         .select('*')
         .eq('tenant_id', tenant.id)
         .gte('created_at', start.toISOString())
@@ -121,7 +121,7 @@ export default function POSAuditPage() {
       const { data } = await query;
       setAuditLogs((data || []) as unknown as AuditLog[]);
 
-      const { data: mutData } = await supabase.from('pos_stock_mutations' as any)
+      const { data: mutData } = await supabase.from('pos_stock_mutations' as never)
         .select('*, pos_products(name, sku)')
         .eq('tenant_id', tenant.id)
         .gte('created_at', start.toISOString())
@@ -141,7 +141,7 @@ export default function POSAuditPage() {
 
   const logUserActivity = async (action: string, module: string, description: string) => {
     if (!tenant || !user) return;
-    await supabase.from('pos_audit_logs' as any).insert({
+    await supabase.from('pos_audit_logs' as never).insert({
       tenant_id: tenant.id, outlet_id: activeOutlet?.id || null,
       user_id: user.id, user_name: user.email,
       action, module, description,
