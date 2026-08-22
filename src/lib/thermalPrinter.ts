@@ -7,7 +7,12 @@ const ESC = 0x1b;
 const GS  = 0x1d;
 const LF  = 0x0a;
 
-declare global { interface Navigator { serial: any; bluetooth: any; } }
+interface SerialPortLike { writable: WritableStream<Uint8Array> | null; open(options: { baudRate: number }): Promise<void>; close(): Promise<void>; }
+interface BluetoothCharacteristicLike { writeValueWithoutResponse(data: Uint8Array): Promise<void>; }
+interface BluetoothServerLike { getPrimaryService(uuid: string): Promise<{ getCharacteristic(uuid: string): Promise<BluetoothCharacteristicLike> }>; }
+interface BluetoothDeviceLike { name?: string; gatt: { connect(): Promise<BluetoothServerLike>; disconnect(): void } }
+
+declare global { interface Navigator { serial: { requestPort(): Promise<SerialPortLike> }; bluetooth: { requestDevice(options: unknown): Promise<BluetoothDeviceLike> }; } }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -159,7 +164,7 @@ function buildReceiptBytes(receipt: ReceiptData, paperWidth: PaperWidth): number
 // ─── USB Printer (Web Serial) ─────────────────────────────────────────────────
 
 export class USBPrinter {
-  private port: any = null;
+  private port: SerialPortLike | null = null;
   private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
   connected = false;
 
@@ -177,8 +182,8 @@ export class USBPrinter {
       this.writer = this.port.writable!.getWriter();
       this.connected = true;
       return true;
-    } catch (err: any) {
-      if (err.name === "NotFoundError") return false;
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "NotFoundError") return false;
       throw err;
     }
   }
@@ -223,8 +228,8 @@ const GENERIC_PRINTER_SERVICE = "000018f0-0000-1000-8000-00805f9b34fb";
 const GENERIC_PRINTER_CHAR    = "00002af1-0000-1000-8000-00805f9b34fb";
 
 export class BluetoothPrinter {
-  private device: any = null;
-  private txChar: any = null;
+  private device: BluetoothDeviceLike | null = null;
+  private txChar: BluetoothCharacteristicLike | null = null;
   connected = false;
   deviceName = "";
 
@@ -264,8 +269,8 @@ export class BluetoothPrinter {
 
       this.connected = true;
       return true;
-    } catch (err: any) {
-      if (err.name === "NotFoundError" || err.name === "NotAllowedError") return false;
+    } catch (err: unknown) {
+      if (err instanceof DOMException && (err.name === "NotFoundError" || err.name === "NotAllowedError")) return false;
       throw err;
     }
   }

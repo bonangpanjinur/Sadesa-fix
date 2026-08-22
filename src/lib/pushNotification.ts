@@ -56,7 +56,7 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
     await navigator.serviceWorker.ready;
 
     // Subscribe to push
-    const subscription = await (registration as any).pushManager.subscribe({
+    const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
     });
@@ -65,7 +65,7 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
 
     // Save to database
     const { error } = await supabase
-      .from('push_subscriptions' as any)
+      .from('push_subscriptions' as never)
       .upsert({
         user_id: userId,
         endpoint: subscriptionJson.endpoint!,
@@ -89,14 +89,14 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
 export async function unsubscribeFromPush(userId: string): Promise<boolean> {
   try {
     const registration = await navigator.serviceWorker.ready;
-    const subscription = await (registration as any).pushManager.getSubscription();
+    const subscription = await registration.pushManager.getSubscription();
 
     if (subscription) {
       await subscription.unsubscribe();
 
       // Remove from database
       await supabase
-        .from('push_subscriptions' as any)
+        .from('push_subscriptions' as never)
         .delete()
         .eq('user_id', userId)
         .eq('endpoint', subscription.endpoint);
@@ -114,13 +114,13 @@ export async function getSubscriptionStatus(userId: string): Promise<boolean> {
     if (!(await isPushSupported())) return false;
 
     const registration = await navigator.serviceWorker.ready;
-    const subscription = await (registration as any).pushManager.getSubscription();
+    const subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) return false;
 
     // Verify in database
     const { data } = await supabase
-      .from('push_subscriptions' as any)
+      .from('push_subscriptions' as never)
       .select('id')
       .eq('user_id', userId)
       .eq('endpoint', subscription.endpoint)
