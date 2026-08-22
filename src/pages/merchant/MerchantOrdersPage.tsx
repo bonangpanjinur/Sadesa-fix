@@ -79,20 +79,6 @@ export default function MerchantOrdersPage() {
     onNewOrder: handleNewOrder,
   });
 
-  // Handle orderId query parameter from notification click
-  useEffect(() => {
-    const orderIdFromUrl = searchParams.get('orderId');
-    if (orderIdFromUrl && orders.length > 0) {
-      const order = orders.find(o => o.id === orderIdFromUrl);
-      if (order) {
-        viewOrderDetail(order);
-        // Clean up URL after opening detail
-        searchParams.delete('orderId');
-        setSearchParams(searchParams, { replace: true });
-      }
-    }
-  }, [searchParams, setSearchParams, orders]);
-
   // Connection status listener
   useEffect(() => {
     const handleOnline = () => setIsConnected(true);
@@ -124,6 +110,20 @@ export default function MerchantOrdersPage() {
       setProofDisplayUrl(signed);
     }
   }, []);
+
+  // Handle orderId query parameter from notification click
+  useEffect(() => {
+    const orderIdFromUrl = searchParams.get('orderId');
+    if (orderIdFromUrl && orders.length > 0) {
+      const order = orders.find(o => o.id === orderIdFromUrl);
+      if (order) {
+        viewOrderDetail(order);
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('orderId');
+        setSearchParams(nextParams, { replace: true });
+      }
+    }
+  }, [searchParams, setSearchParams, orders, viewOrderDetail]);
 
   const openPrintDialog = useCallback(async (order: OrderRow) => {
     setSelectedOrder(order);
