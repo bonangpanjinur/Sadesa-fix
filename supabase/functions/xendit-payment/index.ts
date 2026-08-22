@@ -1,188 +1,175 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://desamart.id",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
 interface CreateInvoiceRequest {
   order_id: string;
-  amount: number;
-  payer_email: string;
-  description: string;
+}
+
+interface OrderRecord {
+  id: string;
+  buyer_id: string;
+  total: number;
+  status: string;
+  payment_status: string | null;
+  payment_invoice_id: string | null;
+  payment_invoice_url: string | null;
 }
 
 interface XenditSettings {
   enabled: boolean;
   secret_key?: string;
-  public_key?: string;
-  is_production?: boolean;
-  callback_token?: string;
+}
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function getBearerToken(req: Request): string | null {
+  const value = req.headers.get("authorization") || "";
+  return value.startsWith("Bearer ") ? value.slice(7) : null;
+}
+
+function getUserClient(supabaseUrl: string, anonKey: string, token: string): SupabaseClient {
+  return createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
 }
 
 async function getXenditSettings(supabaseUrl: string, serviceRoleKey: string): Promise<XenditSettings> {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false }
+    auth: { persistSession: false },
   });
-
   const { data, error } = await supabaseAdmin
     .from("app_settings")
     .select("value")
     .eq("key", "payment_xendit")
     .maybeSingle();
 
-  if (error) {
-    throw new Error("Failed to fetch Xendit settings: " + error.message);
-  }
-
-  if (!data) {
-    throw new Error("Xendit settings not found");
-  }
-
+  if (error || !data) throw new Error("Payment provider is unavailable");
   const settings = data.value as XenditSettings;
-
-  if (!settings.enabled) {
-    throw new Error("Xendit payment is disabled");
-  }
-
-  if (!settings.secret_key) {
-    throw new Error("Xendit secret key not configured");
-  }
-
+  if (!settings.enabled || !settings.secret_key) throw new Error("Payment provider is unavailable");
   return settings;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const token = getBearerToken(req);
+  if (!supabaseUrl || !serviceRoleKey || !anonKey || !token) return json({ error: "Unauthorized" }, 401);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false }
-    });
-
+    const userClient = getUserClient(supabaseUrl, anonKey, token);
+    const { data: userData, error: userError } = await userClient.auth.getUser();
+    if (userError || !userData.user) return json({ error: "Unauthorized" }, 401);
+    const user = userData.user;
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    const settings = await getXenditSettings(supabaseUrl, serviceRoleKey);
+    const authHeader = `Basic ${btoa(`${settings.secret_key}:`)}`;
     const url = new URL(req.url);
     const action = url.pathname.split("/").pop();
 
-    // Get Xendit settings from database
-    const xenditSettings = await getXenditSettings(supabaseUrl, serviceRoleKey);
-    const xenditSecretKey = xenditSettings.secret_key!;
-    
-    const xenditBaseUrl = "https://api.xendit.co";
-    const authHeader = `Basic ${btoa(xenditSecretKey + ":")}`;
-
     if (action === "create-invoice" && req.method === "POST") {
-      // Create invoice for order payment
-      const body: CreateInvoiceRequest = await req.json();
-      
-      const invoicePayload = {
-        external_id: body.order_id,
-        amount: body.amount,
-        payer_email: body.payer_email,
-        description: body.description,
-        invoice_duration: 86400, // 24 hours
-        currency: "IDR",
-        success_redirect_url: `${req.headers.get("origin")}/orders?payment=success`,
-        failure_redirect_url: `${req.headers.get("origin")}/orders?payment=failed`,
-      };
+      const body = (await req.json()) as Partial<CreateInvoiceRequest>;
+      if (!body.order_id || !/^[0-9a-f-]{36}$/i.test(body.order_id)) {
+        return json({ error: "Invalid order" }, 400);
+      }
 
-      const response = await fetch(`${xenditBaseUrl}/v2/invoices`, {
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from("orders")
+        .select("id, buyer_id, total, status, payment_status, payment_invoice_id, payment_invoice_url")
+        .eq("id", body.order_id)
+        .eq("buyer_id", user.id)
+        .maybeSingle();
+      if (orderError || !order) return json({ error: "Order not found" }, 404);
+
+      const current = order as OrderRecord;
+      if (["CANCELLED", "DONE"].includes(current.status) || current.payment_status === "PAID") {
+        return json({ error: "Order cannot be paid" }, 409);
+      }
+      if (!Number.isInteger(current.total) || current.total <= 0) return json({ error: "Invalid order total" }, 409);
+
+      // Reuse an existing invoice for retries instead of creating duplicates.
+      if (current.payment_invoice_id && current.payment_invoice_url) {
+        return json({
+          success: true,
+          invoice_id: current.payment_invoice_id,
+          invoice_url: current.payment_invoice_url,
+        });
+      }
+
+      const origin = req.headers.get("origin");
+      const allowedOrigin = origin === "https://desamart.id" ? origin : "https://desamart.id";
+      const response = await fetch("https://api.xendit.co/v2/invoices", {
         method: "POST",
-        headers: {
-          "Authorization": authHeader,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(invoicePayload),
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          external_id: current.id,
+          amount: current.total,
+          payer_email: user.email,
+          description: `Pembayaran pesanan ${current.id}`,
+          invoice_duration: 86400,
+          currency: "IDR",
+          success_redirect_url: `${allowedOrigin}/orders?payment=success`,
+          failure_redirect_url: `${allowedOrigin}/orders?payment=failed`,
+        }),
       });
-
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Xendit API error:", errorData);
-        throw new Error(`Xendit API error: ${response.status}`);
+        console.error("Xendit invoice request failed", { status: response.status, orderId: current.id });
+        return json({ error: "Payment provider error" }, 502);
       }
 
       const invoice = await response.json();
-
-      // Update order with payment info
-      await supabaseAdmin
+      const { error: updateError } = await supabaseAdmin
         .from("orders")
-        .update({
-          payment_invoice_id: invoice.id,
-          payment_invoice_url: invoice.invoice_url,
-          payment_status: "PENDING",
-        })
-        .eq("id", body.order_id);
+        .update({ payment_invoice_id: invoice.id, payment_invoice_url: invoice.invoice_url, payment_status: "PENDING" })
+        .eq("id", current.id)
+        .eq("buyer_id", user.id)
+        .neq("payment_status", "PAID")
+        .is("payment_invoice_id", null);
+      if (updateError) {
+        console.error("Failed to persist payment invoice", { orderId: current.id, error: updateError.message });
+        return json({ error: "Unable to initialize payment" }, 500);
+      }
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          invoice_id: invoice.id,
-          invoice_url: invoice.invoice_url,
-          expiry_date: invoice.expiry_date,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
-      );
+      return json({ success: true, invoice_id: invoice.id, invoice_url: invoice.invoice_url, expiry_date: invoice.expiry_date });
     }
 
     if (action === "check-status" && req.method === "GET") {
       const invoiceId = url.searchParams.get("invoice_id");
-      
-      if (!invoiceId) {
-        throw new Error("Invoice ID is required");
-      }
+      if (!invoiceId || invoiceId.length > 200) return json({ error: "Invalid invoice" }, 400);
 
-      const response = await fetch(`${xenditBaseUrl}/v2/invoices/${invoiceId}`, {
-        method: "GET",
-        headers: {
-          "Authorization": authHeader,
-        },
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from("orders")
+        .select("id, payment_invoice_id")
+        .eq("payment_invoice_id", invoiceId)
+        .eq("buyer_id", user.id)
+        .maybeSingle();
+      if (orderError || !order) return json({ error: "Invoice not found" }, 404);
+
+      const response = await fetch(`https://api.xendit.co/v2/invoices/${encodeURIComponent(invoiceId)}`, {
+        headers: { Authorization: authHeader },
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to check invoice status: ${response.status}`);
-      }
-
+      if (!response.ok) return json({ error: "Payment provider error" }, 502);
       const invoice = await response.json();
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          status: invoice.status,
-          paid_at: invoice.paid_at,
-          payment_method: invoice.payment_method,
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
-      );
+      return json({ success: true, status: invoice.status, paid_at: invoice.paid_at, payment_method: invoice.payment_method });
     }
 
-    return new Response(
-      JSON.stringify({ error: "Invalid action" }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      }
-    );
+    return json({ error: "Invalid action" }, 400);
   } catch (error) {
-    console.error("Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    console.error("Payment function error", error instanceof Error ? error.message : "unknown");
+    return json({ error: "Payment service unavailable" }, 500);
   }
 });

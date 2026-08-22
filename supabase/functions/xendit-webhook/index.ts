@@ -2,8 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://desamart.id",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-callback-token",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface XenditInvoiceCallback {
@@ -17,131 +18,100 @@ interface XenditInvoiceCallback {
 }
 
 interface XenditSettings {
-  enabled: boolean;
   callback_token?: string;
 }
 
-async function getXenditSettings(supabaseUrl: string, serviceRoleKey: string): Promise<XenditSettings | null> {
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false }
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
 
-  const { data, error } = await supabaseAdmin
-    .from("app_settings")
-    .select("value")
-    .eq("key", "payment_xendit")
-    .maybeSingle();
-
-  if (error) {
-    console.error("Failed to fetch Xendit settings:", error.message);
-    return null;
-  }
-
-  if (!data) {
-    return null;
-  }
-
+async function getSettings(supabaseUrl: string, serviceRoleKey: string): Promise<XenditSettings | null> {
+  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+  const { data, error } = await admin.from("app_settings").select("value").eq("key", "payment_xendit").maybeSingle();
+  if (error || !data) return null;
   return data.value as XenditSettings;
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!supabaseUrl || !serviceRoleKey) return json({ error: "Webhook unavailable" }, 503);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false }
-    });
-
-    // Get Xendit settings
-    const xenditSettings = await getXenditSettings(supabaseUrl, serviceRoleKey);
-    
-    // SECURITY: Callback token validation is MANDATORY
-    // Reject all webhooks if token is not configured
-    if (!xenditSettings?.callback_token) {
-      console.error("Webhook callback token not configured in app_settings");
-      return new Response(
-        JSON.stringify({ error: "Webhook not configured" }),
-        { headers: corsHeaders, status: 503 }
-      );
-    }
-
-    // Verify callback token
+    const settings = await getSettings(supabaseUrl, serviceRoleKey);
     const callbackToken = req.headers.get("x-callback-token");
-    if (!callbackToken || callbackToken !== xenditSettings.callback_token) {
-      console.error("Invalid or missing callback token");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { headers: corsHeaders, status: 401 }
-      );
+    if (!settings?.callback_token || !callbackToken || callbackToken !== settings.callback_token) {
+      return json({ error: "Unauthorized" }, 401);
     }
 
-    const body: XenditInvoiceCallback = await req.json();
-    console.log("Received webhook:", JSON.stringify(body));
-
-    // Determine payment status based on Xendit status
-    let paymentStatus: string;
-    let orderStatus: string | null = null;
-
-    switch (body.status) {
-      case "PAID":
-        paymentStatus = "PAID";
-        orderStatus = "CONFIRMED"; // Auto-confirm order when paid
-        break;
-      case "EXPIRED":
-        paymentStatus = "EXPIRED";
-        orderStatus = "CANCELLED";
-        break;
-      default:
-        paymentStatus = "PENDING";
-        break;
+    const body = (await req.json()) as Partial<XenditInvoiceCallback>;
+    if (
+      !body.id ||
+      !body.external_id ||
+      !body.status ||
+      !['PAID', 'EXPIRED', 'PENDING'].includes(body.status) ||
+      !/^[0-9a-f-]{36}$/i.test(body.external_id)
+    ) {
+      return json({ error: "Invalid webhook" }, 400);
     }
 
-    // Update order with payment status
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    const { data: order, error: orderError } = await admin
+      .from("orders")
+      .select("id, total, payment_invoice_id, payment_status, status")
+      .eq("id", body.external_id)
+      .maybeSingle();
+    if (orderError || !order) return json({ error: "Order not found" }, 404);
+
+    // The provider invoice must be the invoice recorded for this order.
+    if (!order.payment_invoice_id || order.payment_invoice_id !== body.id) {
+      return json({ error: "Invoice mismatch" }, 409);
+    }
+    if (!Number.isInteger(order.total) || order.total <= 0) return json({ error: "Invalid order" }, 409);
+    if (body.status === "PAID" && body.paid_amount !== order.total) {
+      return json({ error: "Payment amount mismatch" }, 409);
+    }
+
+    const eventKey = `xendit:${body.id}:${body.status}:${body.paid_at || ""}`;
+    const { error: eventError } = await admin
+      .from("payment_webhook_events")
+      .insert({ provider: "xendit", event_key: eventKey, invoice_id: body.id, order_id: order.id, status: body.status });
+    if (eventError?.code === "23505") return json({ success: true, duplicate: true });
+    if (eventError) {
+      console.error("Webhook idempotency insert failed", { code: eventError.code });
+      return json({ error: "Webhook unavailable" }, 503);
+    }
+
+    const currentStatus = order.payment_status || "UNPAID";
+    if (currentStatus === "PAID" && body.status !== "PAID") return json({ success: true, ignored: true });
+
     const updateData: Record<string, unknown> = {
-      payment_status: paymentStatus,
-      payment_paid_at: body.paid_at || null,
+      payment_status: body.status,
+      payment_paid_at: body.status === "PAID" ? body.paid_at || new Date().toISOString() : null,
       payment_method: body.payment_method || null,
       payment_channel: body.payment_channel || null,
     };
+    if (body.status === "PAID") updateData.status = "CONFIRMED";
+    if (body.status === "EXPIRED" && currentStatus !== "PAID") updateData.status = "CANCELLED";
 
-    if (orderStatus) {
-      updateData.status = orderStatus;
-    }
-
-    const { error: updateError } = await supabaseAdmin
-      .from("orders")
-      .update(updateData)
-      .eq("id", body.external_id);
-
+    const { error: updateError } = await admin.from("orders").update(updateData).eq("id", order.id).eq("payment_invoice_id", body.id);
     if (updateError) {
-      console.error("Error updating order:", updateError);
-      throw new Error(`Failed to update order: ${updateError.message}`);
+      // Do not leave an idempotency row behind when the business update fails;
+      // the provider must be able to retry the callback safely.
+      await admin.from("payment_webhook_events").delete().eq("provider", "xendit").eq("event_key", eventKey);
+      console.error("Webhook order update failed", { orderId: order.id, code: updateError.code });
+      return json({ error: "Webhook unavailable" }, 503);
     }
 
-    console.log(`Order ${body.external_id} updated to payment_status: ${paymentStatus}`);
-
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+    return json({ success: true });
   } catch (error) {
-    console.error("Webhook error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    console.error("Webhook processing failed", error instanceof Error ? error.message : "unknown");
+    return json({ error: "Webhook unavailable" }, 500);
   }
 });

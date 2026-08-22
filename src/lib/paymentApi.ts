@@ -2,9 +2,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface CreatePaymentRequest {
   orderId: string;
-  amount: number;
-  payerEmail: string;
-  description: string;
 }
 
 export interface PaymentInvoice {
@@ -24,15 +21,14 @@ export interface PaymentStatus {
 const API_BASE = '/api';
 
 export async function createPaymentInvoice(request: CreatePaymentRequest): Promise<PaymentInvoice> {
+  const { data: { session } } = await supabase.auth.getSession();
   const response = await fetch(`${API_BASE}/xendit/create-invoice`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      order_id: request.orderId,
-      amount: request.amount,
-      payer_email: request.payerEmail,
-      description: request.description,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify({ order_id: request.orderId }),
   });
 
   if (!response.ok) {
@@ -44,7 +40,10 @@ export async function createPaymentInvoice(request: CreatePaymentRequest): Promi
 }
 
 export async function checkPaymentStatus(invoiceId: string): Promise<PaymentStatus> {
-  const response = await fetch(`${API_BASE}/xendit/check-status?invoice_id=${invoiceId}`);
+  const { data: { session } } = await supabase.auth.getSession();
+  const response = await fetch(`${API_BASE}/xendit/check-status?invoice_id=${encodeURIComponent(invoiceId)}`, {
+    headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+  });
 
   if (!response.ok) {
     throw new Error('Failed to check payment status');

@@ -620,9 +620,6 @@ export default function CheckoutPage() {
           try {
             const invoice = await createPaymentInvoice({
               orderId: orderData.id,
-              amount: merchantTotal,
-              payerEmail: user.email || `${user.id}@placeholder.com`,
-              description: `Order dari ${merchantData.merchantName}`,
             });
 
             setInvoiceUrl(invoice.invoice_url);
