@@ -7,6 +7,9 @@ import { useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+type WishlistRow = { product_id: string };
+type RestockProduct = { id: string; name: string; merchants: { name: string } | null };
+
 export function useRestockNotification() {
   const { user } = useAuth();
 
@@ -16,37 +19,37 @@ export function useRestockNotification() {
     try {
       // Get user's wishlist products
       const { data: wishlist } = await supabase
-        .from('wishlists' as any)
+        .from('wishlists' as never)
         .select('product_id')
         .eq('user_id', user.id);
 
-      if (!wishlist || (wishlist as any[]).length === 0) return;
+      if (!wishlist || (wishlist as unknown as WishlistRow[]).length === 0) return;
 
-      const productIds = (wishlist as any[]).map((w) => w.product_id);
+      const productIds = (wishlist as unknown as WishlistRow[]).map((w) => w.product_id);
 
       // Check which wishlist products are back in stock
       const { data: products } = await supabase
-        .from('products' as any)
+        .from('products' as never)
         .select('id, name, stock, image_url, merchants(name)')
         .in('id', productIds)
         .gt('stock', 0)
         .eq('is_active', true);
 
-      if (!products || (products as any[]).length === 0) return;
+      if (!products || (products as unknown as RestockProduct[]).length === 0) return;
 
       // Get already notified products (stored in localStorage to avoid duplicates)
       const notifiedKey = `restock_notified_${user.id}`;
       const notified: string[] = JSON.parse(localStorage.getItem(notifiedKey) || '[]');
 
-      const newlyRestocked = (products as any[]).filter((p) => !notified.includes(p.id));
+      const newlyRestocked = (products as unknown as RestockProduct[]).filter((p) => !notified.includes(p.id));
       if (newlyRestocked.length === 0) return;
 
       // Send notifications for newly restocked products
       for (const product of newlyRestocked.slice(0, 5)) {
-        await supabase.from('notifications' as any).insert({
+        await supabase.from('notifications' as never).insert({
           user_id: user.id,
           title: '🛒 Produk Wishlist Restok!',
-          message: `${product.name} di ${(product.merchants as any)?.name || 'toko'} sudah tersedia kembali. Segera beli sebelum habis!`,
+          message: `${product.name} di ${product.merchants?.name || 'toko'} sudah tersedia kembali. Segera beli sebelum habis!`,
           type: 'product',
           link: `/product/${product.id}`,
           data: JSON.stringify({ product_id: product.id }),
@@ -76,7 +79,7 @@ export function useRestockNotification() {
  */
 export async function subscribeProductRestock(userId: string, productId: string) {
   try {
-    await supabase.from('push_subscriptions' as any).upsert({
+    await supabase.from('push_subscriptions' as never).upsert({
       user_id: userId,
       subscription_type: 'product_restock',
       target_id: productId,
@@ -88,7 +91,7 @@ export async function subscribeProductRestock(userId: string, productId: string)
 export async function unsubscribeProductRestock(userId: string, productId: string) {
   try {
     await supabase
-      .from('push_subscriptions' as any)
+      .from('push_subscriptions' as never)
       .update({ is_active: false })
       .eq('user_id', userId)
       .eq('subscription_type', 'product_restock')
