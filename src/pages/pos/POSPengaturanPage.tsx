@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Building2, Store, Plus, Pencil, Phone, MapPin, Printer, Wifi, Bluetooth, Usb, CheckCircle2, XCircle, TestTube2, Copy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCallback } from 'react';
 import {
   getPrinterSettings, savePrinterSettings, DEFAULT_SETTINGS,
   USBPrinter, BluetoothPrinter, WiFiPrinter, getUniversalPrinter,
@@ -78,10 +79,10 @@ export default function POSPengaturanPage() {
         setPrinterStatus('idle');
         setPrinterMsg('Tidak ada printer dipilih');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPrinterStatus('error');
-      setPrinterMsg(err.message);
-      toast.error(err.message);
+      setPrinterMsg(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -102,10 +103,10 @@ export default function POSPengaturanPage() {
         setPrinterStatus('idle');
         setPrinterMsg('Tidak ada perangkat dipilih');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPrinterStatus('error');
-      setPrinterMsg(err.message);
-      toast.error(err.message);
+      setPrinterMsg(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -119,10 +120,10 @@ export default function POSPengaturanPage() {
       setPrinterStatus('connected');
       setPrinterMsg(`Printer WiFi aktif: ${printerSettings.wifiIp}:${printerSettings.wifiPort}`);
       toast.success('Printer WiFi terhubung!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPrinterStatus('error');
-      setPrinterMsg(err.message);
-      toast.error(err.message);
+      setPrinterMsg(err instanceof Error ? err.message : String(err));
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -132,8 +133,8 @@ export default function POSPengaturanPage() {
     try {
       await uniPrinter.testPrint();
       toast.success('Test print berhasil dikirim!');
-    } catch (err: any) {
-      toast.error(`Test print gagal: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Test print gagal: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setTestingPrint(false);
     }
@@ -151,24 +152,25 @@ export default function POSPengaturanPage() {
     if (tenant) {
       setTenantForm({
         name: tenant.name || '',
-        phone: (tenant as any).phone || '',
-        address: (tenant as any).address || '',
-        receipt_header: (tenant as any).receipt_header || '',
-        receipt_footer: (tenant as any).receipt_footer || '',
+        phone: (tenant as unknown as { phone?: string }).phone || '',
+        address: (tenant as unknown as { address?: string }).address || '',
+        receipt_header: (tenant as unknown as { receipt_header?: string }).receipt_header || '',
+        receipt_footer: (tenant as unknown as { receipt_footer?: string }).receipt_footer || '',
         timezone: tenant.timezone || 'Asia/Jakarta',
         currency: tenant.currency || 'IDR',
       });
     } else {
       setIsNewTenant(true);
     }
-    if (tenant) fetchBrands();
   }, [tenant]);
 
-  const fetchBrands = async () => {
+  const fetchBrands = useCallback(async () => {
     if (!tenant) return;
-    const { data } = await supabase.from('pos_brands' as any).select('id, name').eq('tenant_id', tenant.id).order('name');
+    const { data } = await supabase.from('pos_brands' as never).select('id, name').eq('tenant_id', tenant.id).order('name');
     setBrands((data || []) as unknown as { id: string; name: string }[]);
-  };
+  }, [tenant]);
+
+  useEffect(() => { if (tenant) fetchBrands(); }, [tenant, fetchBrands]);
 
   const saveTenant = async () => {
     if (!user) return;
@@ -176,19 +178,19 @@ export default function POSPengaturanPage() {
     setSaving(true);
     try {
       if (tenant) {
-        await supabase.from('pos_tenants' as any).update(tenantForm).eq('id', tenant.id);
+        await supabase.from('pos_tenants' as never).update(tenantForm).eq('id', tenant.id);
         toast.success('Profil usaha berhasil disimpan');
         await refetchTenant();
       } else {
-        const { data: newTenant, error } = await supabase.from('pos_tenants' as any).insert({ ...tenantForm, user_id: user.id }).select().single();
+        const { data: newTenant, error } = await supabase.from('pos_tenants' as never).insert({ ...tenantForm, user_id: user.id }).select().single();
         if (error) throw error;
-        await supabase.from('pos_outlets' as any).insert({ tenant_id: (newTenant as any).id, name: tenantForm.name + ' - Outlet Utama' });
+        await supabase.from('pos_outlets' as never).insert({ tenant_id: (newTenant as unknown as { id: string }).id, name: tenantForm.name + ' - Outlet Utama' });
         toast.success('Usaha berhasil dibuat!');
         await refetchTenant();
         window.location.reload();
       }
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -212,28 +214,28 @@ export default function POSPengaturanPage() {
     const payload = { ...outletForm, tenant_id: tenant.id, address: outletForm.address || null, phone: outletForm.phone || null };
     try {
       if (editingOutlet) {
-        await supabase.from('pos_outlets' as any).update(payload).eq('id', editingOutlet.id);
+        await supabase.from('pos_outlets' as never).update(payload).eq('id', editingOutlet.id);
         toast.success('Outlet diperbarui');
       } else {
-        await supabase.from('pos_outlets' as any).insert(payload);
+        await supabase.from('pos_outlets' as never).insert(payload);
         toast.success('Outlet berhasil ditambahkan');
       }
       setOutletDialog(false);
       await refetchOutlets();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
   const toggleOutlet = async (outlet: Outlet) => {
-    await supabase.from('pos_outlets' as any).update({ is_active: !outlet.is_active }).eq('id', outlet.id);
+    await supabase.from('pos_outlets' as never).update({ is_active: !outlet.is_active }).eq('id', outlet.id);
     await refetchOutlets();
     toast.success(outlet.is_active ? 'Outlet dinonaktifkan' : 'Outlet diaktifkan');
   };
 
   const addBrand = async () => {
     if (!tenant || !brandName.trim()) return;
-    await supabase.from('pos_brands' as any).insert({ name: brandName.trim(), tenant_id: tenant.id });
+    await supabase.from('pos_brands' as never).insert({ name: brandName.trim(), tenant_id: tenant.id });
     setBrandName('');
     setBrandDialogOpen(false);
     fetchBrands();
@@ -241,7 +243,7 @@ export default function POSPengaturanPage() {
   };
 
   const deleteBrand = async (id: string) => {
-    await supabase.from('pos_brands' as any).delete().eq('id', id);
+    await supabase.from('pos_brands' as never).delete().eq('id', id);
     fetchBrands();
   };
 
@@ -337,7 +339,7 @@ export default function POSPengaturanPage() {
             ) : (
               <div className="space-y-2">
                 {outlets.map(o => (
-                  <Card key={o.id} className={`border shadow-sm ${!(o as any).is_active ? 'opacity-60' : ''}`}>
+                  <Card key={o.id} className={`border shadow-sm ${!(o as unknown as Outlet).is_active ? 'opacity-60' : ''}`}>
                     <CardContent className="p-4 flex items-center gap-3">
                       <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Store className="h-5 w-5 text-emerald-600" />
@@ -345,16 +347,16 @@ export default function POSPengaturanPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm">{o.name}</span>
-                          {!(o as any).is_active && <Badge variant="outline" className="text-xs">Nonaktif</Badge>}
+                          {!(o as unknown as Outlet).is_active && <Badge variant="outline" className="text-xs">Nonaktif</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-                          {(o as any).phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{(o as any).phone}</p>}
-                          {(o as any).address && <p className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(o as any).address}</p>}
+                          {(o as unknown as Outlet).phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{(o as unknown as Outlet).phone}</p>}
+                          {(o as unknown as Outlet).address && <p className="flex items-center gap-1"><MapPin className="h-3 w-3" />{(o as unknown as Outlet).address}</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Switch checked={(o as any).is_active !== false} onCheckedChange={() => toggleOutlet(o as any)} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditOutlet(o as any)}>
+                        <Switch checked={(o as unknown as Outlet).is_active !== false} onCheckedChange={() => toggleOutlet(o as unknown as Outlet)} />
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditOutlet(o as unknown as Outlet)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -648,7 +650,7 @@ export default function POSPengaturanPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Lebar Kertas</Label>
-                    <Select value={String(printerSettings.paperWidth)} onValueChange={v => updatePrinter({ paperWidth: Number(v) as any })}>
+                    <Select value={String(printerSettings.paperWidth)} onValueChange={v => updatePrinter({ paperWidth: Number(v) as never })}>
                       <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="58">58mm (mini thermal)</SelectItem>
