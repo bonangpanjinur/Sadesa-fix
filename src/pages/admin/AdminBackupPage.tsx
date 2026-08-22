@@ -126,8 +126,8 @@ export default function AdminBackupPage() {
 
       if (logError) throw logError;
 
-      const backupData: Record<string, any[]> = {};
-      const tableQueries: Record<string, any> = {
+      const backupData: Record<string, unknown[]> = {};
+      const tableQueries = {
         merchants: supabase.from('merchants').select('*').limit(10000),
         products: supabase.from('products').select('*').limit(10000),
         orders: supabase.from('orders').select('*').limit(10000),
@@ -244,8 +244,9 @@ export default function AdminBackupPage() {
       }
       setShowScheduleDialog(false);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || 'Gagal menyimpan jadwal');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Gagal menyimpan jadwal';
+      toast.error(message);
     } finally {
       setSavingSchedule(false);
     }

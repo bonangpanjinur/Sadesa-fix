@@ -48,6 +48,9 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { logAdminAction } from '@/lib/auditLog';
 
+type AppRole = 'admin' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa' | 'buyer';
+type BadgeVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'success';
+
 interface UserProfile {
   id: string;
   userId: string;
@@ -188,9 +191,10 @@ export default function AdminUsersPage() {
       setAddDialogOpen(false);
       setNewUser({ email: '', password: '', fullName: '', phone: '', role: 'buyer' });
       loadUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding user:', error);
-      toast.error(error.message || 'Gagal menambahkan pengguna');
+      const message = error instanceof Error ? error.message : 'Gagal menambahkan pengguna';
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -288,7 +292,7 @@ export default function AdminUsersPage() {
           .from('user_roles')
           .insert(rolesToInsert.map(role => ({
             user_id: roleUser.userId,
-            role: role as any,
+            role: role as AppRole,
           })));
         if (error) throw error;
       }
@@ -363,7 +367,7 @@ export default function AdminUsersPage() {
     toast.success('Data pengguna berhasil diekspor');
   };
 
-  const getRoleBadgeVariant = (role: string) => {
+  const getRoleBadgeVariant = (role: string): BadgeVariant => {
     switch (role) {
       case 'admin': return 'destructive';
       case 'merchant': return 'default';
@@ -526,7 +530,7 @@ export default function AdminUsersPage() {
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
                                 {user.roles.map((role) => (
-                                  <Badge key={role} variant={getRoleBadgeVariant(role) as any} className="text-[10px] px-1.5 py-0 uppercase">
+                                  <Badge key={role} variant={getRoleBadgeVariant(role)} className="text-[10px] px-1.5 py-0 uppercase">
                                     {AVAILABLE_ROLES.find(r => r.id === role)?.label || role}
                                   </Badge>
                                 ))}
