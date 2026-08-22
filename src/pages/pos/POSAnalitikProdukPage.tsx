@@ -36,6 +36,10 @@ interface ProductStat {
   status: 'fast' | 'medium' | 'slow' | 'dead';
 }
 
+interface ProductRow { id: string; name: string; sku: string | null; unit: string; price: number; cost_price: number; pos_categories?: { name: string } | null; }
+interface ProductSaleRow { product_id: string; qty: number; price: number; cost_price: number | null; subtotal: number; pos_sales?: { created_at: string; status: string; outlet_id: string } | null; }
+interface ProductStockRow { product_id: string; quantity: number; }
+
 const STATUS_CONFIG = {
   fast:   { label: 'Fast Moving',   color: 'bg-emerald-100 text-emerald-800', bar: '#10b981', minTurnover: 0,  maxTurnover: 7  },
   medium: { label: 'Medium Moving', color: 'bg-blue-100 text-blue-800',       bar: '#3b82f6', minTurnover: 8,  maxTurnover: 30 },
@@ -65,30 +69,30 @@ export default function POSAnalitikProdukPage() {
       const startDate = subDays(new Date(), Number(period));
 
       const [prodRes, salesRes, stockRes] = await Promise.all([
-        supabase.from('pos_products' as any)
+        supabase.from('pos_products' as never)
           .select('id, name, sku, unit, price, cost_price, pos_categories(name)')
           .eq('tenant_id', tenant.id)
           .eq('is_active', true),
-        supabase.from('pos_sale_items' as any)
+        supabase.from('pos_sale_items' as never)
           .select('product_id, qty, price, cost_price, subtotal, pos_sales(created_at, status, outlet_id)')
-          .gte('pos_sales.created_at' as any, startDate.toISOString()),
-        supabase.from('pos_stock' as any)
+          .gte('pos_sales.created_at' as never, startDate.toISOString()),
+        supabase.from('pos_stock' as never)
           .select('product_id, quantity')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id),
       ]);
 
-      const prods = (prodRes.data || []) as any[];
-      const saleItems = ((salesRes.data || []) as any[]).filter(i =>
+      const prods = (prodRes.data || []) as unknown as ProductRow[];
+      const saleItems = ((salesRes.data || []) as unknown as ProductSaleRow[]).filter(i =>
         i.pos_sales?.status === 'completed' && i.pos_sales?.outlet_id === activeOutlet.id
       );
-      const stocks = (stockRes.data || []) as any[];
+      const stocks = (stockRes.data || []) as unknown as ProductStockRow[];
 
       const stockMap: Record<string, number> = {};
-      stocks.forEach((s: any) => { stockMap[s.product_id] = s.quantity; });
+      stocks.forEach((s) => { stockMap[s.product_id] = s.quantity; });
 
       const salesMap: Record<string, { qty: number; revenue: number; cogs: number; lastDate: string }> = {};
-      saleItems.forEach((item: any) => {
+      saleItems.forEach((item) => {
         if (!salesMap[item.product_id]) {
           salesMap[item.product_id] = { qty: 0, revenue: 0, cogs: 0, lastDate: '' };
         }
@@ -100,7 +104,7 @@ export default function POSAnalitikProdukPage() {
       });
 
       const now = new Date();
-      const stats: ProductStat[] = prods.map((p: any) => {
+      const stats: ProductStat[] = prods.map((p) => {
         const sale = salesMap[p.id] || { qty: 0, revenue: 0, cogs: 0, lastDate: '' };
         const stock = stockMap[p.id] ?? 0;
         const margin = sale.revenue - sale.cogs;
@@ -116,7 +120,7 @@ export default function POSAnalitikProdukPage() {
           id: p.id,
           name: p.name,
           sku: p.sku,
-          category: (p.pos_categories as any)?.name || 'Uncategorized',
+          category: p.pos_categories?.name || 'Uncategorized',
           unit: p.unit,
           price: p.price,
           cost_price: p.cost_price,
