@@ -43,6 +43,8 @@ interface CashSession {
   pos_cash_mutations?: CashMutation[];
 }
 
+interface CashSale { total: number; payment_method: string; }
+
 interface CashMutation {
   id: string;
   type: 'in' | 'out';
@@ -106,7 +108,7 @@ export default function POSKasPage() {
     setLoading(true);
 
     const { data } = await supabase
-      .from('pos_cash_sessions' as any)
+      .from('pos_cash_sessions' as never)
       .select('*, pos_cash_mutations(*)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
@@ -132,7 +134,7 @@ export default function POSKasPage() {
     const end = new Date(); end.setHours(23, 59, 59, 999);
 
     const { data } = await supabase
-      .from('pos_sales' as any)
+      .from('pos_sales' as never)
       .select('total, payment_method')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
@@ -140,7 +142,7 @@ export default function POSKasPage() {
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString());
 
-    const sales = (data || []) as any[];
+    const sales = (data || []) as unknown as CashSale[];
     const cashTotal = sales.filter(s => s.payment_method === 'cash').reduce((s, r) => s + Number(r.total), 0);
     const nonCashTotal = sales.filter(s => s.payment_method !== 'cash').reduce((s, r) => s + Number(r.total), 0);
     setSalesCashToday(cashTotal);
@@ -163,7 +165,7 @@ export default function POSKasPage() {
     if (!openForm.opening_balance) { toast.error('Saldo awal wajib diisi'); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from('pos_cash_sessions' as any).insert({
+      const { error } = await supabase.from('pos_cash_sessions' as never).insert({
         tenant_id: tenant.id,
         outlet_id: activeOutlet.id,
         cashier_id: user.id,
@@ -182,8 +184,8 @@ export default function POSKasPage() {
       setOpenSessionDialog(false);
       setOpenForm({ opening_balance: '', notes: '', cashier_name: openForm.cashier_name });
       fetchSessions();
-    } catch (err: any) {
-      toast.error('Gagal buka sesi: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal membuka sesi: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -207,7 +209,7 @@ export default function POSKasPage() {
     const closing = Number(closeForm.closing_balance);
     const diff = closing - expected;
     try {
-      const { error } = await supabase.from('pos_cash_sessions' as any)
+      const { error } = await supabase.from('pos_cash_sessions' as never)
         .update({
           status: 'closed',
           closing_balance: closing,
@@ -224,8 +226,8 @@ export default function POSKasPage() {
       setCloseSessionDialog(false);
       setCloseForm({ closing_balance: '', notes: '' });
       fetchSessions();
-    } catch (err: any) {
-      toast.error('Gagal tutup sesi: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal menutup sesi: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
@@ -239,7 +241,7 @@ export default function POSKasPage() {
     setSaving(true);
     try {
       const amount = Number(mutationForm.amount);
-      const { error: mutErr } = await supabase.from('pos_cash_mutations' as any).insert({
+      const { error: mutErr } = await supabase.from('pos_cash_mutations' as never).insert({
         tenant_id: tenant.id,
         outlet_id: activeOutlet.id,
         cash_session_id: activeSession.id,
@@ -254,7 +256,7 @@ export default function POSKasPage() {
 
       const field = mutationType === 'in' ? 'cash_in_total' : 'cash_out_total';
       const currentVal = mutationType === 'in' ? Number(activeSession.cash_in_total) : Number(activeSession.cash_out_total);
-      await supabase.from('pos_cash_sessions' as any)
+      await supabase.from('pos_cash_sessions' as never)
         .update({ [field]: currentVal + amount })
         .eq('id', activeSession.id);
 
@@ -262,8 +264,8 @@ export default function POSKasPage() {
       setMutationDialog(false);
       setMutationForm({ category: '', amount: '', description: '', reference: '' });
       fetchSessions();
-    } catch (err: any) {
-      toast.error('Gagal catat mutasi: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal mencatat mutasi: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSaving(false);
     }
