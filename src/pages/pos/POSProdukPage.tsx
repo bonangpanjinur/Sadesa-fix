@@ -17,6 +17,9 @@ import { Plus, Search, Pencil, Package, X, Download, Printer } from 'lucide-reac
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+interface ProductPayload { name: string; sku: string | null; barcode: string | null; category_id: string | null; brand_id: string | null; unit: string; price: number; cost_price: number; tax_rate: number; description: string | null; is_stock_tracked: boolean; has_variants: boolean; is_active: boolean; tenant_id: string; }
+interface VariantRow { id: string; name: string; sku: string | null; barcode: string | null; price: number | null; cost_price: number | null; is_active: boolean; }
+
 interface Product {
   id: string;
   name: string;
@@ -71,7 +74,7 @@ export default function POSProdukPage() {
     queryKey: ['pos-products', tenant?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from('pos_products' as any)
+        .from('pos_products' as never)
         .select('*, pos_categories(name), pos_brands(name)')
         .eq('tenant_id', tenant!.id)
         .order('name');
@@ -85,7 +88,7 @@ export default function POSProdukPage() {
     queryKey: ['pos-categories-meta', tenant?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from('pos_categories' as any)
+        .from('pos_categories' as never)
         .select('id, name')
         .eq('tenant_id', tenant!.id)
         .eq('is_active', true)
@@ -100,7 +103,7 @@ export default function POSProdukPage() {
     queryKey: ['pos-brands-meta', tenant?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from('pos_brands' as any)
+        .from('pos_brands' as never)
         .select('id, name')
         .eq('tenant_id', tenant!.id)
         .eq('is_active', true)
@@ -114,7 +117,7 @@ export default function POSProdukPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!tenant) return;
-      const payload: any = {
+      const payload: ProductPayload = {
         name: form.name.trim(),
         sku: form.sku || null,
         barcode: form.barcode || null,
@@ -133,12 +136,12 @@ export default function POSProdukPage() {
 
       let productId = editing?.id;
       if (editing) {
-        await supabase.from('pos_products' as any).update(payload).eq('id', editing.id);
+        await supabase.from('pos_products' as never).update(payload).eq('id', editing.id);
       } else {
-        const { data } = await supabase.from('pos_products' as any).insert(payload).select().single();
-        productId = (data as any)?.id;
+        const { data } = await supabase.from('pos_products' as never).insert(payload).select().single();
+        productId = (data as unknown as { id: string } | null)?.id;
         if (activeOutlet && productId && !form.has_variants) {
-          await supabase.from('pos_stock' as any).insert({
+          await supabase.from('pos_stock' as never).insert({
             tenant_id: tenant.id, product_id: productId, outlet_id: activeOutlet.id,
             quantity: 0, min_stock: 5,
           });
@@ -156,9 +159,9 @@ export default function POSProdukPage() {
             is_active: v.is_active,
           };
           if (v.id) {
-            await supabase.from('pos_product_variants' as any).update(vPayload).eq('id', v.id);
+            await supabase.from('pos_product_variants' as never).update(vPayload).eq('id', v.id);
           } else {
-            await supabase.from('pos_product_variants' as any).insert(vPayload);
+            await supabase.from('pos_product_variants' as never).insert(vPayload);
           }
         }
       }
@@ -168,12 +171,12 @@ export default function POSProdukPage() {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['pos-products', tenant?.id] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : String(err)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await supabase.from('pos_products' as any).update({ is_active: false }).eq('id', id);
+      await supabase.from('pos_products' as never).update({ is_active: false }).eq('id', id);
     },
     onSuccess: () => {
       toast.success('Produk dinonaktifkan');
@@ -228,8 +231,8 @@ export default function POSProdukPage() {
       is_stock_tracked: p.is_stock_tracked, has_variants: p.has_variants, is_active: p.is_active,
     });
     if (p.has_variants) {
-      const { data } = await supabase.from('pos_product_variants' as any).select('*').eq('product_id', p.id);
-      setVariants((data || []).map((v: any) => ({ id: v.id, name: v.name, sku: v.sku || '', barcode: v.barcode || '', price: v.price ?? '', cost_price: v.cost_price ?? '', is_active: v.is_active })));
+      const { data } = await supabase.from('pos_product_variants' as never).select('*').eq('product_id', p.id);
+      setVariants(((data || []) as unknown as VariantRow[]).map((v) => ({ id: v.id, name: v.name, sku: v.sku || '', barcode: v.barcode || '', price: v.price ?? '', cost_price: v.cost_price ?? '', is_active: v.is_active })));
     } else {
       setVariants([]);
     }
@@ -244,7 +247,7 @@ export default function POSProdukPage() {
 
   const addVariant = () => setVariants(v => [...v, { name: '', sku: '', barcode: '', price: '', cost_price: '', is_active: true }]);
   const removeVariant = (i: number) => setVariants(v => v.filter((_, idx) => idx !== i));
-  const updateVariant = (i: number, field: keyof Variant, val: any) => setVariants(v => v.map((item, idx) => idx === i ? { ...item, [field]: val } : item));
+  const updateVariant = (i: number, field: keyof Variant, val: string | number | boolean) => setVariants(v => v.map((item, idx) => idx === i ? { ...item, [field]: val } : item));
 
   const handleSave = () => {
     if (!form.name.trim()) { toast.error('Nama produk wajib diisi'); return; }
@@ -255,7 +258,7 @@ export default function POSProdukPage() {
   const exportCSV = () => {
     const rows = [['Nama', 'SKU', 'Barcode', 'Kategori', 'Satuan', 'Harga Jual', 'Harga Modal', 'Pajak %', 'Status']];
     filtered.forEach(p => {
-      rows.push([p.name, p.sku || '', p.barcode || '', (p.pos_categories as any)?.name || '', p.unit, String(p.price), String(p.cost_price), String(p.tax_rate), p.is_active ? 'Aktif' : 'Nonaktif']);
+      rows.push([p.name, p.sku || '', p.barcode || '', p.pos_categories?.name || '', p.unit, String(p.price), String(p.cost_price), String(p.tax_rate), p.is_active ? 'Aktif' : 'Nonaktif']);
     });
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -320,7 +323,7 @@ export default function POSProdukPage() {
                       <p className="font-semibold text-sm truncate">{p.name}</p>
                       <div className="flex gap-1.5 mt-1 flex-wrap">
                         {p.sku && <Badge variant="outline" className="text-xs">{p.sku}</Badge>}
-                        {(p.pos_categories as any)?.name && <Badge variant="secondary" className="text-xs">{(p.pos_categories as any).name}</Badge>}
+                        {p.pos_categories?.name && <Badge variant="secondary" className="text-xs">{p.pos_categories.name}</Badge>}
                         {p.has_variants && <Badge className="bg-purple-100 text-purple-700 border-0 text-xs">Varian</Badge>}
                         {!p.is_active && <Badge variant="destructive" className="text-xs">Nonaktif</Badge>}
                       </div>
