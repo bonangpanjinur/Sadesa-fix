@@ -17,6 +17,10 @@ type RlsConfig = {
   posOutletOwnId: string;
   posOutletOtherId: string;
   posProductOtherId: string;
+  posStaffEmail: string;
+  posStaffPassword: string;
+  posOutletAssignedId: string;
+  posOutletUnassignedId: string;
 };
 
 function required(name: string): string {
@@ -45,6 +49,10 @@ function loadConfig(): RlsConfig | null {
     posOutletOwnId: required('RLS_TEST_POS_OUTLET_OWN_ID'),
     posOutletOtherId: required('RLS_TEST_POS_OUTLET_OTHER_ID'),
     posProductOtherId: required('RLS_TEST_POS_PRODUCT_OTHER_ID'),
+    posStaffEmail: required('RLS_TEST_POS_STAFF_EMAIL'),
+    posStaffPassword: required('RLS_TEST_POS_STAFF_PASSWORD'),
+    posOutletAssignedId: required('RLS_TEST_POS_OUTLET_ASSIGNED_ID'),
+    posOutletUnassignedId: required('RLS_TEST_POS_OUTLET_UNASSIGNED_ID'),
   };
 }
 
@@ -68,15 +76,17 @@ async function signIn(config: RlsConfig, email: string, password: string) {
 describeRls('RLS integration: multi-tenant isolation', () => {
   let buyer: SupabaseClient;
   let merchant: SupabaseClient;
+  let posStaff: SupabaseClient;
 
   beforeAll(async () => {
     if (!config) return;
     buyer = await signIn(config, config.buyerEmail, config.buyerPassword);
     merchant = await signIn(config, config.merchantEmail, config.merchantPassword);
+    posStaff = await signIn(config, config.posStaffEmail, config.posStaffPassword);
   });
 
   afterAll(async () => {
-    await Promise.all([buyer?.auth.signOut(), merchant?.auth.signOut()]);
+    await Promise.all([buyer?.auth.signOut(), merchant?.auth.signOut(), posStaff?.auth.signOut()]);
   });
 
   it('buyer can read own order but not another buyer order', async () => {
@@ -182,6 +192,17 @@ describeRls('RLS integration: multi-tenant isolation', () => {
 
     expect(data).toBeNull();
     expect(error === null || error?.code === '42501').toBe(true);
+  });
+
+  it('POS staff can read assigned outlet but not unassigned outlet in the same tenant', async () => {
+    const { data, error } = await posStaff
+      .from('pos_stock')
+      .select('id, tenant_id, outlet_id')
+      .in('outlet_id', [config!.posOutletAssignedId, config!.posOutletUnassignedId]);
+
+    expect(error).toBeNull();
+    expect((data || []).every((row) => row.outlet_id === config!.posOutletAssignedId)).toBe(true);
+    expect((data || []).some((row) => row.outlet_id === config!.posOutletUnassignedId)).toBe(false);
   });
 
   it('merchant cannot read stock belonging to another POS tenant', async () => {

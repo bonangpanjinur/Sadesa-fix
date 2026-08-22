@@ -57,3 +57,14 @@ export RLS_TEST_POS_PRODUCT_OTHER_ID="<produk-pos-tenant-lain>"
 ```
 
 Skenario delete menggunakan `RLS_TEST_POS_OUTLET_OTHER_ID`. Karena operasi delete bersifat nyata, ID tersebut harus menunjuk ke outlet disposable pada project staging/test. Jangan menunjuk ke outlet produksi. Test akan memeriksa bahwa operasi lintas tenant menghasilkan baris kosong atau error authorization `42501`. Jika operasi ternyata berhasil karena policy salah, test akan gagal; operasi insert memiliki cleanup defensif, sedangkan fixture delete tetap harus dipulihkan dari staging seed.
+
+Untuk menguji granularitas outlet dalam tenant yang sama, siapkan user staff POS yang bukan owner tenant dan berikan assignment hanya ke satu outlet:
+
+```bash
+export RLS_TEST_POS_STAFF_EMAIL="pos.staff.fixture@example.test"
+export RLS_TEST_POS_STAFF_PASSWORD="..."
+export RLS_TEST_POS_OUTLET_ASSIGNED_ID="<outlet-yang-diberikan-ke-staff>"
+export RLS_TEST_POS_OUTLET_UNASSIGNED_ID="<outlet-lain-dalam-tenant-sama>"
+```
+
+Skenario ini memastikan staff dapat membaca stok outlet yang ditugaskan, tetapi tidak dapat membaca stok outlet lain dalam tenant yang sama. Owner tenant tetap diharapkan dapat melihat seluruh outlet miliknya.
