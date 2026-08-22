@@ -23,6 +23,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
 
+interface FlashSaleRow extends FlashSale {
+  products?: { name: string | null } | null;
+}
+
 interface FlashSale {
   id: string;
   product_id: string;
@@ -80,12 +84,12 @@ export function FlashSaleManager({ merchantId }: FlashSaleManagerProps) {
 
       // Alternative: direct query with type assertion
       const { data: salesData } = await supabase
-        .from('flash_sales' as any)
+        .from('flash_sales')
         .select('*, products(name)')
         .eq('merchant_id', merchantId)
         .order('created_at', { ascending: false });
 
-      const mappedSales = ((salesData || []) as any[]).map(s => ({
+      const mappedSales = (salesData as FlashSaleRow[] || []).map(s => ({
         id: s.id,
         product_id: s.product_id,
         product_name: s.products?.name || 'Unknown',
@@ -141,7 +145,7 @@ export function FlashSaleManager({ merchantId }: FlashSaleManagerProps) {
       const endTime = new Date();
       endTime.setHours(endTime.getHours() + parseInt(form.duration_hours));
 
-      const { error } = await supabase.from('flash_sales' as any).insert({
+      const { error } = await supabase.from('flash_sales').insert({
         product_id: form.product_id,
         merchant_id: merchantId,
         original_price: product.price,
@@ -174,7 +178,7 @@ export function FlashSaleManager({ merchantId }: FlashSaleManagerProps) {
   const handleEnd = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('flash_sales' as any)
+        .from('flash_sales')
         .update({ status: 'ENDED' })
         .eq('id', id);
 

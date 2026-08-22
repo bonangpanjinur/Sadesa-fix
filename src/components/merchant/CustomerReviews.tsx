@@ -11,6 +11,16 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
+interface ReviewRow extends Review {
+  products?: { name: string | null } | null;
+}
+
+interface BuyerProfile {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
 interface Review {
   id: string;
   product_id: string;
@@ -70,10 +80,10 @@ export function CustomerReviews({ merchantId }: CustomerReviewsProps) {
         .in('user_id', buyerIds);
 
       const profileMap = new Map(
-        ((profiles || []) as any[]).map((p: any) => [p.user_id, { name: p.full_name as string, avatar: p.avatar_url as string | null }])
+        (profiles as BuyerProfile[] || []).map((p) => [p.user_id, { name: p.full_name as string, avatar: p.avatar_url as string | null }])
       );
 
-      const enrichedReviews: Review[] = ((reviewData || []) as any[]).map((r: any) => ({
+      const enrichedReviews: Review[] = (reviewData as ReviewRow[] || []).map((r) => ({
         ...r,
         product_name: r.products?.name || 'Produk tidak ditemukan',
         buyer_name: profileMap.get(r.buyer_id)?.name || 'Pembeli',

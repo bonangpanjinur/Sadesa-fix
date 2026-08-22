@@ -10,8 +10,12 @@ import { useProductFlashSale } from '@/hooks/useFlashSales';
 import { FlashSaleBadge } from '@/components/FlashSaleTimer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
+interface ProductWithSales extends Product {
+  sold_count?: number;
+}
+
 interface ProductCardProps {
-  product: Product;
+  product: ProductWithSales;
   index?: number;
   showCategoryBadge?: boolean;
 }
@@ -145,9 +149,9 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
               )}>
                 {formatPrice(displayPrice)}
               </p>
-              {(product as any).sold_count > 0 && (
+              {product.sold_count > 0 && (
                 <span className="text-[9px] text-muted-foreground">
-                  {(product as any).sold_count >= 100 ? '100+ terjual' : `${(product as any).sold_count} terjual`}
+                  {product.sold_count >= 100 ? '100+ terjual' : `${product.sold_count} terjual`}
                 </span>
               )}
             </div>

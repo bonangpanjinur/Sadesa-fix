@@ -5,8 +5,12 @@ import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import { formatPrice, cn } from '@/lib/utils';
 
+interface ProductWithSales extends Product {
+  sold_count?: number;
+}
+
 interface ProductCardHorizontalProps {
-  product: Product;
+  product: ProductWithSales;
   index?: number;
 }
 
@@ -96,9 +100,9 @@ export function ProductCardHorizontal({ product, index = 0 }: ProductCardHorizon
             <p className="text-primary font-bold text-sm">
               {formatPrice(product.price)}
             </p>
-            {(product as any).sold_count > 0 && (
+            {product.sold_count > 0 && (
               <span className="text-[9px] text-muted-foreground">
-                {(product as any).sold_count >= 100 ? '100+ terjual' : `${(product as any).sold_count} terjual`}
+                {product.sold_count >= 100 ? '100+ terjual' : `${product.sold_count} terjual`}
               </span>
             )}
           </div>
