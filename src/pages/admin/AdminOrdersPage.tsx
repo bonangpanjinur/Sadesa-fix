@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Receipt, 
@@ -80,7 +80,7 @@ export default function AdminOrdersPage() {
     staleTime: 30_000,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-orders-list'] });
+  const invalidate = useCallback(() => queryClient.invalidateQueries({ queryKey: ['admin-orders-list'] }), [queryClient]);
   const fetchOrders = invalidate;
 
   // Realtime subscription — invalidate query saat ada perubahan order
@@ -92,7 +92,7 @@ export default function AdminOrdersPage() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [invalidate]);
 
   const viewOrderDetail = async (order: OrderRow) => {
     setSelectedOrder(order);
