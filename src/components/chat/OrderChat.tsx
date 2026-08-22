@@ -178,7 +178,7 @@ export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose
     };
 
     fetchNames();
-  }, [isOpen, senderIdsKey]);
+  }, [isOpen, senderIdsKey, senderNames]);
 
   useEffect(() => {
     if (!isOpen || !orderId || !user) return;
@@ -238,7 +238,7 @@ export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [isOpen, orderId, user, chatType]);
+  }, [isOpen, orderId, user, chatType, playNotificationSound]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

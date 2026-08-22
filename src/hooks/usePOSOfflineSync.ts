@@ -32,23 +32,6 @@ export function usePOSOfflineSync({
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const syncInProgress = useRef(false);
 
-  // Monitor online/offline status
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      if (autoSyncOnReconnect) {
-        triggerSync();
-      }
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [autoSyncOnReconnect, outletId]);
 
   // Load cached products & pending count on mount
   useEffect(() => {
@@ -162,6 +145,21 @@ export function usePOSOfflineSync({
       syncInProgress.current = false;
     }
   }, []);
+
+  // Monitor online/offline status after triggerSync is initialized.
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (autoSyncOnReconnect) triggerSync();
+    };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [autoSyncOnReconnect, triggerSync]);
 
   return {
     isOnline,
