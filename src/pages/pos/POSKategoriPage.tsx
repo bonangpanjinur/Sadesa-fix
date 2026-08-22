@@ -34,7 +34,7 @@ export default function POSKategoriPage() {
     queryKey: ['pos-categories', tenant?.id],
     queryFn: async () => {
       const { data } = await supabase
-        .from('pos_categories' as any)
+        .from('pos_categories' as never)
         .select('*')
         .eq('tenant_id', tenant!.id)
         .order('sort_order')
@@ -51,9 +51,9 @@ export default function POSKategoriPage() {
       if (!form.name.trim()) throw new Error('Nama kategori wajib diisi');
       const payload = { name: form.name.trim(), parent_id: form.parent_id || null, sort_order: form.sort_order, tenant_id: tenant.id };
       if (editing) {
-        await supabase.from('pos_categories' as any).update(payload).eq('id', editing.id);
+        await supabase.from('pos_categories' as never).update(payload).eq('id', editing.id);
       } else {
-        await supabase.from('pos_categories' as any).insert(payload);
+        await supabase.from('pos_categories' as never).insert(payload);
       }
     },
     onSuccess: () => {
@@ -61,12 +61,12 @@ export default function POSKategoriPage() {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['pos-categories', tenant?.id] });
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : String(err)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await supabase.from('pos_categories' as any).delete().eq('id', id);
+      await supabase.from('pos_categories' as never).delete().eq('id', id);
     },
     onSuccess: () => {
       toast.success('Kategori dihapus');
