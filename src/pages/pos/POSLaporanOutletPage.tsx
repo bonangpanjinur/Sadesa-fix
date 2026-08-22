@@ -42,6 +42,9 @@ interface ComparisonPoint {
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
+interface OutletSaleItem { qty: number; }
+interface OutletSale { outlet_id: string; total: number; discount_amount: number | null; payment_method: string; customer_id: string | null; created_at: string; pos_sale_items?: OutletSaleItem[]; }
+
 const PERIOD_OPTIONS = [
   { value: 'today', label: 'Hari Ini' },
   { value: 'week', label: 'Minggu Ini' },
@@ -74,7 +77,7 @@ export default function POSLaporanOutletPage() {
     const { start, end } = getRange();
 
     try {
-      const { data: salesData } = await supabase.from('pos_sales' as any)
+      const { data: salesData } = await supabase.from('pos_sales' as never)
         .select('id, total, discount_amount, payment_method, customer_id, outlet_id, created_at, pos_sale_items(qty)')
         .eq('tenant_id', tenant.id)
         .eq('status', 'completed')
@@ -82,7 +85,7 @@ export default function POSLaporanOutletPage() {
         .lte('created_at', end.toISOString())
         .order('created_at');
 
-      const sales = (salesData || []) as any[];
+      const sales = (salesData || []) as unknown as OutletSale[];
       const statsMap: Record<string, OutletStat> = {};
 
       outlets.forEach(o => {
@@ -96,13 +99,13 @@ export default function POSLaporanOutletPage() {
       const customerSets: Record<string, Set<string>> = {};
       outlets.forEach(o => { customerSets[o.id] = new Set(); });
 
-      sales.forEach((s: any) => {
+      sales.forEach((s) => {
         const oid = s.outlet_id;
         if (!statsMap[oid]) return;
         statsMap[oid].totalOmzet += Number(s.total);
         statsMap[oid].totalTransaksi++;
         statsMap[oid].totalDiskon += Number(s.discount_amount || 0);
-        statsMap[oid].totalItem += (s.pos_sale_items || []).reduce((a: number, i: any) => a + Number(i.qty), 0);
+        statsMap[oid].totalItem += (s.pos_sale_items || []).reduce((a: number, i: OutletSaleItem) => a + Number(i.qty), 0);
         if (s.payment_method === 'cash') statsMap[oid].cashSales += Number(s.total);
         else statsMap[oid].nonCashSales += Number(s.total);
         if (s.customer_id && customerSets[oid]) customerSets[oid].add(s.customer_id);
@@ -126,10 +129,10 @@ export default function POSLaporanOutletPage() {
         const dayEnd = endOfDay(new Date(d));
         const point: ComparisonPoint = { name: format(dayStart, diff <= 7 ? 'EEE dd/MM' : 'dd/MM', { locale: idLocale }) };
         outlets.forEach(o => {
-          const daySales = sales.filter((s: any) =>
+          const daySales = sales.filter((s) =>
             s.outlet_id === o.id && new Date(s.created_at) >= dayStart && new Date(s.created_at) <= dayEnd
           );
-          point[o.name] = daySales.reduce((sum: number, s: any) => sum + Number(s.total), 0);
+          point[o.name] = daySales.reduce((sum: number, s) => sum + Number(s.total), 0);
         });
         days.push(point);
       }
@@ -303,7 +306,7 @@ export default function POSLaporanOutletPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" tick={{ fontSize: 9 }} />
                     <YAxis tick={{ fontSize: 9 }} tickFormatter={v => v >= 1000000 ? `${(v/1000000).toFixed(0)}jt` : `${(v/1000).toFixed(0)}rb`} />
-                    <Tooltip formatter={(val: any) => formatCurrency(val)} />
+                    <Tooltip formatter={(val) => formatCurrency(Number(val))} />
                     <Legend />
                     {outlets.map((o, idx) => (
                       <Bar key={o.id} dataKey={o.name} fill={COLORS[idx % COLORS.length]}
