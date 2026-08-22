@@ -12,6 +12,8 @@ import { RefreshCw, Search, Shield, Eye, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+type AuditValues = Record<string, unknown> | null;
+
 interface AuditEntry {
   id: string;
   user_id: string | null;
@@ -19,8 +21,8 @@ interface AuditEntry {
   action: string;
   table_name: string | null;
   record_id: string | null;
-  old_values: any;
-  new_values: any;
+  old_values: AuditValues;
+  new_values: AuditValues;
   ip_address: string | null;
   created_at: string;
 }
@@ -49,7 +51,7 @@ export default function AdminAuditLogPage() {
     setLoading(true);
     try {
       let query = supabase
-        .from('audit_logs' as any)
+        .from('audit_logs')
         .select('*')
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
