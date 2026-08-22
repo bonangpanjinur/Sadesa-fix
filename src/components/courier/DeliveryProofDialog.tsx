@@ -64,7 +64,7 @@ export function DeliveryProofDialog({ open, onClose, orderId, orderNumber, onCon
 
       // Update order status to DELIVERED with proof
       const { error: orderError } = await supabase
-        .from('orders' as any)
+        .from('orders')
         .update({
           status: 'DELIVERED',
           delivered_at: new Date().toISOString(),
@@ -76,9 +76,9 @@ export function DeliveryProofDialog({ open, onClose, orderId, orderNumber, onCon
       if (orderError) throw orderError;
 
       // Notify buyer
-      const orderRes = await supabase.from('orders' as any).select('user_id').eq('id', orderId).maybeSingle();
+      const orderRes = await supabase.from('orders').select('user_id').eq('id', orderId).maybeSingle();
       if (orderRes.data?.user_id) {
-        await supabase.from('notifications' as any).insert({
+        await supabase.from('notifications').insert({
           user_id: orderRes.data.user_id,
           title: 'Pesanan Terkirim!',
           message: `Pesanan #${orderNumber} telah berhasil dikirim. Tap untuk memberi rating kurir.`,
@@ -91,8 +91,8 @@ export function DeliveryProofDialog({ open, onClose, orderId, orderNumber, onCon
       toast.success('Bukti pengiriman berhasil diunggah');
       onConfirmed();
       onClose();
-    } catch (err: any) {
-      toast.error('Gagal upload bukti: ' + (err.message || 'Coba lagi'));
+    } catch (err: unknown) {
+      toast.error('Gagal upload bukti: ' + (err instanceof Error ? err.message : 'Coba lagi'));
     } finally {
       setUploading(false);
     }
