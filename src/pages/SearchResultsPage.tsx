@@ -18,6 +18,14 @@ import { EmptyState } from '@/components/explore/EmptyState';
 import { supabase } from '@/integrations/supabase/client';
 import type { Village, Tourism, Product } from '@/types';
 
+interface SearchProductRow {
+  id: string; name: string; description: string | null; price: number; image_url: string | null; stock: number | null; category: string | null; is_active: boolean; is_promo: boolean | null; original_price: number | null; merchant_id: string;
+  merchants: { name: string | null; village_id: string | null; villages: { name: string | null } | { name: string | null }[] | null; location_lat: number | null; location_lng: number | null; is_open: boolean | null; halal_status: string | null } | { name: string | null; village_id: string | null; villages: { name: string | null } | { name: string | null }[] | null; location_lat: number | null; location_lng: number | null; is_open: boolean | null; halal_status: string | null }[] | null;
+}
+
+interface SearchVillageRow { id: string; name: string; district: string | null; regency: string | null; description: string | null; image_url: string | null; is_active: boolean; }
+interface SearchTourismRow { id: string; name: string; description: string | null; image_url: string | null; village_id: string | null; villages: { name: string | null } | { name: string | null }[] | null; location_lat: number | null; location_lng: number | null; wa_link: string | null; facilities: string[] | null; is_active: boolean; view_count: number | null; }
+
 export default function SearchResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
@@ -43,22 +51,22 @@ export default function SearchResultsPage() {
         supabase.from('villages').select('id, name, district, regency, description, image_url, is_active').ilike('name', searchTerm).eq('is_active', true).limit(20),
         supabase.from('tourism').select('id, name, description, image_url, village_id, villages(name), location_lat, location_lng, wa_link, facilities, is_active, view_count').ilike('name', searchTerm).eq('is_active', true).limit(20),
       ]);
-      const products: Product[] = (productsRes.data || []).map((p: any) => ({
+      const products: Product[] = (productsRes.data || []).map((p: SearchProductRow) => ({
         id: p.id, name: p.name, description: p.description || '', price: p.price, image: p.image_url || '/placeholder.svg',
         stock: p.stock || 0, category: p.category || '', isActive: p.is_active, isPromo: p.is_promo,
-        originalPrice: p.original_price, merchantId: p.merchant_id, merchantName: p.merchants?.name || '',
-        merchantVillage: p.merchants?.villages?.name || '',
-        locationLat: p.merchants?.location_lat, locationLng: p.merchants?.location_lng,
-        isMerchantOpen: p.merchants?.is_open, isAvailable: p.is_active && p.stock > 0,
-        halal_status: p.merchants?.halal_status,
+        originalPrice: p.original_price, merchantId: p.merchant_id, merchantName: (Array.isArray(p.merchants) ? p.merchants[0]?.name : p.merchants?.name) || '',
+        merchantVillage: (() => { const villages = Array.isArray(p.merchants) ? p.merchants[0]?.villages : p.merchants?.villages; return (Array.isArray(villages) ? villages[0]?.name : villages?.name) || ''; })(),
+        locationLat: Array.isArray(p.merchants) ? p.merchants[0]?.location_lat : p.merchants?.location_lat, locationLng: Array.isArray(p.merchants) ? p.merchants[0]?.location_lng : p.merchants?.location_lng,
+        isMerchantOpen: Array.isArray(p.merchants) ? p.merchants[0]?.is_open : p.merchants?.is_open, isAvailable: p.is_active && p.stock > 0,
+        halal_status: Array.isArray(p.merchants) ? p.merchants[0]?.halal_status as Product['halal_status'] : p.merchants?.halal_status as Product['halal_status'],
       }));
-      const villages: Village[] = (villagesRes.data || []).map((v: any) => ({
+      const villages: Village[] = (villagesRes.data || []).map((v: SearchVillageRow) => ({
         id: v.id, name: v.name, district: v.district || '', regency: v.regency || '',
         description: v.description || '', image: v.image_url || '/placeholder.svg', isActive: v.is_active,
       }));
-      const tourismSpots: Tourism[] = (tourismRes.data || []).map((t: any) => ({
+      const tourismSpots: Tourism[] = (tourismRes.data || []).map((t: SearchTourismRow) => ({
         id: t.id, name: t.name, description: t.description || '', image: t.image_url || '/placeholder.svg',
-        villageId: t.village_id || '', villageName: t.villages?.name || '',
+        villageId: t.village_id || '', villageName: (Array.isArray(t.villages) ? t.villages[0]?.name : t.villages?.name) || '',
         locationLat: t.location_lat || 0, locationLng: t.location_lng || 0,
         waLink: t.wa_link || '', facilities: t.facilities || [], isActive: t.is_active,
         viewCount: t.view_count,

@@ -10,7 +10,7 @@ export function useMerchantFavorite(merchantId: string) {
 
   const checkFavorite = useCallback(async () => {
     if (!user || !merchantId) return;
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from('merchant_favorites')
       .select('id')
       .eq('user_id', user.id)
@@ -31,7 +31,7 @@ export function useMerchantFavorite(merchantId: string) {
     setLoading(true);
     try {
       if (isFavorite) {
-        await (supabase as any)
+        await supabase
           .from('merchant_favorites')
           .delete()
           .eq('user_id', user.id)
@@ -39,7 +39,7 @@ export function useMerchantFavorite(merchantId: string) {
         setIsFavorite(false);
         toast.success('Dihapus dari favorit');
       } else {
-        await (supabase as any)
+        await supabase
           .from('merchant_favorites')
           .insert({ user_id: user.id, merchant_id: merchantId });
         setIsFavorite(true);

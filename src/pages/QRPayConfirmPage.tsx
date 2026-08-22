@@ -7,6 +7,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatPrice } from '@/lib/utils';
 import { posBridgeFetch } from '@/lib/posBridge';
 
+interface ApiJson {
+  status?: string;
+  error?: string;
+  full_name?: string;
+  email?: string;
+}
+
 interface SessionInfo {
   sessionId: string;
   storeName: string;
@@ -38,9 +45,10 @@ export default function QRPayConfirmPage() {
         if (r.status === 404) throw new Error('QR Pay tidak ditemukan atau sudah kedaluwarsa');
         if (r.status === 410) {
           const d = await r.json().catch(() => ({}));
-          if ((d as any).status === 'confirmed') setPageStatus('already_paid');
+          const detail = d as ApiJson;
+          if (detail.status === 'confirmed') setPageStatus('already_paid');
           else setPageStatus('expired');
-          setErrorMsg((d as any).error || 'QR Pay sudah tidak aktif');
+          setErrorMsg(detail.error || 'QR Pay sudah tidak aktif');
           return null;
         }
         if (!r.ok) throw new Error('Gagal mengambil info pembayaran');
@@ -88,7 +96,7 @@ export default function QRPayConfirmPage() {
       const profileRes = await posBridgeFetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      const profile = profileRes.ok ? await profileRes.json() : null;
+      const profile = profileRes.ok ? await profileRes.json() as ApiJson : null;
       const buyerName = profile?.full_name || profile?.email || user.email || 'Pembeli';
 
       const res = await posBridgeFetch('/api/qrpay/confirm', {
@@ -102,13 +110,13 @@ export default function QRPayConfirmPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as any).error || 'Gagal mengkonfirmasi pembayaran');
+        throw new Error((err as ApiJson).error || 'Gagal mengkonfirmasi pembayaran');
       }
 
       setPageStatus('success');
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPageStatus('error');
-      setErrorMsg(err.message || 'Terjadi kesalahan');
+      setErrorMsg(err instanceof Error ? err.message : 'Terjadi kesalahan');
     }
   };
 
