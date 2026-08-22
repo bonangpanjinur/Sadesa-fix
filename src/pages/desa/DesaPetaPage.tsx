@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,9 +71,7 @@ export default function DesaPetaPage() {
     fetchVillage();
   }, [user]);
 
-  useEffect(() => { if (villageId) fetchItems(); }, [villageId]);
-
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     if (!villageId) return;
     setLoading(true);
     const [merchantRes, tourismRes] = await Promise.all([
@@ -110,7 +108,9 @@ export default function DesaPetaPage() {
     }
 
     setLoading(false);
-  };
+  }, [villageId]);
+
+  useEffect(() => { if (villageId) fetchItems(); }, [villageId, fetchItems]);
 
   const merchantItems = items.filter(i => i.type === 'merchant');
   const tourismItems = items.filter(i => i.type === 'tourism');

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,9 +65,7 @@ export default function DesaKeanggotaanPage() {
     fetchVillage();
   }, [user]);
 
-  useEffect(() => { if (villageId) fetchMerchants(); }, [villageId]);
-
-  const fetchMerchants = async () => {
+  const fetchMerchants = useCallback(async () => {
     if (!villageId) return;
     setLoading(true);
     const { data } = await supabase
@@ -83,7 +81,9 @@ export default function DesaKeanggotaanPage() {
       membership_expires_at: null,
     })));
     setLoading(false);
-  };
+  }, [villageId]);
+
+  useEffect(() => { if (villageId) fetchMerchants(); }, [villageId, fetchMerchants]);
 
   const handleVerify = async (merchantId: string, approved: boolean) => {
     setApproving(true);

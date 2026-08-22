@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,11 +37,7 @@ export default function DesaEkonomiPage() {
     fetchVillage();
   }, [user]);
 
-  useEffect(() => {
-    if (villageId) fetchData();
-  }, [villageId, period]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!villageId) return;
     setLoading(true);
     try {
@@ -103,7 +99,11 @@ export default function DesaEkonomiPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [villageId, period]);
+
+  useEffect(() => {
+    if (villageId) fetchData();
+  }, [villageId, fetchData]);
 
   return (
     <DesaLayout title="Laporan Ekonomi Desa" subtitle="Ringkasan omzet UMKM dan transaksi">

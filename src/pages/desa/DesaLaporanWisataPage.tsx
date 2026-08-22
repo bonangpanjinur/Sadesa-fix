@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,9 +40,7 @@ export default function DesaLaporanWisataPage() {
     fetchVillage();
   }, [user]);
 
-  useEffect(() => { if (villageId) fetchData(); }, [villageId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!villageId) return;
     setLoading(true);
     const { data } = await supabase
@@ -57,7 +55,9 @@ export default function DesaLaporanWisataPage() {
       rating_count: null,
     })));
     setLoading(false);
-  };
+  }, [villageId]);
+
+  useEffect(() => { if (villageId) fetchData(); }, [villageId, fetchData]);
 
   const totalViews = tourism.reduce((s, t) => s + t.view_count, 0);
   const activeTourism = tourism.filter(t => t.is_active).length;

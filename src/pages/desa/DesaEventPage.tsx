@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,9 +69,7 @@ export default function DesaEventPage() {
     fetchVillage();
   }, [user]);
 
-  useEffect(() => { if (villageId) fetchEvents(); }, [villageId]);
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     if (!villageId) return;
     setLoading(true);
     const { data } = await supabase
@@ -81,7 +79,9 @@ export default function DesaEventPage() {
       .order('start_date', { ascending: false });
     setEvents((data || []) as unknown as Event[]);
     setLoading(false);
-  };
+  }, [villageId]);
+
+  useEffect(() => { if (villageId) fetchEvents(); }, [villageId, fetchEvents]);
 
   const openCreate = () => {
     setEditing(null);
