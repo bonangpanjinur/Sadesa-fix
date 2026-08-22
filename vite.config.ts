@@ -90,23 +90,38 @@ export default defineConfig(() => ({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'react-vendor';
+            if (id.includes('leaflet') || id.includes('react-leaflet')) {
+              return 'map-vendor';
             }
-            if (id.includes('recharts')) {
-              return 'recharts-vendor';
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+              return 'react-vendor';
             }
             if (id.includes('@supabase')) {
               return 'supabase-vendor';
             }
-            if (id.includes('leaflet')) {
-              return 'map-vendor';
+            if (id.includes('@tanstack') || id.includes('react-router')) {
+              return 'data-router-vendor';
+            }
+            if (id.includes('@radix-ui') || id.includes('cmdk') || id.includes('vaul')) {
+              return 'ui-vendor';
+            }
+            if (id.includes('recharts')) {
+              return 'recharts-vendor';
             }
             if (id.includes('framer-motion')) {
               return 'motion-vendor';
             }
-            if (id.includes('jspdf')) {
+            if (id.includes('jspdf') || id.includes('jspdf-autotable')) {
               return 'pdf-vendor';
+            }
+            if (id.includes('date-fns') || id.includes('react-day-picker')) {
+              return 'date-vendor';
+            }
+            if (id.includes('react-hook-form') || id.includes('zod')) {
+              return 'form-vendor';
+            }
+            if (id.includes('lucide-react') || id.includes('sonner')) {
+              return 'utility-vendor';
             }
             return 'vendor';
           }
