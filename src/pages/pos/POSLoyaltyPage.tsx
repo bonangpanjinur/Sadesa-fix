@@ -21,6 +21,9 @@ import {
 import { format, parseISO, addDays, differenceInDays, isAfter } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface LoyaltySettingsForm { name: string; description: string; is_active: boolean; earn_per_rupiah: number | string; redeem_rate: number | string; min_redeem_points: number | string; max_redeem_percent: number | string; point_expiry_days: number | string; tiers: Tier[]; }
+interface LoyaltyCustomerRow { id: string; name: string; phone: string | null; total_purchase: number | null; transaction_count: number | null; loyalty_points: number | null; loyalty_tier: string | null; }
+
 interface LoyaltyProgram {
   id: string;
   tenant_id: string;
@@ -87,7 +90,7 @@ export default function POSLoyaltyPage() {
   const [tab, setTab] = useState('overview');
 
   const [settingsDialog, setSettingsDialog] = useState(false);
-  const [settingsForm, setSettingsForm] = useState<any>({});
+  const [settingsForm, setSettingsForm] = useState<Partial<LoyaltySettingsForm>>({});
 
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [adjustCustomer, setAdjustCustomer] = useState<CustomerPoints | null>(null);
@@ -128,7 +131,7 @@ export default function POSLoyaltyPage() {
 
     // Ambil program loyalty
     const { data: prog } = await supabase
-      .from('pos_loyalty_programs' as any)
+      .from('pos_loyalty_programs' as never)
       .select('*')
       .eq('tenant_id', tenant.id)
       .maybeSingle();
@@ -137,12 +140,12 @@ export default function POSLoyaltyPage() {
 
     // Ambil data poin pelanggan
     const { data: custData } = await supabase
-      .from('pos_customers' as any)
+      .from('pos_customers' as never)
       .select('id, name, phone, total_purchase, transaction_count, loyalty_points, loyalty_tier')
       .eq('tenant_id', tenant.id)
       .order('loyalty_points', { ascending: false });
 
-    const mapped: CustomerPoints[] = ((custData || []) as any[]).map((c: any) => ({
+    const mapped: CustomerPoints[] = ((custData || []) as unknown as LoyaltyCustomerRow[]).map((c) => ({
       customer_id: c.id,
       customer_name: c.name,
       customer_phone: c.phone,
@@ -211,8 +214,8 @@ export default function POSLoyaltyPage() {
       updated_at: new Date().toISOString(),
     };
     const { error } = program
-      ? await supabase.from('pos_loyalty_programs' as any).update(payload).eq('id', program.id)
-      : await supabase.from('pos_loyalty_programs' as any).insert(payload);
+      ? await supabase.from('pos_loyalty_programs' as never).update(payload).eq('id', program.id)
+      : await supabase.from('pos_loyalty_programs' as never).insert(payload);
     if (error) { toast.error('Gagal menyimpan pengaturan'); return; }
     toast.success('Pengaturan loyalty disimpan');
     setSettingsDialog(false);
@@ -236,7 +239,7 @@ export default function POSLoyaltyPage() {
     }
     const delta = adjustType === 'add' ? pts : -pts;
     const newPoints = adjustCustomer.available_points + delta;
-    await supabase.from('pos_customers' as any)
+    await supabase.from('pos_customers' as never)
       .update({ loyalty_points: Math.max(0, newPoints) })
       .eq('id', adjustCustomer.customer_id);
     toast.success(`Berhasil ${adjustType === 'add' ? 'menambah' : 'mengurangi'} ${pts} poin`);
@@ -247,7 +250,7 @@ export default function POSLoyaltyPage() {
   const openHistory = async (c: CustomerPoints) => {
     setHistoryCustomer(c);
     const { data } = await supabase
-      .from('pos_loyalty_transactions' as any)
+      .from('pos_loyalty_transactions' as never)
       .select('*')
       .eq('customer_id', c.customer_id)
       .eq('tenant_id', tenant!.id)
@@ -649,40 +652,40 @@ export default function POSLoyaltyPage() {
             <div className="space-y-4">
               <div>
                 <Label>Nama Program</Label>
-                <Input value={settingsForm.name} onChange={e => setSettingsForm((f: any) => ({ ...f, name: e.target.value }))} />
+                <Input value={settingsForm.name} onChange={e => setSettingsForm((f) => ({ ...f, name: e.target.value }))} />
               </div>
               <div className="flex items-center gap-2">
-                <Switch checked={settingsForm.is_active} onCheckedChange={v => setSettingsForm((f: any) => ({ ...f, is_active: v }))} />
+                <Switch checked={settingsForm.is_active} onCheckedChange={v => setSettingsForm((f) => ({ ...f, is_active: v }))} />
                 <Label>Program Aktif</Label>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Earn: Rp per 1 Poin</Label>
                   <Input type="number" min={1} value={settingsForm.earn_per_rupiah}
-                    onChange={e => setSettingsForm((f: any) => ({ ...f, earn_per_rupiah: e.target.value }))} />
+                    onChange={e => setSettingsForm((f) => ({ ...f, earn_per_rupiah: e.target.value }))} />
                   <p className="text-xs text-muted-foreground mt-1">Setiap kelipatan Rp ini = 1 poin</p>
                 </div>
                 <div>
                   <Label>Redeem: Poin per Rp 1</Label>
                   <Input type="number" min={1} value={settingsForm.redeem_rate}
-                    onChange={e => setSettingsForm((f: any) => ({ ...f, redeem_rate: e.target.value }))} />
+                    onChange={e => setSettingsForm((f) => ({ ...f, redeem_rate: e.target.value }))} />
                   <p className="text-xs text-muted-foreground mt-1">Jumlah poin untuk mendapat Rp 1 diskon</p>
                 </div>
                 <div>
                   <Label>Min. Poin untuk Tukar</Label>
                   <Input type="number" min={0} value={settingsForm.min_redeem_points}
-                    onChange={e => setSettingsForm((f: any) => ({ ...f, min_redeem_points: e.target.value }))} />
+                    onChange={e => setSettingsForm((f) => ({ ...f, min_redeem_points: e.target.value }))} />
                 </div>
                 <div>
                   <Label>Maks. Diskon dari Poin (%)</Label>
                   <Input type="number" min={0} max={100} value={settingsForm.max_redeem_percent}
-                    onChange={e => setSettingsForm((f: any) => ({ ...f, max_redeem_percent: e.target.value }))} />
+                    onChange={e => setSettingsForm((f) => ({ ...f, max_redeem_percent: e.target.value }))} />
                   <p className="text-xs text-muted-foreground mt-1">Batas % nilai transaksi yang bisa dibayar poin</p>
                 </div>
                 <div className="col-span-2">
                   <Label>Masa Berlaku Poin (hari, 0 = tidak kedaluwarsa)</Label>
                   <Input type="number" min={0} value={settingsForm.point_expiry_days}
-                    onChange={e => setSettingsForm((f: any) => ({ ...f, point_expiry_days: e.target.value }))} />
+                    onChange={e => setSettingsForm((f) => ({ ...f, point_expiry_days: e.target.value }))} />
                 </div>
               </div>
             </div>
