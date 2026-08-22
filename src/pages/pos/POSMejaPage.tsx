@@ -31,13 +31,15 @@ interface TableItem {
   is_active: boolean;
 }
 
+interface TableOrderUpdate { status: string; updated_at: string; cooking_started_at?: string; ready_at?: string; served_at?: string; }
+
 interface TableOrder {
   id: string;
   table_id: string | null;
   table_name: string | null;
   order_number: string;
   status: string;
-  items: any[];
+  items: unknown[];
   notes: string | null;
   customer_name: string | null;
   created_at: string;
@@ -96,7 +98,7 @@ export default function POSMejaPage() {
     setLoading(true);
     try {
       let tq = supabase
-        .from('pos_tables' as any)
+        .from('pos_tables' as never)
         .select('*')
         .eq('tenant_id', tenant.id)
         .eq('is_active', true)
@@ -105,7 +107,7 @@ export default function POSMejaPage() {
       if (activeOutlet) tq = tq.eq('outlet_id', activeOutlet.id);
 
       let oq = supabase
-        .from('pos_table_orders' as any)
+        .from('pos_table_orders' as never)
         .select('*')
         .eq('tenant_id', tenant.id)
         .not('status', 'in', '(paid,cancelled)')
@@ -115,8 +117,8 @@ export default function POSMejaPage() {
       const [tRes, oRes] = await Promise.all([tq, oq]);
       setTables((tRes.data || []) as unknown as TableItem[]);
       setOrders((oRes.data || []) as unknown as TableOrder[]);
-    } catch (err: any) {
-      toast.error('Gagal memuat data: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal memuat data: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setLoading(false);
     }
@@ -169,16 +171,16 @@ export default function POSMejaPage() {
         notes: form.notes || null,
       };
       if (editItem) {
-        await supabase.from('pos_tables' as any).update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editItem.id);
+        await supabase.from('pos_tables' as never).update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editItem.id);
         toast.success('Meja berhasil diperbarui');
       } else {
-        await supabase.from('pos_tables' as any).insert(payload);
+        await supabase.from('pos_tables' as never).insert(payload);
         toast.success('Meja berhasil ditambahkan');
       }
       setDialogOpen(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
@@ -187,26 +189,26 @@ export default function POSMejaPage() {
   const handleStatusChange = async () => {
     if (!statusTarget) return;
     try {
-      await supabase.from('pos_tables' as any)
+      await supabase.from('pos_tables' as never)
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', statusTarget.id);
       toast.success(`Status meja ${statusTarget.name} diubah ke ${STATUS_CONFIG[newStatus as keyof typeof STATUS_CONFIG]?.label}`);
       setStatusDialog(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await supabase.from('pos_tables' as any).update({ is_active: false }).eq('id', deleteTarget.id);
+      await supabase.from('pos_tables' as never).update({ is_active: false }).eq('id', deleteTarget.id);
       toast.success('Meja dihapus');
       setDeleteDialog(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -221,7 +223,7 @@ export default function POSMejaPage() {
     setOrderSaving(true);
     try {
       const orderNumber = `ORD-${Date.now()}`;
-      await supabase.from('pos_table_orders' as any).insert({
+      await supabase.from('pos_table_orders' as never).insert({
         tenant_id: tenant.id,
         outlet_id: activeOutlet?.id || null,
         table_id: selectedTable.id,
@@ -232,15 +234,15 @@ export default function POSMejaPage() {
         customer_name: orderForm.customer_name || null,
         notes: orderForm.notes || null,
       });
-      await supabase.from('pos_tables' as any)
+      await supabase.from('pos_tables' as never)
         .update({ status: 'occupied', updated_at: new Date().toISOString() })
         .eq('id', selectedTable.id);
       toast.success(`Pesanan ${orderNumber} dibuat untuk ${selectedTable.name}`);
       setAddOrderDialog(false);
       setOrderDialog(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setOrderSaving(false);
     }
@@ -248,16 +250,16 @@ export default function POSMejaPage() {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const updates: any = { status, updated_at: new Date().toISOString() };
+      const updates: TableOrderUpdate = { status, updated_at: new Date().toISOString() };
       if (status === 'cooking') updates.cooking_started_at = new Date().toISOString();
       if (status === 'ready') updates.ready_at = new Date().toISOString();
       if (status === 'served') updates.served_at = new Date().toISOString();
-      await supabase.from('pos_table_orders' as any).update(updates).eq('id', orderId);
+      await supabase.from('pos_table_orders' as never).update(updates).eq('id', orderId);
       toast.success('Status pesanan diperbarui');
       fetchAll();
       if (selectedTable) setTableOrders(getTableOrders(selectedTable.id));
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
     }
   };
 
