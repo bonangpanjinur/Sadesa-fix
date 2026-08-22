@@ -39,6 +39,12 @@ interface PLData {
   biayaRincian: { category: string; amount: number }[];
 }
 
+interface PLSaleItem { product_name?: string | null; qty: number; price: number; subtotal: number; cost_price: number; }
+interface PLSale { id: string; total: number; discount_amount: number | null; created_at: string; pos_sale_items?: PLSaleItem[]; }
+interface PLReturn { total_refund: number; }
+interface PLMutation { type: string; category: string | null; amount: number; }
+interface PLProductAggregate { name: string; qty: number; revenue: number; hpp: number; }
+
 const PERIOD_OPTIONS = [
   { value: 'today', label: 'Hari Ini' },
   { value: 'week', label: 'Minggu Ini' },
@@ -84,7 +90,7 @@ export default function POSLaporanLabaRugiPage() {
 
     try {
       const [salesRes, returRes, mutRes] = await Promise.all([
-        supabase.from('pos_sales' as any)
+        supabase.from('pos_sales' as never)
           .select('id, total, discount_amount, created_at, pos_sale_items(qty, price, subtotal, cost_price)')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
@@ -92,13 +98,13 @@ export default function POSLaporanLabaRugiPage() {
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString())
           .order('created_at'),
-        supabase.from('pos_sale_returns' as any)
+        supabase.from('pos_sale_returns' as never)
           .select('total_refund')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
           .gte('created_at', start.toISOString())
           .lte('created_at', end.toISOString()),
-        supabase.from('pos_cash_mutations' as any)
+        supabase.from('pos_cash_mutations' as never)
           .select('type, category, amount')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
@@ -107,24 +113,24 @@ export default function POSLaporanLabaRugiPage() {
           .lte('created_at', end.toISOString()),
       ]);
 
-      const sales = (salesRes.data || []) as any[];
-      const returns = (returRes.data || []) as any[];
-      const mutations = (mutRes.data || []) as any[];
+      const sales = (salesRes.data || []) as unknown as PLSale[];
+      const returns = (returRes.data || []) as unknown as PLReturn[];
+      const mutations = (mutRes.data || []) as unknown as PLMutation[];
 
-      const omzet = sales.reduce((s: number, r: any) => s + Number(r.total), 0);
-      const totalDiskon = sales.reduce((s: number, r: any) => s + Number(r.discount_amount || 0), 0);
-      const totalRetur = returns.reduce((s: number, r: any) => s + Number(r.total_refund), 0);
+      const omzet = sales.reduce((s: number, r) => s + Number(r.total), 0);
+      const totalDiskon = sales.reduce((s: number, r) => s + Number(r.discount_amount || 0), 0);
+      const totalRetur = returns.reduce((s: number, r) => s + Number(r.total_refund), 0);
 
       let hpp = 0;
-      const productMap: Record<string, any> = {};
-      sales.forEach((sale: any) => {
-        (sale.pos_sale_items || []).forEach((item: any) => {
+      const productMap: Record<string, PLProductAggregate> = {};
+      sales.forEach((sale) => {
+        (sale.pos_sale_items || []).forEach((item) => {
           const cp = Number(item.cost_price || 0);
           const qty = Number(item.qty || 0);
           const subtotal = Number(item.subtotal || 0);
           hpp += cp * qty;
 
-          const key = (item as any).product_name || 'Produk Tidak Diketahui';
+          const key = item.product_name || 'Produk Tidak Diketahui';
           if (!productMap[key]) productMap[key] = { name: key, qty: 0, revenue: 0, hpp: 0 };
           productMap[key].qty += qty;
           productMap[key].revenue += subtotal;
@@ -133,19 +139,19 @@ export default function POSLaporanLabaRugiPage() {
       });
 
       const labaKotor = omzet - hpp - totalRetur;
-      const bebanOperasional = mutations.reduce((s: number, m: any) => s + Number(m.amount), 0);
+      const bebanOperasional = mutations.reduce((s: number, m) => s + Number(m.amount), 0);
       const labaBersih = labaKotor - bebanOperasional;
 
       const biayaMap: Record<string, number> = {};
-      mutations.forEach((m: any) => {
+      mutations.forEach((m) => {
         const cat = m.category || 'other';
         biayaMap[cat] = (biayaMap[cat] || 0) + Number(m.amount);
       });
       const biayaRincian = Object.entries(biayaMap).map(([category, amount]) => ({ category, amount }));
 
       const topProducts = Object.values(productMap)
-        .map((p: any) => ({ ...p, profit: p.revenue - p.hpp }))
-        .sort((a: any, b: any) => b.profit - a.profit)
+        .map((p) => ({ ...p, profit: p.revenue - p.hpp }))
+        .sort((a, b) => b.profit - a.profit)
         .slice(0, 10);
 
       const isYear = period === 'year';
@@ -156,13 +162,13 @@ export default function POSLaporanLabaRugiPage() {
       const chartData = chartDays.map(day => {
         const dayStart = isYear ? startOfMonth(day) : startOfDay(day);
         const dayEnd = isYear ? endOfMonth(day) : endOfDay(day);
-        const daySales = sales.filter((s: any) => {
+        const daySales = sales.filter((s) => {
           const d = new Date(s.created_at);
           return d >= dayStart && d <= dayEnd;
         });
-        const dayOmzet = daySales.reduce((s: number, r: any) => s + Number(r.total), 0);
-        const dayHpp = daySales.reduce((s: number, r: any) =>
-          s + (r.pos_sale_items || []).reduce((ss: number, i: any) => ss + Number(i.cost_price || 0) * Number(i.qty || 0), 0), 0);
+        const dayOmzet = daySales.reduce((s: number, r) => s + Number(r.total), 0);
+        const dayHpp = daySales.reduce((s: number, r) =>
+          s + (r.pos_sale_items || []).reduce((ss: number, i) => ss + Number(i.cost_price || 0) * Number(i.qty || 0), 0), 0);
         return {
           label: isYear ? format(day, 'MMM', { locale: idLocale }) : format(day, 'dd/MM'),
           omzet: dayOmzet,
@@ -184,8 +190,8 @@ export default function POSLaporanLabaRugiPage() {
   const printReport = () => window.print();
 
   const exportPDF = () => {
-    const storeName = (tenant as any)?.name || 'Toko';
-    const outletName = activeOutlet ? (activeOutlet as any).name : '';
+    const storeName = (tenant as unknown as { name?: string })?.name || 'Toko';
+    const outletName = activeOutlet ? (activeOutlet as unknown as { name?: string }).name : '';
     const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || period;
     const now = format(new Date(), 'dd MMMM yyyy HH:mm', { locale: idLocale });
     const fc = (n: number) => `Rp ${Math.abs(n).toLocaleString('id-ID')}`;
@@ -496,7 +502,7 @@ export default function POSLaporanLabaRugiPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                     <YAxis tick={{ fontSize: 10 }} tickFormatter={v => v >= 1000000 ? `${(v/1000000).toFixed(1)}jt` : v >= 1000 ? `${(v/1000).toFixed(0)}rb` : v} />
-                    <Tooltip formatter={(val: any) => formatCurrency(val)} />
+                    <Tooltip formatter={(val) => formatCurrency(Number(val))} />
                     <Legend />
                     <Bar dataKey="omzet" fill="#10b981" name="Omzet" radius={[2, 2, 0, 0]} />
                     <Bar dataKey="hpp" fill="#f59e0b" name="HPP" radius={[2, 2, 0, 0]} />
