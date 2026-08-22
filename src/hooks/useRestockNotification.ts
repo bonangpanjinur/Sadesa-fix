@@ -3,23 +3,14 @@
  * Cek apakah produk di wishlist yang sebelumnya kosong sudah restok,
  * lalu kirim notifikasi ke user.
  */
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function useRestockNotification() {
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (!user) return;
-
-    // Check on mount and periodically
-    checkRestockedWishlistItems();
-    const interval = setInterval(checkRestockedWishlistItems, 5 * 60 * 1000); // every 5 min
-    return () => clearInterval(interval);
-  }, [user]);
-
-  async function checkRestockedWishlistItems() {
+  const checkRestockedWishlistItems = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -69,7 +60,14 @@ export function useRestockNotification() {
     } catch (err) {
       // Silently fail — this is a background check
     }
-  }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    checkRestockedWishlistItems();
+    const interval = setInterval(checkRestockedWishlistItems, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user, checkRestockedWishlistItems]);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -39,13 +39,10 @@ export default function ProductComparePage() {
   const [searchResults, setSearchResults] = useState<CompareProduct[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const ids = searchParams.get('ids')?.split(',').filter(Boolean) || [];
+  const idsParam = searchParams.get('ids') || '';
+  const ids = useMemo(() => idsParam.split(',').filter(Boolean), [idsParam]);
 
-  useEffect(() => {
-    if (ids.length > 0) fetchProducts(ids);
-  }, []);
-
-  const fetchProducts = async (productIds: string[]) => {
+  const fetchProducts = useCallback(async (productIds: string[]) => {
     setLoading(true);
     try {
       const { data } = await supabase
@@ -77,7 +74,11 @@ export default function ProductComparePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (ids.length > 0) fetchProducts(ids);
+  }, [ids, fetchProducts]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
