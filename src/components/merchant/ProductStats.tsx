@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Eye, ShoppingCart, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,13 +21,7 @@ export function ProductStats({ merchantId }: ProductStatsProps) {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'views' | 'orders'>('views');
 
-  useEffect(() => {
-    if (merchantId) {
-      fetchProductStats();
-    }
-  }, [merchantId]);
-
-  const fetchProductStats = async () => {
+  const fetchProductStats = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -44,7 +38,11 @@ export function ProductStats({ merchantId }: ProductStatsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    if (merchantId) fetchProductStats();
+  }, [merchantId, fetchProductStats]);
 
   const sortedProducts = [...products].sort((a, b) => {
     if (sortBy === 'views') {

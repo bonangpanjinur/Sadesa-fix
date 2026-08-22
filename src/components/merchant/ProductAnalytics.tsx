@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BarChart3, Eye, ShoppingCart, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,13 +34,7 @@ export function ProductAnalytics({ merchantId }: ProductAnalyticsProps) {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'views' | 'orders' | 'conversion' | 'revenue'>('orders');
 
-  useEffect(() => {
-    if (merchantId) {
-      fetchAnalytics();
-    }
-  }, [merchantId]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       // Fetch products
       const { data: productData, error: productError } = await supabase
@@ -76,7 +70,11 @@ export function ProductAnalytics({ merchantId }: ProductAnalyticsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    if (merchantId) fetchAnalytics();
+  }, [merchantId, fetchAnalytics]);
 
   const sortedProducts = [...products].sort((a, b) => {
     switch (sortBy) {
