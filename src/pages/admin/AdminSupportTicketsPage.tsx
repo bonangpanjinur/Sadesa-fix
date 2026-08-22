@@ -49,6 +49,14 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
   urgent: { label: 'Mendesak',color: 'bg-red-100 text-red-700' },
 };
 
+interface SupportMessageRow extends SupportMessage { sender_id: string | null }
+
+interface SupportProfile {
+  user_id: string;
+  full_name: string | null;
+  email?: string | null;
+}
+
 interface SupportMessage {
   id: string;
   sender_role: 'user' | 'admin';
@@ -56,6 +64,8 @@ interface SupportMessage {
   created_at: string;
   sender_name?: string;
 }
+
+interface SupportTicketRow extends SupportTicket { last_message_at: string | null; message_count: number | null }
 
 interface SupportTicket {
   id: string;
@@ -102,7 +112,7 @@ export default function AdminSupportTicketsPage() {
       if (error) throw error;
 
       // Enrich dengan data user / Enrich with user data
-      const userIds = [...new Set((data || []).map((t: any) => t.user_id))];
+      const userIds = [...new Set((data || []).map((t: SupportTicketRow) => t.user_id))];
       let profileMap: Record<string, { name: string; email: string }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -110,11 +120,11 @@ export default function AdminSupportTicketsPage() {
           .select('user_id, full_name, email')
           .in('user_id', userIds);
         profileMap = Object.fromEntries(
-          (profiles || []).map((p: any) => [p.user_id, { name: p.full_name || 'Pengguna', email: p.email || '' }])
+          (profiles as SupportProfile[] || []).map((p) => [p.user_id, { name: p.full_name || 'Pengguna', email: p.email || '' }])
         );
       }
 
-      return (data || []).map((t: any) => ({
+      return (data || []).map((t: SupportTicketRow) => ({
         ...t,
         user_name: profileMap[t.user_id]?.name || 'Pengguna',
         user_email: profileMap[t.user_id]?.email || '',
@@ -134,17 +144,17 @@ export default function AdminSupportTicketsPage() {
         .order('created_at', { ascending: true });
       if (error) throw error;
 
-      const senderIds = [...new Set((data || []).map((m: any) => m.sender_id).filter(Boolean))];
+      const senderIds = [...new Set((data || []).map((m: SupportMessageRow) => m.sender_id).filter(Boolean))];
       let nameMap: Record<string, string> = {};
       if (senderIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('user_id, full_name')
           .in('user_id', senderIds);
-        nameMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.full_name || 'Pengguna']));
+        nameMap = Object.fromEntries((profiles as SupportProfile[] || []).map((p) => [p.user_id, p.full_name || 'Pengguna']));
       }
 
-      return (data || []).map((m: any) => ({
+      return (data || []).map((m: SupportMessageRow) => ({
         ...m,
         sender_name: nameMap[m.sender_id] || (m.sender_role === 'admin' ? 'Tim Support' : 'Pengguna'),
       }));

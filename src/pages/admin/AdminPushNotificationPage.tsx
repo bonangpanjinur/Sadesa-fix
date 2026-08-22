@@ -65,13 +65,15 @@ export default function AdminPushNotificationPage() {
     setLoading(true);
     try {
       const { data } = await supabase
-        .from('app_settings' as any)
+        .from('app_settings')
         .select('value')
         .eq('key', 'push_notification_settings')
         .maybeSingle();
 
       if (data?.value) {
-        setSettings({ ...DEFAULT_SETTINGS, ...(data.value as any) });
+        if (typeof data.value === 'object' && data.value !== null) {
+          setSettings({ ...DEFAULT_SETTINGS, ...data.value as Partial<PushSettings> });
+        }
       }
     } catch (err) {
       console.error('Error fetching push settings:', err);
@@ -83,7 +85,7 @@ export default function AdminPushNotificationPage() {
   const fetchSubscriberCount = async () => {
     try {
       const { count } = await supabase
-        .from('push_subscriptions' as any)
+        .from('push_subscriptions')
         .select('*', { count: 'exact', head: true });
       setSubscriberCount(count ?? 0);
     } catch {
@@ -95,11 +97,11 @@ export default function AdminPushNotificationPage() {
     setSaving(true);
     try {
       const { error } = await supabase
-        .from('app_settings' as any)
+        .from('app_settings')
         .upsert(
           {
             key: 'push_notification_settings',
-            value: settings as any,
+            value: settings,
             category: 'notification',
             description: 'Konfigurasi VAPID keys untuk Web Push Notification',
           },
