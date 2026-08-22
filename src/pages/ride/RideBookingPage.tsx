@@ -111,6 +111,37 @@ export default function RideBookingPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const geocodeAbort = useRef<AbortController | null>(null);
 
+  const fetchDrivers = useCallback(async () => {
+    const { data } = await supabase.from('couriers').select('id, name, current_lat, current_lng')
+      .eq('is_available', true).eq('status', 'ACTIVE')
+      .not('current_lat', 'is', null).not('current_lng', 'is', null);
+    if (data) setDrivers(data.map(d => ({ id: d.id, lat: d.current_lat!, lng: d.current_lng!, name: d.name })));
+  }, []);
+
+  const handleGps = useCallback(() => {
+    setGettingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setPickupLocation(loc);
+        setGettingGps(false);
+        setMode('destination');
+        // Reverse geocode GPS position
+        setGeocoding(true);
+        try {
+          const result = await reverseGeocode(loc.lat, loc.lng);
+          setPickupAddress(result ? formatAddressSummary(result) : 'Lokasi saya saat ini');
+        } catch {
+          setPickupAddress('Lokasi saya saat ini');
+        } finally {
+          setGeocoding(false);
+        }
+      },
+      () => { setGettingGps(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }, []);
+
   useEffect(() => {
     if (!user) { navigate('/auth'); return; }
     supabase.from('app_settings').select('value').eq('key', 'ride_fare_settings').maybeSingle()
@@ -136,7 +167,7 @@ export default function RideBookingPage() {
         if (data && data.length > 0) setActiveRide(data[0] as unknown as { id: string; status: string });
       });
     handleGps();
-  }, [user, navigate]);
+  }, [user, navigate, fetchDrivers, handleGps]);
 
   // Real-time driver position updates
   useEffect(() => {
@@ -175,38 +206,8 @@ export default function RideBookingPage() {
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchDrivers]);
 
-  const fetchDrivers = async () => {
-    const { data } = await supabase.from('couriers').select('id, name, current_lat, current_lng')
-      .eq('is_available', true).eq('status', 'ACTIVE')
-      .not('current_lat', 'is', null).not('current_lng', 'is', null);
-    if (data) setDrivers(data.map(d => ({ id: d.id, lat: d.current_lat!, lng: d.current_lng!, name: d.name })));
-  };
-
-  const handleGps = useCallback(() => {
-    setGettingGps(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setPickupLocation(loc);
-        setGettingGps(false);
-        setMode('destination');
-        // Reverse geocode GPS position
-        setGeocoding(true);
-        try {
-          const result = await reverseGeocode(loc.lat, loc.lng);
-          setPickupAddress(result ? formatAddressSummary(result) : 'Lokasi saya saat ini');
-        } catch {
-          setPickupAddress('Lokasi saya saat ini');
-        } finally {
-          setGeocoding(false);
-        }
-      },
-      () => { setGettingGps(false); },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }, []);
 
   const handleMapClick = useCallback(async (lat: number, lng: number) => {
     // Cancel previous geocode request

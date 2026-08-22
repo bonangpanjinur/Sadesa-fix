@@ -91,6 +91,53 @@ export default function RideTrackingPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [driverUserId, setDriverUserId] = useState<string | null>(null);
 
+  const autoCancel = useCallback(async () => {
+    if (!ride || ride.status !== 'SEARCHING') return;
+    try {
+      await supabase
+        .from('ride_requests')
+        .update({
+          status: 'CANCELLED',
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: 'Tidak ada driver tersedia dalam waktu yang ditentukan',
+        } as Record<string, unknown>)
+        .eq('id', ride.id)
+        .eq('status', 'SEARCHING'); // Only cancel if still searching
+      toast({ title: '⏰ Pencarian habis waktu', description: 'Tidak ada driver tersedia. Silakan coba lagi.' });
+    } catch {
+      // Silent fail
+    }
+  }, [ride]);
+
+  const fetchDriver = useCallback(async (driverId: string) => {
+    const { data } = await supabase
+      .from('couriers')
+      .select('name, phone, vehicle_type, vehicle_plate, photo_url, user_id')
+      .eq('id', driverId)
+      .maybeSingle();
+    if (data) {
+      setDriver(data);
+      if (data.user_id) setDriverUserId(data.user_id);
+    }
+  }, []);
+
+  const fetchRide = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ride_requests')
+        .select('*')
+        .eq('id', id!)
+        .maybeSingle();
+      if (error) throw error;
+      setRide(data as unknown as RideData);
+      if (data.driver_id) fetchDriver(data.driver_id);
+    } catch {
+      toast({ title: 'Gagal memuat data perjalanan', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [id, fetchDriver]);
+
   useEffect(() => {
     if (!user || !id) return;
     fetchRide();
@@ -120,9 +167,9 @@ export default function RideTrackingPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, id]);
+  }, [user, id, fetchRide, driver, fetchDriver]);
 
-  // Search timeout countdown
+
   useEffect(() => {
     if (!ride || ride.status !== 'SEARCHING') {
       setSearchCountdown(null);
@@ -146,54 +193,8 @@ export default function RideTrackingPage() {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [ride?.status, ride?.created_at]);
+  }, [ride?.status, ride?.created_at, ride, autoCancel]);
 
-  const autoCancel = useCallback(async () => {
-    if (!ride || ride.status !== 'SEARCHING') return;
-    try {
-      await supabase
-        .from('ride_requests')
-        .update({
-          status: 'CANCELLED',
-          cancelled_at: new Date().toISOString(),
-          cancellation_reason: 'Tidak ada driver tersedia dalam waktu yang ditentukan',
-        } as Record<string, unknown>)
-        .eq('id', ride.id)
-        .eq('status', 'SEARCHING'); // Only cancel if still searching
-      toast({ title: '⏰ Pencarian habis waktu', description: 'Tidak ada driver tersedia. Silakan coba lagi.' });
-    } catch {
-      // Silent fail
-    }
-  }, [ride]);
-
-  const fetchRide = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('ride_requests')
-        .select('*')
-        .eq('id', id!)
-        .maybeSingle();
-      if (error) throw error;
-      setRide(data as unknown as RideData);
-      if (data.driver_id) fetchDriver(data.driver_id);
-    } catch {
-      toast({ title: 'Gagal memuat data perjalanan', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDriver = async (driverId: string) => {
-    const { data } = await supabase
-      .from('couriers')
-      .select('name, phone, vehicle_type, vehicle_plate, photo_url, user_id')
-      .eq('id', driverId)
-      .maybeSingle();
-    if (data) {
-      setDriver(data);
-      if (data.user_id) setDriverUserId(data.user_id);
-    }
-  };
 
   const handleCancelClick = () => {
     if (ride?.status === 'ACCEPTED') {
