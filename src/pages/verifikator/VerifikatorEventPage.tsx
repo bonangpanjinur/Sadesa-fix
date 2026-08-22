@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { VerifikatorLayout } from '@/components/verifikator/VerifikatorLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,19 +33,16 @@ export default function VerifikatorEventPage() {
   const [selectedVillage, setSelectedVillage] = useState('all');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { if (user) fetchVillages(); }, [user]);
-  useEffect(() => { fetchEvents(); }, [selectedVillage]);
-
-  const fetchVillages = async () => {
+  const fetchVillages = useCallback(async () => {
     if (!user) return;
     const { data } = await (supabase as any)
       .from('verifikator_assignments')
       .select('villages(id, name)')
       .eq('verifikator_id', user.id);
     setVillages(((data || []) as any[]).map((a: any) => a.villages).filter(Boolean) as { id: string; name: string }[]);
-  };
+  }, [user]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     setLoading(true);
     try {
       let q = supabase
@@ -62,7 +59,15 @@ export default function VerifikatorEventPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedVillage]);
+
+  useEffect(() => {
+    if (user) fetchVillages();
+  }, [user, fetchVillages]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   const getStatus = (ev: VillageEvent) => {
     const now = new Date();
