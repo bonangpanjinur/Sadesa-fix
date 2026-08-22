@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { ProductStats } from '@/components/merchant/ProductStats';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,12 +44,7 @@ export default function MerchantVisitorStatsPage() {
     setLoading(false);
   }, [guardLoading, guardMerchantId]);
 
-  useEffect(() => {
-    if (!merchantId) return;
-    fetchViewStats();
-  }, [merchantId, period]);
-
-  const fetchViewStats = async () => {
+  const fetchViewStats = useCallback(async () => {
     if (!merchantId) return;
 
     const days = period === '7d' ? 7 : 30;
@@ -127,7 +122,12 @@ export default function MerchantVisitorStatsPage() {
     } catch (error) {
       console.error('Error fetching view stats:', error);
     }
-  };
+  }, [merchantId, period]);
+
+  useEffect(() => {
+    if (!merchantId) return;
+    fetchViewStats();
+  }, [merchantId, fetchViewStats]);
 
   if (loading) {
     return (

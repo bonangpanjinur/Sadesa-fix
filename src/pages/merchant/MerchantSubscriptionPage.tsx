@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { Package, CreditCard, AlertTriangle, Clock, TrendingUp, Upload, CheckCircle2, XCircle, Info, ExternalLink, X, FileCheck, History, ShoppingCart } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
@@ -99,7 +99,7 @@ export default function MerchantSubscriptionPage() {
   const [selectedSubscriptionDetail, setSelectedSubscriptionDetail] = useState<Subscription | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -187,11 +187,11 @@ export default function MerchantSubscriptionPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [fetchData]);
 
   const handleBuyPackage = () => {
     if (!selectedPackage || !merchant) return;
