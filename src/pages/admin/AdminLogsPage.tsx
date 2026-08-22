@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollText, Search, Calendar, Filter, User, Activity } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Input } from '@/components/ui/input';
@@ -83,7 +83,7 @@ export default function AdminLogsPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const now = new Date();
     switch (dateFilter) {
       case '1day':
@@ -95,9 +95,9 @@ export default function AdminLogsPage() {
       default:
         return subDays(now, 7);
     }
-  };
+  }, [dateFilter]);
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
       const startDate = getDateRange();
@@ -140,11 +140,11 @@ export default function AdminLogsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getDateRange]);
 
   useEffect(() => {
     loadLogs();
-  }, [dateFilter]);
+  }, [loadLogs]);
 
   const filteredLogs = logs.filter(log => {
     const matchesSearch = 

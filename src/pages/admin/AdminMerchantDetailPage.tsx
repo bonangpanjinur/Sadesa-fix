@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Store, MapPin, Phone, Clock, Star, Package, 
@@ -127,13 +127,7 @@ export default function AdminMerchantDetailPage() {
     totalRevenue: 0,
   });
 
-  useEffect(() => {
-    if (id) {
-      fetchMerchantData();
-    }
-  }, [id]);
-
-  const fetchMerchantData = async () => {
+  const fetchMerchantData = useCallback(async () => {
     try {
       // Fetch merchant details
       const { data: merchantData, error: merchantError } = await supabase
@@ -224,7 +218,7 @@ export default function AdminMerchantDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   const handleApprove = async () => {
     if (!id) return;
@@ -249,6 +243,10 @@ export default function AdminMerchantDetailPage() {
       toast.error('Gagal menolak merchant');
     }
   };
+
+  useEffect(() => {
+    if (id) fetchMerchantData();
+  }, [id, fetchMerchantData]);
 
   const handleDelete = async () => {
     if (!id) return;
