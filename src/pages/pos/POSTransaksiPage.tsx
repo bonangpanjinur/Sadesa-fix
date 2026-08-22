@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,27 +60,21 @@ export default function POSTransaksiPage() {
   const [selected, setSelected] = useState<Sale | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  useEffect(() => {
-    if (tenant && activeOutlet) fetchSales();
-  }, [tenant, activeOutlet, dateFilter]);
-
-  const getDateRange = () => {
-    const now = new Date();
-    switch (dateFilter) {
-      case 'today': return { start: startOfDay(now), end: endOfDay(now) };
-      case 'yesterday': return { start: startOfDay(subDays(now, 1)), end: endOfDay(subDays(now, 1)) };
-      case 'week': return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
-      case 'month': return { start: startOfMonth(now), end: endOfMonth(now) };
-      default: return { start: startOfDay(now), end: endOfDay(now) };
-    }
-  };
-
-  const fetchSales = async () => {
+  const fetchSales = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     setLoading(true);
-    const { start, end } = getDateRange();
+    const now = new Date();
+    const { start, end } = dateFilter === 'today'
+      ? { start: startOfDay(now), end: endOfDay(now) }
+      : dateFilter === 'yesterday'
+        ? { start: startOfDay(subDays(now, 1)), end: endOfDay(subDays(now, 1)) }
+        : dateFilter === 'week'
+          ? { start: startOfDay(subDays(now, 7)), end: endOfDay(now) }
+          : dateFilter === 'month'
+            ? { start: startOfMonth(now), end: endOfMonth(now) }
+            : { start: startOfDay(now), end: endOfDay(now) };
     const { data } = await supabase
-      .from('pos_sales' as any)
+      .from('pos_sales' as never)
       .select('*')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
@@ -89,11 +83,15 @@ export default function POSTransaksiPage() {
       .order('created_at', { ascending: false });
     setSales((data || []) as unknown as Sale[]);
     setLoading(false);
-  };
+  }, [tenant, activeOutlet, dateFilter]);
+
+  useEffect(() => {
+    if (tenant && activeOutlet) void fetchSales();
+  }, [tenant, activeOutlet, fetchSales]);
 
   const openDetail = async (sale: Sale) => {
     const { data } = await supabase
-      .from('pos_sale_items' as any)
+      .from('pos_sale_items' as never)
       .select('*')
       .eq('sale_id', sale.id);
     setSelected({ ...sale, pos_sale_items: (data || []) as unknown as SaleItem[] });

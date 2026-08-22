@@ -59,7 +59,7 @@ export default function POSAbsensiPage() {
     setLoading(true);
     try {
       const [attRes, userRes] = await Promise.all([
-        supabase.from('pos_attendances' as any)
+        supabase.from('pos_attendances' as never)
           .select('*, pos_users(id, full_name, role)')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
@@ -67,15 +67,15 @@ export default function POSAbsensiPage() {
           .lte('date', dateEnd)
           .order('date', { ascending: false })
           .order('check_in_at', { ascending: false }),
-        supabase.from('pos_users' as any)
+        supabase.from('pos_users' as never)
           .select('id, full_name, role')
           .eq('tenant_id', tenant.id)
           .eq('is_active', true),
       ]);
-      const att = (attRes.data || []).map((a: any) => ({
-        ...a,
-        user: a.pos_users,
-      })) as Attendance[];
+      const att = (attRes.data || []).map((a) => {
+        const attendance = a as unknown as Attendance & { pos_users?: Attendance['user'] };
+        return { ...attendance, user: attendance.pos_users };
+      });
       setAttendances(att);
       setUsers((userRes.data || []) as PosUser[]);
     } catch (err) { console.error(err); }
@@ -97,7 +97,7 @@ export default function POSAbsensiPage() {
         const [h, m] = form.check_in_at.split(':').map(Number);
         lateMin = Math.max(0, (h * 60 + m) - 8 * 60);
       }
-      await supabase.from('pos_attendances' as any).upsert({
+      await supabase.from('pos_attendances' as never).upsert({
         tenant_id: tenant.id,
         outlet_id: activeOutlet.id,
         pos_user_id: form.pos_user_id,
@@ -118,7 +118,7 @@ export default function POSAbsensiPage() {
   const clockIn = async (userId: string) => {
     if (!tenant || !activeOutlet) return;
     const now = new Date();
-    await supabase.from('pos_attendances' as any).upsert({
+    await supabase.from('pos_attendances' as never).upsert({
       tenant_id: tenant.id, outlet_id: activeOutlet.id,
       pos_user_id: userId, date: format(now, 'yyyy-MM-dd'),
       check_in_at: now.toISOString(), status: 'present', late_minutes: 0,
@@ -129,7 +129,7 @@ export default function POSAbsensiPage() {
 
   const clockOut = async (att: Attendance) => {
     const now = new Date();
-    await supabase.from('pos_attendances' as any).update({ check_out_at: now.toISOString() }).eq('id', att.id);
+    await supabase.from('pos_attendances' as never).update({ check_out_at: now.toISOString() }).eq('id', att.id);
     toast.success('Clock-out berhasil');
     fetchAll();
   };

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { type AddressData, formatFullAddress, createEmptyAddressData } from '@/components/AddressSelector';
+import { type AddressData, formatFullAddress } from '@/components/AddressSelector';
 import { LocationPicker } from './LocationPicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -162,7 +162,7 @@ export function CheckoutAddressForm({
     if (!savedAddressesLoading) {
       autoPopulate();
     }
-  }, [user, profileLoaded, savedAddressesLoading, savedAddresses.length]);
+  }, [user, profileLoaded, savedAddressesLoading, savedAddresses, onChange, value, getCoordinatesFromAddress]);
 
   useEffect(() => {
     if (isUpdatingFromMap.current) {
@@ -184,7 +184,7 @@ export function CheckoutAddressForm({
       };
       geocodeAddress();
     }
-  }, [value.address.district, value.address.village]);
+  }, [value.address.district, value.address.village, value.address.districtName, value.address.villageName, value.address.cityName, value.address.provinceName, getCoordinatesFromAddress]);
 
   const saveAddressToProfile = useCallback(async (addressData: CheckoutAddressData) => {
     if (!user || !profileWasEmpty) return;
@@ -564,15 +564,4 @@ export function CheckoutAddressForm({
       )}
     </div>
   );
-}
-
-export function createEmptyCheckoutAddress(): CheckoutAddressData {
-  return {
-    name: '',
-    phone: '',
-    address: createEmptyAddressData(),
-    location: null,
-    fullAddress: '',
-    detailAddress: '',
-  };
 }

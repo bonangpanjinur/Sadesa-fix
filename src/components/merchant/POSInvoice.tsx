@@ -168,34 +168,3 @@ export const POSInvoice = forwardRef<HTMLDivElement, POSInvoiceProps>(
 );
 
 POSInvoice.displayName = 'POSInvoice';
-
-export function printPOSInvoice(element: HTMLElement | null) {
-  if (!element) return;
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert('Popup diblokir. Izinkan popup untuk mencetak.');
-    return;
-  }
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Struk POS</title>
-      <style>
-        body { margin: 0; padding: 10px; font-family: monospace; background: white; }
-        @media print { body { padding: 0; } }
-      </style>
-    </head>
-    <body>
-      ${element.outerHTML}
-      <script>
-        window.onload = function() {
-          window.print();
-          window.onafterprint = function() { window.close(); };
-        };
-      </script>
-    </body>
-    </html>
-  `);
-  printWindow.document.close();
-}

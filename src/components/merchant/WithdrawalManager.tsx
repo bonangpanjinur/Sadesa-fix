@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Wallet, ArrowUpRight, Clock, CheckCircle, XCircle, Building2, CreditCard, type LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,11 +90,7 @@ export function WithdrawalManager({ merchantId }: WithdrawalManagerProps) {
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [accountHolder, setAccountHolder] = useState<string>('');
 
-  useEffect(() => {
-    fetchData();
-  }, [merchantId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Fetch merchant balance
       const { data: merchantData, error: merchantError } = await supabase
@@ -122,7 +118,11 @@ export function WithdrawalManager({ merchantId }: WithdrawalManagerProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const submitWithdrawal = async () => {
     if (amount < 10000) {

@@ -60,14 +60,14 @@ export default function POSTargetOmzetPage() {
       const endDate = `${viewYear}-${monthStr}-${getDaysInMonth(new Date(viewYear, viewMonth-1))}`;
 
       const [targetRes, salesRes] = await Promise.all([
-        supabase.from('pos_omzet_targets' as any)
+        supabase.from('pos_omzet_targets' as never)
           .select('*')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
           .eq('month', viewMonth)
           .eq('year', viewYear)
           .maybeSingle(),
-        supabase.from('pos_sales' as any)
+        supabase.from('pos_sales' as never)
           .select('total, created_at')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
@@ -76,12 +76,12 @@ export default function POSTargetOmzetPage() {
           .lte('created_at', `${endDate}T23:59:59`),
       ]);
 
-      const t = (targetRes as any).data as Target | null;
+      const t = targetRes.data as unknown as Target | null;
       setTarget(t);
       setFormDaily(t ? String(t.daily_target) : '');
       setFormMonthly(t ? String(t.monthly_target) : '');
 
-      const sales = ((salesRes as any).data || []) as { total: number; created_at: string }[];
+      const sales = (salesRes.data || []) as unknown as { total: number; created_at: string }[];
       const total = sales.reduce((s, x) => s + Number(x.total), 0);
       setActualSales(total);
 
@@ -117,9 +117,9 @@ export default function POSTargetOmzetPage() {
         monthly_target: Number(formMonthly),
       };
       if (target?.id) {
-        await supabase.from('pos_omzet_targets' as any).update(payload).eq('id', target.id);
+        await supabase.from('pos_omzet_targets' as never).update(payload).eq('id', target.id);
       } else {
-        await supabase.from('pos_omzet_targets' as any).insert(payload);
+        await supabase.from('pos_omzet_targets' as never).insert(payload);
       }
       toast.success('Target omzet disimpan');
       setEditMode(false);
@@ -275,7 +275,7 @@ export default function POSTargetOmzetPage() {
                 ].map(item=>(
                   <div key={item.label} className="flex items-center justify-between p-2 bg-muted/50 rounded">
                     <div className="flex items-center gap-2">{item.icon}<span className="text-xs text-muted-foreground">{item.label}</span></div>
-                    <span className={`font-medium text-sm ${(item as any).color||''}`}>{item.value}</span>
+                    <span className={`font-medium text-sm ${'color' in item ? item.color || '' : ''}`}>{item.value}</span>
                   </div>
                 ))}
               </div>
@@ -293,7 +293,7 @@ export default function POSTargetOmzetPage() {
                   <CartesianGrid strokeDasharray="3 3"/>
                   <XAxis dataKey="label" tick={{fontSize:10}}/>
                   <YAxis tick={{fontSize:10}} tickFormatter={v=>v>=1000000?`${(v/1000000).toFixed(1)}jt`:`${(v/1000).toFixed(0)}rb`}/>
-                  <Tooltip formatter={(val:any)=>formatCurrency(val)} labelFormatter={l=>`Tgl ${l}`}/>
+                  <Tooltip formatter={(val)=>formatCurrency(Number(val))} labelFormatter={l=>`Tgl ${l}`}/>
                   {dailyTarget > 0 && <ReferenceLine y={dailyTarget} stroke="#ef4444" strokeDasharray="4 4" label={{value:'Target',fill:'#ef4444',fontSize:10}}/>}
                   <Bar dataKey="total" name="Omzet" fill="#10b981" radius={[3,3,0,0]}/>
                 </BarChart>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -58,11 +58,7 @@ export default function AdminVerifikatorWithdrawalsPage() {
   const [adminNotes, setAdminNotes] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    fetchWithdrawals();
-  }, [filter]);
-
-  const fetchWithdrawals = async () => {
+  const fetchWithdrawals = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
@@ -88,7 +84,11 @@ export default function AdminVerifikatorWithdrawalsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, toast]);
+
+  useEffect(() => {
+    void fetchWithdrawals();
+  }, [fetchWithdrawals]);
 
   const handleApprove = async (withdrawal: VerifikatorWithdrawal) => {
     setProcessing(true);

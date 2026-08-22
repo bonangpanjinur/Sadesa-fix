@@ -26,6 +26,8 @@ import { id as idLocale } from 'date-fns/locale';
 interface Outlet { id: string; name: string; address: string | null; }
 interface Product { id: string; name: string; sku: string | null; unit: string; }
 interface StockInfo { product_id: string; quantity: number; outlet_id: string; }
+interface StockRow { id: string; quantity: number; }
+interface TransferRow { id: string; }
 
 interface TransferItem {
   product_id: string;
@@ -114,14 +116,14 @@ export default function POSTransferStokPage() {
     setLoading(true);
     try {
       const [trfRes, prodRes] = await Promise.all([
-        supabase.from('pos_stock_transfers' as any)
+        supabase.from('pos_stock_transfers' as never)
           .select(`*, 
             from_outlet:pos_outlets!pos_stock_transfers_from_outlet_id_fkey(name),
             to_outlet:pos_outlets!pos_stock_transfers_to_outlet_id_fkey(name),
             pos_stock_transfer_items(*)`)
           .eq('tenant_id', tenant.id)
           .order('created_at', { ascending: false }),
-        supabase.from('pos_products' as any)
+        supabase.from('pos_products' as never)
           .select('id, name, sku, unit')
           .eq('tenant_id', tenant.id)
           .eq('is_active', true)
@@ -136,12 +138,12 @@ export default function POSTransferStokPage() {
 
   const fetchStock = useCallback(async (outletId: string) => {
     if (!tenant || !outletId) return;
-    const { data } = await supabase.from('pos_stock' as any)
+    const { data } = await supabase.from('pos_stock' as never)
       .select('product_id, quantity')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', outletId);
     const map: Record<string, number> = {};
-    (data || []).forEach((s: any) => { map[s.product_id] = Number(s.quantity); });
+    (data || []).forEach((s) => { const stock = s as unknown as StockInfo; map[stock.product_id] = Number(stock.quantity); });
     setStockMap(map);
   }, [tenant]);
 
@@ -179,7 +181,7 @@ export default function POSTransferStokPage() {
     }
     setSaving(true);
     try {
-      const { data: trf, error: trfErr } = await supabase.from('pos_stock_transfers' as any).insert({
+      const { data: trf, error: trfErr } = await supabase.from('pos_stock_transfers' as never).insert({
         tenant_id: tenant.id,
         transfer_number: form.transfer_number,
         from_outlet_id: form.from_outlet_id,
@@ -191,7 +193,7 @@ export default function POSTransferStokPage() {
       if (trfErr) throw trfErr;
 
       const itemsPayload = items.map(i => ({
-        transfer_id: (trf as any).id,
+        transfer_id: (trf as unknown as TransferRow).id,
         product_id: i.product_id,
         product_name: i.product_name,
         sku: i.sku || null,
@@ -199,15 +201,15 @@ export default function POSTransferStokPage() {
         qty_requested: i.qty_requested,
         qty_sent: 0, qty_received: 0,
       }));
-      const { error: itemErr } = await supabase.from('pos_stock_transfer_items' as any).insert(itemsPayload);
+      const { error: itemErr } = await supabase.from('pos_stock_transfer_items' as never).insert(itemsPayload);
       if (itemErr) throw itemErr;
 
       // Log audit
-      await supabase.from('pos_audit_logs' as any).insert({
+      await supabase.from('pos_audit_logs' as never).insert({
         tenant_id: tenant.id, outlet_id: form.from_outlet_id,
         user_id: user.id, user_name: user.email,
         action: 'create', module: 'transfer_stok',
-        entity_type: 'pos_stock_transfers', entity_id: (trf as any).id,
+        entity_type: 'pos_stock_transfers', entity_id: (trf as unknown as TransferRow).id,
         description: `Buat transfer stok ${form.transfer_number} → ${outlets.find(o => o.id === form.to_outlet_id)?.name}`,
       });
 
@@ -216,18 +218,18 @@ export default function POSTransferStokPage() {
       setItems([]);
       setForm(f => ({ ...f, transfer_number: genTransferNumber(), to_outlet_id: '', notes: '' }));
       fetchAll();
-    } catch (err: any) {
-      toast.error('Gagal membuat transfer: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal membuat transfer: ' + (err instanceof Error ? err.message : String(err)));
     } finally { setSaving(false); }
   };
 
   const approveTransfer = async (trf: Transfer) => {
     if (!user) return;
-    await supabase.from('pos_stock_transfers' as any)
+    await supabase.from('pos_stock_transfers' as never)
       .update({ status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() })
       .eq('id', trf.id);
 
-    await supabase.from('pos_audit_logs' as any).insert({
+    await supabase.from('pos_audit_logs' as never).insert({
       tenant_id: tenant!.id, outlet_id: trf.from_outlet_id,
       user_id: user.id, user_name: user.email,
       action: 'approve', module: 'transfer_stok',
@@ -243,11 +245,11 @@ export default function POSTransferStokPage() {
 
   const rejectTransfer = async () => {
     if (!selectedTransfer || !user) return;
-    await supabase.from('pos_stock_transfers' as any)
+    await supabase.from('pos_stock_transfers' as never)
       .update({ status: 'rejected', rejection_reason: rejectReason || 'Tidak ada alasan' })
       .eq('id', selectedTransfer.id);
 
-    await supabase.from('pos_audit_logs' as any).insert({
+    await supabase.from('pos_audit_logs' as never).insert({
       tenant_id: tenant!.id, outlet_id: selectedTransfer.from_outlet_id,
       user_id: user.id, user_name: user.email,
       action: 'reject', module: 'transfer_stok',
@@ -279,17 +281,17 @@ export default function POSTransferStokPage() {
         const receivedQty = receiveQtys[item.id] ?? sentQty;
 
         // Deduct from source outlet
-        const { data: srcStock } = await supabase.from('pos_stock' as any)
+        const { data: srcStock } = await supabase.from('pos_stock' as never)
           .select('id, quantity').eq('product_id', item.product_id || '')
           .eq('outlet_id', selectedTransfer.from_outlet_id).maybeSingle();
 
         if (srcStock) {
-          const newSrcQty = Math.max(0, Number((srcStock as any).quantity) - sentQty);
-          await supabase.from('pos_stock' as any).update({ quantity: newSrcQty }).eq('id', (srcStock as any).id);
-          await supabase.from('pos_stock_mutations' as any).insert({
+          const newSrcQty = Math.max(0, Number((srcStock as unknown as StockRow).quantity) - sentQty);
+          await supabase.from('pos_stock' as never).update({ quantity: newSrcQty }).eq('id', (srcStock as unknown as StockRow).id);
+          await supabase.from('pos_stock_mutations' as never).insert({
             tenant_id: tenant.id, product_id: item.product_id,
             outlet_id: selectedTransfer.from_outlet_id, type: 'transfer_out',
-            quantity: sentQty, quantity_before: Number((srcStock as any).quantity), quantity_after: newSrcQty,
+            quantity: sentQty, quantity_before: Number((srcStock as unknown as StockRow).quantity), quantity_after: newSrcQty,
             reference_id: selectedTransfer.id, reference_type: 'stock_transfer',
             notes: `Transfer keluar → ${selectedTransfer.to_outlet?.name} (${selectedTransfer.transfer_number})`,
             created_by: user.id,
@@ -297,38 +299,38 @@ export default function POSTransferStokPage() {
         }
 
         // Add to destination outlet
-        const { data: dstStock } = await supabase.from('pos_stock' as any)
+        const { data: dstStock } = await supabase.from('pos_stock' as never)
           .select('id, quantity').eq('product_id', item.product_id || '')
           .eq('outlet_id', selectedTransfer.to_outlet_id).maybeSingle();
 
         if (dstStock) {
-          const newDstQty = Number((dstStock as any).quantity) + receivedQty;
-          await supabase.from('pos_stock' as any).update({ quantity: newDstQty }).eq('id', (dstStock as any).id);
-          await supabase.from('pos_stock_mutations' as any).insert({
+          const newDstQty = Number((dstStock as unknown as StockRow).quantity) + receivedQty;
+          await supabase.from('pos_stock' as never).update({ quantity: newDstQty }).eq('id', (dstStock as unknown as StockRow).id);
+          await supabase.from('pos_stock_mutations' as never).insert({
             tenant_id: tenant.id, product_id: item.product_id,
             outlet_id: selectedTransfer.to_outlet_id, type: 'transfer_in',
-            quantity: receivedQty, quantity_before: Number((dstStock as any).quantity), quantity_after: newDstQty,
+            quantity: receivedQty, quantity_before: Number((dstStock as unknown as StockRow).quantity), quantity_after: newDstQty,
             reference_id: selectedTransfer.id, reference_type: 'stock_transfer',
             notes: `Transfer masuk ← ${selectedTransfer.from_outlet?.name} (${selectedTransfer.transfer_number})`,
             created_by: user.id,
           });
         } else {
-          await supabase.from('pos_stock' as any).insert({
+          await supabase.from('pos_stock' as never).insert({
             tenant_id: tenant.id, product_id: item.product_id,
             outlet_id: selectedTransfer.to_outlet_id, quantity: receivedQty, min_stock: 0,
           });
         }
 
         // Update item qtys
-        await supabase.from('pos_stock_transfer_items' as any)
+        await supabase.from('pos_stock_transfer_items' as never)
           .update({ qty_sent: sentQty, qty_received: receivedQty }).eq('id', item.id);
       }
 
-      await supabase.from('pos_stock_transfers' as any).update({
+      await supabase.from('pos_stock_transfers' as never).update({
         status: 'completed', completed_by: user.id, completed_at: new Date().toISOString(),
       }).eq('id', selectedTransfer.id);
 
-      await supabase.from('pos_audit_logs' as any).insert({
+      await supabase.from('pos_audit_logs' as never).insert({
         tenant_id: tenant.id, outlet_id: selectedTransfer.from_outlet_id,
         user_id: user.id, user_name: user.email,
         action: 'complete', module: 'transfer_stok',
@@ -339,8 +341,8 @@ export default function POSTransferStokPage() {
       toast.success('Transfer selesai — stok kedua outlet diperbarui');
       setReceiveOpen(false);
       fetchAll();
-    } catch (err: any) {
-      toast.error('Gagal menyelesaikan transfer: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Gagal menyelesaikan transfer: ' + (err instanceof Error ? err.message : String(err)));
     } finally { setSaving(false); }
   };
 
@@ -349,8 +351,8 @@ export default function POSTransferStokPage() {
       ['No Transfer', 'Dari', 'Ke', 'Status', 'Tanggal', 'Jumlah Item'],
       ...transfers.map(t => [
         t.transfer_number,
-        (t.from_outlet as any)?.name || t.from_outlet_id,
-        (t.to_outlet as any)?.name || t.to_outlet_id,
+        t.from_outlet?.name || t.from_outlet_id,
+        t.to_outlet?.name || t.to_outlet_id,
         STATUS_CONFIG[t.status]?.label || t.status,
         format(new Date(t.requested_at), 'dd/MM/yyyy'),
         (t.pos_stock_transfer_items || []).length,
@@ -483,9 +485,9 @@ export default function POSTransferStokPage() {
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
-                        <span className="font-medium">{(trf.from_outlet as any)?.name || '?'}</span>
+                        <span className="font-medium">{trf.from_outlet?.name || '?'}</span>
                         <ArrowRightLeft className="h-3 w-3" />
-                        <span className="font-medium">{(trf.to_outlet as any)?.name || '?'}</span>
+                        <span className="font-medium">{trf.to_outlet?.name || '?'}</span>
                         <span>• {trfItems.length} produk</span>
                         <span>• {format(new Date(trf.requested_at), 'dd MMM yyyy', { locale: idLocale })}</span>
                       </div>
@@ -687,7 +689,7 @@ export default function POSTransferStokPage() {
               <DialogTitle>Selesaikan Transfer — {selectedTransfer?.transfer_number}</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground">
-              Konfirmasi jumlah barang yang diterima di <strong>{(selectedTransfer?.to_outlet as any)?.name}</strong>. Stok akan diperbarui otomatis.
+              Konfirmasi jumlah barang yang diterima di <strong>{selectedTransfer?.to_outlet?.name}</strong>. Stok akan diperbarui otomatis.
             </p>
             {selectedTransfer && (selectedTransfer.pos_stock_transfer_items || []).map(item => (
               <div key={item.id} className="border rounded-lg p-3">
