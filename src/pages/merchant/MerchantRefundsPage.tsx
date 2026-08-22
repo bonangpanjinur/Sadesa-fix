@@ -68,15 +68,32 @@ export default function MerchantRefundsPage() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
-      const filtered = (data || []).filter((r: any) => r.orders?.merchant_id === merchantId);
-      const buyerIds = [...new Set(filtered.map((r: any) => r.buyer_id))];
+      type RefundRow = {
+        id: string;
+        order_id: string;
+        buyer_id: string;
+        amount: number;
+        reason: string;
+        title?: string | null;
+        category?: string | null;
+        status: string;
+        dispute_status?: string | null;
+        admin_notes?: string | null;
+        merchant_response?: string | null;
+        created_at: string;
+        evidence_urls?: string[] | null;
+        orders?: { total: number; merchant_id: string } | null;
+      };
+      const rows = (data || []) as unknown as RefundRow[];
+      const filtered = rows.filter((r) => r.orders?.merchant_id === merchantId);
+      const buyerIds = [...new Set(filtered.map((r) => r.buyer_id))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, full_name')
         .in('user_id', buyerIds);
-      const profileMap = new Map(profiles?.map((p: any) => [p.user_id, p.full_name]) || []);
+      const profileMap = new Map(profiles?.map((p) => [p.user_id, p.full_name]) || []);
 
-      return filtered.map((r: any) => ({
+      return filtered.map((r) => ({
         id: r.id,
         orderId: r.order_id,
         buyerId: r.buyer_id,
@@ -116,7 +133,7 @@ export default function MerchantRefundsPage() {
       setResponseText('');
       setDetailDialogOpen(false);
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal mengirim respons'),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Gagal mengirim respons'),
   });
 
   const filteredRefunds = refunds.filter(r => {

@@ -85,23 +85,30 @@ export default function AdminRefundsPage() {
 
       const profileMap = new Map(profiles?.map(p => [p.user_id, p.full_name]) || []);
 
-      const mapped: RefundRequest[] = (data || []).map(r => ({
+      const mapped: RefundRequest[] = (data || []).map(r => {
+        const order = r.orders as unknown as {
+          merchant_id?: string | null;
+          total?: number | null;
+          merchants?: { name?: string | null } | null;
+        } | null;
+        return {
         id: r.id,
         orderId: r.order_id,
         buyerId: r.buyer_id,
-        merchantId: (r.orders as any)?.merchant_id || '',
+        merchantId: order?.merchant_id || '',
         amount: r.amount,
         reason: r.reason,
         status: r.status,
         adminNotes: r.admin_notes,
         processedAt: r.processed_at,
         createdAt: r.created_at,
-        orderTotal: (r.orders as any)?.total || 0,
+        orderTotal: order?.total || 0,
         buyerName: profileMap.get(r.buyer_id) || 'Unknown',
-        merchantName: (r.orders as any)?.merchants?.name || 'Unknown Merchant',
+        merchantName: order?.merchants?.name || 'Unknown Merchant',
         evidenceUrls: [],
         refundType: 'FULL',
-      }));
+        };
+      });
 
       setRefunds(mapped);
     } catch (error) {

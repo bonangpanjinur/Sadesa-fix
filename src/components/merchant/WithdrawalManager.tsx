@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wallet, ArrowUpRight, Clock, CheckCircle, XCircle, Building2, CreditCard } from 'lucide-react';
+import { Wallet, ArrowUpRight, Clock, CheckCircle, XCircle, Building2, CreditCard, type LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,7 +66,7 @@ const BANKS = [
   'ShopeePay',
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ComponentType<any> }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: LucideIcon }> = {
   'PENDING': { label: 'Menunggu', color: 'bg-warning', icon: Clock },
   'APPROVED': { label: 'Disetujui', color: 'bg-primary', icon: CheckCircle },
   'REJECTED': { label: 'Ditolak', color: 'bg-destructive', icon: XCircle },

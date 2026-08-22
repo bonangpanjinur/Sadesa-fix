@@ -123,8 +123,8 @@ export default function InvoicePage() {
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Penjual</h3>
             <p className="font-semibold text-sm">{order.merchants?.name || 'Toko DesaMart'}</p>
             {order.merchants?.phone && <p className="text-xs text-gray-500 mt-0.5">{order.merchants.phone}</p>}
-            {(order.merchants as any)?.address && (
-              <p className="text-xs text-gray-500 mt-1">{(order.merchants as any).address}</p>
+            {order.merchants?.address && (
+              <p className="text-xs text-gray-500 mt-1">{order.merchants.address}</p>
             )}
           </div>
         </div>

@@ -68,7 +68,7 @@ export default function CourierWithdrawalPage() {
 
       if (!courierData || courierData.registration_status !== 'APPROVED') {
         navigate('/courier');
-        return null as any;
+        throw new Error('Courier tidak aktif atau belum disetujui');
       }
 
       const [{ data: wds }, { data: minBalSetting }] = await Promise.all([
@@ -83,7 +83,7 @@ export default function CourierWithdrawalPage() {
       return {
         courier: courierData as CourierInfo,
         withdrawals: wds || [],
-        minimumBalance: (minBalSetting?.value as any)?.amount || 50000,
+        minimumBalance: Number((minBalSetting?.value as unknown as { amount?: number } | null)?.amount) || 50000,
       };
     },
     enabled: !!user && !authLoading,
@@ -120,7 +120,7 @@ export default function CourierWithdrawalPage() {
       setAmount('');
       queryClient.invalidateQueries({ queryKey: ['courier-withdrawal', user?.id] });
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal mengajukan penarikan'),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Gagal mengajukan penarikan'),
   });
 
   if (authLoading || loading) {
