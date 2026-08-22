@@ -97,7 +97,7 @@ GRANT ALL ON public.profiles TO service_role;
 GRANT SELECT ON public.user_roles TO authenticated;
 GRANT ALL ON public.user_roles TO service_role;
 
-GRANT SELECT, INSERT, UPDATE ON public.password_reset_tokens TO anon, authenticated;
+REVOKE ALL ON public.password_reset_tokens FROM anon, authenticated;
 GRANT ALL ON public.password_reset_tokens TO service_role;
 
 GRANT SELECT, INSERT, UPDATE ON public.rate_limits TO authenticated;
@@ -235,19 +235,14 @@ DROP POLICY IF EXISTS "Admins can delete user roles" ON public.user_roles;
 CREATE POLICY "Admins can delete user roles" ON public.user_roles FOR DELETE
   USING (public.is_admin());
 
--- password_reset_tokens
+-- password_reset_tokens: browser access is intentionally disabled.
 DROP POLICY IF EXISTS "Users can verify their tokens" ON public.password_reset_tokens;
-CREATE POLICY "Users can verify their tokens" ON public.password_reset_tokens FOR SELECT
-  TO anon, authenticated USING (true);
-
 DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tokens;
-CREATE POLICY "Password reset token insert" ON public.password_reset_tokens FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (email IS NOT NULL AND token IS NOT NULL AND expires_at > now());
-
 DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens;
-CREATE POLICY "Tokens can be marked as used" ON public.password_reset_tokens FOR UPDATE
-  TO anon, authenticated USING (used_at IS NULL AND expires_at > now());
+DROP POLICY IF EXISTS "Service role manages password reset tokens" ON public.password_reset_tokens;
+CREATE POLICY "Service role manages password reset tokens" ON public.password_reset_tokens FOR ALL
+  TO service_role USING (true) WITH CHECK (true);
+ALTER TABLE public.password_reset_tokens FORCE ROW LEVEL SECURITY;
 
 -- rate_limits
 DROP POLICY IF EXISTS "Rate limits managed by functions" ON public.rate_limits;

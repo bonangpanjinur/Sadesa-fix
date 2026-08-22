@@ -1919,9 +1919,10 @@ CREATE POLICY "Admins create backups" ON public.backup_logs FOR INSERT WITH CHEC
 CREATE POLICY "Admins can manage backup schedules" ON public.backup_schedules FOR ALL USING (is_admin());
 
 -- === PASSWORD RESET TOKENS ===
-CREATE POLICY "Users can verify their tokens" ON public.password_reset_tokens FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Password reset token insert" ON public.password_reset_tokens FOR INSERT TO anon, authenticated WITH CHECK (email IS NOT NULL AND token IS NOT NULL AND expires_at > now());
-CREATE POLICY "Tokens can be marked as used" ON public.password_reset_tokens FOR UPDATE TO anon, authenticated USING (used_at IS NULL AND expires_at > now());
+REVOKE ALL ON TABLE public.password_reset_tokens FROM anon, authenticated;
+CREATE POLICY "Service role manages password reset tokens" ON public.password_reset_tokens
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+ALTER TABLE public.password_reset_tokens FORCE ROW LEVEL SECURITY;
 
 -- === RATE LIMITS ===
 CREATE POLICY "Rate limits managed by functions" ON public.rate_limits FOR SELECT USING (identifier = auth.uid()::text OR is_admin());

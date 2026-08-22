@@ -46,8 +46,23 @@ function setCache(key: string, data: unknown) {
 
 async function getFreeTierLimit(): Promise<number> {
   if (cachedFreeTierLimit !== null && Date.now() - cacheTs < 300000) return cachedFreeTierLimit;
-  const { data } = await supabase.from('app_settings').select('value').eq('key', 'free_tier_quota').maybeSingle();
-  cachedFreeTierLimit = (data?.value as { limit?: number })?.limit ?? 100;
+
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'free_tier_quota')
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Unable to load free-tier quota configuration: ${error.message}`);
+  }
+
+  const configuredLimit = (data?.value as { limit?: unknown } | null)?.limit;
+  if (typeof configuredLimit !== 'number' || !Number.isInteger(configuredLimit) || configuredLimit < 0) {
+    throw new Error('Invalid free-tier quota configuration');
+  }
+
+  cachedFreeTierLimit = configuredLimit;
   cacheTs = Date.now();
   return cachedFreeTierLimit;
 }
@@ -68,6 +83,13 @@ async function getMerchantsWithActiveQuota(): Promise<Set<string>> {
       .eq('status', 'ACTIVE')
       .gte('expired_at', new Date().toISOString()),
   ]);
+
+  if (merchantsRes.error) {
+    throw new Error(`Unable to load merchants for quota check: ${merchantsRes.error.message}`);
+  }
+  if (subsRes.error) {
+    throw new Error(`Unable to load merchant subscriptions for quota check: ${subsRes.error.message}`);
+  }
 
   const allMerchants = merchantsRes.data;
   const activeSubs = subsRes.data;
@@ -106,11 +128,15 @@ async function getMerchantsWithActiveQuota(): Promise<Set<string>> {
     startOfMonth.setHours(0, 0, 0, 0);
 
     // Query orders grouped by merchant_id for free tier merchants
-    const { data: orderCounts } = await supabase
+    const { data: orderCounts, error: orderCountsError } = await supabase
       .from('orders')
       .select('merchant_id')
       .in('merchant_id', freeTierMerchantIds)
       .gte('created_at', startOfMonth.toISOString());
+
+    if (orderCountsError) {
+      throw new Error(`Unable to load merchant order usage: ${orderCountsError.message}`);
+    }
 
     // Count orders per merchant
     const countMap = new Map<string, number>();
@@ -145,8 +171,8 @@ export async function checkMerchantHasActiveQuota(merchantId: string): Promise<b
       .gte('expired_at', new Date().toISOString());
 
     if (subError) {
-      console.warn('Error checking merchant subscriptions, defaulting to true:', subError);
-      return true;
+      console.error('Unable to check merchant subscription quota:', subError);
+      return false;
     }
 
     if (data && data.length > 0) {
@@ -167,14 +193,14 @@ export async function checkMerchantHasActiveQuota(merchantId: string): Promise<b
       .gte('created_at', startOfMonth.toISOString());
 
     if (countError) {
-      console.warn('Error checking free tier quota, defaulting to true:', countError);
-      return true;
+      console.error('Unable to check merchant free-tier quota:', countError);
+      return false;
     }
 
     return (count || 0) < FREE_TIER_LIMIT;
   } catch (error) {
-    console.warn('Unexpected error in checkMerchantHasActiveQuota, defaulting to true:', error);
-    return true;
+    console.error('Unable to check merchant quota:', error);
+    return false;
   }
 }
 

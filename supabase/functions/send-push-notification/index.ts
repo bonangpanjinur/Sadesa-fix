@@ -29,6 +29,28 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const authHeader = req.headers.get("Authorization");
+
+    if (!authHeader || !supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication token" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
 
@@ -44,6 +66,23 @@ serve(async (req) => {
 
     const payload: PushRequest = await req.json();
     const { user_id, user_ids, role, all, title, body, icon, url, data } = payload;
+
+    // Only admins may target a role or broadcast to every subscription.
+    if (role || all === true) {
+      const { data: adminRole, error: roleError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      if (roleError || !adminRole) {
+        return new Response(
+          JSON.stringify({ error: "Admin permission required for broadcast notifications" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        );
+      }
+    }
 
     // Validate required fields
     if (!title || !body) {

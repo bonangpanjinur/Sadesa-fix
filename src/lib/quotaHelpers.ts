@@ -8,16 +8,24 @@ async function getFreeTierLimit(): Promise<number> {
   if (cachedFreeTierLimit !== null && Date.now() - cacheTimestamp < CACHE_TTL) {
     return cachedFreeTierLimit;
   }
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('app_settings')
     .select('value')
     .eq('key', 'free_tier_quota')
     .maybeSingle();
-  
-  const limit = (data?.value as { limit?: number })?.limit ?? 100;
-  cachedFreeTierLimit = limit;
+
+  if (error) {
+    throw new Error(`Unable to load free-tier quota configuration: ${error.message}`);
+  }
+
+  const configuredLimit = (data?.value as { limit?: unknown } | null)?.limit;
+  if (typeof configuredLimit !== 'number' || !Number.isInteger(configuredLimit) || configuredLimit < 0) {
+    throw new Error('Invalid free-tier quota configuration');
+  }
+
+  cachedFreeTierLimit = configuredLimit;
   cacheTimestamp = Date.now();
-  return limit;
+  return configuredLimit;
 }
 
 export interface MerchantQuotaInfo {
@@ -39,7 +47,7 @@ export async function fetchMerchantQuotaInfo(merchantId: string): Promise<Mercha
   const FREE_TIER_LIMIT = await getFreeTierLimit();
   
   // Get ALL active subscriptions for this merchant
-  const { data: subscriptions } = await supabase
+  const { data: subscriptions, error: subscriptionsError } = await supabase
     .from('merchant_subscriptions')
     .select(`
       transaction_quota,
@@ -52,6 +60,10 @@ export async function fetchMerchantQuotaInfo(merchantId: string): Promise<Mercha
     .eq('status', 'ACTIVE')
     .gte('expired_at', new Date().toISOString())
     .order('expired_at', { ascending: true });
+
+  if (subscriptionsError) {
+    throw new Error(`Unable to load merchant subscription quota: ${subscriptionsError.message}`);
+  }
 
   if (subscriptions && subscriptions.length > 0) {
     const totalQuota = subscriptions.reduce((sum, sub) => sum + sub.transaction_quota, 0);
@@ -79,13 +91,17 @@ export async function fetchMerchantQuotaInfo(merchantId: string): Promise<Mercha
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const { count: ordersCount } = await supabase
+  const { count: ordersCount, error: ordersError } = await supabase
     .from('orders')
     .select('*', { count: 'exact', head: true })
     .eq('merchant_id', merchantId)
     .gte('created_at', startOfMonth.toISOString());
 
-  const currentUsage = ordersCount || 0;
+  if (ordersError) {
+    throw new Error(`Unable to load merchant order usage: ${ordersError.message}`);
+  }
+
+  const currentUsage = ordersCount ?? 0;
 
   return {
     hasActiveSubscription: false,

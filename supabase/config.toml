@@ -4,13 +4,13 @@ project_id = "ygozkcyazayubjicagej"
 verify_jwt = false
 
 [functions.assign-courier]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-push-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.xendit-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.xendit-webhook]
 verify_jwt = false
