@@ -171,7 +171,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
           price: p.price,
           stock: p.stock,
           image: p.image_url || '/placeholder.svg',
-          category: p.category as any,
+          category: p.category,
           isActive: p.is_active,
           isPromo: p.is_promo,
           isAvailable: quotaActive && isMerchantOpen && p.is_active,
@@ -524,7 +524,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                               "{review.comment}"
                             </p>
                             <p className="text-[11px] text-muted-foreground mt-1">
-                              — {(review.profiles as any)?.full_name || 'Pembeli'} · {new Date(review.created_at).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
+                              — {review.profiles?.full_name || 'Pembeli'} · {new Date(review.created_at).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
                             </p>
                           </div>
                         ))}
@@ -612,7 +612,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                       <div className="flex items-start justify-between mb-1.5">
                         <div>
                           <p className="font-medium text-foreground text-sm">
-                            {(review.profiles as any)?.full_name || 'Pembeli'}
+                            {review.profiles?.full_name || 'Pembeli'}
                           </p>
                           <p className="text-[11px] text-muted-foreground">
                             {new Date(review.created_at).toLocaleDateString('id-ID')}

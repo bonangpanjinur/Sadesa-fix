@@ -47,11 +47,11 @@ export default function CashbackPage() {
     queryFn: async () => {
       const [profileRes, txRes, rulesRes] = await Promise.all([
         supabase.from('profiles').select('cashback_balance').eq('id', user!.id).maybeSingle(),
-        (supabase as any).from('cashback_transactions').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(30),
-        (supabase as any).from('cashback_rules').select('*').eq('is_active', true).order('cashback_percent', { ascending: false }),
+        supabase.from('cashback_transactions').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(30),
+        supabase.from('cashback_rules').select('*').eq('is_active', true).order('cashback_percent', { ascending: false }),
       ]);
       return {
-        balance: (profileRes.data as any)?.cashback_balance ?? 0,
+        balance: profileRes.data?.cashback_balance ?? 0,
         transactions: (txRes.data as CashbackTx[]) || [],
         rules: (rulesRes.data as CashbackRule[]) || [],
       };

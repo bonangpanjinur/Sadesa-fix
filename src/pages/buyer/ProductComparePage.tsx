@@ -10,6 +10,36 @@ import { formatPrice } from '@/lib/utils';
 import { ArrowLeft, X, Star, Package, Store, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface CompareMerchant {
+  name: string | null;
+  villages: { name: string | null } | { name: string | null }[] | null;
+}
+
+interface CompareProductRow {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  is_promo: boolean | null;
+  discount_percent: number | null;
+  image_url: string | null;
+  category: string;
+  stock: number | null;
+  sold_count: number | null;
+  rating_avg: number | null;
+  rating_count: number | null;
+  merchants: CompareMerchant | CompareMerchant[] | null;
+}
+
+interface CompareSearchRow {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string | null;
+  category: string;
+  merchants: { name: string | null } | { name: string | null }[] | null;
+}
+
 interface CompareProduct {
   id: string;
   name: string;
@@ -50,7 +80,7 @@ export default function ProductComparePage() {
         .select('*, merchants(name, villages(name))')
         .in('id', productIds.slice(0, MAX_COMPARE));
 
-      setProducts(((data || []) as any[]).map(p => ({
+      setProducts((data as CompareProductRow[] || []).map((p) => ({
         id: p.id,
         name: p.name,
         description: p.description || '',
@@ -64,8 +94,8 @@ export default function ProductComparePage() {
         sold_count: p.sold_count || 0,
         rating_avg: p.rating_avg || 0,
         rating_count: p.rating_count || 0,
-        merchant_name: p.merchants?.name || '',
-        village_name: p.merchants?.villages?.name || '',
+        merchant_name: (Array.isArray(p.merchants) ? p.merchants[0]?.name : p.merchants?.name) || '',
+        village_name: (() => { const merchant = Array.isArray(p.merchants) ? p.merchants[0] : p.merchants; const villages = merchant?.villages; return (Array.isArray(villages) ? villages[0]?.name : villages?.name) || ''; })(),
         is_promo: p.is_promo,
         discount_percent: p.discount_percent,
       })));
@@ -92,9 +122,9 @@ export default function ProductComparePage() {
         .eq('is_active', true)
         .limit(10);
 
-      setSearchResults(((data || []) as any[]).map((p: any) => ({
+      setSearchResults((data as CompareSearchRow[] || []).map((p) => ({
         id: p.id, name: p.name, price: p.price, image_url: p.image_url,
-        category: p.category, merchant_name: p.merchants?.name || '',
+        category: p.category, merchant_name: (Array.isArray(p.merchants) ? p.merchants[0]?.name : p.merchants?.name) || '',
         description: '', stock: 0, sold_count: 0, rating_avg: 0, rating_count: 0,
         village_name: '', is_promo: false, discount_percent: 0,
       })));
