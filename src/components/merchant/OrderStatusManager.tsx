@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Package, Clock, Truck, CheckCircle, XCircle, MessageCircle, Phone, CreditCard, ImageIcon, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -85,11 +85,7 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
   const [selectedCourierId, setSelectedCourierId] = useState<string>('');
   const [loadingCouriers, setLoadingCouriers] = useState(false);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [merchantId]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('orders')
@@ -105,7 +101,11 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [merchantId]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string, courierId?: string | null) => {
     setUpdating(true);
