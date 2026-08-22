@@ -27,6 +27,11 @@ interface JournalEntry {
   credit: number;
 }
 
+interface AccountingSaleItem { quantity: number; cost_price: number | null; }
+interface AccountingSale { sale_number: string; total_amount: number; payment_method: string; created_at: string; pos_sale_items?: AccountingSaleItem[]; }
+interface AccountingReturn { return_number: string; total_amount: number; created_at: string; }
+interface AccountingPurchase { po_number: string; total_amount: number; created_at: string; status: string; }
+
 const ACCOUNT_MAP = {
   sales: { code: '4-1000', name: 'Pendapatan Penjualan' },
   cogs: { code: '5-1000', name: 'Harga Pokok Penjualan' },
@@ -80,20 +85,20 @@ export default function POSAkuntansiPage() {
       const to = new Date(dateTo + 'T23:59:59').toISOString();
 
       const [salesRes, returRes, purchaseRes] = await Promise.all([
-        (supabase as any).from('pos_sales')
+        supabase.from('pos_sales' as never)
           .select('id, sale_number, total_amount, payment_method, payment_amount, created_at, pos_sale_items(quantity, unit_price, total_price, cost_price)')
           .eq('tenant_id', tenant.id)
           .eq('status', 'completed')
           .gte('created_at', from)
           .lte('created_at', to)
           .order('created_at'),
-        (supabase as any).from('pos_returns')
+        supabase.from('pos_returns' as never)
           .select('id, return_number, total_amount, created_at')
           .eq('tenant_id', tenant.id)
           .gte('created_at', from)
           .lte('created_at', to)
           .order('created_at'),
-        (supabase as any).from('pos_purchases')
+        supabase.from('pos_purchases' as never)
           .select('id, po_number, total_amount, created_at, status')
           .eq('tenant_id', tenant.id)
           .gte('created_at', from)
@@ -104,7 +109,7 @@ export default function POSAkuntansiPage() {
       const journal: JournalEntry[] = [];
 
       // Sales entries
-      for (const sale of (salesRes.data || []) as any[]) {
+      for (const sale of (salesRes.data || []) as unknown as AccountingSale[]) {
         const dateStr = format(parseISO(sale.created_at), 'dd/MM/yyyy');
         const cashAccount = sale.payment_method === 'qris'
           ? ACCOUNT_MAP.qris
@@ -134,8 +139,8 @@ export default function POSAkuntansiPage() {
         });
 
         // COGS entries
-        const items = (sale.pos_sale_items || []) as any[];
-        const totalCogs = items.reduce((s: number, i: any) => s + Number(i.cost_price || 0) * Number(i.quantity), 0);
+        const items = (sale.pos_sale_items || []) as AccountingSaleItem[];
+        const totalCogs = items.reduce((s: number, i: AccountingSaleItem) => s + Number(i.cost_price || 0) * Number(i.quantity), 0);
         if (totalCogs > 0) {
           journal.push({
             date: dateStr,
@@ -159,7 +164,7 @@ export default function POSAkuntansiPage() {
       }
 
       // Return entries
-      for (const ret of (returRes.data || []) as any[]) {
+      for (const ret of (returRes.data || []) as unknown as AccountingReturn[]) {
         const dateStr = format(parseISO(ret.created_at), 'dd/MM/yyyy');
         journal.push({
           date: dateStr,
@@ -182,7 +187,7 @@ export default function POSAkuntansiPage() {
       }
 
       // Purchase entries
-      for (const po of (purchaseRes.data || []) as any[]) {
+      for (const po of (purchaseRes.data || []) as unknown as AccountingPurchase[]) {
         if (po.status !== 'received') continue;
         const dateStr = format(parseISO(po.created_at), 'dd/MM/yyyy');
         journal.push({
