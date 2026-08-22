@@ -82,7 +82,7 @@ export function BarcodeScanner({ open, onClose, onDetect }: BarcodeScannerProps)
     })();
 
     return () => stopScanning();
-  }, [open]);
+  }, [open, startScanning, stopScanning]);
 
   const handleDeviceChange = (deviceId: string) => {
     setSelectedDevice(deviceId);
