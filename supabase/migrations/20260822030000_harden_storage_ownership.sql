@@ -37,6 +37,7 @@ WITH CHECK (
     OR public.is_admin()
     OR public.is_verifikator()
   )
+  AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')
 );
 
 CREATE POLICY "Owners can update merchant documents"
@@ -83,6 +84,7 @@ WITH CHECK (
         AND uv.role = 'admin_desa'
     )
   )
+  AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp')
 );
 
 CREATE POLICY "Merchant owners can update gallery images"
