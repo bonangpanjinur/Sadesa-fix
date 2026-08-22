@@ -47,6 +47,10 @@ interface MonthlyCustomer {
   total: number;
 }
 
+interface AnalyticsSale { total: number; payment_method: string | null; customer_id: string | null; customer_name: string | null; created_at: string; }
+interface AnalyticsProductItem { product_name: string | null; qty: number; subtotal: number; }
+interface CustomerAggregate { customerId: string | null; customerName: string; phone: string; totalBelanja: number; jumlahTransaksi: number; firstVisit: string; lastVisit: string; }
+
 const RFM_CONFIG: Record<string, { label: string; color: string; desc: string }> = {
   champions: { label: 'Champions', color: 'bg-emerald-100 text-emerald-800', desc: 'Beli sering, nilai tinggi, baru saja beli' },
   loyal: { label: 'Pelanggan Setia', color: 'bg-blue-100 text-blue-800', desc: 'Beli rutin dengan nilai yang baik' },
@@ -91,14 +95,14 @@ export default function POSAnalitikPage() {
 
     try {
       const [salesRes, prodRes] = await Promise.all([
-        supabase.from('pos_sales' as any)
+        supabase.from('pos_sales' as never)
           .select('id, total, payment_method, customer_id, customer_name, created_at')
           .eq('tenant_id', tenant.id)
           .eq('outlet_id', activeOutlet.id)
           .eq('status', 'completed')
           .gte('created_at', startDate.toISOString())
           .order('created_at'),
-        (supabase as any).from('pos_sale_items')
+        supabase.from('pos_sale_items' as never)
           .select('product_name, qty, subtotal, pos_sales(created_at, outlet_id, status, tenant_id)')
           .eq('pos_sales.tenant_id', tenant.id)
           .eq('pos_sales.outlet_id', activeOutlet.id)
@@ -107,12 +111,12 @@ export default function POSAnalitikPage() {
           .limit(2000),
       ]);
 
-      const sales = (salesRes.data || []) as any[];
+      const sales = (salesRes.data || []) as unknown as AnalyticsSale[];
 
       // Customer stats
-      const custMap: Record<string, any> = {};
+      const custMap: Record<string, CustomerAggregate> = {};
       const knownCustomers = new Set<string>();
-      sales.forEach((s: any) => {
+      sales.forEach((s) => {
         const key = s.customer_id || s.customer_name || 'walk-in';
         const name = s.customer_name || 'Pelanggan Umum';
         if (!custMap[key]) {
@@ -128,8 +132,8 @@ export default function POSAnalitikPage() {
         if (s.customer_id) knownCustomers.add(s.customer_id);
       });
 
-      const avgBelanja = Object.values(custMap).reduce((s: number, c: any) => s + c.totalBelanja, 0) / Math.max(Object.keys(custMap).length, 1);
-      const statsArr: CustomerStat[] = Object.values(custMap).map((c: any) => {
+      const avgBelanja = Object.values(custMap).reduce((s: number, c: CustomerAggregate) => s + c.totalBelanja, 0) / Math.max(Object.keys(custMap).length, 1);
+      const statsArr: CustomerStat[] = Object.values(custMap).map((c) => {
         const daysSince = differenceInDays(new Date(), new Date(c.lastVisit));
         const totalDays = Math.max(differenceInDays(new Date(c.lastVisit), new Date(c.firstVisit)), 1);
         const frequency = c.jumlahTransaksi;
@@ -157,7 +161,7 @@ export default function POSAnalitikPage() {
       // Monthly new vs returning
       const monthlyMap: Record<string, { new: Set<string>; returning: Set<string>; all: number }> = {};
       const seenCustomers = new Set<string>();
-      sales.forEach((s: any) => {
+      sales.forEach((s) => {
         const monthKey = format(new Date(s.created_at), 'yyyy-MM');
         if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { new: new Set(), returning: new Set(), all: 0 };
         const cId = s.customer_id || s.customer_name || 'walk-in';
@@ -179,7 +183,7 @@ export default function POSAnalitikPage() {
 
       // Payment distribution
       const pmMap: Record<string, { count: number; total: number }> = {};
-      sales.forEach((s: any) => {
+      sales.forEach((s) => {
         const pm = s.payment_method || 'other';
         if (!pmMap[pm]) pmMap[pm] = { count: 0, total: 0 };
         pmMap[pm].count++;
@@ -188,12 +192,12 @@ export default function POSAnalitikPage() {
       setPaymentDist(Object.entries(pmMap).map(([method, v]) => ({ method, ...v })).sort((a, b) => b.total - a.total));
 
       // Top products (best effort)
-      const prodRes2 = await supabase.from('pos_sale_items' as any)
+      const prodRes2 = await supabase.from('pos_sale_items' as never)
         .select('product_name, qty, subtotal')
-        .gte('created_at' as any, startDate.toISOString());
+        .gte('created_at' as never, startDate.toISOString());
 
       const prodMap: Record<string, { qty: number; revenue: number }> = {};
-      ((prodRes2.data || []) as any[]).forEach((item: any) => {
+      ((prodRes2.data || []) as unknown as AnalyticsProductItem[]).forEach((item) => {
         const key = item.product_name || 'Tidak Diketahui';
         if (!prodMap[key]) prodMap[key] = { qty: 0, revenue: 0 };
         prodMap[key].qty += Number(item.qty || 0);
@@ -471,7 +475,7 @@ export default function POSAnalitikPage() {
                                 <span className="text-xs text-muted-foreground ml-2">{pct.toFixed(1)}%</span>
                               </div>
                             </div>
-                            <Progress value={pct} className="h-2" style={{ '--progress-fill': COLORS[i % COLORS.length] } as any} />
+                            <Progress value={pct} className="h-2" style={{ '--progress-fill': COLORS[i % COLORS.length] } as never} />
                           </div>
                         );
                       })}
@@ -493,7 +497,7 @@ export default function POSAnalitikPage() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={v => v >= 1000000 ? `${(v/1000000).toFixed(1)}jt` : `${(v/1000).toFixed(0)}rb`} />
                         <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={120} />
-                        <Tooltip formatter={(val: any) => formatCurrency(val)} />
+                        <Tooltip formatter={(val) => formatCurrency(Number(val))} />
                         <Bar dataKey="revenue" name="Omzet" radius={[0, 4, 4, 0]}>
                           {topProducts.map((_, idx) => (
                             <Cell key={idx} fill={idx < 3 ? COLORS[idx] : '#6b7280'} />
