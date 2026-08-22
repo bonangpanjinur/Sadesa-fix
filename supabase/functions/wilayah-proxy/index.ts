@@ -55,7 +55,12 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log(`Fetching: ${emsifaUrl}`);
+    if (code && !/^[A-Za-z0-9_-]{1,32}$/.test(code)) {
+      return new Response(JSON.stringify({ error: 'Invalid code parameter' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    console.log('Fetching wilayah upstream', { type, hasCode: Boolean(code) });
     const response = await fetch(emsifaUrl, {
       headers: { 'Accept': 'application/json', 'User-Agent': 'DesaApp/1.0' },
     });
@@ -74,9 +79,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Wilayah proxy failed', error instanceof Error ? error.message : 'unknown');
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+      JSON.stringify({ error: 'Wilayah service unavailable' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
