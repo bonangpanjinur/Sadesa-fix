@@ -8,7 +8,7 @@ export default defineConfig(() => ({
   server: {
     host: "0.0.0.0",
     port: 8080,
-    allowedHosts: true,
+    allowedHosts: process.env.VITE_ALLOWED_HOSTS?.split(',').map((host) => host.trim()).filter(Boolean) ?? [],
   },
 
   plugins: [
@@ -45,8 +45,9 @@ export default defineConfig(() => ({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            // Cache gambar produk & storage lokal (P2-03: fix dari supabase.co ke server lokal)
-            urlPattern: /\/storage\/.*/i,
+            // Cache only public storefront images; never cache private documents,
+            // payment proofs, courier documents, or chat attachments.
+            urlPattern: /\/storage\/v1\/object\/public\/(product-images|tourism-images|profile-images|merchant-images|merchant-gallery|village-images)\//i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'local-storage-cache',
@@ -94,6 +95,18 @@ export default defineConfig(() => ({
             }
             if (id.includes('recharts')) {
               return 'recharts-vendor';
+            }
+            if (id.includes('@supabase')) {
+              return 'supabase-vendor';
+            }
+            if (id.includes('leaflet')) {
+              return 'map-vendor';
+            }
+            if (id.includes('framer-motion')) {
+              return 'motion-vendor';
+            }
+            if (id.includes('jspdf')) {
+              return 'pdf-vendor';
             }
             return 'vendor';
           }
