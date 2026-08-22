@@ -22,6 +22,12 @@ export interface HeldBill {
   customer_id?: string | null;
 }
 
+export interface CustomerBalance {
+  total_purchase: number;
+  transaction_count: number;
+  loyalty_points: number;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -56,6 +62,7 @@ export interface Promotion {
   happy_hour_end: string | null;
   happy_hour_days: number[];
   applies_to: string;
+  used_count?: number;
 }
 
 export interface Voucher {

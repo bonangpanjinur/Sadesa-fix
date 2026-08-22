@@ -19,7 +19,7 @@ import { POSHeldBills } from '@/components/pos/kasir/POSHeldBills';
 import { QRPayDialog } from '@/components/pos/kasir/QRPayDialog';
 import { cn } from '@/lib/utils';
 import type {
-  CartItem, HeldBill, Customer, LoyaltyProgram,
+  CartItem, HeldBill, Customer, CustomerBalance, LoyaltyProgram,
   Promotion, Voucher, Product, Variant,
 } from '@/components/pos/kasir/types';
 
@@ -418,7 +418,8 @@ export default function POSKasirPage() {
         const { data: cust } = await supabase.from('pos_customers' as never)
           .select('total_purchase, transaction_count, loyalty_points').eq('id', selectedCustomer.id).single();
         if (cust) {
-          const currentPts = (cust as any).loyalty_points || 0;
+          const balance = cust as unknown as CustomerBalance;
+          const currentPts = balance.loyalty_points || 0;
           const newPts = Math.max(0, currentPts - (usePoints ? pointsToRedeem : 0) + pointsEarned);
           let newTier = 'Bronze';
           if (loyaltyProgram) {
@@ -426,8 +427,8 @@ export default function POSKasirPage() {
             for (const t of tiers) { if (newPts >= t.min_points) { newTier = t.name; break; } }
           }
           await supabase.from('pos_customers' as never).update({
-            total_purchase: ((cust as any).total_purchase || 0) + total,
-            transaction_count: ((cust as any).transaction_count || 0) + 1,
+            total_purchase: (balance.total_purchase || 0) + total,
+            transaction_count: (balance.transaction_count || 0) + 1,
             last_purchase_at: new Date().toISOString(), loyalty_points: newPts, loyalty_tier: newTier,
           }).eq('id', selectedCustomer.id);
         }
@@ -435,10 +436,10 @@ export default function POSKasirPage() {
 
       if (appliedVoucher) {
         await supabase.from('pos_vouchers' as never).update({ used_count: (appliedVoucher.used_count || 0) + 1 }).eq('id', appliedVoucher.id);
-        await supabase.from('pos_voucher_usages' as any).insert({ voucher_id: appliedVoucher.id, sale_id: saleId, customer_id: selectedCustomer?.id || null, discount_given: voucherDiscount });
+        await supabase.from('pos_voucher_usages' as never).insert({ voucher_id: appliedVoucher.id, sale_id: saleId, customer_id: selectedCustomer?.id || null, discount_given: voucherDiscount });
       }
       if (appliedPromo && promoDiscount > 0) {
-        await supabase.from('pos_promotions' as never).update({ used_count: (appliedPromo as any).used_count + 1 }).eq('id', appliedPromo.id);
+        await supabase.from('pos_promotions' as never).update({ used_count: (appliedPromo.used_count || 0) + 1 }).eq('id', appliedPromo.id);
       }
 
       setLastSale({
