@@ -109,58 +109,38 @@ export default function POSKasirPage() {
   const pointsEarned = loyaltyProgram && selectedCustomer ? Math.floor(total / loyaltyProgram.earn_per_rupiah) : 0;
   const change = paymentMethod === 'cash' ? Math.max(0, (Number(paymentAmount) || 0) - total) : 0;
 
-  // ── Fetch ────────────────────────────────────────────────
-  useEffect(() => {
-    if (tenant && activeOutlet) { fetchProducts(); fetchCategories(); fetchHeldBills(); }
-  }, [tenant, activeOutlet]);
-
-  useEffect(() => {
-    if (tenant) { fetchLoyaltyProgram(); fetchActivePromos(); }
-  }, [tenant]);
-
-  useEffect(() => {
-    if (selectedCustomer && tenant) fetchCustomerPoints(selectedCustomer.id);
-    else { setCustomerPoints(0); setCustomerTier('Bronze'); setUsePoints(false); setPointsToRedeem(0); }
-    setAppliedVoucher(null); setVoucherDiscount(0); setVoucherCode(''); setVoucherError('');
-  }, [selectedCustomer]);
-
-  useEffect(() => {
-    if (appliedPromo) setPromoDiscount(calcPromoDiscount(appliedPromo));
-    else autoApplyBestPromo();
-  }, [cart, appliedPromo]);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     const { data } = await supabase.from('pos_products' as never)
       .select('*, pos_categories(name), pos_stock(quantity)')
       .eq('tenant_id', tenant.id).eq('is_active', true).order('name');
     setProducts((data || []) as unknown as Product[]);
     setLoading(false);
-  };
+  }, [tenant, activeOutlet]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     if (!tenant) return;
     const { data } = await supabase.from('pos_categories' as never).select('id, name')
       .eq('tenant_id', tenant.id).order('name');
     setCategories((data || []) as unknown as { id: string; name: string }[]);
-  };
+  }, [tenant]);
 
-  const fetchHeldBills = async () => {
+  const fetchHeldBills = useCallback(async () => {
     if (!tenant || !activeOutlet || !user) return;
     const { data } = await supabase.from('pos_held_bills' as never).select('*')
       .eq('tenant_id', tenant.id).eq('outlet_id', activeOutlet.id)
       .eq('cashier_id', user.id).order('created_at');
     setHeldBills((data || []).map((h) => ({ ...h, items: h.items || [] })) as unknown as HeldBill[]);
-  };
+  }, [tenant, activeOutlet, user]);
 
-  const fetchLoyaltyProgram = async () => {
+  const fetchLoyaltyProgram = useCallback(async () => {
     if (!tenant) return;
     const { data } = await supabase.from('pos_loyalty_programs' as never).select('*')
       .eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle();
     setLoyaltyProgram(data as unknown as LoyaltyProgram | null);
-  };
+  }, [tenant]);
 
-  const fetchActivePromos = async () => {
+  const fetchActivePromos = useCallback(async () => {
     if (!tenant) return;
     const now = new Date().toISOString();
     const { data } = await supabase.from('pos_promotions' as never).select('*')
@@ -168,17 +148,17 @@ export default function POSKasirPage() {
       .or(`start_date.is.null,start_date.lte.${now}`)
       .or(`end_date.is.null,end_date.gte.${now}`);
     setActivePromos((data || []) as unknown as Promotion[]);
-  };
+  }, [tenant]);
 
-  const fetchCustomerPoints = async (customerId: string) => {
+  const fetchCustomerPoints = useCallback(async (customerId: string) => {
     if (!tenant) return;
     const { data } = await supabase.from('pos_customers' as never)
       .select('loyalty_points, loyalty_tier').eq('id', customerId).eq('tenant_id', tenant.id).maybeSingle();
     if (data) { setCustomerPoints((data as unknown as { loyalty_points?: number }).loyalty_points || 0); setCustomerTier((data as unknown as { loyalty_tier?: string }).loyalty_tier || 'Bronze'); }
-  };
+  }, [tenant]);
 
   // ── Promosi ──────────────────────────────────────────────
-  function calcPromoDiscount(promo: Promotion): number {
+  const calcPromoDiscount = useCallback((promo: Promotion): number => {
     if (subtotal < promo.min_purchase) return 0;
     const now = new Date();
     if (promo.type === 'happy_hour') {
@@ -199,14 +179,14 @@ export default function POSKasirPage() {
     if (promo.type === 'discount_amount') return Math.min(promo.discount_amount, subtotal);
     if (promo.type === 'bundle' && promo.bundle_price !== null) return Math.max(0, subtotal - promo.bundle_price);
     return 0;
-  }
+  }, [subtotal]);
 
-  function autoApplyBestPromo() {
+  const autoApplyBestPromo = useCallback(() => {
     if (activePromos.length === 0 || subtotal === 0) { setPromoDiscount(0); setAppliedPromo(null); return; }
     let best: Promotion | null = null; let bestDisc = 0;
     for (const p of activePromos) { const d = calcPromoDiscount(p); if (d > bestDisc) { bestDisc = d; best = p; } }
     setAppliedPromo(best); setPromoDiscount(bestDisc);
-  }
+  }, [activePromos, subtotal, calcPromoDiscount]);
 
   // ── Voucher ──────────────────────────────────────────────
   const applyVoucher = async () => {
@@ -232,7 +212,7 @@ export default function POSKasirPage() {
   const removeVoucher = () => { setAppliedVoucher(null); setVoucherDiscount(0); setVoucherCode(''); setVoucherError(''); };
 
   // ── Cart actions ─────────────────────────────────────────
-  const addToCart = async (product: Product, variantId?: string, variantName?: string, variantPrice?: number) => {
+  const addToCart = useCallback(async (product: Product, variantId?: string, variantName?: string, variantPrice?: number) => {
     if (product.has_variants && !variantId) {
       const { data } = await supabase.from('pos_product_variants' as never).select('*').eq('product_id', product.id).eq('is_active', true);
       setVariants((data || []) as unknown as Variant[]); setSelectedProduct(product); setVariantDialog(true); return;
@@ -245,7 +225,7 @@ export default function POSKasirPage() {
       setCart(prev => [...prev, { productId: product.id, variantId, name: product.name, variantName, price, costPrice: product.cost_price, unit: product.unit, qty: 1, discount: 0, taxRate: product.tax_rate, notes: '' }]);
     }
     setSearch('');
-  };
+  }, [cart]);
 
   const updateQty = (idx: number, delta: number) => {
     const newCart = [...cart]; newCart[idx].qty = Math.max(0.5, newCart[idx].qty + delta);
@@ -255,10 +235,10 @@ export default function POSKasirPage() {
   const updateItemDiscount = (idx: number, val: number) => {
     const newCart = [...cart]; newCart[idx].discount = Math.min(val, newCart[idx].price * newCart[idx].qty); setCart(newCart);
   };
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]); setDiscount(0); setAppliedPromo(null); setPromoDiscount(0);
     setAppliedVoucher(null); setVoucherDiscount(0); setVoucherCode(''); setUsePoints(false); setPointsToRedeem(0);
-  };
+  }, []);
 
   // ── Loyalty ──────────────────────────────────────────────
   const handleTogglePoints = (checked: boolean) => {
@@ -275,19 +255,6 @@ export default function POSKasirPage() {
     setPointsToRedeem(pts);
   };
 
-  // ── Keyboard shortcuts ───────────────────────────────────
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'F2') { e.preventDefault(); openPayment(); }
-      if (e.key === 'F3') { e.preventDefault(); holdBill(); }
-      if (e.key === 'F8') { e.preventDefault(); searchRef.current?.focus(); }
-      if (e.key === 'Escape') { setSearch(''); searchRef.current?.blur(); }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [cart, discount, notes, selectedCustomer, customerName, paymentMethod, paymentAmount]);
-
   // ── Customer search ──────────────────────────────────────
   const searchCustomers = async (q: string) => {
     if (!tenant || !q) { setCustomers([]); return; }
@@ -298,10 +265,10 @@ export default function POSKasirPage() {
   };
 
   // ── Payment ──────────────────────────────────────────────
-  const openPayment = () => {
+  const openPayment = useCallback(() => {
     if (cart.length === 0) { toast.error('Keranjang kosong'); return; }
     setPaymentAmount(String(total)); setPaymentDialog(true);
-  };
+  }, [cart.length, total]);
 
   const handlePaymentChange = (field: string, value: string | boolean) => {
     if (field === 'paymentMethod') setPaymentMethod(value as string);
@@ -458,7 +425,7 @@ export default function POSKasirPage() {
   };
 
   // ── Hold Bill ────────────────────────────────────────────
-  const holdBill = async () => {
+  const holdBill = useCallback(async () => {
     if (!tenant || !activeOutlet || !user || cart.length === 0) return;
     await supabase.from('pos_held_bills' as never).insert({
       tenant_id: tenant.id, outlet_id: activeOutlet.id, cashier_id: user.id,
@@ -468,7 +435,39 @@ export default function POSKasirPage() {
     });
     clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
     await fetchHeldBills(); toast.success('Transaksi ditahan');
-  };
+  }, [tenant, activeOutlet, user, cart, heldBills.length, selectedCustomer, customerName, discount, notes, clearCart, fetchHeldBills]);
+
+  // ── Fetch and keyboard effects ───────────────────────────
+  useEffect(() => {
+    if (tenant && activeOutlet) { fetchProducts(); fetchCategories(); fetchHeldBills(); }
+  }, [tenant, activeOutlet, fetchProducts, fetchCategories, fetchHeldBills]);
+
+  useEffect(() => {
+    if (tenant) { fetchLoyaltyProgram(); fetchActivePromos(); }
+  }, [tenant, fetchLoyaltyProgram, fetchActivePromos]);
+
+  useEffect(() => {
+    if (selectedCustomer && tenant) fetchCustomerPoints(selectedCustomer.id);
+    else { setCustomerPoints(0); setCustomerTier('Bronze'); setUsePoints(false); setPointsToRedeem(0); }
+    setAppliedVoucher(null); setVoucherDiscount(0); setVoucherCode(''); setVoucherError('');
+  }, [selectedCustomer, tenant, fetchCustomerPoints]);
+
+  useEffect(() => {
+    if (appliedPromo) setPromoDiscount(calcPromoDiscount(appliedPromo));
+    else autoApplyBestPromo();
+  }, [cart, appliedPromo, autoApplyBestPromo, calcPromoDiscount]);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'F2') { e.preventDefault(); openPayment(); }
+      if (e.key === 'F3') { e.preventDefault(); holdBill(); }
+      if (e.key === 'F8') { e.preventDefault(); searchRef.current?.focus(); }
+      if (e.key === 'Escape') { setSearch(''); searchRef.current?.blur(); }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [openPayment, holdBill]);
 
   const resumeBill = async (bill: HeldBill) => {
     setCart(bill.items); setDiscount(bill.discount_amount); setNotes(bill.notes); setCustomerName(bill.customer_name || '');
@@ -489,7 +488,7 @@ export default function POSKasirPage() {
     const match = products.find(p => p.barcode === barcode || p.sku === barcode);
     if (match) { addToCart(match); toast.success(`✓ ${match.name} ditambahkan`); }
     else { setSearch(barcode); setScannerOpen(false); toast.info(`Barcode "${barcode}" — pilih produk secara manual`); }
-  }, [products]);
+  }, [products, addToCart]);
 
   // ── Universal Printer ─────────────────────────────────────
   const uniPrinter = getUniversalPrinter();
