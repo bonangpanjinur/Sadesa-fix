@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- This module intentionally exports a reusable helper or variant alongside its component. */
 /**
  * P3-04: Merchant Operating Hours Card
  * Komponen untuk mengatur jadwal buka/tutup per hari dalam seminggu.

@@ -19,7 +19,14 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": ["warn", {
+        allowConstantExport: true,
+        allowExportNames: [
+          "formatFullAddress", "createEmptyAddressData", "useImagePreloader",
+          "useFormField", "toast", "useAuth", "useCart", "usePOS",
+          "navigationMenuTriggerStyle", "useSidebar",
+        ],
+      }],
       "@typescript-eslint/no-unused-vars": "off",
     },
   },

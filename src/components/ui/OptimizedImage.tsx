@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- This module intentionally exports a reusable helper or variant alongside its component. */
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
