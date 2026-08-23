@@ -6,6 +6,8 @@ overrides:
   serialize-javascript: 7.1.0
   serialize-javascript@6: 7.1.0
   serialize-javascript@6.0.2: 7.1.0
+  terser>serialize-javascript: 7.1.0
+  '@rollup/plugin-terser': 1.0.0
   flatted: 3.4.4
   form-data: 4.0.6
   ws: 8.21.3
