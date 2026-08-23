@@ -8,8 +8,18 @@
 // client stays schema-agnostic to keep those call sites valid.
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+function requirePublicRuntimeValue(name: string, value: unknown): string {
+  if (typeof value !== 'string' || value.trim() === '' || value.startsWith('your_')) {
+    throw new Error(`Missing required public runtime configuration: ${name}`);
+  }
+  return value;
+}
+
+const SUPABASE_URL = requirePublicRuntimeValue('VITE_SUPABASE_URL', import.meta.env.VITE_SUPABASE_URL);
+const SUPABASE_PUBLISHABLE_KEY = requirePublicRuntimeValue(
+  'VITE_SUPABASE_PUBLISHABLE_KEY',
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+);
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
