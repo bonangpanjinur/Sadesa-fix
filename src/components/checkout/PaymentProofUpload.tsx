@@ -6,6 +6,7 @@ import { uploadFile, validateFile, compressImage } from '@/lib/storage';
 import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { reportObservability } from '@/lib/observability';
 
 interface PaymentProofUploadProps {
   orderId: string;
@@ -35,6 +36,7 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
   const handleFile = async (file: File) => {
     const error = validateFile(file, 5);
     if (error) {
+      reportObservability('upload', 'payment_proof_validation_failed', 'warn', { hasOrderId: Boolean(orderId) }, new Error(error));
       toast.error(error);
       return;
     }
@@ -49,6 +51,7 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
       });
 
       if (result.error) {
+        reportObservability('upload', 'payment_proof_storage_failed', 'error', { hasOrderId: Boolean(orderId) }, new Error(result.error));
         toast.error(result.error);
         return;
       }
@@ -64,15 +67,18 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
           .eq('id', orderId);
 
         if (updateError) {
+          reportObservability('upload', 'payment_proof_order_update_failed', 'error', { hasOrderId: Boolean(orderId) }, updateError);
           toast.error('Gagal menyimpan bukti pembayaran');
           return;
         }
 
         setProofUrl(result.url);
         onUploaded(result.url);
+        reportObservability('upload', 'payment_proof_uploaded', 'info', { hasOrderId: Boolean(orderId) });
         toast.success('Bukti pembayaran berhasil diupload');
       }
     } catch (err) {
+      reportObservability('upload', 'payment_proof_upload_failed', 'error', { hasOrderId: Boolean(orderId) }, err);
       toast.error('Gagal mengupload bukti pembayaran');
     } finally {
       setIsUploading(false);

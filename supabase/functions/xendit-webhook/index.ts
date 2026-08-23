@@ -21,6 +21,16 @@ interface XenditSettings {
   callback_token?: string;
 }
 
+function logWebhook(event: string, context: Record<string, string | number | boolean | null> = {}, error?: unknown) {
+  console.log(JSON.stringify({
+    source: 'xendit-webhook',
+    event,
+    at: new Date().toISOString(),
+    context,
+    error: error instanceof Error ? { name: error.name, message: error.message.slice(0, 240) } : undefined,
+  }));
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -41,16 +51,21 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (!supabaseUrl || !serviceRoleKey) return json({ error: "Webhook unavailable" }, 503);
+  if (!supabaseUrl || !serviceRoleKey) {
+    logWebhook('configuration_missing', { hasSupabaseUrl: Boolean(supabaseUrl), hasServiceRoleKey: Boolean(serviceRoleKey) });
+    return json({ error: "Webhook unavailable" }, 503);
+  }
 
   try {
     const settings = await getSettings(supabaseUrl, serviceRoleKey);
     const callbackToken = req.headers.get("x-callback-token");
     if (!settings?.callback_token || !callbackToken || callbackToken !== settings.callback_token) {
+      logWebhook('authentication_failed', { hasCallbackToken: Boolean(callbackToken) });
       return json({ error: "Unauthorized" }, 401);
     }
 
     const body = (await req.json()) as Partial<XenditInvoiceCallback>;
+    logWebhook('received', { hasInvoiceId: Boolean(body.id), hasOrderId: Boolean(body.external_id), status: body.status ?? null });
     if (
       !body.id ||
       !body.external_id ||
@@ -82,7 +97,10 @@ serve(async (req) => {
     const { error: eventError } = await admin
       .from("payment_webhook_events")
       .insert({ provider: "xendit", event_key: eventKey, invoice_id: body.id, order_id: order.id, status: body.status });
-    if (eventError?.code === "23505") return json({ success: true, duplicate: true });
+    if (eventError?.code === "23505") {
+      logWebhook('duplicate_ignored', { status: body.status });
+      return json({ success: true, duplicate: true });
+    }
     if (eventError) {
       console.error("Webhook idempotency insert failed", { code: eventError.code });
       return json({ error: "Webhook unavailable" }, 503);
@@ -109,8 +127,10 @@ serve(async (req) => {
       return json({ error: "Webhook unavailable" }, 503);
     }
 
+    logWebhook('processed', { status: body.status, paymentUpdated: true });
     return json({ success: true });
   } catch (error) {
+    logWebhook('processing_failed', {}, error);
     console.error("Webhook processing failed", error instanceof Error ? error.message : "unknown");
     return json({ error: "Webhook unavailable" }, 500);
   }
