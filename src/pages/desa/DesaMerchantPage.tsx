@@ -160,8 +160,8 @@ export default function DesaMerchantPage() {
       toast.success(type === 'approve' ? `${merchant.name} berhasil disetujui` : `${merchant.name} ditolak`);
       setActionDialog({ open: false, type: 'approve', merchant: null });
       queryClient.invalidateQueries({ queryKey: ['desa-merchants', villageId] });
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal memproses tindakan');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal memproses tindakan');
     } finally {
       setActionLoading(false);
     }

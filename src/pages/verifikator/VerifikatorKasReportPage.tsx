@@ -64,7 +64,7 @@ export default function VerifikatorKasReportPage() {
           if (!merchantMap[mid]) {
             merchantMap[mid] = {
               merchantId: mid,
-              merchantName: (p.merchant as any)?.name || '-',
+              merchantName: ((Array.isArray(p.merchant) ? p.merchant[0] : p.merchant) as { name?: string } | null)?.name || '-',
               paidCount: 0,
               unpaidCount: 0,
               totalPaid: 0,

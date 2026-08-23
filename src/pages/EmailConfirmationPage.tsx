@@ -24,8 +24,8 @@ export default function EmailConfirmationPage() {
       if (error) throw error;
       setResent(true);
       toast({ title: 'Email verifikasi dikirim ulang!' });
-    } catch (err: any) {
-      toast({ title: 'Gagal mengirim ulang', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Gagal mengirim ulang', description: err instanceof Error ? err.message : 'Terjadi kesalahan', variant: 'destructive' });
     } finally {
       setResending(false);
     }

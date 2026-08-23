@@ -233,7 +233,7 @@ export default function CourierSlipPage() {
     });
 
     // Rincian harian
-    const afterSummary = (doc as any).lastAutoTable.finalY + 8;
+    const afterSummary = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.text('RINCIAN HARIAN', 14, afterSummary);

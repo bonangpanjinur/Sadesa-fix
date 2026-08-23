@@ -18,6 +18,17 @@ import { Search, Award, Store, CheckCircle, XCircle, Clock, QrCode, Download } f
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface MerchantQueryRow {
+  id: string;
+  name: string;
+  business_category: string | null;
+  phone: string | null;
+  address: string | null;
+  registration_status: string;
+  status: string;
+  created_at: string;
+}
+
 interface MerchantMember {
   id: string;
   name: string;
@@ -74,7 +85,7 @@ export default function DesaKeanggotaanPage() {
       .eq('village_id', villageId)
       .order('created_at', { ascending: false });
 
-    setMerchants(((data || []) as any[]).map(m => ({
+    setMerchants((data as MerchantQueryRow[] || []).map(m => ({
       ...m,
       membership_status: m.registration_status === 'APPROVED' ? 'active' : m.registration_status === 'PENDING' ? 'pending' : 'inactive',
       membership_number: m.registration_status === 'APPROVED' ? `UMKM-${m.id.substring(0, 8).toUpperCase()}` : null,

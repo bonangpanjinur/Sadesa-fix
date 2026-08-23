@@ -25,7 +25,7 @@ import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingH
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { trackPageView } from '@/lib/pageViewTracker';
-import { addToRecentlyViewed } from '@/pages/buyer/RecentlyViewedPage';
+import { addToRecentlyViewed } from '@/lib/recentlyViewed';
 import type { Product } from '@/types';
 import { ProductReviews } from '@/components/product/ProductReviews';
 import { SimilarProducts } from '@/components/product/SimilarProducts';

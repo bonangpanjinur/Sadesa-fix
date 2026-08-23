@@ -113,7 +113,9 @@ export default function CourierRidesPage() {
       if (passengerIds.length > 0) {
         const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', passengerIds);
         if (profiles) {
-          profiles.forEach((p: any) => { if (p.full_name) passengerNames[p.id] = p.full_name; });
+          profiles.forEach((p: { id: string; full_name: string | null }) => {
+            if (p.full_name) passengerNames[p.id] = p.full_name;
+          });
         }
       }
 

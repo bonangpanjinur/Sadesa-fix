@@ -76,8 +76,8 @@ export default function MerchantPOSSettingsPage() {
 
       if (error) throw error;
       toast.success('Pengaturan kasir berhasil disimpan');
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal menyimpan');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menyimpan');
     } finally {
       setSaving(false);
     }

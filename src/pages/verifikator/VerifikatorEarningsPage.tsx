@@ -124,7 +124,7 @@ export default function VerifikatorEarningsPage() {
       setWithdrawForm({ amount: '', bank_name: '', account_number: '', account_holder: '' });
       queryClient.invalidateQueries({ queryKey: ['verifikator-earnings', user?.id] });
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal mengajukan withdrawal'),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Gagal mengajukan withdrawal'),
   });
 
   const getStatusBadge = (status: string) => {

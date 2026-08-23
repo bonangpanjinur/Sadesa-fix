@@ -196,7 +196,7 @@ export default function RegisterMerchantPage() {
       if (draft.addressDetail) setValue('addressDetail', draft.addressDetail);
       if (draft.referralCode) setReferralCode(draft.referralCode);
       if (draft.merchantLocation) setMerchantLocation(draft.merchantLocation);
-      if (draft.halalStatus) setHalalStatus(draft.halalStatus as any);
+      if (draft.halalStatus) setHalalStatus(draft.halalStatus as 'NONE' | 'PENDING_VERIFICATION' | 'REQUESTED');
       if (draft.halalCertUrl) setHalalCertUrl(draft.halalCertUrl);
       if (draft.ktpUrl) setKtpUrl(draft.ktpUrl);
 

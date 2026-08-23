@@ -140,7 +140,12 @@ export default function MerchantFinancePage() {
         {/* Period selector */}
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground font-medium">Tampilkan:</span>
-          <Select value={period} onValueChange={(v) => setPeriod(v as any)}>
+          <Select
+            value={period}
+            onValueChange={(value) => {
+              if (value === '3' || value === '6' || value === '12') setPeriod(value);
+            }}
+          >
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>

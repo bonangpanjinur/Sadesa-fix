@@ -8,33 +8,7 @@ import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
-
-interface ViewedProduct {
-  id: string;
-  name: string;
-  price: number;
-  image_url: string | null;
-  merchant_name: string;
-  viewed_at: number;
-}
-
-const STORAGE_KEY = 'recently_viewed_products';
-
-export function addToRecentlyViewed(product: { id: string; name: string; price: number; image?: string; merchantName?: string }) {
-  try {
-    const existing: ViewedProduct[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const filtered = existing.filter(p => p.id !== product.id);
-    filtered.unshift({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image_url: product.image || null,
-      merchant_name: product.merchantName || '',
-      viewed_at: Date.now(),
-    });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered.slice(0, 50)));
-  } catch { /* ignore */ }
-}
+import { RECENTLY_VIEWED_STORAGE_KEY as STORAGE_KEY, type ViewedProduct } from '@/lib/recentlyViewed';
 
 export default function RecentlyViewedPage() {
   const navigate = useNavigate();

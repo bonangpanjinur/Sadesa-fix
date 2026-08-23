@@ -41,9 +41,9 @@ export default function ForgotPasswordPage() {
 
       setSent(true);
       toast.success('Link reset password terkirim!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Reset password error:', error);
-      toast.error(error.message || 'Gagal mengirim email reset password');
+      toast.error(error instanceof Error ? error.message : 'Gagal mengirim email reset password');
     } finally {
       setLoading(false);
     }

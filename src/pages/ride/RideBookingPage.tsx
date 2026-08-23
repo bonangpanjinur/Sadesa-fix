@@ -27,7 +27,7 @@ import 'leaflet/dist/leaflet.css';
 
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: '/motor-icon.png',
   iconRetinaUrl: '/motor-icon.png',

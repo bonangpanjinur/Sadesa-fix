@@ -74,9 +74,9 @@ export default function ResetPasswordPage() {
         await supabase.auth.signOut();
         navigate('/auth');
       }, 2000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Reset password error:', error);
-      toast.error(error.message || 'Gagal mengubah password');
+      toast.error(error instanceof Error ? error.message : 'Gagal mengubah password');
     } finally {
       setLoading(false);
     }

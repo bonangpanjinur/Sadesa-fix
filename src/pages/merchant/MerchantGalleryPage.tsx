@@ -101,8 +101,8 @@ export default function MerchantGalleryPage() {
       }
       queryClient.invalidateQueries({ queryKey: ['merchant-gallery', merchantId] });
       toast.success(`${files.length} foto berhasil diupload`);
-    } catch (err: any) {
-      toast.error('Gagal upload: ' + (err.message || 'Error tidak diketahui'));
+    } catch (err: unknown) {
+      toast.error('Gagal upload: ' + (err instanceof Error ? err.message : 'Error tidak diketahui'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

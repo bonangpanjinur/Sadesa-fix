@@ -50,8 +50,8 @@ export default function SettingsPage() {
       setShowPasswordForm(false);
       setNewPassword('');
       setConfirmPassword('');
-    } catch (error: any) {
-      toast.error(error.message || 'Gagal mengubah password');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Gagal mengubah password');
     } finally {
       setChangingPassword(false);
     }

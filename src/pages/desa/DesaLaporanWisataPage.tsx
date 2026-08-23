@@ -49,7 +49,7 @@ export default function DesaLaporanWisataPage() {
       .eq('village_id', villageId)
       .order('view_count', { ascending: false });
 
-    setTourism(((data || []) as any[]).map(t => ({
+    setTourism((data as TourismStat[] || []).map(t => ({
       ...t,
       rating_avg: null,
       rating_count: null,

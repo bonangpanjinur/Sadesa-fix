@@ -102,8 +102,8 @@ export default function TourismBookingPage() {
     onSuccess: () => {
       setSubmitted(true);
     },
-    onError: (err: any) => {
-      toast({ title: 'Gagal melakukan booking', description: err.message, variant: 'destructive' });
+    onError: (err: unknown) => {
+      toast({ title: 'Gagal melakukan booking', description: err instanceof Error ? err.message : 'Terjadi kesalahan', variant: 'destructive' });
     },
   });
 

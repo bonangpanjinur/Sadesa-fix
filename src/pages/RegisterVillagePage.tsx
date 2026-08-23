@@ -78,9 +78,9 @@ export default function RegisterVillagePage() {
       }
       setIsSuccess(true);
       toast.success('Pendaftaran desa berhasil dikirim!');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
-      toast.error(error.message || 'Gagal mendaftar desa');
+      toast.error(error instanceof Error ? error.message : 'Gagal mendaftar desa');
     } finally {
       setIsSubmitting(false);
     }

@@ -153,7 +153,7 @@ export default function MerchantPajakPage() {
       theme: 'striped',
     });
 
-    const y2 = (doc as any).lastAutoTable.finalY + 10;
+    const y2 = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
     doc.text('REKAP PER BULAN', 14, y2);
     autoTable(doc, {
       startY: y2 + 3,

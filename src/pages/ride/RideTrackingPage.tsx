@@ -158,7 +158,7 @@ export default function RideTrackingPage() {
         if (updated.status === 'ACCEPTED') {
           toast({ title: '🎉 Driver ditemukan!', description: 'Driver sedang menuju lokasi jemput Anda' });
         }
-        if (updated.status === 'COMPLETED' && !(updated as any).rating) {
+        if (updated.status === 'COMPLETED' && !('rating' in updated && updated.rating)) {
           toast({ title: '✅ Perjalanan selesai!', description: 'Terima kasih telah menggunakan Ojek Desa' });
           // Auto-show rating dialog after 2 seconds
           setTimeout(() => setShowRatingDialog(true), 2000);

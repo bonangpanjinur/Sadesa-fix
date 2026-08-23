@@ -76,7 +76,8 @@ export default function CourierHistoryPage() {
   const cancelledList = currentList.filter(d => d.status === 'CANCELLED');
 
   const getStatusBadge = (status: string) => {
-    const styles: Record<string, { variant: any; label: string }> = {
+    type BadgeVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' | 'info';
+    const styles: Record<string, { variant: BadgeVariant; label: string }> = {
       DELIVERED: { variant: 'success', label: 'Terkirim' },
       DONE: { variant: 'success', label: 'Selesai' },
       CANCELLED: { variant: 'destructive', label: 'Dibatalkan' },

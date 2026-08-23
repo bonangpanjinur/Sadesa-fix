@@ -61,7 +61,7 @@ export default function HelpPage() {
 
       if (data) {
         for (const row of data) {
-          const val = typeof row.value === 'string' ? row.value : (row.value as any)?.value;
+          const val = typeof row.value === 'string' ? row.value : (row.value as { value?: string } | null)?.value;
           if (row.key === 'support_whatsapp' && val) setWaNumber(val);
           if (row.key === 'support_email' && val) setEmail(val);
         }

@@ -172,9 +172,9 @@ export default function MerchantOrdersPage() {
       toast.success('Pesanan akan diantar sendiri');
       setDetailDialogOpen(false);
       refetch();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Self delivery error:', error);
-      toast.error(`Gagal mengubah status: ${error?.message || 'Unknown error'}`);
+      toast.error(`Gagal mengubah status: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

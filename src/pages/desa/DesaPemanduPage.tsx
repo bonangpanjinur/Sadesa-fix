@@ -88,7 +88,7 @@ export default function DesaPemanduPage() {
       setEditing(null);
       setForm(defaultForm);
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal menyimpan'),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Gagal menyimpan'),
   });
 
   const deleteMutation = useMutation({

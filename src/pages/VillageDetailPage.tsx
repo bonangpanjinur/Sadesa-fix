@@ -108,7 +108,7 @@ export default function VillageDetailPage() {
         const mappedTourism: Tourism[] = (tourismData || []).map(t => ({
           id: t.id,
           villageId: t.village_id,
-          villageName: (t.villages as any)?.name || '',
+          villageName: ((Array.isArray(t.villages) ? t.villages[0] : t.villages) as { name?: string } | null)?.name || '',
           name: t.name,
           description: t.description || '',
           image: t.image_url || '/placeholder.svg',
