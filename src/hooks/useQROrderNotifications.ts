@@ -6,6 +6,18 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { posBridgeFetch } from '@/lib/posBridge';
 
+interface WindowWithWebkitAudioContext extends Window {
+  AudioContext?: typeof AudioContext;
+  webkitAudioContext?: typeof AudioContext;
+}
+
+interface SSEBroadcastDetail {
+  type?: string;
+  channel?: string;
+  event?: string;
+  payload?: unknown;
+}
+
 export interface QRIncomingOrder {
   order_id: string;
   order_number: string;
@@ -27,7 +39,10 @@ export interface QRIncomingOrder {
 
 function playNotificationSound() {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioWindow = window as WindowWithWebkitAudioContext;
+    const AudioContextConstructor = audioWindow.AudioContext || audioWindow.webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    const ctx = new AudioContextConstructor();
     const sequence = [
       { freq: 880, start: 0, duration: 0.12 },
       { freq: 1100, start: 0.14, duration: 0.12 },
@@ -95,7 +110,7 @@ export function useQROrderNotifications(tenantId: string | null | undefined) {
     if (!channelName) return;
 
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<any>).detail;
+      const detail = (e as CustomEvent<SSEBroadcastDetail>).detail;
       if (
         detail?.type === "broadcast" &&
         detail?.channel === channelName &&

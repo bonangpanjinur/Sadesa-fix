@@ -10,6 +10,18 @@ import { formatPrice } from '@/lib/utils';
 import { Zap, ArrowLeft, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
+interface FlashSaleRow {
+  id: string;
+  product_id: string;
+  original_price: number;
+  flash_price: number;
+  stock_available: number;
+  stock_sold: number | null;
+  start_time: string;
+  end_time: string;
+  products: { name: string | null; image_url: string | null; merchants: { name: string | null } | { name: string | null }[] | null } | { name: string | null; image_url: string | null; merchants: { name: string | null } | { name: string | null }[] | null }[] | null;
+}
+
 interface FlashSaleItem {
   id: string;
   product_id: string;
@@ -51,26 +63,30 @@ export default function FlashSalePage() {
     queryFn: async () => {
       const now = new Date().toISOString();
       const { data, error } = await supabase
-        .from('flash_sales' as any)
+        .from('flash_sales')
         .select('id, product_id, original_price, flash_price, stock_available, stock_sold, start_time, end_time, status, products(name, image_url, merchants(name))')
         .eq('status', 'active')
         .lte('start_time', now)
         .gte('end_time', now)
         .order('end_time', { ascending: true });
       if (error) throw error;
-      return ((data || []) as any[]).map(fs => ({
+      return (data as FlashSaleRow[] || []).map((fs) => {
+        const product = Array.isArray(fs.products) ? fs.products[0] : fs.products;
+        const merchant = Array.isArray(product?.merchants) ? product.merchants[0] : product?.merchants;
+        return {
         id: fs.id,
         product_id: fs.product_id,
-        product_name: fs.products?.name || 'Produk',
-        product_image: fs.products?.image_url || null,
-        merchant_name: fs.products?.merchants?.name || '',
+        product_name: product?.name || 'Produk',
+        product_image: product?.image_url || null,
+        merchant_name: merchant?.name || '',
         original_price: fs.original_price,
         flash_price: fs.flash_price,
         stock_available: fs.stock_available,
         stock_sold: fs.stock_sold || 0,
         end_time: fs.end_time,
         discount_pct: Math.round(((fs.original_price - fs.flash_price) / fs.original_price) * 100),
-      }));
+        };
+      });
     },
     staleTime: 60_000,
   });
