@@ -19,11 +19,12 @@ const mocks = vi.hoisted(() => ({
   },
   from: vi.fn(),
   update: vi.fn(),
+  rpc: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { from: mocks.from },
+  supabase: { from: mocks.from, rpc: mocks.rpc },
 }));
 vi.mock('sonner', () => ({ toast: mocks.toast }));
 
@@ -36,6 +37,7 @@ function makeQuery(data: unknown) {
     order: vi.fn(() => query),
     limit: vi.fn(() => Promise.resolve({ data, error: null })),
     update: vi.fn(() => query),
+    rpc: vi.fn(() => Promise.resolve({ data: { success: true }, error: null })),
   };
   return query;
 }
@@ -43,6 +45,7 @@ function makeQuery(data: unknown) {
 describe('OrderStatusManager payment and status transitions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.rpc.mockResolvedValue({ data: { success: true }, error: null });
     mocks.from.mockImplementation(((table: string) => {
       if (table === 'orders') {
         const query = makeQuery([mocks.order]);
@@ -66,10 +69,8 @@ describe('OrderStatusManager payment and status transitions', () => {
     await act(async () => verifyButton.click());
 
     await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledWith('Pembayaran berhasil diverifikasi'));
-    const orderQuery = mocks.from.mock.results.at(-1)?.value;
-    expect(orderQuery.update).toHaveBeenCalledWith(expect.objectContaining({
-      payment_status: 'PAID',
-      status: 'PROCESSED',
-    }));
+    expect(mocks.rpc).toHaveBeenCalledWith('merchant_verify_order_payment', {
+      p_order_id: 'order-1234',
+    });
   });
 });

@@ -206,16 +206,9 @@ export default function MerchantOrdersPage() {
 
   const handleVerifyPayment = async (orderId: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          payment_status: 'PAID', 
-          payment_paid_at: new Date().toISOString(),
-          status: 'PROCESSED',
-          confirmed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('merchant_verify_order_payment', {
+        p_order_id: orderId,
+      });
 
       if (error) throw error;
       
