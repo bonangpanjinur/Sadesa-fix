@@ -24,7 +24,7 @@ export function usePWA() {
   useEffect(() => {
     // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const isIOSInstalled = (navigator as any).standalone === true;
+    const isIOSInstalled = (navigator as Navigator & { standalone?: boolean }).standalone === true;
     const isPWA = isStandalone || isIOSInstalled;
     
     setStatus(prev => ({

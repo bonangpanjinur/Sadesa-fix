@@ -11,7 +11,7 @@ const { navigateMock, addToCartMock, toastMock, inMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<any>('react-router-dom');
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   return { ...actual, useNavigate: () => navigateMock };
 });
 vi.mock('@/contexts/CartContext', () => ({ useCart: () => ({ addToCart: addToCartMock }) }));

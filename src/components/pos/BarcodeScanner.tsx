@@ -50,7 +50,7 @@ export function BarcodeScanner({ open, onClose, onDetect }: BarcodeScannerProps)
       });
       controlsRef.current = controls;
       setScanning(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError('Tidak dapat mengakses kamera. Pastikan izin kamera sudah diberikan.');
       setScanning(false);
     }

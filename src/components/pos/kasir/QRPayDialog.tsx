@@ -120,9 +120,9 @@ export function QRPayDialog({
         } catch (err) { console.warn('[qrpay] gagal polling status sesi:', err); }
       }, 2000);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus('error');
-      toast.error(err.message || 'Gagal membuat QR Pay');
+      toast.error(err instanceof Error ? err.message : 'Gagal membuat QR Pay');
     }
   }, [authToken, tenantId, outletId, cashierName, storeName, amount, cleanup, onSuccess]);
 

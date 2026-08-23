@@ -138,9 +138,9 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
       setDialogOpen(false);
       resetForm();
       fetchVouchers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving voucher:', error);
-      if (error.code === '23505') {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
         toast.error('Kode voucher sudah digunakan');
       } else {
         toast.error('Gagal menyimpan voucher');

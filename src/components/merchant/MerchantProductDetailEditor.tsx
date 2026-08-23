@@ -149,9 +149,9 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
       if (error) throw error;
 
       toast.success('Produk berhasil disimpan');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving product:', error);
-      const errorMessage = error.message || 'Gagal menyimpan produk';
+      const errorMessage = error instanceof Error ? error.message : 'Gagal menyimpan produk';
       if (errorMessage.includes('Bucket not found')) {
         toast.error('Error: Bucket storage "products" tidak ditemukan. Silakan jalankan migrasi SQL.');
       } else {

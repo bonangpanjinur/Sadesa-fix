@@ -14,6 +14,22 @@ import {
 } from "@/lib/posOfflineDB";
 import { posBridgeFetch } from '@/lib/posBridge';
 
+interface OfflineProductApiRow {
+  id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  price: number;
+  cost_price: number | null;
+  unit: string | null;
+  tax_rate: number | null;
+  is_stock_tracked: boolean | null;
+  image_url: string | null;
+  is_active: boolean | null;
+  pos_categories?: { name: string } | null;
+  pos_stock?: Array<{ quantity: number }>;
+}
+
 interface UsePOSOfflineSyncOptions {
   outletId: string | null;
   tenantId: string | null;
@@ -68,7 +84,7 @@ export function usePOSOfflineSync({
       if (!res.ok) return;
       const { data } = await res.json();
       if (Array.isArray(data)) {
-        const mapped: OfflineProduct[] = data.map((p: any) => ({
+        const mapped: OfflineProduct[] = (data as OfflineProductApiRow[]).map((p) => ({
           id: p.id,
           name: p.name,
           sku: p.sku,

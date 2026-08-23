@@ -4,6 +4,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
+interface SimilarProductRow {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string | null;
+  merchants: { name: string } | { name: string }[] | null;
+}
+
 interface SimilarProduct {
   id: string;
   name: string;
@@ -32,12 +40,12 @@ export function SimilarProducts({ currentProductId, category, merchantId }: Prop
         .eq('category', category)
         .limit(6);
 
-      const mapped = (data || []).map((p: any) => ({
+      const mapped = (data as SimilarProductRow[] || []).map((p) => ({
         id: p.id,
         name: p.name,
         price: p.price,
         image_url: p.image_url,
-        merchant_name: p.merchants?.name || 'Toko',
+        merchant_name: (Array.isArray(p.merchants) ? p.merchants[0]?.name : p.merchants?.name) || 'Toko',
       }));
       setProducts(mapped);
     }

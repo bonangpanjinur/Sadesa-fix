@@ -78,9 +78,9 @@ export default function SellerApplicationForm() {
 
       toast({ title: "Pendaftaran Berhasil", description: "Aplikasi merchant Anda telah dikirim untuk ditinjau." });
       navigate("/merchant/dashboard");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Submission error:", error);
-      toast({ variant: "destructive", title: "Gagal Mengirim", description: error.message || "Terjadi kesalahan saat menyimpan data" });
+      toast({ variant: "destructive", title: "Gagal Mengirim", description: error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan data" });
     } finally {
       setIsSubmitting(false);
     }

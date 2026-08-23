@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-type RealtimeChannel = any;
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface RealtimeStats {
   // Orders

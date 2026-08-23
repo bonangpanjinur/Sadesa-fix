@@ -2,19 +2,21 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { setBaseUrl } from '@/lib/addressApi';
 
+interface PWAConfig {
+  appName: string;
+  shortName: string;
+  description: string;
+  themeColor: string;
+  backgroundColor: string;
+  icons: { src: string; sizes: string; type: string }[];
+}
+
 interface WhitelabelSettings {
   siteName: string;
   siteTagline: string;
   logoUrl: string | null;
   faviconUrl: string | null;
-  pwa?: {
-    appName: string;
-    shortName: string;
-    description: string;
-    themeColor: string;
-    backgroundColor: string;
-    icons: { src: string; sizes: string; type: string }[];
-  };
+  pwa?: PWAConfig;
 }
 
 const defaultSettings: WhitelabelSettings = {
@@ -75,7 +77,9 @@ export function useWhitelabelProvider() {
             }
           }
           if (item.category === 'pwa' && item.key === 'pwa_config') {
-            newSettings.pwa = item.value as any;
+            if (typeof item.value === 'object' && item.value !== null) {
+              newSettings.pwa = item.value as PWAConfig;
+            }
           }
           if (item.key === 'address_api' && item.value) {
             const addressApi = item.value as { provider: string; base_url: string };

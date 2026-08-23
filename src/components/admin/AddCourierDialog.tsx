@@ -195,7 +195,7 @@ export function AddCourierDialog({ onSuccess }: AddCourierDialogProps) {
       setOpen(false);
       resetForm();
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding courier:', error);
       toast.error('Gagal menambahkan kurir');
     } finally {

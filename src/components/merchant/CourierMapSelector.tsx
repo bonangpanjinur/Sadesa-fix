@@ -107,7 +107,7 @@ export function CourierMapSelector({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'couriers' },
         (payload) => {
-          const updated = payload.new as any;
+          const updated = payload.new as { id: string; current_lat: number | null; current_lng: number | null };
           if (updated.current_lat && updated.current_lng) {
             setRealtimeCouriers(prev =>
               prev.map(c => c.id === updated.id ? { ...c, lat: updated.current_lat, lng: updated.current_lng } : c)
