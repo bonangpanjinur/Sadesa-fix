@@ -20,6 +20,13 @@ import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface ItineraryItem {
+  day?: number;
+  title?: string;
+  description?: string;
+  activities?: string[];
+}
+
 interface TourismPackage {
   id: string;
   village_id: string;
@@ -31,7 +38,7 @@ interface TourismPackage {
   min_persons: number;
   max_persons: number;
   includes: string[];
-  itinerary: any[];
+  itinerary: ItineraryItem[];
   is_active: boolean;
   guide_id: string | null;
   created_at: string;
@@ -143,7 +150,10 @@ export default function DesaPaketWisataPage() {
       setEditing(null);
       setForm(defaultForm);
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal menyimpan'),
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Gagal menyimpan';
+      toast.error(message);
+    },
   });
 
   const deleteMutation = useMutation({

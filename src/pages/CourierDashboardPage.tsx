@@ -46,6 +46,8 @@ interface CourierData {
   current_lat: number | null;
   current_lng: number | null;
   available_balance: number | null;
+  registration_status: string;
+  rejection_reason: string | null;
 }
 
 interface AssignedOrder {
@@ -69,7 +71,7 @@ export default function CourierDashboardPage() {
   const [podOrderId, setPodOrderId] = useState<string | null>(null);
 
   // Query: profil kurir + status registrasi
-  const { data: courierQueryData, isLoading: courierLoading, isError: fetchError } = useQuery({
+  const { data: courierQueryData, isLoading: courierLoading, isError: fetchError } = useQuery<CourierData | null>({
     queryKey: ['courier-profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -79,14 +81,16 @@ export default function CourierDashboardPage() {
         .eq('user_id', user.id)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return data as CourierData | null;
     },
     enabled: !!user && !authLoading,
     staleTime: 60_000,
   });
 
-  const courier = (courierQueryData?.registration_status === 'APPROVED' ? courierQueryData : null) as CourierData | null;
-  const courierStatus = courierQueryData ? { registration_status: courierQueryData.registration_status, rejection_reason: (courierQueryData as any).rejection_reason } : null;
+  const courier = courierQueryData?.registration_status === 'APPROVED' ? courierQueryData : null;
+  const courierStatus = courierQueryData
+    ? { registration_status: courierQueryData.registration_status, rejection_reason: courierQueryData.rejection_reason }
+    : null;
   const loading = courierLoading;
 
   const fetchCourierData = () => {
@@ -423,7 +427,7 @@ export default function CourierDashboardPage() {
             <CourierLocationUpdater
               courierId={courier.id}
               onLocationUpdate={(lat, lng) => {
-                queryClient.setQueryData(['courier-profile', user?.id], (old: any) =>
+                queryClient.setQueryData<CourierData | null>(['courier-profile', user?.id], (old) =>
                   old ? { ...old, current_lat: lat, current_lng: lng } : old
                 );
               }}

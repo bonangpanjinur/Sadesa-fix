@@ -13,6 +13,10 @@ import { formatPrice } from '@/lib/utils';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
+interface MerchantIdRow {
+  id: string;
+}
+
 interface MonthlyStats {
   month: string;
   merchant_orders: number;
@@ -46,7 +50,7 @@ export default function DesaLaporanKeuanganPage() {
       const [merchantsRes, ordersRes, bookingsRes, tourismViewsRes] = await Promise.all([
         supabase.from('merchants').select('id, name').eq('village_id', villageId).eq('registration_status', 'APPROVED'),
         supabase.from('orders').select('id, total, status, created_at, merchant_id')
-          .in('merchant_id', (await supabase.from('merchants').select('id').eq('village_id', villageId)).data?.map((m: any) => m.id) || [])
+          .in('merchant_id', (await supabase.from('merchants').select('id').eq('village_id', villageId)).data?.map((m: MerchantIdRow) => m.id) || [])
           .gte('created_at', since.toISOString())
           .in('status', ['DONE', 'DELIVERED']),
         supabase.from('tourism_bookings').select('id, total_price, status, created_at, visit_date, persons, contact_name')
@@ -134,7 +138,12 @@ export default function DesaLaporanKeuanganPage() {
         {/* Period selector */}
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground font-medium">Tampilkan:</span>
-          <Select value={period} onValueChange={(v) => setPeriod(v as any)}>
+          <Select
+            value={period}
+            onValueChange={(value) => {
+              if (value === '3' || value === '6' || value === '12') setPeriod(value);
+            }}
+          >
             <SelectTrigger className="w-36">
               <SelectValue />
             </SelectTrigger>
