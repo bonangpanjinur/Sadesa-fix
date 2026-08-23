@@ -18,7 +18,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: () => ({
       select: () => ({
-        in: () => Promise.resolve({ data: [], error: null }),
+        in: () => new Promise(() => {}),
       }),
     }),
   },
@@ -52,13 +52,15 @@ import CartPage from './CartPage';
 
 function renderPage() {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <CartPage />
     </MemoryRouter>,
   );
 }
 
-beforeEach(() => act(() => setLocale('id')));
+beforeEach(() => {
+  act(() => setLocale('id'));
+});
 
 describe('CartPage shipping i18n (regression guard)', () => {
   it('renders Indonesian shipping summary labels by default', () => {

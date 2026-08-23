@@ -123,7 +123,9 @@ export default defineConfig(() => ({
             if (id.includes('lucide-react') || id.includes('sonner')) {
               return 'utility-vendor';
             }
-            return 'vendor';
+            // Let Rollup place uncategorized dependencies with their importing route
+            // instead of recreating a monolithic shared vendor chunk.
+            return undefined;
           }
           if (id.includes('workbox-window')) {
             return 'workbox';

@@ -22,7 +22,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 import { useReorder } from './useReorder';
 
-const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter>{children}</MemoryRouter>;
+const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>{children}</MemoryRouter>;
 
 beforeEach(() => {
   navigateMock.mockReset();
