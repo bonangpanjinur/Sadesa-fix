@@ -86,29 +86,6 @@ serve(async (req) => {
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-    const { data: order, error: orderError } = await admin
-      .from("orders")
-      .select("id, total, payment_invoice_id, payment_status, status")
-      .eq("id", body.external_id)
-      .maybeSingle();
-    if (orderError || !order) return json({ error: "Order not found" }, 404);
-
-    // The provider invoice must be the invoice recorded for this order.
-    if (!order.payment_invoice_id || order.payment_invoice_id !== body.id) {
-      return json({ error: "Invoice mismatch" }, 409);
-    }
-    const orderTotal = Number(order.total);
-    const paidAmount = body.paid_amount === undefined ? null : Number(body.paid_amount);
-    if (!Number.isSafeInteger(orderTotal) || orderTotal <= 0) return json({ error: "Invalid order" }, 409);
-    if (body.status === "PAID" && paidAmount !== orderTotal) {
-      return json({ error: "Payment amount mismatch" }, 409);
-    }
-
-    const currentStatus = order.payment_status || "UNPAID";
-    // A paid order is terminal. A later callback must never overwrite its
-    // payment metadata or downgrade it to a non-paid state.
-    if (currentStatus === "PAID") return json({ success: true, ignored: true });
-    if (currentStatus === "EXPIRED" && body.status === "PENDING") return json({ success: true, ignored: true });
 
     // Xendit provides a stable delivery/event identifier when available.
     // The deterministic fallback preserves idempotency for older callbacks.
@@ -116,37 +93,37 @@ serve(async (req) => {
     const eventKey = providerEventId
       ? `xendit:webhook:${providerEventId}`
       : `xendit:invoice:${body.id}:${body.status}:${body.paid_at || ""}`;
-    const { error: eventError } = await admin
-      .from("payment_webhook_events")
-      .insert({ provider: "xendit", event_key: eventKey, invoice_id: body.id, order_id: order.id, status: body.status });
-    if (eventError?.code === "23505") {
+    const paidAmount = body.paid_amount === undefined ? null : Number(body.paid_amount);
+    const { data: result, error: processError } = await admin.rpc('process_payment_webhook_event', {
+      p_provider: 'xendit',
+      p_event_key: eventKey,
+      p_invoice_id: body.id,
+      p_order_id: body.external_id,
+      p_status: body.status,
+      p_paid_at: body.paid_at || null,
+      p_payment_method: body.payment_method || null,
+      p_payment_channel: body.payment_channel || null,
+      p_paid_amount: paidAmount,
+    });
+
+    if (processError) {
+      const code = processError.code;
+      if (code === 'P0002') return json({ error: 'Order not found' }, 404);
+      if (code === '23P01') return json({ error: 'Invoice mismatch' }, 409);
+      if (code === '22003') return json({ error: 'Payment amount mismatch' }, 409);
+      if (code === '22023') return json({ error: 'Invalid order' }, 409);
+      console.error('Atomic webhook processing failed', { code });
+      return json({ error: 'Webhook unavailable' }, 503);
+    }
+
+    const outcome = result as { duplicate?: boolean; ignored?: boolean; processed?: boolean } | null;
+    if (outcome?.duplicate) {
       logWebhook('duplicate_ignored', { status: body.status });
       return json({ success: true, duplicate: true });
     }
-    if (eventError) {
-      console.error("Webhook idempotency insert failed", { code: eventError.code });
-      return json({ error: "Webhook unavailable" }, 503);
-    }
+    if (outcome?.ignored) return json({ success: true, ignored: true });
 
-    const updateData: Record<string, unknown> = {
-      payment_status: body.status,
-      payment_paid_at: body.status === "PAID" ? body.paid_at || new Date().toISOString() : null,
-      payment_method: body.payment_method || null,
-      payment_channel: body.payment_channel || null,
-    };
-    if (body.status === "PAID") updateData.status = "CONFIRMED";
-    if (body.status === "EXPIRED" && currentStatus !== "PAID") updateData.status = "CANCELLED";
-
-    const { error: updateError } = await admin.from("orders").update(updateData).eq("id", order.id).eq("payment_invoice_id", body.id);
-    if (updateError) {
-      // Do not leave an idempotency row behind when the business update fails;
-      // the provider must be able to retry the callback safely.
-      await admin.from("payment_webhook_events").delete().eq("provider", "xendit").eq("event_key", eventKey);
-      console.error("Webhook order update failed", { orderId: order.id, code: updateError.code });
-      return json({ error: "Webhook unavailable" }, 503);
-    }
-
-    logWebhook('processed', { status: body.status, paymentUpdated: true });
+    logWebhook('processed', { status: body.status, paymentUpdated: Boolean(outcome?.processed) });
     return json({ success: true });
   } catch (error) {
     logWebhook('processing_failed', {}, error);

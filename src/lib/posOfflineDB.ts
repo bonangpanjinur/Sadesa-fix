@@ -9,6 +9,7 @@
 const DB_NAME = 'desamart_pos_offline';
 const DB_VERSION = 2;
 const MAX_SYNC_ATTEMPTS = 8;
+const CLAIM_LEASE_MS = 5 * 60_000;
 const STORES = {
   PRODUCTS: 'pos_products',
   PENDING_SALES: 'pending_sales',
@@ -128,18 +129,24 @@ function waitForTransaction(tx: IDBTransaction): Promise<void> {
 
 function normaliseSale(sale: Omit<PendingSale, 'synced'> | PendingSale): PendingSale {
   const previous = sale as PendingSale;
+  const staleClaim = previous.status === 'syncing'
+    && (previous.last_attempt_at || 0) + CLAIM_LEASE_MS <= Date.now();
+  const synced = previous.synced === true && previous.status === 'synced';
   return {
     ...sale,
-    synced: previous.synced === true && previous.status === 'synced',
-    status: previous.status === 'synced' ? 'synced' : 'queued',
+    synced,
+    status: synced ? 'synced' : (staleClaim ? 'queued' : (previous.status || 'queued')),
     attempts: previous.attempts || 0,
-    next_attempt_at: previous.next_attempt_at || 0,
+    next_attempt_at: staleClaim ? 0 : (previous.next_attempt_at || 0),
   };
 }
 
 // Product cache -----------------------------------------------------------------
 
 export async function cacheProducts(products: OfflineProduct[]): Promise<void> {
+  if (products.some((product) => !product.tenant_id || !product.outlet_id)) {
+    throw new Error('Offline product cache requires tenant and outlet scope');
+  }
   const db = await openDB();
   const tx = db.transaction(STORES.PRODUCTS, 'readwrite');
   const store = tx.objectStore(STORES.PRODUCTS);
@@ -150,20 +157,19 @@ export async function cacheProducts(products: OfflineProduct[]): Promise<void> {
   await waitForTransaction(tx);
 }
 
-export async function getCachedProducts(tenantId?: string, outletId?: string): Promise<OfflineProduct[]> {
+export async function getCachedProducts(tenantId: string, outletId: string): Promise<OfflineProduct[]> {
+  if (!tenantId || !outletId) throw new Error('Offline product cache scope is required');
   const db = await openDB();
   const tx = db.transaction(STORES.PRODUCTS, 'readonly');
   const store = tx.objectStore(STORES.PRODUCTS);
-  const request = tenantId && outletId
-    ? store.index('scope').getAll(IDBKeyRange.only([tenantId, outletId]))
-    : store.getAll();
+  const request = store.index('scope').getAll(IDBKeyRange.only([tenantId, outletId]));
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve((request.result || []) as OfflineProduct[]);
     request.onerror = () => reject(request.error || new Error('Failed to read product cache'));
   });
 }
 
-export async function findProductByBarcode(barcode: string, tenantId?: string, outletId?: string): Promise<OfflineProduct | null> {
+export async function findProductByBarcode(barcode: string, tenantId: string, outletId: string): Promise<OfflineProduct | null> {
   const products = await getCachedProducts(tenantId, outletId);
   return products.find((product) => product.barcode === barcode) || null;
 }
@@ -190,19 +196,19 @@ export async function clearProductCache(tenantId?: string, outletId?: string): P
 // Durable pending queue ---------------------------------------------------------
 
 export async function savePendingSale(sale: Omit<PendingSale, 'synced'>): Promise<void> {
+  if (!sale.tenant_id || !sale.outlet_id) throw new Error('Pending sale requires tenant and outlet scope');
   const db = await openDB();
   const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
   tx.objectStore(STORES.PENDING_SALES).put(normaliseSale(sale));
   await waitForTransaction(tx);
 }
 
-export async function getPendingSales(tenantId?: string, outletId?: string): Promise<PendingSale[]> {
+export async function getPendingSales(tenantId: string, outletId: string): Promise<PendingSale[]> {
+  if (!tenantId || !outletId) throw new Error('Pending sale scope is required');
   const db = await openDB();
   const tx = db.transaction(STORES.PENDING_SALES, 'readonly');
   const store = tx.objectStore(STORES.PENDING_SALES);
-  const request = tenantId && outletId
-    ? store.index('scope').getAll(IDBKeyRange.only([tenantId, outletId]))
-    : store.getAll();
+  const request = store.index('scope').getAll(IDBKeyRange.only([tenantId, outletId]));
   return new Promise((resolve, reject) => {
     request.onsuccess = () => {
       const records = (request.result || []) as PendingSale[];
@@ -215,7 +221,7 @@ export async function getPendingSales(tenantId?: string, outletId?: string): Pro
   });
 }
 
-export async function getPendingSaleCount(tenantId?: string, outletId?: string): Promise<number> {
+export async function getPendingSaleCount(tenantId: string, outletId: string): Promise<number> {
   return (await getPendingSales(tenantId, outletId)).length;
 }
 
@@ -261,8 +267,11 @@ async function claimSale(id: string): Promise<PendingSale | null> {
   const request = store.get(id);
   request.onsuccess = () => {
     const record = request.result as PendingSale | undefined;
-    if (!record || record.synced || record.status === 'syncing') return;
-    if ((record.next_attempt_at || 0) > Date.now()) return;
+    if (!record || record.synced) return;
+    const staleClaim = record.status === 'syncing'
+      && (record.last_attempt_at || 0) + CLAIM_LEASE_MS <= Date.now();
+    if (record.status === 'syncing' && !staleClaim) return;
+    if (!staleClaim && (record.next_attempt_at || 0) > Date.now()) return;
     claimed = { ...record, status: 'syncing', last_attempt_at: Date.now() };
     store.put(claimed);
   };
@@ -272,9 +281,10 @@ async function claimSale(id: string): Promise<PendingSale | null> {
 
 export async function syncPendingSales(
   syncFn: (sale: PendingSale) => Promise<SyncResult>,
-  scope?: { tenantId?: string; outletId?: string },
+  scope: { tenantId: string; outletId: string },
 ): Promise<{ synced: number; failed: number }> {
-  const pending = await getPendingSales(scope?.tenantId, scope?.outletId);
+  if (!scope.tenantId || !scope.outletId) throw new Error('Pending sale sync scope is required');
+  const pending = await getPendingSales(scope.tenantId, scope.outletId);
   let synced = 0;
   let failed = 0;
   for (const candidate of pending) {
