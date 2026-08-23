@@ -13,6 +13,16 @@ import { ShopFilterSheet, type ShopFilters } from '../components/shop/ShopFilter
 import { supabase } from '../integrations/supabase/client';
 import { useUserLocation, calculateDistance } from '../hooks/useUserLocation';
 
+interface ShopProductCategory {
+  category: string | null;
+}
+
+interface ShopVillageLocation {
+  name: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
+}
+
 interface ShopData {
   id: string;
   name: string;
@@ -62,8 +72,8 @@ export default function ShopsPage() {
 
       return (merchantsData || []).map((m) => {
         const prods = m.products || [];
-        const cats = [...new Set(prods.map((p: any) => p.category))];
-        const village = m.villages as any;
+        const cats = [...new Set(prods.map((p: ShopProductCategory) => p.category).filter((category): category is string => Boolean(category)))];
+        const village = (Array.isArray(m.villages) ? m.villages[0] : m.villages) as ShopVillageLocation | null;
         const locationLat = m.location_lat
           ? Number(m.location_lat)
           : (village?.location_lat ? Number(village.location_lat) : null);

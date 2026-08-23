@@ -51,6 +51,10 @@ function formatRupiah(amount: number, currency = 'IDR'): string {
   }).format(amount);
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export default function MenuPublicPage() {
   const { tenantId, tableId } = useParams<{ tenantId: string; tableId?: string }>();
   const navigate = useNavigate();
@@ -94,8 +98,8 @@ export default function MenuPublicPage() {
       }
 
       setPageState('menu');
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Gagal memuat menu');
+    } catch (err: unknown) {
+      setErrorMsg(getErrorMessage(err, 'Gagal memuat menu'));
       setPageState('error');
     }
   }, [tenantId, tableId]);
@@ -179,8 +183,8 @@ export default function MenuPublicPage() {
           navigate(`/order/${tenantId}/${data.order_id}`);
         }
       }, 3000);
-    } catch (err: any) {
-      toast.error(err.message || 'Gagal mengirim pesanan');
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, 'Gagal mengirim pesanan'));
       setPageState('menu');
     }
   };

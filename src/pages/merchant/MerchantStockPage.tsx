@@ -137,7 +137,7 @@ export default function MerchantStockPage() {
       setAdjustQty('');
       setAdjustNote('');
     },
-    onError: (err: any) => toast.error(err.message || 'Gagal memperbarui stok'),
+    onError: (err: unknown) => toast.error(err instanceof Error ? err.message : 'Gagal memperbarui stok'),
   });
 
   const thresholdMutation = useMutation({
@@ -368,7 +368,12 @@ export default function MerchantStockPage() {
 
             <div className="space-y-2">
               <Label>Jenis Perubahan</Label>
-              <Select value={adjustType} onValueChange={(v) => setAdjustType(v as any)}>
+              <Select
+                value={adjustType}
+                onValueChange={(value) => {
+                  if (value === 'in' || value === 'out' || value === 'set') setAdjustType(value);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

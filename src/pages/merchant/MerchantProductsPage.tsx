@@ -124,8 +124,8 @@ export default function MerchantProductsPage() {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['merchant-products', merchantId] });
     },
-    onError: (err: any) => {
-      const errorMessage = err.message || 'Gagal menyimpan produk';
+    onError: (err: unknown) => {
+      const errorMessage = err instanceof Error ? err.message : 'Gagal menyimpan produk';
       if (errorMessage.includes('Bucket not found')) {
         toast.error('Error: Bucket storage "products" tidak ditemukan. Silakan jalankan migrasi SQL.');
       } else {
@@ -144,7 +144,9 @@ export default function MerchantProductsPage() {
       toast.success('Produk dihapus');
       queryClient.invalidateQueries({ queryKey: ['merchant-products', merchantId] });
     },
-    onError: (err: any) => { if (err.message !== 'cancelled') toast.error('Gagal menghapus produk'); },
+    onError: (err: unknown) => {
+      if (err instanceof Error && err.message !== 'cancelled') toast.error('Gagal menghapus produk');
+    },
   });
 
   const toggleActiveMutation = useMutation({
