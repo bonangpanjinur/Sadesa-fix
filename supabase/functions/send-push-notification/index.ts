@@ -2,11 +2,18 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const allowedOrigins = new Set((Deno.env.get("ALLOWED_ORIGINS") ?? "https://desamart.id")
+  .split(",").map((origin) => origin.trim()).filter(Boolean));
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "";
+  return {
+    "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://desamart.id",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
 
 interface PushRequest {
   user_id?: string;
@@ -23,7 +30,13 @@ interface PushRequest {
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: getCorsHeaders(req) });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 405,
+    });
   }
 
   try {
@@ -35,7 +48,7 @@ serve(async (req) => {
     if (!authHeader || !supabaseAnonKey) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 401 }
       );
     }
 
@@ -47,8 +60,21 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Invalid authentication token" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 401 }
       );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: adminRole, error: roleError } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (roleError || !adminRole) {
+      return new Response(JSON.stringify({ error: "Admin permission required" }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 403,
+      });
     }
 
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -58,14 +84,30 @@ serve(async (req) => {
       console.log("VAPID keys not configured, skipping push notification");
       return new Response(
         JSON.stringify({ success: false, message: "VAPID keys not configured" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 200 }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     const payload: PushRequest = await req.json();
     const { user_id, user_ids, role, all, title, body, icon, url, data } = payload;
+    if (typeof title !== "string" || typeof body !== "string"
+      || title.trim().length < 1 || title.length > 160
+      || body.trim().length < 1 || body.length > 4000) {
+      return new Response(JSON.stringify({ error: "Invalid notification content" }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (user_ids && (!Array.isArray(user_ids) || user_ids.length > 100
+      || user_ids.some((id) => typeof id !== "string" || id.length > 80))) {
+      return new Response(JSON.stringify({ error: "Invalid notification recipients" }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400,
+      });
+    }
+    if (typeof url === "string" && (url.length > 2048 || !url.startsWith("/"))) {
+      return new Response(JSON.stringify({ error: "Invalid notification URL" }), {
+        headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400,
+      });
+    }
 
     // Only admins may target a role or broadcast to every subscription.
     if (role || all === true) {
@@ -79,7 +121,7 @@ serve(async (req) => {
       if (roleError || !adminRole) {
         return new Response(
           JSON.stringify({ error: "Admin permission required for broadcast notifications" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+          { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 403 }
         );
       }
     }
@@ -88,7 +130,7 @@ serve(async (req) => {
     if (!title || !body) {
       return new Response(
         JSON.stringify({ error: "title and body are required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400 }
       );
     }
 
@@ -109,7 +151,7 @@ serve(async (req) => {
       if (!roleUsers || roleUsers.length === 0) {
         return new Response(
           JSON.stringify({ success: true, sent: 0, message: "No users with this role" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
         );
       }
 
@@ -120,7 +162,7 @@ serve(async (req) => {
     } else {
       return new Response(
         JSON.stringify({ error: "user_id, user_ids, role, atau all diperlukan" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400 }
       );
     }
 
@@ -133,7 +175,7 @@ serve(async (req) => {
     if (!subscriptions || subscriptions.length === 0) {
       return new Response(
         JSON.stringify({ success: true, sent: 0, message: "No subscriptions found" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
       );
     }
 
@@ -197,14 +239,13 @@ serve(async (req) => {
         total: subscriptions.length,
         cleaned: failedSubscriptions.length,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     console.error("Error sending push notification:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      JSON.stringify({ error: "Unable to send notifications" }),
+      { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 500 }
     );
   }
 });

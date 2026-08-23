@@ -1,8 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = new Set((Deno.env.get('ALLOWED_ORIGINS') ?? 'https://desamart.id')
+  .split(',').map((origin) => origin.trim()).filter(Boolean));
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  return {
+    'Access-Control-Allow-Origin': allowedOrigins.has(origin) ? origin : 'https://desamart.id',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
 }
 
 interface CourierCandidate {
@@ -31,7 +39,12 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { status: 204, headers: getCorsHeaders(req) })
+  }
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+    })
   }
 
   try {
@@ -40,10 +53,10 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     const authHeader = req.headers.get('Authorization')
 
-    if (!authHeader || !anonKey) {
+    if (!supabaseUrl || !serviceRoleKey || !anonKey || !authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -55,7 +68,7 @@ Deno.serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid authentication token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -64,11 +77,24 @@ Deno.serve(async (req) => {
     })
 
     const { order_id, merchant_lat, merchant_lng, max_distance_km = 10 } = await req.json()
+    const maxDistance = Number(max_distance_km);
+    if (typeof order_id !== 'string' || order_id.length > 80
+      || !Number.isFinite(maxDistance) || maxDistance <= 0 || maxDistance > 100) {
+      return new Response(JSON.stringify({ error: 'Invalid courier assignment request' }), {
+        status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      })
+    }
+    if ((merchant_lat !== undefined && (!Number.isFinite(Number(merchant_lat)) || Math.abs(Number(merchant_lat)) > 90))
+      || (merchant_lng !== undefined && (!Number.isFinite(Number(merchant_lng)) || Math.abs(Number(merchant_lng)) > 180))) {
+      return new Response(JSON.stringify({ error: 'Invalid merchant coordinates' }), {
+        status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      })
+    }
 
     if (!order_id) {
       return new Response(
         JSON.stringify({ error: 'order_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -82,7 +108,7 @@ Deno.serve(async (req) => {
     if (orderError || !order) {
       return new Response(
         JSON.stringify({ error: 'Order not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -104,14 +130,14 @@ Deno.serve(async (req) => {
     if (!adminRole && !ownedMerchant) {
       return new Response(
         JSON.stringify({ error: 'You are not allowed to assign a courier for this order' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 403, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
     if (order.courier_id) {
       return new Response(
         JSON.stringify({ error: 'Order already has courier assigned', courier_id: order.courier_id }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -150,7 +176,7 @@ Deno.serve(async (req) => {
           error: 'No available couriers found',
           couriers_checked: 0
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
@@ -183,7 +209,7 @@ Deno.serve(async (req) => {
           pickupLng
         )
       }))
-      .filter(c => c.distance_km <= max_distance_km)
+      .filter(c => c.distance_km <= maxDistance)
       .filter(c => c.active_orders < 3) // Max 3 concurrent orders per courier
       .sort((a, b) => {
         // Score based on distance (primary) and active orders (secondary)
@@ -198,16 +224,16 @@ Deno.serve(async (req) => {
           success: false, 
           error: 'No suitable couriers within range',
           couriers_checked: couriers.length,
-          max_distance_km
+          max_distance_km: maxDistance
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
     // Assign the best candidate
     const bestCourier = candidates[0]
 
-    const { error: updateError } = await supabase
+    const { data: assignedOrder, error: updateError } = await supabase
       .from('orders')
       .update({
         courier_id: bestCourier.id,
@@ -215,13 +241,22 @@ Deno.serve(async (req) => {
         assigned_at: new Date().toISOString()
       })
       .eq('id', order_id)
+      .is('courier_id', null)
+      .select('id')
+      .maybeSingle()
 
     if (updateError) {
       console.error('Error assigning courier:', updateError)
       return new Response(
         JSON.stringify({ error: 'Failed to assign courier' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
+    }
+
+    if (!assignedOrder) {
+      return new Response(JSON.stringify({ error: 'Order was assigned by another request' }), {
+        status: 409, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
+      })
     }
 
     // Create notification for courier
@@ -270,14 +305,14 @@ Deno.serve(async (req) => {
         },
         candidates_count: candidates.length
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
     )
 
   } catch (error) {
     console.error('Error in assign-courier:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
     )
   }
 })

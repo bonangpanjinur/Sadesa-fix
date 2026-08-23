@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:watch": "vitest",
-    "audit:security": "pnpm audit --audit-level high"
+    "audit:security": "pnpm audit --audit-level high",
+    "test:security-api": "bash scripts/security-api-smoke.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
