@@ -69,16 +69,8 @@ export async function checkPaymentStatus(invoiceId: string): Promise<PaymentStat
 }
 
 export async function isXenditEnabled(): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'payment_xendit')
-    .maybeSingle();
-
-  if (error || !data) {
-    return false;
-  }
-
-  const settings = data.value as { enabled?: boolean };
-  return settings.enabled ?? false;
+  const { data, error } = await supabase.rpc('is_payment_provider_enabled', {
+    p_provider: 'xendit',
+  });
+  return error ? false : data === true;
 }

@@ -44,3 +44,14 @@ The expected security gate for this pass is zero critical and high advisories. M
 ## Follow-up backlog
 
 The next security-focused change should revisit Ajv when the ESLint toolchain exposes a compatible patched dependency path. RLS staging integration tests remain required to validate cross-tenant mutation isolation against a real Supabase environment. The remaining large `POSKasirPage` bundle should also be split further in a dedicated performance pass.
+
+
+## Payment/RPC Security Review — 2026-08-23
+
+Production build completed successfully. `POSKasirPage` is 51,586 bytes and remains below the 500 kB target; no POSKasirPage bundle warning was emitted. The largest lazy asset is `BarcodeScanner` at 448,627 bytes and is loaded only when scanning is used.
+
+The review identified and remediated an important secret-exposure risk in the historical `app_settings` policies. The previous unrestricted SELECT policy could return the full `payment_xendit` JSON, including provider credentials, to ordinary clients. Migration `20260823090000_harden_payment_settings_access.sql` replaces that policy with a sensitive-key denylist and exposes only the boolean provider-enabled check through `is_payment_provider_enabled(text)`. `src/lib/paymentApi.ts` now uses this RPC rather than selecting payment credentials.
+
+Webhook verification now uses constant-time comparison for `x-callback-token`, normalizes Postgres numeric totals before validation, rejects paid-amount mismatches, requires the callback invoice ID to match the order invoice ID, uses the provider `webhook-id` for event deduplication, and treats `PAID` as terminal. Migration `20260823091000_harden_pos_sale_amounts.sql` adds server-side line price, quantity, discount, subtotal, product, variant, and tenant validation. Migration `20260823092000_harden_pos_sale_totals.sql` adds deferred sale-header arithmetic validation at commit time.
+
+The remaining staging requirement is to apply these migrations to a non-production Supabase project and test authorized and unauthorized RPC calls, secret-column access through both anon and authenticated roles, forged callback tokens, duplicate webhook IDs, altered paid amounts, out-of-order statuses, and manipulated POS prices/totals.

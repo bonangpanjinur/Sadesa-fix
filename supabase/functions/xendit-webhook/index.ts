@@ -31,6 +31,15 @@ function logWebhook(event: string, context: Record<string, string | number | boo
   }));
 }
 
+function secureEqual(left: string, right: string): boolean {
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+  if (leftBytes.length !== rightBytes.length) return false;
+  let difference = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) difference |= leftBytes[index] ^ rightBytes[index];
+  return difference === 0;
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -59,7 +68,7 @@ serve(async (req) => {
   try {
     const settings = await getSettings(supabaseUrl, serviceRoleKey);
     const callbackToken = req.headers.get("x-callback-token");
-    if (!settings?.callback_token || !callbackToken || callbackToken !== settings.callback_token) {
+    if (!settings?.callback_token || !callbackToken || !secureEqual(callbackToken, settings.callback_token)) {
       logWebhook('authentication_failed', { hasCallbackToken: Boolean(callbackToken) });
       return json({ error: "Unauthorized" }, 401);
     }
@@ -88,10 +97,18 @@ serve(async (req) => {
     if (!order.payment_invoice_id || order.payment_invoice_id !== body.id) {
       return json({ error: "Invoice mismatch" }, 409);
     }
-    if (!Number.isInteger(order.total) || order.total <= 0) return json({ error: "Invalid order" }, 409);
-    if (body.status === "PAID" && body.paid_amount !== order.total) {
+    const orderTotal = Number(order.total);
+    const paidAmount = body.paid_amount === undefined ? null : Number(body.paid_amount);
+    if (!Number.isSafeInteger(orderTotal) || orderTotal <= 0) return json({ error: "Invalid order" }, 409);
+    if (body.status === "PAID" && paidAmount !== orderTotal) {
       return json({ error: "Payment amount mismatch" }, 409);
     }
+
+    const currentStatus = order.payment_status || "UNPAID";
+    // A paid order is terminal. A later callback must never overwrite its
+    // payment metadata or downgrade it to a non-paid state.
+    if (currentStatus === "PAID") return json({ success: true, ignored: true });
+    if (currentStatus === "EXPIRED" && body.status === "PENDING") return json({ success: true, ignored: true });
 
     // Xendit provides a stable delivery/event identifier when available.
     // The deterministic fallback preserves idempotency for older callbacks.
@@ -110,10 +127,6 @@ serve(async (req) => {
       console.error("Webhook idempotency insert failed", { code: eventError.code });
       return json({ error: "Webhook unavailable" }, 503);
     }
-
-    const currentStatus = order.payment_status || "UNPAID";
-    if (currentStatus === "PAID" && body.status !== "PAID") return json({ success: true, ignored: true });
-    if (currentStatus === "EXPIRED" && body.status === "PENDING") return json({ success: true, ignored: true });
 
     const updateData: Record<string, unknown> = {
       payment_status: body.status,

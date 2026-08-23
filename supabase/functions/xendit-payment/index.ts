@@ -108,7 +108,8 @@ serve(async (req) => {
       if (["CANCELLED", "DONE"].includes(current.status) || current.payment_status === "PAID") {
         return json({ error: "Order cannot be paid" }, 409);
       }
-      if (!Number.isInteger(current.total) || current.total <= 0) return json({ error: "Invalid order total" }, 409);
+      const orderTotal = Number(current.total);
+      if (!Number.isSafeInteger(orderTotal) || orderTotal <= 0) return json({ error: "Invalid order total" }, 409);
 
       // Reuse an existing invoice for retries instead of creating duplicates.
       if (current.payment_invoice_id && current.payment_invoice_url) {
@@ -170,7 +171,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           external_id: current.id,
-          amount: current.total,
+          amount: orderTotal,
           payer_email: user.email,
           description: `Pembayaran pesanan ${current.id}`,
           invoice_duration: 86400,
