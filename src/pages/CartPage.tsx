@@ -20,6 +20,14 @@ import { formatPrice } from '@/lib/utils';
 import { useTranslation, useFormatters } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
 
+interface StockProductRow {
+  id: string;
+  stock: number;
+  is_active: boolean;
+  price: number;
+  name: string;
+}
+
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -67,7 +75,7 @@ export default function CartPage() {
 
       if (products) {
         const warnings: Record<string, string> = {};
-        products.forEach((p: any) => {
+        products.forEach((p: StockProductRow) => {
           const cartItem = items.find(i => i.product.id === p.id);
           if (!cartItem) return;
           if (!p.is_active) {

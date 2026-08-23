@@ -22,6 +22,11 @@ interface TopProduct {
   views: number;
 }
 
+interface ProductNameRow {
+  id: string;
+  name: string;
+}
+
 export default function MerchantVisitorStatsPage() {
   const { user } = useAuth();
   const { merchantId: guardMerchantId, loading: guardLoading } = useMerchantGuard();
@@ -99,7 +104,7 @@ export default function MerchantVisitorStatsPage() {
           .select('id, name')
           .in('id', topProductIds.map(([id]) => id));
 
-        const nameMap = new Map(((products || []) as any[]).map((p: any) => [p.id, p.name]));
+        const nameMap = new Map((products || []).map((p: ProductNameRow) => [p.id, p.name]));
         topProductsData = topProductIds.map(([id, count]) => ({
           name: (nameMap.get(id) || 'Unknown') as string,
           views: count,

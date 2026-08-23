@@ -171,7 +171,12 @@ export default function BuyerChatPage() {
             </Button>
           </div>
         )}
-        <Tabs defaultValue="all" onValueChange={(v) => setActiveTab(v as any)}>
+        <Tabs
+          defaultValue="all"
+          onValueChange={(value) => {
+            if (value === 'all' || value === 'buyer_merchant' || value === 'buyer_courier') setActiveTab(value);
+          }}
+        >
           <div className="bg-card rounded-xl shadow-sm p-1.5 mb-4">
             <TabsList className="w-full bg-transparent h-auto p-0 gap-1">
               <TabsTrigger value="all" className="flex-1 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">

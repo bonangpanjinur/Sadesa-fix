@@ -165,8 +165,12 @@ export default function DisputePage() {
       setAmount('');
       setEvidenceUrls([]);
     },
-    onError: (err: any) => {
-      toast({ title: 'Gagal mengajukan komplain', description: err.message, variant: 'destructive' });
+    onError: (err: unknown) => {
+      toast({
+        title: 'Gagal mengajukan komplain',
+        description: err instanceof Error ? err.message : 'Terjadi kesalahan',
+        variant: 'destructive',
+      });
     },
   });
 
