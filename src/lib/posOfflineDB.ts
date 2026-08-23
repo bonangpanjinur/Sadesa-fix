@@ -1,20 +1,25 @@
 /**
- * P4-01: Offline POS — IndexedDB wrapper
- * Caches products and pending transactions locally.
- * Auto-syncs pending transactions when connection is restored.
+ * Offline-first POS storage.
+ *
+ * The queue is deliberately scoped by tenant and outlet. A browser profile can
+ * therefore serve multiple businesses without one tenant seeing another
+ * tenant's cached catalogue or pending sales.
  */
 
-const DB_NAME = "desamart_pos_offline";
-const DB_VERSION = 1;
-
+const DB_NAME = 'desamart_pos_offline';
+const DB_VERSION = 2;
+const MAX_SYNC_ATTEMPTS = 8;
 const STORES = {
-  PRODUCTS: "pos_products",
-  PENDING_SALES: "pending_sales",
-  SYNC_LOG: "sync_log",
+  PRODUCTS: 'pos_products',
+  PENDING_SALES: 'pending_sales',
+  SYNC_LOG: 'sync_log',
 } as const;
 
 export interface OfflineProduct {
   id: string;
+  tenant_id?: string;
+  outlet_id?: string;
+  cache_key?: string;
   name: string;
   sku: string | null;
   barcode: string | null;
@@ -29,6 +34,8 @@ export interface OfflineProduct {
   stock_qty?: number;
   cached_at: number;
 }
+
+export type PendingSaleStatus = 'queued' | 'syncing' | 'failed' | 'synced';
 
 export interface PendingSale {
   id: string;
@@ -53,186 +60,243 @@ export interface PendingSale {
   notes?: string;
   created_at: string;
   synced: boolean;
+  status?: PendingSaleStatus;
+  attempts?: number;
+  next_attempt_at?: number;
+  last_attempt_at?: number;
   sync_error?: string;
 }
 
+export interface SyncResult {
+  success: boolean;
+  error?: string;
+  retryable?: boolean;
+}
+
+function scopeKey(tenantId: string, outletId: string): string {
+  return `${tenantId}:${outletId}`;
+}
+
+function productCacheKey(product: OfflineProduct): string {
+  return product.cache_key || `${product.tenant_id || 'unknown'}:${product.outlet_id || 'unknown'}:${product.id}`;
+}
+
 function openDB(): Promise<IDBDatabase> {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('IndexedDB is unavailable'));
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-
-    req.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result;
-
+    req.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
+      if (oldVersion < 2 && db.objectStoreNames.contains(STORES.PRODUCTS)) {
+        db.deleteObjectStore(STORES.PRODUCTS);
+      }
       if (!db.objectStoreNames.contains(STORES.PRODUCTS)) {
-        const productStore = db.createObjectStore(STORES.PRODUCTS, { keyPath: "id" });
-        productStore.createIndex("barcode", "barcode", { unique: false });
-        productStore.createIndex("cached_at", "cached_at", { unique: false });
+        const productStore = db.createObjectStore(STORES.PRODUCTS, { keyPath: 'cache_key' });
+        productStore.createIndex('scope', ['tenant_id', 'outlet_id'], { unique: false });
+        productStore.createIndex('barcode_scope', ['tenant_id', 'outlet_id', 'barcode'], { unique: false });
+        productStore.createIndex('cached_at', 'cached_at', { unique: false });
       }
-
       if (!db.objectStoreNames.contains(STORES.PENDING_SALES)) {
-        const salesStore = db.createObjectStore(STORES.PENDING_SALES, { keyPath: "id" });
-        salesStore.createIndex("synced", "synced", { unique: false });
-        salesStore.createIndex("outlet_id", "outlet_id", { unique: false });
-        salesStore.createIndex("created_at", "created_at", { unique: false });
+        const salesStore = db.createObjectStore(STORES.PENDING_SALES, { keyPath: 'id' });
+        salesStore.createIndex('scope', ['tenant_id', 'outlet_id'], { unique: false });
+        salesStore.createIndex('status', 'status', { unique: false });
+        salesStore.createIndex('created_at', 'created_at', { unique: false });
+      } else if (oldVersion < 2) {
+        const upgradeTransaction = (event.target as IDBOpenDBRequest).transaction;
+        if (!upgradeTransaction) throw new Error('IndexedDB upgrade transaction unavailable');
+        const salesStore = upgradeTransaction.objectStore(STORES.PENDING_SALES);
+        if (!salesStore.indexNames.contains('scope')) salesStore.createIndex('scope', ['tenant_id', 'outlet_id'], { unique: false });
+        if (!salesStore.indexNames.contains('status')) salesStore.createIndex('status', 'status', { unique: false });
       }
-
       if (!db.objectStoreNames.contains(STORES.SYNC_LOG)) {
-        db.createObjectStore(STORES.SYNC_LOG, { keyPath: "id", autoIncrement: true });
+        db.createObjectStore(STORES.SYNC_LOG, { keyPath: 'id', autoIncrement: true });
       }
     };
-
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(req.error || new Error('Failed to open IndexedDB'));
   });
 }
 
-// ─── Products Cache ───────────────────────────────────────────────────────────
+function waitForTransaction(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB transaction failed'));
+    tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
+  });
+}
+
+function normaliseSale(sale: Omit<PendingSale, 'synced'> | PendingSale): PendingSale {
+  const previous = sale as PendingSale;
+  return {
+    ...sale,
+    synced: previous.synced === true && previous.status === 'synced',
+    status: previous.status === 'synced' ? 'synced' : 'queued',
+    attempts: previous.attempts || 0,
+    next_attempt_at: previous.next_attempt_at || 0,
+  };
+}
+
+// Product cache -----------------------------------------------------------------
 
 export async function cacheProducts(products: OfflineProduct[]): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction(STORES.PRODUCTS, "readwrite");
+  const tx = db.transaction(STORES.PRODUCTS, 'readwrite');
   const store = tx.objectStore(STORES.PRODUCTS);
   const now = Date.now();
-
   for (const product of products) {
-    store.put({ ...product, cached_at: now });
+    store.put({ ...product, cache_key: productCacheKey(product), cached_at: now });
   }
-
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  await waitForTransaction(tx);
 }
 
-export async function getCachedProducts(): Promise<OfflineProduct[]> {
+export async function getCachedProducts(tenantId?: string, outletId?: string): Promise<OfflineProduct[]> {
   const db = await openDB();
-  const tx = db.transaction(STORES.PRODUCTS, "readonly");
+  const tx = db.transaction(STORES.PRODUCTS, 'readonly');
   const store = tx.objectStore(STORES.PRODUCTS);
-
+  const request = tenantId && outletId
+    ? store.index('scope').getAll(IDBKeyRange.only([tenantId, outletId]))
+    : store.getAll();
   return new Promise((resolve, reject) => {
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
+    request.onsuccess = () => resolve((request.result || []) as OfflineProduct[]);
+    request.onerror = () => reject(request.error || new Error('Failed to read product cache'));
   });
 }
 
-export async function findProductByBarcode(barcode: string): Promise<OfflineProduct | null> {
+export async function findProductByBarcode(barcode: string, tenantId?: string, outletId?: string): Promise<OfflineProduct | null> {
+  const products = await getCachedProducts(tenantId, outletId);
+  return products.find((product) => product.barcode === barcode) || null;
+}
+
+export async function clearProductCache(tenantId?: string, outletId?: string): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction(STORES.PRODUCTS, "readonly");
+  const tx = db.transaction(STORES.PRODUCTS, 'readwrite');
   const store = tx.objectStore(STORES.PRODUCTS);
-  const idx = store.index("barcode");
-
-  return new Promise((resolve, reject) => {
-    const req = idx.get(barcode);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error);
-  });
+  if (!tenantId || !outletId) {
+    store.clear();
+  } else {
+    const request = store.index('scope').openCursor(IDBKeyRange.only([tenantId, outletId]));
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      }
+    };
+  }
+  await waitForTransaction(tx);
 }
 
-export async function clearProductCache(): Promise<void> {
+// Durable pending queue ---------------------------------------------------------
+
+export async function savePendingSale(sale: Omit<PendingSale, 'synced'>): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction(STORES.PRODUCTS, "readwrite");
-  tx.objectStore(STORES.PRODUCTS).clear();
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+  const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
+  tx.objectStore(STORES.PENDING_SALES).put(normaliseSale(sale));
+  await waitForTransaction(tx);
 }
 
-// ─── Pending Sales ────────────────────────────────────────────────────────────
-
-export async function savePendingSale(sale: Omit<PendingSale, "synced">): Promise<void> {
+export async function getPendingSales(tenantId?: string, outletId?: string): Promise<PendingSale[]> {
   const db = await openDB();
-  const tx = db.transaction(STORES.PENDING_SALES, "readwrite");
-  tx.objectStore(STORES.PENDING_SALES).put({ ...sale, synced: false });
-
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-export async function getPendingSales(): Promise<PendingSale[]> {
-  const db = await openDB();
-  const tx = db.transaction(STORES.PENDING_SALES, "readonly");
+  const tx = db.transaction(STORES.PENDING_SALES, 'readonly');
   const store = tx.objectStore(STORES.PENDING_SALES);
-  const idx = store.index("synced");
-
+  const request = tenantId && outletId
+    ? store.index('scope').getAll(IDBKeyRange.only([tenantId, outletId]))
+    : store.getAll();
   return new Promise((resolve, reject) => {
-    const req = idx.getAll(IDBKeyRange.only(false));
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error);
+    request.onsuccess = () => {
+      const records = (request.result || []) as PendingSale[];
+      resolve(records
+        .map(normaliseSale)
+        .filter((sale) => sale.status !== 'synced' && !sale.synced)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at)));
+    };
+    request.onerror = () => reject(request.error || new Error('Failed to read pending sales'));
   });
+}
+
+export async function getPendingSaleCount(tenantId?: string, outletId?: string): Promise<number> {
+  return (await getPendingSales(tenantId, outletId)).length;
 }
 
 export async function markSaleSynced(id: string): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction(STORES.PENDING_SALES, "readwrite");
+  const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
   const store = tx.objectStore(STORES.PENDING_SALES);
-
-  return new Promise((resolve, reject) => {
-    const req = store.get(id);
-    req.onsuccess = () => {
-      const record = req.result;
-      if (record) {
-        store.put({ ...record, synced: true });
-      }
-      resolve();
-    };
-    req.onerror = () => reject(req.error);
-  });
+  const request = store.get(id);
+  request.onsuccess = () => {
+    if (request.result) store.put({ ...request.result, synced: true, status: 'synced', sync_error: undefined });
+  };
+  await waitForTransaction(tx);
 }
 
-export async function markSaleSyncError(id: string, error: string): Promise<void> {
+export async function markSaleSyncError(id: string, error: string, retryable = true): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction(STORES.PENDING_SALES, "readwrite");
+  const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
   const store = tx.objectStore(STORES.PENDING_SALES);
-
-  return new Promise((resolve, reject) => {
-    const req = store.get(id);
-    req.onsuccess = () => {
-      const record = req.result;
-      if (record) {
-        store.put({ ...record, sync_error: error });
-      }
-      resolve();
-    };
-    req.onerror = () => reject(req.error);
-  });
+  const request = store.get(id);
+  request.onsuccess = () => {
+    const record = request.result as PendingSale | undefined;
+    if (!record) return;
+    const attempts = (record.attempts || 0) + 1;
+    const permanent = !retryable || attempts >= MAX_SYNC_ATTEMPTS;
+    store.put({
+      ...record,
+      synced: false,
+      status: permanent ? 'failed' : 'queued',
+      attempts,
+      last_attempt_at: Date.now(),
+      next_attempt_at: permanent ? Number.MAX_SAFE_INTEGER : Date.now() + Math.min(30 * 60_000, 2 ** attempts * 1_000),
+      sync_error: error.slice(0, 500),
+    });
+  };
+  await waitForTransaction(tx);
 }
 
-export async function getPendingSaleCount(): Promise<number> {
-  const pending = await getPendingSales();
-  return pending.length;
+async function claimSale(id: string): Promise<PendingSale | null> {
+  const db = await openDB();
+  const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
+  const store = tx.objectStore(STORES.PENDING_SALES);
+  let claimed: PendingSale | null = null;
+  const request = store.get(id);
+  request.onsuccess = () => {
+    const record = request.result as PendingSale | undefined;
+    if (!record || record.synced || record.status === 'syncing') return;
+    if ((record.next_attempt_at || 0) > Date.now()) return;
+    claimed = { ...record, status: 'syncing', last_attempt_at: Date.now() };
+    store.put(claimed);
+  };
+  await waitForTransaction(tx);
+  return claimed;
 }
-
-// ─── Auto-sync on reconnect ───────────────────────────────────────────────────
 
 export async function syncPendingSales(
-  syncFn: (sale: PendingSale) => Promise<{ success: boolean; error?: string }>
+  syncFn: (sale: PendingSale) => Promise<SyncResult>,
+  scope?: { tenantId?: string; outletId?: string },
 ): Promise<{ synced: number; failed: number }> {
-  const pending = await getPendingSales();
+  const pending = await getPendingSales(scope?.tenantId, scope?.outletId);
   let synced = 0;
   let failed = 0;
-
-  for (const sale of pending) {
+  for (const candidate of pending) {
+    const sale = await claimSale(candidate.id);
+    if (!sale) continue;
     try {
       const result = await syncFn(sale);
       if (result.success) {
         await markSaleSynced(sale.id);
         synced++;
       } else {
-        await markSaleSyncError(sale.id, result.error || "Unknown error");
+        await markSaleSyncError(sale.id, result.error || 'Unknown sync error', result.retryable !== false);
         failed++;
       }
-    } catch (err) {
-      await markSaleSyncError(sale.id, err instanceof Error ? err.message : "Sync failed");
+    } catch (error) {
+      await markSaleSyncError(sale.id, error instanceof Error ? error.message : 'Sync failed');
       failed++;
     }
   }
-
   return { synced, failed };
 }
 
-// ─── Hook: usePOSOfflineSync ──────────────────────────────────────────────────
-// Exported separately in src/hooks/usePOSOfflineSync.ts
+export function getOfflineScopeKey(tenantId: string, outletId: string): string {
+  return scopeKey(tenantId, outletId);
+}

@@ -57,7 +57,7 @@ describe('OrderStatusManager payment and status transitions', () => {
 
   it('verifies a payment proof and transitions pending payment to processed', async () => {
     render(
-      <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <MemoryRouter>
         <OrderStatusManager merchantId="merchant-1" />
       </MemoryRouter>,
     );

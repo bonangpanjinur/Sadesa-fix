@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Search, AlertTriangle, Package, ArrowUpCircle, ArrowDownCircle, Edit2, History, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { adjustPOSStock } from '@/lib/posOperations';
 
 interface StockItem {
   id: string;
@@ -105,27 +106,13 @@ export default function POSStokPage() {
     const qty = Number(adjustForm.quantity);
     if (!adjustForm.quantity || isNaN(qty)) { toast.error('Jumlah harus diisi'); return; }
 
-    const quantityBefore = selectedStock.quantity;
-    let quantityAfter = quantityBefore;
-
-    if (adjustForm.type === 'adjustment') {
-      quantityAfter = qty;
-    } else if (['purchase', 'return_sale', 'transfer_in', 'initial'].includes(adjustForm.type)) {
-      quantityAfter = quantityBefore + Math.abs(qty);
-    } else {
-      quantityAfter = Math.max(0, quantityBefore - Math.abs(qty));
-    }
-
     try {
-      await supabase.from('pos_stock' as never).update({ quantity: quantityAfter }).eq('id', selectedStock.id);
-      await supabase.from('pos_stock_mutations' as never).insert({
-        tenant_id: tenant.id,
-        product_id: selectedStock.product_id,
-        outlet_id: activeOutlet.id,
+      await adjustPOSStock({
+        stockId: selectedStock.id,
+        tenantId: tenant.id,
+        outletId: activeOutlet.id,
         type: adjustForm.type,
-        quantity: adjustForm.type === 'adjustment' ? qty - quantityBefore : (quantityAfter - quantityBefore),
-        quantity_before: quantityBefore,
-        quantity_after: quantityAfter,
+        quantity: Math.abs(qty),
         notes: adjustForm.notes || null,
       });
       toast.success('Stok berhasil diperbarui');

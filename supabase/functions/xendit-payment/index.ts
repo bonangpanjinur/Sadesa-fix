@@ -26,6 +26,15 @@ interface XenditSettings {
   secret_key?: string;
 }
 
+interface InvoiceRequestReservation {
+  can_process: boolean;
+  status: 'processing' | 'completed' | 'failed';
+  request_key: string;
+  invoice_id: string | null;
+  invoice_url: string | null;
+  last_error: string | null;
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -110,11 +119,55 @@ serve(async (req) => {
         });
       }
 
+      const requestKey = req.headers.get('idempotency-key')?.trim() || crypto.randomUUID();
+      if (requestKey.length < 16 || requestKey.length > 128) {
+        return json({ error: 'Invalid idempotency key' }, 400);
+      }
+
+      const { data: reservationData, error: reservationError } = await supabaseAdmin.rpc(
+        'reserve_payment_invoice_request',
+        { p_provider: 'xendit', p_order_id: current.id, p_request_key: requestKey },
+      );
+      if (reservationError || !reservationData) {
+        console.error('Failed to reserve payment invoice request', { orderId: current.id });
+        return json({ error: 'Unable to initialize payment' }, 503);
+      }
+      const reservation = reservationData as unknown as InvoiceRequestReservation;
+      if (reservation.invoice_id && reservation.invoice_url && reservation.can_process) {
+        const { data: repairedOrder, error: repairError } = await supabaseAdmin
+          .from('orders')
+          .update({ payment_invoice_id: reservation.invoice_id, payment_invoice_url: reservation.invoice_url, payment_status: 'PENDING' })
+          .eq('id', current.id)
+          .eq('buyer_id', user.id)
+          .neq('payment_status', 'PAID')
+          .is('payment_invoice_id', null)
+          .select('id')
+          .maybeSingle();
+        if (!repairError && repairedOrder) {
+          await supabaseAdmin.from('payment_invoice_requests').update({
+            status: 'completed', last_error: null, updated_at: new Date().toISOString(),
+          }).eq('provider', 'xendit').eq('order_id', current.id).eq('request_key', requestKey);
+          return json({ success: true, invoice_id: reservation.invoice_id, invoice_url: reservation.invoice_url });
+        }
+      }
+      if (!reservation.can_process) {
+        if (reservation.status === 'completed' && reservation.invoice_id && reservation.invoice_url) {
+          return json({ success: true, invoice_id: reservation.invoice_id, invoice_url: reservation.invoice_url });
+        }
+        return json({ error: 'Payment initialization already in progress' }, 409);
+      }
+
       const origin = req.headers.get("origin");
       const allowedOrigin = origin === "https://desamart.id" ? origin : "https://desamart.id";
       const response = await fetch("https://api.xendit.co/v2/invoices", {
         method: "POST",
-        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+          // Xendit may honor this provider-side key; our DB reservation remains
+          // the authoritative duplicate-prevention boundary.
+          "Idempotency-Key": requestKey,
+        },
         body: JSON.stringify({
           external_id: current.id,
           amount: current.total,
@@ -127,22 +180,62 @@ serve(async (req) => {
         }),
       });
       if (!response.ok) {
+        await supabaseAdmin
+          .from('payment_invoice_requests')
+          .update({ status: 'failed', last_error: `provider:${response.status}`, updated_at: new Date().toISOString() })
+          .eq('provider', 'xendit')
+          .eq('order_id', current.id)
+          .eq('request_key', requestKey);
         console.error("Xendit invoice request failed", { status: response.status, orderId: current.id });
         return json({ error: "Payment provider error" }, 502);
       }
 
-      const invoice = await response.json();
-      const { error: updateError } = await supabaseAdmin
+      const invoice = await response.json() as { id?: string; invoice_url?: string; expiry_date?: string };
+      if (!invoice.id || !invoice.invoice_url) {
+        await supabaseAdmin
+          .from('payment_invoice_requests')
+          .update({ status: 'failed', last_error: 'provider:invalid_invoice_response', updated_at: new Date().toISOString() })
+          .eq('provider', 'xendit')
+          .eq('order_id', current.id)
+          .eq('request_key', requestKey);
+        return json({ error: "Invalid payment provider response" }, 502);
+      }
+
+      // Persist provider identifiers before updating the order so a retry can
+      // repair the order if the process crashes between these two writes.
+      await supabaseAdmin
+        .from('payment_invoice_requests')
+        .update({ invoice_id: invoice.id, invoice_url: invoice.invoice_url, updated_at: new Date().toISOString() })
+        .eq('provider', 'xendit')
+        .eq('order_id', current.id)
+        .eq('request_key', requestKey);
+
+      const { data: persistedOrder, error: updateError } = await supabaseAdmin
         .from("orders")
         .update({ payment_invoice_id: invoice.id, payment_invoice_url: invoice.invoice_url, payment_status: "PENDING" })
         .eq("id", current.id)
         .eq("buyer_id", user.id)
         .neq("payment_status", "PAID")
-        .is("payment_invoice_id", null);
-      if (updateError) {
-        console.error("Failed to persist payment invoice", { orderId: current.id, error: updateError.message });
+        .is("payment_invoice_id", null)
+        .select("id, payment_invoice_id, payment_invoice_url")
+        .maybeSingle();
+      if (updateError || !persistedOrder) {
+        await supabaseAdmin
+          .from('payment_invoice_requests')
+          .update({ status: 'failed', last_error: 'order:persist_failed', updated_at: new Date().toISOString() })
+          .eq('provider', 'xendit')
+          .eq('order_id', current.id)
+          .eq('request_key', requestKey);
+        console.error("Failed to persist payment invoice", { orderId: current.id, error: updateError?.message });
         return json({ error: "Unable to initialize payment" }, 500);
       }
+
+      await supabaseAdmin
+        .from('payment_invoice_requests')
+        .update({ status: 'completed', invoice_id: invoice.id, invoice_url: invoice.invoice_url, last_error: null, updated_at: new Date().toISOString() })
+        .eq('provider', 'xendit')
+        .eq('order_id', current.id)
+        .eq('request_key', requestKey);
 
       return json({ success: true, invoice_id: invoice.id, invoice_url: invoice.invoice_url, expiry_date: invoice.expiry_date });
     }

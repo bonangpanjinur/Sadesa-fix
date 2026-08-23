@@ -93,7 +93,12 @@ serve(async (req) => {
       return json({ error: "Payment amount mismatch" }, 409);
     }
 
-    const eventKey = `xendit:${body.id}:${body.status}:${body.paid_at || ""}`;
+    // Xendit provides a stable delivery/event identifier when available.
+    // The deterministic fallback preserves idempotency for older callbacks.
+    const providerEventId = req.headers.get('webhook-id')?.trim();
+    const eventKey = providerEventId
+      ? `xendit:webhook:${providerEventId}`
+      : `xendit:invoice:${body.id}:${body.status}:${body.paid_at || ""}`;
     const { error: eventError } = await admin
       .from("payment_webhook_events")
       .insert({ provider: "xendit", event_key: eventKey, invoice_id: body.id, order_id: order.id, status: body.status });
@@ -108,6 +113,7 @@ serve(async (req) => {
 
     const currentStatus = order.payment_status || "UNPAID";
     if (currentStatus === "PAID" && body.status !== "PAID") return json({ success: true, ignored: true });
+    if (currentStatus === "EXPIRED" && body.status === "PENDING") return json({ success: true, ignored: true });
 
     const updateData: Record<string, unknown> = {
       payment_status: body.status,

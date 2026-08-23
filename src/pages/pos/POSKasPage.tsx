@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { openCashSession, closeCashSession, recordCashMutation } from '@/lib/posOperations';
 
 interface CashSession {
   id: string;
@@ -69,16 +70,6 @@ const CASH_OUT_CATEGORIES = [
   { value: 'hutang_bayar', label: 'Bayar Hutang' },
   { value: 'lain_keluar', label: 'Lain-lain (Keluar)' },
 ];
-
-function generateSessionNumber() {
-  const now = new Date();
-  const y = now.getFullYear().toString().slice(-2);
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  const h = String(now.getHours()).padStart(2, '0');
-  const min = String(now.getMinutes()).padStart(2, '0');
-  return `KAS-${y}${m}${d}-${h}${min}`;
-}
 
 export default function POSKasPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
@@ -165,21 +156,14 @@ export default function POSKasPage() {
     if (!openForm.opening_balance) { toast.error('Saldo awal wajib diisi'); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from('pos_cash_sessions' as never).insert({
-        tenant_id: tenant.id,
-        outlet_id: activeOutlet.id,
-        cashier_id: user.id,
-        cashier_name: openForm.cashier_name || user.email || 'Kasir',
-        session_number: generateSessionNumber(),
-        status: 'open',
-        opening_balance: Number(openForm.opening_balance),
-        cash_sales_total: salesCashToday,
-        non_cash_sales_total: salesNonCashToday,
-        cash_in_total: 0,
-        cash_out_total: 0,
-        notes_open: openForm.notes || null,
+      await openCashSession({
+        tenantId: tenant.id,
+        outletId: activeOutlet.id,
+        cashierId: user.id,
+        cashierName: openForm.cashier_name || user.email || 'Kasir',
+        openingBalance: Number(openForm.opening_balance),
+        notes: openForm.notes || null,
       });
-      if (error) throw error;
       toast.success('Sesi kas dibuka');
       setOpenSessionDialog(false);
       setOpenForm({ opening_balance: '', notes: '', cashier_name: openForm.cashier_name });
@@ -195,7 +179,7 @@ export default function POSKasPage() {
     if (!activeSession) return 0;
     return (
       Number(activeSession.opening_balance) +
-      salesCashToday +
+      Number(activeSession.cash_sales_total || 0) +
       Number(activeSession.cash_in_total) -
       Number(activeSession.cash_out_total)
     );
@@ -205,23 +189,13 @@ export default function POSKasPage() {
     if (!activeSession || !user) return;
     if (!closeForm.closing_balance) { toast.error('Saldo akhir wajib diisi'); return; }
     setSaving(true);
-    const expected = getExpectedBalance();
     const closing = Number(closeForm.closing_balance);
-    const diff = closing - expected;
     try {
-      const { error } = await supabase.from('pos_cash_sessions' as never)
-        .update({
-          status: 'closed',
-          closing_balance: closing,
-          expected_balance: expected,
-          difference: diff,
-          cash_sales_total: salesCashToday,
-          non_cash_sales_total: salesNonCashToday,
-          notes_close: closeForm.notes || null,
-          closed_at: new Date().toISOString(),
-        })
-        .eq('id', activeSession.id);
-      if (error) throw error;
+      await closeCashSession({
+        sessionId: activeSession.id,
+        closingBalance: closing,
+        notes: closeForm.notes || null,
+      });
       toast.success('Sesi kas ditutup');
       setCloseSessionDialog(false);
       setCloseForm({ closing_balance: '', notes: '' });
@@ -241,24 +215,19 @@ export default function POSKasPage() {
     setSaving(true);
     try {
       const amount = Number(mutationForm.amount);
-      const { error: mutErr } = await supabase.from('pos_cash_mutations' as never).insert({
-        tenant_id: tenant.id,
-        outlet_id: activeOutlet.id,
-        cash_session_id: activeSession.id,
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast.error('Jumlah harus lebih besar dari nol'); return;
+      }
+      await recordCashMutation({
+        sessionId: activeSession.id,
+        tenantId: tenant.id,
+        outletId: activeOutlet.id,
         type: mutationType,
         category: mutationForm.category || (mutationType === 'in' ? 'lain_masuk' : 'lain_keluar'),
         amount,
         description: mutationForm.description,
         reference: mutationForm.reference || null,
-        created_by: user.id,
       });
-      if (mutErr) throw mutErr;
-
-      const field = mutationType === 'in' ? 'cash_in_total' : 'cash_out_total';
-      const currentVal = mutationType === 'in' ? Number(activeSession.cash_in_total) : Number(activeSession.cash_out_total);
-      await supabase.from('pos_cash_sessions' as never)
-        .update({ [field]: currentVal + amount })
-        .eq('id', activeSession.id);
 
       toast.success(`Kas ${mutationType === 'in' ? 'masuk' : 'keluar'} berhasil dicatat`);
       setMutationDialog(false);

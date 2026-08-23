@@ -1,8 +1,4 @@
-/**
- * P4-01: POS Offline Sync Hook
- * Monitors online/offline status, caches POS products, syncs pending sales.
- */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   cacheProducts,
   getCachedProducts,
@@ -11,7 +7,7 @@ import {
   getPendingSaleCount,
   type OfflineProduct,
   type PendingSale,
-} from "@/lib/posOfflineDB";
+} from '@/lib/posOfflineDB';
 import { posBridgeFetch } from '@/lib/posBridge';
 
 interface OfflineProductApiRow {
@@ -36,99 +32,100 @@ interface UsePOSOfflineSyncOptions {
   autoSyncOnReconnect?: boolean;
 }
 
-export function usePOSOfflineSync({
-  outletId,
-  tenantId,
-  autoSyncOnReconnect = true,
-}: UsePOSOfflineSyncOptions) {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+export function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
+}
+
+export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = true }: UsePOSOfflineSyncOptions) {
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [cachedProducts, setCachedProducts] = useState<OfflineProduct[]>([]);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const syncInProgress = useRef(false);
 
+  const loadCachedProducts = useCallback(async () => {
+    if (!tenantId || !outletId) {
+      setCachedProducts([]);
+      return;
+    }
+    try {
+      setCachedProducts(await getCachedProducts(tenantId, outletId));
+    } catch (error) {
+      console.warn('[pos-offline] failed to load product cache:', error);
+    }
+  }, [tenantId, outletId]);
 
-  // Load cached products & pending count on mount
+  const refreshPendingCount = useCallback(async () => {
+    if (!tenantId || !outletId) {
+      setPendingCount(0);
+      return;
+    }
+    try {
+      setPendingCount(await getPendingSaleCount(tenantId, outletId));
+    } catch (error) {
+      console.warn('[pos-offline] failed to count queue:', error);
+    }
+  }, [tenantId, outletId]);
+
   useEffect(() => {
-    loadCachedProducts();
-    refreshPendingCount();
-  }, [outletId]);
+    void loadCachedProducts();
+    void refreshPendingCount();
+  }, [loadCachedProducts, refreshPendingCount]);
 
-  const loadCachedProducts = async () => {
-    try {
-      const products = await getCachedProducts();
-      setCachedProducts(products);
-    } catch (err) {
-      console.error("Failed to load cached products:", err);
-    }
-  };
-
-  const refreshPendingCount = async () => {
-    try {
-      const count = await getPendingSaleCount();
-      setPendingCount(count);
-    } catch (err) { console.warn('[pos-offline] gagal menghitung antrean penjualan:', err); }
-  };
-
-  // Fetch fresh products from API and cache them
   const refreshProductCache = useCallback(async () => {
-    if (!outletId || !tenantId) return;
+    if (!outletId || !tenantId || !isOnline) return;
     try {
-      const res = await posBridgeFetch(
-        `/api/db/query?table=pos_products&outlet_id=${outletId}`,
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      const res = await posBridgeFetch(`/api/db/query?table=pos_products&outlet_id=${encodeURIComponent(outletId)}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
       if (!res.ok) return;
-      const { data } = await res.json();
-      if (Array.isArray(data)) {
-        const mapped: OfflineProduct[] = (data as OfflineProductApiRow[]).map((p) => ({
-          id: p.id,
-          name: p.name,
-          sku: p.sku,
-          barcode: p.barcode,
-          price: p.price,
-          cost_price: p.cost_price ?? 0,
-          unit: p.unit ?? "pcs",
-          tax_rate: p.tax_rate ?? 0,
-          is_stock_tracked: p.is_stock_tracked ?? false,
-          image_url: p.image_url,
-          is_active: p.is_active ?? true,
-          category_name: p.pos_categories?.name,
-          stock_qty: p.pos_stock?.[0]?.quantity,
-          cached_at: Date.now(),
-        }));
-        await cacheProducts(mapped);
-        setCachedProducts(mapped);
-        setLastSync(new Date());
-      }
-    } catch (err) {
-      console.error("Failed to refresh product cache:", err);
+      const { data } = await res.json() as { data?: OfflineProductApiRow[] };
+      if (!Array.isArray(data)) return;
+      const mapped: OfflineProduct[] = data.map((product) => ({
+        id: product.id,
+        tenant_id: tenantId,
+        outlet_id: outletId,
+        cache_key: `${tenantId}:${outletId}:${product.id}`,
+        name: product.name,
+        sku: product.sku,
+        barcode: product.barcode,
+        price: product.price,
+        cost_price: product.cost_price ?? 0,
+        unit: product.unit ?? 'pcs',
+        tax_rate: product.tax_rate ?? 0,
+        is_stock_tracked: product.is_stock_tracked ?? false,
+        image_url: product.image_url,
+        is_active: product.is_active ?? true,
+        category_name: product.pos_categories?.name,
+        stock_qty: product.pos_stock?.[0]?.quantity,
+        cached_at: Date.now(),
+      }));
+      await cacheProducts(mapped);
+      setCachedProducts(mapped);
+      setLastSync(new Date());
+    } catch (error) {
+      console.warn('[pos-offline] failed to refresh product cache:', error);
     }
-  }, [outletId, tenantId]);
+  }, [outletId, tenantId, isOnline]);
 
-  // Save a sale offline when disconnected
-  const saveOfflineSale = useCallback(
-    async (sale: Omit<PendingSale, "synced">) => {
-      await savePendingSale(sale);
-      await refreshPendingCount();
-    },
-    []
-  );
+  const saveOfflineSale = useCallback(async (sale: Omit<PendingSale, 'synced'>) => {
+    if (!tenantId || !outletId || sale.tenant_id !== tenantId || sale.outlet_id !== outletId) {
+      throw new Error('Offline sale scope does not match the active tenant and outlet');
+    }
+    await savePendingSale(sale);
+    await refreshPendingCount();
+  }, [tenantId, outletId, refreshPendingCount]);
 
-  // Sync pending sales to backend
   const triggerSync = useCallback(async () => {
-    if (syncInProgress.current) return;
+    if (!tenantId || !outletId || !isOnline || syncInProgress.current) return { synced: 0, failed: 0 };
     syncInProgress.current = true;
     setIsSyncing(true);
-
     try {
       const result = await syncPendingSales(async (sale) => {
-        const res = await posBridgeFetch("/api/db/pos-sale", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+        const res = await posBridgeFetch('/api/db/pos-sale', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `offline-pos-sale:${sale.id}` },
           body: JSON.stringify({
             outlet_id: sale.outlet_id,
             tenant_id: sale.tenant_id,
@@ -147,35 +144,39 @@ export function usePOSOfflineSync({
           }),
         });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          return { success: false, error: err.error || "HTTP " + res.status };
+          const body = await res.json().catch(() => ({})) as { error?: string };
+          return { success: false, error: body.error || `HTTP ${res.status}`, retryable: isRetryableStatus(res.status) };
         }
         return { success: true };
-      });
-
+      }, { tenantId, outletId });
       await refreshPendingCount();
-      setLastSync(new Date());
+      if (result.synced > 0 || result.failed > 0) setLastSync(new Date());
       return result;
     } finally {
       setIsSyncing(false);
       syncInProgress.current = false;
     }
-  }, []);
+  }, [tenantId, outletId, isOnline, refreshPendingCount]);
 
-  // Monitor online/offline status after triggerSync is initialized.
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      if (autoSyncOnReconnect) triggerSync();
+      if (autoSyncOnReconnect) void triggerSync();
     };
     const handleOffline = () => setIsOnline(false);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, [autoSyncOnReconnect, triggerSync]);
+
+  useEffect(() => {
+    if (!autoSyncOnReconnect || !isOnline || !tenantId || !outletId) return;
+    const interval = window.setInterval(() => void triggerSync(), 30_000);
+    return () => window.clearInterval(interval);
+  }, [autoSyncOnReconnect, isOnline, tenantId, outletId, triggerSync]);
 
   return {
     isOnline,

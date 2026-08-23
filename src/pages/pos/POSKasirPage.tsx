@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,21 +12,27 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Package, ChevronLeft, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { POSSidebar } from '@/components/pos/POSSidebar';
-import { BarcodeScanner } from '@/components/pos/BarcodeScanner';
 import { POSCart } from '@/components/pos/kasir/POSCart';
-import { POSPaymentDialog } from '@/components/pos/kasir/POSPaymentDialog';
-import { POSHeldBills } from '@/components/pos/kasir/POSHeldBills';
-import { QRPayDialog } from '@/components/pos/kasir/QRPayDialog';
 import { cn } from '@/lib/utils';
+import { processAtomicPOSSale } from '@/lib/posCheckout';
+import { usePOSOfflineSync } from '@/hooks/usePOSOfflineSync';
 import type {
-  CartItem, HeldBill, Customer, CustomerBalance, LastSale, ReceiptStore, SaleRow, StockRow, RecipeRow, LoyaltyProgram,
+  CartItem, HeldBill, Customer, LastSale, ReceiptStore, LoyaltyProgram,
   Promotion, Voucher, Product, Variant,
 } from '@/components/pos/kasir/types';
+
+const BarcodeScanner = lazy(() => import('@/components/pos/BarcodeScanner').then(({ BarcodeScanner: Component }) => ({ default: Component })));
+const POSPaymentDialog = lazy(() => import('@/components/pos/kasir/POSPaymentDialog').then(({ POSPaymentDialog: Component }) => ({ default: Component })));
+const POSHeldBills = lazy(() => import('@/components/pos/kasir/POSHeldBills').then(({ POSHeldBills: Component }) => ({ default: Component })));
+const QRPayDialog = lazy(() => import('@/components/pos/kasir/QRPayDialog').then(({ QRPayDialog: Component }) => ({ default: Component })));
 
 export default function POSKasirPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const {
+    isOnline, isSyncing, pendingCount, triggerSync, saveOfflineSale, refreshProductCache, cachedProducts,
+  } = usePOSOfflineSync({ tenantId: tenant?.id ?? null, outletId: activeOutlet?.id ?? null });
 
   // UI
   const [products, setProducts] = useState<Product[]>([]);
@@ -79,6 +85,7 @@ export default function POSKasirPage() {
   const [splitAmount2, setSplitAmount2] = useState('');
   const [paymentDialog, setPaymentDialog] = useState(false);
   const [successDialog, setSuccessDialog] = useState(false);
+  const paymentRequestKeyRef = useRef<string | null>(null);
   const [lastSale, setLastSale] = useState<LastSale | null>(null);
 
   // QR Pay
@@ -111,12 +118,23 @@ export default function POSKasirPage() {
 
   const fetchProducts = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
-    const { data } = await supabase.from('pos_products' as never)
+    const { data, error } = await supabase.from('pos_products' as never)
       .select('*, pos_categories(name), pos_stock(quantity)')
       .eq('tenant_id', tenant.id).eq('is_active', true).order('name');
-    setProducts((data || []) as unknown as Product[]);
+    if (!error && data) {
+      setProducts(data as unknown as Product[]);
+    } else if (cachedProducts.length > 0) {
+      setProducts(cachedProducts.map((product) => ({
+        ...product,
+        category_id: null,
+        pos_categories: product.category_name ? { name: product.category_name } : null,
+        pos_stock: product.stock_qty === undefined ? [] : [{ quantity: product.stock_qty }],
+        has_variants: false,
+        barcode: product.barcode,
+      })) as Product[]);
+    }
     setLoading(false);
-  }, [tenant, activeOutlet]);
+  }, [tenant, activeOutlet, cachedProducts]);
 
   const fetchCategories = useCallback(async () => {
     if (!tenant) return;
@@ -292,136 +310,116 @@ export default function POSKasirPage() {
     if (usePoints && loyaltyProgram && pointsToRedeem < loyaltyProgram.min_redeem_points) {
       toast.error(`Min. tukar ${loyaltyProgram.min_redeem_points} poin`); return;
     }
-    try {
-      const saleNumber = `TRX-${Date.now()}`;
-      const { data: sale, error } = await supabase.from('pos_sales' as never).insert({
-        tenant_id: tenant.id, outlet_id: activeOutlet.id, sale_number: saleNumber,
-        cashier_id: user.id, cashier_name: user.email,
-        customer_id: selectedCustomer?.id || null,
-        customer_name: selectedCustomer?.name || customerName || null,
-        subtotal, discount_amount: discount, tax_amount: taxAmount, total,
-        payment_method: isSplitPayment ? `split:${effectiveMethod}+${splitMethod2}` : effectiveMethod,
-        payment_amount: isSplitPayment ? (Number(splitAmount1) + Number(splitAmount2)) : (Number(paymentAmount) || total),
-        change_amount: isSplitPayment ? Math.max(0, (Number(splitAmount1) + Number(splitAmount2)) - total) : (effectiveMethod === 'cash' ? change : 0),
-        status: 'completed', notes: notes || null,
-        promotion_id: appliedPromo?.id || null, promotion_discount: promoDiscount,
-        voucher_id: appliedVoucher?.id || null, voucher_code: appliedVoucher?.code || null, voucher_discount: voucherDiscount,
-        loyalty_points_earned: pointsEarned, loyalty_points_redeemed: usePoints ? pointsToRedeem : 0, loyalty_discount: pointsDiscount,
-      }).select().single();
-      if (error) throw error;
-      const saleId = (sale as unknown as SaleRow).id;
 
-      await supabase.from('pos_sale_items' as never).insert(
+    const requestKey = paymentRequestKeyRef.current ?? crypto.randomUUID();
+    paymentRequestKeyRef.current = requestKey;
+    const saleNumber = `TRX-${Date.now()}`;
+    const storedPaymentMethod = isSplitPayment ? 'split' : effectiveMethod;
+    const paymentAmountValue = isSplitPayment
+      ? Number(splitAmount1) + Number(splitAmount2)
+      : (Number(paymentAmount) || total);
+
+    if (!isOnline && storedPaymentMethod !== 'cash') {
+      toast.error('Pembayaran non-tunai memerlukan koneksi internet');
+      return;
+    }
+
+    try {
+      const result = await processAtomicPOSSale(
+        requestKey,
+        tenant.id,
+        activeOutlet.id,
+        user.id,
+        {
+          sale_number: saleNumber,
+          cashier_name: user.email,
+          customer_id: selectedCustomer?.id || null,
+          customer_name: selectedCustomer?.name || customerName || null,
+          subtotal,
+          discount_amount: discount,
+          tax_amount: taxAmount,
+          total,
+          payment_method: storedPaymentMethod,
+          payment_amount: paymentAmountValue,
+          change_amount: isSplitPayment ? Math.max(0, paymentAmountValue - total) : (effectiveMethod === 'cash' ? change : 0),
+          notes: isSplitPayment ? `${notes ? `${notes} | ` : ''}Split: ${effectiveMethod}+${splitMethod2}` : (notes || null),
+          promotion_id: appliedPromo?.id || null,
+          promotion_discount: promoDiscount,
+          voucher_id: appliedVoucher?.id || null,
+          voucher_code: appliedVoucher?.code || null,
+          voucher_discount: voucherDiscount,
+          loyalty_points_earned: pointsEarned,
+          loyalty_points_redeemed: usePoints ? pointsToRedeem : 0,
+          loyalty_discount: pointsDiscount,
+        },
         cart.map(item => ({
-          sale_id: saleId, product_id: item.productId, variant_id: item.variantId || null,
-          product_name: item.name, variant_name: item.variantName || null, qty: item.qty,
-          price: item.price, cost_price: item.costPrice, discount: item.discount,
+          product_id: item.productId,
+          variant_id: item.variantId || null,
+          name: item.name,
+          variant_name: item.variantName || null,
+          price: item.price,
+          cost_price: item.costPrice,
+          qty: item.qty,
+          discount: item.discount,
           tax_amount: (item.price * item.qty - item.discount) * item.taxRate / 100,
           subtotal: item.price * item.qty - item.discount,
-        }))
+          notes: item.notes || null,
+        })),
       );
 
-      for (const item of cart) {
-        const stockQuery = supabase.from('pos_stock' as never).select('id, quantity').eq('product_id', item.productId).eq('outlet_id', activeOutlet.id);
-        const { data: stockD } = item.variantId
-          ? await stockQuery.eq('variant_id', item.variantId).single()
-          : await stockQuery.is('variant_id', null).single();
-        if (stockD) {
-          const stock = stockD as unknown as StockRow;
-          const newQty = Math.max(0, stock.quantity - item.qty);
-          await supabase.from('pos_stock' as never).update({ quantity: newQty }).eq('id', (stockD as unknown as StockRow).id);
-          if (!item.variantId) {
-            await supabase.from('pos_stock_mutations' as never).insert({
-              tenant_id: tenant.id, product_id: item.productId, outlet_id: activeOutlet.id,
-              type: 'sale', quantity: -item.qty, quantity_before: (stockD as unknown as StockRow).quantity, quantity_after: newQty,
-              reference_id: saleId, reference_type: 'pos_sale', created_by: user.id,
-            });
-          }
-        }
-      }
-
-      // Kurangi bahan baku otomatis berdasarkan resep produk
-      try {
-        const productIds = [...new Set(cart.map(i => i.productId))];
-        const { data: recipes } = await supabase
-          .from('pos_recipes' as never)
-          .select('*, pos_raw_materials(id, name, current_stock, unit)')
-          .in('product_id', productIds)
-          .eq('tenant_id', tenant.id);
-
-        if (recipes && recipes.length > 0) {
-          for (const item of cart) {
-            const itemRecipes = (recipes as unknown as RecipeRow[]).filter(r => r.product_id === item.productId);
-            for (const recipe of itemRecipes) {
-              const mat = recipe.pos_raw_materials;
-              if (!mat) continue;
-              const totalUsage = recipe.qty_needed * item.qty;
-              const qtyBefore = mat.current_stock;
-              const qtyAfter = Math.max(0, qtyBefore - totalUsage);
-              await supabase
-                .from('pos_raw_materials' as never)
-                .update({ current_stock: qtyAfter, updated_at: new Date().toISOString() })
-                .eq('id', mat.id);
-              await supabase.from('pos_raw_material_mutations' as never).insert({
-                tenant_id: tenant.id,
-                outlet_id: activeOutlet.id,
-                raw_material_id: mat.id,
-                type: 'usage',
-                qty: -totalUsage,
-                qty_before: qtyBefore,
-                qty_after: qtyAfter,
-                reference_id: saleId,
-                reference_type: 'pos_sale',
-                notes: `Penjualan: ${item.name} x${item.qty}`,
-                created_by: user.id,
-              });
-            }
-          }
-        }
-      } catch {
-        // Silent — jangan gagalkan transaksi karena BOM
-      }
-
-      if (selectedCustomer) {
-        const { data: cust } = await supabase.from('pos_customers' as never)
-          .select('total_purchase, transaction_count, loyalty_points').eq('id', selectedCustomer.id).single();
-        if (cust) {
-          const balance = cust as unknown as CustomerBalance;
-          const currentPts = balance.loyalty_points || 0;
-          const newPts = Math.max(0, currentPts - (usePoints ? pointsToRedeem : 0) + pointsEarned);
-          let newTier = 'Bronze';
-          if (loyaltyProgram) {
-            const tiers = [...loyaltyProgram.tiers].sort((a, b) => b.min_points - a.min_points);
-            for (const t of tiers) { if (newPts >= t.min_points) { newTier = t.name; break; } }
-          }
-          await supabase.from('pos_customers' as never).update({
-            total_purchase: (balance.total_purchase || 0) + total,
-            transaction_count: (balance.transaction_count || 0) + 1,
-            last_purchase_at: new Date().toISOString(), loyalty_points: newPts, loyalty_tier: newTier,
-          }).eq('id', selectedCustomer.id);
-        }
-      }
-
-      if (appliedVoucher) {
-        await supabase.from('pos_vouchers' as never).update({ used_count: (appliedVoucher.used_count || 0) + 1 }).eq('id', appliedVoucher.id);
-        await supabase.from('pos_voucher_usages' as never).insert({ voucher_id: appliedVoucher.id, sale_id: saleId, customer_id: selectedCustomer?.id || null, discount_given: voucherDiscount });
-      }
-      if (appliedPromo && promoDiscount > 0) {
-        await supabase.from('pos_promotions' as never).update({ used_count: (appliedPromo.used_count || 0) + 1 }).eq('id', appliedPromo.id);
-      }
-
       setLastSale({
-        saleNumber, total, change: effectiveMethod === 'cash' ? change : 0, paymentMethod: effectiveMethod,
+        saleNumber: result.sale_number,
+        total: result.total,
+        change: effectiveMethod === 'cash' ? change : 0,
+        paymentMethod: effectiveMethod,
         customerName: selectedCustomer?.name || customerName || 'Umum',
-        items: [...cart], pointsEarned, pointsRedeemed: usePoints ? pointsToRedeem : 0,
-        pointsDiscount, promoDiscount, voucherDiscount,
-        appliedPromoName: appliedPromo?.name || null, appliedVoucherCode: appliedVoucher?.code || null,
+        items: [...cart],
+        pointsEarned,
+        pointsRedeemed: usePoints ? pointsToRedeem : 0,
+        pointsDiscount,
+        promoDiscount,
+        voucherDiscount,
+        appliedPromoName: appliedPromo?.name || null,
+        appliedVoucherCode: appliedVoucher?.code || null,
         newPointsBalance: selectedCustomer ? Math.max(0, customerPoints - (usePoints ? pointsToRedeem : 0) + pointsEarned) : null,
       });
 
+      paymentRequestKeyRef.current = null;
       clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
       setPaymentAmount(''); setPaymentDialog(false); setSuccessDialog(true); fetchProducts();
-    } catch (err: unknown) { toast.error('Gagal memproses transaksi: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui')); }
+    } catch (err: unknown) {
+      // Keep the request key so a retry after a timeout cannot create a second sale.
+      const browserOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if ((browserOffline || !isOnline) && storedPaymentMethod === 'cash') {
+        try {
+          await saveOfflineSale({
+            id: requestKey,
+            outlet_id: activeOutlet.id,
+            tenant_id: tenant.id,
+            cashier_id: user.id,
+            items: cart.map(item => ({
+              product_id: item.productId, name: item.name, qty: item.qty,
+              price: item.price, discount: item.discount, tax_rate: item.taxRate,
+            })),
+            subtotal, discount_amount: discount, tax_amount: taxAmount, total,
+            payment_method: 'cash',
+            customer_id: selectedCustomer?.id || null,
+            customer_name: selectedCustomer?.name || customerName || null,
+            notes: notes || undefined,
+            created_at: new Date().toISOString(),
+          });
+          paymentRequestKeyRef.current = null;
+          clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
+          setPaymentAmount(''); setPaymentDialog(false);
+          toast.success('Transaksi disimpan offline dan akan disinkronkan saat online');
+          void triggerSync();
+          return;
+        } catch (queueError: unknown) {
+          toast.error('Gagal menyimpan transaksi offline: ' + (queueError instanceof Error ? queueError.message : 'Kesalahan tidak diketahui'));
+        }
+      }
+      toast.error('Gagal memproses transaksi: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+    }
   };
 
   // ── Hold Bill ────────────────────────────────────────────
@@ -439,8 +437,11 @@ export default function POSKasirPage() {
 
   // ── Fetch and keyboard effects ───────────────────────────
   useEffect(() => {
-    if (tenant && activeOutlet) { fetchProducts(); fetchCategories(); fetchHeldBills(); }
-  }, [tenant, activeOutlet, fetchProducts, fetchCategories, fetchHeldBills]);
+    if (tenant && activeOutlet) {
+      fetchProducts(); fetchCategories(); fetchHeldBills();
+      void refreshProductCache();
+    }
+  }, [tenant, activeOutlet, fetchProducts, fetchCategories, fetchHeldBills, refreshProductCache]);
 
   useEffect(() => {
     if (tenant) { fetchLoyaltyProgram(); fetchActivePromos(); }
@@ -714,6 +715,11 @@ export default function POSKasirPage() {
                 <Input ref={searchRef} className="pl-9 pr-9 h-9" placeholder="Cari produk / scan barcode... (F8)"
                   value={search} onChange={e => setSearch(e.target.value)} autoFocus />
               </div>
+              <div className={cn('hidden sm:flex items-center gap-1 text-[10px] whitespace-nowrap', isOnline ? 'text-emerald-600' : 'text-amber-600')}>
+                <span className={cn('h-2 w-2 rounded-full', isOnline ? 'bg-emerald-500' : 'bg-amber-500')} />
+                {isOnline ? (isSyncing ? 'Sync...' : pendingCount > 0 ? `${pendingCount} antrean` : 'Online') : 'Offline'}
+                {pendingCount > 0 && isOnline && <button type="button" className="underline" onClick={() => void triggerSync()}>sync</button>}
+              </div>
               <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => setScannerOpen(true)} title="Scan Barcode Kamera">
                 <Barcode className="h-4 w-4 text-emerald-600" />
               </Button>
@@ -790,18 +796,22 @@ export default function POSKasirPage() {
         />
       </div>
 
-      {/* Dialog Pembayaran */}
-      <POSPaymentDialog
-        open={paymentDialog} onOpenChange={setPaymentDialog}
-        subtotal={subtotal} taxAmount={taxAmount} discount={discount}
-        promoDiscount={promoDiscount} voucherDiscount={voucherDiscount} pointsDiscount={pointsDiscount}
-        total={total} paymentMethod={paymentMethod} paymentAmount={paymentAmount}
-        isSplitPayment={isSplitPayment} splitMethod2={splitMethod2} splitAmount1={splitAmount1} splitAmount2={splitAmount2}
-        appliedPromo={appliedPromo} appliedVoucher={appliedVoucher}
-        pointsToRedeem={pointsToRedeem} pointsEarned={pointsEarned}
-        selectedCustomer={selectedCustomer} loyaltyProgram={loyaltyProgram}
-        formatCurrency={formatCurrency} onChange={handlePaymentChange} onProcess={processPayment}
-      />
+      {/* Dialog Pembayaran: dimuat hanya ketika kasir membuka checkout */}
+      {paymentDialog && (
+        <Suspense fallback={null}>
+          <POSPaymentDialog
+            open={paymentDialog} onOpenChange={setPaymentDialog}
+            subtotal={subtotal} taxAmount={taxAmount} discount={discount}
+            promoDiscount={promoDiscount} voucherDiscount={voucherDiscount} pointsDiscount={pointsDiscount}
+            total={total} paymentMethod={paymentMethod} paymentAmount={paymentAmount}
+            isSplitPayment={isSplitPayment} splitMethod2={splitMethod2} splitAmount1={splitAmount1} splitAmount2={splitAmount2}
+            appliedPromo={appliedPromo} appliedVoucher={appliedVoucher}
+            pointsToRedeem={pointsToRedeem} pointsEarned={pointsEarned}
+            selectedCustomer={selectedCustomer} loyaltyProgram={loyaltyProgram}
+            formatCurrency={formatCurrency} onChange={handlePaymentChange} onProcess={processPayment}
+          />
+        </Suspense>
+      )}
 
       {/* Dialog Sukses */}
       <Dialog open={successDialog} onOpenChange={setSuccessDialog}>
@@ -859,8 +869,12 @@ export default function POSKasirPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Held Bills */}
-      <POSHeldBills open={heldBillsDialog} onOpenChange={setHeldBillsDialog} heldBills={heldBills} onResume={resumeBill} />
+      {/* Dialog Held Bills: tidak diperlukan pada initial render */}
+      {heldBillsDialog && (
+        <Suspense fallback={null}>
+          <POSHeldBills open={heldBillsDialog} onOpenChange={setHeldBillsDialog} heldBills={heldBills} onResume={resumeBill} />
+        </Suspense>
+      )}
 
       {/* Dialog Varian */}
       <Dialog open={variantDialog} onOpenChange={setVariantDialog}>
@@ -926,26 +940,32 @@ export default function POSKasirPage() {
         </DialogContent>
       </Dialog>
 
-      {/* QR Pay Dialog */}
-      <QRPayDialog
-        open={qrPayDialog}
-        onOpenChange={setQrPayDialog}
-        amount={total}
-        tenantId={tenant?.id || ''}
-        outletId={activeOutlet?.id || ''}
-        cashierName={user?.email || 'Kasir'}
-        storeName={tenant?.name || activeOutlet?.name || 'Toko'}
-        authToken={typeof window !== 'undefined' ? (localStorage.getItem('session_token') || '') : ''}
-        onSuccess={(buyerName) => {
-          setQrPayDialog(false);
-          // Proses transaksi dengan override metode qr_pay (hindari state async issue)
-          processPayment('qr_pay');
-          toast.success(`QR Pay berhasil! Dibayar oleh ${buyerName}`);
-        }}
-      />
-
-      {/* Barcode Scanner */}
-      <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetect={onBarcodeDetect} />
+      {/* QR Pay dan barcode scanner dimuat on-demand */}
+      {qrPayDialog && (
+        <Suspense fallback={null}>
+          <QRPayDialog
+            open={qrPayDialog}
+            onOpenChange={setQrPayDialog}
+            amount={total}
+            tenantId={tenant?.id || ''}
+            outletId={activeOutlet?.id || ''}
+            cashierName={user?.email || 'Kasir'}
+            storeName={tenant?.name || activeOutlet?.name || 'Toko'}
+            authToken={typeof window !== 'undefined' ? (localStorage.getItem('session_token') || '') : ''}
+            onSuccess={(buyerName) => {
+              setQrPayDialog(false);
+              // Proses transaksi dengan override metode qr_pay (hindari state async issue)
+              processPayment('qr_pay');
+              toast.success(`QR Pay berhasil! Dibayar oleh ${buyerName}`);
+            }}
+          />
+        </Suspense>
+      )}
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetect={onBarcodeDetect} />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -39,6 +39,7 @@ interface SesiStat {
   kasirName: string;
   openingBalance: number;
   closingBalance: number | null;
+  expectedBalance: number | null;
   difference: number | null;
   cashSales: number;
   cashIn: number;
@@ -49,7 +50,7 @@ interface SesiStat {
 
 interface CashierSaleItem { qty: number; }
 interface CashierSale { total: number; discount_amount: number | null; cashier_id: string | null; cashier_name: string | null; created_at: string; pos_sale_items?: CashierSaleItem[]; }
-interface CashierSession { session_number: string; cashier_name: string; opening_balance: number; closing_balance: number | null; difference: number | null; cash_sales_total: number; cash_in_total: number; cash_out_total: number; opened_at: string; closed_at: string | null; }
+interface CashierSession { session_number: string; cashier_name: string; opening_balance: number; closing_balance: number | null; expected_balance: number | null; difference: number | null; cash_sales_total: number; non_cash_sales_total: number; cash_in_total: number; cash_out_total: number; opened_at: string; closed_at: string | null; }
 
 const PERIOD_OPTIONS = [
   { value: 'today', label: 'Hari Ini' },
@@ -134,6 +135,7 @@ export default function POSLaporanKasirPage() {
         kasirName: s.cashier_name,
         openingBalance: Number(s.opening_balance),
         closingBalance: s.closing_balance !== null ? Number(s.closing_balance) : null,
+        expectedBalance: s.expected_balance !== null ? Number(s.expected_balance) : null,
         difference: s.difference !== null ? Number(s.difference) : null,
         cashSales: Number(s.cash_sales_total || 0),
         cashIn: Number(s.cash_in_total || 0),
@@ -474,6 +476,8 @@ export default function POSLaporanKasirPage() {
                         <TableHead>Dibuka</TableHead>
                         <TableHead>Ditutup</TableHead>
                         <TableHead className="text-right">Saldo Awal</TableHead>
+                        <TableHead className="text-right">Penjualan Tunai</TableHead>
+                        <TableHead className="text-right">Expected Cash</TableHead>
                         <TableHead className="text-right">Saldo Akhir</TableHead>
                         <TableHead className="text-right">Selisih</TableHead>
                       </TableRow>
@@ -490,6 +494,8 @@ export default function POSLaporanKasirPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">{formatCurrency(s.openingBalance)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(s.cashSales)}</TableCell>
+                          <TableCell className="text-right">{s.expectedBalance !== null ? formatCurrency(s.expectedBalance) : '-'}</TableCell>
                           <TableCell className="text-right">{s.closingBalance !== null ? formatCurrency(s.closingBalance) : '-'}</TableCell>
                           <TableCell className={`text-right font-bold ${(s.difference || 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                             {s.difference !== null ? (

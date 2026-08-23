@@ -3,6 +3,7 @@ import { reportObservability } from '@/lib/observability';
 
 export interface CreatePaymentRequest {
   orderId: string;
+  idempotencyKey?: string;
 }
 
 export interface PaymentInvoice {
@@ -21,13 +22,19 @@ export interface PaymentStatus {
 
 const API_BASE = '/api';
 
+export function getPaymentIdempotencyKey(orderId: string, suppliedKey?: string): string {
+  return suppliedKey?.trim() || `payment-invoice:${orderId}`;
+}
+
 export async function createPaymentInvoice(request: CreatePaymentRequest): Promise<PaymentInvoice> {
   reportObservability('payment', 'invoice_create_started', 'info', { hasOrderId: Boolean(request.orderId) });
   const { data: { session } } = await supabase.auth.getSession();
+  const idempotencyKey = getPaymentIdempotencyKey(request.orderId, request.idempotencyKey);
   const response = await fetch(`${API_BASE}/xendit/create-invoice`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
       ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
     },
     body: JSON.stringify({ order_id: request.orderId }),
