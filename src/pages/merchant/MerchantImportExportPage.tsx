@@ -121,6 +121,7 @@ export default function MerchantImportExportPage() {
   const [importProgress, setImportProgress] = useState(0);
   const [importDone, setImportDone] = useState<{ success: number; failed: number } | null>(null);
   const [fileLoaded, setFileLoaded] = useState(false);
+  const [lastImportJobId, setLastImportJobId] = useState<string | null>(null);
 
   const { data: products = [], isLoading: productsLoading, refetch } = useQuery<ProductRow[]>({
     queryKey: ['merchant-products-export', merchantId],
@@ -197,42 +198,47 @@ export default function MerchantImportExportPage() {
   const startImport = async () => {
     if (!merchantId) return;
     const validRows = importRows.filter(r => r.valid);
+    const invalidRows = importRows.filter(r => !r.valid);
     if (validRows.length === 0) {
       toast.error('Tidak ada baris yang valid untuk diimpor');
       return;
     }
     setImporting(true);
-    setImportProgress(0);
-    let success = 0;
-    let failed = 0;
-
-    for (let i = 0; i < validRows.length; i++) {
-      const row = validRows[i];
-      try {
-        const { error } = await supabase.from('products').insert({
-          merchant_id: merchantId,
-          name: row.name,
-          description: row.description || null,
-          price: row.price,
-          stock: row.stock,
-          category: row.category,
-          is_active: row.is_active,
-          is_promo: row.is_promo,
-        });
-        if (error) throw error;
-        success++;
-      } catch {
-        failed++;
-      }
-      setImportProgress(Math.round(((i + 1) / validRows.length) * 100));
+    setImportProgress(30);
+    try {
+      const { data, error } = await supabase.rpc('commit_merchant_product_import' as never, {
+        p_merchant_id: merchantId,
+        p_rows: validRows.map((row) => ({ name: row.name, description: row.description, price: row.price, stock: row.stock, category: row.category, is_active: row.is_active, is_promo: row.is_promo })),
+        p_validation_errors: invalidRows.map((row) => ({ row: row.rowNum, errors: row.errors })),
+      } as never);
+      if (error) throw error;
+      const result = data as { job_id?: string; inserted_count?: number } | null;
+      const success = result?.inserted_count ?? validRows.length;
+      setLastImportJobId(result?.job_id ?? null);
+      setImportProgress(100);
+      setImportDone({ success, failed: invalidRows.length });
+      setImportRows([]);
+      setFileLoaded(false);
+      await refetch();
+      toast.success(`Import selesai: ${success} berhasil, ${invalidRows.length} ditolak pada validasi`);
+    } catch (error) {
+      setImportDone({ success: 0, failed: validRows.length });
+      toast.error(error instanceof Error ? error.message : 'Import gagal dan tidak ada produk yang disimpan');
+    } finally {
+      setImporting(false);
     }
+  };
 
-    setImporting(false);
-    setImportDone({ success, failed });
-    setImportRows([]);
-    setFileLoaded(false);
-    refetch();
-    toast.success(`Import selesai: ${success} berhasil, ${failed} gagal`);
+  const rollbackLastImport = async () => {
+    if (!lastImportJobId) return;
+    try {
+      const { error } = await supabase.rpc('rollback_merchant_product_import' as never, { p_job_id: lastImportJobId } as never);
+      if (error) throw error;
+      setLastImportJobId(null);
+      setImportDone(null);
+      await refetch();
+      toast.success('Import terakhir berhasil di-rollback');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Rollback import gagal'); }
   };
 
   const clearImport = () => {
@@ -330,9 +336,9 @@ export default function MerchantImportExportPage() {
             {importDone && (
               <Alert className={importDone.failed === 0 ? 'border-green-500' : 'border-orange-500'}>
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <AlertDescription>
-                  <strong>Import selesai!</strong> {importDone.success} produk berhasil ditambahkan
-                  {importDone.failed > 0 && `, ${importDone.failed} gagal`}.
+                  <AlertDescription className="flex items-center justify-between gap-3">
+                  <span><strong>Import selesai!</strong> {importDone.success} produk berhasil ditambahkan{importDone.failed > 0 && `, ${importDone.failed} gagal`}.</span>
+                  {lastImportJobId && <Button size="sm" variant="outline" onClick={() => void rollbackLastImport()}><RefreshCw className="h-3.5 w-3.5 mr-1" />Rollback</Button>}
                 </AlertDescription>
               </Alert>
             )}
