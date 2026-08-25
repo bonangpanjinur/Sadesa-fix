@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.pos_price_books (
   starts_at timestamptz,
   ends_at timestamptz,
   is_active boolean NOT NULL DEFAULT true,
+  priority integer NOT NULL DEFAULT 0,
   created_by uuid REFERENCES auth.users(id),
   created_at timestamptz NOT NULL DEFAULT now()
 );
@@ -18,7 +19,8 @@ CREATE TABLE IF NOT EXISTS public.pos_price_book_items (
   price numeric(15,2) NOT NULL CHECK (price >= 0),
   UNIQUE(price_book_id, product_id, variant_id)
 );
-CREATE INDEX IF NOT EXISTS idx_pos_price_books_active ON public.pos_price_books(tenant_id, is_active, starts_at, ends_at);
+ALTER TABLE public.pos_price_books ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_pos_price_books_active ON public.pos_price_books(tenant_id, is_active, starts_at, ends_at, priority DESC);
 
 CREATE TABLE IF NOT EXISTS public.pos_loyalty_rules (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

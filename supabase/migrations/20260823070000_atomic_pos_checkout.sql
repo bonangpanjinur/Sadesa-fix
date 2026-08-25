@@ -49,6 +49,13 @@ DECLARE
   v_recipe record;
   v_raw public.pos_raw_materials%ROWTYPE;
   v_usage numeric;
+  v_customer_segment text;
+  v_input_price numeric;
+  v_effective_price numeric;
+  v_computed_subtotal numeric := 0;
+  v_price_override_count integer := 0;
+  v_sale_earned integer := 0;
+  v_sale_redeemed integer := 0;
 BEGIN
   IF auth.uid() IS NULL OR auth.uid() <> p_cashier_id THEN
     RAISE EXCEPTION 'Cashier identity mismatch' USING ERRCODE = '42501';
@@ -93,9 +100,34 @@ BEGIN
   END IF;
 
   v_total := COALESCE((p_sale->>'total')::numeric, 0);
+  v_customer_segment := lower(COALESCE(NULLIF(p_sale->>'customer_segment', ''), 'retail'));
+  IF v_customer_segment NOT IN ('retail', 'wholesale', 'reseller', 'member', 'outlet') THEN
+    RAISE EXCEPTION 'Unsupported customer segment' USING ERRCODE = '22023';
+  END IF;
   IF v_total < 0 THEN
     RAISE EXCEPTION 'Invalid sale total' USING ERRCODE = '22023';
   END IF;
+
+  -- Resolve price-book prices before inserting the sale. This makes the
+  -- server authoritative for both line prices and the final total.
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
+  LOOP
+    v_qty := COALESCE((v_item->>'qty')::numeric, 0);
+    IF v_qty <= 0 THEN RAISE EXCEPTION 'Invalid item quantity' USING ERRCODE = '22023'; END IF;
+    v_input_price := COALESCE((v_item->>'price')::numeric, 0);
+    v_effective_price := COALESCE(public.get_effective_pos_price(
+      p_tenant_id, p_outlet_id, (v_item->>'product_id')::uuid,
+      NULLIF(v_item->>'variant_id', '')::uuid, v_customer_segment
+    ), v_input_price);
+    IF v_effective_price <> v_input_price THEN
+      IF COALESCE((p_sale->>'offline_sync')::boolean, false) THEN
+        RAISE EXCEPTION 'Price conflict for product %: server price is %, queued price is %', v_item->>'product_id', v_effective_price, v_input_price USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('conflict_type', 'PRICE_CHANGED', 'product_id', v_item->>'product_id', 'queued_price', v_input_price, 'server_price', v_effective_price)::text;
+      END IF;
+      v_price_override_count := v_price_override_count + 1;
+    END IF;
+    v_computed_subtotal := v_computed_subtotal + GREATEST(0, (v_effective_price * v_qty) - COALESCE((v_item->>'discount')::numeric, 0));
+  END LOOP;
+  v_total := GREATEST(0, v_computed_subtotal - COALESCE((p_sale->>'discount_amount')::numeric, 0) + COALESCE((p_sale->>'tax_amount')::numeric, 0));
 
   INSERT INTO public.pos_sales(
     tenant_id, outlet_id, sale_number, cashier_id, cashier_name,
@@ -106,7 +138,7 @@ BEGIN
   ) VALUES (
     p_tenant_id, p_outlet_id, v_sale_number, p_cashier_id,
     NULLIF(p_sale->>'cashier_name', ''), NULLIF(p_sale->>'customer_id', '')::uuid,
-    NULLIF(p_sale->>'customer_name', ''), COALESCE((p_sale->>'subtotal')::numeric, 0),
+    NULLIF(p_sale->>'customer_name', ''), v_computed_subtotal,
     COALESCE((p_sale->>'discount_amount')::numeric, 0), COALESCE((p_sale->>'tax_amount')::numeric, 0), v_total,
     v_payment_method, COALESCE((p_sale->>'payment_amount')::numeric, v_total),
     COALESCE((p_sale->>'change_amount')::numeric, 0), 'completed', NULLIF(p_sale->>'notes', ''),
@@ -115,11 +147,24 @@ BEGIN
     COALESCE((p_sale->>'voucher_discount')::numeric, 0), COALESCE((p_sale->>'loyalty_points_earned')::integer, 0),
     COALESCE((p_sale->>'loyalty_points_redeemed')::integer, 0), COALESCE((p_sale->>'loyalty_discount')::numeric, 0)
   ) RETURNING id INTO v_sale_id;
+  SELECT loyalty_points_earned, loyalty_points_redeemed INTO v_sale_earned, v_sale_redeemed
+  FROM public.pos_sales WHERE id = v_sale_id;
 
+  v_computed_subtotal := 0;
   FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
   LOOP
     v_qty := COALESCE((v_item->>'qty')::numeric, 0);
     IF v_qty <= 0 THEN RAISE EXCEPTION 'Invalid item quantity' USING ERRCODE = '22023'; END IF;
+
+    v_input_price := COALESCE((v_item->>'price')::numeric, 0);
+    v_effective_price := COALESCE(public.get_effective_pos_price(
+      p_tenant_id, p_outlet_id, (v_item->>'product_id')::uuid,
+      NULLIF(v_item->>'variant_id', '')::uuid, v_customer_segment
+    ), v_input_price);
+    IF v_effective_price <> v_input_price THEN
+      v_price_override_count := v_price_override_count + 1;
+    END IF;
+    v_computed_subtotal := v_computed_subtotal + GREATEST(0, (v_effective_price * v_qty) - COALESCE((v_item->>'discount')::numeric, 0));
 
     INSERT INTO public.pos_sale_items(
       sale_id, product_id, variant_id, product_name, variant_name, sku,
@@ -127,9 +172,9 @@ BEGIN
     ) VALUES (
       v_sale_id, (v_item->>'product_id')::uuid, NULLIF(v_item->>'variant_id', '')::uuid,
       COALESCE(v_item->>'name', 'Produk'), NULLIF(v_item->>'variant_name', ''), NULLIF(v_item->>'sku', ''),
-      v_qty, COALESCE((v_item->>'price')::numeric, 0), COALESCE((v_item->>'cost_price')::numeric, 0),
+      v_qty, v_effective_price, COALESCE((v_item->>'cost_price')::numeric, 0),
       COALESCE((v_item->>'discount')::numeric, 0), COALESCE((v_item->>'tax_amount')::numeric, 0),
-      COALESCE((v_item->>'subtotal')::numeric, 0), NULLIF(v_item->>'notes', '')
+      GREATEST(0, (v_effective_price * v_qty) - COALESCE((v_item->>'discount')::numeric, 0) + COALESCE((v_item->>'tax_amount')::numeric, 0)), NULLIF(v_item->>'notes', '')
     );
 
     SELECT * INTO v_stock
@@ -162,6 +207,15 @@ BEGIN
       'Atomic POS sale', p_cashier_id
     );
   END LOOP;
+
+  IF v_price_override_count > 0 THEN
+    UPDATE public.pos_sales
+    SET subtotal = v_computed_subtotal,
+        total = GREATEST(0, v_computed_subtotal - COALESCE(discount_amount, 0) + COALESCE(tax_amount, 0)),
+        notes = concat_ws(' | ', NULLIF(notes, ''), 'Price book: ' || v_customer_segment)
+    WHERE id = v_sale_id;
+    SELECT total INTO v_total FROM public.pos_sales WHERE id = v_sale_id;
+  END IF;
 
   -- Consume recipe ingredients under row locks in the same transaction.
   FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
@@ -210,8 +264,7 @@ BEGIN
         transaction_count = COALESCE(transaction_count, 0) + 1,
         last_purchase_at = now(),
         loyalty_points = GREATEST(0, COALESCE(loyalty_points, 0)
-          - COALESCE((p_sale->>'loyalty_points_redeemed')::integer, 0)
-          + COALESCE((p_sale->>'loyalty_points_earned')::integer, 0)),
+          - v_sale_redeemed + v_sale_earned),
         updated_at = now()
     WHERE id = (p_sale->>'customer_id')::uuid AND tenant_id = p_tenant_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Customer does not belong to tenant' USING ERRCODE = '42501'; END IF;

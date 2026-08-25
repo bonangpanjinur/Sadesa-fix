@@ -20,6 +20,8 @@ export interface AtomicPOSSaleInput {
   cashier_name?: string | null;
   customer_id?: string | null;
   customer_name?: string | null;
+  customer_segment?: 'retail' | 'wholesale' | 'reseller' | 'member' | 'outlet';
+  offline_sync?: boolean;
   subtotal: number;
   discount_amount: number;
   tax_amount: number;

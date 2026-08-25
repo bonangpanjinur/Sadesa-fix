@@ -335,6 +335,7 @@ export default function POSKasirPage() {
           cashier_name: user.email,
           customer_id: selectedCustomer?.id || null,
           customer_name: selectedCustomer?.name || customerName || null,
+          customer_segment: selectedCustomer?.is_member ? 'member' : 'retail',
           subtotal,
           discount_amount: discount,
           tax_amount: taxAmount,

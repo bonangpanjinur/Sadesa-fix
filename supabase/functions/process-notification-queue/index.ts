@@ -24,6 +24,26 @@ type NotificationJob = {
 
 type ProviderResult = { providerMessageId?: string };
 
+async function syncCampaignDelivery(job: NotificationJob, success: boolean, providerMessageId?: string, errorMessage?: string) {
+  const deliveryId = typeof job.payload.delivery_id === "string" ? job.payload.delivery_id : null;
+  const campaignId = typeof job.payload.campaign_id === "string" ? job.payload.campaign_id : null;
+  if (!deliveryId) return;
+  await supabase.from("crm_campaign_deliveries").update({
+    status: success ? "sent" : "failed",
+    provider_message_id: providerMessageId ?? null,
+    error_message: success ? null : (errorMessage ?? "Notification delivery failed"),
+    sent_at: success ? new Date().toISOString() : null,
+  }).eq("id", deliveryId);
+  if (campaignId) {
+    const { count } = await supabase.from("crm_campaign_deliveries")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId).in("status", ["queued", "failed"]);
+    if ((count ?? 0) === 0) {
+      await supabase.from("crm_campaigns").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", campaignId).eq("status", "sending");
+    }
+  }
+}
+
 function json(data: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -91,6 +111,8 @@ async function sendJob(job: NotificationJob): Promise<ProviderResult> {
 }
 
 async function processBatch() {
+  const { error: dispatchError } = await supabase.rpc("enqueue_due_crm_campaign_jobs", { p_limit: maxBatch });
+  if (dispatchError) throw dispatchError;
   const { data: candidates, error: candidateError } = await supabase
     .from("notification_delivery_jobs")
     .select("id")
@@ -116,6 +138,7 @@ async function processBatch() {
         p_error: null,
       });
       if (error) throw error;
+      await syncCampaignDelivery(job as NotificationJob, true, result.providerMessageId);
       sent++;
     } catch (error) {
       const message = error instanceof Error ? error.message.slice(0, 500) : "Unknown provider error";
@@ -125,6 +148,7 @@ async function processBatch() {
         p_provider_message_id: null,
         p_error: message,
       });
+      await syncCampaignDelivery(job as NotificationJob, false, undefined, message);
       failed++;
       console.error(JSON.stringify({ event: "notification_delivery_failed", job_id: job.id, channel: job.channel, attempts: job.attempts, error: message }));
     }

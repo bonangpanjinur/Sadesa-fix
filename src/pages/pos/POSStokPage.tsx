@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Search, AlertTriangle, Package, ArrowUpCircle, ArrowDownCircle, Edit2, History, TrendingUp, Layers3, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
-import { adjustPOSStock } from '@/lib/posOperations';
 
 interface StockItem {
   id: string;
@@ -134,15 +133,16 @@ export default function POSStokPage() {
     if (!adjustForm.quantity || isNaN(qty)) { toast.error('Jumlah harus diisi'); return; }
 
     try {
-      await adjustPOSStock({
-        stockId: selectedStock.id,
-        tenantId: tenant.id,
-        outletId: activeOutlet.id,
-        type: adjustForm.type,
-        quantity: Math.abs(qty),
-        notes: adjustForm.notes || null,
-      });
-      toast.success('Stok berhasil diperbarui');
+      const { error } = await supabase.rpc('request_pos_stock_adjustment' as never, {
+        p_stock_id: selectedStock.id,
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_type: adjustForm.type,
+        p_quantity: Math.abs(qty),
+        p_notes: adjustForm.notes || null,
+      } as never);
+      if (error) throw error;
+      toast.success('Permintaan penyesuaian stok dikirim untuk approval');
       setAdjustDialog(false);
       fetchStocks();
       fetchMutations();

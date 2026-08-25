@@ -9,6 +9,7 @@ import {
   type PendingSale,
 } from '@/lib/posOfflineDB';
 import { posBridgeFetch } from '@/lib/posBridge';
+import { processAtomicPOSSale } from '@/lib/posCheckout';
 
 interface OfflineProductApiRow {
   id: string;
@@ -123,38 +124,58 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     setIsSyncing(true);
     try {
       const result = await syncPendingSales(async (sale) => {
-        const res = await posBridgeFetch('/api/db/pos-sale', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': `offline-pos-sale:${sale.id}` },
-          body: JSON.stringify({
-            outlet_id: sale.outlet_id,
-            tenant_id: sale.tenant_id,
-            cashier_id: sale.cashier_id,
-            items: sale.items,
-            subtotal: sale.subtotal,
-            discount_amount: sale.discount_amount,
-            tax_amount: sale.tax_amount,
-            total: sale.total,
-            payment_method: sale.payment_method,
-            customer_id: sale.customer_id,
-            customer_name: sale.customer_name,
-            notes: sale.notes,
-            offline_id: sale.id,
-            created_at: sale.created_at,
-          }),
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({})) as { error?: string; code?: string; conflict?: boolean };
-          const conflict = body.conflict === true || res.status === 409;
+        try {
+          await processAtomicPOSSale(
+            sale.id,
+            sale.tenant_id,
+            sale.outlet_id,
+            sale.cashier_id,
+            {
+              sale_number: `OFF-${sale.id.slice(0, 20)}`,
+              cashier_name: null,
+              customer_id: sale.customer_id || null,
+              customer_name: sale.customer_name || null,
+              customer_segment: 'retail',
+              offline_sync: true,
+              subtotal: sale.subtotal,
+              discount_amount: sale.discount_amount,
+              tax_amount: sale.tax_amount,
+              total: sale.total,
+              payment_method: sale.payment_method,
+              payment_amount: sale.total,
+              change_amount: 0,
+              notes: sale.notes || `Offline sale ${sale.id}`,
+              promotion_discount: 0,
+              voucher_discount: 0,
+              loyalty_points_earned: 0,
+              loyalty_points_redeemed: 0,
+              loyalty_discount: 0,
+            },
+            sale.items.map((item) => ({
+              product_id: item.product_id,
+              variant_id: null,
+              name: item.name,
+              qty: item.qty,
+              price: item.price,
+              cost_price: 0,
+              discount: item.discount,
+              tax_amount: (item.price * item.qty - item.discount) * item.tax_rate / 100,
+              subtotal: item.price * item.qty - item.discount,
+            })),
+          );
+          return { success: true };
+        } catch (error: unknown) {
+          const rpcError = error as { code?: string; message?: string };
+          const message = rpcError.message || (error instanceof Error ? error.message : 'Offline sale sync failed');
+          const conflict = rpcError.code === 'P0001' || message.includes('Price conflict');
           return {
             success: false,
-            error: body.error || `HTTP ${res.status}`,
-            retryable: conflict ? false : isRetryableStatus(res.status),
+            error: message,
+            retryable: conflict ? false : rpcError.code ? isRetryableStatus(Number(rpcError.code)) : true,
             conflict,
-            conflictCode: body.code || (conflict ? 'SERVER_CONFLICT' : undefined),
+            conflictCode: conflict ? 'PRICE_CHANGED' : rpcError.code,
           };
         }
-        return { success: true };
       }, { tenantId, outletId });
       await refreshPendingCount();
       if (result.synced > 0 || result.failed > 0) setLastSync(new Date());

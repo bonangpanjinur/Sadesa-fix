@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/test/rls.integration.test.ts'],
+    include: ['src/test/rls.integration.test.ts', 'src/test/pos-price-loyalty.integration.test.ts'],
     environment: 'node',
     globals: true,
     setupFiles: [],

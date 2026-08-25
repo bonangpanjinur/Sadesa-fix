@@ -161,14 +161,12 @@ export default function AdminApprovalCenterPage() {
         ({ error } = await db.rpc('decide_pos_void', { p_request_id: selected.id, p_approve: approve, p_reason: decisionNotes || null }));
       } else if (selected.kind === 'price_override') {
         ({ error } = await db.rpc('decide_pos_price_override', { p_request_id: selected.id, p_approve: approve, p_reason: decisionNotes || null }));
+      } else if (selected.kind === 'approval' && selected.metadata.request_type === 'stock_adjustment') {
+        ({ error } = await db.rpc('decide_pos_stock_adjustment', { p_request_id: selected.id, p_approve: approve, p_notes: decisionNotes || null }));
       } else if (selected.kind === 'approval') {
         ({ error } = await db.rpc('decide_approval_request', { p_request_id: selected.id, p_approve: approve, p_notes: decisionNotes || null }));
       } else {
-        const result = await db.from<Record<string, unknown>>('refund_requests').update({
-          status: approve ? 'APPROVED' : 'REJECTED', admin_notes: decisionNotes || null,
-          processed_at: new Date().toISOString(),
-        }).eq('id', selected.id);
-        error = result.error;
+        ({ error } = await db.rpc('decide_refund_request', { p_request_id: selected.id, p_approve: approve, p_notes: decisionNotes || null }));
       }
       if (error) throw new Error(error.message);
       await logAdminAction(approve ? 'APPROVE_TRANSACTION_REQUEST' : 'REJECT_TRANSACTION_REQUEST', selected.kind, selected.id, { status: 'pending' }, { status: approve ? 'approved' : 'rejected', notes: decisionNotes || null });
