@@ -159,7 +159,9 @@ export default function AdminApprovalCenterPage() {
         ({ error } = await db.rpc('approve_pos_sale_return', { p_return_id: selected.id, p_approve: approve, p_rejection_reason: decisionNotes || null }));
       } else if (selected.kind === 'void') {
         ({ error } = await db.rpc('decide_pos_void', { p_request_id: selected.id, p_approve: approve, p_reason: decisionNotes || null }));
-      } else if (selected.kind === 'approval' || selected.kind === 'price_override') {
+      } else if (selected.kind === 'price_override') {
+        ({ error } = await db.rpc('decide_pos_price_override', { p_request_id: selected.id, p_approve: approve, p_reason: decisionNotes || null }));
+      } else if (selected.kind === 'approval') {
         ({ error } = await db.rpc('decide_approval_request', { p_request_id: selected.id, p_approve: approve, p_notes: decisionNotes || null }));
       } else {
         const result = await db.from<Record<string, unknown>>('refund_requests').update({
