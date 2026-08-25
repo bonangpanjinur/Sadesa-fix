@@ -85,33 +85,18 @@ export default function POSReturPage() {
     if (selected.length === 0) { toast.error('Pilih minimal 1 item untuk diretur'); return; }
 
     try {
-      const returnNumber = `RTN-${Date.now()}`;
-      const { data: ret, error } = await supabase.from('pos_sale_returns' as never).insert({
-        tenant_id: tenant.id, sale_id: foundSale.id, outlet_id: activeOutlet.id,
-        return_number: returnNumber, reason: form.reason || null,
-        refund_method: form.refund_method, total_refund: totalRefund,
-        restock: form.restock, created_by: user.id,
-      }).select().single();
+      const { data: result, error } = await supabase.rpc('request_pos_sale_return', {
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_sale_id: foundSale.id,
+        p_reason: form.reason || null,
+        p_refund_method: form.refund_method,
+        p_restock: form.restock,
+        p_items: selected.map(ri => ({ sale_item_id: ri.item.id, qty: ri.qty })),
+      });
       if (error) throw error;
-
-      await supabase.from('pos_sale_return_items' as never).insert(
-        selected.map(ri => ({
-          return_id: (ret as unknown as { id: string }).id, sale_item_id: ri.item.id, product_id: ri.item.product_id,
-          product_name: ri.item.product_name, qty: ri.qty, price: ri.item.price, subtotal: ri.item.price * ri.qty,
-        }))
-      );
-
-      if (form.restock) {
-        for (const ri of selected) {
-          const { data: stockData } = await supabase.from('pos_stock' as never).select('id, quantity').eq('outlet_id', activeOutlet.id).eq('product_id', ri.item.product_id || '').limit(1).single();
-          if (stockData) {
-            const stock = stockData as unknown as { id: string; quantity: number };
-            await supabase.from('pos_stock' as never).update({ quantity: stock.quantity + ri.qty }).eq('id', stock.id);
-          }
-        }
-      }
-
-      toast.success(`Retur ${returnNumber} berhasil. Refund: ${formatCurrency(totalRefund)}`);
+      const returnResult = result as unknown as { return_number: string; total_refund: number };
+      toast.success(`Retur ${returnResult.return_number} diajukan untuk approval. Refund: ${formatCurrency(returnResult.total_refund)}`);
       setDialogOpen(false);
       setFoundSale(null);
       setSaleSearch('');
