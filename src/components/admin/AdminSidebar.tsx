@@ -84,6 +84,7 @@ export function AdminSidebar({
     { label: 'Laporan Keuangan', href: '/admin/finance', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Refund', href: '/admin/refunds', icon: <RotateCcw className="h-4 w-4" />, badge: pendingRefunds },
     { label: 'Approval Center', href: '/admin/approval-center', icon: <FileCheck2 className="h-4 w-4" /> },
+    { label: 'Dispute Center', href: '/admin/disputes', icon: <FileText className="h-4 w-4" /> },
     { label: 'Laporan', href: '/admin/reports', icon: <FileText className="h-4 w-4" /> },
     { label: 'Banner Homepage', href: '/admin/banners', icon: <Image className="h-4 w-4" /> },
     { label: 'Promosi', href: '/admin/promotions', icon: <Megaphone className="h-4 w-4" /> },
