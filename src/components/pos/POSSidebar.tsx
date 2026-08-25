@@ -4,7 +4,7 @@ import {
   Users, Truck, Archive, BarChart3, UserCog, Settings,
   ChevronLeft, Store, RotateCcw, ShoppingBag, Wallet,
   TrendingUp, UserCheck, BoxesIcon, PieChart,
-  ArrowRightLeft, GitCompare, Shield, KeyRound,
+  ArrowRightLeft, GitCompare, Shield, KeyRound, Warehouse,
   Ticket, Star, Globe, Banknote, Monitor, BookOpen,
   FlaskConical, ChefHat, Table2, Tv2,
   Calendar, Clock, DollarSign, Target, CreditCard, QrCode
@@ -50,6 +50,7 @@ export function POSSidebar() {
     { label: 'Analitik Pelanggan', href: '/pos/analitik', icon: <PieChart className="h-4 w-4" /> },
     { label: 'Analitik Produk', href: '/pos/analitik-produk', icon: <TrendingUp className="h-4 w-4" /> },
     { label: 'Transfer Stok', href: '/pos/transfer-stok', icon: <ArrowRightLeft className="h-4 w-4" /> },
+    { label: 'Multi-Gudang', href: '/pos/gudang', icon: <Warehouse className="h-4 w-4" /> },
     { label: 'Lap. Outlet', href: '/pos/laporan/outlet', icon: <GitCompare className="h-4 w-4" /> },
     { label: 'Audit Trail', href: '/pos/audit', icon: <Shield className="h-4 w-4" /> },
     { label: 'Manajemen Akses', href: '/pos/akses', icon: <KeyRound className="h-4 w-4" /> },

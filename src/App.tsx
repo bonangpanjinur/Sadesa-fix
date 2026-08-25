@@ -166,6 +166,7 @@ const POSKategoriPage = lazy(() => import("./pages/pos/POSKategoriPage"));
 const POSCustomerPage = lazy(() => import("./pages/pos/POSCustomerPage"));
 const POSSupplierPage = lazy(() => import("./pages/pos/POSSupplierPage"));
 const POSHutangPage = lazy(() => import("./pages/pos/POSHutangPage"));
+const POSGudangPage = lazy(() => import("./pages/pos/POSGudangPage"));
 const POSStokPage = lazy(() => import("./pages/pos/POSStokPage"));
 const POSLaporanPage = lazy(() => import("./pages/pos/POSLaporanPage"));
 const POSPenggunaPage = lazy(() => import("./pages/pos/POSPenggunaPage"));
@@ -988,6 +989,7 @@ const App = () => (
               <Route path="/pos/customer" element={<ProtectedRoute><POSCustomerPage /></ProtectedRoute>} />
               <Route path="/pos/supplier" element={<ProtectedRoute><POSSupplierPage /></ProtectedRoute>} />
               <Route path="/pos/hutang" element={<ProtectedRoute><POSHutangPage /></ProtectedRoute>} />
+              <Route path="/pos/gudang" element={<ProtectedRoute><POSGudangPage /></ProtectedRoute>} />
               <Route path="/pos/stok" element={<ProtectedRoute><POSStokPage /></ProtectedRoute>} />
               <Route path="/pos/laporan" element={<ProtectedRoute><POSLaporanPage /></ProtectedRoute>} />
               <Route path="/pos/pengguna" element={<ProtectedRoute><POSPenggunaPage /></ProtectedRoute>} />
