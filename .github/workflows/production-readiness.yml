@@ -1,0 +1,157 @@
+name: Production Readiness Gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  checks: write
+
+concurrency:
+  group: production-readiness-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-security-and-migrations:
+    name: Security and migration checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate migration filenames and destructive SQL
+        run: pnpm validate:migrations
+
+      - name: Audit RLS coverage
+        run: pnpm audit:rls
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level high
+
+      - name: Secret and environment file scan
+        shell: bash
+        run: |
+          if git ls-files | grep -E '(^|/)(\.env|.*\.pem|.*\.key)$'; then
+            echo "Tracked environment or private-key file detected" >&2
+            exit 1
+          fi
+          if grep -RniE 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|BEGIN PRIVATE KEY|sk_live_[A-Za-z0-9]+' \
+              --exclude-dir=node_modules --exclude-dir=.git --exclude='*.lock' .; then
+            echo "Potential secret material detected" >&2
+            exit 1
+          fi
+
+      - name: API security script syntax check
+        run: bash -n scripts/security-api-smoke.sh scripts/check-production-env.sh scripts/load-test-staging.sh
+
+  application-quality:
+    name: Application quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: ESLint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Production build
+        run: pnpm build
+
+  staging-integration:
+    name: Optional Supabase staging integration
+    if: github.event_name == 'workflow_dispatch' && vars.RUN_STAGING_INTEGRATION == 'true'
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Require staging target
+        env:
+          SUPABASE_TARGET_LABEL: staging
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          test -n "$SUPABASE_PROJECT_REF"
+          test "$SUPABASE_TARGET_LABEL" = staging
+
+      - name: Apply staging migrations and worker
+        env:
+          SUPABASE_TARGET_LABEL: staging
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: pnpm deploy:staging:db
+
+      - name: Run staging integration suite
+        env:
+          RUN_POS_INTEGRATION: 'true'
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_STAGING_URL }}
+          SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+        run: pnpm test:integration
+
+      - name: Run staging API security smoke test
+        env:
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_STAGING_URL }}
+          SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_STAGING_ANON_KEY }}
+          SECURITY_TEST_ALLOWED_ORIGIN: ${{ secrets.SUPABASE_STAGING_ALLOWED_ORIGIN }}
+        run: bash scripts/security-api-smoke.sh

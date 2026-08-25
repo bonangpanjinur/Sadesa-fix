@@ -21,7 +21,8 @@
     "validate:migrations": "bash scripts/validate-migrations.sh",
     "deploy:staging:db": "bash scripts/deploy-supabase-staging.sh",
     "audit:rls": "python3 scripts/audit-rls-static.py",
-    "check:production-env": "bash scripts/check-production-env.sh"
+    "check:production-env": "bash scripts/check-production-env.sh",
+    "load:test:staging": "bash scripts/load-test-staging.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
