@@ -40,6 +40,7 @@ export function POSSidebar() {
     { label: 'Kategori', href: '/pos/kategori', icon: <Tag className="h-4 w-4" /> },
     { label: 'Customer', href: '/pos/customer', icon: <Users className="h-4 w-4" /> },
     { label: 'Supplier', href: '/pos/supplier', icon: <Truck className="h-4 w-4" /> },
+    { label: 'Hutang Supplier', href: '/pos/hutang', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Stok', href: '/pos/stok', icon: <Archive className="h-4 w-4" /> },
     { label: 'Lap. Penjualan', href: '/pos/laporan', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Lap. Laba Rugi', href: '/pos/laporan/laba-rugi', icon: <TrendingUp className="h-4 w-4" /> },
