@@ -33,7 +33,7 @@ interface UsePOSOfflineSyncOptions {
 }
 
 export function isRetryableStatus(status: number): boolean {
-  return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
+  return status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
 export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = true }: UsePOSOfflineSyncOptions) {
@@ -144,8 +144,15 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
           }),
         });
         if (!res.ok) {
-          const body = await res.json().catch(() => ({})) as { error?: string };
-          return { success: false, error: body.error || `HTTP ${res.status}`, retryable: isRetryableStatus(res.status) };
+          const body = await res.json().catch(() => ({})) as { error?: string; code?: string; conflict?: boolean };
+          const conflict = body.conflict === true || res.status === 409;
+          return {
+            success: false,
+            error: body.error || `HTTP ${res.status}`,
+            retryable: conflict ? false : isRetryableStatus(res.status),
+            conflict,
+            conflictCode: body.code || (conflict ? 'SERVER_CONFLICT' : undefined),
+          };
         }
         return { success: true };
       }, { tenantId, outletId });

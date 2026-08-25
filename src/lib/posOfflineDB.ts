@@ -36,7 +36,7 @@ export interface OfflineProduct {
   cached_at: number;
 }
 
-export type PendingSaleStatus = 'queued' | 'syncing' | 'failed' | 'synced';
+export type PendingSaleStatus = 'queued' | 'syncing' | 'failed' | 'conflict' | 'synced';
 
 export interface PendingSale {
   id: string;
@@ -66,12 +66,16 @@ export interface PendingSale {
   next_attempt_at?: number;
   last_attempt_at?: number;
   sync_error?: string;
+  conflict_code?: string;
+  conflict_message?: string;
 }
 
 export interface SyncResult {
   success: boolean;
   error?: string;
   retryable?: boolean;
+  conflict?: boolean;
+  conflictCode?: string;
 }
 
 function scopeKey(tenantId: string, outletId: string): string {
@@ -236,6 +240,28 @@ export async function markSaleSynced(id: string): Promise<void> {
   await waitForTransaction(tx);
 }
 
+export async function markSaleSyncConflict(id: string, error: string, code = 'CONFLICT'): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
+  const store = tx.objectStore(STORES.PENDING_SALES);
+  const request = store.get(id);
+  request.onsuccess = () => {
+    const record = request.result as PendingSale | undefined;
+    if (!record) return;
+    store.put({
+      ...record,
+      synced: false,
+      status: 'conflict',
+      last_attempt_at: Date.now(),
+      next_attempt_at: Number.MAX_SAFE_INTEGER,
+      sync_error: error.slice(0, 500),
+      conflict_code: code,
+      conflict_message: error.slice(0, 500),
+    });
+  };
+  await waitForTransaction(tx);
+}
+
 export async function markSaleSyncError(id: string, error: string, retryable = true): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
@@ -296,7 +322,11 @@ export async function syncPendingSales(
         await markSaleSynced(sale.id);
         synced++;
       } else {
-        await markSaleSyncError(sale.id, result.error || 'Unknown sync error', result.retryable !== false);
+        if (result.conflict) {
+          await markSaleSyncConflict(sale.id, result.error || 'Sync conflict', result.conflictCode || 'CONFLICT');
+        } else {
+          await markSaleSyncError(sale.id, result.error || 'Unknown sync error', result.retryable !== false);
+        }
         failed++;
       }
     } catch (error) {
