@@ -12,7 +12,6 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Package, ChevronLeft, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { POSSidebar } from '@/components/pos/POSSidebar';
-import { POSCart } from '@/components/pos/kasir/POSCart';
 import { cn } from '@/lib/utils';
 import { processAtomicPOSSale } from '@/lib/posCheckout';
 import { usePOSOfflineSync } from '@/hooks/usePOSOfflineSync';
@@ -21,6 +20,7 @@ import type {
   Promotion, Voucher, Product, Variant,
 } from '@/components/pos/kasir/types';
 
+const POSCart = lazy(() => import('@/components/pos/kasir/POSCart').then(({ POSCart: Component }) => ({ default: Component })));
 const BarcodeScanner = lazy(() => import('@/components/pos/BarcodeScanner').then(({ BarcodeScanner: Component }) => ({ default: Component })));
 const POSPaymentDialog = lazy(() => import('@/components/pos/kasir/POSPaymentDialog').then(({ POSPaymentDialog: Component }) => ({ default: Component })));
 const POSHeldBills = lazy(() => import('@/components/pos/kasir/POSHeldBills').then(({ POSHeldBills: Component }) => ({ default: Component })));
@@ -774,7 +774,8 @@ export default function POSKasirPage() {
           </div>
         </div>
 
-        {/* Panel Cart — pakai komponen POSCart */}
+        {/* Panel Cart — lazy-loaded agar katalog awal lebih ringan */}
+        <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">Memuat keranjang...</div>}>
         <POSCart
           cart={cart} discount={discount} notes={notes}
           selectedCustomer={selectedCustomer} customerName={customerName} customerTier={customerTier}
@@ -795,6 +796,7 @@ export default function POSKasirPage() {
           onApplyVoucher={applyVoucher} onRemoveVoucher={removeVoucher}
           onSetVoucherCode={setVoucherCode} onSetVoucherError={setVoucherError}
         />
+        </Suspense>
       </div>
 
       {/* Dialog Pembayaran: dimuat hanya ketika kasir membuka checkout */}
