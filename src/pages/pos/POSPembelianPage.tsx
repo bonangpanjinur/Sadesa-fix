@@ -291,78 +291,18 @@ export default function POSPembelianPage() {
     if (!selectedPO || !tenant || !activeOutlet || !user) return;
     setSaving(true);
     try {
-      const items = selectedPO.pos_purchase_order_items || [];
-      let allReceived = true;
-      let anyReceived = false;
+      const receivedItems = Object.entries(receiveQtys)
+        .filter(([, quantity]) => quantity > 0)
+        .map(([item_id, quantity]) => ({ item_id, quantity }));
+      if (receivedItems.length === 0) { toast.error('Tidak ada barang yang diterima'); setSaving(false); return; }
 
-      for (const item of items) {
-        const receiveQty = receiveQtys[item.id!] || 0;
-        if (receiveQty <= 0) continue;
-        anyReceived = true;
-
-        const newQtyReceived = item.qty_received + receiveQty;
-        if (newQtyReceived < item.qty_ordered) allReceived = false;
-
-        await supabase.from('pos_purchase_order_items' as never)
-          .update({ qty_received: newQtyReceived })
-          .eq('id', item.id);
-
-        if (item.product_id) {
-          const { data: existing } = await supabase.from('pos_stock' as never)
-            .select('id, quantity')
-            .eq('product_id', item.product_id)
-            .eq('outlet_id', activeOutlet.id)
-            .maybeSingle();
-
-          if (existing) {
-            const newQty = Number((existing as unknown as StockRow).quantity) + receiveQty;
-            await supabase.from('pos_stock' as never)
-              .update({ quantity: newQty, updated_at: new Date().toISOString() })
-              .eq('id', (existing as unknown as StockRow).id);
-            await supabase.from('pos_stock_mutations' as never).insert({
-              tenant_id: tenant.id,
-              product_id: item.product_id,
-              outlet_id: activeOutlet.id,
-              type: 'purchase',
-              quantity: receiveQty,
-              quantity_before: Number((existing as unknown as StockRow).quantity),
-              quantity_after: newQty,
-              reference_id: selectedPO.id,
-              reference_type: 'purchase_order',
-              notes: `Penerimaan PO ${selectedPO.po_number}`,
-              created_by: user.id,
-            });
-          } else {
-            await supabase.from('pos_stock' as never).insert({
-              tenant_id: tenant.id,
-              product_id: item.product_id,
-              outlet_id: activeOutlet.id,
-              quantity: receiveQty,
-              min_stock: 0,
-            });
-            await supabase.from('pos_stock_mutations' as never).insert({
-              tenant_id: tenant.id,
-              product_id: item.product_id,
-              outlet_id: activeOutlet.id,
-              type: 'purchase',
-              quantity: receiveQty,
-              quantity_before: 0,
-              quantity_after: receiveQty,
-              reference_id: selectedPO.id,
-              reference_type: 'purchase_order',
-              notes: `Penerimaan PO ${selectedPO.po_number}`,
-              created_by: user.id,
-            });
-          }
-        }
-      }
-
-      if (!anyReceived) { toast.error('Tidak ada barang yang diterima'); setSaving(false); return; }
-
-      const newStatus = allReceived ? 'received' : 'partial';
-      await supabase.from('pos_purchase_orders' as never)
-        .update({ status: newStatus, received_date: new Date().toISOString(), updated_by: user.id })
-        .eq('id', selectedPO.id);
+      const { error } = await supabase.rpc('receive_pos_purchase_order', {
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_purchase_order_id: selectedPO.id,
+        p_items: receivedItems,
+      });
+      if (error) throw error;
 
       toast.success('Penerimaan barang berhasil disimpan & stok diperbarui');
       setReceiveDialogOpen(false);
