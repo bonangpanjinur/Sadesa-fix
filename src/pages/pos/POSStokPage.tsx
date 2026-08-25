@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Search, AlertTriangle, Package, ArrowUpCircle, ArrowDownCircle, Edit2, History, TrendingUp } from 'lucide-react';
+import { Search, AlertTriangle, Package, ArrowUpCircle, ArrowDownCircle, Edit2, History, TrendingUp, Layers3, CalendarDays } from 'lucide-react';
 import { format } from 'date-fns';
 import { adjustPOSStock } from '@/lib/posOperations';
 
@@ -22,6 +22,18 @@ interface StockItem {
   quantity: number;
   min_stock: number;
   pos_products: { name: string; sku: string | null; unit: string; price: number; cost_price: number; is_active: boolean } | null;
+}
+
+interface BatchItem {
+  id: string;
+  stock_id: string | null;
+  product_id: string;
+  batch_number: string;
+  expiry_date: string | null;
+  quantity: number;
+  unit_cost: number;
+  received_at: string;
+  pos_products: { name: string; unit: string } | null;
 }
 
 interface Mutation {
@@ -54,7 +66,9 @@ export default function POSStokPage() {
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [selectedStock, setSelectedStock] = useState<StockItem | null>(null);
   const [adjustForm, setAdjustForm] = useState({ type: 'adjustment', quantity: '', notes: '' });
-
+  const [batches, setBatches] = useState<BatchItem[]>([]);
+  const [batchDialog, setBatchDialog] = useState(false);
+  const [batchForm, setBatchForm] = useState({ stockId: '', batchNumber: '', expiryDate: '', quantity: '', unitCost: '' });
 
   const fetchStocks = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
@@ -66,6 +80,18 @@ export default function POSStokPage() {
       .order('pos_products(name)');
     setStocks((data || []) as unknown as StockItem[]);
     setLoading(false);
+  }, [tenant, activeOutlet]);
+
+  const fetchBatches = useCallback(async () => {
+    if (!tenant || !activeOutlet) return;
+    const { data } = await supabase
+      .from('pos_stock_batches' as never)
+      .select('*, pos_products(name, unit)')
+      .eq('tenant_id', tenant.id)
+      .eq('outlet_id', activeOutlet.id)
+      .order('expiry_date', { ascending: true, nullsFirst: false })
+      .order('received_at', { ascending: true });
+    setBatches((data || []) as unknown as BatchItem[]);
   }, [tenant, activeOutlet]);
 
   const fetchMutations = useCallback(async () => {
@@ -83,9 +109,10 @@ export default function POSStokPage() {
   useEffect(() => {
     if (tenant && activeOutlet) {
       void fetchStocks();
+      void fetchBatches();
       void fetchMutations();
     }
-  }, [tenant, activeOutlet, fetchStocks, fetchMutations]);
+  }, [tenant, activeOutlet, fetchStocks, fetchBatches, fetchMutations]);
 
   const filtered = stocks.filter(s =>
     (s.pos_products?.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -124,6 +151,36 @@ export default function POSStokPage() {
     }
   };
 
+  const handleSaveBatch = async () => {
+    if (!tenant || !activeOutlet) return;
+    const stock = stocks.find((item) => item.id === batchForm.stockId);
+    const quantity = Number(batchForm.quantity);
+    const unitCost = Number(batchForm.unitCost || 0);
+    if (!stock || !batchForm.batchNumber.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitCost) || unitCost < 0) {
+      toast.error('Produk, nomor batch, dan jumlah batch wajib valid');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('pos_stock_batches' as never).insert({
+        tenant_id: tenant.id,
+        outlet_id: activeOutlet.id,
+        stock_id: stock.id,
+        product_id: stock.product_id,
+        batch_number: batchForm.batchNumber.trim(),
+        expiry_date: batchForm.expiryDate || null,
+        quantity,
+        unit_cost: unitCost,
+      });
+      if (error) throw error;
+      toast.success('Batch stok berhasil dicatat');
+      setBatchDialog(false);
+      setBatchForm({ stockId: '', batchNumber: '', expiryDate: '', quantity: '', unitCost: '' });
+      await fetchBatches();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal mencatat batch stok');
+    }
+  };
+
   const handleMinStockUpdate = async (stockId: string, minStock: number) => {
     await supabase.from('pos_stock' as never).update({ min_stock: minStock }).eq('id', stockId);
     fetchStocks();
@@ -143,6 +200,7 @@ export default function POSStokPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="stok">Stok Saat Ini</TabsTrigger>
           <TabsTrigger value="mutasi">Riwayat Mutasi</TabsTrigger>
+          <TabsTrigger value="batch">Batch & FEFO</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stok">
@@ -235,6 +293,16 @@ export default function POSStokPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="batch">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div><h3 className="font-semibold flex items-center gap-2"><Layers3 className="h-4 w-4 text-primary" />Lot stok dan expiry</h3><p className="text-xs text-muted-foreground">Batch ditampilkan dalam urutan FEFO: expiry terdekat diprioritaskan.</p></div>
+              <Button size="sm" onClick={() => setBatchDialog(true)}><Package className="h-4 w-4 mr-1" />Tambah Batch</Button>
+            </div>
+            {batches.length === 0 ? <div className="text-center py-12 text-muted-foreground"><Layers3 className="h-10 w-10 mx-auto mb-2 opacity-50" />Belum ada batch yang tercatat.</div> : <div className="space-y-2">{batches.map((batch) => { const expired = !!batch.expiry_date && new Date(batch.expiry_date) < new Date(); const soon = !!batch.expiry_date && !expired && new Date(batch.expiry_date).getTime() - Date.now() < 30 * 86400000; return <Card key={batch.id} className={`border shadow-sm ${expired ? 'border-red-300 bg-red-50/40' : soon ? 'border-amber-300 bg-amber-50/40' : ''}`}><CardContent className="p-3 flex items-center gap-3"><div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center"><Layers3 className="h-4 w-4 text-muted-foreground" /></div><div className="flex-1 min-w-0"><div className="flex items-center gap-2"><p className="font-medium text-sm truncate">{batch.pos_products?.name ?? batch.product_id}</p>{expired && <Badge variant="destructive">Expired</Badge>}{soon && <Badge variant="warning">Segera expiry</Badge>}</div><p className="text-xs text-muted-foreground">Batch: {batch.batch_number} · Diterima {format(new Date(batch.received_at), 'dd/MM/yy')}</p></div><div className="text-right"><p className="font-bold text-sm">{batch.quantity} {batch.pos_products?.unit ?? 'unit'}</p><p className="text-xs text-muted-foreground flex items-center justify-end gap-1"><CalendarDays className="h-3 w-3" />{batch.expiry_date ? format(new Date(batch.expiry_date), 'dd/MM/yyyy') : 'Tanpa expiry'}</p></div></CardContent></Card>; })}</div>}
+          </div>
+        </TabsContent>
+
         <TabsContent value="mutasi">
           <div className="space-y-2">
             {mutations.length === 0 ? (
@@ -274,6 +342,19 @@ export default function POSStokPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={batchDialog} onOpenChange={setBatchDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Tambah Batch Stok</DialogTitle></DialogHeader>
+          <div className="space-y-3 py-2">
+            <div><Label>Produk</Label><Select value={batchForm.stockId} onValueChange={(value) => setBatchForm((prev) => ({ ...prev, stockId: value }))}><SelectTrigger className="mt-1"><SelectValue placeholder="Pilih produk" /></SelectTrigger><SelectContent>{stocks.map((stock) => <SelectItem key={stock.id} value={stock.id}>{stock.pos_products?.name ?? stock.product_id} ({stock.quantity} {stock.pos_products?.unit ?? 'unit'})</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Nomor batch</Label><Input className="mt-1" value={batchForm.batchNumber} onChange={(event) => setBatchForm((prev) => ({ ...prev, batchNumber: event.target.value }))} placeholder="BATCH-2026-001" maxLength={80} /></div>
+            <div className="grid grid-cols-2 gap-3"><div><Label>Expiry date</Label><Input className="mt-1" type="date" value={batchForm.expiryDate} onChange={(event) => setBatchForm((prev) => ({ ...prev, expiryDate: event.target.value }))} /></div><div><Label>Jumlah</Label><Input className="mt-1" type="number" min="0.001" step="0.001" value={batchForm.quantity} onChange={(event) => setBatchForm((prev) => ({ ...prev, quantity: event.target.value }))} /></div></div>
+            <div><Label>Harga modal per unit</Label><Input className="mt-1" type="number" min="0" step="0.01" value={batchForm.unitCost} onChange={(event) => setBatchForm((prev) => ({ ...prev, unitCost: event.target.value }))} /></div>
+          </div>
+          <DialogFooter><Button variant="outline" onClick={() => setBatchDialog(false)}>Batal</Button><Button onClick={() => void handleSaveBatch()}>Simpan Batch</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={adjustDialog} onOpenChange={setAdjustDialog}>
         <DialogContent>
