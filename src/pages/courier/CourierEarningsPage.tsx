@@ -1,6 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Package, CheckCircle, ArrowLeft, FileDown } from 'lucide-react';
+import { Wallet, TrendingUp, Package, CheckCircle, ArrowLeft, FileDown, Banknote, AlertTriangle, ClipboardCheck } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface EarningRecord {
   id: string;
@@ -21,6 +26,10 @@ interface EarningRecord {
   created_at: string;
   paid_at: string | null;
 }
+
+interface CodReconciliation { id: string; order_id: string; expected_cash: number; collected_cash: number; variance: number; status: string; notes: string | null; submitted_at: string; }
+interface CodEligibleOrder { id: string; total: number; shipping_cost: number | null; status: string; created_at: string; }
+interface CodData { records: CodReconciliation[]; eligibleOrders: CodEligibleOrder[]; }
 
 interface EarningsData {
   earnings: EarningRecord[];
@@ -41,6 +50,12 @@ export default function CourierEarningsPage() {
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
   }, [user, authLoading, navigate]);
+
+  const [codDialogOpen, setCodDialogOpen] = useState(false);
+  const [selectedCodOrder, setSelectedCodOrder] = useState<CodEligibleOrder | null>(null);
+  const [collectedCash, setCollectedCash] = useState('');
+  const [codNotes, setCodNotes] = useState('');
+  const [codSubmitting, setCodSubmitting] = useState(false);
 
   const { data, isLoading: loading } = useQuery<EarningsData>({
     queryKey: ['courier-earnings', user?.id],
@@ -85,6 +100,37 @@ export default function CourierEarningsPage() {
     enabled: !!user && !authLoading,
     staleTime: 60_000,
   });
+
+  const { data: codData, refetch: refetchCod } = useQuery<CodData>({
+    queryKey: ['courier-cod-reconciliation', user?.id],
+    queryFn: async () => {
+      const { data: courier } = await supabase.from('couriers').select('id, registration_status').eq('user_id', user!.id).maybeSingle();
+      if (!courier || courier.registration_status !== 'APPROVED') return { records: [], eligibleOrders: [] };
+      const [{ data: records }, { data: eligibleOrders }] = await Promise.all([
+        supabase.from('courier_cod_reconciliations').select('*').eq('courier_id', courier.id).order('submitted_at', { ascending: false }),
+        supabase.from('orders').select('id, total, shipping_cost, status, created_at').eq('courier_id', courier.id).eq('payment_method', 'COD').in('status', ['DONE', 'DELIVERED']).order('created_at', { ascending: false }).limit(50),
+      ]);
+      const reconciledIds = new Set((records ?? []).map((record) => record.order_id));
+      return { records: (records ?? []) as CodReconciliation[], eligibleOrders: ((eligibleOrders ?? []) as CodEligibleOrder[]).filter((order) => !reconciledIds.has(order.id)) };
+    },
+    enabled: !!user && !authLoading,
+    staleTime: 30_000,
+  });
+
+  const submitCodReconciliation = async () => {
+    if (!selectedCodOrder || !user) return;
+    const amount = Number(collectedCash);
+    if (!Number.isFinite(amount) || amount < 0) return;
+    setCodSubmitting(true);
+    try {
+      const { data: courier } = await supabase.from('couriers').select('id').eq('user_id', user.id).maybeSingle();
+      if (!courier) throw new Error('Profil kurir tidak ditemukan');
+      const { error } = await supabase.rpc('submit_courier_cod_reconciliation' as never, { p_courier_id: courier.id, p_order_id: selectedCodOrder.id, p_collected_cash: amount, p_notes: codNotes || null } as never);
+      if (error) throw error;
+      toast({ title: 'Rekonsiliasi COD dikirim', description: 'Setoran akan ditinjau oleh admin.' });
+      setCodDialogOpen(false); setSelectedCodOrder(null); setCollectedCash(''); setCodNotes(''); await refetchCod();
+    } catch (error) { toast({ title: 'Gagal mengirim rekonsiliasi', description: error instanceof Error ? error.message : 'Silakan coba lagi', variant: 'destructive' }); } finally { setCodSubmitting(false); }
+  };
 
   if (authLoading || loading) {
     return (
@@ -174,6 +220,7 @@ export default function CourierEarningsPage() {
               <TabsTrigger value="delivery" className="flex-1">Delivery</TabsTrigger>
               <TabsTrigger value="ride" className="flex-1">Ojek</TabsTrigger>
               <TabsTrigger value="pending" className="flex-1">Pending</TabsTrigger>
+              <TabsTrigger value="cod" className="flex-1">COD</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="mt-4 space-y-3">
@@ -199,9 +246,13 @@ export default function CourierEarningsPage() {
                 ? <p className="text-center py-8 text-muted-foreground">Tidak ada pending</p>
                 : pendingEarnings.map(e => <EarningCard key={e.id} earning={e} />)}
             </TabsContent>
+            <TabsContent value="cod" className="mt-4 space-y-3">
+              <Card><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Banknote className="h-4 w-4 text-primary" />Rekonsiliasi COD</CardTitle></CardHeader><CardContent className="space-y-3"><p className="text-sm text-muted-foreground">Laporkan uang tunai yang diterima dari order COD yang sudah selesai. Nilai expected dihitung server berdasarkan order.</p>{(codData?.eligibleOrders ?? []).map((order) => <div key={order.id} className="flex items-center gap-3 border rounded-lg p-3"><div className="flex-1"><p className="font-mono text-sm">#{order.id.slice(0, 8).toUpperCase()}</p><p className="text-xs text-muted-foreground">{new Date(order.created_at).toLocaleDateString('id-ID')} · Expected {formatPrice(order.total + (order.shipping_cost ?? 0))}</p></div><Button size="sm" onClick={() => { setSelectedCodOrder(order); setCollectedCash(String(order.total + (order.shipping_cost ?? 0))); setCodDialogOpen(true); }}>Setorkan</Button></div>)}{(codData?.eligibleOrders ?? []).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Tidak ada order COD yang menunggu rekonsiliasi.</p>}{(codData?.records ?? []).map((record) => <div key={record.id} className="border rounded-lg p-3"><div className="flex justify-between gap-3"><div><p className="font-mono text-sm">#{record.order_id.slice(0, 8).toUpperCase()}</p><p className="text-xs text-muted-foreground">Expected {formatPrice(record.expected_cash)} · Disetor {formatPrice(record.collected_cash)}</p></div><Badge variant={record.status === 'matched' || record.status === 'approved' ? 'default' : record.status === 'shortage' ? 'destructive' : 'secondary'}>{record.status}</Badge></div>{record.variance !== 0 && <p className="text-xs text-amber-600 mt-2 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Selisih {formatPrice(Math.abs(record.variance))}</p>}</div>)}</CardContent></Card>
+            </TabsContent>
           </Tabs>
         </motion.div>
       </div>
+      <Dialog open={codDialogOpen} onOpenChange={setCodDialogOpen}><DialogContent><DialogHeader><DialogTitle><ClipboardCheck className="inline h-4 w-4 mr-2" />Setor COD #{selectedCodOrder?.id.slice(0, 8).toUpperCase()}</DialogTitle></DialogHeader><div className="space-y-3"><div className="rounded-lg bg-muted p-3 text-sm">Expected cash: <strong>{selectedCodOrder ? formatPrice(selectedCodOrder.total + (selectedCodOrder.shipping_cost ?? 0)) : '-'}</strong></div><div><Label>Uang tunai diterima</Label><Input className="mt-1" type="number" min="0" step="1" value={collectedCash} onChange={(event) => setCollectedCash(event.target.value)} /></div><div><Label>Catatan</Label><Textarea className="mt-1" maxLength={500} value={codNotes} onChange={(event) => setCodNotes(event.target.value)} /></div></div><DialogFooter><Button variant="outline" onClick={() => setCodDialogOpen(false)}>Batal</Button><Button onClick={() => void submitCodReconciliation()} disabled={codSubmitting}>{codSubmitting ? 'Mengirim...' : 'Kirim Rekonsiliasi'}</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }
