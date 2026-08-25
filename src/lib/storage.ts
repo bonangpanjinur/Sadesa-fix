@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { observe, reportObservability } from '@/lib/observability';
 
 export type StorageBucket = 'products' | 'product-images' | 'tourism-images' | 'profile-images' | 'merchant-images' | 'promotions' | 'pod-images' | 'village-images' | 'payment-proofs' | 'admin-assets';
 
@@ -18,7 +19,9 @@ interface UploadResult {
  * Upload a file to Supabase Storage
  */
 export async function uploadFile({ bucket, path, file }: UploadOptions): Promise<UploadResult> {
+  const context = { bucket, fileType: file.type || 'unknown', sizeBytes: file.size };
   try {
+    return await observe('upload', 'file_upload', async () => {
     // Generate unique filename
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${path}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -30,10 +33,7 @@ export async function uploadFile({ bucket, path, file }: UploadOptions): Promise
         upsert: false,
       });
 
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      return { url: null, error: uploadError.message };
-    }
+    if (uploadError) throw uploadError;
 
     // Get public URL
     const { data: urlData } = supabase.storage
@@ -41,8 +41,9 @@ export async function uploadFile({ bucket, path, file }: UploadOptions): Promise
       .getPublicUrl(fileName);
 
     return { url: urlData.publicUrl, error: null };
+    }, context);
   } catch (err) {
-    console.error('Upload exception:', err);
+    reportObservability('upload', 'file_upload_result_error', 'error', context, err);
     return { url: null, error: 'Gagal mengupload file' };
   }
 }
@@ -52,6 +53,7 @@ export async function uploadFile({ bucket, path, file }: UploadOptions): Promise
  */
 export async function deleteFile(bucket: StorageBucket, url: string): Promise<boolean> {
   try {
+    reportObservability('upload', 'file_delete_started', 'info', { bucket });
     // Extract path from URL
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split(`/storage/v1/object/public/${bucket}/`);
@@ -63,14 +65,12 @@ export async function deleteFile(bucket: StorageBucket, url: string): Promise<bo
       .from(bucket)
       .remove([filePath]);
 
-    if (error) {
-      console.error('Delete error:', error);
-      return false;
-    }
+    if (error) throw error;
 
+    reportObservability('upload', 'file_delete_succeeded', 'info', { bucket });
     return true;
   } catch (err) {
-    console.error('Delete exception:', err);
+    reportObservability('upload', 'file_delete_failed', 'error', { bucket }, err);
     return false;
   }
 }

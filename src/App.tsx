@@ -15,6 +15,7 @@ import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { POSProvider } from "./contexts/POSContext";
+import { logUnhandledErrors } from '@/lib/observability';
 
 // Lazy-load semua halaman agar bundle awal kecil (P2-02)
 // Pages
@@ -92,6 +93,7 @@ const AdminAuditLogPage = lazy(() => import("./pages/admin/AdminAuditLogPage"));
 const AdminWhatsAppPage = lazy(() => import("./pages/admin/AdminWhatsAppPage"));
 const AdminApiKeysPage = lazy(() => import("./pages/admin/AdminApiKeysPage"));
 const AdminPushNotificationPage = lazy(() => import("./pages/admin/AdminPushNotificationPage"));
+const AdminPwaDevicesPage = lazy(() => import("./pages/admin/AdminPwaDevicesPage"));
 const AdminCashbackPage = lazy(() => import("./pages/admin/AdminCashbackPage"));
 const AdminIklanPage = lazy(() => import("./pages/admin/AdminIklanPage"));
 const AdminRealtimeDashboardPage = lazy(() => import("./pages/admin/AdminRealtimeDashboardPage"));
@@ -284,6 +286,11 @@ function RestockNotificationHandler() {
   return null;
 }
 
+function ObservabilityBootstrap() {
+  useEffect(() => logUnhandledErrors(), []);
+  return null;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -296,6 +303,7 @@ const App = () => (
               <Sonner />
               <OfflineIndicator />
               <RestockNotificationHandler />
+              <ObservabilityBootstrap />
               <BrowserRouter>
                 <RedirectHandler />
                 <SEO />
@@ -687,6 +695,11 @@ const App = () => (
               <Route path="/admin/api-keys" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminApiKeysPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/pwa-devices" element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminPwaDevicesPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/push-notification" element={

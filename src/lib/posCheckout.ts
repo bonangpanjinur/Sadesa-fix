@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { createTraceId, getErrorCode, reportObservability } from '@/lib/observability';
 
 export interface AtomicPOSSaleItem {
   product_id: string;
@@ -56,15 +57,24 @@ export async function processAtomicPOSSale(
   sale: AtomicPOSSaleInput,
   items: AtomicPOSSaleItem[],
 ): Promise<AtomicPOSSaleResult> {
-  const { data, error } = await supabase.rpc('process_pos_sale' as never, {
-    p_request_key: requestKey,
-    p_tenant_id: tenantId,
-    p_outlet_id: outletId,
-    p_cashier_id: cashierId,
-    p_sale: sale,
-    p_items: items,
-  } as never);
-
-  if (error) throw error;
-  return data as unknown as AtomicPOSSaleResult;
+  const traceId = createTraceId('pos-sale');
+  const startedAt = Date.now();
+  reportObservability('payment', 'pos_checkout_started', 'info', { itemCount: items.length, offline: Boolean(sale.offline_sync), paymentMethod: sale.payment_method }, undefined, { traceId });
+  try {
+    const { data, error } = await supabase.rpc('process_pos_sale' as never, {
+      p_request_key: requestKey,
+      p_tenant_id: tenantId,
+      p_outlet_id: outletId,
+      p_cashier_id: cashierId,
+      p_sale: sale,
+      p_items: items,
+    } as never);
+    if (error) throw error;
+    const result = data as unknown as AtomicPOSSaleResult;
+    reportObservability('payment', result.duplicate ? 'pos_checkout_duplicate' : 'pos_checkout_succeeded', 'info', { itemCount: items.length, duplicate: result.duplicate, offline: Boolean(sale.offline_sync), durationMs: Date.now() - startedAt }, undefined, { traceId, durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    reportObservability('payment', 'pos_checkout_failed', 'error', { itemCount: items.length, offline: Boolean(sale.offline_sync), errorCode: getErrorCode(error) }, error, { traceId, durationMs: Date.now() - startedAt });
+    throw error;
+  }
 }

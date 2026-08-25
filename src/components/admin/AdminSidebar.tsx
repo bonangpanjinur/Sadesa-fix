@@ -29,7 +29,8 @@ import {
   Key,
   Gift,
   HeadphonesIcon,
-  Search
+  Search,
+  Smartphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -91,6 +92,7 @@ export function AdminSidebar({
     { label: 'Iklan Berbayar', href: '/admin/iklan', icon: <Megaphone className="h-4 w-4" /> },
     { label: 'Broadcast', href: '/admin/broadcast', icon: <Bell className="h-4 w-4" /> },
     { label: 'Push Notification', href: '/admin/push-notification', icon: <Bell className="h-4 w-4" /> },
+    { label: 'PWA Devices', href: '/admin/pwa-devices', icon: <Smartphone className="h-4 w-4" /> },
     { label: 'Kode Verifikator', href: '/admin/codes', icon: <TicketCheck className="h-4 w-4" /> },
     { label: 'Backup Data', href: '/admin/backup', icon: <Database className="h-4 w-4" /> },
     { label: 'Ojek Desa', href: '/admin/rides', icon: <Activity className="h-4 w-4" /> },
