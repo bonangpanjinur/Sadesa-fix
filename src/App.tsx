@@ -144,6 +144,8 @@ const MerchantDuesPage = lazy(() => import("./pages/merchant/MerchantDuesPage"))
 const MerchantNotifikasiWAPage = lazy(() => import("./pages/merchant/MerchantNotifikasiWAPage"));
 const MerchantImportExportPage = lazy(() => import("./pages/merchant/MerchantImportExportPage"));
 const MerchantFulfillmentPage = lazy(() => import("./pages/merchant/MerchantFulfillmentPage"));
+const MerchantPriceBookPage = lazy(() => import("./pages/merchant/MerchantPriceBookPage"));
+const MerchantLoyaltyRulesPage = lazy(() => import("./pages/merchant/MerchantLoyaltyRulesPage"));
 const MerchantInsightPage = lazy(() => import("./pages/merchant/MerchantInsightPage"));
 const MerchantIklanPage = lazy(() => import("./pages/merchant/MerchantIklanPage"));
 const MerchantGalleryPage = lazy(() => import("./pages/merchant/MerchantGalleryPage"));
@@ -769,6 +771,16 @@ const App = () => (
               <Route path="/merchant/fulfillment" element={
                 <ProtectedRoute>
                   <MerchantFulfillmentPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/merchant/price-book" element={
+                <ProtectedRoute>
+                  <MerchantPriceBookPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/merchant/loyalty-rules" element={
+                <ProtectedRoute>
+                  <MerchantLoyaltyRulesPage />
                 </ProtectedRoute>
               } />
               <Route path="/merchant/settings" element={

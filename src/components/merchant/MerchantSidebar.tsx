@@ -29,7 +29,9 @@ import {
   TrendingUp,
   Layers,
   Clock,
-  FileText
+  FileText,
+  BookOpen,
+  Gift
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -129,6 +131,8 @@ export function MerchantSidebar() {
     { label: 'Kasir POS', href: '/merchant/pos', icon: <Receipt className="h-4 w-4" /> },
     { label: 'Pesanan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
     { label: 'Fulfillment Parsial', href: '/merchant/fulfillment', icon: <Truck className="h-4 w-4" /> },
+    { label: 'Price Book', href: '/merchant/price-book', icon: <BookOpen className="h-4 w-4" /> },
+    { label: 'Loyalty Rules', href: '/merchant/loyalty-rules', icon: <Gift className="h-4 w-4" /> },
     { label: 'Produk', href: '/merchant/products', icon: <Package className="h-4 w-4" />, badge: lowStockCount },
     { label: 'Manajemen Stok', href: '/merchant/stock', icon: <Layers className="h-4 w-4" />, badge: lowStockCount > 0 ? lowStockCount : undefined },
     { label: 'Galeri Toko', href: '/merchant/gallery', icon: <Images className="h-4 w-4" /> },
