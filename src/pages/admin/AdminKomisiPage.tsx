@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Percent, Edit2, Plus, Save, TrendingUp, Store } from 'lucide-react';
+import { AdminCourierCodPanel } from '@/components/admin/AdminCourierCodPanel';
 
 interface CommissionOrder {
   total: number | null;
@@ -186,6 +187,8 @@ export default function AdminKomisiPage() {
             </Card>
           ))}
         </div>
+
+        <AdminCourierCodPanel />
 
         {/* Table */}
         <Card>
