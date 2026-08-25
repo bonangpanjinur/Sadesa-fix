@@ -558,16 +558,20 @@ export default function CheckoutPage() {
           throw itemsError;
         }
 
-        // Decrement product stock
-        for (const item of merchantData.items) {
-          const { error: stockError } = await supabase.rpc('decrement_stock', {
-            p_product_id: item.product.id,
-            p_quantity: item.quantity,
-          });
-          if (stockError) {
-            console.error('Stock decrement error:', stockError);
-            throw new Error('Stok produk tidak mencukupi atau produk sudah tidak tersedia');
-          }
+        // Reserve stock atomically before payment/fulfillment. The reservation owns
+        // the quantity until the order is completed, cancelled, or expires.
+        const { error: reservationError } = await supabase.rpc('reserve_marketplace_stock' as never, {
+          p_order_id: orderData.id,
+          p_items: merchantData.items.map((item) => ({
+            product_id: item.product.id,
+            variant_id: null,
+            quantity: Math.trunc(item.quantity),
+          })),
+          p_expires_at: confirmationDeadline || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        } as never);
+        if (reservationError) {
+          console.error('Marketplace reservation error:', reservationError);
+          throw new Error('Stok produk tidak mencukupi atau baru saja dipesan pelanggan lain');
         }
 
         // Calculate credits to use based on product prices
