@@ -22,6 +22,7 @@ import { StockAlerts } from './StockAlerts';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 interface ProductData {
   id: string;
@@ -52,11 +53,22 @@ interface MerchantProductDetailEditorProps {
   onBack: () => void;
 }
 
+export const productDetailSchema = z.object({
+  name: z.string().trim().min(2, 'Nama produk minimal 2 karakter').max(150, 'Nama produk maksimal 150 karakter'),
+  description: z.string().trim().max(2000, 'Deskripsi maksimal 2.000 karakter'),
+  price: z.coerce.number({ invalid_type_error: 'Harga wajib diisi' }).int('Harga harus berupa angka bulat').positive('Harga harus lebih dari 0').max(1_000_000_000, 'Harga terlalu besar'),
+  stock: z.coerce.number({ invalid_type_error: 'Stok wajib berupa angka' }).int('Stok harus berupa angka bulat').min(0, 'Stok tidak boleh negatif').max(1_000_000, 'Stok terlalu besar'),
+  category: z.string().min(1, 'Pilih kategori produk'),
+  discount_percent: z.coerce.number({ invalid_type_error: 'Diskon wajib berupa angka' }).int('Diskon harus berupa angka bulat').min(0, 'Diskon minimal 0%').max(100, 'Diskon maksimal 100%').optional(),
+  min_stock_alert: z.coerce.number({ invalid_type_error: 'Batas stok wajib berupa angka' }).int('Batas stok harus berupa angka bulat').min(0, 'Batas stok tidak boleh negatif').max(1_000_000, 'Batas stok terlalu besar'),
+});
+
 export function MerchantProductDetailEditor({ productId, merchantId, onBack }: MerchantProductDetailEditorProps) {
   const [product, setProduct] = useState<ProductData | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -118,30 +130,36 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
   }, [fetchData]);
 
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      toast.error('Nama produk wajib diisi');
+    const parsed = productDetailSchema.safeParse({
+      ...form,
+      discount_percent: form.discount_percent.trim() ? form.discount_percent : undefined,
+    });
+    if (!parsed.success) {
+      const nextErrors: Record<string, string> = {};
+      parsed.error.errors.forEach((issue) => {
+        const field = issue.path[0];
+        if (typeof field === 'string' && !nextErrors[field]) nextErrors[field] = issue.message;
+      });
+      setFormErrors(nextErrors);
+      toast.error('Periksa kembali data produk');
       return;
     }
-    if (!form.price || parseInt(form.price) <= 0) {
-      toast.error('Harga tidak valid');
-      return;
-    }
-
+    setFormErrors({});
     setSaving(true);
     try {
       const { error } = await supabase
         .from('products')
         .update({
-          name: form.name,
-          description: form.description || null,
-          price: parseInt(form.price),
-          stock: parseInt(form.stock) || 0,
-          category: form.category,
+          name: parsed.data.name,
+          description: parsed.data.description || null,
+          price: parsed.data.price,
+          stock: parsed.data.stock,
+          category: parsed.data.category,
           is_active: form.is_active,
           is_promo: form.is_promo,
-          discount_percent: form.discount_percent ? parseInt(form.discount_percent) : null,
+          discount_percent: parsed.data.discount_percent ?? null,
           discount_end_date: form.discount_end_date ? new Date(form.discount_end_date).toISOString() : null,
-          min_stock_alert: form.min_stock_alert ? parseInt(form.min_stock_alert) : 5,
+          min_stock_alert: parsed.data.min_stock_alert,
           updated_at: new Date().toISOString(),
         })
         .eq('id', productId);
@@ -244,15 +262,21 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
                   <Label>Nama Produk *</Label>
                   <Input
                     value={form.name}
-                    onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => { setForm(prev => ({ ...prev, name: e.target.value })); setFormErrors(prev => ({ ...prev, name: '' })); }}
                     placeholder="Nama produk"
+                    required
+                    minLength={2}
+                    maxLength={150}
+                    aria-invalid={Boolean(formErrors.name)}
+                    aria-describedby={formErrors.name ? 'detail-product-name-error' : undefined}
                   />
+                  {formErrors.name && <p id="detail-product-name-error" role="alert" className="text-xs text-destructive">{formErrors.name}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Kategori</Label>
                   <Select
                     value={form.category}
-                    onValueChange={(value) => setForm(prev => ({ ...prev, category: value }))}
+                    onValueChange={(value) => { setForm(prev => ({ ...prev, category: value })); setFormErrors(prev => ({ ...prev, category: '' })); }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kategori" />
@@ -265,6 +289,7 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
                       ))}
                     </SelectContent>
                   </Select>
+                  {formErrors.category && <p role="alert" className="text-xs text-destructive">{formErrors.category}</p>}
                 </div>
               </div>
 
@@ -283,19 +308,32 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
                   <Label>Harga (Rp) *</Label>
                   <Input
                     type="number"
+                    min={1}
+                    max={1000000000}
+                    step={1}
                     value={form.price}
-                    onChange={(e) => setForm(prev => ({ ...prev, price: e.target.value }))}
+                    onChange={(e) => { setForm(prev => ({ ...prev, price: e.target.value })); setFormErrors(prev => ({ ...prev, price: '' })); }}
                     placeholder="10000"
+                    required
+                    aria-invalid={Boolean(formErrors.price)}
+                    aria-describedby={formErrors.price ? 'detail-product-price-error' : undefined}
                   />
+                  {formErrors.price && <p id="detail-product-price-error" role="alert" className="text-xs text-destructive">{formErrors.price}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Stok</Label>
                   <Input
                     type="number"
+                    min={0}
+                    max={1000000}
+                    step={1}
                     value={form.stock}
-                    onChange={(e) => setForm(prev => ({ ...prev, stock: e.target.value }))}
+                    onChange={(e) => { setForm(prev => ({ ...prev, stock: e.target.value })); setFormErrors(prev => ({ ...prev, stock: '' })); }}
                     placeholder="100"
+                    aria-invalid={Boolean(formErrors.stock)}
+                    aria-describedby={formErrors.stock ? 'detail-product-stock-error' : undefined}
                   />
+                  {formErrors.stock && <p id="detail-product-stock-error" role="alert" className="text-xs text-destructive">{formErrors.stock}</p>}
                 </div>
               </div>
 
@@ -327,9 +365,15 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
                     <Input
                       type="number"
                       value={form.discount_percent}
-                      onChange={(e) => setForm(prev => ({ ...prev, discount_percent: e.target.value }))}
+                      onChange={(e) => { setForm(prev => ({ ...prev, discount_percent: e.target.value })); setFormErrors(prev => ({ ...prev, discount_percent: '' })); }}
                       placeholder="10"
+                      min={0}
+                      max={100}
+                      step={1}
+                      aria-invalid={Boolean(formErrors.discount_percent)}
+                      aria-describedby={formErrors.discount_percent ? 'detail-discount-error' : undefined}
                     />
+                    {formErrors.discount_percent && <p id="detail-discount-error" role="alert" className="text-xs text-destructive">{formErrors.discount_percent}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Berlaku Hingga</Label>

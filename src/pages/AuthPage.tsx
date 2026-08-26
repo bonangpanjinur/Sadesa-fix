@@ -57,30 +57,51 @@ export default function AuthPage() {
     }
   }, [user, roles, authLoading, rolesLoading, navigate, location]);
 
+  const validateForm = (values = formData) => {
+    const schema = isLogin ? signInSchema : signUpSchema;
+    const result = schema.safeParse(values);
+    if (result.success) {
+      setErrors({});
+      return true;
+    }
+
+    const fieldErrors: Record<string, string> = {};
+    result.error.errors.forEach((err) => {
+      const field = err.path[0];
+      if (typeof field === 'string' && !fieldErrors[field]) {
+        fieldErrors[field] = err.message;
+      }
+    });
+    setErrors(fieldErrors);
+    return false;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-    setErrors(prev => ({ ...prev, [e.target.name]: '' }));
+    const { name, value } = e.target;
+    const nextFormData = { ...formData, [name]: value };
+    setFormData(nextFormData);
+    setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const field = e.target.name;
+    const schema = isLogin ? signInSchema : signUpSchema;
+    const result = schema.safeParse(formData);
+    const fieldError = result.success
+      ? undefined
+      : result.error.errors.find((error) => error.path[0] === field)?.message;
+    setErrors(prev => ({ ...prev, [field]: fieldError ?? '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrors({});
+    if (!validateForm()) return;
+    setLoading(true);
 
     try {
       if (isLogin) {
-        const result = signInSchema.safeParse(formData);
-        if (!result.success) {
-          const fieldErrors: Record<string, string> = {};
-          result.error.errors.forEach(err => {
-            if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
-          });
-          setErrors(fieldErrors);
-          setLoading(false);
-          return;
-        }
-
-        const { error } = await signIn(formData.email, formData.password);
+        const { error } = await signIn(formData.email.trim(), formData.password);
         if (error) {
           toast({
             title: 'Gagal masuk',
@@ -94,18 +115,11 @@ export default function AuthPage() {
           // Redirect will happen automatically via useEffect
         }
       } else {
-        const result = signUpSchema.safeParse(formData);
-        if (!result.success) {
-          const fieldErrors: Record<string, string> = {};
-          result.error.errors.forEach(err => {
-            if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
-          });
-          setErrors(fieldErrors);
-          setLoading(false);
-          return;
-        }
-
-        const { data, error } = await signUp(formData.email, formData.password, formData.fullName);
+        const { data, error } = await signUp(
+          formData.email.trim(),
+          formData.password,
+          formData.fullName.trim(),
+        );
         if (error) {
           toast({
             title: 'Gagal daftar',
@@ -185,11 +199,18 @@ export default function AuthPage() {
                   placeholder="Masukkan nama lengkap"
                   value={formData.fullName}
                   onChange={handleChange}
+                  onBlur={handleBlur}
+                  autoComplete="name"
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  aria-invalid={Boolean(errors.fullName)}
+                  aria-describedby={errors.fullName ? 'fullName-error' : undefined}
                   className="pl-10"
                 />
               </div>
               {errors.fullName && (
-                <p className="text-xs text-destructive">{errors.fullName}</p>
+                <p id="fullName-error" role="alert" className="text-xs text-destructive">{errors.fullName}</p>
               )}
             </div>
           )}
@@ -205,12 +226,19 @@ export default function AuthPage() {
                 placeholder="contoh@email.com"
                 value={formData.email}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                autoComplete="email"
+                inputMode="email"
+                required
+                maxLength={254}
+                aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? 'email-error' : undefined}
                 className="pl-10"
               />
             </div>
             <p className="text-[10px] text-muted-foreground italic">masukan email yang aktif</p>
             {errors.email && (
-              <p className="text-xs text-destructive">{errors.email}</p>
+              <p id="email-error" role="alert" className="text-xs text-destructive">{errors.email}</p>
             )}
           </div>
 
@@ -225,18 +253,29 @@ export default function AuthPage() {
                 placeholder="Masukkan password"
                 value={formData.password}
                 onChange={handleChange}
+                onBlur={handleBlur}
+                autoComplete={isLogin ? 'current-password' : 'new-password'}
+                required
+                minLength={isLogin ? 1 : 8}
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={errors.password ? 'password-error' : 'password-hint'}
                 className="pl-10 pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                aria-pressed={showPassword}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+            {!isLogin && !errors.password && (
+              <p id="password-hint" className="text-xs text-muted-foreground">Minimal 8 karakter, mengandung huruf dan angka.</p>
+            )}
             {errors.password && (
-              <p className="text-xs text-destructive">{errors.password}</p>
+              <p id="password-error" role="alert" className="text-xs text-destructive">{errors.password}</p>
             )}
           </div>
 
@@ -252,11 +291,17 @@ export default function AuthPage() {
                   placeholder="Ulangi password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  onBlur={handleBlur}
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  aria-invalid={Boolean(errors.confirmPassword)}
+                  aria-describedby={errors.confirmPassword ? 'confirmPassword-error' : undefined}
                   className="pl-10"
                 />
               </div>
               {errors.confirmPassword && (
-                <p className="text-xs text-destructive">{errors.confirmPassword}</p>
+                <p id="confirmPassword-error" role="alert" className="text-xs text-destructive">{errors.confirmPassword}</p>
               )}
             </div>
           )}

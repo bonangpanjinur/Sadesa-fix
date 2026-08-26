@@ -4,20 +4,32 @@ import { cn } from '@/lib/utils';
 import { formatIndonesianPhone, normalizePhone, getPhoneValidationError } from '@/lib/phoneValidation';
 
 interface PhoneInputProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   onValidationChange?: (isValid: boolean, error: string | null) => void;
   placeholder?: string;
   disabled?: boolean;
+  required?: boolean;
+  autoComplete?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
   className?: string;
 }
 
 export function PhoneInput({
+  id,
   value,
   onChange,
   onValidationChange,
   placeholder = 'Nomor telepon',
   disabled,
+  required,
+  autoComplete,
+  inputMode,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedby,
   className,
 }: PhoneInputProps) {
   const [displayValue, setDisplayValue] = useState(value);
@@ -71,6 +83,7 @@ export function PhoneInput({
   return (
     <div className="space-y-1">
       <Input
+        id={id}
         type="tel"
         value={displayValue}
         onChange={handleChange}
@@ -78,6 +91,11 @@ export function PhoneInput({
         onFocus={handleFocus}
         placeholder={placeholder}
         disabled={disabled}
+        required={required}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedby}
         className={cn(
           error && 'border-destructive focus-visible:ring-destructive',
           className

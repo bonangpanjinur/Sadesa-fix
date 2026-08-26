@@ -36,7 +36,7 @@ import { MerchantLocationPicker } from '../components/merchant/MerchantLocationP
 import { AddressDropdowns } from '../components/admin/AddressDropdowns';
 import { HalalRegistrationInfo } from '../components/merchant/HalalRegistrationInfo';
 
-const merchantSchema = z.object({
+export const merchantSchema = z.object({
   referralCode: z.string().max(50).optional(),
   name: z.string().min(3, 'Nama usaha minimal 3 karakter').max(100),
   businessCategory: z.string().min(1, 'Pilih kategori usaha'),
@@ -132,6 +132,8 @@ export default function RegisterMerchantPage() {
 
   const { register, handleSubmit, setValue, watch, getValues, trigger, formState: { errors } } = useForm<MerchantFormData>({
     resolver: zodResolver(merchantSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
   });
 
   // === DRAFT: Save ===
@@ -486,14 +488,14 @@ export default function RegisterMerchantPage() {
             
               <div className="space-y-2">
                 <Label htmlFor="name">Nama Usaha</Label>
-                <Input id="name" {...register('name')} placeholder="Contoh: Warung Makan Berkah" />
-                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                <Input id="name" {...register('name')} placeholder="Contoh: Warung Makan Berkah" required minLength={3} maxLength={100} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'merchant-name-error' : undefined} />
+                {errors.name && <p id="merchant-name-error" role="alert" className="text-xs text-destructive">{errors.name.message}</p>}
               </div>
 
 
             <div className="space-y-2">
               <Label>Kategori Usaha</Label>
-              <Select onValueChange={(val) => setValue('businessCategory', val)} value={watch('businessCategory') || undefined}>
+              <Select onValueChange={(val) => void setValue('businessCategory', val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })} value={watch('businessCategory') || undefined}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih kategori" />
                 </SelectTrigger>
@@ -508,17 +510,19 @@ export default function RegisterMerchantPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {errors.businessCategory && <p className="text-xs text-destructive">{errors.businessCategory.message}</p>}
+              {errors.businessCategory && <p role="alert" className="text-xs text-destructive">{errors.businessCategory.message}</p>}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="businessDescription">Deskripsi Usaha (Opsional)</Label>
-              <Textarea 
-                id="businessDescription" 
-                {...register('businessDescription')} 
-                placeholder="Ceritakan sedikit tentang usaha Anda..."
-                className="resize-none h-24"
-              />
+                <Textarea
+                  id="businessDescription"
+                  {...register('businessDescription')}
+                  placeholder="Ceritakan sedikit tentang usaha Anda..."
+                  maxLength={500}
+                  aria-invalid={Boolean(errors.businessDescription)}
+                  className="resize-none h-24"
+                />
               {errors.businessDescription && <p className="text-xs text-destructive">{errors.businessDescription.message}</p>}
             </div>
           </div>
@@ -532,8 +536,8 @@ export default function RegisterMerchantPage() {
 
             <div className="space-y-2">
               <Label htmlFor="phone">Nomor WhatsApp</Label>
-              <Input id="phone" {...register('phone')} placeholder="08xxxxxxxxxx" type="tel" />
-              {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+              <Input id="phone" {...register('phone')} placeholder="08xxxxxxxxxx" type="tel" inputMode="tel" autoComplete="tel" required minLength={10} maxLength={15} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? 'merchant-phone-error' : undefined} />
+              {errors.phone && <p id="merchant-phone-error" role="alert" className="text-xs text-destructive">{errors.phone.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -587,10 +591,10 @@ export default function RegisterMerchantPage() {
                 villageName={addressData.villageName}
                 onChange={(data) => {
                   setAddressData(data);
-                  setValue('province', data.provinceCode);
-                  setValue('city', data.regencyCode);
-                  setValue('district', data.districtCode);
-                  setValue('subdistrict', data.villageCode);
+                  void setValue('province', data.provinceCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                  void setValue('city', data.regencyCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                  void setValue('district', data.districtCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                  void setValue('subdistrict', data.villageCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
                   
                   // Trigger validation for these fields
                   trigger(['province', 'city', 'district', 'subdistrict']);
@@ -626,9 +630,14 @@ export default function RegisterMerchantPage() {
                   id="addressDetail" 
                   {...register('addressDetail')} 
                   placeholder="Nama jalan, nomor rumah, patokan..."
+                  required
+                  minLength={10}
+                  maxLength={200}
+                  aria-invalid={Boolean(errors.addressDetail)}
+                  aria-describedby={errors.addressDetail ? 'merchant-address-error' : undefined}
                   className="resize-none h-20"
                 />
-                {errors.addressDetail && <p className="text-xs text-destructive">{errors.addressDetail.message}</p>}
+                {errors.addressDetail && <p id="merchant-address-error" role="alert" className="text-xs text-destructive">{errors.addressDetail.message}</p>}
               </div>
 
               <div className="space-y-2">

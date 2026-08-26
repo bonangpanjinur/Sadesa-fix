@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 
 interface ProductRow {
   id: string;
@@ -56,6 +57,14 @@ const defaultForm: ProductForm = {
   name: '', description: '', price: '', stock: '0', category: '', image_url: null, is_active: true, is_promo: false,
 };
 
+export const productFormSchema = z.object({
+  name: z.string().trim().min(2, 'Nama produk minimal 2 karakter').max(150, 'Nama produk maksimal 150 karakter'),
+  description: z.string().trim().max(2000, 'Deskripsi maksimal 2.000 karakter'),
+  price: z.coerce.number({ invalid_type_error: 'Harga wajib diisi' }).int('Harga harus berupa angka bulat').positive('Harga harus lebih dari 0').max(1_000_000_000, 'Harga terlalu besar'),
+  stock: z.coerce.number({ invalid_type_error: 'Stok wajib berupa angka' }).int('Stok harus berupa angka bulat').min(0, 'Stok tidak boleh negatif').max(1_000_000, 'Stok terlalu besar'),
+  category: z.string().min(1, 'Pilih kategori produk'),
+});
+
 export default function MerchantProductsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -64,6 +73,7 @@ export default function MerchantProductsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null);
   const [form, setForm] = useState<ProductForm>(defaultForm);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const merchantId = guardMerchantId;
 
@@ -94,16 +104,24 @@ export default function MerchantProductsPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!merchantId) return;
-      if (!form.name.trim()) throw new Error('Nama produk wajib diisi');
-      if (!form.price || parseInt(form.price) <= 0) throw new Error('Harga produk harus lebih dari 0');
-      if (!form.category) throw new Error('Silakan pilih kategori produk');
+      const parsed = productFormSchema.safeParse(form);
+      if (!parsed.success) {
+        const nextErrors: Record<string, string> = {};
+        parsed.error.errors.forEach((issue) => {
+          const field = issue.path[0];
+          if (typeof field === 'string' && !nextErrors[field]) nextErrors[field] = issue.message;
+        });
+        setFormErrors(nextErrors);
+        throw new Error('Periksa kembali data produk');
+      }
+      setFormErrors({});
 
       const productData = {
-        name: form.name.trim(),
-        description: form.description.trim() || null,
-        price: parseInt(form.price),
-        stock: parseInt(form.stock) || 0,
-        category: form.category,
+        name: parsed.data.name,
+        description: parsed.data.description || null,
+        price: parsed.data.price,
+        stock: parsed.data.stock,
+        category: parsed.data.category,
         image_url: form.image_url,
         is_active: form.is_active,
         is_promo: form.is_promo,
@@ -164,12 +182,14 @@ export default function MerchantProductsPage() {
 
   const openCreateDialog = () => {
     setEditingProduct(null);
+    setFormErrors({});
     setForm({ ...defaultForm, category: categories.length > 0 ? categories[0].slug : '' });
     setDialogOpen(true);
   };
 
   const openEditDialog = (product: ProductRow) => {
     setEditingProduct(product);
+    setFormErrors({});
     setForm({
       name: product.name,
       description: product.description || '',
@@ -298,12 +318,14 @@ export default function MerchantProductsPage() {
               <Label className="text-base font-semibold">Informasi Dasar</Label>
               <div className="space-y-2">
                 <Label htmlFor="prod-name">Nama Produk *</Label>
-                <Input id="prod-name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Contoh: Nasi Goreng Spesial" />
+                <Input id="prod-name" value={form.name} onChange={e => { setForm(p => ({ ...p, name: e.target.value })); setFormErrors(p => ({ ...p, name: '' })); }} placeholder="Contoh: Nasi Goreng Spesial" required minLength={2} maxLength={150} aria-invalid={Boolean(formErrors.name)} aria-describedby={formErrors.name ? 'prod-name-error' : undefined} />
+                {formErrors.name && <p id="prod-name-error" role="alert" className="text-xs text-destructive">{formErrors.name}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Kategori *</Label>
-                <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
+                <Select value={form.category} onValueChange={v => { setForm(p => ({ ...p, category: v })); setFormErrors(p => ({ ...p, category: '' })); }}>
+                  <SelectTrigger aria-invalid={Boolean(formErrors.category)} aria-describedby={formErrors.category ? 'prod-category-error' : undefined}><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
+                  {formErrors.category && <p id="prod-category-error" role="alert" className="text-xs text-destructive">{formErrors.category}</p>}
                   <SelectContent>
                     {categories.map(cat => <SelectItem key={cat.id} value={cat.slug}>{cat.name}</SelectItem>)}
                   </SelectContent>
@@ -312,16 +334,20 @@ export default function MerchantProductsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Harga (Rp) *</Label>
-                  <Input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} placeholder="15000" />
+                  <Input type="number" min={1} max={1000000000} step={1} value={form.price} onChange={e => { setForm(p => ({ ...p, price: e.target.value })); setFormErrors(p => ({ ...p, price: '' })); }} placeholder="15000" required aria-invalid={Boolean(formErrors.price)} aria-describedby={formErrors.price ? 'prod-price-error' : undefined} />
+                  {formErrors.price && <p id="prod-price-error" role="alert" className="text-xs text-destructive">{formErrors.price}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Stok</Label>
-                  <Input type="number" value={form.stock} onChange={e => setForm(p => ({ ...p, stock: e.target.value }))} placeholder="0" />
+                  <Input type="number" min={0} max={1000000} step={1} value={form.stock} onChange={e => { setForm(p => ({ ...p, stock: e.target.value })); setFormErrors(p => ({ ...p, stock: '' })); }} placeholder="0" aria-invalid={Boolean(formErrors.stock)} aria-describedby={formErrors.stock ? 'prod-stock-error' : undefined} />
+                  {formErrors.stock && <p id="prod-stock-error" role="alert" className="text-xs text-destructive">{formErrors.stock}</p>}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Deskripsi</Label>
-                <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Jelaskan detail produk Anda..." rows={3} />
+                <Textarea value={form.description} onChange={e => { setForm(p => ({ ...p, description: e.target.value })); setFormErrors(p => ({ ...p, description: '' })); }} placeholder="Jelaskan detail produk Anda..." rows={3} maxLength={2000} aria-invalid={Boolean(formErrors.description)} aria-describedby={formErrors.description ? 'prod-description-error' : undefined} />
+                <p className="text-xs text-muted-foreground">{form.description.length}/2000 karakter</p>
+                {formErrors.description && <p id="prod-description-error" role="alert" className="text-xs text-destructive">{formErrors.description}</p>}
               </div>
             </div>
             <div className="space-y-4 pt-2 border-t">

@@ -446,10 +446,16 @@ export function CheckoutAddressForm({
               placeholder="Nama lengkap penerima"
               value={value.name}
               onChange={(e) => handleNameChange(e.target.value)}
+              autoComplete="name"
+              required
+              minLength={2}
+              maxLength={100}
+              aria-invalid={Boolean(errors?.name)}
+              aria-describedby={errors?.name ? 'checkout-name-error' : undefined}
               className={errors?.name ? 'border-destructive' : ''}
             />
             {errors?.name && (
-              <p className="text-xs text-destructive">{errors.name}</p>
+              <p id="checkout-name-error" role="alert" className="text-xs text-destructive">{errors.name}</p>
             )}
           </div>
 
@@ -461,10 +467,15 @@ export function CheckoutAddressForm({
               value={value.phone}
               onChange={handlePhoneChange}
               placeholder="08xxxxxxxxxx"
+              required
+              autoComplete="tel"
+              inputMode="tel"
+              aria-invalid={Boolean(errors?.phone)}
+              aria-describedby={errors?.phone ? 'checkout-phone-error' : undefined}
               className={errors?.phone ? 'border-destructive' : ''}
             />
             {errors?.phone && (
-              <p className="text-xs text-destructive">{errors.phone}</p>
+              <p id="checkout-phone-error" role="alert" className="text-xs text-destructive">{errors.phone}</p>
             )}
           </div>
         </div>
@@ -540,10 +551,12 @@ export function CheckoutAddressForm({
             placeholder="Contoh: Rumah nomor 42, depan toko kelontong, sebelah masjid"
             value={value.detailAddress || ''}
             onChange={(e) => handleDetailAddressChange(e.target.value)}
+            maxLength={500}
+            aria-describedby="checkout-detail-hint"
             className={`min-h-20 resize-none ${!value.detailAddress && value.location ? 'border-amber-300 focus:border-amber-400' : ''}`}
           />
-          <p className="text-xs text-muted-foreground">
-            Informasi ini membantu kurir menemukan lokasi Anda dengan lebih mudah
+          <p id="checkout-detail-hint" className="text-xs text-muted-foreground">
+            Informasi ini membantu kurir menemukan lokasi Anda dengan lebih mudah ({(value.detailAddress || '').length}/500)
           </p>
         </div>
       </div>
