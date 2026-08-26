@@ -19,6 +19,7 @@
     "audit:security": "pnpm audit --audit-level high",
     "test:security-api": "bash scripts/security-api-smoke.sh",
     "validate:migrations": "bash scripts/validate-migrations.sh",
+    "validate:package-manager": "python3 scripts/validate-package-manager.py",
     "deploy:staging:db": "bash scripts/deploy-supabase-staging.sh",
     "audit:rls": "python3 scripts/audit-rls-static.py",
     "check:production-env": "bash scripts/check-production-env.sh",
