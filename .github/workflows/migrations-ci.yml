@@ -3,17 +3,17 @@ name: Migrations CI
 on:
   push:
     paths:
-      - "supabase/migrations_consolidated/**"
+      - "supabase/migrations/**"
       - ".github/workflows/migrations-ci.yml"
   pull_request:
     paths:
-      - "supabase/migrations_consolidated/**"
+      - "supabase/migrations/**"
       - ".github/workflows/migrations-ci.yml"
   workflow_dispatch:
 
 jobs:
   migrate:
-    name: Apply consolidated migrations on clean Postgres
+    name: Apply active migrations on clean Postgres
     runs-on: ubuntu-latest
 
     services:
@@ -37,7 +37,7 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
       PGDATABASE: postgres
-      MIG_DIR: supabase/migrations_consolidated
+      MIG_DIR: supabase/migrations
 
     steps:
       - uses: actions/checkout@v4
