@@ -56,7 +56,8 @@ jobs:
             exit 1
           fi
           if grep -RniE 'SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|BEGIN PRIVATE KEY|sk_live_[A-Za-z0-9]+' \
-              --exclude-dir=node_modules --exclude-dir=.git --exclude='*.lock' .; then
+              --exclude-dir=node_modules --exclude-dir=.git --exclude='*.lock' \
+              --exclude='production-readiness.yml' .; then
             echo "Potential secret material detected" >&2
             exit 1
           fi
@@ -68,6 +69,10 @@ jobs:
     name: Application quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Non-secret placeholders for tests/build; staging credentials stay in the staging environment.
+      VITE_SUPABASE_URL: https://ci-placeholder.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: ci-publishable-key
     steps:
       - name: Checkout
         uses: actions/checkout@v4
