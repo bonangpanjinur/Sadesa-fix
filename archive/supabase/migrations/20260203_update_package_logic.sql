@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.transaction_packages (
 -- Compatibility for an earlier transaction_packages shape. CREATE TABLE IF NOT EXISTS
 -- does not add missing columns when the table already exists.
 ALTER TABLE public.transaction_packages
+  ADD COLUMN IF NOT EXISTS classification_price TEXT NOT NULL DEFAULT '',
   ADD COLUMN IF NOT EXISTS price_per_transaction INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS kas_fee INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS transaction_quota INTEGER NOT NULL DEFAULT 100,
@@ -28,14 +29,8 @@ ALTER TABLE public.transaction_packages
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now();
 
--- 2. Modifikasi tabel transaction_packages
--- Menghapus kolom classification_price jika ada
-DO $$ 
-BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transaction_packages' AND column_name='classification_price') THEN
-        ALTER TABLE public.transaction_packages DROP COLUMN classification_price;
-    END IF;
-END $$;
+-- 2. Keep classification_price available for package classification seeds.
+-- The compatibility ALTER above adds it when an older table shape is present.
 
 -- Menambahkan komentar untuk memperjelas fungsi kolom
 COMMENT ON COLUMN public.transaction_packages.transaction_quota IS 'Total kuota transaksi (kredit) yang didapat dari paket ini';

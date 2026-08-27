@@ -1718,7 +1718,7 @@ CREATE POLICY "merchant_own_hours" ON public.merchant_operating_hours
 DROP POLICY IF EXISTS "admin_read_hours" ON public.merchant_operating_hours;
 CREATE POLICY "admin_read_hours" ON public.merchant_operating_hours
   FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'admin')
+    public.is_admin()
   );
 
 -- Publik bisa baca (untuk menampilkan jadwal di halaman toko)
