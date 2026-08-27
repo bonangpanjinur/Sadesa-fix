@@ -36,7 +36,19 @@ ON public.chat_messages FOR ALL
 USING (is_admin());
 
 -- Enable realtime for chat
-ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'chat_messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.chat_messages;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- Page views tracking table
 CREATE TABLE public.page_views (

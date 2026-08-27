@@ -21,5 +21,29 @@ CREATE POLICY "Auth users delete product images" ON storage.objects
 -- ========================================
 -- 8. ENABLE REALTIME FOR COURIER TRACKING
 -- ========================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.couriers;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'couriers'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.couriers;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;

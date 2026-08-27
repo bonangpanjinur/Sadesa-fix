@@ -8,8 +8,14 @@
 -- DESA WISATA & UMKM - DATABASE SCHEMA
 -- ============================================
 
--- 1. Create app_role enum for user roles
-CREATE TYPE public.app_role AS ENUM ('admin', 'buyer');
+-- 1. Create app_role enum for user roles.
+-- The bootstrap may be retried after a partial run, so tolerate an existing type.
+DO $$
+BEGIN
+  CREATE TYPE public.app_role AS ENUM ('admin', 'buyer');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 2. Create user_roles table (separate from profiles for security)
 CREATE TABLE public.user_roles (
@@ -1466,7 +1472,19 @@ CREATE POLICY "Admins can manage all notifications" ON public.notifications
 FOR ALL USING (is_admin());
 
 -- Enable realtime for notifications
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'notifications'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- Create function to send notification
 CREATE OR REPLACE FUNCTION public.send_notification(

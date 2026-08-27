@@ -5,7 +5,7 @@
 
 -- ===== BEGIN SOURCE: 20260127073715_302d2dda-ebfa-4711-a1e0-71fb26487401.sql =====
 -- Create verifikator_withdrawals table for withdrawal requests
-CREATE TABLE public.verifikator_withdrawals (
+CREATE TABLE IF NOT EXISTS public.verifikator_withdrawals (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   verifikator_id UUID NOT NULL,
   amount INTEGER NOT NULL,
@@ -24,6 +24,10 @@ CREATE TABLE public.verifikator_withdrawals (
 ALTER TABLE public.verifikator_withdrawals ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Verifikators can view own withdrawals" ON public.verifikator_withdrawals;
+DROP POLICY IF EXISTS "Verifikators can create withdrawals" ON public.verifikator_withdrawals;
+DROP POLICY IF EXISTS "Admins can manage all withdrawals" ON public.verifikator_withdrawals;
+
 CREATE POLICY "Verifikators can view own withdrawals" ON public.verifikator_withdrawals
   FOR SELECT USING (verifikator_id = auth.uid());
 
@@ -122,8 +126,32 @@ CREATE POLICY "Auth users delete product images" ON storage.objects
 -- ========================================
 -- 8. ENABLE REALTIME FOR COURIER TRACKING
 -- ========================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.couriers;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'couriers'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.couriers;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 -- ===== END SOURCE: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql =====
 
 -- ===== BEGIN SOURCE: 20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql =====
@@ -230,7 +258,19 @@ CREATE POLICY "Couriers can upload POD images" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'pod-images' AND auth.uid() IS NOT NULL);
 
 -- Enable realtime for orders (for courier tracking)
-ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_earnings;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'courier_earnings'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_earnings;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 -- ===== END SOURCE: 20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql =====
 
 -- ===== BEGIN SOURCE: 20260127084919_5b7afc29-bd66-47fc-89ad-ac3ae63cffe9.sql =====
@@ -666,7 +706,19 @@ CREATE POLICY "Rate limits public" ON public.rate_limits
   FOR ALL USING (true);
 
 -- Add realtime for vouchers
-ALTER PUBLICATION supabase_realtime ADD TABLE public.vouchers;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'vouchers'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.vouchers;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- Function to check and increment rate limit
 CREATE OR REPLACE FUNCTION public.check_rate_limit(
@@ -1162,7 +1214,19 @@ CREATE INDEX IF NOT EXISTS idx_flash_sales_status_end ON public.flash_sales(stat
 CREATE INDEX IF NOT EXISTS idx_flash_sales_merchant ON public.flash_sales(merchant_id);
 
 -- Enable realtime for flash_sales
-ALTER PUBLICATION supabase_realtime ADD TABLE public.flash_sales;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'flash_sales'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.flash_sales;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 -- ===== END SOURCE: 20260128121326_62e7deee-7d24-4c49-85d7-0c27f69e1f9f.sql =====
 
 -- ===== BEGIN SOURCE: 20260128123950_6b87d4af-a9af-49ef-b561-19a356a6119f.sql =====

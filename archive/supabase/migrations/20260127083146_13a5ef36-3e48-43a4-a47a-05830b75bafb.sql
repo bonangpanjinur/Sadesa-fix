@@ -101,4 +101,16 @@ CREATE POLICY "Couriers can upload POD images" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'pod-images' AND auth.uid() IS NOT NULL);
 
 -- Enable realtime for orders (for courier tracking)
-ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_earnings;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'courier_earnings'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_earnings;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;

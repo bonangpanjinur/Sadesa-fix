@@ -89,4 +89,16 @@ WHERE p.user_id = u.id
 AND p.email IS NULL;
 
 -- 7. Enable realtime untuk saved_addresses
-ALTER PUBLICATION supabase_realtime ADD TABLE public.saved_addresses;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'saved_addresses'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.saved_addresses;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;

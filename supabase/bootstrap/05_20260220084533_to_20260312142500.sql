@@ -72,7 +72,20 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS is_self_delivery boolean DEFA
 
 -- ===== BEGIN SOURCE: 20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql =====
 -- Enable realtime for orders table so buyers get live status updates
-ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 -- ===== END SOURCE: 20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql =====
 
 -- ===== BEGIN SOURCE: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql =====
@@ -515,7 +528,19 @@ WHERE p.user_id = u.id
 AND p.email IS NULL;
 
 -- 7. Enable realtime untuk saved_addresses
-ALTER PUBLICATION supabase_realtime ADD TABLE public.saved_addresses;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'saved_addresses'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.saved_addresses;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- ===== END SOURCE: 20260220115912_3db445e5-e360-4861-9a77-e996172d54d9.sql =====
 
@@ -871,8 +896,32 @@ VALUES ('courier_minimum_balance', 'courier', '{"amount": 50000}', 'Saldo minimu
 ON CONFLICT (key) DO NOTHING;
 
 -- Enable realtime for balance logs
-ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_deposits;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_balance_logs;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'courier_deposits'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_deposits;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'courier_balance_logs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_balance_logs;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- ===== END SOURCE: 20260228041319_8cdbdfdc-5e55-4fa1-80f9-a10c4fc0b22f.sql =====
 
@@ -1033,7 +1082,19 @@ FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Enable realtime for ride_requests
-ALTER PUBLICATION supabase_realtime ADD TABLE public.ride_requests;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'ride_requests'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.ride_requests;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- Insert default ride fare settings
 INSERT INTO public.app_settings (key, value, category, description)

@@ -50,5 +50,29 @@ VALUES ('courier_minimum_balance', 'courier', '{"amount": 50000}', 'Saldo minimu
 ON CONFLICT (key) DO NOTHING;
 
 -- Enable realtime for balance logs
-ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_deposits;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_balance_logs;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'courier_deposits'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_deposits;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'courier_balance_logs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.courier_balance_logs;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;

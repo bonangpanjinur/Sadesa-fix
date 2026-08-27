@@ -1593,12 +1593,13 @@ CREATE TABLE IF NOT EXISTS public.quota_usage_logs (
 -- Enable RLS
 ALTER TABLE public.quota_usage_logs ENABLE ROW LEVEL SECURITY;
 
--- Admin can see all
+-- Policies are recreated safely when a bootstrap is retried.
+DROP POLICY IF EXISTS "Admin can view all quota logs" ON public.quota_usage_logs;
 CREATE POLICY "Admin can view all quota logs" ON public.quota_usage_logs
   FOR SELECT TO authenticated
   USING (public.has_role(auth.uid(), 'admin'));
 
--- Merchant can see own logs
+DROP POLICY IF EXISTS "Merchant can view own quota logs" ON public.quota_usage_logs;
 CREATE POLICY "Merchant can view own quota logs" ON public.quota_usage_logs
   FOR SELECT TO authenticated
   USING (
@@ -1607,17 +1608,30 @@ CREATE POLICY "Merchant can view own quota logs" ON public.quota_usage_logs
     )
   );
 
--- System can insert logs (service role or triggers)
+DROP POLICY IF EXISTS "System can insert quota logs" ON public.quota_usage_logs;
 CREATE POLICY "System can insert quota logs" ON public.quota_usage_logs
   FOR INSERT TO authenticated
   WITH CHECK (true);
 
 -- Create index for performance
-CREATE INDEX idx_quota_usage_logs_merchant ON public.quota_usage_logs(merchant_id);
-CREATE INDEX idx_quota_usage_logs_order ON public.quota_usage_logs(order_id);
-CREATE INDEX idx_quota_usage_logs_created ON public.quota_usage_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_quota_usage_logs_merchant ON public.quota_usage_logs(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_quota_usage_logs_order ON public.quota_usage_logs(order_id);
+CREATE INDEX IF NOT EXISTS idx_quota_usage_logs_created ON public.quota_usage_logs(created_at DESC);
 
--- Enable realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE public.quota_usage_logs;
+-- Enable realtime only when the table is not already a member.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'quota_usage_logs'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.quota_usage_logs;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- ===== END SOURCE: 20260207234919_3b703a60-74a4-4b19-914a-bce0c90381c7.sql =====

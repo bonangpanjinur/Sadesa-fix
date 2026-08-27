@@ -1,5 +1,5 @@
 -- Create verifikator_withdrawals table for withdrawal requests
-CREATE TABLE public.verifikator_withdrawals (
+CREATE TABLE IF NOT EXISTS public.verifikator_withdrawals (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   verifikator_id UUID NOT NULL,
   amount INTEGER NOT NULL,
@@ -18,6 +18,10 @@ CREATE TABLE public.verifikator_withdrawals (
 ALTER TABLE public.verifikator_withdrawals ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Verifikators can view own withdrawals" ON public.verifikator_withdrawals;
+DROP POLICY IF EXISTS "Verifikators can create withdrawals" ON public.verifikator_withdrawals;
+DROP POLICY IF EXISTS "Admins can manage all withdrawals" ON public.verifikator_withdrawals;
+
 CREATE POLICY "Verifikators can view own withdrawals" ON public.verifikator_withdrawals
   FOR SELECT USING (verifikator_id = auth.uid());
 

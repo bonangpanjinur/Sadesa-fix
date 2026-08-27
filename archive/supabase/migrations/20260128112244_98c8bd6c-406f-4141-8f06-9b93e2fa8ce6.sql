@@ -122,7 +122,19 @@ CREATE POLICY "Rate limits public" ON public.rate_limits
   FOR ALL USING (true);
 
 -- Add realtime for vouchers
-ALTER PUBLICATION supabase_realtime ADD TABLE public.vouchers;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'vouchers'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.vouchers;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- Function to check and increment rate limit
 CREATE OR REPLACE FUNCTION public.check_rate_limit(

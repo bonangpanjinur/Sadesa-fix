@@ -30,8 +30,8 @@
         "20260127072850_7a511ad2-eadc-4846-a7e1-92aa7c608460.sql",
         "20260127073300_6cb5784e-39e2-4626-8d8d-8bdc12a2a2e4.sql"
       ],
-      "sha256": "c10e52ddec99c13e0a06d10c9078fc7f841439fadb0c494e2822ddbc5d361964",
-      "bytes": 75493
+      "sha256": "51a72d1739bea67a12f60c7b6ee5cd8114444b3305ecf0037b6464b2ee4a3755",
+      "bytes": 75900
     },
     {
       "file": "02_20260127073715_to_20260203_fix_c.sql",
@@ -60,8 +60,8 @@
         "20260203_cleanup_package_table.sql",
         "20260203_fix_courier_management.sql"
       ],
-      "sha256": "57c11a4da112c4fd5039d7480c4786add541872c010ad14e80679ac53a1f4937",
-      "bytes": 59543
+      "sha256": "ed1d242d8295d1105fb1bee939b0102a92aa9b3916af8f68a767e99db3d8118a",
+      "bytes": 61107
     },
     {
       "file": "03_20260203_fix_i_to_20260207234919.sql",
@@ -90,8 +90,8 @@
         "20260207230832_d72c51f3-4ab4-4cd6-a02d-f6a1e981dac9.sql",
         "20260207234919_3b703a60-74a4-4b19-914a-bce0c90381c7.sql"
       ],
-      "sha256": "7fe3931cc0b814853df667b7b8f8dc58e4aab3d218ac75e3c156c738f1603de8",
-      "bytes": 58588
+      "sha256": "c25355c49c373ad5fc63df4b63d4ed6eccfb5bfce735b70c3cfb56626e122b28",
+      "bytes": 59145
     },
     {
       "file": "04_20260207234930_to_20260220084303.sql",
@@ -120,8 +120,8 @@
         "20260219000000_add_merchant_auto_approve_setting.sql",
         "20260220084303_65515e4b-c3b1-4a16-b325-a3f977d4ce67.sql"
       ],
-      "sha256": "9873600d0a740eacfd89a0090269689528ad2fef2e3db6de5d076994ca1662dc",
-      "bytes": 54579
+      "sha256": "eef4733340d2a89a0b4b7c7a4fdc9b5ec5ae12add6822c13873f48286d28f532",
+      "bytes": 54835
     },
     {
       "file": "05_20260220084533_to_20260312142500.sql",
@@ -150,8 +150,8 @@
         "20260309040323_1f66e7ec-8223-435e-bbd8-c7335e338238.sql",
         "20260312142500_47527dd5-2b77-460d-bdcc-5d53f0936910.sql"
       ],
-      "sha256": "3c3336b504ace1699c2ff4f61b1b7784c862177b9b463d5b40818769cb6a2ce5",
-      "bytes": 39472
+      "sha256": "8ad0d4d5d6655fae00522decc0f1fbca094ea543a50ba1fbe3ca9ddb69166b35",
+      "bytes": 40761
     },
     {
       "file": "06_20260403082441_to_20260804111713.sql",
@@ -180,8 +180,8 @@
         "20260802091854_330e1c0c-2ef7-404e-9b15-0368a81abf14.sql",
         "20260804111713_21956d1a-8612-45c6-90a1-0d7523bf7480.sql"
       ],
-      "sha256": "75fb9e23a55c50e794be6f80472cc191929acabd2c12d4f5c9f45df3ab2c0dcc",
-      "bytes": 157429
+      "sha256": "efc9f7c2e610a0aa63e6949db6440b058c4bb496287ff2b74893f29942d2c123",
+      "bytes": 157941
     },
     {
       "file": "07_20260822000000_to_20260825160000.sql",

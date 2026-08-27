@@ -72,4 +72,16 @@ CREATE INDEX IF NOT EXISTS idx_flash_sales_status_end ON public.flash_sales(stat
 CREATE INDEX IF NOT EXISTS idx_flash_sales_merchant ON public.flash_sales(merchant_id);
 
 -- Enable realtime for flash_sales
-ALTER PUBLICATION supabase_realtime ADD TABLE public.flash_sales;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'flash_sales'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.flash_sales;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;

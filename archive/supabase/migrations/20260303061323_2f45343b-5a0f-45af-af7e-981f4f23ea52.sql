@@ -104,7 +104,19 @@ FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Enable realtime for ride_requests
-ALTER PUBLICATION supabase_realtime ADD TABLE public.ride_requests;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'ride_requests'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.ride_requests;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
 
 -- Insert default ride fare settings
 INSERT INTO public.app_settings (key, value, category, description)

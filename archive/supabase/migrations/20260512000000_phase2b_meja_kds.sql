@@ -55,5 +55,29 @@ CREATE INDEX IF NOT EXISTS idx_pos_table_orders_table ON pos_table_orders(table_
 CREATE INDEX IF NOT EXISTS idx_pos_table_orders_status ON pos_table_orders(status);
 
 -- Enable realtime for KDS
-ALTER PUBLICATION supabase_realtime ADD TABLE pos_table_orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE pos_tables;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'pos_table_orders'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE pos_table_orders;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'pos_tables'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE pos_tables;
+  END IF;
+EXCEPTION
+  WHEN undefined_object THEN NULL;
+END $$;
