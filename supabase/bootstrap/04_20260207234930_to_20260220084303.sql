@@ -700,6 +700,7 @@ TO authenticated
 WITH CHECK (user_id = auth.uid());
 
 -- Add updated_at trigger for villages
+DROP TRIGGER IF EXISTS update_villages_updated_at ON public.villages;
 CREATE TRIGGER update_villages_updated_at
 BEFORE UPDATE ON public.villages
 FOR EACH ROW
@@ -713,6 +714,7 @@ EXECUTE FUNCTION public.update_updated_at_column();
 -- =====================================================
 -- Drop existing restrictive policies
 DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
+DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can manage user roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can insert user roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;
@@ -938,6 +940,7 @@ ON public.courier_withdrawal_requests FOR ALL
 USING (public.is_admin());
 
 -- Trigger updated_at
+DROP TRIGGER IF EXISTS update_courier_withdrawal_requests_updated_at ON public.courier_withdrawal_requests;
 CREATE TRIGGER update_courier_withdrawal_requests_updated_at
 BEFORE UPDATE ON public.courier_withdrawal_requests
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -1177,6 +1180,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS auto_assign_merchant_to_group ON public.merchants;
 CREATE TRIGGER auto_assign_merchant_to_group
   BEFORE INSERT OR UPDATE ON public.merchants
   FOR EACH ROW
@@ -1214,6 +1218,7 @@ CREATE TRIGGER auto_assign_village_admin
 -- ===== BEGIN SOURCE: 20260214072940_66279cc5-d697-4593-ba03-497902208fca.sql =====
 
 -- Fase 1: Pasang trigger handle_new_user yang hilang
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
@@ -1407,6 +1412,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trigger_set_chat_auto_delete ON public.orders;
 CREATE TRIGGER trigger_set_chat_auto_delete
 AFTER UPDATE ON public.orders
 FOR EACH ROW

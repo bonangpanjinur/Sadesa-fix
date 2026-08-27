@@ -50,6 +50,7 @@ FOR DELETE
 USING (auth.uid() = user_id);
 
 -- Create trigger for updated_at
+DROP TRIGGER IF EXISTS update_saved_addresses_updated_at ON public.saved_addresses;
 CREATE TRIGGER update_saved_addresses_updated_at
 BEFORE UPDATE ON public.saved_addresses
 FOR EACH ROW

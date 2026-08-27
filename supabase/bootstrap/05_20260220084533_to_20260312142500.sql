@@ -1076,6 +1076,7 @@ TO authenticated
 USING (public.is_admin());
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_ride_requests_updated_at ON public.ride_requests;
 CREATE TRIGGER update_ride_requests_updated_at
 BEFORE UPDATE ON public.ride_requests
 FOR EACH ROW

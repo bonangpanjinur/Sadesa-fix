@@ -93,7 +93,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('pod-images', 'pod-images', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies for POD images
+-- Storage policies for POD images (safe to retry)
+DROP POLICY IF EXISTS "Anyone can view POD images" ON storage.objects;
+DROP POLICY IF EXISTS "Couriers can upload POD images" ON storage.objects;
+
 CREATE POLICY "Anyone can view POD images" ON storage.objects
   FOR SELECT USING (bucket_id = 'pod-images');
 

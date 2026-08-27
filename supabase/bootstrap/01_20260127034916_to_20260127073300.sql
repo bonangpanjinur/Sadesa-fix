@@ -180,21 +180,25 @@ $$ LANGUAGE plpgsql SET search_path = public;
 -- ============================================
 
 -- Auto-update timestamps
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
     BEFORE UPDATE ON public.profiles
     FOR EACH ROW
     EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_merchants_updated_at ON public.merchants;
 CREATE TRIGGER update_merchants_updated_at
     BEFORE UPDATE ON public.merchants
     FOR EACH ROW
     EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_products_updated_at ON public.products;
 CREATE TRIGGER update_products_updated_at
     BEFORE UPDATE ON public.products
     FOR EACH ROW
     EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_orders_updated_at ON public.orders;
 CREATE TRIGGER update_orders_updated_at
     BEFORE UPDATE ON public.orders
     FOR EACH ROW
@@ -214,6 +218,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -564,6 +569,7 @@ WITH CHECK (
 );
 
 -- Add trigger for updated_at
+DROP TRIGGER IF EXISTS update_promotions_updated_at ON public.promotions;
 CREATE TRIGGER update_promotions_updated_at
 BEFORE UPDATE ON public.promotions
 FOR EACH ROW
@@ -658,12 +664,14 @@ CREATE POLICY "Anyone can view settings" ON public.app_settings
 FOR SELECT USING (true);
 
 -- Update trigger for couriers
+DROP TRIGGER IF EXISTS update_couriers_updated_at ON public.couriers;
 CREATE TRIGGER update_couriers_updated_at
 BEFORE UPDATE ON public.couriers
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Update trigger for app_settings
+DROP TRIGGER IF EXISTS update_app_settings_updated_at ON public.app_settings;
 CREATE TRIGGER update_app_settings_updated_at
 BEFORE UPDATE ON public.app_settings
 FOR EACH ROW
@@ -683,7 +691,12 @@ INSERT INTO public.app_settings (key, value, description, category) VALUES
 -- Create storage bucket for courier documents
 INSERT INTO storage.buckets (id, name, public) VALUES ('courier-documents', 'courier-documents', false);
 
--- Storage policies for courier-documents bucket
+-- Storage policies for courier-documents bucket (safe to retry)
+DROP POLICY IF EXISTS "Anyone can upload courier documents" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can view all courier documents" ON storage.objects;
+DROP POLICY IF EXISTS "Couriers can view own documents" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can delete courier documents" ON storage.objects;
+
 CREATE POLICY "Anyone can upload courier documents" ON storage.objects
 FOR INSERT WITH CHECK (bucket_id = 'courier-documents');
 
@@ -1141,6 +1154,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_entity ON public.admin_audit_log
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created ON public.admin_audit_logs(created_at DESC);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_refund_requests_updated_at ON public.refund_requests;
 CREATE TRIGGER update_refund_requests_updated_at
 BEFORE UPDATE ON public.refund_requests
 FOR EACH ROW
@@ -1419,11 +1433,13 @@ END;
 $$;
 
 -- Update updated_at trigger for new tables
+DROP TRIGGER IF EXISTS update_reviews_updated_at ON public.reviews;
 CREATE TRIGGER update_reviews_updated_at
   BEFORE UPDATE ON public.reviews
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_withdrawal_requests_updated_at ON public.withdrawal_requests;
 CREATE TRIGGER update_withdrawal_requests_updated_at
   BEFORE UPDATE ON public.withdrawal_requests
   FOR EACH ROW
@@ -1836,11 +1852,13 @@ END;
 $$;
 
 -- Trigger to update timestamps
+DROP TRIGGER IF EXISTS update_transaction_packages_updated_at ON public.transaction_packages;
 CREATE TRIGGER update_transaction_packages_updated_at
 BEFORE UPDATE ON public.transaction_packages
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_merchant_subscriptions_updated_at ON public.merchant_subscriptions;
 CREATE TRIGGER update_merchant_subscriptions_updated_at
 BEFORE UPDATE ON public.merchant_subscriptions
 FOR EACH ROW
@@ -1992,11 +2010,13 @@ END;
 $$;
 
 -- Create updated_at trigger for new tables
+DROP TRIGGER IF EXISTS update_trade_groups_updated_at ON public.trade_groups;
 CREATE TRIGGER update_trade_groups_updated_at
   BEFORE UPDATE ON public.trade_groups
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_kas_payments_updated_at ON public.kas_payments;
 CREATE TRIGGER update_kas_payments_updated_at
   BEFORE UPDATE ON public.kas_payments
   FOR EACH ROW
@@ -2080,6 +2100,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger
 DROP TRIGGER IF EXISTS trigger_auto_assign_merchant_group ON merchants;
+DROP TRIGGER IF EXISTS trigger_auto_assign_merchant_group ON public.merchants;
 CREATE TRIGGER trigger_auto_assign_merchant_group
   BEFORE INSERT OR UPDATE ON public.merchants
   FOR EACH ROW
@@ -2135,6 +2156,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger for commission recording
 DROP TRIGGER IF EXISTS trigger_record_verifikator_commission ON merchant_subscriptions;
+DROP TRIGGER IF EXISTS trigger_record_verifikator_commission ON public.merchant_subscriptions;
 CREATE TRIGGER trigger_record_verifikator_commission
   AFTER INSERT OR UPDATE ON public.merchant_subscriptions
   FOR EACH ROW

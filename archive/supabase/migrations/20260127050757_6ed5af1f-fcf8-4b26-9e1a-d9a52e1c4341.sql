@@ -79,12 +79,14 @@ CREATE POLICY "Anyone can view settings" ON public.app_settings
 FOR SELECT USING (true);
 
 -- Update trigger for couriers
+DROP TRIGGER IF EXISTS update_couriers_updated_at ON public.couriers;
 CREATE TRIGGER update_couriers_updated_at
 BEFORE UPDATE ON public.couriers
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Update trigger for app_settings
+DROP TRIGGER IF EXISTS update_app_settings_updated_at ON public.app_settings;
 CREATE TRIGGER update_app_settings_updated_at
 BEFORE UPDATE ON public.app_settings
 FOR EACH ROW

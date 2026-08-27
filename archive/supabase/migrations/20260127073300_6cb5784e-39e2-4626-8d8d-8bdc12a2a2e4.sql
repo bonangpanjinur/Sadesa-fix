@@ -74,6 +74,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger
 DROP TRIGGER IF EXISTS trigger_auto_assign_merchant_group ON merchants;
+DROP TRIGGER IF EXISTS trigger_auto_assign_merchant_group ON public.merchants;
 CREATE TRIGGER trigger_auto_assign_merchant_group
   BEFORE INSERT OR UPDATE ON public.merchants
   FOR EACH ROW
@@ -129,6 +130,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Create trigger for commission recording
 DROP TRIGGER IF EXISTS trigger_record_verifikator_commission ON merchant_subscriptions;
+DROP TRIGGER IF EXISTS trigger_record_verifikator_commission ON public.merchant_subscriptions;
 CREATE TRIGGER trigger_record_verifikator_commission
   AFTER INSERT OR UPDATE ON public.merchant_subscriptions
   FOR EACH ROW

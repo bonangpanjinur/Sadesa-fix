@@ -257,11 +257,13 @@ END;
 $$;
 
 -- Update updated_at trigger for new tables
+DROP TRIGGER IF EXISTS update_reviews_updated_at ON public.reviews;
 CREATE TRIGGER update_reviews_updated_at
   BEFORE UPDATE ON public.reviews
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_withdrawal_requests_updated_at ON public.withdrawal_requests;
 CREATE TRIGGER update_withdrawal_requests_updated_at
   BEFORE UPDATE ON public.withdrawal_requests
   FOR EACH ROW

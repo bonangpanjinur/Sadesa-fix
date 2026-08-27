@@ -73,6 +73,7 @@ WITH CHECK (
 );
 
 -- Add trigger for updated_at
+DROP TRIGGER IF EXISTS update_promotions_updated_at ON public.promotions;
 CREATE TRIGGER update_promotions_updated_at
 BEFORE UPDATE ON public.promotions
 FOR EACH ROW

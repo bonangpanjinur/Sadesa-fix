@@ -5,7 +5,12 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('product-images', 'product-images', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies for product images (with unique names)
+-- Storage policies for product images (safe to retry)
+DROP POLICY IF EXISTS "Public view product images bucket" ON storage.objects;
+DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
+DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
+DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
+
 CREATE POLICY "Public view product images bucket" ON storage.objects
   FOR SELECT USING (bucket_id = 'product-images');
 

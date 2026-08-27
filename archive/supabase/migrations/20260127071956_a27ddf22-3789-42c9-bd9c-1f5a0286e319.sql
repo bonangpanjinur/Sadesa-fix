@@ -136,11 +136,13 @@ END;
 $$;
 
 -- Trigger to update timestamps
+DROP TRIGGER IF EXISTS update_transaction_packages_updated_at ON public.transaction_packages;
 CREATE TRIGGER update_transaction_packages_updated_at
 BEFORE UPDATE ON public.transaction_packages
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_merchant_subscriptions_updated_at ON public.merchant_subscriptions;
 CREATE TRIGGER update_merchant_subscriptions_updated_at
 BEFORE UPDATE ON public.merchant_subscriptions
 FOR EACH ROW

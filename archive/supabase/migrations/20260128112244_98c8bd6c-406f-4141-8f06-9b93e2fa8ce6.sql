@@ -258,11 +258,13 @@ END;
 $$;
 
 -- Add triggers for updated_at
+DROP TRIGGER IF EXISTS update_vouchers_updated_at ON public.vouchers;
 CREATE TRIGGER update_vouchers_updated_at
   BEFORE UPDATE ON public.vouchers
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_seo_settings_updated_at ON public.seo_settings;
 CREATE TRIGGER update_seo_settings_updated_at
   BEFORE UPDATE ON public.seo_settings
   FOR EACH ROW

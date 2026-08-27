@@ -142,11 +142,13 @@ END;
 $$;
 
 -- Create updated_at trigger for new tables
+DROP TRIGGER IF EXISTS update_trade_groups_updated_at ON public.trade_groups;
 CREATE TRIGGER update_trade_groups_updated_at
   BEFORE UPDATE ON public.trade_groups
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_kas_payments_updated_at ON public.kas_payments;
 CREATE TRIGGER update_kas_payments_updated_at
   BEFORE UPDATE ON public.kas_payments
   FOR EACH ROW

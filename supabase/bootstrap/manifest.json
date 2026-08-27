@@ -30,8 +30,8 @@
         "20260127072850_7a511ad2-eadc-4846-a7e1-92aa7c608460.sql",
         "20260127073300_6cb5784e-39e2-4626-8d8d-8bdc12a2a2e4.sql"
       ],
-      "sha256": "51a72d1739bea67a12f60c7b6ee5cd8114444b3305ecf0037b6464b2ee4a3755",
-      "bytes": 75900
+      "sha256": "e7fd0ac5144afdad7e75497d4af8eeabffc0f4ea179ad26d609f3fdca044f467",
+      "bytes": 77560
     },
     {
       "file": "02_20260127073715_to_20260203_fix_c.sql",
@@ -60,8 +60,8 @@
         "20260203_cleanup_package_table.sql",
         "20260203_fix_courier_management.sql"
       ],
-      "sha256": "ed1d242d8295d1105fb1bee939b0102a92aa9b3916af8f68a767e99db3d8118a",
-      "bytes": 61107
+      "sha256": "53308bf3a65f95d2dbd3815c3fd6850b27adb6d0113dd5fef7a862b1b267ea41",
+      "bytes": 61894
     },
     {
       "file": "03_20260203_fix_i_to_20260207234919.sql",
@@ -90,8 +90,8 @@
         "20260207230832_d72c51f3-4ab4-4cd6-a02d-f6a1e981dac9.sql",
         "20260207234919_3b703a60-74a4-4b19-914a-bce0c90381c7.sql"
       ],
-      "sha256": "c25355c49c373ad5fc63df4b63d4ed6eccfb5bfce735b70c3cfb56626e122b28",
-      "bytes": 59145
+      "sha256": "6bbeb59a019ec6ecf19baff1dbaa62871286443924923fbdae8c2e2e09fccc2c",
+      "bytes": 59429
     },
     {
       "file": "04_20260207234930_to_20260220084303.sql",
@@ -120,8 +120,8 @@
         "20260219000000_add_merchant_auto_approve_setting.sql",
         "20260220084303_65515e4b-c3b1-4a16-b325-a3f977d4ce67.sql"
       ],
-      "sha256": "eef4733340d2a89a0b4b7c7a4fdc9b5ec5ae12add6822c13873f48286d28f532",
-      "bytes": 54835
+      "sha256": "7d39c26b2ae31c654a363e5e4a1236d5e122ca6ac7e9873aac3a301f9a0634fa",
+      "bytes": 55288
     },
     {
       "file": "05_20260220084533_to_20260312142500.sql",
@@ -150,8 +150,8 @@
         "20260309040323_1f66e7ec-8223-435e-bbd8-c7335e338238.sql",
         "20260312142500_47527dd5-2b77-460d-bdcc-5d53f0936910.sql"
       ],
-      "sha256": "8ad0d4d5d6655fae00522decc0f1fbca094ea543a50ba1fbe3ca9ddb69166b35",
-      "bytes": 40761
+      "sha256": "e53e2afd9701427655283e653a8283d381f41a012e51f41c2c01366c840986a0",
+      "bytes": 40841
     },
     {
       "file": "06_20260403082441_to_20260804111713.sql",

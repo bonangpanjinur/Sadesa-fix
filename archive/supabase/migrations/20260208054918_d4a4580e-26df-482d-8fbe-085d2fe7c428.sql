@@ -4,6 +4,7 @@
 -- =====================================================
 -- Drop existing restrictive policies
 DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
+DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can manage user roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can insert user roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;

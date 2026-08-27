@@ -73,6 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON public.product_image
 CREATE INDEX IF NOT EXISTS idx_product_images_primary ON public.product_images(product_id, is_primary) WHERE is_primary = true;
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_product_variants_updated_at ON public.product_variants;
 CREATE TRIGGER update_product_variants_updated_at
 BEFORE UPDATE ON public.product_variants
 FOR EACH ROW

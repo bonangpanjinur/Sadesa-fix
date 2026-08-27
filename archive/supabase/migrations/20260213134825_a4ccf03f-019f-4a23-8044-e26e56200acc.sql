@@ -62,6 +62,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS auto_assign_merchant_to_group ON public.merchants;
 CREATE TRIGGER auto_assign_merchant_to_group
   BEFORE INSERT OR UPDATE ON public.merchants
   FOR EACH ROW

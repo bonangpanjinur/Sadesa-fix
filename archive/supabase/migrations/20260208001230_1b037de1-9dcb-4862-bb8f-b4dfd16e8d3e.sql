@@ -65,6 +65,7 @@ TO authenticated
 WITH CHECK (user_id = auth.uid());
 
 -- Add updated_at trigger for villages
+DROP TRIGGER IF EXISTS update_villages_updated_at ON public.villages;
 CREATE TRIGGER update_villages_updated_at
 BEFORE UPDATE ON public.villages
 FOR EACH ROW

@@ -71,6 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_entity ON public.admin_audit_log
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created ON public.admin_audit_logs(created_at DESC);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_refund_requests_updated_at ON public.refund_requests;
 CREATE TRIGGER update_refund_requests_updated_at
 BEFORE UPDATE ON public.refund_requests
 FOR EACH ROW

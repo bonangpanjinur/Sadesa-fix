@@ -99,6 +99,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trigger_set_chat_auto_delete ON public.orders;
 CREATE TRIGGER trigger_set_chat_auto_delete
 AFTER UPDATE ON public.orders
 FOR EACH ROW

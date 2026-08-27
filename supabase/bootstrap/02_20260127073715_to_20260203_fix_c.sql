@@ -110,7 +110,12 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('product-images', 'product-images', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies for product images (with unique names)
+-- Storage policies for product images (safe to retry)
+DROP POLICY IF EXISTS "Public view product images bucket" ON storage.objects;
+DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
+DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
+DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
+
 CREATE POLICY "Public view product images bucket" ON storage.objects
   FOR SELECT USING (bucket_id = 'product-images');
 
@@ -250,7 +255,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('pod-images', 'pod-images', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage policies for POD images
+-- Storage policies for POD images (safe to retry)
+DROP POLICY IF EXISTS "Anyone can view POD images" ON storage.objects;
+DROP POLICY IF EXISTS "Couriers can upload POD images" ON storage.objects;
+
 CREATE POLICY "Anyone can view POD images" ON storage.objects
   FOR SELECT USING (bucket_id = 'pod-images');
 
@@ -575,6 +583,7 @@ FOR DELETE
 USING (auth.uid() = user_id);
 
 -- Create trigger for updated_at
+DROP TRIGGER IF EXISTS update_saved_addresses_updated_at ON public.saved_addresses;
 CREATE TRIGGER update_saved_addresses_updated_at
 BEFORE UPDATE ON public.saved_addresses
 FOR EACH ROW
@@ -842,11 +851,13 @@ END;
 $$;
 
 -- Add triggers for updated_at
+DROP TRIGGER IF EXISTS update_vouchers_updated_at ON public.vouchers;
 CREATE TRIGGER update_vouchers_updated_at
   BEFORE UPDATE ON public.vouchers
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_seo_settings_updated_at ON public.seo_settings;
 CREATE TRIGGER update_seo_settings_updated_at
   BEFORE UPDATE ON public.seo_settings
   FOR EACH ROW
@@ -1133,6 +1144,7 @@ CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON public.product_image
 CREATE INDEX IF NOT EXISTS idx_product_images_primary ON public.product_images(product_id, is_primary) WHERE is_primary = true;
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_product_variants_updated_at ON public.product_variants;
 CREATE TRIGGER update_product_variants_updated_at
 BEFORE UPDATE ON public.product_variants
 FOR EACH ROW

@@ -186,6 +186,12 @@ CREATE TABLE IF NOT EXISTS public.quota_tiers (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- CREATE TABLE IF NOT EXISTS does not add columns to an existing table.
+ALTER TABLE public.quota_tiers
+  ADD COLUMN IF NOT EXISTS description TEXT,
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
 -- Enable RLS
 ALTER TABLE public.quota_tiers ENABLE ROW LEVEL SECURITY;
 

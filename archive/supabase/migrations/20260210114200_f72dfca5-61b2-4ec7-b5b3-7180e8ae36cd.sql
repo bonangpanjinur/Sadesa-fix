@@ -41,6 +41,7 @@ ON public.courier_withdrawal_requests FOR ALL
 USING (public.is_admin());
 
 -- Trigger updated_at
+DROP TRIGGER IF EXISTS update_courier_withdrawal_requests_updated_at ON public.courier_withdrawal_requests;
 CREATE TRIGGER update_courier_withdrawal_requests_updated_at
 BEFORE UPDATE ON public.courier_withdrawal_requests
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
