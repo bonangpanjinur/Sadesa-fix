@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { RotateCcw, Check, X, Eye, Filter, Clock, Search, Store } from 'lucide-react';
+import { useCallback, useState, useEffect } from 'react';
+import { RotateCcw, Check, X, Eye, Clock, Store } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AdminFilterBar, AdminStatePanel } from '@/components/admin/AdminPagePrimitives';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -64,10 +64,12 @@ export default function AdminRefundsPage() {
   const [processAction, setProcessAction] = useState<'approve' | 'reject'>('approve');
   const [adminNotes, setAdminNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadRefunds = async () => {
+  const loadRefunds = useCallback(async () => {
     try {
       setLoading(true);
+      setErrorMessage(null);
       
       const { data, error } = await supabase
         .from('refund_requests')
@@ -113,15 +115,16 @@ export default function AdminRefundsPage() {
       setRefunds(mapped);
     } catch (error) {
       console.error('Error loading refunds:', error);
+      setErrorMessage('Gagal mengambil permintaan refund. Periksa koneksi dan permission database, lalu coba lagi.');
       toast.error('Gagal memuat data refund');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadRefunds();
-  }, []);
+    void loadRefunds();
+  }, [loadRefunds]);
 
   const handleProcess = async () => {
     if (!selectedRefund) return;
@@ -240,37 +243,30 @@ export default function AdminRefundsPage() {
       </div>
 
       {/* Filter & Search */}
-      <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari Order ID, Pembeli, atau Merchant..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full md:w-48">
-              <SelectValue placeholder="Filter Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
-              <SelectItem value="PENDING">Menunggu</SelectItem>
-              <SelectItem value="APPROVED">Disetujui</SelectItem>
-              <SelectItem value="REJECTED">Ditolak</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <AdminFilterBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Cari Order ID, pembeli, atau merchant..."
+        hasFilters={statusFilter !== 'all' || searchQuery.length > 0}
+        onReset={() => { setSearchQuery(''); setStatusFilter('all'); }}
+        actions={<Button variant="outline" size="sm" onClick={() => void loadRefunds()} disabled={loading} className="gap-2"><RotateCcw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Segarkan</Button>}
+      >
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue placeholder="Filter status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua status</SelectItem>
+            <SelectItem value="PENDING">Menunggu</SelectItem>
+            <SelectItem value="APPROVED">Disetujui</SelectItem>
+            <SelectItem value="REJECTED">Ditolak</SelectItem>
+          </SelectContent>
+        </Select>
+      </AdminFilterBar>
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
-        </div>
+        <AdminStatePanel type="loading" title="Memuat permintaan refund" description="Menyiapkan detail order, pembeli, merchant, dan status refund." />
+      ) : errorMessage ? (
+        <AdminStatePanel type="error" description={errorMessage} actionLabel="Coba lagi" onAction={() => void loadRefunds()} />
       ) : (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <Table>

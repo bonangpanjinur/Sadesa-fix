@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Check, Clock3, FileCheck2, RefreshCw, Search, X } from 'lucide-react';
+import { AlertTriangle, Check, FileCheck2, RefreshCw, X } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AdminFilterBar, AdminStatePanel } from '@/components/admin/AdminPagePrimitives';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -88,9 +88,11 @@ export default function AdminApprovalCenterPage() {
   const [selected, setSelected] = useState<ApprovalItem | null>(null);
   const [decisionNotes, setDecisionNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadApprovals = useCallback(async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true); else setLoading(true);
+    setErrorMessage(null);
     try {
       const [refunds, returns, voids, overrides, approvals] = await Promise.all([
         db.from<Record<string, unknown>>('refund_requests').select('*').eq('status', 'PENDING').order('created_at', { ascending: false }),
@@ -132,6 +134,7 @@ export default function AdminApprovalCenterPage() {
       setItems([...mappedRefunds, ...mappedReturns, ...mappedVoids, ...mappedOverrides, ...mapApprovalRows(approvals.data ?? [])]);
     } catch (error) {
       console.error('Failed to load approval center:', error);
+      setErrorMessage('Gagal memuat approval tertunda. Periksa koneksi dan permission database, lalu coba lagi.');
       toast.error('Gagal memuat approval yang tertunda');
     } finally {
       setLoading(false);
@@ -195,18 +198,21 @@ export default function AdminApprovalCenterPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-primary" /> Permintaan Tertunda</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari ID atau alasan" className="pl-9 w-full sm:w-64" /></div>
-            <select value={filter} onChange={(event) => setFilter(event.target.value as 'all' | ApprovalKind)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="all">Semua tipe</option><option value="refund">Refund</option><option value="return">Retur POS</option><option value="void">Void POS</option><option value="price_override">Price override</option><option value="approval">Approval lainnya</option>
-            </select>
-            <Button variant="outline" size="icon" onClick={() => void loadApprovals(true)} disabled={refreshing} aria-label="Refresh approval"><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /></Button>
-          </div>
         </CardHeader>
+        <AdminFilterBar
+          search={query}
+          onSearchChange={setQuery}
+          searchPlaceholder="Cari ID, alasan, atau subject..."
+          actions={<Button variant="outline" size="sm" onClick={() => void loadApprovals(true)} disabled={refreshing} className="gap-2"><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Segarkan</Button>}
+        >
+          <select value={filter} onChange={(event) => setFilter(event.target.value as 'all' | ApprovalKind)} aria-label="Filter tipe approval" className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="all">Semua tipe</option><option value="refund">Refund</option><option value="return">Retur POS</option><option value="void">Void POS</option><option value="price_override">Price override</option><option value="approval">Approval lainnya</option>
+          </select>
+        </AdminFilterBar>
         <CardContent>
-          {loading ? <div className="flex justify-center py-16"><RefreshCw className="h-8 w-8 animate-spin text-primary" /></div> : filteredItems.length === 0 ? <div className="text-center py-16 text-muted-foreground"><Clock3 className="h-10 w-10 mx-auto mb-3 opacity-50" />Tidak ada permintaan tertunda.</div> : <div className="space-y-3">
+          {loading ? <AdminStatePanel type="loading" title="Memuat tugas approval" description="Mengumpulkan refund, retur, void, dan price override yang menunggu keputusan." /> : errorMessage ? <AdminStatePanel type="error" description={errorMessage} actionLabel="Coba lagi" onAction={() => void loadApprovals(true)} /> : filteredItems.length === 0 ? <AdminStatePanel type="empty" title={query || filter !== 'all' ? 'Tidak ada hasil yang cocok' : 'Tidak ada approval tertunda'} description={query || filter !== 'all' ? 'Ubah kata kunci atau filter untuk melihat data lain.' : 'Semua tugas sensitif sudah ditangani.'} /> : <div className="space-y-3">
             {filteredItems.map((item) => <div key={`${item.kind}-${item.id}`} className="rounded-lg border p-4 flex flex-col lg:flex-row lg:items-center gap-4">
               <div className="flex-1 min-w-0"><div className="flex flex-wrap items-center gap-2 mb-1"><Badge variant="outline">{kindLabels[item.kind]}</Badge><span className="font-semibold truncate">{item.title}</span></div><p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p><p className="text-xs text-muted-foreground mt-1">{new Date(item.createdAt).toLocaleString('id-ID')} · ID {item.id.slice(0, 12)}</p></div>
               <div className="flex items-center gap-4"><div className="text-right">{item.amount !== null && <p className="font-semibold">{formatPrice(item.amount)}</p>}<Badge variant="warning">Pending</Badge></div><Button onClick={() => { setSelected(item); setDecisionNotes(''); }}><FileCheck2 className="h-4 w-4 mr-2" />Review</Button></div>
