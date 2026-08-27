@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Build ordered SQL bundles for bootstrapping a brand-new Supabase project.
 
-The canonical migration history remains in supabase/migrations. Bundles are
-reproducible convenience artifacts and must not be used with an existing
-Supabase project that already has migration history.
+The canonical deployment SQL is kept in supabase/bootstrap. The archived
+migration files are used only to regenerate and audit these bundles.
 """
 from __future__ import annotations
 
@@ -15,7 +14,7 @@ from pathlib import Path
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', type=Path, default=Path('supabase/migrations'))
+    parser.add_argument('--source', type=Path, default=Path('archive/supabase/migrations'))
     parser.add_argument('--output', type=Path, default=Path('supabase/bootstrap'))
     parser.add_argument('--bundles', type=int, default=8)
     args = parser.parse_args()
@@ -46,7 +45,7 @@ def main() -> int:
         last = selected[-1].stem[:14]
         output = args.output / f'{bundle_number:02d}_{first}_to_{last}.sql'
         chunks = [
-            '-- DesaMart bootstrap bundle; generated from supabase/migrations.\n'
+            '-- DesaMart canonical bootstrap bundle; generated from archive source migrations.\n'
             '-- DO NOT apply to an existing project with migration history.\n'
             f'-- Source range: {selected[0].name} .. {selected[-1].name}\n\n'
         ]

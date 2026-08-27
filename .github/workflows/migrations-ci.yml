@@ -3,14 +3,12 @@ name: Migrations CI
 on:
   push:
     paths:
-      - "supabase/migrations/**"
       - "supabase/bootstrap/**"
       - "scripts/build-bootstrap-bundles.py"
       - "scripts/validate-bootstrap-bundles.py"
       - ".github/workflows/migrations-ci.yml"
   pull_request:
     paths:
-      - "supabase/migrations/**"
       - "supabase/bootstrap/**"
       - "scripts/build-bootstrap-bundles.py"
       - "scripts/validate-bootstrap-bundles.py"
@@ -19,7 +17,7 @@ on:
 
 jobs:
   migrate:
-    name: Apply active migrations on clean Postgres
+    name: Apply canonical bootstrap SQL on clean Postgres
     runs-on: ubuntu-latest
 
     services:
@@ -43,12 +41,12 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
       PGDATABASE: postgres
-      MIG_DIR: supabase/migrations
+      MIG_DIR: supabase/bootstrap
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate bootstrap bundle coverage
+      - name: Validate canonical bootstrap coverage
         run: python3 scripts/validate-bootstrap-bundles.py
 
       - name: Install psql client
@@ -119,15 +117,6 @@ jobs:
           set -euo pipefail
           for f in $(ls "$MIG_DIR"/*.sql | sort); do
             echo "::group::Apply $f"
-            psql -v ON_ERROR_STOP=1 -f "$f"
-            echo "::endgroup::"
-          done
-
-      - name: Re-apply migrations (second pass — idempotency check)
-        run: |
-          set -euo pipefail
-          for f in $(ls "$MIG_DIR"/*.sql | sort); do
-            echo "::group::Re-apply $f"
             psql -v ON_ERROR_STOP=1 -f "$f"
             echo "::endgroup::"
           done

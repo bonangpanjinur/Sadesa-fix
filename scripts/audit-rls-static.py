@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 from collections import defaultdict
 
-root = Path('supabase/migrations')
+root = Path('supabase/bootstrap')
 text = '\n'.join(p.read_text(errors='ignore') for p in sorted(root.glob('*.sql')))
 
 tables = sorted({name for name in re.findall(r'CREATE TABLE(?: IF NOT EXISTS)?\s+(?:public\.)?([a-zA-Z0-9_]+)', text, re.I) if name.lower() not in {'for', 'to'}})

@@ -19,18 +19,26 @@ pnpm lint
 pnpm test
 pnpm build
 bash scripts/validate-migrations.sh
+pnpm validate:db-bootstrap
 ```
 
-Working tree harus bersih atau perubahan release harus sudah direview. Migration diberi nama dengan prefix timestamp dan dijalankan berdasarkan urutan nama file. Dua migration dapat memiliki prefix waktu yang sama, tetapi nama lengkapnya tetap diurutkan secara lexical; operator harus memeriksa output `validate-migrations.sh` sebelum deploy.
+Working tree harus bersih atau perubahan release harus sudah direview. SQL deployment menggunakan bundle bernomor di `supabase/bootstrap/` dan dijalankan berdasarkan urutan nama file. Source migration per-file lama berada di `archive/supabase/migrations/` sebagai arsip read-only; operator tidak boleh menjalankannya langsung.
 
 ## 3. Database migration
 
-Terapkan migration menggunakan Supabase CLI terhadap project yang benar, bukan dengan service-role key dari browser:
+Terapkan bundle SQL canonical terhadap project yang benar menggunakan koneksi database staging/production yang disimpan aman, bukan service-role key dari browser:
 
 ```bash
-supabase link --project-ref "$SUPABASE_PROJECT_REF"
-supabase db push
+export SUPABASE_DB_URL='postgresql://...'
+./scripts/validate-migrations.sh
+pnpm validate:db-bootstrap
+for bundle in supabase/bootstrap/[0-9][0-9]_*.sql; do
+  echo "Applying $bundle"
+  psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$bundle"
+done
 ```
+
+`supabase db push` bukan jalur deployment standar pada model bootstrap-only karena membutuhkan histori migration pada direktori default Supabase.
 
 Deploy dimulai dari backup/schema snapshot staging. Setelah migration selesai, jalankan smoke test RPC dengan fixture tenant terpisah untuk memastikan tenant isolation, authorization, row locking, idempotency, trigger, dan rollback transaksi. Migration P0/P1/PWA yang wajib diverifikasi meliputi atomic POS checkout, payment webhook, refund/return, reconciliation, stock adjustment/transfer, price book, loyalty ledger, CRM identity, notification queue, customer mapping, approval RPC, dan PWA device sessions.
 

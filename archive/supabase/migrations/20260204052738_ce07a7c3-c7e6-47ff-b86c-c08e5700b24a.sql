@@ -189,18 +189,36 @@ CREATE TABLE IF NOT EXISTS public.quota_tiers (
 -- Enable RLS
 ALTER TABLE public.quota_tiers ENABLE ROW LEVEL SECURITY;
 
--- RLS policies for quota_tiers
-CREATE POLICY "Anyone can view quota tiers"
-ON public.quota_tiers
-FOR SELECT
-TO authenticated
-USING (true);
+-- RLS policies for quota_tiers. Earlier migrations may have created
+-- policies with the same names, so creation must be idempotent.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'quota_tiers'
+      AND policyname = 'Anyone can view quota tiers'
+  ) THEN
+    CREATE POLICY "Anyone can view quota tiers"
+    ON public.quota_tiers
+    FOR SELECT
+    TO authenticated
+    USING (true);
+  END IF;
 
-CREATE POLICY "Admins can manage quota tiers"
-ON public.quota_tiers
-FOR ALL
-TO authenticated
-USING (public.has_role(auth.uid(), 'admin'));
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'quota_tiers'
+      AND policyname = 'Admins can manage quota tiers'
+  ) THEN
+    CREATE POLICY "Admins can manage quota tiers"
+    ON public.quota_tiers
+    FOR ALL
+    TO authenticated
+    USING (public.has_role(auth.uid(), 'admin'));
+  END IF;
+END $$;
 
 -- Insert default tiers
 INSERT INTO public.quota_tiers (min_price, max_price, credit_cost, description, sort_order) VALUES
@@ -212,6 +230,7 @@ INSERT INTO public.quota_tiers (min_price, max_price, credit_cost, description, 
 ON CONFLICT DO NOTHING;
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_quota_tiers_updated_at ON public.quota_tiers;
 CREATE TRIGGER update_quota_tiers_updated_at
 BEFORE UPDATE ON public.quota_tiers
 FOR EACH ROW

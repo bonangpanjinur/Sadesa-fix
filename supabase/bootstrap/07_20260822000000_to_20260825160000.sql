@@ -1,4 +1,4 @@
--- DesaMart bootstrap bundle; generated from supabase/migrations.
+-- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
 -- Source range: 20260822000000_harden_password_reset_tokens.sql .. 20260825160000_courier_payroll_cod_reconciliation.sql
 

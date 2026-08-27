@@ -10,7 +10,7 @@ if not DATABASE_URL:
     print("ERROR: DATABASE_URL not set")
     sys.exit(1)
 
-MIGRATION_DIRS = ["supabase/migrations"]
+MIGRATION_DIRS = ["supabase/bootstrap"]
 
 def clean_sql(sql: str) -> str:
     lines = sql.split("\n")
@@ -102,8 +102,8 @@ def run_complete_database():
     print("  ✓ Done")
 
 def run_migrations():
-    files = sorted(glob.glob("supabase/migrations/*.sql"), key=os.path.basename)
-    print(f"→ Running {len(files)} POS migrations...")
+    files = sorted(glob.glob("supabase/bootstrap/*.sql"), key=os.path.basename)
+    print(f"→ Running {len(files)} canonical bootstrap bundles...")
     ok, warn = 0, 0
     for fp in files:
         fn = os.path.basename(fp)

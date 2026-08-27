@@ -1,4 +1,4 @@
--- DesaMart bootstrap bundle; generated from supabase/migrations.
+-- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
 -- Source range: 20260825170000_dispute_center_approval_workflow.sql .. 20260829110000_legacy_security_definer_hardening.sql
 

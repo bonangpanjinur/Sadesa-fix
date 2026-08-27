@@ -1,4 +1,4 @@
--- DesaMart bootstrap bundle; generated from supabase/migrations.
+-- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
 -- Source range: 20260220084533_6b62aa70-289a-4ef5-81c1-bb37dcfb6086.sql .. 20260312142500_47527dd5-2b77-460d-bdcc-5d53f0936910.sql
 

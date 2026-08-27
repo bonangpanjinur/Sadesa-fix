@@ -5,7 +5,7 @@
 -- We will replace the use_merchant_quota function.
 
 -- 1. Create table for Quota Tiers Configuration
-CREATE TABLE public.quota_tiers (
+CREATE TABLE IF NOT EXISTS public.quota_tiers (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   min_price INTEGER NOT NULL,
   max_price INTEGER, -- NULL means no upper limit
@@ -18,13 +18,30 @@ CREATE TABLE public.quota_tiers (
 ALTER TABLE public.quota_tiers ENABLE ROW LEVEL SECURITY;
 
 -- RLS for quota_tiers
-CREATE POLICY "Anyone can view quota tiers" 
-ON public.quota_tiers FOR SELECT 
-USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'quota_tiers'
+      AND policyname = 'Anyone can view quota tiers'
+  ) THEN
+    CREATE POLICY "Anyone can view quota tiers"
+    ON public.quota_tiers FOR SELECT
+    USING (true);
+  END IF;
 
-CREATE POLICY "Admins can manage quota tiers" 
-ON public.quota_tiers FOR ALL 
-USING (is_admin());
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'quota_tiers'
+      AND policyname = 'Admins can manage quota tiers'
+  ) THEN
+    CREATE POLICY "Admins can manage quota tiers"
+    ON public.quota_tiers FOR ALL
+    USING (is_admin());
+  END IF;
+END $$;
 
 -- Insert default tiers based on user request
 INSERT INTO public.quota_tiers (min_price, max_price, credit_cost) VALUES

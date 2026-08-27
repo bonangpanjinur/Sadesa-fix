@@ -2,6 +2,7 @@
 set -euo pipefail
 
 : "${SUPABASE_PROJECT_REF:?Set SUPABASE_PROJECT_REF to the staging project ref}"
+: "${SUPABASE_DB_URL:?Set SUPABASE_DB_URL to the staging database connection string}"
 TARGET_LABEL="${SUPABASE_TARGET_LABEL:-staging}"
 if [[ "${ALLOW_NON_STAGING_DEPLOY:-false}" != "true" && "$TARGET_LABEL" != "staging" ]]; then
   echo "Refusing deployment: SUPABASE_TARGET_LABEL must be staging" >&2
@@ -14,11 +15,20 @@ if ! command -v supabase >/dev/null 2>&1; then
 fi
 
 ./scripts/validate-migrations.sh
+python3 scripts/validate-bootstrap-bundles.py
+
+if ! command -v psql >/dev/null 2>&1; then
+  echo "PostgreSQL client (psql) is required to apply bootstrap bundles." >&2
+  exit 1
+fi
 
 echo "Linking Supabase project $SUPABASE_PROJECT_REF ($TARGET_LABEL)"
 supabase link --project-ref "$SUPABASE_PROJECT_REF"
-echo "Applying migrations"
-supabase db push
+echo "Applying canonical bootstrap bundles"
+for bundle in supabase/bootstrap/[0-9][0-9]_*.sql; do
+  echo "Applying $bundle"
+  psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$bundle"
+done
 
 if [[ "${DEPLOY_NOTIFICATION_WORKER:-true}" == "true" ]]; then
   echo "Deploying notification worker"

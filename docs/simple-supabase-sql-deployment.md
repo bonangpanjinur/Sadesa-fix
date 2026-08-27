@@ -1,122 +1,125 @@
-# Panduan Sederhana Deployment SQL Supabase
+# Panduan Deployment SQL Supabase
 
-## Prinsip utama
+## Kebijakan utama
 
-Repository ini menggunakan **satu sumber migration aktif**, yaitu:
+Repository ini memakai **model bootstrap terpusat**. Seluruh SQL yang digunakan untuk deployment baru berada di:
 
 ```text
-supabase/migrations/
+supabase/bootstrap/
 ```
 
-Supabase CLI hanya boleh membaca dan menjalankan file SQL dari direktori tersebut. Migration diberi nama dengan timestamp sehingga urutannya deterministik dan migration yang sudah pernah dijalankan tidak boleh diedit atau dihapus.
+Folder tersebut berisi delapan bundle SQL berurutan. Jalankan bundle `01` sampai `08` secara berurutan dan jangan menjalankan file secara acak.
 
-## Struktur direktori
+Migration per-file lama disimpan di:
+
+```text
+archive/supabase/migrations/
+```
+
+Folder arsip hanya untuk audit, perbandingan, regenerasi bundle, dan rollback historis. Folder tersebut bukan sumber deployment aktif.
+
+## Struktur deployment
 
 ```text
 supabase/
 ├── config.toml
-├── functions/
-└── migrations/                 # SATU-SATUNYA sumber aktif
-    ├── 2026....sql
-    └── 2026....sql
+├── bootstrap/                  # SATU-SATUNYA SQL deployment aktif
+│   ├── 01_*.sql
+│   ├── 02_*.sql
+│   ├── 03_*.sql
+│   ├── 04_*.sql
+│   ├── 05_*.sql
+│   ├── 06_*.sql
+│   ├── 07_*.sql
+│   ├── 08_*.sql
+│   └── manifest.json
+└── functions/
 
-archive/supabase/
-├── main_migration.sql          # snapshot lama, tidak aktif
-├── migrations_backup/          # backup lama, tidak aktif
-└── migrations_consolidated/    # snapshot test lama, tidak aktif
+archive/supabase/migrations/    # arsip read-only, tidak dijalankan langsung
 ```
 
-Direktori `archive/supabase` hanya untuk referensi, perbandingan, atau pemulihan historis. File di dalamnya **tidak boleh dijalankan langsung** pada project staging atau production.
+## Deployment ke project baru
 
-## Deployment normal
-
-Dari root repository, login ke Supabase CLI dan hubungkan project yang benar. Untuk staging, gunakan project ref staging. Untuk production, gunakan project ref production.
+Gunakan bundle hanya untuk project Supabase baru yang belum memiliki data atau histori migration. Pastikan project ref dan database target sudah benar, lalu jalankan:
 
 ```bash
-supabase login
-supabase link --project-ref <PROJECT_REF>
-supabase db push
+export SUPABASE_DB_URL='postgresql://...'
+
+for file in supabase/bootstrap/[0-9][0-9]_*.sql; do
+  echo "Applying $file"
+  psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$file"
+done
 ```
 
-Sebelum `supabase db push`, periksa target project dan status migration:
+Alternatifnya, buka file di Supabase SQL Editor dan jalankan satu per satu sesuai nomor. Tunggu setiap file selesai sebelum menjalankan file berikutnya.
 
-```bash
-supabase status
-supabase migration list
-./scripts/validate-migrations.sh
-```
-
-Jangan menjalankan `supabase db reset` pada staging atau production karena perintah tersebut dapat menghapus data. Reset hanya boleh digunakan pada database lokal disposable.
-
-## Bootstrap project baru dengan bundle SQL
-
-Untuk project Supabase yang benar-benar baru dan belum memiliki data atau histori migration, gunakan bundle di `supabase/bootstrap/`. Bundle dibuat otomatis dari 183 migration aktif, tetap mengikuti urutan dependency, dan dibagi menjadi delapan file agar lebih mudah diunggah atau dijalankan bertahap.
-
-Regenerasi dan validasi bundle dari root repository:
+Sebelum deployment, regenerasi dan validasi bundle jika source archive berubah:
 
 ```bash
 pnpm build:db-bootstrap
 pnpm validate:db-bootstrap
+pnpm validate:migrations
 ```
 
-Jalankan file bundle sesuai urutan angka, yaitu `01_...sql` sampai `08_...sql`, menggunakan SQL Editor Supabase atau `psql`. Jalankan satu file sampai selesai sebelum memulai file berikutnya:
+`manifest.json` memastikan seluruh 183 source migration tercakup tepat satu kali dan mencatat checksum setiap bundle.
+
+## Deployment ke project existing
+
+Model B menggunakan SQL bootstrap sebagai jalur deployment utama. Untuk project existing, jangan menggabungkan bundle dengan database yang sudah sebagian bermigrasi. Buat backup dan restore drill terlebih dahulu, kemudian lakukan deployment terencana dengan bundle yang sesuai terhadap target yang sudah diverifikasi.
+
+Jangan menjalankan:
 
 ```bash
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/01_*.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/02_*.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/03_*.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/04_*.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/05_*.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/06_*.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/07_*.sql
-psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/08_*.sql
+supabase db push
+supabase db reset
 ```
 
-`manifest.json` mencatat jumlah source migration, rentang tiap bundle, dan SHA-256 bundle. Jangan menjalankan bundle bootstrap pada project existing karena Supabase tidak akan memiliki histori per-file yang sama dengan migration aktif dan object dapat sudah ada.
+sebagai jalur deployment standar model ini. `supabase db push` mengharapkan histori file migration pada direktori default Supabase, sedangkan model ini menggunakan bundle SQL. `supabase db reset` dapat menghapus data dan hanya boleh digunakan pada database lokal disposable.
 
-## Menambahkan perubahan database baru
+## Menambahkan perubahan SQL baru
 
-Setiap perubahan baru harus dibuat sebagai migration baru:
+Tambahkan perubahan ke source migration arsip melalui proses review, lalu regenerasi seluruh bundle secara deterministik:
 
 ```bash
-supabase migration new add_feature_name
+pnpm build:db-bootstrap
+pnpm validate:db-bootstrap
+git diff --check
 ```
 
-Edit file baru tersebut, lalu validasi pada database lokal atau staging. Jangan mengubah migration lama yang sudah pernah diterapkan. Jika terdapat kesalahan pada migration lama, buat migration koreksi baru dengan timestamp yang lebih besar.
-
-Contoh alur pull request:
-
-```bash
-supabase migration new add_stock_reservation_index
-# edit supabase/migrations/<timestamp>_add_stock_reservation_index.sql
-./scripts/validate-migrations.sh
-supabase db push --dry-run
-pnpm lint
-pnpm test
-pnpm build
-```
-
-## Aturan wajib
-
-| Aturan | Keterangan |
-|---|---|
-| Satu sumber aktif | Hanya `supabase/migrations/` yang diproses deployment |
-| Migration immutable | Jangan mengedit atau menghapus migration yang sudah pernah dijalankan |
-| Arsip tidak aktif | Jangan menjalankan file dari `archive/supabase/` |
-| Target harus jelas | Selalu periksa project ref sebelum push |
-| Staging lebih dulu | Uji migration pada staging sebelum production |
-| Backup sebelum perubahan besar | Pastikan backup dan restore drill tersedia |
-| Tidak ada secret di SQL | Credential dan service-role key tidak boleh ditulis dalam file migration |
-| Review wajib | Migration harus direview dalam pull request |
-
-## Jika migration gagal
-
-Hentikan proses dan simpan output error. Jangan langsung mengedit migration yang sudah tercatat atau menjalankan seluruh snapshot lama. Identifikasi apakah migration gagal karena urutan, object yang sudah ada, privilege, extension, atau perbedaan schema. Setelah perbaikan dibuat, tambahkan migration koreksi baru dan uji ulang pada staging.
-
-Untuk project existing, jangan mengganti seluruh database dengan `main_migration.sql` atau folder consolidated. Jalur tersebut merupakan snapshot historis dan tidak menggantikan histori migration Supabase. Gunakan `supabase db push` dari direktori aktif agar Supabase menerapkan hanya migration yang belum tercatat.
+Jangan mengedit bundle SQL secara manual karena perubahan manual akan hilang saat generator dijalankan kembali. Jangan menghapus source archive karena file tersebut diperlukan untuk membangun ulang bundle dan menelusuri histori perubahan.
 
 ## CI/CD
 
-Workflow migration CI menggunakan `supabase/migrations/` sebagai `MIG_DIR`. Workflow tersebut menjalankan migration aktif secara berurutan pada database PostgreSQL bersih, mengulanginya untuk pemeriksaan idempotency, lalu melakukan smoke test table, grant, RLS, dan skenario akses.
+Migration CI hanya memproses `supabase/bootstrap/*.sql` secara alfabetis dan menjalankan setiap bundle pada PostgreSQL bersih. CI juga memvalidasi coverage manifest, menguji pengulangan bundle, memeriksa table/grant/RLS, dan memastikan tidak ada statement destructive yang tidak direview.
 
-Dengan aturan ini, anggota tim memiliki dua jalur yang jelas. Untuk **project baru**, gunakan delapan file berurutan di `supabase/bootstrap/`. Untuk **project existing**, gunakan `supabase/migrations/` dan `supabase db push` terhadap project yang sudah diverifikasi.
+Perubahan pada `archive/supabase/migrations/` tidak menjadi trigger deployment. Perubahan pada `supabase/bootstrap/`, generator, validator, atau workflow migration akan memicu pemeriksaan CI.
+
+## Aturan keselamatan
+
+| Aturan | Ketentuan |
+|---|---|
+| Satu jalur aktif | Hanya `supabase/bootstrap/` yang digunakan untuk deployment |
+| Urutan wajib | Bundle `01` hingga `08` harus dijalankan berurutan |
+| Arsip read-only | Jangan menjalankan SQL dari `archive/supabase/` |
+| Target jelas | Verifikasi project ref dan database URL sebelum eksekusi |
+| Backup | Ambil backup dan lakukan restore drill sebelum perubahan besar |
+| Secret | Jangan menulis credential, service-role key, atau webhook secret di SQL |
+| Review | Setiap perubahan source harus melewati pull request dan CI |
+| Partial state | Jika bundle gagal, hentikan proses dan evaluasi database; jangan mengulang acak |
+
+## Jika bundle gagal
+
+Catat nama bundle, statement, dan pesan PostgreSQL. Jangan langsung menjalankan bundle berikutnya. Untuk project baru yang disposable, buat database baru dan ulangi dari bundle `01`. Untuk staging atau production, jangan reset atau menghapus data; lakukan diagnosis terhadap schema state dan gunakan prosedur recovery yang disetujui.
+
+Model ini memang mengorbankan tracking migration per-file demi jalur SQL yang sederhana. Karena itu, `manifest.json`, checksum, backup, dan release tag wajib dipertahankan pada setiap release database.
+
+## Referensi command
+
+```bash
+pnpm build:db-bootstrap       # generate 8 bundle dari archive source
+pnpm validate:db-bootstrap    # cek 183 source tercakup tepat satu kali
+pnpm validate:migrations      # cek bundle filename dan statement berbahaya
+pnpm audit:rls                # audit RLS dari bundle canonical
+```
+
+Untuk deployment baru, aturan praktisnya adalah: **gunakan hanya `supabase/bootstrap/`, jalankan file `01` sampai `08`, dan jangan menjalankan folder archive secara langsung.**
