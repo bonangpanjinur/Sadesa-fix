@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Leaf, Search, ShoppingCart, MessageCircle } from 'lucide-react';
+import { Search, ShoppingCart, MessageCircle } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
@@ -39,9 +39,11 @@ export function Header() {
               className="w-8 h-8 rounded-xl object-cover shadow-brand"
             />
           ) : (
-            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center text-primary-foreground text-sm shadow-brand">
-              <Leaf className="h-4 w-4" />
-            </div>
+            <img
+              src="/branding/sadesa-logo.png"
+              alt={settings.siteName}
+              className="w-8 h-8 rounded-xl object-cover shadow-brand"
+            />
           )}
           <div>
             <h1 className="font-bold text-sm leading-none text-foreground">

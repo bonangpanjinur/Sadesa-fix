@@ -16,7 +16,7 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'Notifikasi Baru',
     body: 'Anda memiliki notifikasi baru',
-    icon: '/favicon.ico',
+    icon: '/branding/sadesa-favicon.png',
     url: '/',
   };
 
@@ -30,8 +30,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: data.icon || '/branding/sadesa-favicon.png',
+    badge: '/branding/sadesa-favicon.png',
     vibrate: [100, 50, 100],
     data: {
       url: data.url || '/',

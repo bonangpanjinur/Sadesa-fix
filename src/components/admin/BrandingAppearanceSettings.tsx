@@ -88,8 +88,8 @@ const DEFAULT_PWA_SETTINGS: PWASettings = {
   installPromptDelay: 30,
   showInstallBanner: true,
   icons: [
-    { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-    { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+    { src: '/branding/sadesa-icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: '/branding/sadesa-icon-512.png', sizes: '512x512', type: 'image/png' },
   ],
 };
 
@@ -158,6 +158,15 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
   // Loading & Saving State
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+
+  const updatePwaIcon = (size: string, src: string) => {
+    setPwaSettings((current) => ({
+      ...current,
+      icons: current.icons.some((icon) => icon.sizes === size)
+        ? current.icons.map((icon) => icon.sizes === size ? { ...icon, src } : icon)
+        : [...current.icons, { src, sizes: size, type: 'image/png', purpose: 'any maskable' }],
+    }));
+  };
 
   useEffect(() => {
     fetchAllSettings();
@@ -444,14 +453,14 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                   <Label>Logo URL</Label>
                   <div className="flex gap-2">
                     <Input value={logoUrl || ''} onChange={(e) => setLogoUrl(e.target.value)} />
-                    <ImageUpload bucket="merchant-images" path={`branding/logo-${Date.now()}`} value={logoUrl} onChange={(url) => setLogoUrl(url || '')} />
+                    <ImageUpload bucket="admin-assets" path={`branding/logo-${Date.now()}`} value={logoUrl} onChange={(url) => setLogoUrl(url || '')} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Favicon URL</Label>
                   <div className="flex gap-2">
                     <Input value={faviconUrl || ''} onChange={(e) => setFaviconUrl(e.target.value)} />
-                    <ImageUpload bucket="merchant-images" path={`branding/favicon-${Date.now()}`} value={faviconUrl} onChange={(url) => setFaviconUrl(url || '')} />
+                    <ImageUpload bucket="admin-assets" path={`branding/favicon-${Date.now()}`} value={faviconUrl} onChange={(url) => setFaviconUrl(url || '')} />
                   </div>
                 </div>
               </div>
@@ -486,6 +495,24 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               <div className="space-y-2">
                 <Label>Deskripsi PWA</Label>
                 <Textarea value={pwaSettings.description} onChange={(e) => setPwaSettings({...pwaSettings, description: e.target.value})} />
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Icon PWA 192×192 URL</Label>
+                  <Input
+                    value={pwaSettings.icons.find((icon) => icon.sizes === '192x192')?.src ?? ''}
+                    onChange={(e) => updatePwaIcon('192x192', e.target.value)}
+                    placeholder="https://.../icon-192.png atau /branding/..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Icon PWA 512×512 URL</Label>
+                  <Input
+                    value={pwaSettings.icons.find((icon) => icon.sizes === '512x512')?.src ?? ''}
+                    onChange={(e) => updatePwaIcon('512x512', e.target.value)}
+                    placeholder="https://.../icon-512.png atau /branding/..."
+                  />
+                </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">

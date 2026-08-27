@@ -1,6 +1,13 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useCallback, useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { setBaseUrl } from '@/lib/addressApi';
+
+interface PWAIcon {
+  src: string;
+  sizes: string;
+  type: string;
+  purpose?: string;
+}
 
 interface PWAConfig {
   appName: string;
@@ -8,22 +15,37 @@ interface PWAConfig {
   description: string;
   themeColor: string;
   backgroundColor: string;
-  icons: { src: string; sizes: string; type: string }[];
+  icons: PWAIcon[];
 }
 
 interface WhitelabelSettings {
   siteName: string;
   siteTagline: string;
-  logoUrl: string | null;
-  faviconUrl: string | null;
+  logoUrl: string;
+  faviconUrl: string;
   pwa?: PWAConfig;
 }
+
+const DEFAULT_LOGO_URL = '/branding/sadesa-logo.png';
+const DEFAULT_ICON_URL = '/branding/sadesa-favicon.png';
+const DEFAULT_PWA_ICONS: PWAIcon[] = [
+  { src: '/branding/sadesa-icon-192.png', sizes: '192x192', type: 'image/png' },
+  { src: '/branding/sadesa-icon-512.png', sizes: '512x512', type: 'image/png' },
+];
 
 const defaultSettings: WhitelabelSettings = {
   siteName: 'SaDesa',
   siteTagline: 'EKOSISTEM UMKM',
-  logoUrl: null,
-  faviconUrl: null,
+  logoUrl: DEFAULT_LOGO_URL,
+  faviconUrl: DEFAULT_ICON_URL,
+  pwa: {
+    appName: 'SaDesa - Marketplace UMKM & Desa Wisata',
+    shortName: 'SaDesa',
+    description: 'Jelajahi produk UMKM asli desa dan destinasi wisata desa di Indonesia',
+    themeColor: '#10b981',
+    backgroundColor: '#ffffff',
+    icons: DEFAULT_PWA_ICONS,
+  },
 };
 
 interface WhitelabelContextType {
@@ -34,10 +56,58 @@ interface WhitelabelContextType {
 
 const WhitelabelContext = createContext<WhitelabelContextType | undefined>(undefined);
 
+function upsertMeta(name: string, content: string): void {
+  let meta = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = name;
+    document.head.appendChild(meta);
+  }
+  meta.content = content;
+}
+
+function upsertLink(rel: string, href: string, type?: string): HTMLLinkElement {
+  let link = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = rel;
+    document.head.appendChild(link);
+  }
+  link.href = href;
+  if (type) link.type = type;
+  return link;
+}
+
+function applyBrandingHead(settings: WhitelabelSettings, previousManifestUrl: string | null): string | null {
+  document.title = settings.siteName;
+  upsertLink('icon', settings.faviconUrl, 'image/png');
+  upsertLink('apple-touch-icon', settings.pwa?.icons.find(icon => icon.sizes === '180x180')?.src ?? settings.faviconUrl, 'image/png');
+  upsertMeta('application-name', settings.siteName);
+  upsertMeta('apple-mobile-web-app-title', settings.pwa?.shortName ?? settings.siteName);
+  upsertMeta('theme-color', settings.pwa?.themeColor ?? '#10b981');
+
+  if (!settings.pwa) return previousManifestUrl;
+
+  const manifest = {
+    name: settings.pwa.appName || settings.siteName,
+    short_name: settings.pwa.shortName || settings.siteName,
+    description: settings.pwa.description,
+    start_url: '/',
+    scope: '/',
+    display: 'standalone',
+    theme_color: settings.pwa.themeColor,
+    background_color: settings.pwa.backgroundColor,
+    icons: settings.pwa.icons,
+  };
+  const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
+  upsertLink('manifest', manifestUrl, 'application/manifest+json');
+  if (previousManifestUrl) URL.revokeObjectURL(previousManifestUrl);
+  return manifestUrl;
+}
+
 export function useWhitelabel() {
   const context = useContext(WhitelabelContext);
   if (!context) {
-    // Fallback if used outside provider
     return {
       settings: defaultSettings,
       loading: false,
@@ -50,8 +120,9 @@ export function useWhitelabel() {
 export function useWhitelabelProvider() {
   const [settings, setSettings] = useState<WhitelabelSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
+  const manifestUrlRef = useRef<string | null>(null);
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('app_settings')
@@ -59,82 +130,49 @@ export function useWhitelabelProvider() {
 
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        const newSettings = { ...defaultSettings };
-        data.forEach((item) => {
-          if (item.category === 'whitelabel') {
-            if (item.key === 'site_name' && item.value) {
-              newSettings.siteName = String(item.value);
-            }
-            if (item.key === 'site_tagline' && item.value) {
-              newSettings.siteTagline = String(item.value);
-            }
-            if (item.key === 'logo_url' && item.value) {
-              newSettings.logoUrl = String(item.value);
-            }
-            if (item.key === 'favicon_url' && item.value) {
-              newSettings.faviconUrl = String(item.value);
-            }
-          }
-          if (item.category === 'pwa' && item.key === 'pwa_config') {
-            if (typeof item.value === 'object' && item.value !== null) {
-              newSettings.pwa = item.value as PWAConfig;
-            }
-          }
-          if (item.key === 'address_api' && item.value) {
-            const addressApi = item.value as { provider: string; base_url: string };
-            if (addressApi.base_url) {
-              setBaseUrl(addressApi.base_url);
-            }
-          }
-        });
-        setSettings(newSettings);
+      const newSettings: WhitelabelSettings = {
+        ...defaultSettings,
+        pwa: defaultSettings.pwa ? { ...defaultSettings.pwa, icons: [...defaultSettings.pwa.icons] } : undefined,
+      };
 
-        // Update document title
-        document.title = newSettings.siteName;
-
-        // Update favicon if set
-        if (newSettings.faviconUrl) {
-          const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-          if (link) {
-            link.href = newSettings.faviconUrl;
-          }
+      data?.forEach((item) => {
+        if (item.category === 'whitelabel') {
+          if (item.key === 'site_name' && item.value) newSettings.siteName = String(item.value);
+          if (item.key === 'site_tagline' && item.value) newSettings.siteTagline = String(item.value);
+          if (item.key === 'logo_url' && item.value) newSettings.logoUrl = String(item.value);
+          if (item.key === 'favicon_url' && item.value) newSettings.faviconUrl = String(item.value);
         }
-
-        // Update PWA Meta Tags dynamically
-        if (newSettings.pwa) {
-          const pwa = newSettings.pwa;
-          
-          // Theme color
-          const themeMeta = document.querySelector('meta[name="theme-color"]');
-          if (themeMeta) themeMeta.setAttribute('content', pwa.themeColor);
-          
-          // Apple mobile web app title
-          const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-          if (appleTitle) appleTitle.setAttribute('content', pwa.shortName);
-
-          // Update icons
-          if (pwa.icons && pwa.icons.length > 0) {
-            const icon192 = pwa.icons.find(i => i.sizes === '192x192');
-            const icon512 = pwa.icons.find(i => i.sizes === '512x512');
-
-            if (icon192) {
-              const appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
-              if (appleIcon) appleIcon.setAttribute('href', icon192.src);
-            }
-          }
+        if (item.category === 'pwa' && item.key === 'pwa_config' && typeof item.value === 'object' && item.value !== null) {
+          const storedPwa = item.value as unknown as Partial<PWAConfig>;
+          newSettings.pwa = {
+            ...newSettings.pwa,
+            ...storedPwa,
+            icons: storedPwa.icons?.length ? storedPwa.icons : (newSettings.pwa?.icons ?? DEFAULT_PWA_ICONS),
+          } as PWAConfig;
         }
-      }
+        if (item.key === 'address_api' && item.value && typeof item.value === 'object') {
+          const addressApi = item.value as unknown as { base_url?: string };
+          if (addressApi.base_url) setBaseUrl(addressApi.base_url);
+        }
+      });
+
+      setSettings(newSettings);
+      manifestUrlRef.current = applyBrandingHead(newSettings, manifestUrlRef.current);
     } catch (error) {
       console.error('Error fetching whitelabel settings:', error);
+      setSettings(defaultSettings);
+      manifestUrlRef.current = applyBrandingHead(defaultSettings, manifestUrlRef.current);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    void fetchSettings();
+    return () => {
+      if (manifestUrlRef.current) URL.revokeObjectURL(manifestUrlRef.current);
+    };
+  }, [fetchSettings]);
 
   return {
     settings,
@@ -144,4 +182,4 @@ export function useWhitelabelProvider() {
 }
 
 export { WhitelabelContext, defaultSettings };
-export type { WhitelabelSettings };
+export type { PWAConfig, PWAIcon, WhitelabelSettings };

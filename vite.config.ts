@@ -15,7 +15,7 @@ export default defineConfig(() => ({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'pwa-192x192.png', 'pwa-512x512.png', 'robots.txt'],
+      includeAssets: ['favicon.ico', 'branding/sadesa-favicon.png', 'branding/sadesa-icon-192.png', 'branding/sadesa-icon-512.png', 'robots.txt'],
       manifest: {
         name: 'SaDesa',
         short_name: 'SaDesa',
@@ -26,13 +26,13 @@ export default defineConfig(() => ({
         start_url: '/',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'branding/sadesa-icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'branding/sadesa-icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
