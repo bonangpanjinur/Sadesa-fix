@@ -27,6 +27,7 @@ interface POSContextType {
   activeOutlet: POSOutlet | null;
   outlets: POSOutlet[];
   loading: boolean;
+  error: string | null;
   setActiveOutlet: (outlet: POSOutlet) => void;
   refetchTenant: () => Promise<void>;
   refetchOutlets: () => Promise<void>;
@@ -41,18 +42,33 @@ export function POSProvider({ children }: { children: ReactNode }) {
   const [outlets, setOutlets] = useState<POSOutlet[]>([]);
   const [activeOutlet, setActiveOutlet] = useState<POSOutlet | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchTenant = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setTenant(null);
+      setOutlets([]);
+      setActiveOutlet(null);
+      setError(null);
+      return;
+    }
+
+    setError(null);
     try {
-      const { data } = await supabase
+      const { data, error: queryError } = await supabase
         .from('pos_tenants')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
+      if (queryError) throw new Error(queryError.message);
       setTenant(data as unknown as POSTenant | null);
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal memuat data usaha';
       console.error('Error fetching POS tenant:', err);
+      setTenant(null);
+      setOutlets([]);
+      setActiveOutlet(null);
+      setError(message);
     }
   }, [user]);
 
@@ -101,6 +117,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
       activeOutlet,
       outlets,
       loading,
+      error,
       setActiveOutlet,
       refetchTenant: fetchTenant,
       refetchOutlets: fetchOutlets,

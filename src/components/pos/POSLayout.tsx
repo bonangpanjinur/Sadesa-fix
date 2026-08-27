@@ -18,7 +18,7 @@ interface POSLayoutProps {
 
 export function POSLayout({ children, title, subtitle, actions, fullWidth }: POSLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { tenant, loading } = usePOS();
+  const { tenant, loading, error: tenantError, refetchTenant } = usePOS();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -38,6 +38,19 @@ export function POSLayout({ children, title, subtitle, actions, fullWidth }: POS
     return null;
   }
 
+  if (tenantError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center max-w-md">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold mb-2">Data usaha belum dapat dimuat</h2>
+          <p className="text-muted-foreground text-sm mb-4">{tenantError}</p>
+          <Button onClick={() => void refetchTenant()} variant="outline">Coba Lagi</Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!tenant) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
@@ -48,7 +61,7 @@ export function POSLayout({ children, title, subtitle, actions, fullWidth }: POS
             Anda belum memiliki usaha yang terdaftar di sistem POS. Buat usaha terlebih dahulu untuk mulai menggunakan kasir.
           </p>
           <Button
-            onClick={() => navigate('/pos/pengaturan')}
+            onClick={() => navigate('/pos/setup')}
             className="bg-emerald-600 hover:bg-emerald-700"
           >
             Buat Usaha Sekarang

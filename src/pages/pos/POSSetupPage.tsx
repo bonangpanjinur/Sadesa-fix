@@ -10,6 +10,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { toast } from 'sonner';
 import { Store, ArrowRight } from 'lucide-react';
 
+type DatabaseError = {
+  code?: string;
+  message?: string;
+  details?: string;
+};
+
+function getDatabaseErrorMessage(error: DatabaseError | Error | unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const databaseError = error as DatabaseError;
+    return databaseError.message || 'Terjadi kesalahan database';
+  }
+  return 'Terjadi kesalahan yang tidak diketahui';
+}
+
 export default function POSSetupPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -36,24 +51,62 @@ export default function POSSetupPage() {
     if (!outletData.name.trim()) { toast.error('Nama outlet wajib diisi'); return; }
 
     setLoading(true);
+    let createdTenantId: string | null = null;
     try {
-      const { data: tenant, error: tErr } = await supabase
+      const { data: insertedTenant, error: tenantError } = await supabase
         .from('pos_tenants' as never)
         .insert({ ...tenantData, user_id: user.id })
-        .select()
+        .select('id')
         .single();
-      if (tErr) throw tErr;
 
-      const { error: oErr } = await supabase
+      let tenantId = (insertedTenant as unknown as { id?: string } | null)?.id;
+      if (tenantError) {
+        const databaseError = tenantError as DatabaseError;
+        if (databaseError.code !== '23505') throw tenantError;
+        const { data: existingTenant, error: existingTenantError } = await supabase
+          .from('pos_tenants' as never)
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (existingTenantError) throw existingTenantError;
+        tenantId = (existingTenant as unknown as { id?: string } | null)?.id;
+      }
+
+      if (!tenantId) throw new Error('Usaha gagal dibuat karena ID tenant tidak tersedia');
+      if (!tenantError) createdTenantId = tenantId;
+
+      const { data: existingOutlet, error: existingOutletError } = await supabase
         .from('pos_outlets' as never)
-        .insert({ ...outletData, tenant_id: (tenant as unknown as { id: string }).id });
-      if (oErr) throw oErr;
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      if (existingOutletError) throw existingOutletError;
+
+      if (!existingOutlet) {
+        const { error: outletError } = await supabase
+          .from('pos_outlets' as never)
+          .insert({ ...outletData, tenant_id: tenantId });
+        if (outletError) throw outletError;
+      }
 
       toast.success('Usaha berhasil dibuat! Selamat datang di DesaMart POS.');
       navigate('/pos', { replace: true });
       window.location.reload();
     } catch (err: unknown) {
-      toast.error('Gagal membuat usaha: ' + (err instanceof Error ? err.message : String(err)));
+      if (createdTenantId) {
+        const { error: cleanupError } = await supabase
+          .from('pos_tenants' as never)
+          .delete()
+          .eq('id', createdTenantId)
+          .eq('user_id', user.id);
+        if (cleanupError) console.error('Failed to rollback POS tenant creation:', cleanupError);
+      }
+      const message = getDatabaseErrorMessage(err);
+      toast.error(message.includes('duplicate') || message.includes('unique')
+        ? 'Usaha untuk akun ini sudah terdaftar. Silakan buka POS.'
+        : 'Gagal membuat usaha: ' + message);
     } finally {
       setLoading(false);
     }

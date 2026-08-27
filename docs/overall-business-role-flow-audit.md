@@ -144,6 +144,15 @@ Offline queue and sync concepts exist, but production safety requires a formal c
 
 The user-facing result must distinguish accepted, duplicated, rejected, partially accepted, and requires-review. Silent overwrite is not acceptable for financial or stock data.
 
+## Concrete findings discovered during route and copy review
+
+| Finding | Severity | Why it matters | Recommended action |
+|---|---|---|---|
+| `/pos/harga` is intentionally public and presents package pricing, so it is not itself a data breach; however, it must remain a read-only marketing page and must not be reused for merchant data. | Medium | The route is unguarded while most POS routes are protected. Future edits could accidentally add sensitive queries to a public page. | Add a route classification test that asserts public POS pricing has no authenticated data mutation or tenant query. |
+| The pricing page contains the claim that data is stored on “server Replit”, while the current deployment plan uses Vercel/Railway/Supabase. | High | Inaccurate infrastructure and privacy claims can create legal, trust, and support risk. | Replace infrastructure-specific copy with the approved hosting/privacy statement and maintain it from canonical app settings. |
+| The pricing page claims “ribuan UMKM” and a 30-day no-card trial, while trial configuration is also runtime-driven elsewhere. | Medium | Marketing claims can diverge from actual entitlement and billing configuration. | Make trial days, plan features, and proof points data-driven; require product-owner approval for public claims. |
+| The route scan found many public pages plus protected role pages, but there is no single machine-readable route-permission matrix. | High | A new route can be accidentally exposed or assigned to the wrong role. | Create a route policy registry and test every route for expected anonymous, authenticated, and role access. |
+
 ## Security and authorization findings
 
 Static RLS coverage is encouraging, but runtime authorization still requires staging proof. Tests must use actual authenticated sessions for each role and two separate tenants. The minimum matrix should test select, insert, update, delete, and RPC execution for owner, staff, cashier, buyer, courier, village administrator, verifier, admin, anonymous, and service worker contexts.
