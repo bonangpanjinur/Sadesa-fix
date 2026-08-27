@@ -66,7 +66,7 @@ END $$;
 
 -- ===== BEGIN SOURCE: 20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql =====
 -- Add POD (Proof of Delivery) columns to orders
-ALTER TABLE public.orders 
+ALTER TABLE public.orders
 ADD COLUMN IF NOT EXISTS pod_image_url TEXT,
 ADD COLUMN IF NOT EXISTS pod_notes TEXT,
 ADD COLUMN IF NOT EXISTS pod_uploaded_at TIMESTAMP WITH TIME ZONE;
@@ -100,8 +100,8 @@ DROP POLICY IF EXISTS "Merchants can view own fees" ON public.platform_fees;
 CREATE POLICY "Merchants can view own fees" ON public.platform_fees
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM merchants 
-      WHERE merchants.id = platform_fees.merchant_id 
+      SELECT 1 FROM merchants
+      WHERE merchants.id = platform_fees.merchant_id
       AND merchants.user_id = auth.uid()
     )
   );
@@ -154,8 +154,8 @@ DROP POLICY IF EXISTS "Couriers can view own earnings" ON public.courier_earning
 CREATE POLICY "Couriers can view own earnings" ON public.courier_earnings
   FOR SELECT USING (
     EXISTS (
-      SELECT 1 FROM couriers 
-      WHERE couriers.id = courier_earnings.courier_id 
+      SELECT 1 FROM couriers
+      WHERE couriers.id = courier_earnings.courier_id
       AND couriers.user_id = auth.uid()
     )
   );
@@ -206,21 +206,21 @@ ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for wishlists
 DROP POLICY IF EXISTS "Users can view own wishlists" ON public.wishlists;
-CREATE POLICY "Users can view own wishlists" 
-    ON public.wishlists 
-    FOR SELECT 
+CREATE POLICY "Users can view own wishlists"
+    ON public.wishlists
+    FOR SELECT
     USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can add to own wishlist" ON public.wishlists;
-CREATE POLICY "Users can add to own wishlist" 
-    ON public.wishlists 
-    FOR INSERT 
+CREATE POLICY "Users can add to own wishlist"
+    ON public.wishlists
+    FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can remove from own wishlist" ON public.wishlists;
-CREATE POLICY "Users can remove from own wishlist" 
-    ON public.wishlists 
-    FOR DELETE 
+CREATE POLICY "Users can remove from own wishlist"
+    ON public.wishlists
+    FOR DELETE
     USING (auth.uid() = user_id);
 
 -- Create index for better query performance
@@ -247,7 +247,7 @@ CREATE POLICY "Authorized users can view courier info"
 ON public.couriers
 FOR SELECT
 USING (
-  is_admin() OR 
+  is_admin() OR
   is_verifikator() OR
   user_id = auth.uid() OR
   EXISTS (
@@ -264,7 +264,7 @@ USING (
 );
 
 -- =============================================
--- FIX SECURITY: Merchants Table  
+-- FIX SECURITY: Merchants Table
 -- =============================================
 
 -- Drop the overly permissive policy
@@ -282,7 +282,7 @@ USING (
 
 -- Create a secure view for public merchant listing (limited columns)
 CREATE OR REPLACE VIEW public.public_merchants AS
-SELECT 
+SELECT
   id,
   name,
   business_category,
@@ -310,7 +310,7 @@ GRANT SELECT ON public.public_merchants TO authenticated;
 -- Create a secure view for public courier info (for order tracking)
 -- =============================================
 CREATE OR REPLACE VIEW public.public_couriers AS
-SELECT 
+SELECT
   id,
   name,
   -- Only expose first name for privacy
@@ -337,7 +337,7 @@ DROP VIEW IF EXISTS public.public_merchants;
 CREATE VIEW public.public_merchants
 WITH (security_invoker = true)
 AS
-SELECT 
+SELECT
   id,
   name,
   business_category,
@@ -365,7 +365,7 @@ DROP VIEW IF EXISTS public.public_couriers;
 CREATE VIEW public.public_couriers
 WITH (security_invoker = true)
 AS
-SELECT 
+SELECT
   id,
   name,
   SPLIT_PART(name, ' ', 1) as first_name,
@@ -680,34 +680,34 @@ DECLARE
   v_current_count INTEGER;
 BEGIN
   v_window_start := date_trunc('minute', now());
-  
+
   -- Get current count for this window
   SELECT count INTO v_current_count
   FROM rate_limits
-  WHERE identifier = p_identifier 
-    AND action = p_action 
+  WHERE identifier = p_identifier
+    AND action = p_action
     AND window_start = v_window_start;
-  
+
   IF v_current_count IS NULL THEN
     -- First request in this window
     INSERT INTO rate_limits (identifier, action, count, window_start)
     VALUES (p_identifier, p_action, 1, v_window_start)
     ON CONFLICT (identifier, action, window_start) DO UPDATE SET count = rate_limits.count + 1;
-    
+
     RETURN jsonb_build_object('allowed', true, 'remaining', p_max_requests - 1);
   END IF;
-  
+
   IF v_current_count >= p_max_requests THEN
     RETURN jsonb_build_object('allowed', false, 'remaining', 0, 'retry_after', p_window_seconds);
   END IF;
-  
+
   -- Increment count
   UPDATE rate_limits
   SET count = count + 1
-  WHERE identifier = p_identifier 
-    AND action = p_action 
+  WHERE identifier = p_identifier
+    AND action = p_action
     AND window_start = v_window_start;
-  
+
   RETURN jsonb_build_object('allowed', true, 'remaining', p_max_requests - v_current_count - 1);
 END;
 $$;
@@ -736,35 +736,35 @@ BEGIN
     AND is_active = true
     AND start_date <= now()
     AND (end_date IS NULL OR end_date >= now());
-  
+
   IF v_voucher IS NULL THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Kode voucher tidak ditemukan atau sudah kadaluarsa');
   END IF;
-  
+
   -- Check merchant specific
   IF v_voucher.merchant_id IS NOT NULL AND v_voucher.merchant_id != p_merchant_id THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Voucher tidak berlaku untuk toko ini');
   END IF;
-  
+
   -- Check minimum order
   IF p_order_total < v_voucher.min_order_amount THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Minimum belanja Rp ' || v_voucher.min_order_amount);
   END IF;
-  
+
   -- Check usage limit
   IF v_voucher.usage_limit IS NOT NULL AND v_voucher.used_count >= v_voucher.usage_limit THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Voucher sudah habis');
   END IF;
-  
+
   -- Check if user already used
   SELECT COUNT(*) INTO v_usage_count
   FROM voucher_usages
   WHERE voucher_id = v_voucher.id AND user_id = p_user_id;
-  
+
   IF v_usage_count > 0 THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Anda sudah menggunakan voucher ini');
   END IF;
-  
+
   -- Calculate discount
   IF v_voucher.discount_type = 'percentage' THEN
     v_discount := FLOOR(p_order_total * v_voucher.discount_value / 100);
@@ -774,7 +774,7 @@ BEGIN
   ELSE
     v_discount := v_voucher.discount_value;
   END IF;
-  
+
   RETURN jsonb_build_object(
     'valid', true,
     'voucher_id', v_voucher.id,
@@ -813,7 +813,7 @@ CREATE POLICY "Rate limits insert via functions" ON public.rate_limits
   FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
-CREATE POLICY "Rate limits update via functions" ON public.rate_limits  
+CREATE POLICY "Rate limits update via functions" ON public.rate_limits
   FOR UPDATE USING (true);
 -- ===== END SOURCE: 20260128112256_d0cfd142-d893-4f05-9c1d-2f43ed686887.sql =====
 
@@ -893,7 +893,7 @@ DECLARE
     v_merchant_cod_max_distance NUMERIC;
 BEGIN
     SELECT value INTO v_cod_settings FROM app_settings WHERE key = 'cod_settings';
-    
+
     IF v_cod_settings IS NULL THEN
         v_max_amount := 75000;
         v_max_distance := 3;
@@ -903,34 +903,34 @@ BEGIN
         v_max_distance := COALESCE((v_cod_settings->>'max_distance_km')::NUMERIC, 3);
         v_min_trust_score := COALESCE((v_cod_settings->>'min_trust_score')::INTEGER, 50);
     END IF;
-    
+
     SELECT trust_score, cod_enabled INTO v_buyer_trust_score, v_buyer_cod_enabled
     FROM profiles WHERE user_id = p_buyer_id;
-    
+
     IF v_buyer_cod_enabled = false THEN
         RETURN jsonb_build_object('eligible', false, 'reason', 'Akun Anda tidak dapat menggunakan COD');
     END IF;
-    
+
     IF COALESCE(v_buyer_trust_score, 100) < v_min_trust_score THEN
         RETURN jsonb_build_object('eligible', false, 'reason', 'Trust score tidak mencukupi untuk COD');
     END IF;
-    
+
     SELECT cod_max_amount, cod_max_distance_km INTO v_merchant_cod_max_amount, v_merchant_cod_max_distance
     FROM merchants WHERE id = p_merchant_id;
-    
+
     v_max_amount := LEAST(v_max_amount, COALESCE(v_merchant_cod_max_amount, v_max_amount));
     v_max_distance := LEAST(v_max_distance, COALESCE(v_merchant_cod_max_distance, v_max_distance));
-    
+
     IF p_total_amount > v_max_amount THEN
-        RETURN jsonb_build_object('eligible', false, 'reason', 
+        RETURN jsonb_build_object('eligible', false, 'reason',
             format('Nominal terlalu besar untuk COD. Maks: Rp %s', to_char(v_max_amount, 'FM999,999,999')));
     END IF;
-    
+
     IF p_distance_km IS NOT NULL AND p_distance_km > v_max_distance THEN
-        RETURN jsonb_build_object('eligible', false, 'reason', 
+        RETURN jsonb_build_object('eligible', false, 'reason',
             format('Jarak terlalu jauh untuk COD. Maks: %s KM', v_max_distance));
     END IF;
-    
+
     RETURN jsonb_build_object('eligible', true, 'reason', NULL);
 END;
 $$;
@@ -957,24 +957,24 @@ DECLARE
     v_new_score INTEGER;
 BEGIN
     SELECT value INTO v_cod_settings FROM app_settings WHERE key = 'cod_settings';
-    
+
     v_penalty_points := COALESCE((v_cod_settings->>'penalty_points')::INTEGER, 50);
     v_bonus_points := COALESCE((v_cod_settings->>'success_bonus_points')::INTEGER, 1);
     v_min_trust_score := COALESCE((v_cod_settings->>'min_trust_score')::INTEGER, 50);
-    
+
     SELECT trust_score, cod_fail_count INTO v_current_score, v_current_fail_count
     FROM profiles WHERE user_id = p_buyer_id;
-    
+
     v_current_score := COALESCE(v_current_score, 100);
     v_current_fail_count := COALESCE(v_current_fail_count, 0);
-    
+
     IF p_success THEN
         v_new_score := LEAST(100, v_current_score + v_bonus_points);
         UPDATE profiles SET trust_score = v_new_score WHERE user_id = p_buyer_id;
     ELSE
         v_new_score := GREATEST(0, v_current_score - v_penalty_points);
-        UPDATE profiles 
-        SET 
+        UPDATE profiles
+        SET
             trust_score = v_new_score,
             cod_fail_count = v_current_fail_count + 1,
             cod_enabled = CASE WHEN v_new_score < v_min_trust_score THEN false ELSE cod_enabled END
@@ -1119,13 +1119,13 @@ CREATE TABLE IF NOT EXISTS public.flash_sales (
 ALTER TABLE public.flash_sales ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public can view active flash sales" ON public.flash_sales;
-CREATE POLICY "Public can view active flash sales" 
-ON public.flash_sales FOR SELECT 
+CREATE POLICY "Public can view active flash sales"
+ON public.flash_sales FOR SELECT
 USING (status = 'ACTIVE' AND end_time > now());
 
 DROP POLICY IF EXISTS "Merchants can manage their flash sales" ON public.flash_sales;
-CREATE POLICY "Merchants can manage their flash sales" 
-ON public.flash_sales FOR ALL 
+CREATE POLICY "Merchants can manage their flash sales"
+ON public.flash_sales FOR ALL
 USING (
   merchant_id IN (
     SELECT id FROM public.merchants WHERE user_id = auth.uid()
@@ -1137,16 +1137,16 @@ CREATE POLICY "Admins can manage all flash sales"
 ON public.flash_sales FOR ALL
 USING (
   EXISTS (
-    SELECT 1 FROM public.user_roles 
+    SELECT 1 FROM public.user_roles
     WHERE user_id = auth.uid() AND role = 'admin'
   )
 );
 
 -- Add verified badge to merchants if not exists
-DO $$ 
+DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
+    SELECT 1 FROM information_schema.columns
     WHERE table_name = 'merchants' AND column_name = 'is_verified'
   ) THEN
     ALTER TABLE public.merchants ADD COLUMN is_verified BOOLEAN DEFAULT false;
@@ -1161,11 +1161,11 @@ END $$;
 -- Fix product_variants policies
 DROP POLICY IF EXISTS "Public can view product variants" ON public.product_variants;
 DROP POLICY IF EXISTS "Public can view active product variants" ON public.product_variants;
-CREATE POLICY "Public can view active product variants" 
-ON public.product_variants FOR SELECT 
+CREATE POLICY "Public can view active product variants"
+ON public.product_variants FOR SELECT
 USING (is_active = true);
 
--- Fix product_images policies  
+-- Fix product_images policies
 DROP POLICY IF EXISTS "Public can view product images" ON public.product_images;
 CREATE POLICY "Public can view product images"
 ON public.product_images FOR SELECT
@@ -1199,9 +1199,9 @@ END $$;
 DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
 
 DROP POLICY IF EXISTS "System can insert notifications for authenticated users" ON public.notifications;
-CREATE POLICY "System can insert notifications for authenticated users" 
-ON public.notifications 
-FOR INSERT 
+CREATE POLICY "System can insert notifications for authenticated users"
+ON public.notifications
+FOR INSERT
 TO authenticated
 WITH CHECK (true);
 
@@ -1210,38 +1210,38 @@ DROP POLICY IF EXISTS "Rate limits insert via functions" ON public.rate_limits;
 DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
 
 DROP POLICY IF EXISTS "Users can insert own rate limits" ON public.rate_limits;
-CREATE POLICY "Users can insert own rate limits" 
-ON public.rate_limits 
-FOR INSERT 
+CREATE POLICY "Users can insert own rate limits"
+ON public.rate_limits
+FOR INSERT
 TO authenticated
 WITH CHECK (identifier = (auth.uid())::text);
 
 DROP POLICY IF EXISTS "Users can update own rate limits" ON public.rate_limits;
 CREATE POLICY "Users can update own rate limits"
-ON public.rate_limits 
-FOR UPDATE 
+ON public.rate_limits
+FOR UPDATE
 TO authenticated
 USING (identifier = (auth.uid())::text);
 
 -- 3. Fix password_reset_tokens table - add policies
 DROP POLICY IF EXISTS "Anyone can request password reset" ON public.password_reset_tokens;
-CREATE POLICY "Anyone can request password reset" 
-ON public.password_reset_tokens 
-FOR INSERT 
+CREATE POLICY "Anyone can request password reset"
+ON public.password_reset_tokens
+FOR INSERT
 TO anon, authenticated
 WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users can verify their tokens" ON public.password_reset_tokens;
-CREATE POLICY "Users can verify their tokens" 
-ON public.password_reset_tokens 
-FOR SELECT 
+CREATE POLICY "Users can verify their tokens"
+ON public.password_reset_tokens
+FOR SELECT
 TO anon, authenticated
 USING (true);
 
 DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens;
-CREATE POLICY "Tokens can be marked as used" 
-ON public.password_reset_tokens 
-FOR UPDATE 
+CREATE POLICY "Tokens can be marked as used"
+ON public.password_reset_tokens
+FOR UPDATE
 TO anon, authenticated
 USING (used_at IS NULL AND expires_at > now());
 
@@ -1255,9 +1255,9 @@ USING (used_at IS NULL AND expires_at > now());
 DROP POLICY IF EXISTS "System can insert notifications for authenticated users" ON public.notifications;
 
 DROP POLICY IF EXISTS "Authenticated users can receive notifications" ON public.notifications;
-CREATE POLICY "Authenticated users can receive notifications" 
-ON public.notifications 
-FOR INSERT 
+CREATE POLICY "Authenticated users can receive notifications"
+ON public.notifications
+FOR INSERT
 TO authenticated
 WITH CHECK (user_id = auth.uid() OR is_admin());
 
@@ -1268,13 +1268,13 @@ DROP POLICY IF EXISTS "Anyone can request password reset" ON public.password_res
 
 -- More restrictive: only allow insert if email matches pattern and not too many recent tokens
 DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tokens;
-CREATE POLICY "Password reset token insert" 
-ON public.password_reset_tokens 
-FOR INSERT 
+CREATE POLICY "Password reset token insert"
+ON public.password_reset_tokens
+FOR INSERT
 TO anon, authenticated
 WITH CHECK (
-  email IS NOT NULL 
-  AND token IS NOT NULL 
+  email IS NOT NULL
+  AND token IS NOT NULL
   AND expires_at > now()
 );
 
@@ -1295,11 +1295,11 @@ CREATE TABLE IF NOT EXISTS public.categories (
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone can view active categories" ON public.categories;
-CREATE POLICY "Anyone can view active categories" 
+CREATE POLICY "Anyone can view active categories"
 ON public.categories FOR SELECT USING (is_active = true);
 
 DROP POLICY IF EXISTS "Admins can manage categories" ON public.categories;
-CREATE POLICY "Admins can manage categories" 
+CREATE POLICY "Admins can manage categories"
 ON public.categories FOR ALL USING (is_admin());
 
 -- Verifikator withdrawals table
@@ -1321,17 +1321,17 @@ CREATE TABLE IF NOT EXISTS public.verifikator_withdrawals (
 ALTER TABLE public.verifikator_withdrawals ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Verifikators view own withdrawals" ON public.verifikator_withdrawals;
-CREATE POLICY "Verifikators view own withdrawals" 
-ON public.verifikator_withdrawals FOR SELECT 
+CREATE POLICY "Verifikators view own withdrawals"
+ON public.verifikator_withdrawals FOR SELECT
 USING (verifikator_id = auth.uid() OR is_admin());
 
 DROP POLICY IF EXISTS "Verifikators create withdrawals" ON public.verifikator_withdrawals;
-CREATE POLICY "Verifikators create withdrawals" 
-ON public.verifikator_withdrawals FOR INSERT 
+CREATE POLICY "Verifikators create withdrawals"
+ON public.verifikator_withdrawals FOR INSERT
 WITH CHECK (verifikator_id = auth.uid() AND status = 'PENDING');
 
 DROP POLICY IF EXISTS "Admins manage withdrawals" ON public.verifikator_withdrawals;
-CREATE POLICY "Admins manage withdrawals" 
+CREATE POLICY "Admins manage withdrawals"
 ON public.verifikator_withdrawals FOR ALL USING (is_admin());
 
 -- User villages junction table
@@ -1347,12 +1347,12 @@ CREATE TABLE IF NOT EXISTS public.user_villages (
 ALTER TABLE public.user_villages ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users view own village assignments" ON public.user_villages;
-CREATE POLICY "Users view own village assignments" 
-ON public.user_villages FOR SELECT 
+CREATE POLICY "Users view own village assignments"
+ON public.user_villages FOR SELECT
 USING (user_id = auth.uid() OR is_admin());
 
 DROP POLICY IF EXISTS "Admins manage village assignments" ON public.user_villages;
-CREATE POLICY "Admins manage village assignments" 
+CREATE POLICY "Admins manage village assignments"
 ON public.user_villages FOR ALL USING (is_admin());
 
 -- ===== END SOURCE: 20260128124009_8261bbc1-740e-4392-a17f-4e02ee129d54.sql =====
@@ -1369,7 +1369,7 @@ CREATE POLICY "Users can upload their own review images"
 ON storage.objects
 FOR INSERT
 WITH CHECK (
-  bucket_id = 'review-images' 
+  bucket_id = 'review-images'
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
@@ -1386,7 +1386,7 @@ CREATE POLICY "Users can delete their own review images"
 ON storage.objects
 FOR DELETE
 USING (
-  bucket_id = 'review-images' 
+  bucket_id = 'review-images'
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 -- ===== END SOURCE: 20260128124950_2b9c0c11-519e-4639-998c-df5278360697.sql =====
@@ -1394,7 +1394,7 @@ USING (
 -- ===== BEGIN SOURCE: 20260129093914_7254cddf-cebb-4364-b134-576b07ec530d.sql =====
 -- Insert homepage layout settings into app_settings table
 INSERT INTO public.app_settings (key, value, category, description)
-VALUES 
+VALUES
   ('homepage_layout', '{
     "sections": [
       {"id": "hero", "name": "Hero Banner", "enabled": true, "order": 0},
@@ -1411,22 +1411,22 @@ ON CONFLICT (key) DO NOTHING;
 
 -- ===== BEGIN SOURCE: 20260130020331_972d5331-4685-49e7-8632-1153e8e7f91b.sql =====
 -- Add location coordinates to villages table
-ALTER TABLE public.villages 
+ALTER TABLE public.villages
 ADD COLUMN IF NOT EXISTS location_lat DECIMAL(10, 8),
 ADD COLUMN IF NOT EXISTS location_lng DECIMAL(11, 8);
 
 -- Add location coordinates to merchants table for precise location
-ALTER TABLE public.merchants 
+ALTER TABLE public.merchants
 ADD COLUMN IF NOT EXISTS location_lat DECIMAL(10, 8),
 ADD COLUMN IF NOT EXISTS location_lng DECIMAL(11, 8);
 
 -- Update existing villages with approximate coordinates (Tasikmalaya area)
-UPDATE public.villages SET 
+UPDATE public.villages SET
   location_lat = -7.3274,
   location_lng = 108.2207
 WHERE district = 'Megamendung' AND location_lat IS NULL;
 
-UPDATE public.villages SET 
+UPDATE public.villages SET
   location_lat = -7.3350,
   location_lng = 108.2150
 WHERE district = 'Cisarua' AND location_lat IS NULL;
@@ -1480,7 +1480,7 @@ DROP VIEW IF EXISTS public.public_merchants CASCADE;
 
 -- Create a secure view for public merchant data (masks phone number)
 CREATE VIEW public.public_merchants AS
-SELECT 
+SELECT
   id,
   name,
   image_url,
@@ -1488,10 +1488,10 @@ SELECT
   business_description,
   village_id,
   -- Mask phone number - only show last 4 digits
-  CASE 
-    WHEN phone IS NOT NULL THEN 
+  CASE
+    WHEN phone IS NOT NULL THEN
       CONCAT('****', RIGHT(phone, 4))
-    ELSE NULL 
+    ELSE NULL
   END as phone_masked,
   -- Only show general location (city level), not exact address
   city,
@@ -1499,15 +1499,15 @@ SELECT
   province,
   -- Hide exact coordinates for public view
   -- Show approximate location (rounded to ~1km precision)
-  CASE 
-    WHEN location_lat IS NOT NULL THEN 
+  CASE
+    WHEN location_lat IS NOT NULL THEN
       ROUND(location_lat::numeric, 2)
-    ELSE NULL 
+    ELSE NULL
   END as location_lat_approx,
-  CASE 
-    WHEN location_lng IS NOT NULL THEN 
+  CASE
+    WHEN location_lng IS NOT NULL THEN
       ROUND(location_lng::numeric, 2)
-    ELSE NULL 
+    ELSE NULL
   END as location_lng_approx,
   is_open,
   open_time,
@@ -1547,25 +1547,25 @@ USING (
 DROP VIEW IF EXISTS public.public_couriers CASCADE;
 
 CREATE VIEW public.public_couriers AS
-SELECT 
+SELECT
   id,
   name,
-  CASE 
-    WHEN phone IS NOT NULL THEN 
+  CASE
+    WHEN phone IS NOT NULL THEN
       CONCAT('****', RIGHT(phone, 4))
-    ELSE NULL 
+    ELSE NULL
   END as phone_masked,
   photo_url,
   vehicle_type,
-  CASE 
-    WHEN current_lat IS NOT NULL THEN 
+  CASE
+    WHEN current_lat IS NOT NULL THEN
       ROUND(current_lat::numeric, 3)
-    ELSE NULL 
+    ELSE NULL
   END as current_lat_approx,
-  CASE 
-    WHEN current_lng IS NOT NULL THEN 
+  CASE
+    WHEN current_lng IS NOT NULL THEN
       ROUND(current_lng::numeric, 3)
-    ELSE NULL 
+    ELSE NULL
   END as current_lng_approx,
   is_available,
   status,
@@ -1583,32 +1583,32 @@ GRANT SELECT ON public.public_couriers TO authenticated;
 -- Drop and recreate public_merchants with SECURITY INVOKER
 DROP VIEW IF EXISTS public.public_merchants;
 
-CREATE VIEW public.public_merchants 
+CREATE VIEW public.public_merchants
 WITH (security_invoker = true) AS
-SELECT 
+SELECT
   id,
   name,
   image_url,
   business_category,
   business_description,
   village_id,
-  CASE 
-    WHEN phone IS NOT NULL THEN 
+  CASE
+    WHEN phone IS NOT NULL THEN
       CONCAT('****', RIGHT(phone, 4))
-    ELSE NULL 
+    ELSE NULL
   END as phone_masked,
   city,
   district,
   province,
-  CASE 
-    WHEN location_lat IS NOT NULL THEN 
+  CASE
+    WHEN location_lat IS NOT NULL THEN
       ROUND(location_lat::numeric, 2)
-    ELSE NULL 
+    ELSE NULL
   END as location_lat_approx,
-  CASE 
-    WHEN location_lng IS NOT NULL THEN 
+  CASE
+    WHEN location_lng IS NOT NULL THEN
       ROUND(location_lng::numeric, 2)
-    ELSE NULL 
+    ELSE NULL
   END as location_lng_approx,
   is_open,
   open_time,
@@ -1627,27 +1627,27 @@ GRANT SELECT ON public.public_merchants TO authenticated;
 -- Drop and recreate public_couriers with SECURITY INVOKER
 DROP VIEW IF EXISTS public.public_couriers;
 
-CREATE VIEW public.public_couriers 
+CREATE VIEW public.public_couriers
 WITH (security_invoker = true) AS
-SELECT 
+SELECT
   id,
   name,
-  CASE 
-    WHEN phone IS NOT NULL THEN 
+  CASE
+    WHEN phone IS NOT NULL THEN
       CONCAT('****', RIGHT(phone, 4))
-    ELSE NULL 
+    ELSE NULL
   END as phone_masked,
   photo_url,
   vehicle_type,
-  CASE 
-    WHEN current_lat IS NOT NULL THEN 
+  CASE
+    WHEN current_lat IS NOT NULL THEN
       ROUND(current_lat::numeric, 3)
-    ELSE NULL 
+    ELSE NULL
   END as current_lat_approx,
-  CASE 
-    WHEN current_lng IS NOT NULL THEN 
+  CASE
+    WHEN current_lng IS NOT NULL THEN
       ROUND(current_lng::numeric, 3)
-    ELSE NULL 
+    ELSE NULL
   END as current_lng_approx,
   is_available,
   status,
@@ -1687,7 +1687,7 @@ CREATE POLICY "Admins can manage all orders"
 -- ===== BEGIN SOURCE: 20260203_cleanup_package_table.sql =====
 -- Cleanup transaction_packages table
 -- Remove unused column price_per_transaction as it's replaced by total_price
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transaction_packages' AND column_name='price_per_transaction') THEN
         ALTER TABLE public.transaction_packages DROP COLUMN price_per_transaction;
@@ -1821,7 +1821,7 @@ ALTER TABLE public.transaction_packages
 
 -- 3. Modifikasi tabel transaction_packages
 -- Menghapus kolom classification_price jika ada
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transaction_packages' AND column_name='classification_price') THEN
         ALTER TABLE public.transaction_packages DROP COLUMN classification_price;
@@ -1848,23 +1848,23 @@ ALTER TABLE public.transaction_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quota_tiers ENABLE ROW LEVEL SECURITY;
 
 -- 5. Kebijakan RLS untuk quota_tiers
-DO $$ 
+DO $$
 BEGIN
     -- Drop existing policies if any to avoid conflicts
     DROP POLICY IF EXISTS "Anyone can view quota tiers" ON public.quota_tiers;
     DROP POLICY IF EXISTS "Admins can manage quota tiers" ON public.quota_tiers;
-    
+
     CREATE POLICY "Anyone can view quota tiers" ON public.quota_tiers FOR SELECT USING (true);
     CREATE POLICY "Admins can manage quota tiers" ON public.quota_tiers FOR ALL USING (public.is_admin());
 END $$;
 
 -- 6. Kebijakan RLS untuk transaction_packages
-DO $$ 
+DO $$
 BEGIN
     -- Drop existing policies if any to avoid conflicts
     DROP POLICY IF EXISTS "Anyone can view active packages" ON public.transaction_packages;
     DROP POLICY IF EXISTS "Admins can manage packages" ON public.transaction_packages;
-    
+
     CREATE POLICY "Anyone can view active packages" ON public.transaction_packages FOR SELECT USING (is_active = true);
     CREATE POLICY "Admins can manage packages" ON public.transaction_packages FOR ALL USING (public.is_admin());
 END $$;
@@ -1886,7 +1886,7 @@ INSERT INTO public.quota_tiers (min_price, max_price, credit_cost) VALUES
 
 -- 9. Modifikasi tabel merchants
 -- Menghapus kolom classification_price jika ada
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='merchants' AND column_name='classification_price') THEN
         ALTER TABLE public.merchants DROP COLUMN classification_price;
@@ -1904,7 +1904,7 @@ DECLARE
 BEGIN
   SELECT credit_cost INTO v_credit_cost
   FROM public.quota_tiers
-  WHERE p_price >= min_price 
+  WHERE p_price >= min_price
     AND (max_price IS NULL OR p_price <= max_price)
   ORDER BY min_price DESC
   LIMIT 1;
@@ -1934,7 +1934,7 @@ BEGIN
     AND (ms.transaction_quota - ms.used_quota) >= p_credits
   ORDER BY ms.created_at ASC -- Gunakan paket yang paling lama dulu (FIFO)
   LIMIT 1;
-  
+
   IF v_sub_id IS NULL THEN
     RETURN FALSE;
   END IF;
@@ -1942,7 +1942,7 @@ BEGIN
   UPDATE merchant_subscriptions
   SET used_quota = used_quota + p_credits, updated_at = now()
   WHERE id = v_sub_id;
-  
+
   RETURN TRUE;
 END;
 $$;
@@ -1959,7 +1959,7 @@ DECLARE
   v_used_quota INTEGER;
 BEGIN
   -- Hitung total kuota dari semua paket aktif
-  SELECT 
+  SELECT
     COALESCE(SUM(ms.transaction_quota), 0),
     COALESCE(SUM(ms.used_quota), 0)
   INTO v_total_quota, v_used_quota
@@ -1968,7 +1968,7 @@ BEGIN
   WHERE ms.merchant_id = p_merchant_id
     AND ms.status = 'ACTIVE'
     AND (tp.validity_days = 0 OR ms.expired_at > now());
-  
+
   IF v_total_quota = 0 OR (v_total_quota - v_used_quota) <= 0 THEN
     RETURN jsonb_build_object(
       'can_transact', false,
@@ -1976,7 +1976,7 @@ BEGIN
       'remaining_quota', 0
     );
   END IF;
-  
+
   RETURN jsonb_build_object(
     'can_transact', true,
     'remaining_quota', v_total_quota - v_used_quota

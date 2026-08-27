@@ -64,7 +64,7 @@ $$;
 -- Fase 1: Upgrade tabel chat_messages untuk multi-tipe chat
 
 -- Tambah kolom chat_type dan image_url
-ALTER TABLE public.chat_messages 
+ALTER TABLE public.chat_messages
   ADD COLUMN IF NOT EXISTS chat_type TEXT DEFAULT 'buyer_merchant',
   ADD COLUMN IF NOT EXISTS image_url TEXT;
 
@@ -374,7 +374,7 @@ CREATE TRIGGER on_auth_user_created
 
 -- Backfill: create profiles for existing users who don't have one
 INSERT INTO public.profiles (user_id, full_name)
-SELECT 
+SELECT
   u.id,
   COALESCE(
     u.raw_user_meta_data->>'full_name',
@@ -424,27 +424,27 @@ DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 
 DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can view own addresses" 
-  ON public.saved_addresses FOR SELECT 
+CREATE POLICY "Users can view own addresses"
+  ON public.saved_addresses FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can insert own addresses" 
-  ON public.saved_addresses FOR INSERT 
+CREATE POLICY "Users can insert own addresses"
+  ON public.saved_addresses FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can update own addresses" 
-  ON public.saved_addresses FOR UPDATE 
+CREATE POLICY "Users can update own addresses"
+  ON public.saved_addresses FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can delete own addresses" 
-  ON public.saved_addresses FOR DELETE 
+CREATE POLICY "Users can delete own addresses"
+  ON public.saved_addresses FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
 
@@ -463,12 +463,12 @@ CREATE TRIGGER set_saved_addresses_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- 5. Tambahkan kolom email ke profiles
-DO $$ 
+DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'profiles' 
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'profiles'
     AND column_name = 'email'
   ) THEN
     ALTER TABLE public.profiles ADD COLUMN email TEXT;
@@ -567,27 +567,27 @@ DROP POLICY IF EXISTS "Anyone can insert addresses" ON public.saved_addresses;
 
 -- Buat policy baru yang bersih
 DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can view own addresses" 
-  ON public.saved_addresses FOR SELECT 
+CREATE POLICY "Users can view own addresses"
+  ON public.saved_addresses FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can insert own addresses" 
-  ON public.saved_addresses FOR INSERT 
+CREATE POLICY "Users can insert own addresses"
+  ON public.saved_addresses FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can update own addresses" 
-  ON public.saved_addresses FOR UPDATE 
+CREATE POLICY "Users can update own addresses"
+  ON public.saved_addresses FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can delete own addresses" 
-  ON public.saved_addresses FOR DELETE 
+CREATE POLICY "Users can delete own addresses"
+  ON public.saved_addresses FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
 
@@ -668,27 +668,27 @@ DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 
 DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can view own addresses" 
-  ON public.saved_addresses FOR SELECT 
+CREATE POLICY "Users can view own addresses"
+  ON public.saved_addresses FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can insert own addresses" 
-  ON public.saved_addresses FOR INSERT 
+CREATE POLICY "Users can insert own addresses"
+  ON public.saved_addresses FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can update own addresses" 
-  ON public.saved_addresses FOR UPDATE 
+CREATE POLICY "Users can update own addresses"
+  ON public.saved_addresses FOR UPDATE
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can delete own addresses" 
-  ON public.saved_addresses FOR DELETE 
+CREATE POLICY "Users can delete own addresses"
+  ON public.saved_addresses FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
 
@@ -707,12 +707,12 @@ CREATE TRIGGER set_saved_addresses_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- 5. Tambahkan kolom email ke profiles (fix bug column "email" does not exist)
-DO $$ 
+DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema = 'public' 
-    AND table_name = 'profiles' 
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+    AND table_name = 'profiles'
     AND column_name = 'email'
   ) THEN
     ALTER TABLE public.profiles ADD COLUMN email TEXT;
@@ -1200,7 +1200,7 @@ AS $$
 BEGIN
   -- Insert notifications for all active, available couriers
   INSERT INTO public.notifications (user_id, title, message, type, link)
-  SELECT 
+  SELECT
     c.user_id,
     '🏍️ Pesanan Ojek Baru!',
     'Jemput di: ' || COALESCE(NEW.pickup_address, 'Lokasi tidak diketahui') || ' • Estimasi: Rp ' || COALESCE(NEW.estimated_fare::text, '0'),
@@ -1211,7 +1211,7 @@ BEGIN
     AND c.registration_status = 'APPROVED'
     AND c.status = 'ACTIVE'
     AND c.is_available = true;
-  
+
   RETURN NEW;
 END;
 $$;

@@ -210,10 +210,10 @@ RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO public.profiles (user_id, full_name)
     VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', ''));
-    
+
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.id, 'buyer');
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
@@ -330,8 +330,8 @@ CREATE POLICY "Users can view own order items"
     ON public.order_items FOR SELECT
     USING (
         EXISTS (
-            SELECT 1 FROM public.orders 
-            WHERE orders.id = order_items.order_id 
+            SELECT 1 FROM public.orders
+            WHERE orders.id = order_items.order_id
             AND (orders.buyer_id = auth.uid() OR public.is_admin())
         )
     );
@@ -341,8 +341,8 @@ CREATE POLICY "Users can insert order items for own orders"
     ON public.order_items FOR INSERT
     WITH CHECK (
         EXISTS (
-            SELECT 1 FROM public.orders 
-            WHERE orders.id = order_items.order_id 
+            SELECT 1 FROM public.orders
+            WHERE orders.id = order_items.order_id
             AND orders.buyer_id = auth.uid()
         )
     );
@@ -383,14 +383,14 @@ ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'verifikator';
 
 -- ===== BEGIN SOURCE: 20260127040154_47ea7885-7f85-461b-b087-44645cbb6ef2.sql =====
 -- Update merchants table to have proper registration status
-ALTER TABLE public.merchants 
+ALTER TABLE public.merchants
 ADD COLUMN IF NOT EXISTS registration_status text NOT NULL DEFAULT 'PENDING',
 ADD COLUMN IF NOT EXISTS registered_at timestamp with time zone DEFAULT now(),
 ADD COLUMN IF NOT EXISTS approved_at timestamp with time zone,
 ADD COLUMN IF NOT EXISTS approved_by uuid,
 ADD COLUMN IF NOT EXISTS rejection_reason text;
 
--- Update villages table to have proper registration status  
+-- Update villages table to have proper registration status
 ALTER TABLE public.villages
 ADD COLUMN IF NOT EXISTS registration_status text NOT NULL DEFAULT 'PENDING',
 ADD COLUMN IF NOT EXISTS registered_at timestamp with time zone DEFAULT now(),
@@ -414,11 +414,11 @@ $$;
 
 -- Allow anyone to register a village (pending approval by admin)
 DROP POLICY IF EXISTS "Anyone can register village" ON public.villages;
-CREATE POLICY "Anyone can register village" 
-ON public.villages 
-FOR INSERT 
+CREATE POLICY "Anyone can register village"
+ON public.villages
+FOR INSERT
 WITH CHECK (
-  registration_status = 'PENDING' AND 
+  registration_status = 'PENDING' AND
   is_active = false
 );
 
@@ -488,7 +488,7 @@ CREATE POLICY "Verifikator can manage own codes"
 ON public.verifikator_codes
 FOR ALL
 USING (
-  verifikator_id = auth.uid() OR 
+  verifikator_id = auth.uid() OR
   is_admin()
 );
 
@@ -504,13 +504,13 @@ ALTER TABLE public.villages
 ADD COLUMN IF NOT EXISTS subdistrict text;
 
 -- Update existing villages with subdistrict from district if not set
-UPDATE public.villages 
-SET subdistrict = district 
+UPDATE public.villages
+SET subdistrict = district
 WHERE subdistrict IS NULL;
 
 -- Insert sample verifikator codes for testing
 INSERT INTO public.verifikator_codes (verifikator_id, code, trade_group, description)
-VALUES 
+VALUES
   ('00000000-0000-0000-0000-000000000000', 'KULINER2024', 'Kelompok Kuliner Desa', 'Kode referral untuk pedagang kuliner'),
   ('00000000-0000-0000-0000-000000000000', 'KRIYA2024', 'Kelompok Kerajinan Tangan', 'Kode referral untuk pengrajin'),
   ('00000000-0000-0000-0000-000000000000', 'FASHION2024', 'Kelompok Fashion Lokal', 'Kode referral untuk pedagang fashion')
@@ -528,28 +528,28 @@ CREATE TABLE public.promotions (
   link_url TEXT,
   link_type TEXT CHECK (link_type IN ('product', 'tourism', 'village', 'merchant', 'external', 'category')),
   link_id UUID,
-  
+
   -- Who is advertising
   advertiser_type TEXT CHECK (advertiser_type IN ('admin', 'village', 'merchant')),
   advertiser_id UUID,
-  
+
   -- Scheduling
   start_date TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   end_date TIMESTAMP WITH TIME ZONE,
-  
+
   -- Pricing & Status
   price INTEGER DEFAULT 0,
   is_paid BOOLEAN DEFAULT false,
   is_active BOOLEAN DEFAULT true,
   is_approved BOOLEAN DEFAULT false,
-  
+
   -- Ordering
   sort_order INTEGER DEFAULT 0,
-  
+
   -- Stats
   view_count INTEGER DEFAULT 0,
   click_count INTEGER DEFAULT 0,
-  
+
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -563,9 +563,9 @@ CREATE POLICY "Anyone can view active promotions"
 ON public.promotions
 FOR SELECT
 USING (
-  is_active = true 
-  AND is_approved = true 
-  AND start_date <= now() 
+  is_active = true
+  AND is_approved = true
+  AND start_date <= now()
   AND (end_date IS NULL OR end_date >= now())
 );
 
@@ -582,11 +582,11 @@ CREATE POLICY "Villages can create own promotions"
 ON public.promotions
 FOR INSERT
 WITH CHECK (
-  advertiser_type = 'village' 
+  advertiser_type = 'village'
   AND is_approved = false
 );
 
--- Merchants can create promotions for themselves  
+-- Merchants can create promotions for themselves
 DROP POLICY IF EXISTS "Merchants can create own promotions" ON public.promotions;
 CREATE POLICY "Merchants can create own promotions"
 ON public.promotions
@@ -744,7 +744,7 @@ FOR SELECT USING (bucket_id = 'courier-documents' AND (is_admin() OR is_verifika
 DROP POLICY IF EXISTS "Couriers can view own documents" ON storage.objects;
 CREATE POLICY "Couriers can view own documents" ON storage.objects
 FOR SELECT USING (
-    bucket_id = 'courier-documents' 
+    bucket_id = 'courier-documents'
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
@@ -786,16 +786,16 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 
 -- Update RLS policies for couriers to view assigned orders
 DROP POLICY IF EXISTS "Couriers can view assigned orders" ON public.orders;
-CREATE POLICY "Couriers can view assigned orders" 
-ON public.orders 
-FOR SELECT 
+CREATE POLICY "Couriers can view assigned orders"
+ON public.orders
+FOR SELECT
 USING (courier_id IN (SELECT id FROM couriers WHERE user_id = auth.uid()));
 
 -- Couriers can update assigned orders (status changes)
 DROP POLICY IF EXISTS "Couriers can update assigned orders" ON public.orders;
-CREATE POLICY "Couriers can update assigned orders" 
-ON public.orders 
-FOR UPDATE 
+CREATE POLICY "Couriers can update assigned orders"
+ON public.orders
+FOR UPDATE
 USING (courier_id IN (SELECT id FROM couriers WHERE user_id = auth.uid()));
 -- ===== END SOURCE: 20260127052521_5e73eccb-ebdb-4515-8bc4-65ce1ad4a2c4.sql =====
 
@@ -950,7 +950,7 @@ WITH CHECK (
 
 -- ===== BEGIN SOURCE: 20260127060039_0394bf48-8830-43b0-b2d8-e5ddcb18a716.sql =====
 -- Create storage buckets for images
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES 
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types) VALUES
   ('product-images', 'product-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
   ('tourism-images', 'tourism-images', true, 10485760, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
   ('profile-images', 'profile-images', true, 2097152, ARRAY['image/jpeg', 'image/png', 'image/webp']),
@@ -967,12 +967,12 @@ DROP POLICY IF EXISTS "Merchants can upload product images" ON storage.objects;
 CREATE POLICY "Merchants can upload product images"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'product-images' 
+  bucket_id = 'product-images'
   AND (
-    is_admin() OR 
+    is_admin() OR
     EXISTS (
-      SELECT 1 FROM public.merchants 
-      WHERE merchants.user_id = auth.uid() 
+      SELECT 1 FROM public.merchants
+      WHERE merchants.user_id = auth.uid()
       AND merchants.status = 'ACTIVE'
     )
   )
@@ -982,11 +982,11 @@ DROP POLICY IF EXISTS "Merchants can update own product images" ON storage.objec
 CREATE POLICY "Merchants can update own product images"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'product-images' 
+  bucket_id = 'product-images'
   AND (
-    is_admin() OR 
+    is_admin() OR
     EXISTS (
-      SELECT 1 FROM public.merchants 
+      SELECT 1 FROM public.merchants
       WHERE merchants.user_id = auth.uid()
     )
   )
@@ -996,11 +996,11 @@ DROP POLICY IF EXISTS "Merchants can delete own product images" ON storage.objec
 CREATE POLICY "Merchants can delete own product images"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'product-images' 
+  bucket_id = 'product-images'
   AND (
-    is_admin() OR 
+    is_admin() OR
     EXISTS (
-      SELECT 1 FROM public.merchants 
+      SELECT 1 FROM public.merchants
       WHERE merchants.user_id = auth.uid()
     )
   )
@@ -1016,7 +1016,7 @@ DROP POLICY IF EXISTS "Admin desa can upload tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can upload tourism images"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'tourism-images' 
+  bucket_id = 'tourism-images'
   AND (is_admin() OR is_admin_desa())
 );
 
@@ -1024,7 +1024,7 @@ DROP POLICY IF EXISTS "Admin desa can update tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can update tourism images"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'tourism-images' 
+  bucket_id = 'tourism-images'
   AND (is_admin() OR is_admin_desa())
 );
 
@@ -1032,7 +1032,7 @@ DROP POLICY IF EXISTS "Admin desa can delete tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can delete tourism images"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'tourism-images' 
+  bucket_id = 'tourism-images'
   AND (is_admin() OR is_admin_desa())
 );
 
@@ -1046,7 +1046,7 @@ DROP POLICY IF EXISTS "Users can upload own profile image" ON storage.objects;
 CREATE POLICY "Users can upload own profile image"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'profile-images' 
+  bucket_id = 'profile-images'
   AND auth.uid() IS NOT NULL
 );
 
@@ -1054,7 +1054,7 @@ DROP POLICY IF EXISTS "Users can update own profile image" ON storage.objects;
 CREATE POLICY "Users can update own profile image"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'profile-images' 
+  bucket_id = 'profile-images'
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
@@ -1062,7 +1062,7 @@ DROP POLICY IF EXISTS "Users can delete own profile image" ON storage.objects;
 CREATE POLICY "Users can delete own profile image"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'profile-images' 
+  bucket_id = 'profile-images'
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
@@ -1076,9 +1076,9 @@ DROP POLICY IF EXISTS "Merchants can upload merchant images" ON storage.objects;
 CREATE POLICY "Merchants can upload merchant images"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'merchant-images' 
+  bucket_id = 'merchant-images'
   AND (
-    is_admin() OR 
+    is_admin() OR
     auth.uid() IS NOT NULL
   )
 );
@@ -1087,11 +1087,11 @@ DROP POLICY IF EXISTS "Merchants can update own merchant images" ON storage.obje
 CREATE POLICY "Merchants can update own merchant images"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'merchant-images' 
+  bucket_id = 'merchant-images'
   AND (
-    is_admin() OR 
+    is_admin() OR
     EXISTS (
-      SELECT 1 FROM public.merchants 
+      SELECT 1 FROM public.merchants
       WHERE merchants.user_id = auth.uid()
     )
   )
@@ -1101,18 +1101,18 @@ DROP POLICY IF EXISTS "Merchants can delete own merchant images" ON storage.obje
 CREATE POLICY "Merchants can delete own merchant images"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'merchant-images' 
+  bucket_id = 'merchant-images'
   AND (
-    is_admin() OR 
+    is_admin() OR
     EXISTS (
-      SELECT 1 FROM public.merchants 
+      SELECT 1 FROM public.merchants
       WHERE merchants.user_id = auth.uid()
     )
   )
 );
 
 -- Add avatar_url to profiles
-ALTER TABLE public.profiles 
+ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 -- ===== END SOURCE: 20260127060039_0394bf48-8830-43b0-b2d8-e5ddcb18a716.sql =====
 
@@ -1146,7 +1146,7 @@ COMMENT ON COLUMN public.orders.payment_invoice_url IS 'URL for payment page';
 
 -- ===== BEGIN SOURCE: 20260127062119_a67ab6c0-5e7b-4072-8099-8c4df996af78.sql =====
 -- Add blocking fields to profiles
-ALTER TABLE public.profiles 
+ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS is_blocked boolean DEFAULT false,
 ADD COLUMN IF NOT EXISTS blocked_at timestamp with time zone,
 ADD COLUMN IF NOT EXISTS blocked_by uuid,
@@ -1233,13 +1233,13 @@ EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ===== BEGIN SOURCE: 20260127062432_f542c2e2-d473-4f9c-92bc-ea76247d5faf.sql =====
 -- Add foreign key for admin_audit_logs to profiles
-ALTER TABLE public.admin_audit_logs 
-ADD CONSTRAINT admin_audit_logs_admin_id_fkey 
+ALTER TABLE public.admin_audit_logs
+ADD CONSTRAINT admin_audit_logs_admin_id_fkey
 FOREIGN KEY (admin_id) REFERENCES auth.users(id);
 
 -- Add foreign key for refund_requests buyer_id to auth.users
-ALTER TABLE public.refund_requests 
-ADD CONSTRAINT refund_requests_buyer_id_fkey 
+ALTER TABLE public.refund_requests
+ADD CONSTRAINT refund_requests_buyer_id_fkey
 FOREIGN KEY (buyer_id) REFERENCES auth.users(id);
 -- ===== END SOURCE: 20260127062432_f542c2e2-d473-4f9c-92bc-ea76247d5faf.sql =====
 
@@ -1249,7 +1249,7 @@ FOREIGN KEY (buyer_id) REFERENCES auth.users(id);
 -- =============================================
 
 -- 1. Add product analytics columns
-ALTER TABLE public.products 
+ALTER TABLE public.products
 ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS order_count INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS discount_percent INTEGER DEFAULT 0,
@@ -1257,7 +1257,7 @@ ADD COLUMN IF NOT EXISTS discount_end_date TIMESTAMP WITH TIME ZONE,
 ADD COLUMN IF NOT EXISTS min_stock_alert INTEGER DEFAULT 5;
 
 -- 2. Add COD security fields to profiles
-ALTER TABLE public.profiles 
+ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS cod_enabled BOOLEAN DEFAULT true,
 ADD COLUMN IF NOT EXISTS trust_score INTEGER DEFAULT 100,
 ADD COLUMN IF NOT EXISTS cod_fail_count INTEGER DEFAULT 0,
@@ -1347,8 +1347,8 @@ DROP POLICY IF EXISTS "Merchants can reply to their reviews" ON public.reviews;
 CREATE POLICY "Merchants can reply to their reviews" ON public.reviews
 FOR UPDATE USING (
   EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = reviews.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = reviews.merchant_id
     AND merchants.user_id = auth.uid()
   )
 );
@@ -1362,8 +1362,8 @@ DROP POLICY IF EXISTS "Merchants can view own withdrawals" ON public.withdrawal_
 CREATE POLICY "Merchants can view own withdrawals" ON public.withdrawal_requests
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = withdrawal_requests.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = withdrawal_requests.merchant_id
     AND merchants.user_id = auth.uid()
   )
 );
@@ -1372,8 +1372,8 @@ DROP POLICY IF EXISTS "Merchants can create withdrawals" ON public.withdrawal_re
 CREATE POLICY "Merchants can create withdrawals" ON public.withdrawal_requests
 FOR INSERT WITH CHECK (
   EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = withdrawal_requests.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = withdrawal_requests.merchant_id
     AND merchants.user_id = auth.uid()
   ) AND status = 'PENDING'
 );
@@ -1387,8 +1387,8 @@ DROP POLICY IF EXISTS "Merchants can view own insurance" ON public.insurance_fun
 CREATE POLICY "Merchants can view own insurance" ON public.insurance_fund
 FOR SELECT USING (
   EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = insurance_fund.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = insurance_fund.merchant_id
     AND merchants.user_id = auth.uid()
   )
 );
@@ -1397,8 +1397,8 @@ DROP POLICY IF EXISTS "Merchants can create claims" ON public.insurance_fund;
 CREATE POLICY "Merchants can create claims" ON public.insurance_fund
 FOR INSERT WITH CHECK (
   EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = insurance_fund.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = insurance_fund.merchant_id
     AND merchants.user_id = auth.uid()
   ) AND type = 'claim' AND status = 'PENDING'
 );
@@ -1425,34 +1425,34 @@ DECLARE
   v_result JSONB;
 BEGIN
   -- Get buyer profile
-  SELECT cod_enabled, trust_score, cod_fail_count 
-  INTO v_profile 
-  FROM profiles 
+  SELECT cod_enabled, trust_score, cod_fail_count
+  INTO v_profile
+  FROM profiles
   WHERE user_id = p_buyer_id;
-  
+
   -- Get merchant settings
-  SELECT cod_max_amount, cod_max_distance_km 
-  INTO v_merchant 
-  FROM merchants 
+  SELECT cod_max_amount, cod_max_distance_km
+  INTO v_merchant
+  FROM merchants
   WHERE id = p_merchant_id;
-  
+
   -- Check eligibility
   IF v_profile.cod_enabled = false THEN
     RETURN jsonb_build_object('eligible', false, 'reason', 'Akun Anda tidak dapat menggunakan fitur COD.');
   END IF;
-  
+
   IF v_profile.trust_score < 50 THEN
     RETURN jsonb_build_object('eligible', false, 'reason', 'Skor kepercayaan Anda terlalu rendah untuk COD.');
   END IF;
-  
+
   IF p_total_amount > COALESCE(v_merchant.cod_max_amount, 75000) THEN
     RETURN jsonb_build_object('eligible', false, 'reason', 'Nominal terlalu besar untuk COD. Maks: Rp ' || COALESCE(v_merchant.cod_max_amount, 75000));
   END IF;
-  
+
   IF p_distance_km IS NOT NULL AND p_distance_km > COALESCE(v_merchant.cod_max_distance_km, 3) THEN
     RETURN jsonb_build_object('eligible', false, 'reason', 'Jarak terlalu jauh untuk COD. Maks: ' || COALESCE(v_merchant.cod_max_distance_km, 3) || ' KM');
   END IF;
-  
+
   RETURN jsonb_build_object('eligible', true, 'reason', NULL);
 END;
 $$;
@@ -1467,21 +1467,21 @@ AS $$
 BEGIN
   -- If order was rejected by buyer (COD failed)
   IF NEW.status = 'REJECTED_BY_BUYER' AND OLD.status != 'REJECTED_BY_BUYER' THEN
-    UPDATE profiles 
-    SET 
+    UPDATE profiles
+    SET
       trust_score = GREATEST(0, trust_score - 50),
       cod_fail_count = cod_fail_count + 1,
       cod_enabled = CASE WHEN trust_score - 50 < 50 THEN false ELSE cod_enabled END
     WHERE user_id = NEW.buyer_id;
   END IF;
-  
+
   -- If COD order completed successfully
   IF NEW.status = 'DONE' AND OLD.status != 'DONE' AND NEW.payment_method = 'COD' THEN
-    UPDATE profiles 
+    UPDATE profiles
     SET trust_score = LEAST(100, trust_score + 1)
     WHERE user_id = NEW.buyer_id;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -1502,11 +1502,11 @@ SET search_path = public
 AS $$
 BEGIN
   UPDATE orders
-  SET 
+  SET
     status = 'CANCELED',
     notes = COALESCE(notes, '') || ' [Auto-canceled: Tidak dikonfirmasi dalam 15 menit]',
     updated_at = now()
-  WHERE 
+  WHERE
     status = 'PENDING_CONFIRMATION'
     AND confirmation_deadline < now();
 END;
@@ -1604,7 +1604,7 @@ BEGIN
   INSERT INTO public.notifications (user_id, title, message, type, link)
   VALUES (p_user_id, p_title, p_message, p_type, p_link)
   RETURNING id INTO notification_id;
-  
+
   RETURN notification_id;
 END;
 $$;
@@ -1836,41 +1836,41 @@ ALTER TABLE public.merchant_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- RLS for transaction_packages (public read, admin manage)
 DROP POLICY IF EXISTS "Anyone can view active packages" ON public.transaction_packages;
-CREATE POLICY "Anyone can view active packages" 
-ON public.transaction_packages FOR SELECT 
+CREATE POLICY "Anyone can view active packages"
+ON public.transaction_packages FOR SELECT
 USING (is_active = true);
 
 DROP POLICY IF EXISTS "Admins can manage packages" ON public.transaction_packages;
-CREATE POLICY "Admins can manage packages" 
-ON public.transaction_packages FOR ALL 
+CREATE POLICY "Admins can manage packages"
+ON public.transaction_packages FOR ALL
 USING (is_admin());
 
 -- RLS for merchant_subscriptions
 DROP POLICY IF EXISTS "Merchants can view own subscriptions" ON public.merchant_subscriptions;
-CREATE POLICY "Merchants can view own subscriptions" 
-ON public.merchant_subscriptions FOR SELECT 
+CREATE POLICY "Merchants can view own subscriptions"
+ON public.merchant_subscriptions FOR SELECT
 USING (EXISTS (
-  SELECT 1 FROM merchants 
-  WHERE merchants.id = merchant_subscriptions.merchant_id 
+  SELECT 1 FROM merchants
+  WHERE merchants.id = merchant_subscriptions.merchant_id
   AND merchants.user_id = auth.uid()
 ));
 
 DROP POLICY IF EXISTS "Merchants can create subscriptions" ON public.merchant_subscriptions;
-CREATE POLICY "Merchants can create subscriptions" 
-ON public.merchant_subscriptions FOR INSERT 
+CREATE POLICY "Merchants can create subscriptions"
+ON public.merchant_subscriptions FOR INSERT
 WITH CHECK (EXISTS (
-  SELECT 1 FROM merchants 
-  WHERE merchants.id = merchant_subscriptions.merchant_id 
+  SELECT 1 FROM merchants
+  WHERE merchants.id = merchant_subscriptions.merchant_id
   AND merchants.user_id = auth.uid()
 ) AND status = 'PENDING');
 
 DROP POLICY IF EXISTS "Admins can manage all subscriptions" ON public.merchant_subscriptions;
-CREATE POLICY "Admins can manage all subscriptions" 
-ON public.merchant_subscriptions FOR ALL 
+CREATE POLICY "Admins can manage all subscriptions"
+ON public.merchant_subscriptions FOR ALL
 USING (is_admin());
 
 -- Add current_subscription_id to merchants table for quick access
-ALTER TABLE public.merchants 
+ALTER TABLE public.merchants
 ADD COLUMN IF NOT EXISTS current_subscription_id UUID REFERENCES public.merchant_subscriptions(id);
 
 -- Create indexes
@@ -1904,7 +1904,7 @@ BEGIN
     AND used_quota < transaction_quota
   ORDER BY expired_at DESC
   LIMIT 1;
-  
+
   IF v_subscription IS NULL THEN
     RETURN jsonb_build_object(
       'can_transact', false,
@@ -1912,7 +1912,7 @@ BEGIN
       'remaining_quota', 0
     );
   END IF;
-  
+
   RETURN jsonb_build_object(
     'can_transact', true,
     'remaining_quota', v_subscription.transaction_quota - v_subscription.used_quota,
@@ -1935,7 +1935,7 @@ BEGIN
     AND status = 'ACTIVE'
     AND expired_at > now()
     AND used_quota < transaction_quota;
-  
+
   RETURN FOUND;
 END;
 $$;
@@ -2022,8 +2022,8 @@ CREATE POLICY "Verifikators can manage group members"
 ON public.group_members FOR ALL
 USING (
   EXISTS (
-    SELECT 1 FROM trade_groups 
-    WHERE trade_groups.id = group_members.group_id 
+    SELECT 1 FROM trade_groups
+    WHERE trade_groups.id = group_members.group_id
     AND (trade_groups.verifikator_id = auth.uid() OR is_admin())
   )
 );
@@ -2033,8 +2033,8 @@ CREATE POLICY "Merchants can view own membership"
 ON public.group_members FOR SELECT
 USING (
   EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = group_members.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = group_members.merchant_id
     AND merchants.user_id = auth.uid()
   )
 );
@@ -2050,8 +2050,8 @@ CREATE POLICY "Verifikators can manage payments in their groups"
 ON public.kas_payments FOR ALL
 USING (
   EXISTS (
-    SELECT 1 FROM trade_groups 
-    WHERE trade_groups.id = kas_payments.group_id 
+    SELECT 1 FROM trade_groups
+    WHERE trade_groups.id = kas_payments.group_id
     AND (trade_groups.verifikator_id = auth.uid() OR is_admin())
   )
 );
@@ -2061,8 +2061,8 @@ CREATE POLICY "Merchants can view own payments"
 ON public.kas_payments FOR SELECT
 USING (
   EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = kas_payments.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = kas_payments.merchant_id
     AND merchants.user_id = auth.uid()
   )
 );
@@ -2086,23 +2086,23 @@ DECLARE
 BEGIN
   -- Get group info
   SELECT * INTO v_group FROM trade_groups WHERE id = p_group_id;
-  
+
   IF v_group IS NULL THEN
     RETURN 0;
   END IF;
-  
+
   -- Insert kas records for all active members
-  FOR v_member IN 
-    SELECT * FROM group_members 
+  FOR v_member IN
+    SELECT * FROM group_members
     WHERE group_id = p_group_id AND status = 'ACTIVE'
   LOOP
     INSERT INTO kas_payments (group_id, merchant_id, amount, payment_month, payment_year, status)
     VALUES (p_group_id, v_member.merchant_id, v_group.monthly_fee, p_month, p_year, 'UNPAID')
     ON CONFLICT (group_id, merchant_id, payment_month, payment_year) DO NOTHING;
-    
+
     v_count := v_count + 1;
   END LOOP;
-  
+
   RETURN v_count;
 END;
 $$;
@@ -2123,7 +2123,7 @@ CREATE TRIGGER update_kas_payments_updated_at
 
 -- ===== BEGIN SOURCE: 20260127073300_6cb5784e-39e2-4626-8d8d-8bdc12a2a2e4.sql =====
 -- Rename kas_fee to group_commission_percent in transaction_packages
-ALTER TABLE public.transaction_packages 
+ALTER TABLE public.transaction_packages
   DROP COLUMN kas_fee,
   ADD COLUMN group_commission_percent numeric NOT NULL DEFAULT 5;
 
@@ -2173,19 +2173,19 @@ BEGIN
   -- If merchant has verifikator_code, find the group and assign
   IF NEW.verifikator_code IS NOT NULL AND NEW.group_id IS NULL THEN
     -- Get verifikator code info
-    SELECT * INTO v_code FROM verifikator_codes 
+    SELECT * INTO v_code FROM verifikator_codes
     WHERE code = NEW.verifikator_code AND is_active = true
     LIMIT 1;
-    
+
     IF v_code IS NOT NULL THEN
       -- Find trade group by verifikator
-      SELECT * INTO v_group FROM trade_groups 
+      SELECT * INTO v_group FROM trade_groups
       WHERE verifikator_id = v_code.verifikator_id AND is_active = true
       LIMIT 1;
-      
+
       IF v_group IS NOT NULL THEN
         NEW.group_id := v_group.id;
-        
+
         -- Also insert into group_members if not exists
         INSERT INTO group_members (group_id, merchant_id, status)
         VALUES (v_group.id, NEW.id, 'ACTIVE')
@@ -2193,7 +2193,7 @@ BEGIN
       END IF;
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
@@ -2218,14 +2218,14 @@ BEGIN
   IF NEW.payment_status = 'PAID' AND (OLD.payment_status IS NULL OR OLD.payment_status != 'PAID') THEN
     -- Get merchant info
     SELECT * INTO v_merchant FROM merchants WHERE id = NEW.merchant_id;
-    
+
     IF v_merchant.verifikator_id IS NOT NULL THEN
       -- Get package info
       SELECT * INTO v_package FROM transaction_packages WHERE id = NEW.package_id;
-      
+
       -- Calculate commission
       v_commission := FLOOR(NEW.payment_amount * v_package.group_commission_percent / 100);
-      
+
       IF v_commission > 0 THEN
         INSERT INTO verifikator_earnings (
           verifikator_id,
@@ -2249,7 +2249,7 @@ BEGIN
       END IF;
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
@@ -2316,25 +2316,25 @@ DECLARE
 BEGIN
   -- Get the withdrawal
   SELECT * INTO v_withdrawal FROM verifikator_withdrawals WHERE id = p_withdrawal_id;
-  
+
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Withdrawal not found';
   END IF;
-  
+
   IF v_withdrawal.status != 'PENDING' THEN
     RAISE EXCEPTION 'Withdrawal already processed';
   END IF;
-  
+
   IF p_status = 'APPROVED' THEN
     -- Calculate total pending earnings for this verifikator
     SELECT COALESCE(SUM(commission_amount), 0) INTO v_total_pending
     FROM verifikator_earnings
     WHERE verifikator_id = v_withdrawal.verifikator_id AND status = 'PENDING';
-    
+
     IF v_total_pending < v_withdrawal.amount THEN
       RAISE EXCEPTION 'Insufficient pending balance';
     END IF;
-    
+
     -- Mark earnings as PAID up to the withdrawal amount
     WITH earnings_to_pay AS (
       SELECT id, commission_amount,
@@ -2349,17 +2349,17 @@ BEGIN
       SELECT id FROM earnings_to_pay WHERE running_total <= v_withdrawal.amount
     );
   END IF;
-  
+
   -- Update withdrawal status
   UPDATE verifikator_withdrawals
-  SET 
+  SET
     status = p_status,
     admin_notes = p_admin_notes,
     processed_by = auth.uid(),
     processed_at = now(),
     updated_at = now()
   WHERE id = p_withdrawal_id;
-  
+
   RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;

@@ -66,17 +66,17 @@ BEGIN
     END IF;
 
     -- Find current active subscription to accumulate quota
-    SELECT * INTO v_active_sub 
-    FROM public.merchant_subscriptions 
-    WHERE merchant_id = v_sub.merchant_id 
-      AND status = 'ACTIVE' 
+    SELECT * INTO v_active_sub
+    FROM public.merchant_subscriptions
+    WHERE merchant_id = v_sub.merchant_id
+      AND status = 'ACTIVE'
       AND expired_at > now()
     ORDER BY expired_at DESC
     LIMIT 1;
 
     IF FOUND THEN
         v_remaining_quota := v_active_sub.transaction_quota - v_active_sub.used_quota;
-        
+
         -- Mark old subscription as COMPLETED
         UPDATE public.merchant_subscriptions
         SET status = 'COMPLETED', updated_at = now()
@@ -87,10 +87,10 @@ BEGIN
     v_new_total_quota := v_sub.transaction_quota + v_remaining_quota;
 
     -- Update the new subscription
-    UPDATE public.merchant_subscriptions 
-    SET 
-        status = 'ACTIVE', 
-        payment_status = 'PAID', 
+    UPDATE public.merchant_subscriptions
+    SET
+        status = 'ACTIVE',
+        payment_status = 'PAID',
         paid_at = now(),
         admin_notes = p_admin_notes,
         transaction_quota = v_new_total_quota,
@@ -100,7 +100,7 @@ BEGIN
 
     -- Update current_subscription_id in merchants table
     UPDATE public.merchants
-    SET 
+    SET
         current_subscription_id = p_subscription_id,
         updated_at = now()
     WHERE id = v_sub.merchant_id;
@@ -158,14 +158,14 @@ BEGIN
       AND (transaction_quota - used_quota) >= p_credits
     ORDER BY expired_at ASC
     LIMIT 1;
-    
+
     IF v_sub_id IS NULL THEN
         RETURN FALSE;
     END IF;
 
     -- 3. Deduct quota
     UPDATE public.merchant_subscriptions
-    SET used_quota = used_quota + p_credits, 
+    SET used_quota = used_quota + p_credits,
         updated_at = now()
     WHERE id = v_sub_id;
 
@@ -189,7 +189,7 @@ BEGIN
         p_order_id,
         'Pemakaian kuota untuk order: ' || COALESCE(p_order_id::text, 'N/A')
     );
-    
+
     RETURN TRUE;
 END;
 $$;
@@ -215,7 +215,7 @@ $$;
 -- Note: This assumes 'PAID' subscriptions are the source of truth for granted quota.
 CREATE OR REPLACE VIEW public.quota_discrepancy_analysis AS
 WITH purchase_summary AS (
-    SELECT 
+    SELECT
         merchant_id,
         SUM(transaction_quota) as total_granted_quota
     FROM public.merchant_subscriptions
@@ -225,7 +225,7 @@ WITH purchase_summary AS (
 usage_summary AS (
     -- If you have an orders table, you can estimate usage from there
     -- This is a fallback if used_quota in subscriptions was overwritten
-    SELECT 
+    SELECT
         merchant_id,
         COUNT(*) as estimated_usage
     FROM public.orders
@@ -233,14 +233,14 @@ usage_summary AS (
     GROUP BY merchant_id
 ),
 current_quota_summary AS (
-    SELECT 
+    SELECT
         merchant_id,
         SUM(transaction_quota - used_quota) as current_remaining_quota
     FROM public.merchant_subscriptions
     WHERE status = 'ACTIVE' AND expired_at > now()
     GROUP BY merchant_id
 )
-SELECT 
+SELECT
     m.id as merchant_id,
     m.name as merchant_name,
     COALESCE(ps.total_granted_quota, 0) as total_purchased,
@@ -320,8 +320,8 @@ BEGIN
     );
 
     RETURN json_build_object(
-        'success', true, 
-        'expected', v_expected_remaining, 
+        'success', true,
+        'expected', v_expected_remaining,
         'previous', v_current_remaining,
         'adjustment', v_expected_remaining - v_current_remaining
     );
@@ -342,7 +342,7 @@ DECLARE
     v_user_id UUID;
 BEGIN
     v_remaining := NEW.transaction_quota - NEW.used_quota;
-    
+
     -- Only alert if quota just crossed the threshold (e.g., 5)
     -- and it's a reduction in quota (used_quota increased)
     IF v_remaining <= 5 AND NEW.used_quota > OLD.used_quota AND (OLD.transaction_quota - OLD.used_quota) > 5 THEN
@@ -407,7 +407,7 @@ current_status AS (
     WHERE status = 'ACTIVE' AND expired_at > now()
     GROUP BY merchant_id
 )
-SELECT 
+SELECT
     m.id as merchant_id,
     m.name as merchant_name,
     COALESCE(ps.total_granted, 0) as purchased,
@@ -424,7 +424,7 @@ WHERE ABS((COALESCE(ps.total_granted, 0) - COALESCE(us.total_used, 0)) - COALESC
 -- 3. Admin Dashboard Helper
 -- Summary of quota circulation for admin monitoring.
 CREATE OR REPLACE VIEW public.quota_circulation_summary AS
-SELECT 
+SELECT
     COUNT(DISTINCT merchant_id) as active_merchants,
     SUM(transaction_quota) as total_quota_issued,
     SUM(used_quota) as total_quota_used,
@@ -440,7 +440,7 @@ WHERE status = 'ACTIVE' AND expired_at > now();
 -- Deskripsi: Menambahkan kolom bukti pembayaran, catatan admin, memperbarui fungsi persetujuan kuota, dan membuat storage bucket.
 
 -- 1. Modifikasi tabel merchant_subscriptions untuk mendukung bukti pembayaran dan catatan admin
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='merchant_subscriptions' AND column_name='payment_proof_url') THEN
         ALTER TABLE public.merchant_subscriptions ADD COLUMN payment_proof_url TEXT;
@@ -475,7 +475,7 @@ DECLARE
 BEGIN
     SELECT credit_cost INTO v_cost
     FROM public.quota_tiers
-    WHERE p_product_price >= min_price 
+    WHERE p_product_price >= min_price
     AND (max_price IS NULL OR p_product_price <= max_price)
     AND is_active = true
     ORDER BY min_price DESC
@@ -507,10 +507,10 @@ BEGIN
     END IF;
 
     -- 2. Update status subscription
-    UPDATE public.merchant_subscriptions 
-    SET 
-        status = 'ACTIVE', 
-        payment_status = 'PAID', 
+    UPDATE public.merchant_subscriptions
+    SET
+        status = 'ACTIVE',
+        payment_status = 'PAID',
         paid_at = now(),
         admin_notes = p_admin_notes,
         updated_at = now()
@@ -518,7 +518,7 @@ BEGIN
 
     -- 3. Update current_subscription_id di tabel merchants
     UPDATE public.merchants
-    SET 
+    SET
         current_subscription_id = p_subscription_id,
         updated_at = now()
     WHERE id = v_sub.merchant_id;
@@ -539,10 +539,10 @@ BEGIN
         RETURN json_build_object('success', false, 'message', 'Catatan admin wajib diisi saat menolak');
     END IF;
 
-    UPDATE public.merchant_subscriptions 
-    SET 
-        status = 'INACTIVE', 
-        payment_status = 'REJECTED', 
+    UPDATE public.merchant_subscriptions
+    SET
+        status = 'INACTIVE',
+        payment_status = 'REJECTED',
         admin_notes = p_admin_notes,
         updated_at = now()
     WHERE id = p_subscription_id;
@@ -578,7 +578,7 @@ CREATE POLICY "Merchant upload proof"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-    bucket_id = 'merchants' AND 
+    bucket_id = 'merchants' AND
     (storage.foldername(name))[1] = 'payment-proofs'
 );
 
@@ -595,7 +595,7 @@ TO authenticated
 USING (
     bucket_id = 'merchants' AND
     EXISTS (
-        SELECT 1 FROM public.user_roles 
+        SELECT 1 FROM public.user_roles
         WHERE user_id = auth.uid() AND role = 'admin'
     )
 );
@@ -611,7 +611,7 @@ CREATE POLICY "Buyers can update own orders"
 ON public.orders
 FOR UPDATE
 USING (
-  auth.uid() = buyer_id 
+  auth.uid() = buyer_id
   AND status IN ('NEW', 'PENDING_PAYMENT', 'DELIVERED')
 )
 WITH CHECK (
@@ -905,11 +905,11 @@ ALTER TABLE public.merchants ADD COLUMN IF NOT EXISTS notification_sound_enabled
 -- ===== BEGIN SOURCE: 20260210114200_f72dfca5-61b2-4ec7-b5b3-7180e8ae36cd.sql =====
 
 -- 1. Setting kuota gratis
-INSERT INTO app_settings (key, value, description, category) 
+INSERT INTO app_settings (key, value, description, category)
 VALUES ('free_tier_quota', '{"limit": 100}', 'Jumlah kuota gratis bulanan untuk merchant baru', 'merchant')
 ON CONFLICT (key) DO NOTHING;
 
--- 2. Setting komisi kurir  
+-- 2. Setting komisi kurir
 INSERT INTO app_settings (key, value, description, category)
 VALUES ('courier_commission', '{"percent": 80}', 'Persentase komisi kurir dari ongkir', 'courier')
 ON CONFLICT (key) DO NOTHING;
@@ -968,7 +968,7 @@ ALTER TABLE public.couriers ADD COLUMN IF NOT EXISTS bank_account_name TEXT;
 
 -- ===== BEGIN SOURCE: 20260212000000_add_halal_certification.sql =====
 -- Update merchants table with halal certification fields
-ALTER TABLE merchants 
+ALTER TABLE merchants
 ADD COLUMN IF NOT EXISTS halal_status text DEFAULT 'NONE',
 ADD COLUMN IF NOT EXISTS halal_certificate_url text,
 ADD COLUMN IF NOT EXISTS ktp_url text;
@@ -984,28 +984,28 @@ CREATE TABLE IF NOT EXISTS halal_regulations (
 ALTER TABLE halal_regulations ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow public read access to halal_regulations
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
+        SELECT 1 FROM pg_policies
         WHERE tablename = 'halal_regulations' AND policyname = 'Allow public read access to halal_regulations'
     ) THEN
-        CREATE POLICY "Allow public read access to halal_regulations" 
-        ON halal_regulations FOR SELECT 
+        CREATE POLICY "Allow public read access to halal_regulations"
+        ON halal_regulations FOR SELECT
         USING (true);
     END IF;
 END $$;
 
 -- Policy: Allow admin to manage halal_regulations
 -- Using public.is_admin() function which is standard in this project
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
+        SELECT 1 FROM pg_policies
         WHERE tablename = 'halal_regulations' AND policyname = 'Allow admin to manage halal_regulations'
     ) THEN
-        CREATE POLICY "Allow admin to manage halal_regulations" 
-        ON halal_regulations FOR ALL 
+        CREATE POLICY "Allow admin to manage halal_regulations"
+        ON halal_regulations FOR ALL
         USING (public.is_admin());
     END IF;
 END $$;
@@ -1101,7 +1101,7 @@ CREATE POLICY "Allow users to upload certificates"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-    bucket_id = 'merchants' AND 
+    bucket_id = 'merchants' AND
     (storage.foldername(name))[1] = 'certificate'
 );
 
@@ -1111,7 +1111,7 @@ CREATE POLICY "Allow users to upload ktp"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-    bucket_id = 'merchants' AND 
+    bucket_id = 'merchants' AND
     (storage.foldername(name))[1] = 'ktp'
 );
 
@@ -1179,7 +1179,7 @@ BEGIN
     IF v_group_id IS NOT NULL THEN
       NEW.group_id := v_group_id;
       NEW.verifikator_id := v_verifikator_id;
-      
+
       -- Insert into group_members if not exists
       INSERT INTO public.group_members (group_id, merchant_id, status)
       VALUES (v_group_id, NEW.id, 'ACTIVE')
@@ -1207,13 +1207,13 @@ BEGIN
     INSERT INTO public.user_roles (user_id, role)
     VALUES (NEW.user_id, 'admin_desa')
     ON CONFLICT DO NOTHING;
-    
+
     -- Add to user_villages if not exists
     INSERT INTO public.user_villages (user_id, village_id, role)
     VALUES (NEW.user_id, NEW.id, 'admin')
     ON CONFLICT DO NOTHING;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$;
@@ -1239,7 +1239,7 @@ CREATE TRIGGER on_auth_user_created
 
 -- ===== BEGIN SOURCE: 20260214_fix_verifikator_code_sync.sql =====
 -- 1. Tambahkan kolom verifikator_code jika belum ada
-ALTER TABLE public.merchants 
+ALTER TABLE public.merchants
 ADD COLUMN IF NOT EXISTS verifikator_code text;
 
 -- 2. Tambahkan index untuk performa pencarian (opsional tapi disarankan)
@@ -1588,9 +1588,9 @@ DROP POLICY IF EXISTS "Public can view merchant gallery" ON public.merchant_gall
 CREATE POLICY "Public can view merchant gallery"
   ON public.merchant_gallery FOR SELECT
   USING (EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = merchant_gallery.merchant_id 
-    AND merchants.status = 'ACTIVE' 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = merchant_gallery.merchant_id
+    AND merchants.status = 'ACTIVE'
     AND merchants.registration_status = 'APPROVED'
   ));
 
@@ -1599,8 +1599,8 @@ DROP POLICY IF EXISTS "Merchants can manage own gallery" ON public.merchant_gall
 CREATE POLICY "Merchants can manage own gallery"
   ON public.merchant_gallery FOR ALL
   USING (EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = merchant_gallery.merchant_id 
+    SELECT 1 FROM merchants
+    WHERE merchants.id = merchant_gallery.merchant_id
     AND merchants.user_id = auth.uid()
   ));
 

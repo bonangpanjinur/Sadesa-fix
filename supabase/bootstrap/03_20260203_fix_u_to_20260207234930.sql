@@ -42,7 +42,7 @@ CREATE POLICY "Admins can view all profiles"
 
 -- ===== BEGIN SOURCE: 20260203_improve_refund_system.sql =====
 -- 1. Perbarui tabel refund_requests dengan kolom baru
-ALTER TABLE public.refund_requests 
+ALTER TABLE public.refund_requests
 ADD COLUMN IF NOT EXISTS evidence_urls text[] DEFAULT '{}',
 ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE,
 ADD COLUMN IF NOT EXISTS refund_type text DEFAULT 'FULL';
@@ -128,7 +128,7 @@ INSERT INTO public.quota_tiers (min_price, max_price, credit_cost) VALUES
 (15000, NULL, 10);
 
 -- 2. Modify transaction_packages to use "credits" instead of "transactions"
--- We'll keep the column name transaction_quota but treat it as credits conceptually, 
+-- We'll keep the column name transaction_quota but treat it as credits conceptually,
 -- or we can add a comment to clarify.
 DO $$
 BEGIN
@@ -157,20 +157,20 @@ BEGIN
   -- Loop through items in the order
   FOR v_item IN SELECT product_price, quantity FROM order_items WHERE order_id = p_order_id LOOP
     -- Find the matching tier for this product price
-    SELECT credit_cost INTO v_tier_cost 
-    FROM quota_tiers 
-    WHERE v_item.product_price >= min_price 
+    SELECT credit_cost INTO v_tier_cost
+    FROM quota_tiers
+    WHERE v_item.product_price >= min_price
       AND (max_price IS NULL OR v_item.product_price <= max_price)
     LIMIT 1;
-    
+
     -- Default to 1 if no tier found (safety)
     IF v_tier_cost IS NULL THEN
       v_tier_cost := 1;
     END IF;
-    
+
     v_total_credits := v_total_credits + (v_tier_cost * v_item.quantity);
   END LOOP;
-  
+
   RETURN v_total_credits;
 END;
 $$;
@@ -194,7 +194,7 @@ BEGIN
     AND (transaction_quota - used_quota) >= p_credits
   ORDER BY expired_at ASC -- Use the one expiring soonest first
   LIMIT 1;
-  
+
   IF v_sub_id IS NULL THEN
     RETURN FALSE;
   END IF;
@@ -202,7 +202,7 @@ BEGIN
   UPDATE merchant_subscriptions
   SET used_quota = used_quota + p_credits, updated_at = now()
   WHERE id = v_sub_id;
-  
+
   RETURN TRUE;
 END;
 $$;
@@ -276,24 +276,24 @@ ALTER TABLE public.transaction_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quota_tiers ENABLE ROW LEVEL SECURITY;
 
 -- Kebijakan RLS untuk quota_tiers
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quota_tiers' AND policyname = 'Anyone can view quota tiers') THEN
         CREATE POLICY "Anyone can view quota tiers" ON public.quota_tiers FOR SELECT USING (true);
     END IF;
-    
+
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'quota_tiers' AND policyname = 'Admins can manage quota tiers') THEN
         CREATE POLICY "Admins can manage quota tiers" ON public.quota_tiers FOR ALL USING (is_admin());
     END IF;
 END $$;
 
 -- Kebijakan RLS untuk transaction_packages (jika belum ada)
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'transaction_packages' AND policyname = 'Anyone can view active packages') THEN
         CREATE POLICY "Anyone can view active packages" ON public.transaction_packages FOR SELECT USING (is_active = true);
     END IF;
-    
+
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'transaction_packages' AND policyname = 'Admins can manage packages') THEN
         CREATE POLICY "Admins can manage packages" ON public.transaction_packages FOR ALL USING (is_admin());
     END IF;
@@ -316,7 +316,7 @@ INSERT INTO public.quota_tiers (min_price, max_price, credit_cost) VALUES
 
 -- 6. Modifikasi tabel merchants
 -- Menghapus kolom classification_price jika ada
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='merchants' AND column_name='classification_price') THEN
         ALTER TABLE public.merchants DROP COLUMN classification_price;
@@ -334,7 +334,7 @@ DECLARE
 BEGIN
   SELECT credit_cost INTO v_credit_cost
   FROM public.quota_tiers
-  WHERE p_price >= min_price 
+  WHERE p_price >= min_price
     AND (max_price IS NULL OR p_price <= max_price)
   ORDER BY min_price DESC
   LIMIT 1;
@@ -364,7 +364,7 @@ BEGIN
     AND (ms.transaction_quota - ms.used_quota) >= p_credits
   ORDER BY ms.created_at ASC -- Gunakan paket yang paling lama dulu (FIFO)
   LIMIT 1;
-  
+
   IF v_sub_id IS NULL THEN
     RETURN FALSE;
   END IF;
@@ -372,7 +372,7 @@ BEGIN
   UPDATE merchant_subscriptions
   SET used_quota = used_quota + p_credits, updated_at = now()
   WHERE id = v_sub_id;
-  
+
   RETURN TRUE;
 END;
 $$;
@@ -389,7 +389,7 @@ DECLARE
   v_used_quota INTEGER;
 BEGIN
   -- Hitung total kuota dari semua paket aktif
-  SELECT 
+  SELECT
     COALESCE(SUM(ms.transaction_quota), 0),
     COALESCE(SUM(ms.used_quota), 0)
   INTO v_total_quota, v_used_quota
@@ -398,7 +398,7 @@ BEGIN
   WHERE ms.merchant_id = p_merchant_id
     AND ms.status = 'ACTIVE'
     AND (tp.validity_days = 0 OR ms.expired_at > now());
-  
+
   IF v_total_quota = 0 OR (v_total_quota - v_used_quota) <= 0 THEN
     RETURN jsonb_build_object(
       'can_transact', false,
@@ -406,7 +406,7 @@ BEGIN
       'remaining_quota', 0
     );
   END IF;
-  
+
   RETURN jsonb_build_object(
     'can_transact', true,
     'remaining_quota', v_total_quota - v_used_quota
@@ -423,7 +423,7 @@ $$;
 
 -- 1. Modifikasi tabel transaction_packages
 -- Tambahkan kolom total_price dan ubah kas_fee menjadi numerik untuk persentase
-ALTER TABLE public.transaction_packages 
+ALTER TABLE public.transaction_packages
 ADD COLUMN IF NOT EXISTS total_price INTEGER NOT NULL DEFAULT 0,
 ALTER COLUMN kas_fee TYPE NUMERIC(5,2);
 
@@ -482,7 +482,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.couriers 
+    SELECT 1 FROM public.couriers
     WHERE id = _courier_id AND user_id = _user_id
   )
 $$;
@@ -496,7 +496,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.merchants 
+    SELECT 1 FROM public.merchants
     WHERE id = _merchant_id AND user_id = _user_id
   )
 $$;
@@ -711,9 +711,9 @@ EXECUTE FUNCTION public.update_updated_at_column();
 -- Add missing columns if they don't exist
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                 WHERE table_schema = 'public' 
-                 AND table_name = 'transaction_packages' 
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = 'public'
+                 AND table_name = 'transaction_packages'
                  AND column_name = 'total_credits') THEN
     ALTER TABLE public.transaction_packages ADD COLUMN total_credits INTEGER NOT NULL DEFAULT 100;
   END IF;
@@ -743,7 +743,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM public.user_roles 
+    SELECT 1 FROM public.user_roles
     WHERE user_id = auth.uid() AND role = 'admin'
   )
 $$;
@@ -817,9 +817,9 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT COALESCE(
-    (SELECT credit_cost FROM public.quota_tiers 
-     WHERE is_active = true 
-     AND product_price >= min_price 
+    (SELECT credit_cost FROM public.quota_tiers
+     WHERE is_active = true
+     AND product_price >= min_price
      AND (max_price IS NULL OR product_price <= max_price)
      ORDER BY min_price DESC
      LIMIT 1),
@@ -842,23 +842,23 @@ DECLARE
   _cost INTEGER;
 BEGIN
   _cost := public.get_quota_cost(_product_price);
-  
+
   SELECT id, (transaction_quota - used_quota) INTO _subscription_id, _remaining_quota
   FROM public.merchant_subscriptions
-  WHERE merchant_id = _merchant_id 
-    AND status = 'ACTIVE' 
+  WHERE merchant_id = _merchant_id
+    AND status = 'ACTIVE'
     AND expired_at > now()
   ORDER BY created_at DESC
   LIMIT 1;
-  
+
   IF _subscription_id IS NULL OR _remaining_quota < _cost THEN
     RETURN FALSE;
   END IF;
-  
+
   UPDATE public.merchant_subscriptions
   SET used_quota = used_quota + _cost, updated_at = now()
   WHERE id = _subscription_id;
-  
+
   RETURN TRUE;
 END;
 $$;
@@ -918,7 +918,7 @@ CREATE POLICY "orders_admin_access" ON public.orders
 
 -- ===== BEGIN SOURCE: 20260205150025_e0784383-4b18-43b1-9030-7314c4fdd46f.sql =====
 -- Add payment settings columns to merchants table
-ALTER TABLE public.merchants 
+ALTER TABLE public.merchants
 ADD COLUMN IF NOT EXISTS payment_cod_enabled boolean DEFAULT true,
 ADD COLUMN IF NOT EXISTS payment_transfer_enabled boolean DEFAULT true,
 ADD COLUMN IF NOT EXISTS bank_name text,
@@ -926,7 +926,7 @@ ADD COLUMN IF NOT EXISTS bank_account_number text,
 ADD COLUMN IF NOT EXISTS bank_account_name text;
 
 -- Update existing merchants with default values
-UPDATE public.merchants SET 
+UPDATE public.merchants SET
   payment_cod_enabled = true,
   payment_transfer_enabled = true
 WHERE payment_cod_enabled IS NULL;
@@ -942,17 +942,17 @@ COMMENT ON COLUMN public.merchants.bank_account_name IS 'Bank account holder nam
 -- Drop and recreate the status check constraint to include all needed statuses
 ALTER TABLE public.orders DROP CONSTRAINT IF EXISTS orders_status_check;
 
-ALTER TABLE public.orders ADD CONSTRAINT orders_status_check 
+ALTER TABLE public.orders ADD CONSTRAINT orders_status_check
 CHECK (status = ANY (ARRAY[
-  'NEW'::text, 
+  'NEW'::text,
   'PENDING_CONFIRMATION'::text,
   'PENDING_PAYMENT'::text,
-  'PROCESSED'::text, 
+  'PROCESSED'::text,
   'READY'::text,
   'ASSIGNED'::text,
   'PICKED_UP'::text,
-  'SENT'::text, 
-  'DONE'::text, 
+  'SENT'::text,
+  'DONE'::text,
   'CANCELED'::text,
   'REJECTED'::text,
   'REJECTED_BY_BUYER'::text,
@@ -962,7 +962,7 @@ CHECK (status = ANY (ARRAY[
 
 -- ===== BEGIN SOURCE: 20260206_add_province_to_villages.sql =====
 -- Add province column to villages table if it doesn't exist
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'villages' AND column_name = 'province') THEN
         ALTER TABLE public.villages ADD COLUMN province text;
@@ -977,7 +977,7 @@ END $$;
 -- ===== BEGIN SOURCE: 20260206_fix_products_bucket.sql =====
 -- Create storage bucket for products if it doesn't exist
 -- The roadmap mentioned 'products' bucket, but the code uses 'product-images'.
--- We will create 'products' as an alias or ensure both exist to be safe, 
+-- We will create 'products' as an alias or ensure both exist to be safe,
 -- but primarily we'll fix the code to use 'product-images' consistently or vice versa.
 -- According to the roadmap, the user wants a bucket named 'products'.
 
@@ -997,7 +997,7 @@ DROP POLICY IF EXISTS "Merchant Upload" ON storage.objects;
 CREATE POLICY "Merchant Upload"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'products' 
+  bucket_id = 'products'
   AND auth.role() = 'authenticated'
 );
 
@@ -1006,7 +1006,7 @@ DROP POLICY IF EXISTS "Merchant Update" ON storage.objects;
 CREATE POLICY "Merchant Update"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'products' 
+  bucket_id = 'products'
   AND auth.role() = 'authenticated'
 );
 
@@ -1015,7 +1015,7 @@ DROP POLICY IF EXISTS "Merchant Delete" ON storage.objects;
 CREATE POLICY "Merchant Delete"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'products' 
+  bucket_id = 'products'
   AND auth.role() = 'authenticated'
 );
 
@@ -1053,7 +1053,7 @@ BEGIN
       INSERT INTO public.user_roles (user_id, role)
       VALUES (NEW.user_id, 'merchant')
       ON CONFLICT (user_id, role) DO NOTHING;
-      
+
       -- Opsional: Jika ingin menghapus role 'buyer' saat menjadi merchant
       -- DELETE FROM public.user_roles WHERE user_id = NEW.user_id AND role = 'buyer';
     END IF;
@@ -1070,10 +1070,10 @@ CREATE TRIGGER on_merchant_approval
 
 -- 3. Perbaikan RLS Policy agar user bisa mendaftar dengan aman
 DROP POLICY IF EXISTS "merchants_register" ON public.merchants;
-CREATE POLICY "merchants_register" ON public.merchants 
-FOR INSERT 
+CREATE POLICY "merchants_register" ON public.merchants
+FOR INSERT
 WITH CHECK (
-  auth.role() = 'authenticated' AND 
+  auth.role() = 'authenticated' AND
   (user_id = auth.uid() OR user_id IS NULL) -- Izinkan NULL karena akan diisi oleh trigger
 );
 
@@ -1086,14 +1086,14 @@ WITH CHECK (
 -- 3. Ensure price consistency and quota logic
 
 -- Update merchant_subscriptions to handle payment flow
-ALTER TABLE public.merchant_subscriptions 
+ALTER TABLE public.merchant_subscriptions
 ADD COLUMN IF NOT EXISTS payment_proof_url text,
 ADD COLUMN IF NOT EXISTS admin_notes text;
 
 -- Insert default payment settings if they don't exist
 INSERT INTO public.app_settings (key, value, description, category)
 VALUES (
-  'payment_settings', 
+  'payment_settings',
   '{"bank_name": "BCA", "account_number": "1234567890", "account_name": "Admin Desa Digital", "qris_url": ""}',
   'Pengaturan pembayaran untuk pembelian paket oleh merchant',
   'payment'
@@ -1122,14 +1122,14 @@ CREATE OR REPLACE FUNCTION public.handle_subscription_activation()
 RETURNS TRIGGER AS $$
 BEGIN
   -- If status becomes ACTIVE and payment_status is PAID
-  IF (NEW.status = 'ACTIVE' AND NEW.payment_status = 'PAID') AND 
+  IF (NEW.status = 'ACTIVE' AND NEW.payment_status = 'PAID') AND
      (OLD.status <> 'ACTIVE' OR OLD.payment_status <> 'PAID') THEN
-    
+
     -- Update merchant's current subscription
-    UPDATE public.merchants 
+    UPDATE public.merchants
     SET current_subscription_id = NEW.id
     WHERE id = NEW.merchant_id;
-    
+
   END IF;
   RETURN NEW;
 END;
@@ -1148,7 +1148,7 @@ CREATE POLICY "Allow merchants to upload payment proofs"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-  bucket_id = 'merchants' AND 
+  bucket_id = 'merchants' AND
   (storage.foldername(name))[1] = 'payment-proofs'
 );
 
@@ -1290,7 +1290,7 @@ BEGIN
   WHERE status = 'DELIVERED'
     AND auto_complete_at IS NOT NULL
     AND auto_complete_at <= NOW();
-  
+
   GET DIAGNOSTICS completed_count = ROW_COUNT;
   RETURN completed_count;
 END;
@@ -1314,7 +1314,7 @@ SELECT cron.schedule(
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_proof_url TEXT;
 
 -- Create storage bucket for payment proofs
-INSERT INTO storage.buckets (id, name, public) 
+INSERT INTO storage.buckets (id, name, public)
 VALUES ('payment-proofs', 'payment-proofs', true)
 ON CONFLICT (id) DO NOTHING;
 
