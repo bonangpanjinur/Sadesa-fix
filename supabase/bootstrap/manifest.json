@@ -1,6 +1,6 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 183,
+  "migration_count": 184,
   "bundle_count": 8,
   "bundles": [
     {
@@ -214,7 +214,7 @@
       "bytes": 116588
     },
     {
-      "file": "08_20260825170000_to_20260829110000.sql",
+      "file": "08_20260825170000_to_20260829120000.sql",
       "source_files": [
         "20260825170000_dispute_center_approval_workflow.sql",
         "20260825180000_pricebook_loyalty_import_jobs.sql",
@@ -237,10 +237,11 @@
         "20260827120000_stock_adjustment_approval_rpc.sql",
         "20260828100000_pwa_device_management.sql",
         "20260829100000_security_privilege_hardening.sql",
-        "20260829110000_legacy_security_definer_hardening.sql"
+        "20260829110000_legacy_security_definer_hardening.sql",
+        "20260829120000_subscription_entitlements_usage.sql"
       ],
-      "sha256": "6ecf4ed0088af72b51ef039827ded188e3886d171a373d79cdcc0999072a50f9",
-      "bytes": 123890
+      "sha256": "68ba1cbf2449fc359287762dd9914ff5650e50f52909dcbd4db7e81b1bf454b4",
+      "bytes": 141009
     }
   ]
 }
