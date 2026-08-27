@@ -90,6 +90,22 @@ function CharCount({ value, max }: { value: string; max: number }) {
   return <span className={`text-xs ${color}`}>{count}/{max}</span>;
 }
 
+async function persistAppSetting(key: string, value: unknown, category = 'seo') {
+  const { data, error: lookupError } = await supabase
+    .from('app_settings')
+    .select('id')
+    .eq('key', key)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
+
+  const payload = { category, value, updated_at: new Date().toISOString() };
+  const existing = data as { id: string } | null;
+  const result = existing
+    ? await supabase.from('app_settings').update(payload).eq('id', existing.id)
+    : await supabase.from('app_settings').insert({ key, ...payload });
+  if (result.error) throw result.error;
+}
+
 export default function AdminSEOPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab]     = useState('pages');
@@ -194,13 +210,7 @@ export default function AdminSEOPage() {
 
   const saveToolMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
-      const { error } = await supabase.from('app_settings').upsert({
-        key,
-        category: 'seo',
-        value,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'key' });
-      if (error) throw error;
+      await persistAppSetting(key, value);
     },
     onSuccess: () => {
       toast.success('Konfigurasi SEO berhasil disimpan');
@@ -215,13 +225,7 @@ export default function AdminSEOPage() {
 
   const updateRedirects = useMutation({
     mutationFn: async (nextRedirects: RedirectRule[]) => {
-      const { error } = await supabase.from('app_settings').upsert({
-        key: 'seo_redirects',
-        category: 'seo',
-        value: nextRedirects,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'key' });
-      if (error) throw error;
+      await persistAppSetting('seo_redirects', nextRedirects);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-seo-redirects'] }),
     onError: (error: unknown) => toast.error(error instanceof Error ? error.message : 'Gagal memperbarui redirect'),
