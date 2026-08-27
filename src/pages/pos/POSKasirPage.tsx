@@ -811,7 +811,7 @@ export default function POSKasirPage() {
             appliedPromo={appliedPromo} appliedVoucher={appliedVoucher}
             pointsToRedeem={pointsToRedeem} pointsEarned={pointsEarned}
             selectedCustomer={selectedCustomer} loyaltyProgram={loyaltyProgram}
-            formatCurrency={formatCurrency} onChange={handlePaymentChange} onProcess={processPayment}
+            formatCurrency={formatCurrency} onChange={handlePaymentChange} onProcess={() => void processPayment()}
           />
         </Suspense>
       )}
