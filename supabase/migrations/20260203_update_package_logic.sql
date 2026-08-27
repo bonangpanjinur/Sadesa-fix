@@ -16,6 +16,18 @@ CREATE TABLE IF NOT EXISTS public.transaction_packages (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
+-- Compatibility for an earlier transaction_packages shape. CREATE TABLE IF NOT EXISTS
+-- does not add missing columns when the table already exists.
+ALTER TABLE public.transaction_packages
+  ADD COLUMN IF NOT EXISTS price_per_transaction INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS kas_fee INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS transaction_quota INTEGER NOT NULL DEFAULT 100,
+  ADD COLUMN IF NOT EXISTS validity_days INTEGER NOT NULL DEFAULT 30,
+  ADD COLUMN IF NOT EXISTS description TEXT,
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now();
+
 -- 2. Modifikasi tabel transaction_packages
 -- Menghapus kolom classification_price jika ada
 DO $$ 
