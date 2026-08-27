@@ -183,7 +183,7 @@ export default function AuthPage() {
           <p className="text-muted-foreground text-sm">
             {isLogin 
               ? 'Masuk untuk melanjutkan belanja' 
-              : 'Daftar untuk mulai berbelanja di DesaMart'}
+              : 'Daftar untuk mulai berbelanja di SaDesa'}
           </p>
         </div>
 

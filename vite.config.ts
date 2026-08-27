@@ -17,8 +17,8 @@ export default defineConfig(() => ({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'pwa-192x192.png', 'pwa-512x512.png', 'robots.txt'],
       manifest: {
-        name: 'DesaMart',
-        short_name: 'DesaMart',
+        name: 'SaDesa',
+        short_name: 'SaDesa',
         description: 'Marketplace UMKM & Desa Wisata Indonesia',
         theme_color: '#10b981',
         background_color: '#ffffff',

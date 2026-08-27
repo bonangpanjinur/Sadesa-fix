@@ -122,7 +122,7 @@ export async function exportToPDF(options: ExportOptions): Promise<void> {
     <thead><tr>${columns.map((c) => `<th>${c.header}</th>`).join('')}</tr></thead>
     <tbody>${tableRows}${summaryRows}</tbody>
   </table>
-  <div class="footer">Laporan dibuat oleh DesaMart UMKM Platform</div>
+  <div class="footer">Laporan dibuat oleh SaDesa UMKM Platform</div>
   <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 1000); }${'<'}/script>
 </body></html>`;
 

@@ -2,13 +2,13 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
 
-const allowedOrigins = new Set((Deno.env.get("ALLOWED_ORIGINS") ?? "https://desamart.id")
+const allowedOrigins = new Set((Deno.env.get("ALLOWED_ORIGINS") ?? "https://sadesa.id")
   .split(",").map((origin) => origin.trim()).filter(Boolean));
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") ?? "";
   return {
-    "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://desamart.id",
+    "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://sadesa.id",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
@@ -180,7 +180,7 @@ serve(async (req) => {
     }
 
     webpush.setVapidDetails(
-      "mailto:admin@desamart.app",
+      "mailto:admin@sadesa.id",
       vapidPublicKey,
       vapidPrivateKey
     );

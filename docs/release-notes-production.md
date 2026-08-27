@@ -1,6 +1,6 @@
 # Release Notes Production
 
-## DesaMart / UMKM SaaS — Production Candidate
+## SaDesa / UMKM SaaS — Production Candidate
 
 **Release baseline:** `main` at commit `25445bd`
 

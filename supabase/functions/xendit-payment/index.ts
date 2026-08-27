@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://desamart.id",
+  "Access-Control-Allow-Origin": "https://sadesa.id",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
@@ -159,7 +159,7 @@ serve(async (req) => {
       }
 
       const origin = req.headers.get("origin");
-      const allowedOrigin = origin === "https://desamart.id" ? origin : "https://desamart.id";
+      const allowedOrigin = origin === "https://sadesa.id" ? origin : "https://sadesa.id";
       const response = await fetch("https://api.xendit.co/v2/invoices", {
         method: "POST",
         headers: {

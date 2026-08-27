@@ -336,8 +336,8 @@ export default function AdminSEOPage() {
       ...DEFAULT_META,
       page_slug: slug,
       page_label: label,
-      meta_title: `${label} — DesaMart`,
-      og_title: `${label} — DesaMart`,
+      meta_title: `${label} — SaDesa`,
+      og_title: `${label} — SaDesa`,
     });
   };
 
@@ -540,7 +540,7 @@ export default function AdminSEOPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="bg-muted rounded-lg p-3">
-                  <code className="text-xs text-muted-foreground">https://desamart.id/sitemap.xml</code>
+                  <code className="text-xs text-muted-foreground">https://sadesa.id/sitemap.xml</code>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {[
@@ -579,7 +579,7 @@ Disallow: /admin/
 Disallow: /merchant/
 Disallow: /api/
 
-Sitemap: https://desamart.id/sitemap.xml`}
+Sitemap: https://sadesa.id/sitemap.xml`}
                 </pre>
               </CardContent>
             </Card>
@@ -641,7 +641,7 @@ Sitemap: https://desamart.id/sitemap.xml`}
               </CardHeader>
               <CardContent>
                 <Textarea
-                  placeholder={`{\n  "@context": "https://schema.org",\n  "@type": "Organization",\n  "name": "DesaMart"\n}`}
+                  placeholder={`{\n  "@context": "https://schema.org",\n  "@type": "Organization",\n  "name": "SaDesa"\n}`}
                   rows={8}
                   value={toolForm.globalSchema}
                   onChange={(event) => setToolForm((prev) => ({ ...prev, globalSchema: event.target.value }))}
@@ -705,7 +705,7 @@ Sitemap: https://desamart.id/sitemap.xml`}
               <div className="space-y-1">
                 <Label className="text-sm">Canonical URL</Label>
                 <Input
-                  placeholder="https://desamart.id/..."
+                  placeholder="https://sadesa.id/..."
                   value={editingMeta?.canonical_url || ''}
                   onChange={e => setEditingMeta(p => ({ ...p, canonical_url: e.target.value }))}
                 />
@@ -757,7 +757,7 @@ Sitemap: https://desamart.id/sitemap.xml`}
               <div className="space-y-1">
                 <Label className="text-sm">OG Image URL</Label>
                 <Input
-                  placeholder="https://desamart.id/og-image.jpg (1200x630 px)"
+                  placeholder="https://sadesa.id/og-image.jpg (1200x630 px)"
                   value={editingMeta?.og_image_url || ''}
                   onChange={e => setEditingMeta(p => ({ ...p, og_image_url: e.target.value }))}
                 />
@@ -778,7 +778,7 @@ Sitemap: https://desamart.id/sitemap.xml`}
                 <div className="space-y-1">
                   <Label className="text-xs">URL Preview</Label>
                   <Input
-                    placeholder="https://desamart.id/..."
+                    placeholder="https://sadesa.id/..."
                     value={previewUrl}
                     onChange={e => setPreviewUrl(e.target.value)}
                     className="text-xs"

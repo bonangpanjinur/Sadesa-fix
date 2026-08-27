@@ -232,8 +232,8 @@ export function POSCart({
           </Button>
         </div>
         {onOpenQRPay && (
-          <Button variant="outline" className="w-full h-9 text-sm border-emerald-400 text-emerald-700 hover:bg-emerald-50" onClick={onOpenQRPay} disabled={cart.length === 0} title="Pembeli bayar via scan QR dari app DesaMart">
-            <QrCode className="h-4 w-4 mr-1.5 text-emerald-600" />QR Pay — Scan dari App DesaMart
+          <Button variant="outline" className="w-full h-9 text-sm border-emerald-400 text-emerald-700 hover:bg-emerald-50" onClick={onOpenQRPay} disabled={cart.length === 0} title="Pembeli bayar via scan QR dari app SaDesa">
+            <QrCode className="h-4 w-4 mr-1.5 text-emerald-600" />QR Pay — Scan dari App SaDesa
           </Button>
         )}
 

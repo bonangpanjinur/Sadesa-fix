@@ -45,7 +45,7 @@ const FAQ_ITEMS = [
 ];
 
 const DEFAULT_WA = '6281234567890';
-const DEFAULT_EMAIL = 'support@desamart.id';
+const DEFAULT_EMAIL = 'support@sadesa.id';
 
 export default function HelpPage() {
   const navigate = useNavigate();

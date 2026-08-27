@@ -1,6 +1,6 @@
 # Changelog
 
-Seluruh perubahan penting pada DesaMart / UMKM SaaS dicatat di dokumen ini.
+Seluruh perubahan penting pada SaDesa / UMKM SaaS dicatat di dokumen ini.
 
 ## [Production Candidate] — 2026-08-25
 

@@ -1,4 +1,4 @@
-# Breakdown Fitur dan Roadmap DesaMart UMKM
+# Breakdown Fitur dan Roadmap SaDesa UMKM
 
 **Tanggal audit:** 23 Agustus 2026  
 **Basis audit:** static review repository `remix-of-umkm-sadesa`, route React, page/component inventory, referensi tabel Supabase, migration RLS, test suite, dan hasil hardening sebelumnya.
@@ -7,7 +7,7 @@
 
 ## 1. Gambaran bisnis
 
-DesaMart adalah platform ekosistem ekonomi desa yang menggabungkan marketplace produk UMKM, operasional merchant, POS multi-outlet, logistik/courier, layanan wisata desa, administrasi desa, verifikator, komunikasi, promosi, dan fungsi back-office administrator. Modelnya bukan hanya toko online; aplikasi juga berperan sebagai **operating system untuk merchant dan desa**.
+SaDesa adalah platform ekosistem ekonomi desa yang menggabungkan marketplace produk UMKM, operasional merchant, POS multi-outlet, logistik/courier, layanan wisata desa, administrasi desa, verifikator, komunikasi, promosi, dan fungsi back-office administrator. Modelnya bukan hanya toko online; aplikasi juga berperan sebagai **operating system untuk merchant dan desa**.
 
 Alur nilai utamanya adalah sebagai berikut: pembeli menemukan produk atau paket wisata, membuat pesanan dan pembayaran, merchant memproses order melalui dashboard atau POS, courier menangani pengantaran, pembeli memberikan ulasan atau mengajukan sengketa, sementara admin/desa/verifikator mengawasi kualitas, ekonomi lokal, komisi, promosi, dan pelaporan.
 
@@ -185,4 +185,4 @@ Tahap terakhir memprioritaskan UX polish, accessibility, mobile/offline improvem
 
 Repository sudah memiliki cakupan fitur yang luas dan ambisi produk yang kuat: marketplace, merchant operating tools, POS, logistics, village economy, tourism, dan administration berada dalam satu platform. Kekurangan terbesar bukan jumlah halaman, melainkan **kedalaman reliability pada transaksi lintas tabel, konsistensi state, rekonsiliasi finansial, isolasi tenant yang diuji berulang, dan coverage test untuk skenario gagal**.
 
-Dengan demikian, rekomendasi strategisnya adalah tidak langsung menambah banyak fitur permukaan. Prioritas terbaik adalah memperkuat fondasi P0 terlebih dahulu, kemudian membangun ledger, reconciliation, dan case management. Setelah fondasi tersebut stabil, fitur growth akan lebih aman, metrik lebih terpercaya, dan operasional DesaMart lebih siap digunakan pada skala merchant, outlet, desa, dan transaksi yang lebih besar.
+Dengan demikian, rekomendasi strategisnya adalah tidak langsung menambah banyak fitur permukaan. Prioritas terbaik adalah memperkuat fondasi P0 terlebih dahulu, kemudian membangun ledger, reconciliation, dan case management. Setelah fondasi tersebut stabil, fitur growth akan lebih aman, metrik lebih terpercaya, dan operasional SaDesa lebih siap digunakan pada skala merchant, outlet, desa, dan transaksi yang lebih besar.

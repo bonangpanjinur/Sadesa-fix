@@ -188,7 +188,7 @@ export default function POSLaporanKasirPage() {
         .trophy{color:#d97706}
       </style></head><body>
         <h1>Laporan Per Kasir</h1>
-        <h2>${tenant?.name || 'DesaMart POS'} • ${activeOutlet?.name || ''} • ${format(start,'dd MMM',{locale:idLocale})} – ${format(end,'dd MMM yyyy',{locale:idLocale})}</h2>
+        <h2>${tenant?.name || 'SaDesa POS'} • ${activeOutlet?.name || ''} • ${format(start,'dd MMM',{locale:idLocale})} – ${format(end,'dd MMM yyyy',{locale:idLocale})}</h2>
         <div class="kpi">
           <div class="kpi-card"><div class="label">Total Kasir Aktif</div><div class="value">${kasirStats.length}</div></div>
           <div class="kpi-card"><div class="label">Total Omzet</div><div class="value">Rp ${grandTotal.toLocaleString('id-ID')}</div></div>
@@ -210,7 +210,7 @@ export default function POSLaporanKasirPage() {
             `).join('')}
           </tbody>
         </table>
-        <div class="footer">Dicetak: ${format(new Date(),'dd/MM/yyyy HH:mm')} • DesaMart POS</div>
+        <div class="footer">Dicetak: ${format(new Date(),'dd/MM/yyyy HH:mm')} • SaDesa POS</div>
       </body></html>
     `);
     win.document.close();

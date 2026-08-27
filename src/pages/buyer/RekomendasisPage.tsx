@@ -183,7 +183,7 @@ export default function RekomendasisPage() {
           <div>
             <h1 className="text-xl font-bold">Rekomendasi untuk Kamu</h1>
             <p className="text-sm text-muted-foreground">
-              {user ? 'Dipersonalisasi berdasarkan riwayat belanjamu' : 'Produk terpopuler di DesaMart'}
+              {user ? 'Dipersonalisasi berdasarkan riwayat belanjamu' : 'Produk terpopuler di SaDesa'}
             </p>
           </div>
         </div>

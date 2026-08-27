@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS: PushSettings = {
   enabled: false,
   vapid_public_key: '',
   vapid_private_key: '',
-  vapid_email: 'mailto:admin@desamart.id',
+  vapid_email: 'mailto:admin@sadesa.id',
 };
 
 export default function AdminPushNotificationPage() {
@@ -44,7 +44,7 @@ export default function AdminPushNotificationPage() {
   // Test push state
   const [testUserId, setTestUserId] = useState('');
   const [testTitle, setTestTitle] = useState('Test Push Notification');
-  const [testBody, setTestBody] = useState('Halo! Ini adalah test push notification dari DesaMart.');
+  const [testBody, setTestBody] = useState('Halo! Ini adalah test push notification dari SaDesa.');
   const [testing, setTesting] = useState(false);
 
   // Broadcast state
@@ -279,7 +279,7 @@ export default function AdminPushNotificationPage() {
                       id="vapid-email"
                       value={settings.vapid_email}
                       onChange={e => setSettings(prev => ({ ...prev, vapid_email: e.target.value }))}
-                      placeholder="mailto:admin@desamart.id"
+                      placeholder="mailto:admin@sadesa.id"
                       className="mt-1"
                     />
                   </div>

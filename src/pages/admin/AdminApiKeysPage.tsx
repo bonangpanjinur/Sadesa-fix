@@ -115,7 +115,7 @@ export default function AdminApiKeysPage() {
   };
 
   return (
-    <AdminLayout title="Manajemen API Key" subtitle="Kelola akses API publik platform DesaMart">
+    <AdminLayout title="Manajemen API Key" subtitle="Kelola akses API publik platform SaDesa">
       <div className="space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

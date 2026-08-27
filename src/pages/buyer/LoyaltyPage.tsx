@@ -132,7 +132,7 @@ export default function LoyaltyPage() {
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">Program Loyalitas DesaMart</p>
+                  <p className="text-xs text-muted-foreground">Program Loyalitas SaDesa</p>
                   <div className="flex items-center gap-2 mt-1">
                     <TierIcon className="h-5 w-5" style={{ color: currentTier.color }} />
                     <h2 className="text-2xl font-bold" style={{ color: currentTier.color }}>Member {loyaltyData.tier}</h2>

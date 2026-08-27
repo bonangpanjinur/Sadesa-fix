@@ -1,6 +1,6 @@
 # Final Production Release Checklist
 
-**Project:** DesaMart / UMKM SaaS
+**Project:** SaDesa / UMKM SaaS
 
 **Release baseline:** `ca1e035` on `main`
 

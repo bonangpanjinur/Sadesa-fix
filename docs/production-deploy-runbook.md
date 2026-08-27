@@ -1,6 +1,6 @@
 # Production Deployment Runbook
 
-Dokumen ini adalah checklist operasional untuk deploy DesaMart/UMKM SaaS ke Railway dan Supabase. Frontend statis dijalankan di Railway melalui Caddy; database, RLS, RPC, storage policy, dan Edge Function dijalankan pada project Supabase.
+Dokumen ini adalah checklist operasional untuk deploy SaDesa/UMKM SaaS ke Railway dan Supabase. Frontend statis dijalankan di Railway melalui Caddy; database, RLS, RPC, storage policy, dan Edge Function dijalankan pada project Supabase.
 
 ## 1. Prasyarat dan environment
 

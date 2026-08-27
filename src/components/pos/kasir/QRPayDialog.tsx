@@ -226,7 +226,7 @@ export function QRPayDialog({
 
               <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700 text-center">
                 <Smartphone className="h-4 w-4 flex-shrink-0" />
-                <span>Minta pembeli buka app DesaMart → scan QR ini untuk bayar</span>
+                <span>Minta pembeli buka app SaDesa → scan QR ini untuk bayar</span>
               </div>
 
               <Badge variant="outline" className="text-xs">Menunggu konfirmasi pembayaran...</Badge>

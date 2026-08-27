@@ -450,7 +450,7 @@ export default function POSKDSPage() {
 
       {/* ── Footer Clock ─────────────────────────────────────── */}
       <div className="bg-gray-900 border-t border-gray-700 px-4 py-2 flex items-center justify-between text-xs text-gray-500 shrink-0">
-        <span>KDS DesaMart POS — realtime via SSE</span>
+        <span>KDS SaDesa POS — realtime via SSE</span>
         <LiveClock />
       </div>
     </div>

@@ -77,8 +77,8 @@ interface HomepageLayoutSettings {
 }
 
 const DEFAULT_PWA_SETTINGS: PWASettings = {
-  appName: 'DesaMart - Marketplace UMKM & Desa Wisata',
-  shortName: 'DesaMart',
+  appName: 'SaDesa - Marketplace UMKM & Desa Wisata',
+  shortName: 'SaDesa',
   description: 'Jelajahi produk UMKM asli desa dan destinasi wisata desa di Indonesia',
   themeColor: '#10b981',
   backgroundColor: '#ffffff',
@@ -123,7 +123,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
   const { refetch: refetchWhitelabel } = useWhitelabel();
   
   // Whitelabel State
-  const [siteName, setSiteName] = useState('DesaMart');
+  const [siteName, setSiteName] = useState('SaDesa');
   const [siteTagline, setSiteTagline] = useState('EKOSISTEM UMKM');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
@@ -174,7 +174,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
 
       if (whitelabelData) {
         whitelabelData.forEach((item) => {
-          if (item.key === 'site_name') setSiteName(String(item.value) || 'DesaMart');
+          if (item.key === 'site_name') setSiteName(String(item.value) || 'SaDesa');
           if (item.key === 'site_tagline') setSiteTagline(String(item.value) || 'EKOSISTEM UMKM');
           if (item.key === 'logo_url') setLogoUrl(item.value ? String(item.value) : null);
           if (item.key === 'favicon_url') setFaviconUrl(item.value ? String(item.value) : null);

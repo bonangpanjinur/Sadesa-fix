@@ -96,7 +96,7 @@ export default function InvoicePage() {
               <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">D</span>
               </div>
-              <span className="text-xl font-bold text-green-600">DesaMart</span>
+              <span className="text-xl font-bold text-green-600">SaDesa</span>
             </div>
             <p className="text-xs text-gray-500">Ekosistem UMKM & Desa Wisata Indonesia</p>
           </div>
@@ -113,7 +113,7 @@ export default function InvoicePage() {
         <div className="grid grid-cols-2 gap-8 mb-8">
           <div>
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Pembeli</h3>
-            <p className="font-semibold text-sm">{order.profiles?.full_name || 'Pelanggan DesaMart'}</p>
+            <p className="font-semibold text-sm">{order.profiles?.full_name || 'Pelanggan SaDesa'}</p>
             {order.profiles?.phone && <p className="text-xs text-gray-500 mt-0.5">{order.profiles.phone}</p>}
             {order.shipping_address && (
               <p className="text-xs text-gray-500 mt-1 leading-relaxed">{order.shipping_address}</p>
@@ -121,7 +121,7 @@ export default function InvoicePage() {
           </div>
           <div>
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Penjual</h3>
-            <p className="font-semibold text-sm">{order.merchants?.name || 'Toko DesaMart'}</p>
+            <p className="font-semibold text-sm">{order.merchants?.name || 'Toko SaDesa'}</p>
             {order.merchants?.phone && <p className="text-xs text-gray-500 mt-0.5">{order.merchants.phone}</p>}
             {order.merchants?.address && (
               <p className="text-xs text-gray-500 mt-1">{order.merchants.address}</p>
@@ -181,7 +181,7 @@ export default function InvoicePage() {
 
         {/* Footer */}
         <div className="border-t border-gray-200 pt-6 text-center text-xs text-gray-400 space-y-1">
-          <p>Terima kasih telah berbelanja di <strong className="text-green-600">DesaMart</strong></p>
+          <p>Terima kasih telah berbelanja di <strong className="text-green-600">SaDesa</strong></p>
           <p>Invoice ini dicetak secara otomatis dan sah tanpa tanda tangan</p>
           <p className="mt-2">Tanggal cetak: {format(new Date(), 'dd MMMM yyyy HH:mm', { locale: idLocale })}</p>
         </div>

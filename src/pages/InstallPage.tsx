@@ -70,7 +70,7 @@ export default function InstallPage() {
           </button>
           <div>
             <h1 className="font-bold text-foreground">Install Aplikasi</h1>
-            <p className="text-xs text-muted-foreground">Pasang DesaMart di perangkat Anda</p>
+            <p className="text-xs text-muted-foreground">Pasang SaDesa di perangkat Anda</p>
           </div>
         </div>
       </div>
@@ -88,7 +88,7 @@ export default function InstallPage() {
                   <Smartphone className="h-8 w-8" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold">DesaMart</h2>
+                  <h2 className="text-xl font-bold">SaDesa</h2>
                   <p className="text-primary-foreground/80 text-sm">Marketplace UMKM & Desa Wisata</p>
                   <div className="flex items-center gap-2 mt-2">
                     {isOnline ? (
@@ -120,7 +120,7 @@ export default function InstallPage() {
                   </div>
                   <h3 className="font-semibold text-foreground mb-1">Aplikasi Sudah Terinstall!</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Anda sudah bisa menggunakan DesaMart dari homescreen
+                    Anda sudah bisa menggunakan SaDesa dari homescreen
                   </p>
                   {isUpdateAvailable && (
                     <Button onClick={updateApp} className="w-full">
@@ -189,7 +189,7 @@ export default function InstallPage() {
                     <div className="bg-secondary/50 rounded-xl p-4">
                       <h4 className="font-semibold text-foreground mb-3">Cara Install di Desktop</h4>
                       <p className="text-sm text-muted-foreground">
-                        Klik ikon install di address bar browser atau gunakan menu browser → "Install DesaMart"
+                        Klik ikon install di address bar browser atau gunakan menu browser → "Install SaDesa"
                       </p>
                     </div>
                   )}

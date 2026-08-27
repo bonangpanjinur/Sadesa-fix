@@ -686,7 +686,7 @@ ${lowStockProducts.length > 0 ? `🔴 Stok menipis: ${lowStockProducts.length} p
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => openWAToSelf(`👋 Halo dari ${merchantName || 'DesaMart'}!\n\nNotifikasi WhatsApp Anda sudah aktif. ✅\n\nAnda akan menerima:\n• Alert pesanan baru\n• Alert stok menipis\n• Laporan penjualan harian`)}
+                    onClick={() => openWAToSelf(`👋 Halo dari ${merchantName || 'SaDesa'}!\n\nNotifikasi WhatsApp Anda sudah aktif. ✅\n\nAnda akan menerima:\n• Alert pesanan baru\n• Alert stok menipis\n• Laporan penjualan harian`)}
                     disabled={!savedWaNumber}
                   >
                     <MessageCircle className="h-4 w-4 mr-2 text-green-600" />

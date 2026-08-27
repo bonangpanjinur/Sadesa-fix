@@ -96,8 +96,8 @@ export default function ReferralPage() {
 
   const copyCode = () => { navigator.clipboard.writeText(referralCode); toast.success('Kode referral disalin!'); };
   const shareCode = () => {
-    const text = `🎁 Belanja di DesaMart dan dapatkan diskon ${formatPrice(REFERRED_REWARD)}!\nGunakan kode referral saya: *${referralCode}*\nDaftar & belanja sekarang di DesaMart — Produk Asli Desa Indonesia 🌿`;
-    if (navigator.share) navigator.share({ title: 'DesaMart Referral', text });
+    const text = `🎁 Belanja di SaDesa dan dapatkan diskon ${formatPrice(REFERRED_REWARD)}!\nGunakan kode referral saya: *${referralCode}*\nDaftar & belanja sekarang di SaDesa — Produk Asli Desa Indonesia 🌿`;
+    if (navigator.share) navigator.share({ title: 'SaDesa Referral', text });
     else { navigator.clipboard.writeText(text); toast.success('Teks referral disalin ke clipboard!'); }
   };
 

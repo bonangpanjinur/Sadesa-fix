@@ -93,7 +93,7 @@ export default function POSHargaPage() {
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-border">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 font-bold text-emerald-600 text-lg">
-            <ShoppingCart className="h-5 w-5" /> DesaMart POS
+            <ShoppingCart className="h-5 w-5" /> SaDesa POS
           </Link>
           <div className="flex gap-2">
             <Link to="/auth"><Button variant="outline" size="sm">Masuk</Button></Link>
@@ -256,7 +256,7 @@ export default function POSHargaPage() {
         <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
           <CardContent className="p-10">
             <h2 className="text-2xl font-bold mb-3">Siap untuk memulai?</h2>
-            <p className="text-muted-foreground mb-6">Bergabung dengan ribuan UMKM yang sudah menggunakan DesaMart POS. Trial gratis 30 hari, tanpa perlu kartu kredit.</p>
+            <p className="text-muted-foreground mb-6">Bergabung dengan ribuan UMKM yang sudah menggunakan SaDesa POS. Trial gratis 30 hari, tanpa perlu kartu kredit.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link to="/merchant/pos/subscribe">
                 <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 px-8">
@@ -273,7 +273,7 @@ export default function POSHargaPage() {
 
       {/* Footer */}
       <footer className="border-t border-border bg-white py-6 text-center text-xs text-muted-foreground">
-        © 2025 DesaMart · Platform UMKM & Desa Wisata Indonesia ·{' '}
+        © 2025 SaDesa · Platform UMKM & Desa Wisata Indonesia ·{' '}
         <Link to="/privacy" className="hover:underline">Privasi</Link> ·{' '}
         <Link to="/terms" className="hover:underline">Syarat Layanan</Link>
       </footer>

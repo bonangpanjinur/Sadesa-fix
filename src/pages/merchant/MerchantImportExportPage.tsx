@@ -140,7 +140,7 @@ export default function MerchantImportExportPage() {
 
   const downloadTemplate = () => {
     const content = [CSV_TEMPLATE_HEADER, ...CSV_TEMPLATE_ROWS].join('\n');
-    downloadCSV('template_produk_desamart.csv', content);
+    downloadCSV('template_produk_sadesa.csv', content);
     toast.success('Template CSV berhasil diunduh');
   };
 

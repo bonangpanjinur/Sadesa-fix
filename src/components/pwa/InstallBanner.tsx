@@ -54,7 +54,7 @@ export function InstallBanner() {
             <Smartphone className="h-6 w-6 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground text-sm">Install Aplikasi DesaMart</h3>
+            <h3 className="font-semibold text-foreground text-sm">Install Aplikasi SaDesa</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Akses lebih cepat langsung dari homescreen
             </p>

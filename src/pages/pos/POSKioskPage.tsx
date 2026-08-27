@@ -193,7 +193,7 @@ export default function POSKioskPage() {
           </Button>
           <div className="flex items-center gap-2">
             <Store className="h-5 w-5 text-emerald-600" />
-            <span className="font-bold text-lg">{tenant?.store_name || 'DesaMart POS'}</span>
+            <span className="font-bold text-lg">{tenant?.store_name || 'SaDesa POS'}</span>
             <Badge className="bg-emerald-100 text-emerald-700 text-xs">Mode Kiosk</Badge>
           </div>
           <div className="flex-1" />
@@ -421,7 +421,7 @@ export default function POSKioskPage() {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-emerald-700">Pembayaran Berhasil!</h2>
-              <p className="text-muted-foreground mt-1">Terima kasih telah berbelanja di {tenant?.store_name || 'DesaMart'}</p>
+              <p className="text-muted-foreground mt-1">Terima kasih telah berbelanja di {tenant?.store_name || 'SaDesa'}</p>
             </div>
             {payMethod === 'cash' && change > 0 && (
               <div className="bg-blue-50 rounded-xl px-6 py-3 w-full">

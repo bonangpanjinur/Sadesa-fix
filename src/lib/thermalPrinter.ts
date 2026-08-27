@@ -371,7 +371,7 @@ export class UniversalPrinter {
     bytes.push(ESC, 0x45, 1);
     bytes.push(...enc("=== TEST PRINT ===\n"));
     bytes.push(ESC, 0x45, 0);
-    bytes.push(...enc(`DesaMart POS\n`));
+    bytes.push(...enc(`SaDesa POS\n`));
     bytes.push(...enc(`Lebar kertas: ${s.paperWidth}mm\n`));
     bytes.push(...enc(`Koneksi: ${s.connectionType.toUpperCase()}\n`));
     if (s.connectionType === "wifi") bytes.push(...enc(`IP: ${s.wifiIp}:${s.wifiPort}\n`));

@@ -559,7 +559,7 @@ export default function POSPengaturanPage() {
                     <p className="font-semibold">Cara cari IP printer:</p>
                     <p>1. Tekan tombol Feed di printer saat pertama hidup → akan cetak konfigurasi termasuk IP</p>
                     <p>2. Atau cek di router: Devices / DHCP Clients, cari nama printer</p>
-                    <p>3. Pastikan printer dan server DesaMart berada di jaringan WiFi yang SAMA</p>
+                    <p>3. Pastikan printer dan server SaDesa berada di jaringan WiFi yang SAMA</p>
                   </div>
                 </CardContent>
               </Card>

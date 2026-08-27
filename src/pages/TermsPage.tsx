@@ -28,8 +28,8 @@ export default function TermsPage() {
             <section>
               <h2 className="text-base font-semibold text-foreground mt-6 mb-2">1. Ketentuan Umum</h2>
               <p>
-                Dengan menggunakan aplikasi DesaMart, Anda menyetujui syarat dan ketentuan berikut. 
-                DesaMart adalah platform marketplace yang menghubungkan pembeli dengan UMKM desa.
+                Dengan menggunakan aplikasi SaDesa, Anda menyetujui syarat dan ketentuan berikut.
+                SaDesa adalah platform marketplace yang menghubungkan pembeli dengan UMKM desa.
               </p>
             </section>
 
@@ -103,7 +103,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-base font-semibold text-foreground mt-6 mb-2">9. Perubahan Ketentuan</h2>
               <p>
-                DesaMart berhak mengubah syarat dan ketentuan ini sewaktu-waktu. 
+                SaDesa berhak mengubah syarat dan ketentuan ini sewaktu-waktu.
                 Perubahan akan diberitahukan melalui notifikasi aplikasi.
               </p>
             </section>

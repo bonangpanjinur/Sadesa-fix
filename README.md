@@ -1,6 +1,6 @@
-# DesaMart - Marketplace UMKM & Desa Wisata
+# SaDesa - Marketplace UMKM & Desa Wisata
 
-DesaMart adalah marketplace UMKM dan destinasi wisata desa di Indonesia.
+SaDesa adalah marketplace UMKM dan destinasi wisata desa di Indonesia.
 
 ## Tech Stack
 

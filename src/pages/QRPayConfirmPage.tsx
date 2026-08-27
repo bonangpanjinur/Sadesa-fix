@@ -136,7 +136,7 @@ export default function QRPayConfirmPage() {
           <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
             <QrCode className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">DesaMart QR Pay</h1>
+          <h1 className="text-xl font-bold text-gray-900">SaDesa QR Pay</h1>
           <p className="text-sm text-muted-foreground">Pembayaran Digital Cepat & Aman</p>
         </div>
 
@@ -178,7 +178,7 @@ export default function QRPayConfirmPage() {
                 {!user ? (
                   <div className="space-y-3">
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 text-center">
-                      Login atau daftar DesaMart untuk membayar dengan QR Pay
+                      Login atau daftar SaDesa untuk membayar dengan QR Pay
                     </div>
                     <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-base font-semibold"
                       onClick={confirmPayment}>
@@ -204,7 +204,7 @@ export default function QRPayConfirmPage() {
                 )}
 
                 <p className="text-xs text-center text-muted-foreground">
-                  Pembayaran diamankan oleh DesaMart. Tidak ada biaya tambahan.
+                  Pembayaran diamankan oleh SaDesa. Tidak ada biaya tambahan.
                 </p>
               </div>
             )}
@@ -290,7 +290,7 @@ export default function QRPayConfirmPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          © 2026 DesaMart — Platform UMKM & Desa Wisata Indonesia
+          © 2026 SaDesa — Platform UMKM & Desa Wisata Indonesia
         </p>
       </div>
     </div>

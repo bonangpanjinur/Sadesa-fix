@@ -74,7 +74,7 @@ export function POSSidebar() {
         <div className="flex items-center gap-2 mb-3">
           <Store className="h-5 w-5 text-emerald-600" />
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-sm truncate">{tenant?.name || 'DesaMart POS'}</p>
+            <p className="font-bold text-sm truncate">{tenant?.name || 'SaDesa POS'}</p>
             <p className="text-xs text-muted-foreground">Sistem Kasir UMKM</p>
           </div>
         </div>

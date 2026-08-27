@@ -171,7 +171,7 @@ export default function CourierSlipPage() {
     doc.text('SLIP PENGHASILAN KURIR', 105, 14, { align: 'center' });
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text('DesaMart – Platform Desa Wisata & UMKM', 105, 21, { align: 'center' });
+    doc.text('SaDesa – Platform Desa Wisata & UMKM', 105, 21, { align: 'center' });
     doc.text(`Periode: ${periodLabel}`, 105, 28, { align: 'center' });
 
     // Reset color
@@ -264,8 +264,8 @@ export default function CourierSlipPage() {
     const pageH = doc.internal.pageSize.height;
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
-    doc.text('Dokumen ini dibuat otomatis oleh sistem DesaMart. Harap simpan sebagai arsip.', 105, pageH - 12, { align: 'center' });
-    doc.text(`DesaMart © ${new Date().getFullYear()} – Desa Wisata & UMKM Indonesia`, 105, pageH - 7, { align: 'center' });
+    doc.text('Dokumen ini dibuat otomatis oleh sistem SaDesa. Harap simpan sebagai arsip.', 105, pageH - 12, { align: 'center' });
+    doc.text(`SaDesa © ${new Date().getFullYear()} – Desa Wisata & UMKM Indonesia`, 105, pageH - 7, { align: 'center' });
 
     const filename = `slip-penghasilan-${courierName.replace(/\s+/g, '-').toLowerCase()}-${format(currentOption.start, 'yyyy-MM-dd')}.pdf`;
     doc.save(filename);
@@ -454,7 +454,7 @@ export default function CourierSlipPage() {
 
         <Separator />
         <p className="text-xs text-center text-muted-foreground">
-          Slip ini merupakan rekap otomatis dari sistem DesaMart.
+          Slip ini merupakan rekap otomatis dari sistem SaDesa.
           Simpan sebagai arsip penghasilan Anda.
         </p>
       </div>

@@ -308,7 +308,7 @@ export default function POSIntegrasiPage() {
   return (
     <POSLayout
       title="Integrasi Marketplace"
-      subtitle="Sinkronisasi produk & stok dengan DesaMart Marketplace"
+      subtitle="Sinkronisasi produk & stok dengan SaDesa Marketplace"
       actions={
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={openSettings}>
@@ -614,7 +614,7 @@ export default function POSIntegrasiPage() {
                 </SelectContent>
               </Select>
               {merchants.length === 0 && (
-                <p className="text-xs text-orange-600 mt-1">Daftar sebagai merchant di DesaMart untuk menghubungkan toko</p>
+                <p className="text-xs text-orange-600 mt-1">Daftar sebagai merchant di SaDesa untuk menghubungkan toko</p>
               )}
             </div>
             <div className="space-y-3 p-3 bg-muted rounded-lg">

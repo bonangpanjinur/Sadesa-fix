@@ -418,7 +418,7 @@ export default function AccountPage() {
           )}
           
           <p className="text-center text-xs text-muted-foreground mt-8">
-            DesaMart v1.0.0 • Platform UMKM Desa
+            SaDesa v1.0.0 • Platform UMKM Desa
           </p>
         </motion.div>
       </div>

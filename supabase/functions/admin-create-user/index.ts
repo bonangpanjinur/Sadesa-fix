@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const allowedRoles = new Set(["admin", "verifikator", "merchant", "courier", "admin_desa", "buyer"]);
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://desamart.id",
+  "Access-Control-Allow-Origin": "https://sadesa.id",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };

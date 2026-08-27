@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
 
             <section>
               <h2 className="text-base font-semibold text-foreground mt-6 mb-2">1. Data yang Kami Kumpulkan</h2>
-              <p>Kami mengumpulkan informasi berikut saat Anda menggunakan DesaMart:</p>
+              <p>Kami mengumpulkan informasi berikut saat Anda menggunakan SaDesa:</p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Nama lengkap, email, dan nomor telepon saat pendaftaran akun</li>
                 <li>Alamat pengiriman yang Anda simpan</li>

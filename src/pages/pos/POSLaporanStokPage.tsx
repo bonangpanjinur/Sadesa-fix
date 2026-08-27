@@ -184,7 +184,7 @@ export default function POSLaporanStokPage() {
         .footer{margin-top:24px;font-size:9px;color:#aaa;text-align:center}
       </style></head><body>
         <h1>Stock Opname — Laporan Stok</h1>
-        <h2>${tenant?.name||'DesaMart POS'} • ${activeOutlet?.name||''} • ${dateStart} s/d ${dateEnd}</h2>
+        <h2>${tenant?.name||'SaDesa POS'} • ${activeOutlet?.name||''} • ${dateStart} s/d ${dateEnd}</h2>
         <div class="kpi">
           <div class="kpi-card"><div class="label">Total Produk</div><div class="value">${stokSummary.length}</div></div>
           <div class="kpi-card"><div class="label">Total Masuk</div><div class="value" style="color:#059669">${stokSummary.reduce((s,p)=>s+p.totalIn,0)}</div></div>
@@ -209,7 +209,7 @@ export default function POSLaporanStokPage() {
             }).join('')}
           </tbody>
         </table>
-        <div class="footer">Dicetak: ${format(new Date(),'dd/MM/yyyy HH:mm')} • DesaMart POS</div>
+        <div class="footer">Dicetak: ${format(new Date(),'dd/MM/yyyy HH:mm')} • SaDesa POS</div>
       </body></html>
     `);
     win.document.close();

@@ -193,7 +193,7 @@ export default function RegisterPage() {
                   <CheckCircle className="h-3 w-3 text-primary" />
                 </div>
                 <span className="text-muted-foreground">
-                  Dukungan penuh dari tim DesaMart untuk pertumbuhan usaha
+                  Dukungan penuh dari tim SaDesa untuk pertumbuhan usaha
                 </span>
               </li>
             </ul>

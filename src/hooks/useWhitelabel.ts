@@ -20,7 +20,7 @@ interface WhitelabelSettings {
 }
 
 const defaultSettings: WhitelabelSettings = {
-  siteName: 'DesaMart',
+  siteName: 'SaDesa',
   siteTagline: 'EKOSISTEM UMKM',
   logoUrl: null,
   faviconUrl: null,

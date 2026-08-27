@@ -3036,7 +3036,7 @@ INSERT INTO public.app_settings (key, category, value, description) VALUES
   ('platform_fee','finance','{"percent":5,"min_amount":500,"max_amount":10000}'::jsonb,'Biaya platform per transaksi'),
   ('courier_minimum_balance','courier','{"amount":50000}'::jsonb,'Saldo minimum tersisa saat kurir menarik dana'),
   ('shipping_defaults','shipping','{"base_fee":5000,"per_km":2000,"free_shipping_threshold":100000}'::jsonb,'Default ongkir'),
-  ('site_info','general','{"name":"DesaMart","tagline":"Marketplace Desa Indonesia","support_email":"support@desa-karya-nusantara.id"}'::jsonb,'Informasi umum situs')
+  ('site_info','general','{"name":"SaDesa","tagline":"Marketplace Desa Indonesia","support_email":"support@desa-karya-nusantara.id"}'::jsonb,'Informasi umum situs')
 ON CONFLICT (key) DO NOTHING;
 
 -- Seed: POS packages

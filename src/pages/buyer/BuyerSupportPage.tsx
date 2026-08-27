@@ -289,7 +289,7 @@ export default function BuyerSupportPage() {
                           : 'bg-muted rounded-tl-sm'
                       }`}>
                         <p className={`text-[10px] font-medium mb-1 ${isUser ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                          {isUser ? 'Anda' : 'Tim Support DesaMart'}
+                          {isUser ? 'Anda' : 'Tim Support SaDesa'}
                         </p>
                         <p className="whitespace-pre-wrap">{msg.message}</p>
                         <p className={`text-[10px] mt-1 ${isUser ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>

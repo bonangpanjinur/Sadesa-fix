@@ -175,7 +175,7 @@ export function StoreQRCode({ merchantId, merchantName, merchantImage, slug }: S
       try {
         await navigator.share({
           title: merchantName,
-          text: `Kunjungi toko ${merchantName} di DesaMart`,
+          text: `Kunjungi toko ${merchantName} di SaDesa`,
           url: storeUrl,
         });
       } catch (err) {

@@ -300,7 +300,7 @@ export default function POSCustomerPage() {
               <div className="w-full rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 p-5 text-white shadow-lg">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-xs opacity-70 uppercase tracking-wide">DesaMart POS</p>
+                    <p className="text-xs opacity-70 uppercase tracking-wide">SaDesa POS</p>
                     <p className="font-bold text-lg mt-0.5">{tenant?.name || 'Member Card'}</p>
                   </div>
                   <Crown className="h-8 w-8 opacity-80" />
