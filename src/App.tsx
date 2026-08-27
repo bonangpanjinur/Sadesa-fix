@@ -291,6 +291,19 @@ function ObservabilityBootstrap() {
   return null;
 }
 
+function HomeRoute() {
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const isRecoveryCallback = query.has('code') || hash.get('type') === 'recovery';
+
+  if (isRecoveryCallback) {
+    return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
+  }
+
+  return <Index />;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -312,7 +325,7 @@ const App = () => (
               <Suspense fallback={<PageLoading />}>
               <Routes>
               {/* Public routes */}
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<HomeRoute />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/tourism" element={<TourismPage />} />

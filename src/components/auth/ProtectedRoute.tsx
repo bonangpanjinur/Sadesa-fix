@@ -20,7 +20,9 @@ export function ProtectedRoute({
   const location = useLocation();
 
   // Show loading while checking auth state
-  if (authLoading || rolesLoading) {
+  const waitingForRequiredRoles = Boolean(allowedRoles?.length) && rolesLoading;
+
+  if (authLoading || waitingForRequiredRoles) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

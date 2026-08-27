@@ -30,6 +30,9 @@ export function usePWA(options: { tenantId?: string | null; enableDeviceManageme
   const deviceManagementEnabled = options.enableDeviceManagement ?? true;
 
   const heartbeat = useCallback(async (syncAt?: string | null) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
+
     const device = await heartbeatPwaDevice(syncAt);
     if (!device) return null;
     setStatus((prev) => ({ ...prev, device, deviceRevoked: device.status === 'revoked' }));
@@ -79,8 +82,10 @@ export function usePWA(options: { tenantId?: string | null; enableDeviceManageme
         if (cancelled || !data.session) return;
         const device = await registerPwaDevice(options.tenantId);
         if (!cancelled && device) setStatus(prev => ({ ...prev, device, deviceRevoked: device.status === 'revoked' }));
+        if (!cancelled) heartbeatTimer = setInterval(() => { void heartbeat(); }, 60_000);
+      }).catch((error: unknown) => {
+        if (!cancelled) reportObservability('device', 'session_check_failed', 'warn', {}, error);
       });
-      heartbeatTimer = setInterval(() => { void heartbeat(); }, 60_000);
     }
 
     return () => {

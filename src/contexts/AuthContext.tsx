@@ -3,6 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/auth';
 
 const AUTH_CHANNEL_NAME = 'desamart_auth';
+const AUTH_INIT_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
+}
 
 interface AuthUser {
   id: string;
@@ -50,10 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserRoles = useCallback(async (userId: string) => {
     try {
       setRolesLoading(true);
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
+      const { data, error } = await withTimeout(
+        Promise.resolve(
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId),
+        ),
+        AUTH_INIT_TIMEOUT_MS,
+        'Timed out while loading user roles',
+      );
 
       if (error) throw error;
 
@@ -79,25 +95,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session as AuthSession | null);
         setUser(session?.user as AuthUser | null ?? null);
 
+        setLoading(false);
         if (session?.user) {
-          await fetchUserRoles(session.user.id);
+          void fetchUserRoles(session.user.id);
         } else {
           setRoles([]);
           setRolesLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    void withTimeout(
+      supabase.auth.getSession(),
+      AUTH_INIT_TIMEOUT_MS,
+      'Timed out while loading authentication session',
+    ).then(({ data: { session } }) => {
       setSession(session as AuthSession | null);
       setUser(session?.user as AuthUser | null ?? null);
+      setLoading(false);
 
       if (session?.user) {
-        await fetchUserRoles(session.user.id);
+        void fetchUserRoles(session.user.id);
       } else {
         setRolesLoading(false);
       }
+    }).catch((error: unknown) => {
+      console.error('Error loading authentication session:', error);
+      setSession(null);
+      setUser(null);
+      setRoles([]);
+      setRolesLoading(false);
       setLoading(false);
     });
 
