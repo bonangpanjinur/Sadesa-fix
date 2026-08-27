@@ -1,44 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql .. 20260822000000_harden_password_reset_tokens.sql
+-- Source range: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql .. 20260822020000_add_payment_webhook_idempotency.sql
 
-
--- ===== BEGIN SOURCE: 20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql =====
--- Fix 3 functions missing search_path
-
-ALTER FUNCTION public.increment_product_view(uuid) SET search_path = public;
-ALTER FUNCTION public.auto_assign_merchant_to_group() SET search_path = public;
-ALTER FUNCTION public.auto_assign_village_admin_role() SET search_path = public;
-
--- Fix overly permissive RLS policy on rate_limits (WITH CHECK (true))
-DROP POLICY IF EXISTS "Rate limits insert via functions" ON public.rate_limits;
-CREATE POLICY "Rate limits insert via functions" ON public.rate_limits
-  FOR INSERT TO authenticated
-  WITH CHECK (identifier = auth.uid()::text OR public.is_admin());
-
-DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
-CREATE POLICY "Rate limits update via functions" ON public.rate_limits
-  FOR UPDATE TO authenticated
-  USING (identifier = auth.uid()::text OR public.is_admin())
-  WITH CHECK (identifier = auth.uid()::text OR public.is_admin());
--- ===== END SOURCE: 20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql =====
-
--- ===== BEGIN SOURCE: 20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql =====
--- Fix overly permissive RLS policy on page_views (WITH CHECK true)
-DROP POLICY IF EXISTS "Anyone can insert page views" ON public.page_views;
-
-DROP POLICY IF EXISTS "Authenticated or anonymous can insert their own page view" ON public.page_views;
-CREATE POLICY "Authenticated or anonymous can insert their own page view"
-ON public.page_views
-FOR INSERT
-TO public
-WITH CHECK (
-  -- Anonymous viewer (no viewer_id) is allowed
-  viewer_id IS NULL
-  -- Or the viewer matches the authenticated user
-  OR viewer_id = auth.uid()
-);
--- ===== END SOURCE: 20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql =====
 
 -- ===== BEGIN SOURCE: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql =====
 ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_check;
@@ -64,6 +27,7 @@ DROP TRIGGER IF EXISTS trg_validate_product_category ON public.products;
 CREATE TRIGGER trg_validate_product_category
 BEFORE INSERT OR UPDATE OF category ON public.products
 FOR EACH ROW EXECUTE FUNCTION public.validate_product_category();
+
 -- ===== END SOURCE: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql =====
 
 -- ===== BEGIN SOURCE: 20260419161037_08343087-5318-467f-a887-4238272bf30a.sql =====
@@ -136,6 +100,7 @@ USING (
     )
   )
 );
+
 -- ===== END SOURCE: 20260419161037_08343087-5318-467f-a887-4238272bf30a.sql =====
 
 -- ===== BEGIN SOURCE: 20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql =====
@@ -2926,6 +2891,7 @@ CREATE POLICY "Admins can manage all rides" ON public.ride_requests FOR ALL TO a
 DROP POLICY IF EXISTS "Passengers can update own rides" ON public.ride_requests;
 CREATE POLICY "Passengers can update own rides" ON public.ride_requests FOR UPDATE TO authenticated
   USING (passenger_id = auth.uid() AND status IN ('SEARCHING', 'ACCEPTED'));
+
 -- ===== END SOURCE: 20260723060205_ff87f8be-ac0e-4efd-8098-7efd39797d2f.sql =====
 
 -- ===== BEGIN SOURCE: 20260725102650_0450b83b-8c52-43e7-9f9d-958d687d2513.sql =====
@@ -3091,11 +3057,13 @@ ON CONFLICT DO NOTHING;
 INSERT INTO public.halal_regulations (content)
 SELECT 'Semua produk makanan & minuman yang dijual wajib mencantumkan status sertifikasi halal jika berlaku. Merchant bertanggung jawab atas kebenaran informasi.'
 WHERE NOT EXISTS (SELECT 1 FROM public.halal_regulations);
+
 -- ===== END SOURCE: 20260725102650_0450b83b-8c52-43e7-9f9d-958d687d2513.sql =====
 
 -- ===== BEGIN SOURCE: 20260802091854_330e1c0c-2ef7-404e-9b15-0368a81abf14.sql =====
 DROP TRIGGER IF EXISTS trigger_auto_assign_merchant_group ON public.merchants;
 DROP TRIGGER IF EXISTS set_saved_addresses_updated_at ON public.saved_addresses;
+
 -- ===== END SOURCE: 20260802091854_330e1c0c-2ef7-404e-9b15-0368a81abf14.sql =====
 
 -- ===== BEGIN SOURCE: 20260804111713_21956d1a-8612-45c6-90a1-0d7523bf7480.sql =====
@@ -3170,6 +3138,7 @@ DROP TRIGGER IF EXISTS update_pos_outlets_updated_at ON public.pos_outlets;
 CREATE TRIGGER update_pos_outlets_updated_at
   BEFORE UPDATE ON public.pos_outlets
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260804111713_21956d1a-8612-45c6-90a1-0d7523bf7480.sql =====
 
 -- ===== BEGIN SOURCE: 20260822000000_harden_password_reset_tokens.sql =====
@@ -3199,3 +3168,269 @@ COMMENT ON TABLE public.password_reset_tokens IS
 ALTER TABLE public.password_reset_tokens FORCE ROW LEVEL SECURITY;
 
 -- ===== END SOURCE: 20260822000000_harden_password_reset_tokens.sql =====
+
+-- ===== BEGIN SOURCE: 20260822010000_harden_pos_rls_tenant_outlet.sql =====
+-- P1 security hardening: enforce tenant/outlet consistency and respect
+-- granular POS outlet assignments at the database boundary.
+
+-- Prevent rows from one tenant from pointing at another tenant's outlet.
+CREATE OR REPLACE FUNCTION public.validate_pos_outlet_tenant()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.pos_outlets o
+    WHERE o.id = NEW.outlet_id
+      AND o.tenant_id = NEW.tenant_id
+  ) THEN
+    RAISE EXCEPTION 'POS outlet does not belong to the specified tenant'
+      USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'pos_stock',
+    'pos_stock_mutations',
+    'pos_sales',
+    'pos_held_bills',
+    'pos_sale_returns'
+  ] LOOP
+    IF to_regclass('public.' || table_name) IS NOT NULL THEN
+      EXECUTE format('DROP TRIGGER IF EXISTS validate_%I_outlet_tenant ON public.%I', table_name, table_name);
+      EXECUTE format(
+        'CREATE TRIGGER validate_%I_outlet_tenant BEFORE INSERT OR UPDATE OF tenant_id, outlet_id ON public.%I FOR EACH ROW EXECUTE FUNCTION public.validate_pos_outlet_tenant()',
+        table_name, table_name
+      );
+    END IF;
+  END LOOP;
+END;
+$$;
+
+-- Ensure outlet-access records cannot cross tenant boundaries.
+CREATE OR REPLACE FUNCTION public.validate_pos_user_outlet_access()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.pos_outlets o
+    WHERE o.id = NEW.outlet_id AND o.tenant_id = NEW.tenant_id
+  ) THEN
+    RAISE EXCEPTION 'POS outlet does not belong to the specified tenant'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.pos_users u
+    WHERE u.id = NEW.pos_user_id AND u.tenant_id = NEW.tenant_id
+  ) THEN
+    RAISE EXCEPTION 'POS user does not belong to the specified tenant'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF to_regclass('public.pos_user_outlet_access') IS NOT NULL THEN
+    DROP TRIGGER IF EXISTS validate_pos_user_outlet_access_tenant
+      ON public.pos_user_outlet_access;
+    CREATE TRIGGER validate_pos_user_outlet_access_tenant
+      BEFORE INSERT OR UPDATE OF tenant_id, pos_user_id, outlet_id
+      ON public.pos_user_outlet_access
+      FOR EACH ROW
+      EXECUTE FUNCTION public.validate_pos_user_outlet_access();
+  END IF;
+END;
+$$;
+
+-- Replace the broad tenant-wide outlet read policy with owner-or-assigned
+-- outlet access. Owners retain visibility over every outlet in their tenant.
+DROP POLICY IF EXISTS "tenant_users_select_outlets" ON public.pos_outlets;
+DROP POLICY IF EXISTS "POS users can view assigned outlets" ON public.pos_outlets;
+CREATE POLICY "POS users can view assigned outlets" ON public.pos_outlets
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.pos_tenants t
+      WHERE t.id = pos_outlets.tenant_id AND t.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.pos_user_outlet_access a
+      JOIN public.pos_users u ON u.id = a.pos_user_id
+      WHERE a.outlet_id = pos_outlets.id
+        AND a.tenant_id = pos_outlets.tenant_id
+        AND a.is_active = true
+        AND u.user_id = auth.uid()
+        AND u.is_active = true
+    )
+  );
+
+-- Only owners may manage outlet assignments; users may inspect their own
+-- active assignments. This avoids exposing all staff assignments to any
+-- active user in the tenant.
+DROP POLICY IF EXISTS "tenant_owner_manage_access" ON public.pos_user_outlet_access;
+DROP POLICY IF EXISTS "tenant_users_read_access" ON public.pos_user_outlet_access;
+DROP POLICY IF EXISTS "POS owners manage outlet access" ON public.pos_user_outlet_access;
+DROP POLICY IF EXISTS "POS users read own outlet access" ON public.pos_user_outlet_access;
+
+CREATE POLICY "POS owners manage outlet access" ON public.pos_user_outlet_access
+  FOR ALL TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.pos_tenants t
+      WHERE t.id = pos_user_outlet_access.tenant_id AND t.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.pos_tenants t
+      WHERE t.id = pos_user_outlet_access.tenant_id AND t.user_id = auth.uid()
+    )
+  );
+
+DROP POLICY IF EXISTS "POS users read own outlet access" ON public.pos_user_outlet_access;
+CREATE POLICY "POS users read own outlet access" ON public.pos_user_outlet_access
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.pos_users u
+      WHERE u.id = pos_user_outlet_access.pos_user_id
+        AND u.user_id = auth.uid()
+        AND u.is_active = true
+    )
+  );
+
+-- Explicit WITH CHECK clauses make the intended mutation boundary clear for
+-- the core POS tables. Existing tenant-user SELECT policies remain read-only.
+DO $$
+DECLARE
+  table_name text;
+BEGIN
+  FOREACH table_name IN ARRAY ARRAY[
+    'pos_products', 'pos_stock', 'pos_stock_mutations', 'pos_sales',
+    'pos_held_bills', 'pos_customers', 'pos_suppliers', 'pos_users'
+  ] LOOP
+    IF to_regclass('public.' || table_name) IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
+    END IF;
+  END LOOP;
+END;
+$$;
+
+-- Reusable access predicate for outlet-scoped POS data.
+CREATE OR REPLACE FUNCTION public.pos_user_can_access_outlet(
+  p_tenant_id uuid,
+  p_outlet_id uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.pos_tenants t
+    WHERE t.id = p_tenant_id AND t.user_id = auth.uid()
+  )
+  OR EXISTS (
+    SELECT 1
+    FROM public.pos_user_outlet_access a
+    JOIN public.pos_users u ON u.id = a.pos_user_id
+    WHERE a.tenant_id = p_tenant_id
+      AND a.outlet_id = p_outlet_id
+      AND a.is_active = true
+      AND u.user_id = auth.uid()
+      AND u.is_active = true
+  );
+$$;
+
+-- Remove broad tenant-wide read policies for outlet-scoped data.
+DROP POLICY IF EXISTS "tenant_users_select_stock" ON public.pos_stock;
+DROP POLICY IF EXISTS "tenant_users_select_mutations" ON public.pos_stock_mutations;
+DROP POLICY IF EXISTS "tenant_users_select_sales" ON public.pos_sales;
+DROP POLICY IF EXISTS "tenant_users_select_held_bills" ON public.pos_held_bills;
+DROP POLICY IF EXISTS "tenant_users_select_returns" ON public.pos_sale_returns;
+DROP POLICY IF EXISTS "tenant_users_select_pos_users" ON public.pos_users;
+
+DROP POLICY IF EXISTS "POS users can view assigned stock" ON public.pos_stock;
+CREATE POLICY "POS users can view assigned stock" ON public.pos_stock
+  FOR SELECT TO authenticated
+  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+
+DROP POLICY IF EXISTS "POS users can view assigned stock mutations" ON public.pos_stock_mutations;
+CREATE POLICY "POS users can view assigned stock mutations" ON public.pos_stock_mutations
+  FOR SELECT TO authenticated
+  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+
+DROP POLICY IF EXISTS "POS users can view assigned sales" ON public.pos_sales;
+CREATE POLICY "POS users can view assigned sales" ON public.pos_sales
+  FOR SELECT TO authenticated
+  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+
+DROP POLICY IF EXISTS "POS users can view assigned held bills" ON public.pos_held_bills;
+CREATE POLICY "POS users can view assigned held bills" ON public.pos_held_bills
+  FOR SELECT TO authenticated
+  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+
+DROP POLICY IF EXISTS "POS users can view assigned returns" ON public.pos_sale_returns;
+CREATE POLICY "POS users can view assigned returns" ON public.pos_sale_returns
+  FOR SELECT TO authenticated
+  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+
+-- Staff can see their own POS identity; only tenant owners can see the full
+-- tenant user directory.
+DROP POLICY IF EXISTS "POS users can view own POS identity" ON public.pos_users;
+CREATE POLICY "POS users can view own POS identity" ON public.pos_users
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+
+-- Explicitly grant the helper only to API roles; the function itself does not
+-- expose any data and is used solely inside RLS predicates.
+REVOKE ALL ON FUNCTION public.pos_user_can_access_outlet(uuid, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.pos_user_can_access_outlet(uuid, uuid) TO authenticated;
+
+-- ===== END SOURCE: 20260822010000_harden_pos_rls_tenant_outlet.sql =====
+
+-- ===== BEGIN SOURCE: 20260822020000_add_payment_webhook_idempotency.sql =====
+-- Idempotency ledger for payment provider callbacks.
+CREATE TABLE IF NOT EXISTS public.payment_webhook_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider text NOT NULL,
+  event_key text NOT NULL,
+  invoice_id text NOT NULL,
+  order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  status text NOT NULL,
+  received_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (provider, event_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_webhook_events_order
+  ON public.payment_webhook_events(order_id, received_at DESC);
+
+REVOKE ALL ON public.payment_webhook_events FROM anon, authenticated;
+GRANT ALL ON public.payment_webhook_events TO service_role;
+ALTER TABLE public.payment_webhook_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role manages payment webhook events"
+  ON public.payment_webhook_events;
+CREATE POLICY "Service role manages payment webhook events"
+  ON public.payment_webhook_events FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+
+-- ===== END SOURCE: 20260822020000_add_payment_webhook_idempotency.sql =====

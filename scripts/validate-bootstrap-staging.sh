@@ -97,9 +97,12 @@ SQL
 
 apply_bundles() {
   local pass="$1"
+  local migration_count
+  migration_count="$(sed -n 's/^[[:space:]]*\"migration_count\":[[:space:]]*\([0-9][0-9]*\),/\1/p' "$BOOTSTRAP_DIR/manifest.json")"
+  [[ "$migration_count" =~ ^[0-9]+$ ]] || { echo "Could not read migration_count from manifest" >&2; return 1; }
   mapfile -t bundles < <(find "$BOOTSTRAP_DIR" -maxdepth 1 -type f -name '[0-9][0-9]_*.sql' -printf '%f\n' | sort)
   ((${#bundles[@]} == 8)) || { echo "Expected 8 bootstrap bundles, found ${#bundles[@]}" >&2; return 1; }
-  echo "[${pass}] Applying ${#bundles[@]} bootstrap bundles containing 186 migrations"
+  echo "[${pass}] Applying ${#bundles[@]} bootstrap bundles containing ${migration_count} migrations"
   local bundle
   for bundle in "${bundles[@]}"; do
     echo "[${pass}] Applying ${bundle}"

@@ -1,6 +1,6 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql .. 20260203_fix_is_admin_and_packages.sql
+-- Source range: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql .. 20260203_fix_user_roles_policies.sql
 
 
 -- ===== BEGIN SOURCE: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql =====
@@ -62,6 +62,7 @@ BEGIN
 EXCEPTION
   WHEN undefined_object THEN NULL;
 END $$;
+
 -- ===== END SOURCE: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql =====
 
 -- ===== BEGIN SOURCE: 20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql =====
@@ -189,6 +190,7 @@ BEGIN
 EXCEPTION
   WHEN undefined_object THEN NULL;
 END $$;
+
 -- ===== END SOURCE: 20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql =====
 
 -- ===== BEGIN SOURCE: 20260127084919_5b7afc29-bd66-47fc-89ad-ac3ae63cffe9.sql =====
@@ -226,6 +228,7 @@ CREATE POLICY "Users can remove from own wishlist"
 -- Create index for better query performance
 CREATE INDEX idx_wishlists_user_id ON public.wishlists(user_id);
 CREATE INDEX idx_wishlists_product_id ON public.wishlists(product_id);
+
 -- ===== END SOURCE: 20260127084919_5b7afc29-bd66-47fc-89ad-ac3ae63cffe9.sql =====
 
 -- ===== BEGIN SOURCE: 20260127090723_55ce443e-9544-4fb0-9804-21846e7790d7.sql =====
@@ -327,6 +330,7 @@ WHERE status = 'ACTIVE' AND registration_status = 'APPROVED';
 
 -- Grant access only to authenticated users
 GRANT SELECT ON public.public_couriers TO authenticated;
+
 -- ===== END SOURCE: 20260127090723_55ce443e-9544-4fb0-9804-21846e7790d7.sql =====
 
 -- ===== BEGIN SOURCE: 20260127090737_76e14436-230a-4f14-b565-21d7d485ec75.sql =====
@@ -390,6 +394,7 @@ ON public.merchants
 FOR SELECT
 TO anon
 USING (status = 'ACTIVE' AND registration_status = 'APPROVED');
+
 -- ===== END SOURCE: 20260127090737_76e14436-230a-4f14-b565-21d7d485ec75.sql =====
 
 -- ===== BEGIN SOURCE: 20260128080908_a67fbfdf-ef96-4108-b095-2632c9293551.sql =====
@@ -448,6 +453,7 @@ ALTER TABLE public.password_reset_tokens ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
 CREATE INDEX idx_password_reset_tokens_token ON public.password_reset_tokens(token);
 CREATE INDEX idx_password_reset_tokens_email ON public.password_reset_tokens(email);
+
 -- ===== END SOURCE: 20260128080908_a67fbfdf-ef96-4108-b095-2632c9293551.sql =====
 
 -- ===== BEGIN SOURCE: 20260128081633_675e947a-dd50-4d7f-bf42-32ecd93b18a0.sql =====
@@ -512,6 +518,7 @@ CREATE TRIGGER update_saved_addresses_updated_at
 BEFORE UPDATE ON public.saved_addresses
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260128081633_675e947a-dd50-4d7f-bf42-32ecd93b18a0.sql =====
 
 -- ===== BEGIN SOURCE: 20260128112244_98c8bd6c-406f-4141-8f06-9b93e2fa8ce6.sql =====
@@ -796,6 +803,7 @@ CREATE TRIGGER update_seo_settings_updated_at
   BEFORE UPDATE ON public.seo_settings
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260128112244_98c8bd6c-406f-4141-8f06-9b93e2fa8ce6.sql =====
 
 -- ===== BEGIN SOURCE: 20260128112256_d0cfd142-d893-4f05-9c1d-2f43ed686887.sql =====
@@ -815,6 +823,7 @@ CREATE POLICY "Rate limits insert via functions" ON public.rate_limits
 DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
 CREATE POLICY "Rate limits update via functions" ON public.rate_limits
   FOR UPDATE USING (true);
+
 -- ===== END SOURCE: 20260128112256_d0cfd142-d893-4f05-9c1d-2f43ed686887.sql =====
 
 -- ===== BEGIN SOURCE: 20260128115030_30a887fa-9eed-41a0-9f35-c6cf6ed702fd.sql =====
@@ -1006,6 +1015,7 @@ CREATE POLICY "Authenticated users can upload product images storage" ON storage
 DROP POLICY IF EXISTS "Users can delete own product images storage" ON storage.objects;
 CREATE POLICY "Users can delete own product images storage" ON storage.objects
     FOR DELETE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
+
 -- ===== END SOURCE: 20260128115030_30a887fa-9eed-41a0-9f35-c6cf6ed702fd.sql =====
 
 -- ===== BEGIN SOURCE: 20260128115934_4c1f5601-41a9-4beb-ac95-8575b89fbf1d.sql =====
@@ -1095,6 +1105,7 @@ CREATE TRIGGER update_product_variants_updated_at
 BEFORE UPDATE ON public.product_variants
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260128115934_4c1f5601-41a9-4beb-ac95-8575b89fbf1d.sql =====
 
 -- ===== BEGIN SOURCE: 20260128121326_62e7deee-7d24-4c49-85d7-0c27f69e1f9f.sql =====
@@ -1189,6 +1200,7 @@ BEGIN
 EXCEPTION
   WHEN undefined_object THEN NULL;
 END $$;
+
 -- ===== END SOURCE: 20260128121326_62e7deee-7d24-4c49-85d7-0c27f69e1f9f.sql =====
 
 -- ===== BEGIN SOURCE: 20260128123950_6b87d4af-a9af-49ef-b561-19a356a6119f.sql =====
@@ -1389,6 +1401,7 @@ USING (
   bucket_id = 'review-images'
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+
 -- ===== END SOURCE: 20260128124950_2b9c0c11-519e-4639-998c-df5278360697.sql =====
 
 -- ===== BEGIN SOURCE: 20260129093914_7254cddf-cebb-4364-b134-576b07ec530d.sql =====
@@ -1407,6 +1420,7 @@ VALUES
     "visible_categories": ["kuliner", "fashion", "kriya", "wisata"]
   }'::jsonb, 'display', 'Pengaturan tampilan dan urutan section di homepage')
 ON CONFLICT (key) DO NOTHING;
+
 -- ===== END SOURCE: 20260129093914_7254cddf-cebb-4364-b134-576b07ec530d.sql =====
 
 -- ===== BEGIN SOURCE: 20260130020331_972d5331-4685-49e7-8632-1153e8e7f91b.sql =====
@@ -1435,6 +1449,7 @@ WHERE district = 'Cisarua' AND location_lat IS NULL;
 CREATE INDEX IF NOT EXISTS idx_villages_location ON public.villages(location_lat, location_lng);
 CREATE INDEX IF NOT EXISTS idx_merchants_location ON public.merchants(location_lat, location_lng);
 CREATE INDEX IF NOT EXISTS idx_tourism_location ON public.tourism(location_lat, location_lng);
+
 -- ===== END SOURCE: 20260130020331_972d5331-4685-49e7-8632-1153e8e7f91b.sql =====
 
 -- ===== BEGIN SOURCE: 20260202145620_35f2d9fa-1f9c-4766-9097-20d130f6a734.sql =====
@@ -1575,6 +1590,7 @@ WHERE status = 'ACTIVE' AND registration_status = 'APPROVED';
 
 GRANT SELECT ON public.public_couriers TO anon;
 GRANT SELECT ON public.public_couriers TO authenticated;
+
 -- ===== END SOURCE: 20260202145620_35f2d9fa-1f9c-4766-9097-20d130f6a734.sql =====
 
 -- ===== BEGIN SOURCE: 20260202145634_a7a84602-1476-48ea-8197-7ca03c504d2a.sql =====
@@ -1657,6 +1673,7 @@ WHERE status = 'ACTIVE' AND registration_status = 'APPROVED';
 
 GRANT SELECT ON public.public_couriers TO anon;
 GRANT SELECT ON public.public_couriers TO authenticated;
+
 -- ===== END SOURCE: 20260202145634_a7a84602-1476-48ea-8197-7ca03c504d2a.sql =====
 
 -- ===== BEGIN SOURCE: 20260203005758_7302871a-0867-412f-908a-350fe9611b18.sql =====
@@ -1682,6 +1699,7 @@ CREATE POLICY "Admins can manage all orders"
       AND user_roles.role = 'admin'
     )
   );
+
 -- ===== END SOURCE: 20260203005758_7302871a-0867-412f-908a-350fe9611b18.sql =====
 
 -- ===== BEGIN SOURCE: 20260203_cleanup_package_table.sql =====
@@ -1985,3 +2003,40 @@ END;
 $$;
 
 -- ===== END SOURCE: 20260203_fix_is_admin_and_packages.sql =====
+
+-- ===== BEGIN SOURCE: 20260203_fix_user_roles_policies.sql =====
+-- Add policies for user_roles to allow admins to manage roles
+-- First, ensure the is_admin() function exists and is working correctly
+-- (It should already exist based on previous migrations, but we use it in policies)
+
+-- Policy for Admins to view all roles
+DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
+CREATE POLICY "Admins can view all roles"
+    ON public.user_roles FOR SELECT
+    USING (public.is_admin());
+
+-- Policy for Admins to insert roles
+DROP POLICY IF EXISTS "Admins can insert roles" ON public.user_roles;
+CREATE POLICY "Admins can insert roles"
+    ON public.user_roles FOR INSERT
+    WITH CHECK (public.is_admin());
+
+-- Policy for Admins to update roles
+DROP POLICY IF EXISTS "Admins can update roles" ON public.user_roles;
+CREATE POLICY "Admins can update roles"
+    ON public.user_roles FOR UPDATE
+    USING (public.is_admin());
+
+-- Policy for Admins to delete roles
+DROP POLICY IF EXISTS "Admins can delete roles" ON public.user_roles;
+CREATE POLICY "Admins can delete roles"
+    ON public.user_roles FOR DELETE
+    USING (public.is_admin());
+
+-- Also add policy for profiles so admins can view all profiles
+DROP POLICY IF EXISTS "Admins can view all profiles" ON public.profiles;
+CREATE POLICY "Admins can view all profiles"
+    ON public.profiles FOR SELECT
+    USING (public.is_admin());
+
+-- ===== END SOURCE: 20260203_fix_user_roles_policies.sql =====

@@ -374,11 +374,13 @@ INSERT INTO public.products (id, merchant_id, name, description, price, stock, c
 INSERT INTO public.tourism (id, village_id, name, description, wa_link, sosmed_link, facilities, is_active, view_count) VALUES
 ('cccc1111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111', 'Kampung Awan & Sawah', 'Menawarkan pengalaman otentik hidup di desa dengan pemandangan sawah terasering yang memukau mata. Udara sejuk pegunungan dan keramahan warga lokal akan membuat liburan Anda tak terlupakan.', 'https://wa.me/6281234567890', 'https://instagram.com/kampungawan', ARRAY['Area Parkir Luas', 'Toilet Bersih', 'Spot Foto', 'Warung Makan', 'Mushola', 'Penginapan'], true, 1523),
 ('cccc2222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222', 'Kebun Teh Panorama', 'Hamparan kebun teh yang hijau dengan pemandangan pegunungan. Udara segar dan suasana tenang cocok untuk melepas penat.', 'https://wa.me/6281234567891', NULL, ARRAY['Parkir', 'Toilet', 'Warung', 'Spot Foto'], true, 892);
+
 -- ===== END SOURCE: 20260127034916_79ea4061-eab6-4151-9591-63293a92b7fe.sql =====
 
 -- ===== BEGIN SOURCE: 20260127040144_c74a27a5-34d0-4b71-8b2e-458908a16583.sql =====
 -- Step 1: Add 'verifikator' role to the enum
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'verifikator';
+
 -- ===== END SOURCE: 20260127040144_c74a27a5-34d0-4b71-8b2e-458908a16583.sql =====
 
 -- ===== BEGIN SOURCE: 20260127040154_47ea7885-7f85-461b-b087-44645cbb6ef2.sql =====
@@ -444,6 +446,7 @@ UPDATE public.merchants SET registration_status = 'APPROVED' WHERE registration_
 
 -- Update existing villages to have APPROVED status
 UPDATE public.villages SET registration_status = 'APPROVED' WHERE registration_status = 'PENDING';
+
 -- ===== END SOURCE: 20260127040154_47ea7885-7f85-461b-b087-44645cbb6ef2.sql =====
 
 -- ===== BEGIN SOURCE: 20260127040954_2216fe5d-dd36-41c3-9878-7c471cf71795.sql =====
@@ -515,6 +518,7 @@ VALUES
   ('00000000-0000-0000-0000-000000000000', 'KRIYA2024', 'Kelompok Kerajinan Tangan', 'Kode referral untuk pengrajin'),
   ('00000000-0000-0000-0000-000000000000', 'FASHION2024', 'Kelompok Fashion Lokal', 'Kode referral untuk pedagang fashion')
 ON CONFLICT (code) DO NOTHING;
+
 -- ===== END SOURCE: 20260127040954_2216fe5d-dd36-41c3-9878-7c471cf71795.sql =====
 
 -- ===== BEGIN SOURCE: 20260127042912_2ef5eeb6-1027-4e85-b3b2-f10eb734fb29.sql =====
@@ -608,6 +612,7 @@ INSERT INTO public.promotions (type, title, subtitle, image_url, link_url, link_
 ('banner', 'Jelajahi Produk Asli Desa', 'Dukung UMKM lokal & ekonomi desa Indonesia', NULL, '/products', 'category', 'admin', true, 1),
 ('banner', 'Wisata Desa Bojong', 'Nikmati keindahan alam dan budaya desa', NULL, '/tourism', 'category', 'admin', true, 2),
 ('banner', 'Promo Spesial Akhir Bulan', 'Diskon hingga 30% untuk produk pilihan', NULL, '/products', 'category', 'admin', true, 3);
+
 -- ===== END SOURCE: 20260127042912_2ef5eeb6-1027-4e85-b3b2-f10eb734fb29.sql =====
 
 -- ===== BEGIN SOURCE: 20260127050757_6ed5af1f-fcf8-4b26-9e1a-d9a52e1c4341.sql =====
@@ -721,6 +726,7 @@ INSERT INTO public.app_settings (key, value, description, category) VALUES
 ('address_api', '{"provider": "emsifa", "base_url": "https://emsifa.github.io/api-wilayah-indonesia/api"}', 'Address API configuration', 'integration'),
 ('payment_midtrans', '{"enabled": false, "server_key": "", "client_key": "", "is_production": false}', 'Midtrans payment gateway', 'payment'),
 ('payment_xendit', '{"enabled": false, "secret_key": "", "public_key": ""}', 'Xendit payment gateway', 'payment');
+
 -- ===== END SOURCE: 20260127050757_6ed5af1f-fcf8-4b26-9e1a-d9a52e1c4341.sql =====
 
 -- ===== BEGIN SOURCE: 20260127050807_5424a090-976a-43a6-a53b-fc9048a993a0.sql =====
@@ -751,6 +757,7 @@ FOR SELECT USING (
 DROP POLICY IF EXISTS "Admins can delete courier documents" ON storage.objects;
 CREATE POLICY "Admins can delete courier documents" ON storage.objects
 FOR DELETE USING (bucket_id = 'courier-documents' AND is_admin());
+
 -- ===== END SOURCE: 20260127050807_5424a090-976a-43a6-a53b-fc9048a993a0.sql =====
 
 -- ===== BEGIN SOURCE: 20260127051948_615b5ca5-49e7-42cd-8576-7cb91864be50.sql =====
@@ -768,6 +775,7 @@ ADD COLUMN IF NOT EXISTS address_detail TEXT;
 
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(user_id);
+
 -- ===== END SOURCE: 20260127051948_615b5ca5-49e7-42cd-8576-7cb91864be50.sql =====
 
 -- ===== BEGIN SOURCE: 20260127052521_5e73eccb-ebdb-4515-8bc4-65ce1ad4a2c4.sql =====
@@ -797,6 +805,7 @@ CREATE POLICY "Couriers can update assigned orders"
 ON public.orders
 FOR UPDATE
 USING (courier_id IN (SELECT id FROM couriers WHERE user_id = auth.uid()));
+
 -- ===== END SOURCE: 20260127052521_5e73eccb-ebdb-4515-8bc4-65ce1ad4a2c4.sql =====
 
 -- ===== BEGIN SOURCE: 20260127053454_d2fca9ce-0e9b-4e21-807b-3e480403c35f.sql =====
@@ -804,6 +813,7 @@ USING (courier_id IN (SELECT id FROM couriers WHERE user_id = auth.uid()));
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'merchant';
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'courier';
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'admin_desa';
+
 -- ===== END SOURCE: 20260127053454_d2fca9ce-0e9b-4e21-807b-3e480403c35f.sql =====
 
 -- ===== BEGIN SOURCE: 20260127053503_93b80401-116b-40a6-b26a-21a80229bed4.sql =====
@@ -862,6 +872,7 @@ SET search_path = public
 AS $$
   SELECT public.has_role(auth.uid(), 'admin_desa')
 $$;
+
 -- ===== END SOURCE: 20260127053503_93b80401-116b-40a6-b26a-21a80229bed4.sql =====
 
 -- ===== BEGIN SOURCE: 20260127054855_541d780b-df94-4ab1-9cd8-7306ea1c7256.sql =====
@@ -946,6 +957,7 @@ WITH CHECK (
   )
   AND is_admin_desa()
 );
+
 -- ===== END SOURCE: 20260127054855_541d780b-df94-4ab1-9cd8-7306ea1c7256.sql =====
 
 -- ===== BEGIN SOURCE: 20260127060039_0394bf48-8830-43b0-b2d8-e5ddcb18a716.sql =====
@@ -1114,6 +1126,7 @@ USING (
 -- Add avatar_url to profiles
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+
 -- ===== END SOURCE: 20260127060039_0394bf48-8830-43b0-b2d8-e5ddcb18a716.sql =====
 
 -- ===== BEGIN SOURCE: 20260127060220_ac30b0ec-8474-4fdb-8e3e-548787ed7e88.sql =====
@@ -1123,6 +1136,7 @@ INSERT INTO public.app_settings (key, category, value, description) VALUES
   ('platform_fee', 'platform', '{"percentage": 5, "min_fee": 1000, "max_fee": 50000, "enabled": true}'::jsonb, 'Pengaturan biaya platform/komisi'),
   ('shipping_zones', 'shipping', '{"zones": [{"name": "Dalam Desa", "max_distance_km": 5, "fee": 5000}, {"name": "Antar Desa", "max_distance_km": 15, "fee": 10000}, {"name": "Luar Kecamatan", "max_distance_km": 30, "fee": 20000}]}'::jsonb, 'Zona pengiriman berdasarkan jarak')
 ON CONFLICT (key) DO NOTHING;
+
 -- ===== END SOURCE: 20260127060220_ac30b0ec-8474-4fdb-8e3e-548787ed7e88.sql =====
 
 -- ===== BEGIN SOURCE: 20260127061057_063aa236-597e-45b1-8825-327291dbdcb7.sql =====
@@ -1142,6 +1156,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON public.orders(payment_st
 COMMENT ON COLUMN public.orders.payment_status IS 'Payment status: UNPAID, PENDING, PAID, EXPIRED, REFUNDED';
 COMMENT ON COLUMN public.orders.payment_invoice_id IS 'Xendit invoice ID';
 COMMENT ON COLUMN public.orders.payment_invoice_url IS 'URL for payment page';
+
 -- ===== END SOURCE: 20260127061057_063aa236-597e-45b1-8825-327291dbdcb7.sql =====
 
 -- ===== BEGIN SOURCE: 20260127062119_a67ab6c0-5e7b-4072-8099-8c4df996af78.sql =====
@@ -1229,6 +1244,7 @@ CREATE TRIGGER update_refund_requests_updated_at
 BEFORE UPDATE ON public.refund_requests
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260127062119_a67ab6c0-5e7b-4072-8099-8c4df996af78.sql =====
 
 -- ===== BEGIN SOURCE: 20260127062432_f542c2e2-d473-4f9c-92bc-ea76247d5faf.sql =====
@@ -1241,6 +1257,7 @@ FOREIGN KEY (admin_id) REFERENCES auth.users(id);
 ALTER TABLE public.refund_requests
 ADD CONSTRAINT refund_requests_buyer_id_fkey
 FOREIGN KEY (buyer_id) REFERENCES auth.users(id);
+
 -- ===== END SOURCE: 20260127062432_f542c2e2-d473-4f9c-92bc-ea76247d5faf.sql =====
 
 -- ===== BEGIN SOURCE: 20260127062918_7e2d4642-c9d9-4461-8244-ee1dcf9f0d5f.sql =====
@@ -1524,6 +1541,7 @@ CREATE TRIGGER update_withdrawal_requests_updated_at
   BEFORE UPDATE ON public.withdrawal_requests
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260127062918_7e2d4642-c9d9-4461-8244-ee1dcf9f0d5f.sql =====
 
 -- ===== BEGIN SOURCE: 20260127064118_a0730db2-7f53-430f-bfda-8a26acdce4a7.sql =====
@@ -1535,6 +1553,7 @@ VALUES (
   'Pengaturan fitur COD (Cash on Delivery)',
   'payment'
 ) ON CONFLICT (key) DO NOTHING;
+
 -- ===== END SOURCE: 20260127064118_a0730db2-7f53-430f-bfda-8a26acdce4a7.sql =====
 
 -- ===== BEGIN SOURCE: 20260127065414_f4156ac7-8d42-4a89-9671-344dc88be763.sql =====
@@ -1795,6 +1814,7 @@ CREATE TRIGGER admin_withdrawal_notification_trigger
 AFTER INSERT ON withdrawal_requests
 FOR EACH ROW
 EXECUTE FUNCTION notify_admin_new_withdrawal();
+
 -- ===== END SOURCE: 20260127065414_f4156ac7-8d42-4a89-9671-344dc88be763.sql =====
 
 -- ===== BEGIN SOURCE: 20260127071956_a27ddf22-3789-42c9-bd9c-1f5a0286e319.sql =====
@@ -1952,6 +1972,7 @@ CREATE TRIGGER update_merchant_subscriptions_updated_at
 BEFORE UPDATE ON public.merchant_subscriptions
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260127071956_a27ddf22-3789-42c9-bd9c-1f5a0286e319.sql =====
 
 -- ===== BEGIN SOURCE: 20260127072850_7a511ad2-eadc-4846-a7e1-92aa7c608460.sql =====
@@ -2119,6 +2140,7 @@ CREATE TRIGGER update_kas_payments_updated_at
   BEFORE UPDATE ON public.kas_payments
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
+
 -- ===== END SOURCE: 20260127072850_7a511ad2-eadc-4846-a7e1-92aa7c608460.sql =====
 
 -- ===== BEGIN SOURCE: 20260127073300_6cb5784e-39e2-4626-8d8d-8bdc12a2a2e4.sql =====
@@ -2261,6 +2283,7 @@ CREATE TRIGGER trigger_record_verifikator_commission
   AFTER INSERT OR UPDATE ON public.merchant_subscriptions
   FOR EACH ROW
   EXECUTE FUNCTION public.record_verifikator_commission();
+
 -- ===== END SOURCE: 20260127073300_6cb5784e-39e2-4626-8d8d-8bdc12a2a2e4.sql =====
 
 -- ===== BEGIN SOURCE: 20260127073715_302d2dda-ebfa-4711-a1e0-71fb26487401.sql =====
@@ -2363,4 +2386,5 @@ BEGIN
   RETURN TRUE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 -- ===== END SOURCE: 20260127073715_302d2dda-ebfa-4711-a1e0-71fb26487401.sql =====

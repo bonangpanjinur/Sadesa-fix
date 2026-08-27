@@ -1,6 +1,6 @@
 # Staging Bootstrap Validation
 
-Dokumen ini menjelaskan cara menjalankan validasi otomatis terhadap seluruh **186 migration** yang dikemas dalam **8 bootstrap bundle** pada project Supabase staging yang terisolasi.
+Dokumen ini menjelaskan cara menjalankan validasi otomatis terhadap seluruh migration canonical yang saat ini berjumlah **187 migration** dan dikemas dalam **8 bootstrap bundle** pada project Supabase staging yang terisolasi. Jumlah tersebut dibaca dari manifest, sehingga akan berubah otomatis ketika migration baru ditambahkan.
 
 Skrip utama adalah `scripts/validate-bootstrap-staging.sh`. Skrip ini tidak menjalankan migration ke production karena memiliki guard `SUPABASE_TARGET_LABEL=staging` secara default.
 

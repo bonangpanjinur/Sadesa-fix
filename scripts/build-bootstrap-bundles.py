@@ -51,7 +51,9 @@ def main() -> int:
         ]
         for source in selected:
             chunks.append(f'\n-- ===== BEGIN SOURCE: {source.name} =====\n')
-            chunks.append(source.read_text(encoding='utf-8'))
+            source_text = source.read_text(encoding='utf-8')
+            source_text = '\n'.join(line.rstrip() for line in source_text.splitlines()) + '\n'
+            chunks.append(source_text)
             chunks.append(f'\n-- ===== END SOURCE: {source.name} =====\n')
         content = ''.join(chunks)
         output.write_text(content, encoding='utf-8')

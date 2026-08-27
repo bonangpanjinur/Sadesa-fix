@@ -1,273 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260822010000_harden_pos_rls_tenant_outlet.sql .. 20260825170000_dispute_center_approval_workflow.sql
+-- Source range: 20260822030000_harden_storage_ownership.sql .. 20260825190000_crm_segments_campaigns.sql
 
-
--- ===== BEGIN SOURCE: 20260822010000_harden_pos_rls_tenant_outlet.sql =====
--- P1 security hardening: enforce tenant/outlet consistency and respect
--- granular POS outlet assignments at the database boundary.
-
--- Prevent rows from one tenant from pointing at another tenant's outlet.
-CREATE OR REPLACE FUNCTION public.validate_pos_outlet_tenant()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM public.pos_outlets o
-    WHERE o.id = NEW.outlet_id
-      AND o.tenant_id = NEW.tenant_id
-  ) THEN
-    RAISE EXCEPTION 'POS outlet does not belong to the specified tenant'
-      USING ERRCODE = '23514';
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-DO $$
-DECLARE
-  table_name text;
-BEGIN
-  FOREACH table_name IN ARRAY ARRAY[
-    'pos_stock',
-    'pos_stock_mutations',
-    'pos_sales',
-    'pos_held_bills',
-    'pos_sale_returns'
-  ] LOOP
-    IF to_regclass('public.' || table_name) IS NOT NULL THEN
-      EXECUTE format('DROP TRIGGER IF EXISTS validate_%I_outlet_tenant ON public.%I', table_name, table_name);
-      EXECUTE format(
-        'CREATE TRIGGER validate_%I_outlet_tenant BEFORE INSERT OR UPDATE OF tenant_id, outlet_id ON public.%I FOR EACH ROW EXECUTE FUNCTION public.validate_pos_outlet_tenant()',
-        table_name, table_name
-      );
-    END IF;
-  END LOOP;
-END;
-$$;
-
--- Ensure outlet-access records cannot cross tenant boundaries.
-CREATE OR REPLACE FUNCTION public.validate_pos_user_outlet_access()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.pos_outlets o
-    WHERE o.id = NEW.outlet_id AND o.tenant_id = NEW.tenant_id
-  ) THEN
-    RAISE EXCEPTION 'POS outlet does not belong to the specified tenant'
-      USING ERRCODE = '23514';
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM public.pos_users u
-    WHERE u.id = NEW.pos_user_id AND u.tenant_id = NEW.tenant_id
-  ) THEN
-    RAISE EXCEPTION 'POS user does not belong to the specified tenant'
-      USING ERRCODE = '23514';
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-DO $$
-BEGIN
-  IF to_regclass('public.pos_user_outlet_access') IS NOT NULL THEN
-    DROP TRIGGER IF EXISTS validate_pos_user_outlet_access_tenant
-      ON public.pos_user_outlet_access;
-    CREATE TRIGGER validate_pos_user_outlet_access_tenant
-      BEFORE INSERT OR UPDATE OF tenant_id, pos_user_id, outlet_id
-      ON public.pos_user_outlet_access
-      FOR EACH ROW
-      EXECUTE FUNCTION public.validate_pos_user_outlet_access();
-  END IF;
-END;
-$$;
-
--- Replace the broad tenant-wide outlet read policy with owner-or-assigned
--- outlet access. Owners retain visibility over every outlet in their tenant.
-DROP POLICY IF EXISTS "tenant_users_select_outlets" ON public.pos_outlets;
-DROP POLICY IF EXISTS "POS users can view assigned outlets" ON public.pos_outlets;
-CREATE POLICY "POS users can view assigned outlets" ON public.pos_outlets
-  FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.pos_tenants t
-      WHERE t.id = pos_outlets.tenant_id AND t.user_id = auth.uid()
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.pos_user_outlet_access a
-      JOIN public.pos_users u ON u.id = a.pos_user_id
-      WHERE a.outlet_id = pos_outlets.id
-        AND a.tenant_id = pos_outlets.tenant_id
-        AND a.is_active = true
-        AND u.user_id = auth.uid()
-        AND u.is_active = true
-    )
-  );
-
--- Only owners may manage outlet assignments; users may inspect their own
--- active assignments. This avoids exposing all staff assignments to any
--- active user in the tenant.
-DROP POLICY IF EXISTS "tenant_owner_manage_access" ON public.pos_user_outlet_access;
-DROP POLICY IF EXISTS "tenant_users_read_access" ON public.pos_user_outlet_access;
-DROP POLICY IF EXISTS "POS owners manage outlet access" ON public.pos_user_outlet_access;
-DROP POLICY IF EXISTS "POS users read own outlet access" ON public.pos_user_outlet_access;
-
-CREATE POLICY "POS owners manage outlet access" ON public.pos_user_outlet_access
-  FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.pos_tenants t
-      WHERE t.id = pos_user_outlet_access.tenant_id AND t.user_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.pos_tenants t
-      WHERE t.id = pos_user_outlet_access.tenant_id AND t.user_id = auth.uid()
-    )
-  );
-
-DROP POLICY IF EXISTS "POS users read own outlet access" ON public.pos_user_outlet_access;
-CREATE POLICY "POS users read own outlet access" ON public.pos_user_outlet_access
-  FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.pos_users u
-      WHERE u.id = pos_user_outlet_access.pos_user_id
-        AND u.user_id = auth.uid()
-        AND u.is_active = true
-    )
-  );
-
--- Explicit WITH CHECK clauses make the intended mutation boundary clear for
--- the core POS tables. Existing tenant-user SELECT policies remain read-only.
-DO $$
-DECLARE
-  table_name text;
-BEGIN
-  FOREACH table_name IN ARRAY ARRAY[
-    'pos_products', 'pos_stock', 'pos_stock_mutations', 'pos_sales',
-    'pos_held_bills', 'pos_customers', 'pos_suppliers', 'pos_users'
-  ] LOOP
-    IF to_regclass('public.' || table_name) IS NOT NULL THEN
-      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
-    END IF;
-  END LOOP;
-END;
-$$;
-
--- Reusable access predicate for outlet-scoped POS data.
-CREATE OR REPLACE FUNCTION public.pos_user_can_access_outlet(
-  p_tenant_id uuid,
-  p_outlet_id uuid
-)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.pos_tenants t
-    WHERE t.id = p_tenant_id AND t.user_id = auth.uid()
-  )
-  OR EXISTS (
-    SELECT 1
-    FROM public.pos_user_outlet_access a
-    JOIN public.pos_users u ON u.id = a.pos_user_id
-    WHERE a.tenant_id = p_tenant_id
-      AND a.outlet_id = p_outlet_id
-      AND a.is_active = true
-      AND u.user_id = auth.uid()
-      AND u.is_active = true
-  );
-$$;
-
--- Remove broad tenant-wide read policies for outlet-scoped data.
-DROP POLICY IF EXISTS "tenant_users_select_stock" ON public.pos_stock;
-DROP POLICY IF EXISTS "tenant_users_select_mutations" ON public.pos_stock_mutations;
-DROP POLICY IF EXISTS "tenant_users_select_sales" ON public.pos_sales;
-DROP POLICY IF EXISTS "tenant_users_select_held_bills" ON public.pos_held_bills;
-DROP POLICY IF EXISTS "tenant_users_select_returns" ON public.pos_sale_returns;
-DROP POLICY IF EXISTS "tenant_users_select_pos_users" ON public.pos_users;
-
-DROP POLICY IF EXISTS "POS users can view assigned stock" ON public.pos_stock;
-CREATE POLICY "POS users can view assigned stock" ON public.pos_stock
-  FOR SELECT TO authenticated
-  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
-
-DROP POLICY IF EXISTS "POS users can view assigned stock mutations" ON public.pos_stock_mutations;
-CREATE POLICY "POS users can view assigned stock mutations" ON public.pos_stock_mutations
-  FOR SELECT TO authenticated
-  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
-
-DROP POLICY IF EXISTS "POS users can view assigned sales" ON public.pos_sales;
-CREATE POLICY "POS users can view assigned sales" ON public.pos_sales
-  FOR SELECT TO authenticated
-  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
-
-DROP POLICY IF EXISTS "POS users can view assigned held bills" ON public.pos_held_bills;
-CREATE POLICY "POS users can view assigned held bills" ON public.pos_held_bills
-  FOR SELECT TO authenticated
-  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
-
-DROP POLICY IF EXISTS "POS users can view assigned returns" ON public.pos_sale_returns;
-CREATE POLICY "POS users can view assigned returns" ON public.pos_sale_returns
-  FOR SELECT TO authenticated
-  USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
-
--- Staff can see their own POS identity; only tenant owners can see the full
--- tenant user directory.
-DROP POLICY IF EXISTS "POS users can view own POS identity" ON public.pos_users;
-CREATE POLICY "POS users can view own POS identity" ON public.pos_users
-  FOR SELECT TO authenticated
-  USING (user_id = auth.uid());
-
--- Explicitly grant the helper only to API roles; the function itself does not
--- expose any data and is used solely inside RLS predicates.
-REVOKE ALL ON FUNCTION public.pos_user_can_access_outlet(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.pos_user_can_access_outlet(uuid, uuid) TO authenticated;
-
--- ===== END SOURCE: 20260822010000_harden_pos_rls_tenant_outlet.sql =====
-
--- ===== BEGIN SOURCE: 20260822020000_add_payment_webhook_idempotency.sql =====
--- Idempotency ledger for payment provider callbacks.
-CREATE TABLE IF NOT EXISTS public.payment_webhook_events (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider text NOT NULL,
-  event_key text NOT NULL,
-  invoice_id text NOT NULL,
-  order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
-  status text NOT NULL,
-  received_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (provider, event_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_payment_webhook_events_order
-  ON public.payment_webhook_events(order_id, received_at DESC);
-
-REVOKE ALL ON public.payment_webhook_events FROM anon, authenticated;
-GRANT ALL ON public.payment_webhook_events TO service_role;
-ALTER TABLE public.payment_webhook_events ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Service role manages payment webhook events"
-  ON public.payment_webhook_events;
-CREATE POLICY "Service role manages payment webhook events"
-  ON public.payment_webhook_events FOR ALL TO service_role
-  USING (true) WITH CHECK (true);
-
--- ===== END SOURCE: 20260822020000_add_payment_webhook_idempotency.sql =====
 
 -- ===== BEGIN SOURCE: 20260822030000_harden_storage_ownership.sql =====
 -- Storage hardening for sensitive documents and merchant gallery.
@@ -2568,3 +2302,174 @@ REVOKE ALL ON FUNCTION public.decide_approval_request(uuid, boolean, text) FROM 
 GRANT EXECUTE ON FUNCTION public.decide_approval_request(uuid, boolean, text) TO authenticated;
 
 -- ===== END SOURCE: 20260825170000_dispute_center_approval_workflow.sql =====
+
+-- ===== BEGIN SOURCE: 20260825180000_pricebook_loyalty_import_jobs.sql =====
+CREATE TABLE IF NOT EXISTS public.pos_price_books (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  customer_segment text NOT NULL DEFAULT 'retail' CHECK (customer_segment IN ('retail','wholesale','reseller','member','outlet')),
+  outlet_id uuid REFERENCES public.pos_outlets(id) ON DELETE CASCADE,
+  starts_at timestamptz,
+  ends_at timestamptz,
+  is_active boolean NOT NULL DEFAULT true,
+  priority integer NOT NULL DEFAULT 0,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.pos_price_book_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  price_book_id uuid NOT NULL REFERENCES public.pos_price_books(id) ON DELETE CASCADE,
+  product_id uuid NOT NULL REFERENCES public.pos_products(id) ON DELETE CASCADE,
+  variant_id uuid REFERENCES public.pos_product_variants(id) ON DELETE CASCADE,
+  price numeric(15,2) NOT NULL CHECK (price >= 0),
+  UNIQUE(price_book_id, product_id, variant_id)
+);
+ALTER TABLE public.pos_price_books ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_pos_price_books_active ON public.pos_price_books(tenant_id, is_active, starts_at, ends_at, priority DESC);
+
+CREATE TABLE IF NOT EXISTS public.pos_loyalty_rules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  rule_type text NOT NULL CHECK (rule_type IN ('earn','redeem','tier','expiry','category_bonus')),
+  category_id uuid REFERENCES public.pos_categories(id) ON DELETE SET NULL,
+  min_spend numeric(15,2) NOT NULL DEFAULT 0 CHECK (min_spend >= 0),
+  points_per_currency numeric(12,4) NOT NULL DEFAULT 0 CHECK (points_per_currency >= 0),
+  points_value numeric(15,2) NOT NULL DEFAULT 0 CHECK (points_value >= 0),
+  tier_name text,
+  expires_after_days integer CHECK (expires_after_days IS NULL OR expires_after_days > 0),
+  is_active boolean NOT NULL DEFAULT true,
+  priority integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_pos_loyalty_rules_active ON public.pos_loyalty_rules(tenant_id, rule_type, is_active, priority DESC);
+
+CREATE TABLE IF NOT EXISTS public.pos_import_jobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  outlet_id uuid REFERENCES public.pos_outlets(id) ON DELETE SET NULL,
+  entity_type text NOT NULL CHECK (entity_type IN ('products','stock','customers','suppliers')),
+  status text NOT NULL DEFAULT 'preview' CHECK (status IN ('preview','validated','committed','rolled_back','failed')),
+  source_filename text,
+  row_count integer NOT NULL DEFAULT 0,
+  valid_count integer NOT NULL DEFAULT 0,
+  invalid_count integer NOT NULL DEFAULT 0,
+  preview_rows jsonb NOT NULL DEFAULT '[]'::jsonb,
+  validation_errors jsonb NOT NULL DEFAULT '[]'::jsonb,
+  rollback_token text,
+  created_by uuid NOT NULL REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  committed_at timestamptz,
+  rolled_back_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_pos_import_jobs_tenant ON public.pos_import_jobs(tenant_id, entity_type, status, created_at DESC);
+
+ALTER TABLE public.pos_price_books ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pos_price_book_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pos_loyalty_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pos_import_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view price books" ON public.pos_price_books;
+CREATE POLICY "POS users view price books" ON public.pos_price_books FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "Tenant owners manage price books" ON public.pos_price_books;
+CREATE POLICY "Tenant owners manage price books" ON public.pos_price_books FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "POS users view price book items" ON public.pos_price_book_items;
+CREATE POLICY "POS users view price book items" ON public.pos_price_book_items FOR SELECT TO authenticated USING (price_book_id IN (SELECT id FROM public.pos_price_books WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
+DROP POLICY IF EXISTS "Tenant owners manage price book items" ON public.pos_price_book_items;
+CREATE POLICY "Tenant owners manage price book items" ON public.pos_price_book_items FOR ALL TO authenticated USING (price_book_id IN (SELECT id FROM public.pos_price_books WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))) WITH CHECK (price_book_id IN (SELECT id FROM public.pos_price_books WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
+DROP POLICY IF EXISTS "POS users view loyalty rules" ON public.pos_loyalty_rules;
+CREATE POLICY "POS users view loyalty rules" ON public.pos_loyalty_rules FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant owners manage loyalty rules" ON public.pos_loyalty_rules;
+CREATE POLICY "Tenant owners manage loyalty rules" ON public.pos_loyalty_rules FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users view own imports" ON public.pos_import_jobs;
+CREATE POLICY "Users view own imports" ON public.pos_import_jobs FOR SELECT TO authenticated USING (created_by = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users create scoped imports" ON public.pos_import_jobs;
+CREATE POLICY "Users create scoped imports" ON public.pos_import_jobs FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
+
+CREATE OR REPLACE FUNCTION public.get_effective_pos_price(p_tenant_id uuid, p_outlet_id uuid, p_product_id uuid, p_variant_id uuid, p_segment text DEFAULT 'retail')
+RETURNS numeric LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE((SELECT i.price FROM public.pos_price_book_items i JOIN public.pos_price_books b ON b.id = i.price_book_id WHERE b.tenant_id = p_tenant_id AND (b.outlet_id IS NULL OR b.outlet_id = p_outlet_id) AND b.customer_segment = p_segment AND b.is_active AND (b.starts_at IS NULL OR b.starts_at <= now()) AND (b.ends_at IS NULL OR b.ends_at >= now()) AND i.product_id = p_product_id AND i.variant_id IS NOT DISTINCT FROM p_variant_id ORDER BY (b.outlet_id IS NOT NULL) DESC, b.priority DESC NULLS LAST LIMIT 1), (SELECT price FROM public.pos_products WHERE id = p_product_id AND tenant_id = p_tenant_id));
+$$;
+REVOKE ALL ON FUNCTION public.get_effective_pos_price(uuid, uuid, uuid, uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_effective_pos_price(uuid, uuid, uuid, uuid, text) TO authenticated;
+
+-- ===== END SOURCE: 20260825180000_pricebook_loyalty_import_jobs.sql =====
+
+-- ===== BEGIN SOURCE: 20260825190000_crm_segments_campaigns.sql =====
+CREATE TABLE IF NOT EXISTS public.crm_customer_segments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  description text,
+  criteria jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_dynamic boolean NOT NULL DEFAULT true,
+  is_active boolean NOT NULL DEFAULT true,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.crm_segment_members (
+  segment_id uuid NOT NULL REFERENCES public.crm_customer_segments(id) ON DELETE CASCADE,
+  customer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  joined_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY(segment_id, customer_id)
+);
+CREATE TABLE IF NOT EXISTS public.crm_campaigns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  segment_id uuid REFERENCES public.crm_customer_segments(id) ON DELETE SET NULL,
+  name text NOT NULL,
+  channel text NOT NULL CHECK (channel IN ('in_app','email','whatsapp','push')),
+  template text NOT NULL,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','scheduled','sending','sent','cancelled','failed')),
+  scheduled_at timestamptz,
+  sent_at timestamptz,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.crm_campaign_deliveries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  campaign_id uuid NOT NULL REFERENCES public.crm_campaigns(id) ON DELETE CASCADE,
+  customer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','sent','delivered','failed','opted_out')),
+  provider_message_id text,
+  error_message text,
+  sent_at timestamptz,
+  delivered_at timestamptz,
+  UNIQUE(campaign_id, customer_id)
+);
+CREATE TABLE IF NOT EXISTS public.crm_abandoned_carts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  customer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  cart_snapshot jsonb NOT NULL,
+  total_amount numeric(15,2) NOT NULL DEFAULT 0,
+  last_activity_at timestamptz NOT NULL DEFAULT now(),
+  reminder_sent_at timestamptz,
+  recovered_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_crm_campaigns_status ON public.crm_campaigns(tenant_id, status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_crm_abandoned_carts_reminder ON public.crm_abandoned_carts(tenant_id, last_activity_at, reminder_sent_at) WHERE recovered_at IS NULL;
+
+ALTER TABLE public.crm_customer_segments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_segment_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_campaigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_campaign_deliveries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.crm_abandoned_carts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Tenant owners manage CRM segments" ON public.crm_customer_segments;
+CREATE POLICY "Tenant owners manage CRM segments" ON public.crm_customer_segments FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view CRM segments" ON public.crm_customer_segments;
+CREATE POLICY "Tenant users view CRM segments" ON public.crm_customer_segments FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Tenant owners manage CRM campaigns" ON public.crm_campaigns;
+CREATE POLICY "Tenant owners manage CRM campaigns" ON public.crm_campaigns FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view CRM campaigns" ON public.crm_campaigns;
+CREATE POLICY "Tenant users view CRM campaigns" ON public.crm_campaigns FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Customer views own campaign delivery" ON public.crm_campaign_deliveries;
+CREATE POLICY "Customer views own campaign delivery" ON public.crm_campaign_deliveries FOR SELECT TO authenticated USING (customer_id = auth.uid() OR campaign_id IN (SELECT id FROM public.crm_campaigns WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
+DROP POLICY IF EXISTS "Tenant users manage abandoned carts" ON public.crm_abandoned_carts;
+CREATE POLICY "Tenant users manage abandoned carts" ON public.crm_abandoned_carts FOR ALL TO authenticated USING (customer_id = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (customer_id = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Customers view own segment membership" ON public.crm_segment_members;
+CREATE POLICY "Customers view own segment membership" ON public.crm_segment_members FOR SELECT TO authenticated USING (customer_id = auth.uid() OR segment_id IN (SELECT id FROM public.crm_customer_segments WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
+
+-- ===== END SOURCE: 20260825190000_crm_segments_campaigns.sql =====

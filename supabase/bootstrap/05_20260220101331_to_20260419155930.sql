@@ -1,32 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260220094944_4e9af0cf-2be8-4fa8-ac7b-21d6015ea7ae.sql .. 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql
+-- Source range: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql .. 20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql
 
-
--- ===== BEGIN SOURCE: 20260220094944_4e9af0cf-2be8-4fa8-ac7b-21d6015ea7ae.sql =====
-
--- Add is_self_delivery column to orders table
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS is_self_delivery boolean DEFAULT false;
-
--- ===== END SOURCE: 20260220094944_4e9af0cf-2be8-4fa8-ac7b-21d6015ea7ae.sql =====
-
--- ===== BEGIN SOURCE: 20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql =====
--- Enable realtime for orders table so buyers get live status updates
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_publication_tables
-    WHERE pubname = 'supabase_realtime'
-      AND schemaname = 'public'
-      AND tablename = 'orders'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
-  END IF;
-EXCEPTION
-  WHEN undefined_object THEN NULL;
-END $$;
--- ===== END SOURCE: 20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql =====
 
 -- ===== BEGIN SOURCE: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql =====
 
@@ -520,6 +495,7 @@ ALTER TABLE public.orders ADD CONSTRAINT orders_status_check CHECK (status = ANY
   'ASSIGNED', 'PICKED_UP', 'SENT', 'DELIVERING', 'DELIVERED', 'DONE',
   'CANCELED', 'REJECTED', 'REJECTED_BY_BUYER', 'REFUNDED'
 ]));
+
 -- ===== END SOURCE: 20260220125614_55452632-5bf8-466f-9b47-10c530f6432a.sql =====
 
 -- ===== BEGIN SOURCE: 20260220_fix_saved_addresses_comprehensive.sql =====
@@ -1225,3 +1201,42 @@ CREATE TRIGGER trigger_notify_couriers_new_ride
   EXECUTE FUNCTION public.notify_couriers_new_ride();
 
 -- ===== END SOURCE: 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql =====
+
+-- ===== BEGIN SOURCE: 20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql =====
+-- Fix 3 functions missing search_path
+
+ALTER FUNCTION public.increment_product_view(uuid) SET search_path = public;
+ALTER FUNCTION public.auto_assign_merchant_to_group() SET search_path = public;
+ALTER FUNCTION public.auto_assign_village_admin_role() SET search_path = public;
+
+-- Fix overly permissive RLS policy on rate_limits (WITH CHECK (true))
+DROP POLICY IF EXISTS "Rate limits insert via functions" ON public.rate_limits;
+CREATE POLICY "Rate limits insert via functions" ON public.rate_limits
+  FOR INSERT TO authenticated
+  WITH CHECK (identifier = auth.uid()::text OR public.is_admin());
+
+DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
+CREATE POLICY "Rate limits update via functions" ON public.rate_limits
+  FOR UPDATE TO authenticated
+  USING (identifier = auth.uid()::text OR public.is_admin())
+  WITH CHECK (identifier = auth.uid()::text OR public.is_admin());
+
+-- ===== END SOURCE: 20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql =====
+
+-- ===== BEGIN SOURCE: 20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql =====
+-- Fix overly permissive RLS policy on page_views (WITH CHECK true)
+DROP POLICY IF EXISTS "Anyone can insert page views" ON public.page_views;
+
+DROP POLICY IF EXISTS "Authenticated or anonymous can insert their own page view" ON public.page_views;
+CREATE POLICY "Authenticated or anonymous can insert their own page view"
+ON public.page_views
+FOR INSERT
+TO public
+WITH CHECK (
+  -- Anonymous viewer (no viewer_id) is allowed
+  viewer_id IS NULL
+  -- Or the viewer matches the authenticated user
+  OR viewer_id = auth.uid()
+);
+
+-- ===== END SOURCE: 20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql =====

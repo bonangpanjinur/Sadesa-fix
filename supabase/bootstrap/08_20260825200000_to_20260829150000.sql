@@ -1,178 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260825180000_pricebook_loyalty_import_jobs.sql .. 20260829130000_subscription_entitlement_enforcement.sql
+-- Source range: 20260825200000_notification_delivery_queue.sql .. 20260829150000_pos_tenant_merchant_mapping.sql
 
-
--- ===== BEGIN SOURCE: 20260825180000_pricebook_loyalty_import_jobs.sql =====
-CREATE TABLE IF NOT EXISTS public.pos_price_books (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  customer_segment text NOT NULL DEFAULT 'retail' CHECK (customer_segment IN ('retail','wholesale','reseller','member','outlet')),
-  outlet_id uuid REFERENCES public.pos_outlets(id) ON DELETE CASCADE,
-  starts_at timestamptz,
-  ends_at timestamptz,
-  is_active boolean NOT NULL DEFAULT true,
-  priority integer NOT NULL DEFAULT 0,
-  created_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.pos_price_book_items (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  price_book_id uuid NOT NULL REFERENCES public.pos_price_books(id) ON DELETE CASCADE,
-  product_id uuid NOT NULL REFERENCES public.pos_products(id) ON DELETE CASCADE,
-  variant_id uuid REFERENCES public.pos_product_variants(id) ON DELETE CASCADE,
-  price numeric(15,2) NOT NULL CHECK (price >= 0),
-  UNIQUE(price_book_id, product_id, variant_id)
-);
-ALTER TABLE public.pos_price_books ADD COLUMN IF NOT EXISTS priority integer NOT NULL DEFAULT 0;
-CREATE INDEX IF NOT EXISTS idx_pos_price_books_active ON public.pos_price_books(tenant_id, is_active, starts_at, ends_at, priority DESC);
-
-CREATE TABLE IF NOT EXISTS public.pos_loyalty_rules (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  rule_type text NOT NULL CHECK (rule_type IN ('earn','redeem','tier','expiry','category_bonus')),
-  category_id uuid REFERENCES public.pos_categories(id) ON DELETE SET NULL,
-  min_spend numeric(15,2) NOT NULL DEFAULT 0 CHECK (min_spend >= 0),
-  points_per_currency numeric(12,4) NOT NULL DEFAULT 0 CHECK (points_per_currency >= 0),
-  points_value numeric(15,2) NOT NULL DEFAULT 0 CHECK (points_value >= 0),
-  tier_name text,
-  expires_after_days integer CHECK (expires_after_days IS NULL OR expires_after_days > 0),
-  is_active boolean NOT NULL DEFAULT true,
-  priority integer NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_pos_loyalty_rules_active ON public.pos_loyalty_rules(tenant_id, rule_type, is_active, priority DESC);
-
-CREATE TABLE IF NOT EXISTS public.pos_import_jobs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  outlet_id uuid REFERENCES public.pos_outlets(id) ON DELETE SET NULL,
-  entity_type text NOT NULL CHECK (entity_type IN ('products','stock','customers','suppliers')),
-  status text NOT NULL DEFAULT 'preview' CHECK (status IN ('preview','validated','committed','rolled_back','failed')),
-  source_filename text,
-  row_count integer NOT NULL DEFAULT 0,
-  valid_count integer NOT NULL DEFAULT 0,
-  invalid_count integer NOT NULL DEFAULT 0,
-  preview_rows jsonb NOT NULL DEFAULT '[]'::jsonb,
-  validation_errors jsonb NOT NULL DEFAULT '[]'::jsonb,
-  rollback_token text,
-  created_by uuid NOT NULL REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  committed_at timestamptz,
-  rolled_back_at timestamptz
-);
-CREATE INDEX IF NOT EXISTS idx_pos_import_jobs_tenant ON public.pos_import_jobs(tenant_id, entity_type, status, created_at DESC);
-
-ALTER TABLE public.pos_price_books ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pos_price_book_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pos_loyalty_rules ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pos_import_jobs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "POS users view price books" ON public.pos_price_books;
-CREATE POLICY "POS users view price books" ON public.pos_price_books FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
-DROP POLICY IF EXISTS "Tenant owners manage price books" ON public.pos_price_books;
-CREATE POLICY "Tenant owners manage price books" ON public.pos_price_books FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "POS users view price book items" ON public.pos_price_book_items;
-CREATE POLICY "POS users view price book items" ON public.pos_price_book_items FOR SELECT TO authenticated USING (price_book_id IN (SELECT id FROM public.pos_price_books WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
-DROP POLICY IF EXISTS "Tenant owners manage price book items" ON public.pos_price_book_items;
-CREATE POLICY "Tenant owners manage price book items" ON public.pos_price_book_items FOR ALL TO authenticated USING (price_book_id IN (SELECT id FROM public.pos_price_books WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))) WITH CHECK (price_book_id IN (SELECT id FROM public.pos_price_books WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
-DROP POLICY IF EXISTS "POS users view loyalty rules" ON public.pos_loyalty_rules;
-CREATE POLICY "POS users view loyalty rules" ON public.pos_loyalty_rules FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Tenant owners manage loyalty rules" ON public.pos_loyalty_rules;
-CREATE POLICY "Tenant owners manage loyalty rules" ON public.pos_loyalty_rules FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Users view own imports" ON public.pos_import_jobs;
-CREATE POLICY "Users view own imports" ON public.pos_import_jobs FOR SELECT TO authenticated USING (created_by = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Users create scoped imports" ON public.pos_import_jobs;
-CREATE POLICY "Users create scoped imports" ON public.pos_import_jobs FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
-
-CREATE OR REPLACE FUNCTION public.get_effective_pos_price(p_tenant_id uuid, p_outlet_id uuid, p_product_id uuid, p_variant_id uuid, p_segment text DEFAULT 'retail')
-RETURNS numeric LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT COALESCE((SELECT i.price FROM public.pos_price_book_items i JOIN public.pos_price_books b ON b.id = i.price_book_id WHERE b.tenant_id = p_tenant_id AND (b.outlet_id IS NULL OR b.outlet_id = p_outlet_id) AND b.customer_segment = p_segment AND b.is_active AND (b.starts_at IS NULL OR b.starts_at <= now()) AND (b.ends_at IS NULL OR b.ends_at >= now()) AND i.product_id = p_product_id AND i.variant_id IS NOT DISTINCT FROM p_variant_id ORDER BY (b.outlet_id IS NOT NULL) DESC, b.priority DESC NULLS LAST LIMIT 1), (SELECT price FROM public.pos_products WHERE id = p_product_id AND tenant_id = p_tenant_id));
-$$;
-REVOKE ALL ON FUNCTION public.get_effective_pos_price(uuid, uuid, uuid, uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_effective_pos_price(uuid, uuid, uuid, uuid, text) TO authenticated;
-
--- ===== END SOURCE: 20260825180000_pricebook_loyalty_import_jobs.sql =====
-
--- ===== BEGIN SOURCE: 20260825190000_crm_segments_campaigns.sql =====
-CREATE TABLE IF NOT EXISTS public.crm_customer_segments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  description text,
-  criteria jsonb NOT NULL DEFAULT '{}'::jsonb,
-  is_dynamic boolean NOT NULL DEFAULT true,
-  is_active boolean NOT NULL DEFAULT true,
-  created_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.crm_segment_members (
-  segment_id uuid NOT NULL REFERENCES public.crm_customer_segments(id) ON DELETE CASCADE,
-  customer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  joined_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY(segment_id, customer_id)
-);
-CREATE TABLE IF NOT EXISTS public.crm_campaigns (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  segment_id uuid REFERENCES public.crm_customer_segments(id) ON DELETE SET NULL,
-  name text NOT NULL,
-  channel text NOT NULL CHECK (channel IN ('in_app','email','whatsapp','push')),
-  template text NOT NULL,
-  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','scheduled','sending','sent','cancelled','failed')),
-  scheduled_at timestamptz,
-  sent_at timestamptz,
-  created_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.crm_campaign_deliveries (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  campaign_id uuid NOT NULL REFERENCES public.crm_campaigns(id) ON DELETE CASCADE,
-  customer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','sent','delivered','failed','opted_out')),
-  provider_message_id text,
-  error_message text,
-  sent_at timestamptz,
-  delivered_at timestamptz,
-  UNIQUE(campaign_id, customer_id)
-);
-CREATE TABLE IF NOT EXISTS public.crm_abandoned_carts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  customer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  cart_snapshot jsonb NOT NULL,
-  total_amount numeric(15,2) NOT NULL DEFAULT 0,
-  last_activity_at timestamptz NOT NULL DEFAULT now(),
-  reminder_sent_at timestamptz,
-  recovered_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_crm_campaigns_status ON public.crm_campaigns(tenant_id, status, scheduled_at);
-CREATE INDEX IF NOT EXISTS idx_crm_abandoned_carts_reminder ON public.crm_abandoned_carts(tenant_id, last_activity_at, reminder_sent_at) WHERE recovered_at IS NULL;
-
-ALTER TABLE public.crm_customer_segments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.crm_segment_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.crm_campaigns ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.crm_campaign_deliveries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.crm_abandoned_carts ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Tenant owners manage CRM segments" ON public.crm_customer_segments;
-CREATE POLICY "Tenant owners manage CRM segments" ON public.crm_customer_segments FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Tenant users view CRM segments" ON public.crm_customer_segments;
-CREATE POLICY "Tenant users view CRM segments" ON public.crm_customer_segments FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
-DROP POLICY IF EXISTS "Tenant owners manage CRM campaigns" ON public.crm_campaigns;
-CREATE POLICY "Tenant owners manage CRM campaigns" ON public.crm_campaigns FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Tenant users view CRM campaigns" ON public.crm_campaigns;
-CREATE POLICY "Tenant users view CRM campaigns" ON public.crm_campaigns FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
-DROP POLICY IF EXISTS "Customer views own campaign delivery" ON public.crm_campaign_deliveries;
-CREATE POLICY "Customer views own campaign delivery" ON public.crm_campaign_deliveries FOR SELECT TO authenticated USING (customer_id = auth.uid() OR campaign_id IN (SELECT id FROM public.crm_campaigns WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
-DROP POLICY IF EXISTS "Tenant users manage abandoned carts" ON public.crm_abandoned_carts;
-CREATE POLICY "Tenant users manage abandoned carts" ON public.crm_abandoned_carts FOR ALL TO authenticated USING (customer_id = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (customer_id = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Customers view own segment membership" ON public.crm_segment_members;
-CREATE POLICY "Customers view own segment membership" ON public.crm_segment_members FOR SELECT TO authenticated USING (customer_id = auth.uid() OR segment_id IN (SELECT id FROM public.crm_customer_segments WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
-
--- ===== END SOURCE: 20260825190000_crm_segments_campaigns.sql =====
 
 -- ===== BEGIN SOURCE: 20260825200000_notification_delivery_queue.sql =====
 CREATE TABLE IF NOT EXISTS public.notification_delivery_jobs (
@@ -2038,7 +1867,7 @@ BEGIN
   IF p_merchant_id IS NULL OR NULLIF(trim(p_feature_key), '') IS NULL THEN
     RAISE EXCEPTION 'Invalid entitlement request' USING ERRCODE = '22023';
   END IF;
-  IF NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = p_merchant_id AND m.user_id = auth.uid())) THEN
+  IF auth.role() <> 'service_role' AND NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = p_merchant_id AND m.user_id = auth.uid())) THEN
     RAISE EXCEPTION 'Entitlement access denied' USING ERRCODE = '42501';
   END IF;
 
@@ -2260,3 +2089,94 @@ REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, 
 GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO service_role, authenticated;
 
 -- ===== END SOURCE: 20260829140000_subscription_runtime_enforcement.sql =====
+
+-- ===== BEGIN SOURCE: 20260829150000_pos_tenant_merchant_mapping.sql =====
+-- Explicit POS tenant to merchant billing identity mapping.
+-- Ambiguous existing users are intentionally left unmapped for manual resolution.
+ALTER TABLE public.pos_tenants
+  ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_pos_tenants_merchant_id ON public.pos_tenants(merchant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_tenants_one_per_merchant
+  ON public.pos_tenants(merchant_id) WHERE merchant_id IS NOT NULL;
+
+DO $$
+BEGIN
+  UPDATE public.pos_tenants t
+  SET merchant_id = m.id
+  FROM public.merchants m
+  WHERE t.merchant_id IS NULL
+    AND m.user_id = t.user_id
+    AND (SELECT count(*) FROM public.merchants m2 WHERE m2.user_id = t.user_id) = 1;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.set_pos_tenant_merchant(
+  p_tenant_id uuid,
+  p_merchant_id uuid
+)
+RETURNS public.pos_tenants
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_tenant public.pos_tenants%ROWTYPE;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_tenant FROM public.pos_tenants WHERE id = p_tenant_id FOR UPDATE;
+  IF NOT FOUND OR NOT (public.is_admin() OR v_tenant.user_id = auth.uid()) THEN
+    RAISE EXCEPTION 'POS tenant mapping access denied' USING ERRCODE = '42501';
+  END IF;
+  IF p_merchant_id IS NULL OR NOT EXISTS (
+    SELECT 1 FROM public.merchants m
+    WHERE m.id = p_merchant_id AND (public.is_admin() OR m.user_id = v_tenant.user_id)
+  ) THEN
+    RAISE EXCEPTION 'Merchant must belong to the POS tenant owner' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.pos_tenants
+  SET merchant_id = p_merchant_id, updated_at = now()
+  WHERE id = p_tenant_id
+  RETURNING * INTO v_tenant;
+  RETURN v_tenant;
+EXCEPTION WHEN unique_violation THEN
+  RAISE EXCEPTION 'Merchant is already mapped to another POS tenant' USING ERRCODE = '23505';
+END; $$;
+REVOKE ALL ON FUNCTION public.set_pos_tenant_merchant(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_pos_tenant_merchant(uuid, uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.consume_whatsapp_delivery_usage(p_job_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_job public.notification_delivery_jobs%ROWTYPE;
+  v_merchant_id uuid;
+  v_period_start timestamptz := date_trunc('month', now());
+  v_period_end timestamptz := date_trunc('month', now()) + interval '1 month';
+BEGIN
+  IF auth.role() <> 'service_role' AND NOT public.is_admin() THEN
+    RAISE EXCEPTION 'WhatsApp usage enforcement requires worker access' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_job FROM public.notification_delivery_jobs WHERE id = p_job_id FOR UPDATE;
+  IF NOT FOUND OR v_job.channel <> 'whatsapp' THEN
+    RAISE EXCEPTION 'WhatsApp delivery job not found' USING ERRCODE = 'P0002';
+  END IF;
+  SELECT t.merchant_id INTO v_merchant_id
+  FROM public.pos_tenants t
+  WHERE t.id = v_job.tenant_id;
+  IF v_merchant_id IS NULL THEN
+    RAISE EXCEPTION 'WhatsApp delivery tenant has no explicit merchant mapping' USING ERRCODE = '23503';
+  END IF;
+  RETURN public.consume_subscription_usage(
+    v_merchant_id,
+    'whatsapp_messages',
+    1,
+    'notification_delivery_job',
+    v_period_start,
+    v_period_end,
+    'notification_delivery_job:' || p_job_id::text,
+    'whatsapp_delivery',
+    jsonb_build_object('job_id', p_job_id, 'tenant_id', v_job.tenant_id, 'merchant_id', v_merchant_id, 'recipient_id', v_job.recipient_id)
+  );
+END; $$;
+REVOKE ALL ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) TO service_role;
+
+-- ===== END SOURCE: 20260829150000_pos_tenant_merchant_mapping.sql =====
