@@ -1,79 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260825170000_dispute_center_approval_workflow.sql .. 20260829120000_subscription_entitlements_usage.sql
+-- Source range: 20260825180000_pricebook_loyalty_import_jobs.sql .. 20260829130000_subscription_entitlement_enforcement.sql
 
-
--- ===== BEGIN SOURCE: 20260825170000_dispute_center_approval_workflow.sql =====
-CREATE TABLE IF NOT EXISTS public.business_disputes (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id uuid REFERENCES public.orders(id) ON DELETE SET NULL,
-  reporter_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  subject_type text NOT NULL CHECK (subject_type IN ('order','payment','refund','delivery','product','account','payout')),
-  subject_id uuid,
-  reason text NOT NULL,
-  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open','investigating','resolved','rejected','closed')),
-  priority text NOT NULL DEFAULT 'normal' CHECK (priority IN ('low','normal','high','urgent')),
-  amount numeric(15,2) CHECK (amount IS NULL OR amount >= 0),
-  evidence jsonb NOT NULL DEFAULT '[]'::jsonb,
-  resolution text,
-  assigned_to uuid REFERENCES auth.users(id),
-  resolved_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  resolved_at timestamptz
-);
-CREATE INDEX IF NOT EXISTS idx_business_disputes_status ON public.business_disputes(status, priority, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_business_disputes_subject ON public.business_disputes(subject_type, subject_id);
-
-CREATE TABLE IF NOT EXISTS public.approval_requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  requester_id uuid NOT NULL REFERENCES auth.users(id),
-  request_type text NOT NULL CHECK (request_type IN ('refund','discount','void','negative_stock','payout','bank_account','stock_adjustment','price_override')),
-  subject_id uuid,
-  requested_amount numeric(15,2) CHECK (requested_amount IS NULL OR requested_amount >= 0),
-  reason text NOT NULL,
-  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')),
-  required_level integer NOT NULL DEFAULT 1 CHECK (required_level > 0),
-  approved_level integer NOT NULL DEFAULT 0 CHECK (approved_level >= 0),
-  decided_by uuid REFERENCES auth.users(id),
-  decided_at timestamptz,
-  decision_notes text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_approval_requests_pending ON public.approval_requests(tenant_id, request_type, status, created_at DESC);
-
-ALTER TABLE public.business_disputes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Users create disputes" ON public.business_disputes;
-CREATE POLICY "Users create disputes" ON public.business_disputes FOR INSERT TO authenticated WITH CHECK (reporter_id = auth.uid());
-DROP POLICY IF EXISTS "Participants view disputes" ON public.business_disputes;
-CREATE POLICY "Participants view disputes" ON public.business_disputes FOR SELECT TO authenticated USING (reporter_id = auth.uid() OR assigned_to = auth.uid() OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage disputes" ON public.business_disputes;
-CREATE POLICY "Admins manage disputes" ON public.business_disputes FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
-DROP POLICY IF EXISTS "Tenant users view approvals" ON public.approval_requests;
-CREATE POLICY "Tenant users view approvals" ON public.approval_requests FOR SELECT TO authenticated USING (requester_id = auth.uid() OR public.is_admin() OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
-DROP POLICY IF EXISTS "Users create approvals" ON public.approval_requests;
-CREATE POLICY "Users create approvals" ON public.approval_requests FOR INSERT TO authenticated WITH CHECK (requester_id = auth.uid());
-DROP POLICY IF EXISTS "Admins manage approvals" ON public.approval_requests;
-CREATE POLICY "Admins manage approvals" ON public.approval_requests FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
-
-CREATE OR REPLACE FUNCTION public.decide_approval_request(p_request_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_request public.approval_requests%ROWTYPE; v_status text;
-BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Approval requires admin access' USING ERRCODE = '42501'; END IF;
-  SELECT * INTO v_request FROM public.approval_requests WHERE id = p_request_id FOR UPDATE;
-  IF NOT FOUND OR v_request.status <> 'pending' THEN RAISE EXCEPTION 'Approval request is not pending' USING ERRCODE = '55000'; END IF;
-  v_status := CASE WHEN p_approve THEN 'approved' ELSE 'rejected' END;
-  UPDATE public.approval_requests SET status = v_status, approved_level = CASE WHEN p_approve THEN required_level ELSE approved_level END,
-    decided_by = auth.uid(), decided_at = now(), decision_notes = NULLIF(trim(p_notes), '') WHERE id = p_request_id;
-  RETURN jsonb_build_object('request_id', p_request_id, 'status', v_status);
-END; $$;
-REVOKE ALL ON FUNCTION public.decide_approval_request(uuid, boolean, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.decide_approval_request(uuid, boolean, text) TO authenticated;
-
--- ===== END SOURCE: 20260825170000_dispute_center_approval_workflow.sql =====
 
 -- ===== BEGIN SOURCE: 20260825180000_pricebook_loyalty_import_jobs.sql =====
 CREATE TABLE IF NOT EXISTS public.pos_price_books (
@@ -1948,7 +1876,7 @@ BEGIN
   IF p_period_end <= p_period_start THEN
     RAISE EXCEPTION 'Usage period is invalid' USING ERRCODE = '22023';
   END IF;
-  IF NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = p_merchant_id AND m.user_id = auth.uid())) THEN
+  IF auth.role() <> 'service_role' AND NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = p_merchant_id AND m.user_id = auth.uid())) THEN
     RAISE EXCEPTION 'Subscription usage access denied' USING ERRCODE = '42501';
   END IF;
 
@@ -2043,3 +1971,292 @@ CREATE TRIGGER set_subscription_usage_counters_updated_at BEFORE UPDATE ON publi
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- ===== END SOURCE: 20260829120000_subscription_entitlements_usage.sql =====
+
+-- ===== BEGIN SOURCE: 20260829130000_subscription_entitlement_enforcement.sql =====
+-- Subscription entitlement catalog and server-side resolution.
+-- Idempotent and safe to replay. Existing merchant overrides always win.
+
+INSERT INTO public.subscription_plan_entitlements (plan_id, feature_key, entitlement_type, enabled, limit_value, unit)
+SELECT p.id, v.feature_key, v.entitlement_type, v.enabled, v.limit_value, v.unit
+FROM public.subscription_plans p
+JOIN (VALUES
+  ('free', 'active_products', 'limit', true, 50::bigint, 'items'),
+  ('free', 'pos_devices', 'limit', true, 1::bigint, 'devices'),
+  ('free', 'whatsapp_messages', 'metered', true, 0::bigint, 'messages/month'),
+  ('free', 'warehouses', 'limit', true, 1::bigint, 'warehouses'),
+  ('free', 'customer_segments', 'limit', true, 0::bigint, 'segments'),
+  ('free', 'api_requests', 'metered', true, 0::bigint, 'requests/month'),
+  ('free', 'offline_queue', 'limit', true, 20::bigint, 'transactions'),
+  ('free', 'reports_history_days', 'limit', true, 30::bigint, 'days'),
+  ('free', 'loyalty_rules', 'limit', true, 1::bigint, 'rules'),
+  ('starter', 'active_products', 'limit', true, 300::bigint, 'items'),
+  ('starter', 'pos_devices', 'limit', true, 2::bigint, 'devices'),
+  ('starter', 'whatsapp_messages', 'metered', true, 500::bigint, 'messages/month'),
+  ('starter', 'warehouses', 'limit', true, 1::bigint, 'warehouses'),
+  ('starter', 'customer_segments', 'limit', true, 1::bigint, 'segments'),
+  ('starter', 'api_requests', 'metered', true, 0::bigint, 'requests/month'),
+  ('starter', 'offline_queue', 'limit', true, 100::bigint, 'transactions'),
+  ('starter', 'reports_history_days', 'limit', true, 365::bigint, 'days'),
+  ('starter', 'loyalty_rules', 'limit', true, 3::bigint, 'rules'),
+  ('growth', 'active_products', 'limit', true, 2000::bigint, 'items'),
+  ('growth', 'pos_devices', 'limit', true, 5::bigint, 'devices'),
+  ('growth', 'whatsapp_messages', 'metered', true, 3000::bigint, 'messages/month'),
+  ('growth', 'warehouses', 'limit', true, 2::bigint, 'warehouses'),
+  ('growth', 'customer_segments', 'limit', true, 10::bigint, 'segments'),
+  ('growth', 'api_requests', 'metered', true, 10000::bigint, 'requests/month'),
+  ('growth', 'offline_queue', 'limit', true, 500::bigint, 'transactions'),
+  ('growth', 'reports_history_days', 'limit', true, NULL::bigint, 'days'),
+  ('growth', 'loyalty_rules', 'limit', true, 10::bigint, 'rules'),
+  ('pro', 'active_products', 'limit', true, NULL::bigint, 'items'),
+  ('pro', 'pos_devices', 'limit', true, NULL::bigint, 'devices'),
+  ('pro', 'whatsapp_messages', 'metered', true, 15000::bigint, 'messages/month'),
+  ('pro', 'warehouses', 'limit', true, NULL::bigint, 'warehouses'),
+  ('pro', 'customer_segments', 'limit', true, NULL::bigint, 'segments'),
+  ('pro', 'api_requests', 'metered', true, 100000::bigint, 'requests/month'),
+  ('pro', 'offline_queue', 'limit', true, 2000::bigint, 'transactions'),
+  ('pro', 'reports_history_days', 'limit', true, NULL::bigint, 'days'),
+  ('pro', 'loyalty_rules', 'limit', true, NULL::bigint, 'rules')
+) AS v(plan_code, feature_key, entitlement_type, enabled, limit_value, unit) ON v.plan_code = p.code
+ON CONFLICT (plan_id, feature_key) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.get_subscription_entitlement(
+  p_merchant_id uuid,
+  p_feature_key text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_subscription public.merchant_subscriptions%ROWTYPE;
+  v_enabled boolean;
+  v_limit bigint;
+  v_unit text;
+  v_source text;
+BEGIN
+  IF p_merchant_id IS NULL OR NULLIF(trim(p_feature_key), '') IS NULL THEN
+    RAISE EXCEPTION 'Invalid entitlement request' USING ERRCODE = '22023';
+  END IF;
+  IF NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = p_merchant_id AND m.user_id = auth.uid())) THEN
+    RAISE EXCEPTION 'Entitlement access denied' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_subscription
+  FROM public.merchant_subscriptions ms
+  WHERE ms.merchant_id = p_merchant_id
+    AND ms.status IN ('ACTIVE', 'PAST_DUE')
+    AND (ms.status = 'ACTIVE' OR ms.grace_period_until IS NULL OR ms.grace_period_until > now())
+    AND (ms.expired_at IS NULL OR ms.expired_at > now())
+  ORDER BY ms.current_period_end DESC NULLS LAST, ms.expired_at DESC
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('enabled', false, 'limit_value', 0, 'source', 'none');
+  END IF;
+
+  SELECT mse.enabled, mse.limit_value, mse.unit, 'override'
+  INTO v_enabled, v_limit, v_unit, v_source
+  FROM public.merchant_subscription_entitlements mse
+  WHERE mse.subscription_id = v_subscription.id
+    AND mse.feature_key = p_feature_key
+    AND mse.starts_at <= now()
+    AND (mse.ends_at IS NULL OR mse.ends_at > now());
+
+  IF NOT FOUND THEN
+    SELECT spe.enabled, spe.limit_value, spe.unit, 'plan'
+    INTO v_enabled, v_limit, v_unit, v_source
+    FROM public.subscription_plan_entitlements spe
+    WHERE spe.plan_id = v_subscription.plan_id
+      AND spe.feature_key = p_feature_key;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'enabled', COALESCE(v_enabled, false),
+    'limit_value', v_limit,
+    'unit', v_unit,
+    'source', COALESCE(v_source, 'none'),
+    'subscription_id', v_subscription.id,
+    'plan_id', v_subscription.plan_id,
+    'status', v_subscription.status,
+    'grace_period_until', v_subscription.grace_period_until
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_subscription_entitlement(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_subscription_entitlement(uuid, text) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.require_subscription_feature(
+  p_merchant_id uuid,
+  p_feature_key text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_entitlement jsonb;
+BEGIN
+  v_entitlement := public.get_subscription_entitlement(p_merchant_id, p_feature_key);
+  IF COALESCE((v_entitlement->>'enabled')::boolean, false) = false THEN
+    RAISE EXCEPTION 'Feature is not included in active subscription' USING ERRCODE = '42501';
+  END IF;
+  RETURN v_entitlement;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.require_subscription_feature(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.require_subscription_feature(uuid, text) TO authenticated, service_role;
+
+-- ===== END SOURCE: 20260829130000_subscription_entitlement_enforcement.sql =====
+
+-- ===== BEGIN SOURCE: 20260829140000_subscription_runtime_enforcement.sql =====
+-- Runtime subscription enforcement for PWA devices and WhatsApp delivery.
+-- Safe to replay: functions are replaced and grants are deterministic.
+
+CREATE OR REPLACE FUNCTION public.register_pwa_device(
+  p_device_id text,
+  p_device_name text DEFAULT 'Perangkat PWA',
+  p_device_type text DEFAULT 'browser',
+  p_platform text DEFAULT NULL,
+  p_user_agent text DEFAULT NULL,
+  p_tenant_id uuid DEFAULT NULL
+)
+RETURNS public.pwa_device_sessions
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_device public.pwa_device_sessions%ROWTYPE;
+  v_merchant_id uuid;
+  v_entitlement jsonb;
+  v_limit bigint;
+  v_active_devices bigint;
+BEGIN
+  IF auth.uid() IS NULL OR NULLIF(trim(p_device_id), '') IS NULL OR p_device_type NOT IN ('browser','pwa','kiosk') THEN
+    RAISE EXCEPTION 'Invalid PWA device registration' USING ERRCODE = '22023';
+  END IF;
+  IF p_tenant_id IS NOT NULL AND NOT (
+    public.is_admin()
+    OR EXISTS (SELECT 1 FROM public.pos_users pu WHERE pu.tenant_id = p_tenant_id AND pu.user_id = auth.uid() AND pu.is_active = true)
+    OR EXISTS (SELECT 1 FROM public.pos_tenants t WHERE t.id = p_tenant_id AND t.user_id = auth.uid())
+  ) THEN
+    RAISE EXCEPTION 'Device tenant access denied' USING ERRCODE = '42501';
+  END IF;
+
+  -- Serialize registrations per account so two tabs cannot bypass the device limit.
+  PERFORM pg_advisory_xact_lock(hashtextextended('pwa-device:' || auth.uid()::text, 0));
+  SELECT * INTO v_device
+  FROM public.pwa_device_sessions
+  WHERE user_id = auth.uid() AND device_id = trim(p_device_id)
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    SELECT m.id INTO v_merchant_id FROM public.merchants m WHERE m.user_id = auth.uid() LIMIT 1;
+    SELECT count(*) INTO v_active_devices
+    FROM public.pwa_device_sessions
+    WHERE user_id = auth.uid() AND status <> 'revoked';
+
+    -- Accounts without an active subscription retain one basic device.
+    v_limit := 1;
+    IF v_merchant_id IS NOT NULL THEN
+      v_entitlement := public.get_subscription_entitlement(v_merchant_id, 'pos_devices');
+      IF COALESCE((v_entitlement->>'subscription_id') IS NOT NULL, false) THEN
+        IF COALESCE((v_entitlement->>'enabled')::boolean, false) = false THEN
+          RAISE EXCEPTION 'POS device feature is not included in active subscription' USING ERRCODE = '42501';
+        END IF;
+        v_limit := NULLIF((v_entitlement->>'limit_value')::bigint, 0);
+      END IF;
+    END IF;
+    IF v_limit IS NOT NULL AND v_active_devices >= v_limit THEN
+      RAISE EXCEPTION 'POS device limit exceeded' USING ERRCODE = '54000';
+    END IF;
+  END IF;
+
+  INSERT INTO public.pwa_device_sessions(user_id, tenant_id, device_id, device_name, device_type, platform, user_agent, status, last_seen_at, revoked_at, revoked_by)
+  VALUES (auth.uid(), p_tenant_id, trim(p_device_id), COALESCE(NULLIF(trim(p_device_name), ''), 'Perangkat PWA'), p_device_type, NULLIF(trim(p_platform), ''), NULLIF(left(p_user_agent, 500), ''), 'active', now(), NULL, NULL)
+  ON CONFLICT (user_id, device_id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id, device_name = EXCLUDED.device_name, device_type = EXCLUDED.device_type, platform = EXCLUDED.platform, user_agent = EXCLUDED.user_agent, status = 'active', last_seen_at = now(), revoked_at = NULL, revoked_by = NULL, updated_at = now()
+  RETURNING * INTO v_device;
+  RETURN v_device;
+END; $$;
+
+-- Worker-only bridge: resolve the POS tenant owner to merchant billing identity,
+-- then consume exactly once per delivery job.
+CREATE OR REPLACE FUNCTION public.consume_whatsapp_delivery_usage(p_job_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_job public.notification_delivery_jobs%ROWTYPE;
+  v_merchant_id uuid;
+  v_period_start timestamptz := date_trunc('month', now());
+  v_period_end timestamptz := date_trunc('month', now()) + interval '1 month';
+BEGIN
+  IF auth.role() <> 'service_role' AND NOT public.is_admin() THEN
+    RAISE EXCEPTION 'WhatsApp usage enforcement requires worker access' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_job FROM public.notification_delivery_jobs WHERE id = p_job_id FOR UPDATE;
+  IF NOT FOUND OR v_job.channel <> 'whatsapp' THEN
+    RAISE EXCEPTION 'WhatsApp delivery job not found' USING ERRCODE = 'P0002';
+  END IF;
+  SELECT m.id INTO v_merchant_id
+  FROM public.pos_tenants t
+  JOIN public.merchants m ON m.user_id = t.user_id
+  WHERE t.id = v_job.tenant_id
+  LIMIT 1;
+  IF v_merchant_id IS NULL THEN
+    RAISE EXCEPTION 'WhatsApp delivery merchant mapping is missing' USING ERRCODE = '23503';
+  END IF;
+  RETURN public.consume_subscription_usage(
+    v_merchant_id,
+    'whatsapp_messages',
+    1,
+    'notification_delivery_job',
+    v_period_start,
+    v_period_end,
+    'notification_delivery_job:' || p_job_id::text,
+    'whatsapp_delivery',
+    jsonb_build_object('job_id', p_job_id, 'tenant_id', v_job.tenant_id, 'recipient_id', v_job.recipient_id)
+  );
+END; $$;
+REVOKE ALL ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) TO service_role;
+
+-- Service-role worker access is explicit; browser clients remain admin-only.
+CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_job public.notification_delivery_jobs%ROWTYPE;
+BEGIN
+  IF auth.role() <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Notification job claim requires admin access' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.notification_delivery_jobs
+  SET status = 'processing', attempts = attempts + 1
+  WHERE id = p_job_id AND status IN ('queued','failed') AND next_attempt_at <= now() AND attempts < max_attempts
+  RETURNING * INTO v_job;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
+  RETURN v_job;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_job public.notification_delivery_jobs%ROWTYPE; v_status text; v_next timestamptz;
+BEGIN
+  IF auth.role() <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Notification job completion requires admin access' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_job FROM public.notification_delivery_jobs WHERE id = p_job_id FOR UPDATE;
+  IF NOT FOUND OR v_job.status <> 'processing' THEN RAISE EXCEPTION 'Notification job is not processing' USING ERRCODE = '55000'; END IF;
+  IF p_success THEN v_status := 'sent'; ELSE v_status := CASE WHEN v_job.attempts >= v_job.max_attempts THEN 'dead_letter' ELSE 'failed' END; END IF;
+  v_next := CASE WHEN v_status = 'failed' THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7)))) ELSE NULL END;
+  UPDATE public.notification_delivery_jobs SET status = v_status, provider_message_id = COALESCE(p_provider_message_id, provider_message_id), last_error = NULLIF(trim(p_error), ''), next_attempt_at = COALESCE(v_next, next_attempt_at), sent_at = CASE WHEN p_success THEN now() ELSE sent_at END, dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END WHERE id = p_job_id RETURNING * INTO v_job;
+  RETURN v_job;
+END; $$;
+
+REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO service_role, authenticated;
+REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO service_role, authenticated;
+
+-- ===== END SOURCE: 20260829140000_subscription_runtime_enforcement.sql =====

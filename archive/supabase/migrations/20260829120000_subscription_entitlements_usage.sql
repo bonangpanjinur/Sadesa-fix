@@ -216,7 +216,7 @@ BEGIN
   IF p_period_end <= p_period_start THEN
     RAISE EXCEPTION 'Usage period is invalid' USING ERRCODE = '22023';
   END IF;
-  IF NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = p_merchant_id AND m.user_id = auth.uid())) THEN
+  IF auth.role() <> 'service_role' AND NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = p_merchant_id AND m.user_id = auth.uid())) THEN
     RAISE EXCEPTION 'Subscription usage access denied' USING ERRCODE = '42501';
   END IF;
 

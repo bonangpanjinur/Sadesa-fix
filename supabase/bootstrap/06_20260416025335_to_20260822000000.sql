@@ -1,45 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql .. 20260804111713_21956d1a-8612-45c6-90a1-0d7523bf7480.sql
+-- Source range: 20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql .. 20260822000000_harden_password_reset_tokens.sql
 
-
--- ===== BEGIN SOURCE: 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql =====
-
--- Function to notify available couriers when a new ride request is created
-CREATE OR REPLACE FUNCTION public.notify_couriers_new_ride()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  -- Insert notifications for all active, available couriers
-  INSERT INTO public.notifications (user_id, title, message, type, link)
-  SELECT 
-    c.user_id,
-    '🏍️ Pesanan Ojek Baru!',
-    'Jemput di: ' || COALESCE(NEW.pickup_address, 'Lokasi tidak diketahui') || ' • Estimasi: Rp ' || COALESCE(NEW.estimated_fare::text, '0'),
-    'ride',
-    '/courier/rides'
-  FROM public.couriers c
-  WHERE c.user_id IS NOT NULL
-    AND c.registration_status = 'APPROVED'
-    AND c.status = 'ACTIVE'
-    AND c.is_available = true;
-  
-  RETURN NEW;
-END;
-$$;
-
--- Create trigger on ride_requests for new ride notifications
-DROP TRIGGER IF EXISTS trigger_notify_couriers_new_ride ON public.ride_requests;
-CREATE TRIGGER trigger_notify_couriers_new_ride
-  AFTER INSERT ON public.ride_requests
-  FOR EACH ROW
-  WHEN (NEW.status = 'SEARCHING')
-  EXECUTE FUNCTION public.notify_couriers_new_ride();
-
--- ===== END SOURCE: 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql =====
 
 -- ===== BEGIN SOURCE: 20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql =====
 -- Fix 3 functions missing search_path
@@ -3209,3 +3171,31 @@ CREATE TRIGGER update_pos_outlets_updated_at
   BEFORE UPDATE ON public.pos_outlets
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 -- ===== END SOURCE: 20260804111713_21956d1a-8612-45c6-90a1-0d7523bf7480.sql =====
+
+-- ===== BEGIN SOURCE: 20260822000000_harden_password_reset_tokens.sql =====
+-- P0 security hardening: the application uses Supabase Auth's native
+-- resetPasswordForEmail flow. The legacy public token table must not be
+-- accessible from browser clients.
+
+REVOKE ALL ON TABLE public.password_reset_tokens FROM anon, authenticated;
+
+DROP POLICY IF EXISTS "Users can verify their tokens" ON public.password_reset_tokens;
+DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tokens;
+DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens;
+
+-- Keep the table available only to trusted server-side service_role jobs.
+DROP POLICY IF EXISTS "Service role manages password reset tokens" ON public.password_reset_tokens;
+CREATE POLICY "Service role manages password reset tokens"
+  ON public.password_reset_tokens
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
+COMMENT ON TABLE public.password_reset_tokens IS
+  'Legacy table retained for migration compatibility; browser access is revoked. Use Supabase Auth native password recovery or a trusted server-side flow.';
+
+-- Prevent accidental exposure if future migrations re-grant table privileges.
+ALTER TABLE public.password_reset_tokens FORCE ROW LEVEL SECURITY;
+
+-- ===== END SOURCE: 20260822000000_harden_password_reset_tokens.sql =====

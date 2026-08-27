@@ -130,6 +130,10 @@ async function processBatch() {
     if (claimError || !job) continue;
     claimed++;
     try {
+      if ((job as NotificationJob).channel === "whatsapp") {
+        const { error: entitlementError } = await supabase.rpc("consume_whatsapp_delivery_usage", { p_job_id: job.id });
+        if (entitlementError) throw entitlementError;
+      }
       const result = await sendJob(job as NotificationJob);
       const { error } = await supabase.rpc("complete_notification_delivery_job", {
         p_job_id: job.id,

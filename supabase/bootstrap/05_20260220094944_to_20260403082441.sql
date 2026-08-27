@@ -1,74 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260220084533_6b62aa70-289a-4ef5-81c1-bb37dcfb6086.sql .. 20260312142500_47527dd5-2b77-460d-bdcc-5d53f0936910.sql
+-- Source range: 20260220094944_4e9af0cf-2be8-4fa8-ac7b-21d6015ea7ae.sql .. 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql
 
-
--- ===== BEGIN SOURCE: 20260220084533_6b62aa70-289a-4ef5-81c1-bb37dcfb6086.sql =====
--- Create merchant gallery table for "Tentang Kami" photos
-CREATE TABLE public.merchant_gallery (
-  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  merchant_id uuid NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
-  image_url text NOT NULL,
-  caption text,
-  sort_order integer DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE public.merchant_gallery ENABLE ROW LEVEL SECURITY;
-
--- Anyone can view gallery images of active merchants
-DROP POLICY IF EXISTS "Public can view merchant gallery" ON public.merchant_gallery;
-CREATE POLICY "Public can view merchant gallery"
-  ON public.merchant_gallery FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = merchant_gallery.merchant_id 
-    AND merchants.status = 'ACTIVE' 
-    AND merchants.registration_status = 'APPROVED'
-  ));
-
--- Merchants can manage own gallery
-DROP POLICY IF EXISTS "Merchants can manage own gallery" ON public.merchant_gallery;
-CREATE POLICY "Merchants can manage own gallery"
-  ON public.merchant_gallery FOR ALL
-  USING (EXISTS (
-    SELECT 1 FROM merchants 
-    WHERE merchants.id = merchant_gallery.merchant_id 
-    AND merchants.user_id = auth.uid()
-  ));
-
--- Admins can manage all galleries
-DROP POLICY IF EXISTS "Admins can manage all galleries" ON public.merchant_gallery;
-CREATE POLICY "Admins can manage all galleries"
-  ON public.merchant_gallery FOR ALL
-  USING (is_admin());
-
--- Create storage bucket for merchant gallery images
-INSERT INTO storage.buckets (id, name, public) VALUES ('merchant-gallery', 'merchant-gallery', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Storage policies for merchant gallery
-DROP POLICY IF EXISTS "Public can view merchant gallery images" ON storage.objects;
-CREATE POLICY "Public can view merchant gallery images"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'merchant-gallery');
-
-DROP POLICY IF EXISTS "Authenticated users can upload merchant gallery images" ON storage.objects;
-CREATE POLICY "Authenticated users can upload merchant gallery images"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
-
-DROP POLICY IF EXISTS "Users can update own merchant gallery images" ON storage.objects;
-CREATE POLICY "Users can update own merchant gallery images"
-  ON storage.objects FOR UPDATE
-  USING (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
-
-DROP POLICY IF EXISTS "Users can delete own merchant gallery images" ON storage.objects;
-CREATE POLICY "Users can delete own merchant gallery images"
-  ON storage.objects FOR DELETE
-  USING (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
--- ===== END SOURCE: 20260220084533_6b62aa70-289a-4ef5-81c1-bb37dcfb6086.sql =====
 
 -- ===== BEGIN SOURCE: 20260220094944_4e9af0cf-2be8-4fa8-ac7b-21d6015ea7ae.sql =====
 
@@ -1254,3 +1187,41 @@ DROP POLICY IF EXISTS "Authenticated users can view active merchants" ON public.
 DROP POLICY IF EXISTS "Merchants can view own data" ON public.merchants;
 
 -- ===== END SOURCE: 20260312142500_47527dd5-2b77-460d-bdcc-5d53f0936910.sql =====
+
+-- ===== BEGIN SOURCE: 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql =====
+
+-- Function to notify available couriers when a new ride request is created
+CREATE OR REPLACE FUNCTION public.notify_couriers_new_ride()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Insert notifications for all active, available couriers
+  INSERT INTO public.notifications (user_id, title, message, type, link)
+  SELECT 
+    c.user_id,
+    '🏍️ Pesanan Ojek Baru!',
+    'Jemput di: ' || COALESCE(NEW.pickup_address, 'Lokasi tidak diketahui') || ' • Estimasi: Rp ' || COALESCE(NEW.estimated_fare::text, '0'),
+    'ride',
+    '/courier/rides'
+  FROM public.couriers c
+  WHERE c.user_id IS NOT NULL
+    AND c.registration_status = 'APPROVED'
+    AND c.status = 'ACTIVE'
+    AND c.is_available = true;
+  
+  RETURN NEW;
+END;
+$$;
+
+-- Create trigger on ride_requests for new ride notifications
+DROP TRIGGER IF EXISTS trigger_notify_couriers_new_ride ON public.ride_requests;
+CREATE TRIGGER trigger_notify_couriers_new_ride
+  AFTER INSERT ON public.ride_requests
+  FOR EACH ROW
+  WHEN (NEW.status = 'SEARCHING')
+  EXECUTE FUNCTION public.notify_couriers_new_ride();
+
+-- ===== END SOURCE: 20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql =====

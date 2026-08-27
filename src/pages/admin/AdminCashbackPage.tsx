@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,52 +46,90 @@ export default function AdminCashbackPage() {
   const [form, setForm] = useState<typeof EMPTY>({ ...EMPTY });
   const [totalPaid, setTotalPaid] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchData();
+  const fetchData = useCallback(async () => {
+    setLoadError(null);
+    setLoading(true);
+    try {
+      const [rulesRes, txRes] = await Promise.all([
+        supabase.from('cashback_rules').select('*').order('created_at', { ascending: false }),
+        supabase.from('cashback_transactions').select('amount, user_id').eq('status', 'confirmed'),
+      ]);
+      if (rulesRes.error) throw rulesRes.error;
+      if (txRes.error) throw txRes.error;
+      setRules((rulesRes.data || []) as CashbackRule[]);
+      const txs = (txRes.data || []) as CashbackTransaction[];
+      setTotalPaid(txs.reduce((s, t) => s + t.amount, 0));
+      setTotalUsers(new Set(txs.map(t => t.user_id)).size);
+    } catch (error) {
+      console.error('Error fetching cashback data:', error);
+      setLoadError('Gagal memuat data cashback. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchData = async () => {
-    const [rulesRes, txRes] = await Promise.all([
-      supabase.from('cashback_rules').select('*').order('created_at', { ascending: false }),
-      supabase.from('cashback_transactions').select('amount, user_id').eq('status', 'confirmed'),
-    ]);
-    setRules((rulesRes.data || []) as CashbackRule[]);
-    const txs = (txRes.data || []) as CashbackTransaction[];
-    setTotalPaid(txs.reduce((s, t) => s + t.amount, 0));
-    setTotalUsers(new Set(txs.map(t => t.user_id)).size);
-    setLoading(false);
-  };
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const openCreate = () => { setEditing(null); setForm({ ...EMPTY }); setDialogOpen(true); };
   const openEdit = (r: CashbackRule) => { setEditing(r); setForm({ ...r, valid_from: r.valid_from?.split('T')[0] || '', valid_until: r.valid_until?.split('T')[0] || '' }); setDialogOpen(true); };
 
   const save = async () => {
-    if (!form.name?.trim()) { toast.error('Nama wajib diisi'); return; }
+    const name = form.name?.trim() || '';
+    const cashbackPercent = Number(form.cashback_percent);
+    const minOrderAmount = Number(form.min_order_amount);
+    const maxCashback = form.max_cashback === null || form.max_cashback === undefined ? null : Number(form.max_cashback);
+    const validFrom = form.valid_from ? new Date(form.valid_from as string) : new Date();
+    const validUntil = form.valid_until ? new Date(form.valid_until as string) : null;
+    if (!name) { toast.error('Nama wajib diisi'); return; }
+    if (name.length > 120) { toast.error('Nama maksimal 120 karakter'); return; }
+    if (!Number.isFinite(cashbackPercent) || cashbackPercent <= 0 || cashbackPercent > 50) { toast.error('Cashback harus antara 0,1% dan 50%'); return; }
+    if (!Number.isFinite(minOrderAmount) || minOrderAmount < 0) { toast.error('Minimum order tidak valid'); return; }
+    if (maxCashback !== null && (!Number.isFinite(maxCashback) || maxCashback <= 0)) { toast.error('Maksimum cashback tidak valid'); return; }
+    if (Number.isNaN(validFrom.getTime()) || (validUntil && Number.isNaN(validUntil.getTime()))) { toast.error('Tanggal tidak valid'); return; }
+    if (validUntil && validUntil < validFrom) { toast.error('Tanggal berakhir harus setelah tanggal mulai'); return; }
     const payload = {
-      name: form.name,
-      cashback_percent: Number(form.cashback_percent) || 2,
-      min_order_amount: Number(form.min_order_amount) || 0,
-      max_cashback: form.max_cashback ? Number(form.max_cashback) : null,
-      category: form.category || null,
+      name,
+      cashback_percent: cashbackPercent,
+      min_order_amount: minOrderAmount,
+      max_cashback: maxCashback,
+      category: form.category?.trim() || null,
       is_active: form.is_active ?? true,
-      valid_from: form.valid_from ? new Date(form.valid_from as string).toISOString() : new Date().toISOString(),
-      valid_until: form.valid_until ? new Date(form.valid_until as string).toISOString() : null,
+      valid_from: validFrom.toISOString(),
+      valid_until: validUntil?.toISOString() || null,
     };
-    if (editing) {
-      const { error } = await supabase.from('cashback_rules').update(payload).eq('id', editing.id);
-      if (!error) { toast.success('Aturan cashback diperbarui'); fetchData(); setDialogOpen(false); }
-      else toast.error('Gagal memperbarui');
-    } else {
-      const { error } = await supabase.from('cashback_rules').insert(payload);
-      if (!error) { toast.success('Aturan cashback ditambahkan'); fetchData(); setDialogOpen(false); }
-      else toast.error('Gagal menambahkan');
+    setSaving(true);
+    try {
+      if (editing) {
+        const { error } = await supabase.from('cashback_rules').update(payload).eq('id', editing.id);
+        if (error) throw error;
+        toast.success('Aturan cashback diperbarui');
+      } else {
+        const { error } = await supabase.from('cashback_rules').insert(payload);
+        if (error) throw error;
+        toast.success('Aturan cashback ditambahkan');
+      }
+      setDialogOpen(false);
+      await fetchData();
+    } catch (error) {
+      console.error('Error saving cashback rule:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan aturan cashback');
+    } finally {
+      setSaving(false);
     }
   };
 
   const toggleActive = async (r: CashbackRule) => {
-    await supabase.from('cashback_rules').update({ is_active: !r.is_active }).eq('id', r.id);
-    setRules(prev => prev.map(x => x.id === r.id ? { ...x, is_active: !x.is_active } : x));
+    const { error } = await supabase.from('cashback_rules').update({ is_active: !r.is_active }).eq('id', r.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    await fetchData();
     toast.success(r.is_active ? 'Aturan dinonaktifkan' : 'Aturan diaktifkan');
   };
 
@@ -134,7 +172,9 @@ export default function AdminCashbackPage() {
               <TableBody>
                 {loading ? Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>{Array.from({ length: 7 }).map((__, j) => <TableCell key={j}><div className="h-4 bg-muted rounded animate-pulse" /></TableCell>)}</TableRow>
-                )) : rules.length === 0 ? (
+                )) : loadError ? (
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-destructive">{loadError} <Button variant="link" className="p-0 h-auto" onClick={() => void fetchData()}>Coba lagi</Button></TableCell></TableRow>
+                ) : rules.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Belum ada program cashback. <Button variant="link" className="p-0 h-auto" onClick={openCreate}>Tambah sekarang</Button>
                   </TableCell></TableRow>
@@ -187,7 +227,7 @@ export default function AdminCashbackPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
-              <Button onClick={save}><Gift className="h-4 w-4 mr-2" /> {editing ? 'Simpan' : 'Tambah'}</Button>
+              <Button onClick={() => void save()} disabled={saving}><Gift className="h-4 w-4 mr-2" /> {saving ? 'Menyimpan...' : editing ? 'Simpan' : 'Tambah'}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
