@@ -366,13 +366,35 @@ export async function fetchAppSettings(): Promise<AppSetting[]> {
 }
 
 export async function updateAppSetting(key: string, value: Record<string, unknown>): Promise<boolean> {
-  const { error } = await supabase
+  const jsonValue = value as unknown as import('@/integrations/supabase/types').Json;
+  const { data: existing, error: lookupError } = await supabase
     .from('app_settings')
-    .update({ value: value as unknown as import('@/integrations/supabase/types').Json })
-    .eq('key', key);
+    .select('id')
+    .eq('key', key)
+    .maybeSingle();
 
-  if (error) {
-    console.error('Error updating app setting:', error);
+  if (lookupError) {
+    console.error('Error looking up app setting:', lookupError);
+    return false;
+  }
+
+  if (existing?.id) {
+    const { error } = await supabase
+      .from('app_settings')
+      .update({ value: jsonValue })
+      .eq('id', existing.id);
+    if (error) {
+      console.error('Error updating app setting:', error);
+      return false;
+    }
+    return true;
+  }
+
+  const { error: insertError } = await supabase
+    .from('app_settings')
+    .insert({ key, value: jsonValue, category: 'general', description: null });
+  if (insertError) {
+    console.error('Error creating app setting:', insertError);
     return false;
   }
   return true;

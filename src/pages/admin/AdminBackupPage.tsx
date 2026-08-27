@@ -62,12 +62,7 @@ interface BackupSchedule {
   created_at: string;
 }
 
-const BACKUP_TABLES = [
-  'merchants', 'products', 'orders', 'order_items', 'villages',
-  'tourism', 'couriers', 'profiles', 'vouchers', 'reviews',
-];
-
-const AVAILABLE_TABLES = [
+const BACKUP_TABLE_CATALOG = [
   { id: 'merchants', label: 'Merchants' },
   { id: 'products', label: 'Products' },
   { id: 'orders', label: 'Orders' },
@@ -76,8 +71,11 @@ const AVAILABLE_TABLES = [
   { id: 'tourism', label: 'Tourism' },
   { id: 'couriers', label: 'Couriers' },
   { id: 'profiles', label: 'Profiles' },
+  { id: 'vouchers', label: 'Vouchers' },
   { id: 'reviews', label: 'Reviews' },
-];
+] as const;
+
+type BackupTable = (typeof BACKUP_TABLE_CATALOG)[number] & { available: boolean; rowCount: number };
 
 export default function AdminBackupPage() {
   const [backups, setBackups] = useState<BackupLog[]>([]);
@@ -87,6 +85,7 @@ export default function AdminBackupPage() {
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<BackupSchedule | null>(null);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [availableTables, setAvailableTables] = useState<BackupTable[]>([]);
   const [scheduleForm, setScheduleForm] = useState({
     name: '',
     schedule_type: 'daily',
@@ -97,8 +96,17 @@ export default function AdminBackupPage() {
   });
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
+    void fetchTableAvailability();
   }, []);
+
+  const fetchTableAvailability = async () => {
+    const results = await Promise.all(BACKUP_TABLE_CATALOG.map(async (table) => {
+      const { count, error } = await supabase.from(table.id as never).select('id', { count: 'exact', head: true });
+      return { ...table, available: !error, rowCount: count || 0 };
+    }));
+    setAvailableTables(results);
+  };
 
   const fetchData = async () => {
     try {
@@ -120,30 +128,18 @@ export default function AdminBackupPage() {
     try {
       const { data: backupLog, error: logError } = await supabase
         .from('backup_logs')
-        .insert([{ backup_type: 'manual', status: 'in_progress', tables_included: BACKUP_TABLES }])
+        .insert([{ backup_type: 'manual', status: 'in_progress', tables_included: availableTables.filter((table) => table.available).map((table) => table.id) }])
         .select()
         .single();
 
       if (logError) throw logError;
 
       const backupData: Record<string, unknown[]> = {};
-      const tableQueries = {
-        merchants: supabase.from('merchants').select('*').limit(10000),
-        products: supabase.from('products').select('*').limit(10000),
-        orders: supabase.from('orders').select('*').limit(10000),
-        order_items: supabase.from('order_items').select('*').limit(10000),
-        villages: supabase.from('villages').select('*').limit(10000),
-        tourism: supabase.from('tourism').select('*').limit(10000),
-        couriers: supabase.from('couriers').select('*').limit(10000),
-        profiles: supabase.from('profiles').select('*').limit(10000),
-        vouchers: supabase.from('vouchers').select('*').limit(10000),
-        reviews: supabase.from('reviews').select('*').limit(10000),
-      };
-
-      for (const [table, query] of Object.entries(tableQueries)) {
-        const { data, error } = await query;
+      const tablesToBackup = availableTables.filter((table) => table.available).map((table) => table.id);
+      for (const table of tablesToBackup) {
+        const { data, error } = await supabase.from(table as never).select('*').limit(10000);
         if (error) { console.warn(`Error backing up ${table}:`, error); continue; }
-        backupData[table] = data || [];
+        backupData[table] = (data || []) as unknown[];
       }
 
       const jsonString = JSON.stringify(backupData, null, 2);
@@ -189,11 +185,11 @@ export default function AdminBackupPage() {
       });
     } else {
       setEditingSchedule(null);
-      setScheduleForm({
-        name: '', schedule_type: 'daily', schedule_time: '02:00', schedule_day: 1,
-        tables_included: ['merchants', 'products', 'orders', 'villages', 'tourism', 'couriers'],
-        is_active: true,
-      });
+        setScheduleForm({
+          name: '', schedule_type: 'daily', schedule_time: '02:00', schedule_day: 1,
+          tables_included: availableTables.filter((table) => table.available).map((table) => table.id),
+          is_active: true,
+        });
     }
     setShowScheduleDialog(true);
   };
@@ -332,11 +328,13 @@ export default function AdminBackupPage() {
                 Buat Backup Manual
               </CardTitle>
               <CardDescription>
-                Download backup data dalam format JSON. Termasuk: {BACKUP_TABLES.join(', ')}
+                {availableTables.length === 0
+                  ? 'Memeriksa tabel database yang tersedia...'
+                  : `Download backup data dalam format JSON dari ${availableTables.filter((table) => table.available).length} tabel yang tersedia pada database.`}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={createBackup} disabled={creating} className="gap-2">
+              <Button onClick={() => void createBackup()} disabled={creating || availableTables.length === 0} className="gap-2">
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 {creating ? 'Membuat Backup...' : 'Buat Backup Sekarang'}
               </Button>
@@ -527,7 +525,7 @@ export default function AdminBackupPage() {
             <div className="space-y-2">
               <Label>Tabel yang di-backup</Label>
               <div className="grid grid-cols-2 gap-2">
-                {AVAILABLE_TABLES.map(t => (
+                {availableTables.filter((table) => table.available).map(t => (
                   <label key={t.id} className="flex items-center gap-2 text-sm">
                     <Checkbox
                       checked={scheduleForm.tables_included.includes(t.id)}

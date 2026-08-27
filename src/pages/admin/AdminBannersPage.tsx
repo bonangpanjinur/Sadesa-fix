@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Image, Plus, Trash2, Edit, MoreHorizontal, Eye, EyeOff, ArrowUp, ArrowDown } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,7 @@ export default function AdminBannersPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
@@ -52,7 +53,7 @@ export default function AdminBannersPage() {
     end_date: '',
   });
 
-  const fetchBanners = async () => {
+  const fetchBanners = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('promotions')
@@ -68,11 +69,11 @@ export default function AdminBannersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchBanners();
-  }, []);
+    void fetchBanners();
+  }, [fetchBanners]);
 
   const handleOpenDialog = (banner?: Banner) => {
     if (banner) {
@@ -100,17 +101,47 @@ export default function AdminBannersPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title.trim()) {
+    const title = formData.title.trim();
+    const subtitle = formData.subtitle.trim();
+    const linkUrl = formData.link_url.trim();
+    if (!title) {
       toast.error('Judul harus diisi');
       return;
     }
+    if (title.length > 120) {
+      toast.error('Judul maksimal 120 karakter');
+      return;
+    }
+    if (subtitle.length > 300) {
+      toast.error('Subtitle maksimal 300 karakter');
+      return;
+    }
+    if (linkUrl) {
+      const isRelative = linkUrl.startsWith('/') && !linkUrl.startsWith('//');
+      let isAbsolute = false;
+      try {
+        const parsed = new URL(linkUrl);
+        isAbsolute = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch {
+        isAbsolute = false;
+      }
+      if (!isRelative && !isAbsolute) {
+        toast.error('Link harus berupa path internal atau URL http(s) yang valid');
+        return;
+      }
+    }
+    if (formData.end_date && Number.isNaN(new Date(formData.end_date).getTime())) {
+      toast.error('Tanggal berakhir tidak valid');
+      return;
+    }
 
+    setSaving(true);
     try {
       const payload = {
-        title: formData.title,
-        subtitle: formData.subtitle || null,
-        image_url: formData.image_url || null,
-        link_url: formData.link_url || null,
+        title,
+        subtitle: subtitle || null,
+        image_url: formData.image_url.trim() || null,
+        link_url: linkUrl || null,
         is_active: formData.is_active,
         is_approved: true,
         end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
@@ -134,31 +165,35 @@ export default function AdminBannersPage() {
       }
 
       setDialogOpen(false);
-      fetchBanners();
+      await fetchBanners();
     } catch (error) {
       console.error('Error saving banner:', error);
-      toast.error('Gagal menyimpan banner');
+      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan banner');
+    } finally {
+      setSaving(false);
     }
   };
 
   const toggleActive = async (id: string, current: boolean) => {
     try {
-      await supabase.from('promotions').update({ is_active: !current }).eq('id', id);
+      const { error } = await supabase.from('promotions').update({ is_active: !current }).eq('id', id);
+      if (error) throw error;
       toast.success(current ? 'Banner dinonaktifkan' : 'Banner diaktifkan');
-      fetchBanners();
-    } catch {
-      toast.error('Gagal mengubah status');
+      await fetchBanners();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal mengubah status');
     }
   };
 
   const deleteBanner = async (id: string) => {
     if (!confirm('Yakin ingin menghapus banner ini?')) return;
     try {
-      await supabase.from('promotions').delete().eq('id', id);
+      const { error } = await supabase.from('promotions').delete().eq('id', id);
+      if (error) throw error;
       toast.success('Banner dihapus');
-      fetchBanners();
-    } catch {
-      toast.error('Gagal menghapus banner');
+      await fetchBanners();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus banner');
     }
   };
 
@@ -173,11 +208,13 @@ export default function AdminBannersPage() {
     [newBanners[index], newBanners[newIndex]] = [newBanners[newIndex], newBanners[index]];
 
     try {
-      await Promise.all(
-        newBanners.map((b, i) =>
-          supabase.from('promotions').update({ sort_order: i }).eq('id', b.id)
-        )
-      );
+        const results = await Promise.all(
+          newBanners.map((b, i) =>
+            supabase.from('promotions').update({ sort_order: i }).eq('id', b.id)
+          )
+        );
+        const failed = results.find((result) => result.error);
+        if (failed?.error) throw failed.error;
       setBanners(newBanners);
     } catch {
       toast.error('Gagal mengubah urutan');
@@ -358,7 +395,7 @@ export default function AdminBannersPage() {
 
           <DialogFooter className="mt-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>
-            <Button onClick={handleSubmit}>Simpan</Button>
+            <Button onClick={() => void handleSubmit()} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
