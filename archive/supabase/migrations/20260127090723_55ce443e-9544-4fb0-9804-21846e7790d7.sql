@@ -11,6 +11,7 @@ DROP POLICY IF EXISTS "Active couriers visible to authenticated" ON public.couri
 -- 3. User is the courier themselves
 -- 4. User is a merchant with an order assigned to that courier
 -- 5. User is a buyer with an order assigned to that courier
+DROP POLICY IF EXISTS "Authorized users can view courier info" ON public.couriers;
 CREATE POLICY "Authorized users can view courier info"
 ON public.couriers
 FOR SELECT
@@ -40,6 +41,7 @@ DROP POLICY IF EXISTS "Anyone can view active merchants" ON public.merchants;
 
 -- Create policy: Only expose limited merchant data to unauthenticated users
 -- For full data access, require authentication and specific roles
+DROP POLICY IF EXISTS "Authenticated users can view active merchants" ON public.merchants;
 CREATE POLICY "Authenticated users can view active merchants"
 ON public.merchants
 FOR SELECT

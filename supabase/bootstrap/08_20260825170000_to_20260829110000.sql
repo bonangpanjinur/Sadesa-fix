@@ -45,11 +45,17 @@ CREATE INDEX IF NOT EXISTS idx_approval_requests_pending ON public.approval_requ
 
 ALTER TABLE public.business_disputes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.approval_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users create disputes" ON public.business_disputes;
 CREATE POLICY "Users create disputes" ON public.business_disputes FOR INSERT TO authenticated WITH CHECK (reporter_id = auth.uid());
+DROP POLICY IF EXISTS "Participants view disputes" ON public.business_disputes;
 CREATE POLICY "Participants view disputes" ON public.business_disputes FOR SELECT TO authenticated USING (reporter_id = auth.uid() OR assigned_to = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage disputes" ON public.business_disputes;
 CREATE POLICY "Admins manage disputes" ON public.business_disputes FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Tenant users view approvals" ON public.approval_requests;
 CREATE POLICY "Tenant users view approvals" ON public.approval_requests FOR SELECT TO authenticated USING (requester_id = auth.uid() OR public.is_admin() OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Users create approvals" ON public.approval_requests;
 CREATE POLICY "Users create approvals" ON public.approval_requests FOR INSERT TO authenticated WITH CHECK (requester_id = auth.uid());
+DROP POLICY IF EXISTS "Admins manage approvals" ON public.approval_requests;
 CREATE POLICY "Admins manage approvals" ON public.approval_requests FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.decide_approval_request(p_request_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
@@ -135,13 +141,21 @@ ALTER TABLE public.pos_price_books ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_price_book_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_loyalty_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_import_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view price books" ON public.pos_price_books;
 CREATE POLICY "POS users view price books" ON public.pos_price_books FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "Tenant owners manage price books" ON public.pos_price_books;
 CREATE POLICY "Tenant owners manage price books" ON public.pos_price_books FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "POS users view price book items" ON public.pos_price_book_items;
 CREATE POLICY "POS users view price book items" ON public.pos_price_book_items FOR SELECT TO authenticated USING (price_book_id IN (SELECT id FROM public.pos_price_books WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
+DROP POLICY IF EXISTS "Tenant owners manage price book items" ON public.pos_price_book_items;
 CREATE POLICY "Tenant owners manage price book items" ON public.pos_price_book_items FOR ALL TO authenticated USING (price_book_id IN (SELECT id FROM public.pos_price_books WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))) WITH CHECK (price_book_id IN (SELECT id FROM public.pos_price_books WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
+DROP POLICY IF EXISTS "POS users view loyalty rules" ON public.pos_loyalty_rules;
 CREATE POLICY "POS users view loyalty rules" ON public.pos_loyalty_rules FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant owners manage loyalty rules" ON public.pos_loyalty_rules;
 CREATE POLICY "Tenant owners manage loyalty rules" ON public.pos_loyalty_rules FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users view own imports" ON public.pos_import_jobs;
 CREATE POLICY "Users view own imports" ON public.pos_import_jobs FOR SELECT TO authenticated USING (created_by = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users create scoped imports" ON public.pos_import_jobs;
 CREATE POLICY "Users create scoped imports" ON public.pos_import_jobs FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
 CREATE OR REPLACE FUNCTION public.get_effective_pos_price(p_tenant_id uuid, p_outlet_id uuid, p_product_id uuid, p_variant_id uuid, p_segment text DEFAULT 'retail')
@@ -215,12 +229,19 @@ ALTER TABLE public.crm_segment_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crm_campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crm_campaign_deliveries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.crm_abandoned_carts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Tenant owners manage CRM segments" ON public.crm_customer_segments;
 CREATE POLICY "Tenant owners manage CRM segments" ON public.crm_customer_segments FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view CRM segments" ON public.crm_customer_segments;
 CREATE POLICY "Tenant users view CRM segments" ON public.crm_customer_segments FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Tenant owners manage CRM campaigns" ON public.crm_campaigns;
 CREATE POLICY "Tenant owners manage CRM campaigns" ON public.crm_campaigns FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view CRM campaigns" ON public.crm_campaigns;
 CREATE POLICY "Tenant users view CRM campaigns" ON public.crm_campaigns FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Customer views own campaign delivery" ON public.crm_campaign_deliveries;
 CREATE POLICY "Customer views own campaign delivery" ON public.crm_campaign_deliveries FOR SELECT TO authenticated USING (customer_id = auth.uid() OR campaign_id IN (SELECT id FROM public.crm_campaigns WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
+DROP POLICY IF EXISTS "Tenant users manage abandoned carts" ON public.crm_abandoned_carts;
 CREATE POLICY "Tenant users manage abandoned carts" ON public.crm_abandoned_carts FOR ALL TO authenticated USING (customer_id = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (customer_id = auth.uid() OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Customers view own segment membership" ON public.crm_segment_members;
 CREATE POLICY "Customers view own segment membership" ON public.crm_segment_members FOR SELECT TO authenticated USING (customer_id = auth.uid() OR segment_id IN (SELECT id FROM public.crm_customer_segments WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
 
 -- ===== END SOURCE: 20260825190000_crm_segments_campaigns.sql =====
@@ -247,7 +268,9 @@ CREATE INDEX IF NOT EXISTS idx_notification_jobs_due ON public.notification_deli
 CREATE INDEX IF NOT EXISTS idx_notification_jobs_recipient ON public.notification_delivery_jobs(recipient_id, created_at DESC);
 
 ALTER TABLE public.notification_delivery_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own notification jobs" ON public.notification_delivery_jobs;
 CREATE POLICY "Users view own notification jobs" ON public.notification_delivery_jobs FOR SELECT TO authenticated USING (recipient_id = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage notification jobs" ON public.notification_delivery_jobs;
 CREATE POLICY "Admins manage notification jobs" ON public.notification_delivery_jobs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
@@ -310,8 +333,10 @@ CREATE TABLE IF NOT EXISTS public.subscription_billing_events (
 CREATE INDEX IF NOT EXISTS idx_subscription_events_subscription ON public.subscription_billing_events(subscription_id, created_at DESC);
 
 ALTER TABLE public.subscription_billing_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Merchant views own subscription events" ON public.subscription_billing_events;
 CREATE POLICY "Merchant views own subscription events" ON public.subscription_billing_events FOR SELECT TO authenticated
   USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage subscription events" ON public.subscription_billing_events;
 CREATE POLICY "Admins manage subscription events" ON public.subscription_billing_events FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.record_subscription_billing_event(
@@ -379,9 +404,13 @@ CREATE INDEX IF NOT EXISTS idx_pos_journal_lines_account ON public.pos_journal_l
 ALTER TABLE public.pos_tax_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_journal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_journal_lines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Tenant owners manage tax profiles" ON public.pos_tax_profiles;
 CREATE POLICY "Tenant owners manage tax profiles" ON public.pos_tax_profiles FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view tax profiles" ON public.pos_tax_profiles;
 CREATE POLICY "Tenant users view tax profiles" ON public.pos_tax_profiles FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Tenant users view journals" ON public.pos_journal_entries;
 CREATE POLICY "Tenant users view journals" ON public.pos_journal_entries FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view journal lines" ON public.pos_journal_lines;
 CREATE POLICY "Tenant users view journal lines" ON public.pos_journal_lines FOR SELECT TO authenticated USING (journal_entry_id IN (SELECT id FROM public.pos_journal_entries WHERE tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
 
 CREATE OR REPLACE FUNCTION public.post_pos_journal_entry(
@@ -539,10 +568,13 @@ CREATE INDEX IF NOT EXISTS idx_pos_warehouse_transfers_tenant ON public.pos_ware
 CREATE INDEX IF NOT EXISTS idx_pos_warehouse_transfer_items_transfer ON public.pos_warehouse_transfer_items(transfer_id);
 ALTER TABLE public.pos_warehouse_transfers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_warehouse_transfer_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view warehouse transfers" ON public.pos_warehouse_transfers;
 CREATE POLICY "POS users view warehouse transfers" ON public.pos_warehouse_transfers FOR SELECT TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()) OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Tenant owners insert warehouse transfers" ON public.pos_warehouse_transfers;
 CREATE POLICY "Tenant owners insert warehouse transfers" ON public.pos_warehouse_transfers FOR INSERT TO authenticated
   WITH CHECK (created_by = auth.uid() AND tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "POS users view warehouse transfer items" ON public.pos_warehouse_transfer_items;
 CREATE POLICY "POS users view warehouse transfer items" ON public.pos_warehouse_transfer_items FOR SELECT TO authenticated
   USING (transfer_id IN (SELECT id FROM public.pos_warehouse_transfers WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()) OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true)));
 
@@ -625,12 +657,14 @@ CREATE INDEX IF NOT EXISTS idx_pos_loyalty_ledger_sale
   ON public.pos_loyalty_ledger(sale_id) WHERE sale_id IS NOT NULL;
 
 ALTER TABLE public.pos_loyalty_ledger ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger;
 CREATE POLICY "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger
   FOR SELECT TO authenticated
   USING (
     tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true)
     OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())
   );
+DROP POLICY IF EXISTS "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger;
 CREATE POLICY "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger
   FOR ALL TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
@@ -879,8 +913,11 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_reservations_expiry ON public.marketp
 CREATE INDEX IF NOT EXISTS idx_marketplace_reservation_items_product ON public.marketplace_stock_reservation_items(product_id);
 ALTER TABLE public.marketplace_stock_reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marketplace_stock_reservation_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Buyers view own stock reservations" ON public.marketplace_stock_reservations;
 CREATE POLICY "Buyers view own stock reservations" ON public.marketplace_stock_reservations FOR SELECT TO authenticated USING (buyer_id = auth.uid());
+DROP POLICY IF EXISTS "Merchants view order reservations" ON public.marketplace_stock_reservations;
 CREATE POLICY "Merchants view order reservations" ON public.marketplace_stock_reservations FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.orders o JOIN public.merchants m ON m.id = o.merchant_id WHERE o.id = order_id AND m.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users view own reservation items" ON public.marketplace_stock_reservation_items;
 CREATE POLICY "Users view own reservation items" ON public.marketplace_stock_reservation_items FOR SELECT TO authenticated USING (reservation_id IN (SELECT id FROM public.marketplace_stock_reservations WHERE buyer_id = auth.uid() OR EXISTS (SELECT 1 FROM public.orders o JOIN public.merchants m ON m.id = o.merchant_id WHERE o.id = marketplace_stock_reservations.order_id AND m.user_id = auth.uid())));
 
 CREATE OR REPLACE FUNCTION public.reserve_marketplace_stock(
@@ -1070,9 +1107,13 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_shipments_order ON public.marketplace
 CREATE INDEX IF NOT EXISTS idx_marketplace_shipment_items_order_item ON public.marketplace_shipment_items(order_item_id);
 ALTER TABLE public.marketplace_shipments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marketplace_shipment_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Buyer views own marketplace shipments" ON public.marketplace_shipments;
 CREATE POLICY "Buyer views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid()));
+DROP POLICY IF EXISTS "Merchant views own marketplace shipments" ON public.marketplace_shipments;
 CREATE POLICY "Merchant views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin());
+DROP POLICY IF EXISTS "Buyer views own shipment items" ON public.marketplace_shipment_items;
 CREATE POLICY "Buyer views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid())));
+DROP POLICY IF EXISTS "Merchant views own shipment items" ON public.marketplace_shipment_items;
 CREATE POLICY "Merchant views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin()));
 
 CREATE OR REPLACE FUNCTION public.create_marketplace_shipment(p_order_id uuid, p_items jsonb, p_tracking_number text DEFAULT NULL)
@@ -1132,6 +1173,7 @@ CREATE TABLE IF NOT EXISTS public.merchant_product_import_jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_merchant_product_import_jobs_merchant ON public.merchant_product_import_jobs(merchant_id, created_at DESC);
 ALTER TABLE public.merchant_product_import_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Merchant manages own product import jobs" ON public.merchant_product_import_jobs;
 CREATE POLICY "Merchant manages own product import jobs" ON public.merchant_product_import_jobs FOR ALL TO authenticated USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin()) WITH CHECK (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.commit_merchant_product_import(p_merchant_id uuid, p_rows jsonb, p_validation_errors jsonb DEFAULT '[]'::jsonb)
@@ -1589,7 +1631,9 @@ CREATE TABLE IF NOT EXISTS public.pwa_device_sessions (
 CREATE INDEX IF NOT EXISTS idx_pwa_device_sessions_user ON public.pwa_device_sessions(user_id, status, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pwa_device_sessions_tenant ON public.pwa_device_sessions(tenant_id, status, last_seen_at DESC);
 ALTER TABLE public.pwa_device_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own PWA devices" ON public.pwa_device_sessions;
 CREATE POLICY "Users view own PWA devices" ON public.pwa_device_sessions FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage PWA devices" ON public.pwa_device_sessions;
 CREATE POLICY "Admins manage PWA devices" ON public.pwa_device_sessions FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.register_pwa_device(

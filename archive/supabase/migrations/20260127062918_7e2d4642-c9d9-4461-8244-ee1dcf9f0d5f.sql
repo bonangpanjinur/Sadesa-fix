@@ -89,12 +89,15 @@ ALTER TABLE public.withdrawal_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.insurance_fund ENABLE ROW LEVEL SECURITY;
 
 -- Reviews policies
+DROP POLICY IF EXISTS "Anyone can view visible reviews" ON public.reviews;
 CREATE POLICY "Anyone can view visible reviews" ON public.reviews
 FOR SELECT USING (is_visible = true);
 
+DROP POLICY IF EXISTS "Buyers can create reviews for their orders" ON public.reviews;
 CREATE POLICY "Buyers can create reviews for their orders" ON public.reviews
 FOR INSERT WITH CHECK (buyer_id = auth.uid());
 
+DROP POLICY IF EXISTS "Merchants can reply to their reviews" ON public.reviews;
 CREATE POLICY "Merchants can reply to their reviews" ON public.reviews
 FOR UPDATE USING (
   EXISTS (
@@ -104,10 +107,12 @@ FOR UPDATE USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage reviews" ON public.reviews;
 CREATE POLICY "Admins can manage reviews" ON public.reviews
 FOR ALL USING (is_admin());
 
 -- Withdrawal requests policies
+DROP POLICY IF EXISTS "Merchants can view own withdrawals" ON public.withdrawal_requests;
 CREATE POLICY "Merchants can view own withdrawals" ON public.withdrawal_requests
 FOR SELECT USING (
   EXISTS (
@@ -117,6 +122,7 @@ FOR SELECT USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can create withdrawals" ON public.withdrawal_requests;
 CREATE POLICY "Merchants can create withdrawals" ON public.withdrawal_requests
 FOR INSERT WITH CHECK (
   EXISTS (
@@ -126,10 +132,12 @@ FOR INSERT WITH CHECK (
   ) AND status = 'PENDING'
 );
 
+DROP POLICY IF EXISTS "Admins can manage withdrawals" ON public.withdrawal_requests;
 CREATE POLICY "Admins can manage withdrawals" ON public.withdrawal_requests
 FOR ALL USING (is_admin());
 
 -- Insurance fund policies
+DROP POLICY IF EXISTS "Merchants can view own insurance" ON public.insurance_fund;
 CREATE POLICY "Merchants can view own insurance" ON public.insurance_fund
 FOR SELECT USING (
   EXISTS (
@@ -139,6 +147,7 @@ FOR SELECT USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can create claims" ON public.insurance_fund;
 CREATE POLICY "Merchants can create claims" ON public.insurance_fund
 FOR INSERT WITH CHECK (
   EXISTS (
@@ -148,6 +157,7 @@ FOR INSERT WITH CHECK (
   ) AND type = 'claim' AND status = 'PENDING'
 );
 
+DROP POLICY IF EXISTS "Admins can manage insurance fund" ON public.insurance_fund;
 CREATE POLICY "Admins can manage insurance fund" ON public.insurance_fund
 FOR ALL USING (is_admin());
 

@@ -175,11 +175,14 @@ DROP POLICY IF EXISTS "Anyone can view product images storage" ON storage.object
 DROP POLICY IF EXISTS "Authenticated users can upload product images storage" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own product images storage" ON storage.objects;
 
+DROP POLICY IF EXISTS "Anyone can view product images storage" ON storage.objects;
 CREATE POLICY "Anyone can view product images storage" ON storage.objects
     FOR SELECT USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "Authenticated users can upload product images storage" ON storage.objects;
 CREATE POLICY "Authenticated users can upload product images storage" ON storage.objects
     FOR INSERT WITH CHECK (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Users can delete own product images storage" ON storage.objects;
 CREATE POLICY "Users can delete own product images storage" ON storage.objects
     FOR DELETE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);

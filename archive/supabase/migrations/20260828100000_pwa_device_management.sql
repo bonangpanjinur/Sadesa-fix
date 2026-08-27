@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS public.pwa_device_sessions (
 CREATE INDEX IF NOT EXISTS idx_pwa_device_sessions_user ON public.pwa_device_sessions(user_id, status, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS idx_pwa_device_sessions_tenant ON public.pwa_device_sessions(tenant_id, status, last_seen_at DESC);
 ALTER TABLE public.pwa_device_sessions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own PWA devices" ON public.pwa_device_sessions;
 CREATE POLICY "Users view own PWA devices" ON public.pwa_device_sessions FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage PWA devices" ON public.pwa_device_sessions;
 CREATE POLICY "Admins manage PWA devices" ON public.pwa_device_sessions FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.register_pwa_device(

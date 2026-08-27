@@ -14,12 +14,15 @@ CREATE TABLE public.courier_deposits (
 
 ALTER TABLE public.courier_deposits ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Couriers can create own deposits" ON public.courier_deposits;
 CREATE POLICY "Couriers can create own deposits" ON public.courier_deposits
   FOR INSERT WITH CHECK (courier_id = get_user_courier_id());
 
+DROP POLICY IF EXISTS "Couriers can view own deposits" ON public.courier_deposits;
 CREATE POLICY "Couriers can view own deposits" ON public.courier_deposits
   FOR SELECT USING (courier_id = get_user_courier_id());
 
+DROP POLICY IF EXISTS "Admins full access courier deposits" ON public.courier_deposits;
 CREATE POLICY "Admins full access courier deposits" ON public.courier_deposits
   FOR ALL USING (is_admin());
 
@@ -38,9 +41,11 @@ CREATE TABLE public.courier_balance_logs (
 
 ALTER TABLE public.courier_balance_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Couriers can view own balance logs" ON public.courier_balance_logs;
 CREATE POLICY "Couriers can view own balance logs" ON public.courier_balance_logs
   FOR SELECT USING (courier_id = get_user_courier_id());
 
+DROP POLICY IF EXISTS "Admins full access balance logs" ON public.courier_balance_logs;
 CREATE POLICY "Admins full access balance logs" ON public.courier_balance_logs
   FOR ALL USING (is_admin());
 

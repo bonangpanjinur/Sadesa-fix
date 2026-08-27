@@ -51,16 +51,19 @@ ALTER TABLE pos_raw_materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_recipes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_raw_material_mutations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tenant_raw_materials" ON pos_raw_materials;
 CREATE POLICY "tenant_raw_materials" ON pos_raw_materials
   FOR ALL USING (
     tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "tenant_recipes" ON pos_recipes;
 CREATE POLICY "tenant_recipes" ON pos_recipes
   FOR ALL USING (
     tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "tenant_raw_material_mutations" ON pos_raw_material_mutations;
 CREATE POLICY "tenant_raw_material_mutations" ON pos_raw_material_mutations
   FOR ALL USING (
     tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())

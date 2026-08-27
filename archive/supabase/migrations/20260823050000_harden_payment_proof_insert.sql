@@ -2,6 +2,7 @@
 -- Expected object path: orders/{order_id}/{filename}
 DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
 
+DROP POLICY IF EXISTS "Buyer merchant admin can upload payment proofs" ON storage.objects;
 CREATE POLICY "Buyer merchant admin can upload payment proofs"
 ON storage.objects
 FOR INSERT

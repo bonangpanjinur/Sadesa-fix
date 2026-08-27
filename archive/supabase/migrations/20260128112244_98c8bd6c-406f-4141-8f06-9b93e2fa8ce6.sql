@@ -84,40 +84,50 @@ ALTER TABLE public.backup_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- Voucher policies
+DROP POLICY IF EXISTS "Vouchers viewable by everyone" ON public.vouchers;
 CREATE POLICY "Vouchers viewable by everyone" ON public.vouchers
   FOR SELECT USING (is_active = true AND (start_date <= now()) AND (end_date IS NULL OR end_date >= now()));
 
+DROP POLICY IF EXISTS "Merchants manage own vouchers" ON public.vouchers;
 CREATE POLICY "Merchants manage own vouchers" ON public.vouchers
   FOR ALL USING (
     merchant_id IN (SELECT id FROM merchants WHERE user_id = auth.uid())
     OR public.is_admin()
   );
 
+DROP POLICY IF EXISTS "Admins manage all vouchers" ON public.vouchers;
 CREATE POLICY "Admins manage all vouchers" ON public.vouchers
   FOR ALL USING (public.is_admin());
 
 -- Voucher usage policies
+DROP POLICY IF EXISTS "Users view own usage" ON public.voucher_usages;
 CREATE POLICY "Users view own usage" ON public.voucher_usages
   FOR SELECT USING (user_id = auth.uid() OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can use vouchers" ON public.voucher_usages;
 CREATE POLICY "Users can use vouchers" ON public.voucher_usages
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
 -- SEO policies (admin only)
+DROP POLICY IF EXISTS "Anyone can view SEO settings" ON public.seo_settings;
 CREATE POLICY "Anyone can view SEO settings" ON public.seo_settings
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admins manage SEO" ON public.seo_settings;
 CREATE POLICY "Admins manage SEO" ON public.seo_settings
   FOR ALL USING (public.is_admin());
 
 -- Backup policies (admin only)
+DROP POLICY IF EXISTS "Admins view backups" ON public.backup_logs;
 CREATE POLICY "Admins view backups" ON public.backup_logs
   FOR SELECT USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins create backups" ON public.backup_logs;
 CREATE POLICY "Admins create backups" ON public.backup_logs
   FOR INSERT WITH CHECK (public.is_admin());
 
 -- Rate limits policies
+DROP POLICY IF EXISTS "Rate limits public" ON public.rate_limits;
 CREATE POLICY "Rate limits public" ON public.rate_limits
   FOR ALL USING (true);
 

@@ -8,6 +8,7 @@ DROP POLICY IF EXISTS "Anyone can register village" ON public.villages;
 DROP POLICY IF EXISTS "villages_register" ON public.villages;
 
 -- Allow authenticated users to register villages (PENDING + inactive)
+DROP POLICY IF EXISTS "Authenticated users can register village" ON public.villages;
 CREATE POLICY "Authenticated users can register village"
 ON public.villages
 FOR INSERT
@@ -26,6 +27,7 @@ USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
 -- Allow admin_desa to update their own village
+DROP POLICY IF EXISTS "Admin desa can update own village" ON public.villages;
 CREATE POLICY "Admin desa can update own village"
 ON public.villages
 FOR UPDATE
@@ -51,6 +53,7 @@ USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
 -- Users can view their own assignments
+DROP POLICY IF EXISTS "Users view own village assignments" ON public.user_villages;
 CREATE POLICY "Users view own village assignments"
 ON public.user_villages
 FOR SELECT
@@ -58,6 +61,7 @@ TO authenticated
 USING (user_id = auth.uid() OR public.is_admin());
 
 -- Authenticated users can insert their own assignment (for registration)
+DROP POLICY IF EXISTS "Users can register own village assignment" ON public.user_villages;
 CREATE POLICY "Users can register own village assignment"
 ON public.user_villages
 FOR INSERT

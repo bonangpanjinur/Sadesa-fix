@@ -49,9 +49,13 @@ ALTER TABLE public.pos_stock_reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_stock_reservation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_fulfillment_shipments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_fulfillment_shipment_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view reservations" ON public.pos_stock_reservations;
 CREATE POLICY "POS users view reservations" ON public.pos_stock_reservations FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view reservation items" ON public.pos_stock_reservation_items;
 CREATE POLICY "POS users view reservation items" ON public.pos_stock_reservation_items FOR SELECT TO authenticated USING (reservation_id IN (SELECT id FROM public.pos_stock_reservations WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
+DROP POLICY IF EXISTS "POS users view shipments" ON public.pos_fulfillment_shipments;
 CREATE POLICY "POS users view shipments" ON public.pos_fulfillment_shipments FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view shipment items" ON public.pos_fulfillment_shipment_items;
 CREATE POLICY "POS users view shipment items" ON public.pos_fulfillment_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.pos_fulfillment_shipments WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
 
 CREATE OR REPLACE FUNCTION public.reserve_pos_stock(

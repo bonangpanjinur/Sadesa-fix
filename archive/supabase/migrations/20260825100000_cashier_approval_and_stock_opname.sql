@@ -33,12 +33,16 @@ CREATE INDEX IF NOT EXISTS idx_pos_price_override_pending ON public.pos_price_ov
 
 ALTER TABLE public.pos_void_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_price_override_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view own void requests" ON public.pos_void_requests;
 CREATE POLICY "POS users view own void requests" ON public.pos_void_requests FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create void requests" ON public.pos_void_requests;
 CREATE POLICY "POS users create void requests" ON public.pos_void_requests FOR INSERT TO authenticated
   WITH CHECK (requested_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view price overrides" ON public.pos_price_override_requests;
 CREATE POLICY "POS users view price overrides" ON public.pos_price_override_requests FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create price overrides" ON public.pos_price_override_requests;
 CREATE POLICY "POS users create price overrides" ON public.pos_price_override_requests FOR INSERT TO authenticated
   WITH CHECK (requested_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
@@ -110,9 +114,13 @@ CREATE TABLE IF NOT EXISTS public.pos_stock_opname_items (
 );
 ALTER TABLE public.pos_stock_opnames ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_stock_opname_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view stock opnames" ON public.pos_stock_opnames;
 CREATE POLICY "POS users view stock opnames" ON public.pos_stock_opnames FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create stock opnames" ON public.pos_stock_opnames;
 CREATE POLICY "POS users create stock opnames" ON public.pos_stock_opnames FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view stock opname items" ON public.pos_stock_opname_items;
 CREATE POLICY "POS users view stock opname items" ON public.pos_stock_opname_items FOR SELECT TO authenticated USING (opname_id IN (SELECT id FROM public.pos_stock_opnames WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
+DROP POLICY IF EXISTS "POS users create stock opname items" ON public.pos_stock_opname_items;
 CREATE POLICY "POS users create stock opname items" ON public.pos_stock_opname_items FOR INSERT TO authenticated WITH CHECK (opname_id IN (SELECT id FROM public.pos_stock_opnames WHERE created_by = auth.uid() AND status IN ('draft','counting')));
 
 CREATE OR REPLACE FUNCTION public.approve_pos_stock_opname(p_opname_id uuid)

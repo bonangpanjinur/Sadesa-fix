@@ -9,6 +9,7 @@ CREATE POLICY "Buyers can view own orders"
   USING (auth.uid() = buyer_id);
 
 -- Recreate Admin policy using direct check without function call
+DROP POLICY IF EXISTS "Admins can manage all orders" ON public.orders;
 CREATE POLICY "Admins can manage all orders"
   ON public.orders
   FOR ALL

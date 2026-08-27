@@ -11,16 +11,19 @@ CREATE TABLE IF NOT EXISTS public.wishlists (
 ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for wishlists
+DROP POLICY IF EXISTS "Users can view own wishlists" ON public.wishlists;
 CREATE POLICY "Users can view own wishlists" 
     ON public.wishlists 
     FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can add to own wishlist" ON public.wishlists;
 CREATE POLICY "Users can add to own wishlist" 
     ON public.wishlists 
     FOR INSERT 
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can remove from own wishlist" ON public.wishlists;
 CREATE POLICY "Users can remove from own wishlist" 
     ON public.wishlists 
     FOR DELETE 

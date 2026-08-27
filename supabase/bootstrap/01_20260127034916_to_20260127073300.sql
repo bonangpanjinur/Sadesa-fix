@@ -18,7 +18,7 @@ EXCEPTION
 END $$;
 
 -- 2. Create user_roles table (separate from profiles for security)
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     role app_role NOT NULL DEFAULT 'buyer',
@@ -238,77 +238,94 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 
 -- USER_ROLES policies
+DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
 CREATE POLICY "Users can view own roles"
     ON public.user_roles FOR SELECT
     USING (auth.uid() = user_id);
 
 -- PROFILES policies
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
     ON public.profiles FOR SELECT
     USING (auth.uid() = user_id OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
     ON public.profiles FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile"
     ON public.profiles FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
 -- VILLAGES policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active villages" ON public.villages;
 CREATE POLICY "Anyone can view active villages"
     ON public.villages FOR SELECT
     USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage villages" ON public.villages;
 CREATE POLICY "Admins can manage villages"
     ON public.villages FOR ALL
     USING (public.is_admin());
 
 -- MERCHANTS policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active merchants" ON public.merchants;
 CREATE POLICY "Anyone can view active merchants"
     ON public.merchants FOR SELECT
     USING (status = 'ACTIVE');
 
+DROP POLICY IF EXISTS "Admins can manage merchants" ON public.merchants;
 CREATE POLICY "Admins can manage merchants"
     ON public.merchants FOR ALL
     USING (public.is_admin());
 
 -- PRODUCTS policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active products" ON public.products;
 CREATE POLICY "Anyone can view active products"
     ON public.products FOR SELECT
     USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
 CREATE POLICY "Admins can manage products"
     ON public.products FOR ALL
     USING (public.is_admin());
 
 -- TOURISM policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active tourism" ON public.tourism;
 CREATE POLICY "Anyone can view active tourism"
     ON public.tourism FOR SELECT
     USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage tourism" ON public.tourism;
 CREATE POLICY "Admins can manage tourism"
     ON public.tourism FOR ALL
     USING (public.is_admin());
 
 -- ORDERS policies
+DROP POLICY IF EXISTS "Buyers can view own orders" ON public.orders;
 CREATE POLICY "Buyers can view own orders"
     ON public.orders FOR SELECT
     USING (auth.uid() = buyer_id OR public.is_admin());
 
+DROP POLICY IF EXISTS "Buyers can create orders" ON public.orders;
 CREATE POLICY "Buyers can create orders"
     ON public.orders FOR INSERT
     WITH CHECK (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
 CREATE POLICY "Buyers can update own pending orders"
     ON public.orders FOR UPDATE
     USING (auth.uid() = buyer_id AND status = 'NEW');
 
+DROP POLICY IF EXISTS "Admins can manage all orders" ON public.orders;
 CREATE POLICY "Admins can manage all orders"
     ON public.orders FOR ALL
     USING (public.is_admin());
 
 -- ORDER_ITEMS policies
+DROP POLICY IF EXISTS "Users can view own order items" ON public.order_items;
 CREATE POLICY "Users can view own order items"
     ON public.order_items FOR SELECT
     USING (
@@ -319,6 +336,7 @@ CREATE POLICY "Users can view own order items"
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert order items for own orders" ON public.order_items;
 CREATE POLICY "Users can insert order items for own orders"
     ON public.order_items FOR INSERT
     WITH CHECK (
@@ -395,6 +413,7 @@ AS $$
 $$;
 
 -- Allow anyone to register a village (pending approval by admin)
+DROP POLICY IF EXISTS "Anyone can register village" ON public.villages;
 CREATE POLICY "Anyone can register village" 
 ON public.villages 
 FOR INSERT 
@@ -404,6 +423,7 @@ WITH CHECK (
 );
 
 -- Allow anyone to register a merchant (pending approval by verifikator)
+DROP POLICY IF EXISTS "Anyone can register merchant" ON public.merchants;
 CREATE POLICY "Anyone can register merchant"
 ON public.merchants
 FOR INSERT
@@ -413,6 +433,7 @@ WITH CHECK (
 );
 
 -- Verifikator can manage merchants (approve/reject)
+DROP POLICY IF EXISTS "Verifikator can manage merchants" ON public.merchants;
 CREATE POLICY "Verifikator can manage merchants"
 ON public.merchants
 FOR ALL
@@ -455,12 +476,14 @@ CREATE TABLE IF NOT EXISTS public.verifikator_codes (
 ALTER TABLE public.verifikator_codes ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view active codes (for validation)
+DROP POLICY IF EXISTS "Anyone can view active codes" ON public.verifikator_codes;
 CREATE POLICY "Anyone can view active codes"
 ON public.verifikator_codes
 FOR SELECT
 USING (is_active = true);
 
 -- Verifikator can manage their own codes
+DROP POLICY IF EXISTS "Verifikator can manage own codes" ON public.verifikator_codes;
 CREATE POLICY "Verifikator can manage own codes"
 ON public.verifikator_codes
 FOR ALL
@@ -470,6 +493,7 @@ USING (
 );
 
 -- Admin can manage all codes
+DROP POLICY IF EXISTS "Admin can manage all codes" ON public.verifikator_codes;
 CREATE POLICY "Admin can manage all codes"
 ON public.verifikator_codes
 FOR ALL
@@ -534,6 +558,7 @@ CREATE TABLE public.promotions (
 ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view active & approved promotions within date range
+DROP POLICY IF EXISTS "Anyone can view active promotions" ON public.promotions;
 CREATE POLICY "Anyone can view active promotions"
 ON public.promotions
 FOR SELECT
@@ -545,12 +570,14 @@ USING (
 );
 
 -- Admin can manage all promotions
+DROP POLICY IF EXISTS "Admins can manage promotions" ON public.promotions;
 CREATE POLICY "Admins can manage promotions"
 ON public.promotions
 FOR ALL
 USING (is_admin());
 
 -- Villages can create promotions for themselves
+DROP POLICY IF EXISTS "Villages can create own promotions" ON public.promotions;
 CREATE POLICY "Villages can create own promotions"
 ON public.promotions
 FOR INSERT
@@ -560,6 +587,7 @@ WITH CHECK (
 );
 
 -- Merchants can create promotions for themselves  
+DROP POLICY IF EXISTS "Merchants can create own promotions" ON public.promotions;
 CREATE POLICY "Merchants can create own promotions"
 ON public.promotions
 FOR INSERT
@@ -638,28 +666,36 @@ ALTER TABLE public.couriers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for couriers
+DROP POLICY IF EXISTS "Admins can manage couriers" ON public.couriers;
 CREATE POLICY "Admins can manage couriers" ON public.couriers
 FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Verifikator can manage couriers" ON public.couriers;
 CREATE POLICY "Verifikator can manage couriers" ON public.couriers
 FOR ALL USING (is_verifikator());
 
+DROP POLICY IF EXISTS "Anyone can register as courier" ON public.couriers;
 CREATE POLICY "Anyone can register as courier" ON public.couriers
 FOR INSERT WITH CHECK (registration_status = 'PENDING' AND status = 'INACTIVE');
 
+DROP POLICY IF EXISTS "Active couriers visible to authenticated" ON public.couriers;
 CREATE POLICY "Active couriers visible to authenticated" ON public.couriers
 FOR SELECT USING (status = 'ACTIVE' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Couriers can view own data" ON public.couriers;
 CREATE POLICY "Couriers can view own data" ON public.couriers
 FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Couriers can update own location" ON public.couriers;
 CREATE POLICY "Couriers can update own location" ON public.couriers
 FOR UPDATE USING (user_id = auth.uid() AND status = 'ACTIVE');
 
 -- RLS policies for app_settings
+DROP POLICY IF EXISTS "Admins can manage settings" ON public.app_settings;
 CREATE POLICY "Admins can manage settings" ON public.app_settings
 FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Anyone can view settings" ON public.app_settings;
 CREATE POLICY "Anyone can view settings" ON public.app_settings
 FOR SELECT USING (true);
 
@@ -697,18 +733,22 @@ DROP POLICY IF EXISTS "Admins can view all courier documents" ON storage.objects
 DROP POLICY IF EXISTS "Couriers can view own documents" ON storage.objects;
 DROP POLICY IF EXISTS "Admins can delete courier documents" ON storage.objects;
 
+DROP POLICY IF EXISTS "Anyone can upload courier documents" ON storage.objects;
 CREATE POLICY "Anyone can upload courier documents" ON storage.objects
 FOR INSERT WITH CHECK (bucket_id = 'courier-documents');
 
+DROP POLICY IF EXISTS "Admins can view all courier documents" ON storage.objects;
 CREATE POLICY "Admins can view all courier documents" ON storage.objects
 FOR SELECT USING (bucket_id = 'courier-documents' AND (is_admin() OR is_verifikator()));
 
+DROP POLICY IF EXISTS "Couriers can view own documents" ON storage.objects;
 CREATE POLICY "Couriers can view own documents" ON storage.objects
 FOR SELECT USING (
     bucket_id = 'courier-documents' 
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
+DROP POLICY IF EXISTS "Admins can delete courier documents" ON storage.objects;
 CREATE POLICY "Admins can delete courier documents" ON storage.objects
 FOR DELETE USING (bucket_id = 'courier-documents' AND is_admin());
 -- ===== END SOURCE: 20260127050807_5424a090-976a-43a6-a53b-fc9048a993a0.sql =====
@@ -745,12 +785,14 @@ CREATE INDEX IF NOT EXISTS idx_orders_courier_id ON public.orders(courier_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 
 -- Update RLS policies for couriers to view assigned orders
+DROP POLICY IF EXISTS "Couriers can view assigned orders" ON public.orders;
 CREATE POLICY "Couriers can view assigned orders" 
 ON public.orders 
 FOR SELECT 
 USING (courier_id IN (SELECT id FROM couriers WHERE user_id = auth.uid()));
 
 -- Couriers can update assigned orders (status changes)
+DROP POLICY IF EXISTS "Couriers can update assigned orders" ON public.orders;
 CREATE POLICY "Couriers can update assigned orders" 
 ON public.orders 
 FOR UPDATE 
@@ -824,6 +866,7 @@ $$;
 
 -- ===== BEGIN SOURCE: 20260127054855_541d780b-df94-4ab1-9cd8-7306ea1c7256.sql =====
 -- Allow merchants to manage their own products
+DROP POLICY IF EXISTS "Merchants can manage own products" ON public.products;
 CREATE POLICY "Merchants can manage own products"
 ON public.products
 FOR ALL
@@ -843,6 +886,7 @@ WITH CHECK (
 );
 
 -- Allow merchants to view their own orders
+DROP POLICY IF EXISTS "Merchants can view own orders" ON public.orders;
 CREATE POLICY "Merchants can view own orders"
 ON public.orders
 FOR SELECT
@@ -855,6 +899,7 @@ USING (
 );
 
 -- Allow merchants to update their own orders
+DROP POLICY IF EXISTS "Merchants can update own orders" ON public.orders;
 CREATE POLICY "Merchants can update own orders"
 ON public.orders
 FOR UPDATE
@@ -867,18 +912,21 @@ USING (
 );
 
 -- Allow merchants to view own data
+DROP POLICY IF EXISTS "Merchants can view own data" ON public.merchants;
 CREATE POLICY "Merchants can view own data"
 ON public.merchants
 FOR SELECT
 USING (user_id = auth.uid());
 
 -- Allow merchants to update own data
+DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants;
 CREATE POLICY "Merchants can update own data"
 ON public.merchants
 FOR UPDATE
 USING (user_id = auth.uid());
 
 -- Allow admin desa to manage tourism in their village
+DROP POLICY IF EXISTS "Admin desa can manage tourism" ON public.tourism;
 CREATE POLICY "Admin desa can manage tourism"
 ON public.tourism
 FOR ALL
@@ -910,10 +958,12 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS for product-images: Merchants can upload to their own folder
+DROP POLICY IF EXISTS "Anyone can view product images" ON storage.objects;
 CREATE POLICY "Anyone can view product images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "Merchants can upload product images" ON storage.objects;
 CREATE POLICY "Merchants can upload product images"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -928,6 +978,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can update own product images" ON storage.objects;
 CREATE POLICY "Merchants can update own product images"
 ON storage.objects FOR UPDATE
 USING (
@@ -941,6 +992,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can delete own product images" ON storage.objects;
 CREATE POLICY "Merchants can delete own product images"
 ON storage.objects FOR DELETE
 USING (
@@ -955,10 +1007,12 @@ USING (
 );
 
 -- RLS for tourism-images: Admin desa can upload
+DROP POLICY IF EXISTS "Anyone can view tourism images" ON storage.objects;
 CREATE POLICY "Anyone can view tourism images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'tourism-images');
 
+DROP POLICY IF EXISTS "Admin desa can upload tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can upload tourism images"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -966,6 +1020,7 @@ WITH CHECK (
   AND (is_admin() OR is_admin_desa())
 );
 
+DROP POLICY IF EXISTS "Admin desa can update tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can update tourism images"
 ON storage.objects FOR UPDATE
 USING (
@@ -973,6 +1028,7 @@ USING (
   AND (is_admin() OR is_admin_desa())
 );
 
+DROP POLICY IF EXISTS "Admin desa can delete tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can delete tourism images"
 ON storage.objects FOR DELETE
 USING (
@@ -981,10 +1037,12 @@ USING (
 );
 
 -- RLS for profile-images: Users can upload their own
+DROP POLICY IF EXISTS "Anyone can view profile images" ON storage.objects;
 CREATE POLICY "Anyone can view profile images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'profile-images');
 
+DROP POLICY IF EXISTS "Users can upload own profile image" ON storage.objects;
 CREATE POLICY "Users can upload own profile image"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -992,6 +1050,7 @@ WITH CHECK (
   AND auth.uid() IS NOT NULL
 );
 
+DROP POLICY IF EXISTS "Users can update own profile image" ON storage.objects;
 CREATE POLICY "Users can update own profile image"
 ON storage.objects FOR UPDATE
 USING (
@@ -999,6 +1058,7 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
+DROP POLICY IF EXISTS "Users can delete own profile image" ON storage.objects;
 CREATE POLICY "Users can delete own profile image"
 ON storage.objects FOR DELETE
 USING (
@@ -1007,10 +1067,12 @@ USING (
 );
 
 -- RLS for merchant-images: Merchants can upload their store image
+DROP POLICY IF EXISTS "Anyone can view merchant images" ON storage.objects;
 CREATE POLICY "Anyone can view merchant images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'merchant-images');
 
+DROP POLICY IF EXISTS "Merchants can upload merchant images" ON storage.objects;
 CREATE POLICY "Merchants can upload merchant images"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -1021,6 +1083,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can update own merchant images" ON storage.objects;
 CREATE POLICY "Merchants can update own merchant images"
 ON storage.objects FOR UPDATE
 USING (
@@ -1034,6 +1097,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can delete own merchant images" ON storage.objects;
 CREATE POLICY "Merchants can delete own merchant images"
 ON storage.objects FOR DELETE
 USING (
@@ -1122,19 +1186,24 @@ ALTER TABLE public.refund_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- RLS for refund_requests
+DROP POLICY IF EXISTS "Admins can manage refunds" ON public.refund_requests;
 CREATE POLICY "Admins can manage refunds" ON public.refund_requests
 FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Buyers can view own refunds" ON public.refund_requests;
 CREATE POLICY "Buyers can view own refunds" ON public.refund_requests
 FOR SELECT USING (buyer_id = auth.uid());
 
+DROP POLICY IF EXISTS "Buyers can create refund requests" ON public.refund_requests;
 CREATE POLICY "Buyers can create refund requests" ON public.refund_requests
 FOR INSERT WITH CHECK (buyer_id = auth.uid() AND status = 'PENDING');
 
 -- RLS for admin_audit_logs (admin only)
+DROP POLICY IF EXISTS "Admins can view logs" ON public.admin_audit_logs;
 CREATE POLICY "Admins can view logs" ON public.admin_audit_logs
 FOR SELECT USING (is_admin());
 
+DROP POLICY IF EXISTS "Admins can insert logs" ON public.admin_audit_logs;
 CREATE POLICY "Admins can insert logs" ON public.admin_audit_logs
 FOR INSERT WITH CHECK (is_admin());
 
@@ -1143,6 +1212,7 @@ DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
 FOR UPDATE USING (auth.uid() = user_id AND is_blocked = false);
 
+DROP POLICY IF EXISTS "Admins can update any profile" ON public.profiles;
 CREATE POLICY "Admins can update any profile" ON public.profiles
 FOR ALL USING (is_admin());
 
@@ -1265,12 +1335,15 @@ ALTER TABLE public.withdrawal_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.insurance_fund ENABLE ROW LEVEL SECURITY;
 
 -- Reviews policies
+DROP POLICY IF EXISTS "Anyone can view visible reviews" ON public.reviews;
 CREATE POLICY "Anyone can view visible reviews" ON public.reviews
 FOR SELECT USING (is_visible = true);
 
+DROP POLICY IF EXISTS "Buyers can create reviews for their orders" ON public.reviews;
 CREATE POLICY "Buyers can create reviews for their orders" ON public.reviews
 FOR INSERT WITH CHECK (buyer_id = auth.uid());
 
+DROP POLICY IF EXISTS "Merchants can reply to their reviews" ON public.reviews;
 CREATE POLICY "Merchants can reply to their reviews" ON public.reviews
 FOR UPDATE USING (
   EXISTS (
@@ -1280,10 +1353,12 @@ FOR UPDATE USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage reviews" ON public.reviews;
 CREATE POLICY "Admins can manage reviews" ON public.reviews
 FOR ALL USING (is_admin());
 
 -- Withdrawal requests policies
+DROP POLICY IF EXISTS "Merchants can view own withdrawals" ON public.withdrawal_requests;
 CREATE POLICY "Merchants can view own withdrawals" ON public.withdrawal_requests
 FOR SELECT USING (
   EXISTS (
@@ -1293,6 +1368,7 @@ FOR SELECT USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can create withdrawals" ON public.withdrawal_requests;
 CREATE POLICY "Merchants can create withdrawals" ON public.withdrawal_requests
 FOR INSERT WITH CHECK (
   EXISTS (
@@ -1302,10 +1378,12 @@ FOR INSERT WITH CHECK (
   ) AND status = 'PENDING'
 );
 
+DROP POLICY IF EXISTS "Admins can manage withdrawals" ON public.withdrawal_requests;
 CREATE POLICY "Admins can manage withdrawals" ON public.withdrawal_requests
 FOR ALL USING (is_admin());
 
 -- Insurance fund policies
+DROP POLICY IF EXISTS "Merchants can view own insurance" ON public.insurance_fund;
 CREATE POLICY "Merchants can view own insurance" ON public.insurance_fund
 FOR SELECT USING (
   EXISTS (
@@ -1315,6 +1393,7 @@ FOR SELECT USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can create claims" ON public.insurance_fund;
 CREATE POLICY "Merchants can create claims" ON public.insurance_fund
 FOR INSERT WITH CHECK (
   EXISTS (
@@ -1324,6 +1403,7 @@ FOR INSERT WITH CHECK (
   ) AND type = 'claim' AND status = 'PENDING'
 );
 
+DROP POLICY IF EXISTS "Admins can manage insurance fund" ON public.insurance_fund;
 CREATE POLICY "Admins can manage insurance fund" ON public.insurance_fund
 FOR ALL USING (is_admin());
 
@@ -1475,15 +1555,19 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
 CREATE POLICY "Users can view own notifications" ON public.notifications
 FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
 CREATE POLICY "Users can update own notifications" ON public.notifications
 FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
 CREATE POLICY "System can insert notifications" ON public.notifications
 FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Admins can manage all notifications" ON public.notifications;
 CREATE POLICY "Admins can manage all notifications" ON public.notifications
 FOR ALL USING (is_admin());
 
@@ -1751,15 +1835,18 @@ ALTER TABLE public.transaction_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.merchant_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- RLS for transaction_packages (public read, admin manage)
+DROP POLICY IF EXISTS "Anyone can view active packages" ON public.transaction_packages;
 CREATE POLICY "Anyone can view active packages" 
 ON public.transaction_packages FOR SELECT 
 USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage packages" ON public.transaction_packages;
 CREATE POLICY "Admins can manage packages" 
 ON public.transaction_packages FOR ALL 
 USING (is_admin());
 
 -- RLS for merchant_subscriptions
+DROP POLICY IF EXISTS "Merchants can view own subscriptions" ON public.merchant_subscriptions;
 CREATE POLICY "Merchants can view own subscriptions" 
 ON public.merchant_subscriptions FOR SELECT 
 USING (EXISTS (
@@ -1768,6 +1855,7 @@ USING (EXISTS (
   AND merchants.user_id = auth.uid()
 ));
 
+DROP POLICY IF EXISTS "Merchants can create subscriptions" ON public.merchant_subscriptions;
 CREATE POLICY "Merchants can create subscriptions" 
 ON public.merchant_subscriptions FOR INSERT 
 WITH CHECK (EXISTS (
@@ -1776,6 +1864,7 @@ WITH CHECK (EXISTS (
   AND merchants.user_id = auth.uid()
 ) AND status = 'PENDING');
 
+DROP POLICY IF EXISTS "Admins can manage all subscriptions" ON public.merchant_subscriptions;
 CREATE POLICY "Admins can manage all subscriptions" 
 ON public.merchant_subscriptions FOR ALL 
 USING (is_admin());
@@ -1912,19 +2001,23 @@ ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kas_payments ENABLE ROW LEVEL SECURITY;
 
 -- Trade Groups Policies
+DROP POLICY IF EXISTS "Verifikators can manage own groups" ON public.trade_groups;
 CREATE POLICY "Verifikators can manage own groups"
 ON public.trade_groups FOR ALL
 USING (verifikator_id = auth.uid() OR is_admin());
 
+DROP POLICY IF EXISTS "Admins can manage all groups" ON public.trade_groups;
 CREATE POLICY "Admins can manage all groups"
 ON public.trade_groups FOR ALL
 USING (is_admin());
 
+DROP POLICY IF EXISTS "Anyone can view active groups" ON public.trade_groups;
 CREATE POLICY "Anyone can view active groups"
 ON public.trade_groups FOR SELECT
 USING (is_active = true);
 
 -- Group Members Policies
+DROP POLICY IF EXISTS "Verifikators can manage group members" ON public.group_members;
 CREATE POLICY "Verifikators can manage group members"
 ON public.group_members FOR ALL
 USING (
@@ -1935,6 +2028,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can view own membership" ON public.group_members;
 CREATE POLICY "Merchants can view own membership"
 ON public.group_members FOR SELECT
 USING (
@@ -1945,11 +2039,13 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage all members" ON public.group_members;
 CREATE POLICY "Admins can manage all members"
 ON public.group_members FOR ALL
 USING (is_admin());
 
 -- Kas Payments Policies
+DROP POLICY IF EXISTS "Verifikators can manage payments in their groups" ON public.kas_payments;
 CREATE POLICY "Verifikators can manage payments in their groups"
 ON public.kas_payments FOR ALL
 USING (
@@ -1960,6 +2056,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can view own payments" ON public.kas_payments;
 CREATE POLICY "Merchants can view own payments"
 ON public.kas_payments FOR SELECT
 USING (
@@ -1970,6 +2067,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage all payments" ON public.kas_payments;
 CREATE POLICY "Admins can manage all payments"
 ON public.kas_payments FOR ALL
 USING (is_admin());
@@ -2051,10 +2149,12 @@ CREATE TABLE public.verifikator_earnings (
 ALTER TABLE public.verifikator_earnings ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Admins can manage all earnings" ON public.verifikator_earnings;
 CREATE POLICY "Admins can manage all earnings"
   ON public.verifikator_earnings FOR ALL
   USING (is_admin());
 
+DROP POLICY IF EXISTS "Verifikators can view own earnings" ON public.verifikator_earnings;
 CREATE POLICY "Verifikators can view own earnings"
   ON public.verifikator_earnings FOR SELECT
   USING (verifikator_id = auth.uid());

@@ -39,19 +39,24 @@ ALTER TABLE public.refund_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- RLS for refund_requests
+DROP POLICY IF EXISTS "Admins can manage refunds" ON public.refund_requests;
 CREATE POLICY "Admins can manage refunds" ON public.refund_requests
 FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Buyers can view own refunds" ON public.refund_requests;
 CREATE POLICY "Buyers can view own refunds" ON public.refund_requests
 FOR SELECT USING (buyer_id = auth.uid());
 
+DROP POLICY IF EXISTS "Buyers can create refund requests" ON public.refund_requests;
 CREATE POLICY "Buyers can create refund requests" ON public.refund_requests
 FOR INSERT WITH CHECK (buyer_id = auth.uid() AND status = 'PENDING');
 
 -- RLS for admin_audit_logs (admin only)
+DROP POLICY IF EXISTS "Admins can view logs" ON public.admin_audit_logs;
 CREATE POLICY "Admins can view logs" ON public.admin_audit_logs
 FOR SELECT USING (is_admin());
 
+DROP POLICY IF EXISTS "Admins can insert logs" ON public.admin_audit_logs;
 CREATE POLICY "Admins can insert logs" ON public.admin_audit_logs
 FOR INSERT WITH CHECK (is_admin());
 
@@ -60,6 +65,7 @@ DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles
 FOR UPDATE USING (auth.uid() = user_id AND is_blocked = false);
 
+DROP POLICY IF EXISTS "Admins can update any profile" ON public.profiles;
 CREATE POLICY "Admins can update any profile" ON public.profiles
 FOR ALL USING (is_admin());
 

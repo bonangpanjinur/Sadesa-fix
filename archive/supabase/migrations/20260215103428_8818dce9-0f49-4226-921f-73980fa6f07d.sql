@@ -19,18 +19,22 @@ CREATE INDEX idx_chat_messages_auto_delete ON public.chat_messages(auto_delete_a
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 
 -- Policies: only sender/receiver can access
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can view own chat messages"
 ON public.chat_messages FOR SELECT
 USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
 CREATE POLICY "Users can send chat messages"
 ON public.chat_messages FOR INSERT
 WITH CHECK (auth.uid() = sender_id);
 
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
 CREATE POLICY "Users can update own messages read status"
 ON public.chat_messages FOR UPDATE
 USING (auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Admins can manage all chat messages" ON public.chat_messages;
 CREATE POLICY "Admins can manage all chat messages"
 ON public.chat_messages FOR ALL
 USING (is_admin());
@@ -66,11 +70,13 @@ CREATE INDEX idx_page_views_product ON public.page_views(product_id, created_at)
 ALTER TABLE public.page_views ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can insert page views (anonymous tracking)
+DROP POLICY IF EXISTS "Anyone can insert page views" ON public.page_views;
 CREATE POLICY "Anyone can insert page views"
 ON public.page_views FOR INSERT
 WITH CHECK (true);
 
 -- Merchants can view their own page views
+DROP POLICY IF EXISTS "Merchants can view own page views" ON public.page_views;
 CREATE POLICY "Merchants can view own page views"
 ON public.page_views FOR SELECT
 USING (

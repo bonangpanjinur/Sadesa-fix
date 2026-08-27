@@ -3,11 +3,14 @@ DROP POLICY IF EXISTS "Rate limits public" ON public.rate_limits;
 
 -- Rate limits should only allow insert/update from server (via security definer function)
 -- No direct public access needed
+DROP POLICY IF EXISTS "Rate limits managed by functions" ON public.rate_limits;
 CREATE POLICY "Rate limits managed by functions" ON public.rate_limits
   FOR SELECT USING (identifier = auth.uid()::text OR public.is_admin());
 
+DROP POLICY IF EXISTS "Rate limits insert via functions" ON public.rate_limits;
 CREATE POLICY "Rate limits insert via functions" ON public.rate_limits
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
 CREATE POLICY "Rate limits update via functions" ON public.rate_limits  
   FOR UPDATE USING (true);

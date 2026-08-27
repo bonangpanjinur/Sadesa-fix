@@ -3,6 +3,7 @@
 
 DROP POLICY IF EXISTS "Anyone can view settings" ON public.app_settings;
 
+DROP POLICY IF EXISTS "Public can view non-sensitive settings" ON public.app_settings;
 CREATE POLICY "Public can view non-sensitive settings"
   ON public.app_settings
   FOR SELECT

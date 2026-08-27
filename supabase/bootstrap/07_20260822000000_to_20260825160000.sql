@@ -15,6 +15,7 @@ DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tok
 DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens;
 
 -- Keep the table available only to trusted server-side service_role jobs.
+DROP POLICY IF EXISTS "Service role manages password reset tokens" ON public.password_reset_tokens;
 CREATE POLICY "Service role manages password reset tokens"
   ON public.password_reset_tokens
   FOR ALL
@@ -165,6 +166,7 @@ CREATE POLICY "POS owners manage outlet access" ON public.pos_user_outlet_access
     )
   );
 
+DROP POLICY IF EXISTS "POS users read own outlet access" ON public.pos_user_outlet_access;
 CREATE POLICY "POS users read own outlet access" ON public.pos_user_outlet_access
   FOR SELECT TO authenticated
   USING (
@@ -228,28 +230,34 @@ DROP POLICY IF EXISTS "tenant_users_select_held_bills" ON public.pos_held_bills;
 DROP POLICY IF EXISTS "tenant_users_select_returns" ON public.pos_sale_returns;
 DROP POLICY IF EXISTS "tenant_users_select_pos_users" ON public.pos_users;
 
+DROP POLICY IF EXISTS "POS users can view assigned stock" ON public.pos_stock;
 CREATE POLICY "POS users can view assigned stock" ON public.pos_stock
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned stock mutations" ON public.pos_stock_mutations;
 CREATE POLICY "POS users can view assigned stock mutations" ON public.pos_stock_mutations
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned sales" ON public.pos_sales;
 CREATE POLICY "POS users can view assigned sales" ON public.pos_sales
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned held bills" ON public.pos_held_bills;
 CREATE POLICY "POS users can view assigned held bills" ON public.pos_held_bills
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned returns" ON public.pos_sale_returns;
 CREATE POLICY "POS users can view assigned returns" ON public.pos_sale_returns
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
 -- Staff can see their own POS identity; only tenant owners can see the full
 -- tenant user directory.
+DROP POLICY IF EXISTS "POS users can view own POS identity" ON public.pos_users;
 CREATE POLICY "POS users can view own POS identity" ON public.pos_users
   FOR SELECT TO authenticated
   USING (user_id = auth.uid());
@@ -302,6 +310,7 @@ DROP POLICY IF EXISTS "Public view merchants bucket" ON storage.objects;
 DROP POLICY IF EXISTS "Allow users to upload certificates" ON storage.objects;
 DROP POLICY IF EXISTS "Allow users to upload ktp" ON storage.objects;
 
+DROP POLICY IF EXISTS "Owners and reviewers can read merchant documents" ON storage.objects;
 CREATE POLICY "Owners and reviewers can read merchant documents"
 ON storage.objects FOR SELECT TO authenticated
 USING (
@@ -317,6 +326,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Owners can upload merchant documents" ON storage.objects;
 CREATE POLICY "Owners can upload merchant documents"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
@@ -332,6 +342,7 @@ WITH CHECK (
   AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')
 );
 
+DROP POLICY IF EXISTS "Owners can update merchant documents" ON storage.objects;
 CREATE POLICY "Owners can update merchant documents"
 ON storage.objects FOR UPDATE TO authenticated
 USING (
@@ -343,6 +354,7 @@ WITH CHECK (
   AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
 );
 
+DROP POLICY IF EXISTS "Owners can delete merchant documents" ON storage.objects;
 CREATE POLICY "Owners can delete merchant documents"
 ON storage.objects FOR DELETE TO authenticated
 USING (
@@ -356,6 +368,7 @@ DROP POLICY IF EXISTS "Authenticated users can upload merchant gallery images" O
 DROP POLICY IF EXISTS "Users can update own merchant gallery images" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own merchant gallery images" ON storage.objects;
 
+DROP POLICY IF EXISTS "Merchant owners can upload gallery images" ON storage.objects;
 CREATE POLICY "Merchant owners can upload gallery images"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
@@ -379,6 +392,7 @@ WITH CHECK (
   AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp')
 );
 
+DROP POLICY IF EXISTS "Merchant owners can update gallery images" ON storage.objects;
 CREATE POLICY "Merchant owners can update gallery images"
 ON storage.objects FOR UPDATE TO authenticated
 USING (
@@ -421,6 +435,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Merchant owners can delete gallery images" ON storage.objects;
 CREATE POLICY "Merchant owners can delete gallery images"
 ON storage.objects FOR DELETE TO authenticated
 USING (
@@ -481,6 +496,7 @@ GRANT EXECUTE ON FUNCTION public.decrement_stock(uuid, integer) TO authenticated
 -- Expected object path: orders/{order_id}/{filename}
 DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
 
+DROP POLICY IF EXISTS "Buyer merchant admin can upload payment proofs" ON storage.objects;
 CREATE POLICY "Buyer merchant admin can upload payment proofs"
 ON storage.objects
 FOR INSERT
@@ -1154,6 +1170,7 @@ GRANT EXECUTE ON FUNCTION public.adjust_pos_stock(uuid, uuid, uuid, text, numeri
 
 DROP POLICY IF EXISTS "Anyone can view settings" ON public.app_settings;
 
+DROP POLICY IF EXISTS "Public can view non-sensitive settings" ON public.app_settings;
 CREATE POLICY "Public can view non-sensitive settings"
   ON public.app_settings
   FOR SELECT
@@ -1837,12 +1854,16 @@ CREATE INDEX IF NOT EXISTS idx_pos_price_override_pending ON public.pos_price_ov
 
 ALTER TABLE public.pos_void_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_price_override_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view own void requests" ON public.pos_void_requests;
 CREATE POLICY "POS users view own void requests" ON public.pos_void_requests FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create void requests" ON public.pos_void_requests;
 CREATE POLICY "POS users create void requests" ON public.pos_void_requests FOR INSERT TO authenticated
   WITH CHECK (requested_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view price overrides" ON public.pos_price_override_requests;
 CREATE POLICY "POS users view price overrides" ON public.pos_price_override_requests FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create price overrides" ON public.pos_price_override_requests;
 CREATE POLICY "POS users create price overrides" ON public.pos_price_override_requests FOR INSERT TO authenticated
   WITH CHECK (requested_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
@@ -1914,9 +1935,13 @@ CREATE TABLE IF NOT EXISTS public.pos_stock_opname_items (
 );
 ALTER TABLE public.pos_stock_opnames ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_stock_opname_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view stock opnames" ON public.pos_stock_opnames;
 CREATE POLICY "POS users view stock opnames" ON public.pos_stock_opnames FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create stock opnames" ON public.pos_stock_opnames;
 CREATE POLICY "POS users create stock opnames" ON public.pos_stock_opnames FOR INSERT TO authenticated WITH CHECK (created_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view stock opname items" ON public.pos_stock_opname_items;
 CREATE POLICY "POS users view stock opname items" ON public.pos_stock_opname_items FOR SELECT TO authenticated USING (opname_id IN (SELECT id FROM public.pos_stock_opnames WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
+DROP POLICY IF EXISTS "POS users create stock opname items" ON public.pos_stock_opname_items;
 CREATE POLICY "POS users create stock opname items" ON public.pos_stock_opname_items FOR INSERT TO authenticated WITH CHECK (opname_id IN (SELECT id FROM public.pos_stock_opnames WHERE created_by = auth.uid() AND status IN ('draft','counting')));
 
 CREATE OR REPLACE FUNCTION public.approve_pos_stock_opname(p_opname_id uuid)
@@ -2071,8 +2096,10 @@ ALTER TABLE public.pos_payment_anomalies ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.pos_payment_anomalies FROM anon, authenticated;
 GRANT SELECT, UPDATE ON public.pos_payment_anomalies TO authenticated;
 GRANT ALL ON public.pos_payment_anomalies TO service_role;
+DROP POLICY IF EXISTS "Admins view and manage anomalies" ON public.pos_payment_anomalies;
 CREATE POLICY "Admins view and manage anomalies" ON public.pos_payment_anomalies FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Tenant owners view anomalies" ON public.pos_payment_anomalies;
 CREATE POLICY "Tenant owners view anomalies" ON public.pos_payment_anomalies FOR SELECT TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
 
@@ -2168,8 +2195,10 @@ CREATE INDEX IF NOT EXISTS idx_pos_supplier_payments_po ON public.pos_supplier_p
 CREATE INDEX IF NOT EXISTS idx_pos_supplier_payments_supplier ON public.pos_supplier_payments(tenant_id, supplier_id, paid_at DESC);
 
 ALTER TABLE public.pos_supplier_payments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view supplier payments" ON public.pos_supplier_payments;
 CREATE POLICY "POS users view supplier payments" ON public.pos_supplier_payments FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create supplier payments" ON public.pos_supplier_payments;
 CREATE POLICY "POS users create supplier payments" ON public.pos_supplier_payments FOR INSERT TO authenticated
   WITH CHECK (created_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
@@ -2250,13 +2279,17 @@ CREATE INDEX IF NOT EXISTS idx_pos_stock_batches_fefo
 
 ALTER TABLE public.pos_warehouses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_stock_batches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view warehouses" ON public.pos_warehouses;
 CREATE POLICY "POS users view warehouses" ON public.pos_warehouses FOR SELECT TO authenticated
   USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant owners manage warehouses" ON public.pos_warehouses;
 CREATE POLICY "Tenant owners manage warehouses" ON public.pos_warehouses FOR ALL TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "POS users view stock batches" ON public.pos_stock_batches;
 CREATE POLICY "POS users view stock batches" ON public.pos_stock_batches FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "Tenant owners manage stock batches" ON public.pos_stock_batches;
 CREATE POLICY "Tenant owners manage stock batches" ON public.pos_stock_batches FOR ALL TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -2340,9 +2373,13 @@ ALTER TABLE public.pos_stock_reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_stock_reservation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_fulfillment_shipments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_fulfillment_shipment_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view reservations" ON public.pos_stock_reservations;
 CREATE POLICY "POS users view reservations" ON public.pos_stock_reservations FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view reservation items" ON public.pos_stock_reservation_items;
 CREATE POLICY "POS users view reservation items" ON public.pos_stock_reservation_items FOR SELECT TO authenticated USING (reservation_id IN (SELECT id FROM public.pos_stock_reservations WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
+DROP POLICY IF EXISTS "POS users view shipments" ON public.pos_fulfillment_shipments;
 CREATE POLICY "POS users view shipments" ON public.pos_fulfillment_shipments FOR SELECT TO authenticated USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users view shipment items" ON public.pos_fulfillment_shipment_items;
 CREATE POLICY "POS users view shipment items" ON public.pos_fulfillment_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.pos_fulfillment_shipments WHERE public.pos_user_can_access_outlet(tenant_id, outlet_id)));
 
 CREATE OR REPLACE FUNCTION public.reserve_pos_stock(
@@ -2433,11 +2470,15 @@ CREATE INDEX IF NOT EXISTS idx_courier_cod_status ON public.courier_cod_reconcil
 
 ALTER TABLE public.courier_commission_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.courier_cod_reconciliations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admins manage courier commission rules" ON public.courier_commission_rules;
 CREATE POLICY "Admins manage courier commission rules" ON public.courier_commission_rules FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Couriers view own COD reconciliation" ON public.courier_cod_reconciliations;
 CREATE POLICY "Couriers view own COD reconciliation" ON public.courier_cod_reconciliations FOR SELECT TO authenticated
   USING (courier_id IN (SELECT id FROM public.couriers WHERE user_id = auth.uid()) OR public.is_admin());
+DROP POLICY IF EXISTS "Couriers submit own COD reconciliation" ON public.courier_cod_reconciliations;
 CREATE POLICY "Couriers submit own COD reconciliation" ON public.courier_cod_reconciliations FOR INSERT TO authenticated
   WITH CHECK (submitted_by = auth.uid() AND courier_id IN (SELECT id FROM public.couriers WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Admins manage COD reconciliation" ON public.courier_cod_reconciliations;
 CREATE POLICY "Admins manage COD reconciliation" ON public.courier_cod_reconciliations FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 

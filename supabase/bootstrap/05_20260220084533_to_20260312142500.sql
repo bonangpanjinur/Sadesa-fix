@@ -18,6 +18,7 @@ CREATE TABLE public.merchant_gallery (
 ALTER TABLE public.merchant_gallery ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view gallery images of active merchants
+DROP POLICY IF EXISTS "Public can view merchant gallery" ON public.merchant_gallery;
 CREATE POLICY "Public can view merchant gallery"
   ON public.merchant_gallery FOR SELECT
   USING (EXISTS (
@@ -28,6 +29,7 @@ CREATE POLICY "Public can view merchant gallery"
   ));
 
 -- Merchants can manage own gallery
+DROP POLICY IF EXISTS "Merchants can manage own gallery" ON public.merchant_gallery;
 CREATE POLICY "Merchants can manage own gallery"
   ON public.merchant_gallery FOR ALL
   USING (EXISTS (
@@ -37,6 +39,7 @@ CREATE POLICY "Merchants can manage own gallery"
   ));
 
 -- Admins can manage all galleries
+DROP POLICY IF EXISTS "Admins can manage all galleries" ON public.merchant_gallery;
 CREATE POLICY "Admins can manage all galleries"
   ON public.merchant_gallery FOR ALL
   USING (is_admin());
@@ -46,18 +49,22 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('merchant-gallery', 'merc
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for merchant gallery
+DROP POLICY IF EXISTS "Public can view merchant gallery images" ON storage.objects;
 CREATE POLICY "Public can view merchant gallery images"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'merchant-gallery');
 
+DROP POLICY IF EXISTS "Authenticated users can upload merchant gallery images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload merchant gallery images"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Users can update own merchant gallery images" ON storage.objects;
 CREATE POLICY "Users can update own merchant gallery images"
   ON storage.objects FOR UPDATE
   USING (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Users can delete own merchant gallery images" ON storage.objects;
 CREATE POLICY "Users can delete own merchant gallery images"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
@@ -176,6 +183,7 @@ AS $$
 $$;
 
 -- RLS: Users can view chat messages where they are participants
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can view own chat messages"
 ON public.chat_messages
 FOR SELECT
@@ -185,6 +193,7 @@ USING (
 );
 
 -- RLS: Users can send chat messages if they are a participant
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
 CREATE POLICY "Users can send chat messages"
 ON public.chat_messages
 FOR INSERT
@@ -194,6 +203,7 @@ WITH CHECK (
 );
 
 -- RLS: Users can update read status on messages they received
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
 CREATE POLICY "Users can update own messages read status"
 ON public.chat_messages
 FOR UPDATE
@@ -205,11 +215,13 @@ VALUES ('chat-images', 'chat-images', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for chat images
+DROP POLICY IF EXISTS "Authenticated users can upload chat images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload chat images"
 ON storage.objects
 FOR INSERT
 WITH CHECK (bucket_id = 'chat-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Anyone can view chat images" ON storage.objects;
 CREATE POLICY "Anyone can view chat images"
 ON storage.objects
 FOR SELECT
@@ -251,10 +263,12 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Recreate the policies that were dropped by CASCADE
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can view own chat messages"
 ON public.chat_messages FOR SELECT
 USING (auth.uid() = sender_id OR auth.uid() = receiver_id OR is_chat_participant(auth.uid(), order_id, chat_type));
 
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
 CREATE POLICY "Users can send chat messages"
 ON public.chat_messages FOR INSERT
 WITH CHECK (auth.uid() = sender_id AND is_chat_participant(auth.uid(), order_id, chat_type));
@@ -331,18 +345,22 @@ DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat
 DROP POLICY IF EXISTS "Admins can manage all chat messages" ON public.chat_messages;
 
 -- Create policies
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can view own chat messages"
 ON public.chat_messages FOR SELECT
 USING (auth.uid() = sender_id OR auth.uid() = receiver_id OR is_chat_participant(auth.uid(), order_id, chat_type));
 
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
 CREATE POLICY "Users can send chat messages"
 ON public.chat_messages FOR INSERT
 WITH CHECK (auth.uid() = sender_id AND is_chat_participant(auth.uid(), order_id, chat_type));
 
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
 CREATE POLICY "Users can update own messages read status"
 ON public.chat_messages FOR UPDATE
 USING (auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Admins can manage all chat messages" ON public.chat_messages;
 CREATE POLICY "Admins can manage all chat messages"
 ON public.chat_messages FOR ALL
 USING (is_admin());
@@ -472,22 +490,26 @@ DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses
 DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 
+DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can view own addresses" 
   ON public.saved_addresses FOR SELECT 
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can insert own addresses" 
   ON public.saved_addresses FOR INSERT 
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can update own addresses" 
   ON public.saved_addresses FOR UPDATE 
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can delete own addresses" 
   ON public.saved_addresses FOR DELETE 
   TO authenticated
@@ -611,22 +633,26 @@ DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses
 DROP POLICY IF EXISTS "Anyone can insert addresses" ON public.saved_addresses;
 
 -- Buat policy baru yang bersih
+DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can view own addresses" 
   ON public.saved_addresses FOR SELECT 
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can insert own addresses" 
   ON public.saved_addresses FOR INSERT 
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can update own addresses" 
   ON public.saved_addresses FOR UPDATE 
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can delete own addresses" 
   ON public.saved_addresses FOR DELETE 
   TO authenticated
@@ -708,22 +734,26 @@ DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses
 DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 
+DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can view own addresses" 
   ON public.saved_addresses FOR SELECT 
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can insert own addresses" 
   ON public.saved_addresses FOR INSERT 
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can update own addresses" 
   ON public.saved_addresses FOR UPDATE 
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can delete own addresses" 
   ON public.saved_addresses FOR DELETE 
   TO authenticated
@@ -860,12 +890,15 @@ CREATE TABLE public.courier_deposits (
 
 ALTER TABLE public.courier_deposits ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Couriers can create own deposits" ON public.courier_deposits;
 CREATE POLICY "Couriers can create own deposits" ON public.courier_deposits
   FOR INSERT WITH CHECK (courier_id = get_user_courier_id());
 
+DROP POLICY IF EXISTS "Couriers can view own deposits" ON public.courier_deposits;
 CREATE POLICY "Couriers can view own deposits" ON public.courier_deposits
   FOR SELECT USING (courier_id = get_user_courier_id());
 
+DROP POLICY IF EXISTS "Admins full access courier deposits" ON public.courier_deposits;
 CREATE POLICY "Admins full access courier deposits" ON public.courier_deposits
   FOR ALL USING (is_admin());
 
@@ -884,9 +917,11 @@ CREATE TABLE public.courier_balance_logs (
 
 ALTER TABLE public.courier_balance_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Couriers can view own balance logs" ON public.courier_balance_logs;
 CREATE POLICY "Couriers can view own balance logs" ON public.courier_balance_logs
   FOR SELECT USING (courier_id = get_user_courier_id());
 
+DROP POLICY IF EXISTS "Admins full access balance logs" ON public.courier_balance_logs;
 CREATE POLICY "Admins full access balance logs" ON public.courier_balance_logs
   FOR ALL USING (is_admin());
 
@@ -1007,6 +1042,7 @@ CREATE TABLE public.ride_requests (
 ALTER TABLE public.ride_requests ENABLE ROW LEVEL SECURITY;
 
 -- Passengers can create ride requests
+DROP POLICY IF EXISTS "Passengers can create rides" ON public.ride_requests;
 CREATE POLICY "Passengers can create rides"
 ON public.ride_requests
 FOR INSERT
@@ -1014,6 +1050,7 @@ TO authenticated
 WITH CHECK (auth.uid() = passenger_id);
 
 -- Passengers can view own rides
+DROP POLICY IF EXISTS "Passengers can view own rides" ON public.ride_requests;
 CREATE POLICY "Passengers can view own rides"
 ON public.ride_requests
 FOR SELECT
@@ -1021,6 +1058,7 @@ TO authenticated
 USING (auth.uid() = passenger_id);
 
 -- Passengers can update own rides (cancel)
+DROP POLICY IF EXISTS "Passengers can update own rides" ON public.ride_requests;
 CREATE POLICY "Passengers can update own rides"
 ON public.ride_requests
 FOR UPDATE
@@ -1028,6 +1066,7 @@ TO authenticated
 USING (auth.uid() = passenger_id);
 
 -- Drivers can view SEARCHING rides (to accept)
+DROP POLICY IF EXISTS "Drivers can view searching rides" ON public.ride_requests;
 CREATE POLICY "Drivers can view searching rides"
 ON public.ride_requests
 FOR SELECT
@@ -1043,6 +1082,7 @@ USING (
 );
 
 -- Drivers can view their assigned rides
+DROP POLICY IF EXISTS "Drivers can view assigned rides" ON public.ride_requests;
 CREATE POLICY "Drivers can view assigned rides"
 ON public.ride_requests
 FOR SELECT
@@ -1056,6 +1096,7 @@ USING (
 );
 
 -- Drivers can update rides they accepted
+DROP POLICY IF EXISTS "Drivers can update assigned rides" ON public.ride_requests;
 CREATE POLICY "Drivers can update assigned rides"
 ON public.ride_requests
 FOR UPDATE
@@ -1069,6 +1110,7 @@ USING (
 );
 
 -- Admin full access
+DROP POLICY IF EXISTS "Admins can manage all rides" ON public.ride_requests;
 CREATE POLICY "Admins can manage all rides"
 ON public.ride_requests
 FOR ALL
@@ -1163,16 +1205,19 @@ CREATE TABLE IF NOT EXISTS public.merchant_favorites (
 
 ALTER TABLE public.merchant_favorites ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own favorites" ON public.merchant_favorites;
 CREATE POLICY "Users can view their own favorites"
   ON public.merchant_favorites
   FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own favorites" ON public.merchant_favorites;
 CREATE POLICY "Users can insert their own favorites"
   ON public.merchant_favorites
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own favorites" ON public.merchant_favorites;
 CREATE POLICY "Users can delete their own favorites"
   ON public.merchant_favorites
   FOR DELETE

@@ -12,7 +12,7 @@ EXCEPTION
 END $$;
 
 -- 2. Create user_roles table (separate from profiles for security)
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     role app_role NOT NULL DEFAULT 'buyer',
@@ -232,77 +232,94 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 
 -- USER_ROLES policies
+DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
 CREATE POLICY "Users can view own roles"
     ON public.user_roles FOR SELECT
     USING (auth.uid() = user_id);
 
 -- PROFILES policies
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
     ON public.profiles FOR SELECT
     USING (auth.uid() = user_id OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
     ON public.profiles FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile"
     ON public.profiles FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
 -- VILLAGES policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active villages" ON public.villages;
 CREATE POLICY "Anyone can view active villages"
     ON public.villages FOR SELECT
     USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage villages" ON public.villages;
 CREATE POLICY "Admins can manage villages"
     ON public.villages FOR ALL
     USING (public.is_admin());
 
 -- MERCHANTS policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active merchants" ON public.merchants;
 CREATE POLICY "Anyone can view active merchants"
     ON public.merchants FOR SELECT
     USING (status = 'ACTIVE');
 
+DROP POLICY IF EXISTS "Admins can manage merchants" ON public.merchants;
 CREATE POLICY "Admins can manage merchants"
     ON public.merchants FOR ALL
     USING (public.is_admin());
 
 -- PRODUCTS policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active products" ON public.products;
 CREATE POLICY "Anyone can view active products"
     ON public.products FOR SELECT
     USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
 CREATE POLICY "Admins can manage products"
     ON public.products FOR ALL
     USING (public.is_admin());
 
 -- TOURISM policies (public read)
+DROP POLICY IF EXISTS "Anyone can view active tourism" ON public.tourism;
 CREATE POLICY "Anyone can view active tourism"
     ON public.tourism FOR SELECT
     USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage tourism" ON public.tourism;
 CREATE POLICY "Admins can manage tourism"
     ON public.tourism FOR ALL
     USING (public.is_admin());
 
 -- ORDERS policies
+DROP POLICY IF EXISTS "Buyers can view own orders" ON public.orders;
 CREATE POLICY "Buyers can view own orders"
     ON public.orders FOR SELECT
     USING (auth.uid() = buyer_id OR public.is_admin());
 
+DROP POLICY IF EXISTS "Buyers can create orders" ON public.orders;
 CREATE POLICY "Buyers can create orders"
     ON public.orders FOR INSERT
     WITH CHECK (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
 CREATE POLICY "Buyers can update own pending orders"
     ON public.orders FOR UPDATE
     USING (auth.uid() = buyer_id AND status = 'NEW');
 
+DROP POLICY IF EXISTS "Admins can manage all orders" ON public.orders;
 CREATE POLICY "Admins can manage all orders"
     ON public.orders FOR ALL
     USING (public.is_admin());
 
 -- ORDER_ITEMS policies
+DROP POLICY IF EXISTS "Users can view own order items" ON public.order_items;
 CREATE POLICY "Users can view own order items"
     ON public.order_items FOR SELECT
     USING (
@@ -313,6 +330,7 @@ CREATE POLICY "Users can view own order items"
         )
     );
 
+DROP POLICY IF EXISTS "Users can insert order items for own orders" ON public.order_items;
 CREATE POLICY "Users can insert order items for own orders"
     ON public.order_items FOR INSERT
     WITH CHECK (

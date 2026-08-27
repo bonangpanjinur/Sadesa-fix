@@ -26,12 +26,14 @@ CREATE INDEX IF NOT EXISTS idx_pos_loyalty_ledger_sale
   ON public.pos_loyalty_ledger(sale_id) WHERE sale_id IS NOT NULL;
 
 ALTER TABLE public.pos_loyalty_ledger ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger;
 CREATE POLICY "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger
   FOR SELECT TO authenticated
   USING (
     tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true)
     OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())
   );
+DROP POLICY IF EXISTS "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger;
 CREATE POLICY "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger
   FOR ALL TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))

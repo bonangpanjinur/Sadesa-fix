@@ -11,12 +11,14 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
 
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can manage own push subscriptions"
   ON public.push_subscriptions
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can manage all push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Admins can manage all push subscriptions"
   ON public.push_subscriptions
   FOR ALL

@@ -65,6 +65,7 @@ CREATE POLICY "Rate limits update via functions" ON public.rate_limits
 -- Fix overly permissive RLS policy on page_views (WITH CHECK true)
 DROP POLICY IF EXISTS "Anyone can insert page views" ON public.page_views;
 
+DROP POLICY IF EXISTS "Authenticated or anonymous can insert their own page view" ON public.page_views;
 CREATE POLICY "Authenticated or anonymous can insert their own page view"
 ON public.page_views
 FOR INSERT
@@ -115,6 +116,7 @@ DROP POLICY IF EXISTS "Users can delete their own payment proofs" ON storage.obj
 
 -- SELECT: buyer (owner of order), merchant of order, or admin
 -- Path convention: orders/{order_id}/{filename}
+DROP POLICY IF EXISTS "Buyer/merchant/admin can view payment proofs" ON storage.objects;
 CREATE POLICY "Buyer/merchant/admin can view payment proofs"
 ON storage.objects
 FOR SELECT
@@ -133,6 +135,7 @@ USING (
 );
 
 -- INSERT: any authenticated user (validated at app level via order ownership)
+DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
 CREATE POLICY "Authenticated users can upload payment proofs"
 ON storage.objects
 FOR INSERT
@@ -140,6 +143,7 @@ TO authenticated
 WITH CHECK (bucket_id = 'payment-proofs');
 
 -- UPDATE: only the buyer of the order
+DROP POLICY IF EXISTS "Buyer can update own payment proofs" ON storage.objects;
 CREATE POLICY "Buyer can update own payment proofs"
 ON storage.objects
 FOR UPDATE
@@ -154,6 +158,7 @@ USING (
 );
 
 -- DELETE: only buyer or admin
+DROP POLICY IF EXISTS "Buyer or admin can delete payment proofs" ON storage.objects;
 CREATE POLICY "Buyer or admin can delete payment proofs"
 ON storage.objects
 FOR DELETE
@@ -520,115 +525,144 @@ ALTER TABLE pos_sale_returns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_sale_return_items ENABLE ROW LEVEL SECURITY;
 
 -- Tenant owner can manage their own tenant
+DROP POLICY IF EXISTS "tenant_owner_all" ON pos_tenants;
 CREATE POLICY "tenant_owner_all" ON pos_tenants FOR ALL USING (user_id = auth.uid());
 
 -- Users within a tenant can access tenant data
+DROP POLICY IF EXISTS "tenant_users_select_outlets" ON pos_outlets;
 CREATE POLICY "tenant_users_select_outlets" ON pos_outlets FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_outlets" ON pos_outlets;
 CREATE POLICY "tenant_owner_manage_outlets" ON pos_outlets FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_categories" ON pos_categories;
 CREATE POLICY "tenant_users_select_categories" ON pos_categories FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_categories" ON pos_categories;
 CREATE POLICY "tenant_owner_manage_categories" ON pos_categories FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_brands" ON pos_brands;
 CREATE POLICY "tenant_users_select_brands" ON pos_brands FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_brands" ON pos_brands;
 CREATE POLICY "tenant_owner_manage_brands" ON pos_brands FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_products" ON pos_products;
 CREATE POLICY "tenant_users_select_products" ON pos_products FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_products" ON pos_products;
 CREATE POLICY "tenant_owner_manage_products" ON pos_products FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_variants" ON pos_product_variants;
 CREATE POLICY "tenant_users_select_variants" ON pos_product_variants FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_variants" ON pos_product_variants;
 CREATE POLICY "tenant_owner_manage_variants" ON pos_product_variants FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_stock" ON pos_stock;
 CREATE POLICY "tenant_users_select_stock" ON pos_stock FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_stock" ON pos_stock;
 CREATE POLICY "tenant_owner_manage_stock" ON pos_stock FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_mutations" ON pos_stock_mutations;
 CREATE POLICY "tenant_users_select_mutations" ON pos_stock_mutations FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_mutations" ON pos_stock_mutations;
 CREATE POLICY "tenant_owner_manage_mutations" ON pos_stock_mutations FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_customers" ON pos_customers;
 CREATE POLICY "tenant_users_select_customers" ON pos_customers FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_customers" ON pos_customers;
 CREATE POLICY "tenant_owner_manage_customers" ON pos_customers FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_suppliers" ON pos_suppliers;
 CREATE POLICY "tenant_users_select_suppliers" ON pos_suppliers FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_suppliers" ON pos_suppliers;
 CREATE POLICY "tenant_owner_manage_suppliers" ON pos_suppliers FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_sales" ON pos_sales;
 CREATE POLICY "tenant_users_select_sales" ON pos_sales FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_sales" ON pos_sales;
 CREATE POLICY "tenant_owner_manage_sales" ON pos_sales FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_sale_items" ON pos_sale_items;
 CREATE POLICY "tenant_users_select_sale_items" ON pos_sale_items FOR SELECT USING (
   sale_id IN (SELECT id FROM pos_sales WHERE tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid()))
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_sale_items" ON pos_sale_items;
 CREATE POLICY "tenant_owner_manage_sale_items" ON pos_sale_items FOR ALL USING (
   sale_id IN (SELECT id FROM pos_sales WHERE tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid()))
 );
 
+DROP POLICY IF EXISTS "tenant_owner_manage_held_bills" ON pos_held_bills;
 CREATE POLICY "tenant_owner_manage_held_bills" ON pos_held_bills FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_held_bills" ON pos_held_bills;
 CREATE POLICY "tenant_users_select_held_bills" ON pos_held_bills FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
 
+DROP POLICY IF EXISTS "tenant_users_select_pos_users" ON pos_users;
 CREATE POLICY "tenant_users_select_pos_users" ON pos_users FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   OR user_id = auth.uid()
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_pos_users" ON pos_users;
 CREATE POLICY "tenant_owner_manage_pos_users" ON pos_users FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
 
+DROP POLICY IF EXISTS "tenant_owner_manage_returns" ON pos_sale_returns;
 CREATE POLICY "tenant_owner_manage_returns" ON pos_sale_returns FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_return_items" ON pos_sale_return_items;
 CREATE POLICY "tenant_owner_manage_return_items" ON pos_sale_return_items FOR ALL USING (
   return_id IN (SELECT id FROM pos_sale_returns WHERE tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid()))
 );
@@ -775,18 +809,22 @@ ALTER TABLE pos_cash_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_cash_mutations ENABLE ROW LEVEL SECURITY;
 
 -- Purchase Orders
+DROP POLICY IF EXISTS "tenant_owner_manage_purchase_orders" ON pos_purchase_orders;
 CREATE POLICY "tenant_owner_manage_purchase_orders" ON pos_purchase_orders FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_purchase_orders" ON pos_purchase_orders;
 CREATE POLICY "tenant_users_select_purchase_orders" ON pos_purchase_orders FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_po_items" ON pos_purchase_order_items;
 CREATE POLICY "tenant_owner_manage_po_items" ON pos_purchase_order_items FOR ALL USING (
   purchase_order_id IN (
     SELECT id FROM pos_purchase_orders
     WHERE tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   )
 );
+DROP POLICY IF EXISTS "tenant_users_select_po_items" ON pos_purchase_order_items;
 CREATE POLICY "tenant_users_select_po_items" ON pos_purchase_order_items FOR SELECT USING (
   purchase_order_id IN (
     SELECT id FROM pos_purchase_orders
@@ -795,9 +833,11 @@ CREATE POLICY "tenant_users_select_po_items" ON pos_purchase_order_items FOR SEL
 );
 
 -- Purchase Returns
+DROP POLICY IF EXISTS "tenant_owner_manage_purchase_returns" ON pos_purchase_returns;
 CREATE POLICY "tenant_owner_manage_purchase_returns" ON pos_purchase_returns FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_purchase_return_items" ON pos_purchase_return_items;
 CREATE POLICY "tenant_owner_manage_purchase_return_items" ON pos_purchase_return_items FOR ALL USING (
   purchase_return_id IN (
     SELECT id FROM pos_purchase_returns
@@ -806,23 +846,29 @@ CREATE POLICY "tenant_owner_manage_purchase_return_items" ON pos_purchase_return
 );
 
 -- Cash Sessions
+DROP POLICY IF EXISTS "tenant_owner_manage_cash_sessions" ON pos_cash_sessions;
 CREATE POLICY "tenant_owner_manage_cash_sessions" ON pos_cash_sessions FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_cash_sessions" ON pos_cash_sessions;
 CREATE POLICY "tenant_users_select_cash_sessions" ON pos_cash_sessions FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_manage_own_sessions" ON pos_cash_sessions;
 CREATE POLICY "tenant_users_manage_own_sessions" ON pos_cash_sessions FOR ALL USING (
   cashier_id = auth.uid()
 );
 
 -- Cash Mutations
+DROP POLICY IF EXISTS "tenant_owner_manage_cash_mutations" ON pos_cash_mutations;
 CREATE POLICY "tenant_owner_manage_cash_mutations" ON pos_cash_mutations FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_cash_mutations" ON pos_cash_mutations;
 CREATE POLICY "tenant_users_select_cash_mutations" ON pos_cash_mutations FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_manage_own_mutations" ON pos_cash_mutations;
 CREATE POLICY "tenant_users_manage_own_mutations" ON pos_cash_mutations FOR INSERT WITH CHECK (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
@@ -898,16 +944,19 @@ ALTER TABLE pos_raw_materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_recipes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_raw_material_mutations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tenant_raw_materials" ON pos_raw_materials;
 CREATE POLICY "tenant_raw_materials" ON pos_raw_materials
   FOR ALL USING (
     tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "tenant_recipes" ON pos_recipes;
 CREATE POLICY "tenant_recipes" ON pos_recipes
   FOR ALL USING (
     tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   );
 
+DROP POLICY IF EXISTS "tenant_raw_material_mutations" ON pos_raw_material_mutations;
 CREATE POLICY "tenant_raw_material_mutations" ON pos_raw_material_mutations
   FOR ALL USING (
     tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
@@ -1035,22 +1084,27 @@ ALTER TABLE pos_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_user_outlet_access ENABLE ROW LEVEL SECURITY;
 
 -- Stock Transfers
+DROP POLICY IF EXISTS "tenant_owner_manage_transfers" ON pos_stock_transfers;
 CREATE POLICY "tenant_owner_manage_transfers" ON pos_stock_transfers FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_transfers" ON pos_stock_transfers;
 CREATE POLICY "tenant_users_select_transfers" ON pos_stock_transfers FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_create_transfers" ON pos_stock_transfers;
 CREATE POLICY "tenant_users_create_transfers" ON pos_stock_transfers FOR INSERT WITH CHECK (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
 
+DROP POLICY IF EXISTS "tenant_owner_manage_transfer_items" ON pos_stock_transfer_items;
 CREATE POLICY "tenant_owner_manage_transfer_items" ON pos_stock_transfer_items FOR ALL USING (
   transfer_id IN (
     SELECT id FROM pos_stock_transfers
     WHERE tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   )
 );
+DROP POLICY IF EXISTS "tenant_users_select_transfer_items" ON pos_stock_transfer_items;
 CREATE POLICY "tenant_users_select_transfer_items" ON pos_stock_transfer_items FOR SELECT USING (
   transfer_id IN (
     SELECT id FROM pos_stock_transfers
@@ -1059,12 +1113,15 @@ CREATE POLICY "tenant_users_select_transfer_items" ON pos_stock_transfer_items F
 );
 
 -- Audit Logs (read-only untuk semua, insert untuk semua)
+DROP POLICY IF EXISTS "tenant_owner_read_audit" ON pos_audit_logs;
 CREATE POLICY "tenant_owner_read_audit" ON pos_audit_logs FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_read_audit" ON pos_audit_logs;
 CREATE POLICY "tenant_users_read_audit" ON pos_audit_logs FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_write_audit" ON pos_audit_logs;
 CREATE POLICY "tenant_users_write_audit" ON pos_audit_logs FOR INSERT WITH CHECK (
   tenant_id IN (
     SELECT id FROM pos_tenants WHERE user_id = auth.uid()
@@ -1074,17 +1131,21 @@ CREATE POLICY "tenant_users_write_audit" ON pos_audit_logs FOR INSERT WITH CHECK
 );
 
 -- Notifications
+DROP POLICY IF EXISTS "tenant_owner_manage_notif" ON pos_notifications;
 CREATE POLICY "tenant_owner_manage_notif" ON pos_notifications FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "user_own_notif" ON pos_notifications;
 CREATE POLICY "user_own_notif" ON pos_notifications FOR ALL USING (
   user_id = auth.uid()
 );
 
 -- User Outlet Access
+DROP POLICY IF EXISTS "tenant_owner_manage_access" ON pos_user_outlet_access;
 CREATE POLICY "tenant_owner_manage_access" ON pos_user_outlet_access FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_read_access" ON pos_user_outlet_access;
 CREATE POLICY "tenant_users_read_access" ON pos_user_outlet_access FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
@@ -1157,6 +1218,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_promotions_tenant ON public.pos_promotions(te
 CREATE INDEX IF NOT EXISTS idx_pos_promotions_active ON public.pos_promotions(tenant_id, is_active);
 
 ALTER TABLE public.pos_promotions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_promotions_tenant_access" ON public.pos_promotions;
 CREATE POLICY "pos_promotions_tenant_access" ON public.pos_promotions
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1191,6 +1253,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_vouchers_tenant ON public.pos_vouchers(tenant
 CREATE INDEX IF NOT EXISTS idx_pos_vouchers_code ON public.pos_vouchers(tenant_id, code);
 
 ALTER TABLE public.pos_vouchers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_vouchers_tenant_access" ON public.pos_vouchers;
 CREATE POLICY "pos_vouchers_tenant_access" ON public.pos_vouchers
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1209,6 +1272,7 @@ CREATE TABLE IF NOT EXISTS public.pos_voucher_usages (
 );
 
 ALTER TABLE public.pos_voucher_usages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_voucher_usages_access" ON public.pos_voucher_usages;
 CREATE POLICY "pos_voucher_usages_access" ON public.pos_voucher_usages
   USING (voucher_id IN (
     SELECT id FROM public.pos_vouchers
@@ -1244,6 +1308,7 @@ CREATE TABLE IF NOT EXISTS public.pos_loyalty_programs (
 );
 
 ALTER TABLE public.pos_loyalty_programs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_loyalty_programs_access" ON public.pos_loyalty_programs;
 CREATE POLICY "pos_loyalty_programs_access" ON public.pos_loyalty_programs
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1267,6 +1332,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_loyalty_points_tenant ON public.pos_loyalty_p
 CREATE INDEX IF NOT EXISTS idx_pos_loyalty_points_customer ON public.pos_loyalty_points(customer_id);
 
 ALTER TABLE public.pos_loyalty_points ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_loyalty_points_access" ON public.pos_loyalty_points;
 CREATE POLICY "pos_loyalty_points_access" ON public.pos_loyalty_points
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1294,6 +1360,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_loyalty_tx_customer ON public.pos_loyalty_tra
 CREATE INDEX IF NOT EXISTS idx_pos_loyalty_tx_tenant ON public.pos_loyalty_transactions(tenant_id);
 
 ALTER TABLE public.pos_loyalty_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_loyalty_transactions_access" ON public.pos_loyalty_transactions;
 CREATE POLICY "pos_loyalty_transactions_access" ON public.pos_loyalty_transactions
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1362,9 +1429,11 @@ CREATE TABLE IF NOT EXISTS pos_table_orders (
 ALTER TABLE pos_tables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_table_orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tenant_tables" ON pos_tables;
 CREATE POLICY "tenant_tables" ON pos_tables
   FOR ALL USING (tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "tenant_table_orders" ON pos_table_orders;
 CREATE POLICY "tenant_table_orders" ON pos_table_orders
   FOR ALL USING (tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid()));
 
@@ -1435,6 +1504,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_marketplace_sync_tenant ON public.pos_marketp
 CREATE INDEX IF NOT EXISTS idx_pos_marketplace_sync_status ON public.pos_marketplace_sync(tenant_id, sync_status);
 
 ALTER TABLE public.pos_marketplace_sync ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_marketplace_sync_access" ON public.pos_marketplace_sync;
 CREATE POLICY "pos_marketplace_sync_access" ON public.pos_marketplace_sync
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1457,6 +1527,7 @@ CREATE TABLE IF NOT EXISTS public.pos_sync_logs (
 );
 
 ALTER TABLE public.pos_sync_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_sync_logs_access" ON public.pos_sync_logs;
 CREATE POLICY "pos_sync_logs_access" ON public.pos_sync_logs
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
 
@@ -1491,6 +1562,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_marketplace_orders_tenant ON public.pos_marke
 CREATE INDEX IF NOT EXISTS idx_pos_marketplace_orders_status ON public.pos_marketplace_orders(tenant_id, status);
 
 ALTER TABLE public.pos_marketplace_orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_marketplace_orders_access" ON public.pos_marketplace_orders;
 CREATE POLICY "pos_marketplace_orders_access" ON public.pos_marketplace_orders
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1516,6 +1588,7 @@ CREATE TABLE IF NOT EXISTS public.pos_integration_settings (
 );
 
 ALTER TABLE public.pos_integration_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_integration_settings_access" ON public.pos_integration_settings;
 CREATE POLICY "pos_integration_settings_access" ON public.pos_integration_settings
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -1536,12 +1609,14 @@ CREATE TABLE IF NOT EXISTS public.push_subscriptions (
 
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage own push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can manage own push subscriptions"
   ON public.push_subscriptions
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can manage all push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Admins can manage all push subscriptions"
   ON public.push_subscriptions
   FOR ALL
@@ -1581,6 +1656,7 @@ CREATE TABLE IF NOT EXISTS public.merchant_operating_hours (
 ALTER TABLE public.merchant_operating_hours ENABLE ROW LEVEL SECURITY;
 
 -- Merchant bisa baca dan kelola jam operasional miliknya sendiri
+DROP POLICY IF EXISTS "merchant_own_hours" ON public.merchant_operating_hours;
 CREATE POLICY "merchant_own_hours" ON public.merchant_operating_hours
   USING (
     merchant_id IN (
@@ -1589,12 +1665,14 @@ CREATE POLICY "merchant_own_hours" ON public.merchant_operating_hours
   );
 
 -- Admin bisa baca semua
+DROP POLICY IF EXISTS "admin_read_hours" ON public.merchant_operating_hours;
 CREATE POLICY "admin_read_hours" ON public.merchant_operating_hours
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
 -- Publik bisa baca (untuk menampilkan jadwal di halaman toko)
+DROP POLICY IF EXISTS "public_read_hours" ON public.merchant_operating_hours;
 CREATE POLICY "public_read_hours" ON public.merchant_operating_hours
   FOR SELECT USING (true);
 

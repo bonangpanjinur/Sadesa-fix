@@ -7,10 +7,12 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS for product-images: Merchants can upload to their own folder
+DROP POLICY IF EXISTS "Anyone can view product images" ON storage.objects;
 CREATE POLICY "Anyone can view product images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "Merchants can upload product images" ON storage.objects;
 CREATE POLICY "Merchants can upload product images"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -25,6 +27,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can update own product images" ON storage.objects;
 CREATE POLICY "Merchants can update own product images"
 ON storage.objects FOR UPDATE
 USING (
@@ -38,6 +41,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can delete own product images" ON storage.objects;
 CREATE POLICY "Merchants can delete own product images"
 ON storage.objects FOR DELETE
 USING (
@@ -52,10 +56,12 @@ USING (
 );
 
 -- RLS for tourism-images: Admin desa can upload
+DROP POLICY IF EXISTS "Anyone can view tourism images" ON storage.objects;
 CREATE POLICY "Anyone can view tourism images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'tourism-images');
 
+DROP POLICY IF EXISTS "Admin desa can upload tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can upload tourism images"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -63,6 +69,7 @@ WITH CHECK (
   AND (is_admin() OR is_admin_desa())
 );
 
+DROP POLICY IF EXISTS "Admin desa can update tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can update tourism images"
 ON storage.objects FOR UPDATE
 USING (
@@ -70,6 +77,7 @@ USING (
   AND (is_admin() OR is_admin_desa())
 );
 
+DROP POLICY IF EXISTS "Admin desa can delete tourism images" ON storage.objects;
 CREATE POLICY "Admin desa can delete tourism images"
 ON storage.objects FOR DELETE
 USING (
@@ -78,10 +86,12 @@ USING (
 );
 
 -- RLS for profile-images: Users can upload their own
+DROP POLICY IF EXISTS "Anyone can view profile images" ON storage.objects;
 CREATE POLICY "Anyone can view profile images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'profile-images');
 
+DROP POLICY IF EXISTS "Users can upload own profile image" ON storage.objects;
 CREATE POLICY "Users can upload own profile image"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -89,6 +99,7 @@ WITH CHECK (
   AND auth.uid() IS NOT NULL
 );
 
+DROP POLICY IF EXISTS "Users can update own profile image" ON storage.objects;
 CREATE POLICY "Users can update own profile image"
 ON storage.objects FOR UPDATE
 USING (
@@ -96,6 +107,7 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
+DROP POLICY IF EXISTS "Users can delete own profile image" ON storage.objects;
 CREATE POLICY "Users can delete own profile image"
 ON storage.objects FOR DELETE
 USING (
@@ -104,10 +116,12 @@ USING (
 );
 
 -- RLS for merchant-images: Merchants can upload their store image
+DROP POLICY IF EXISTS "Anyone can view merchant images" ON storage.objects;
 CREATE POLICY "Anyone can view merchant images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'merchant-images');
 
+DROP POLICY IF EXISTS "Merchants can upload merchant images" ON storage.objects;
 CREATE POLICY "Merchants can upload merchant images"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -118,6 +132,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can update own merchant images" ON storage.objects;
 CREATE POLICY "Merchants can update own merchant images"
 ON storage.objects FOR UPDATE
 USING (
@@ -131,6 +146,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can delete own merchant images" ON storage.objects;
 CREATE POLICY "Merchants can delete own merchant images"
 ON storage.objects FOR DELETE
 USING (

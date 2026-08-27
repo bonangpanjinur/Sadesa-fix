@@ -29,6 +29,7 @@ CREATE TABLE public.ride_requests (
 ALTER TABLE public.ride_requests ENABLE ROW LEVEL SECURITY;
 
 -- Passengers can create ride requests
+DROP POLICY IF EXISTS "Passengers can create rides" ON public.ride_requests;
 CREATE POLICY "Passengers can create rides"
 ON public.ride_requests
 FOR INSERT
@@ -36,6 +37,7 @@ TO authenticated
 WITH CHECK (auth.uid() = passenger_id);
 
 -- Passengers can view own rides
+DROP POLICY IF EXISTS "Passengers can view own rides" ON public.ride_requests;
 CREATE POLICY "Passengers can view own rides"
 ON public.ride_requests
 FOR SELECT
@@ -43,6 +45,7 @@ TO authenticated
 USING (auth.uid() = passenger_id);
 
 -- Passengers can update own rides (cancel)
+DROP POLICY IF EXISTS "Passengers can update own rides" ON public.ride_requests;
 CREATE POLICY "Passengers can update own rides"
 ON public.ride_requests
 FOR UPDATE
@@ -50,6 +53,7 @@ TO authenticated
 USING (auth.uid() = passenger_id);
 
 -- Drivers can view SEARCHING rides (to accept)
+DROP POLICY IF EXISTS "Drivers can view searching rides" ON public.ride_requests;
 CREATE POLICY "Drivers can view searching rides"
 ON public.ride_requests
 FOR SELECT
@@ -65,6 +69,7 @@ USING (
 );
 
 -- Drivers can view their assigned rides
+DROP POLICY IF EXISTS "Drivers can view assigned rides" ON public.ride_requests;
 CREATE POLICY "Drivers can view assigned rides"
 ON public.ride_requests
 FOR SELECT
@@ -78,6 +83,7 @@ USING (
 );
 
 -- Drivers can update rides they accepted
+DROP POLICY IF EXISTS "Drivers can update assigned rides" ON public.ride_requests;
 CREATE POLICY "Drivers can update assigned rides"
 ON public.ride_requests
 FOR UPDATE
@@ -91,6 +97,7 @@ USING (
 );
 
 -- Admin full access
+DROP POLICY IF EXISTS "Admins can manage all rides" ON public.ride_requests;
 CREATE POLICY "Admins can manage all rides"
 ON public.ride_requests
 FOR ALL

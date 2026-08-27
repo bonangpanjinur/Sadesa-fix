@@ -11,10 +11,12 @@ DROP POLICY IF EXISTS "Merchants can view own data" ON public.merchants;
 DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants;
 
 -- Buat policy baru yang mengizinkan akses ke semua kolom (termasuk verifikator_code)
+DROP POLICY IF EXISTS "Merchants can view own data" ON public.merchants;
 CREATE POLICY "Merchants can view own data"
 ON public.merchants FOR SELECT
 USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants;
 CREATE POLICY "Merchants can update own data"
 ON public.merchants FOR UPDATE
 USING (auth.uid() = id);

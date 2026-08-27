@@ -27,8 +27,10 @@ ALTER TABLE public.pos_payment_anomalies ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.pos_payment_anomalies FROM anon, authenticated;
 GRANT SELECT, UPDATE ON public.pos_payment_anomalies TO authenticated;
 GRANT ALL ON public.pos_payment_anomalies TO service_role;
+DROP POLICY IF EXISTS "Admins view and manage anomalies" ON public.pos_payment_anomalies;
 CREATE POLICY "Admins view and manage anomalies" ON public.pos_payment_anomalies FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Tenant owners view anomalies" ON public.pos_payment_anomalies;
 CREATE POLICY "Tenant owners view anomalies" ON public.pos_payment_anomalies FOR SELECT TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
 

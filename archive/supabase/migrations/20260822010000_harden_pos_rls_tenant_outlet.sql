@@ -132,6 +132,7 @@ CREATE POLICY "POS owners manage outlet access" ON public.pos_user_outlet_access
     )
   );
 
+DROP POLICY IF EXISTS "POS users read own outlet access" ON public.pos_user_outlet_access;
 CREATE POLICY "POS users read own outlet access" ON public.pos_user_outlet_access
   FOR SELECT TO authenticated
   USING (
@@ -195,28 +196,34 @@ DROP POLICY IF EXISTS "tenant_users_select_held_bills" ON public.pos_held_bills;
 DROP POLICY IF EXISTS "tenant_users_select_returns" ON public.pos_sale_returns;
 DROP POLICY IF EXISTS "tenant_users_select_pos_users" ON public.pos_users;
 
+DROP POLICY IF EXISTS "POS users can view assigned stock" ON public.pos_stock;
 CREATE POLICY "POS users can view assigned stock" ON public.pos_stock
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned stock mutations" ON public.pos_stock_mutations;
 CREATE POLICY "POS users can view assigned stock mutations" ON public.pos_stock_mutations
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned sales" ON public.pos_sales;
 CREATE POLICY "POS users can view assigned sales" ON public.pos_sales
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned held bills" ON public.pos_held_bills;
 CREATE POLICY "POS users can view assigned held bills" ON public.pos_held_bills
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
+DROP POLICY IF EXISTS "POS users can view assigned returns" ON public.pos_sale_returns;
 CREATE POLICY "POS users can view assigned returns" ON public.pos_sale_returns
   FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
 
 -- Staff can see their own POS identity; only tenant owners can see the full
 -- tenant user directory.
+DROP POLICY IF EXISTS "POS users can view own POS identity" ON public.pos_users;
 CREATE POLICY "POS users can view own POS identity" ON public.pos_users
   FOR SELECT TO authenticated
   USING (user_id = auth.uid());

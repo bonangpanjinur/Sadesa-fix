@@ -27,12 +27,14 @@ CREATE TABLE IF NOT EXISTS public.verifikator_codes (
 ALTER TABLE public.verifikator_codes ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view active codes (for validation)
+DROP POLICY IF EXISTS "Anyone can view active codes" ON public.verifikator_codes;
 CREATE POLICY "Anyone can view active codes"
 ON public.verifikator_codes
 FOR SELECT
 USING (is_active = true);
 
 -- Verifikator can manage their own codes
+DROP POLICY IF EXISTS "Verifikator can manage own codes" ON public.verifikator_codes;
 CREATE POLICY "Verifikator can manage own codes"
 ON public.verifikator_codes
 FOR ALL
@@ -42,6 +44,7 @@ USING (
 );
 
 -- Admin can manage all codes
+DROP POLICY IF EXISTS "Admin can manage all codes" ON public.verifikator_codes;
 CREATE POLICY "Admin can manage all codes"
 ON public.verifikator_codes
 FOR ALL

@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS public.halal_regulations (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE public.halal_regulations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read halal_regulations" ON public.halal_regulations;
 CREATE POLICY "Anyone can read halal_regulations" ON public.halal_regulations FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin can manage halal_regulations" ON public.halal_regulations;
 CREATE POLICY "Admin can manage halal_regulations" ON public.halal_regulations FOR ALL USING (public.is_admin());
 
 -- 4. Create increment_product_view function

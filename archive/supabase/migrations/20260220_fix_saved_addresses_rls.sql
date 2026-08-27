@@ -40,22 +40,26 @@ DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses
 DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 
+DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can view own addresses" 
   ON public.saved_addresses FOR SELECT 
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can insert own addresses" 
   ON public.saved_addresses FOR INSERT 
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can update own addresses" 
   ON public.saved_addresses FOR UPDATE 
   TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can delete own addresses" 
   ON public.saved_addresses FOR DELETE 
   TO authenticated

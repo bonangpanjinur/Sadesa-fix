@@ -46,6 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_promotions_tenant ON public.pos_promotions(te
 CREATE INDEX IF NOT EXISTS idx_pos_promotions_active ON public.pos_promotions(tenant_id, is_active);
 
 ALTER TABLE public.pos_promotions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_promotions_tenant_access" ON public.pos_promotions;
 CREATE POLICY "pos_promotions_tenant_access" ON public.pos_promotions
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -80,6 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_vouchers_tenant ON public.pos_vouchers(tenant
 CREATE INDEX IF NOT EXISTS idx_pos_vouchers_code ON public.pos_vouchers(tenant_id, code);
 
 ALTER TABLE public.pos_vouchers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_vouchers_tenant_access" ON public.pos_vouchers;
 CREATE POLICY "pos_vouchers_tenant_access" ON public.pos_vouchers
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -98,6 +100,7 @@ CREATE TABLE IF NOT EXISTS public.pos_voucher_usages (
 );
 
 ALTER TABLE public.pos_voucher_usages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_voucher_usages_access" ON public.pos_voucher_usages;
 CREATE POLICY "pos_voucher_usages_access" ON public.pos_voucher_usages
   USING (voucher_id IN (
     SELECT id FROM public.pos_vouchers
@@ -133,6 +136,7 @@ CREATE TABLE IF NOT EXISTS public.pos_loyalty_programs (
 );
 
 ALTER TABLE public.pos_loyalty_programs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_loyalty_programs_access" ON public.pos_loyalty_programs;
 CREATE POLICY "pos_loyalty_programs_access" ON public.pos_loyalty_programs
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -156,6 +160,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_loyalty_points_tenant ON public.pos_loyalty_p
 CREATE INDEX IF NOT EXISTS idx_pos_loyalty_points_customer ON public.pos_loyalty_points(customer_id);
 
 ALTER TABLE public.pos_loyalty_points ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_loyalty_points_access" ON public.pos_loyalty_points;
 CREATE POLICY "pos_loyalty_points_access" ON public.pos_loyalty_points
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -183,6 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_loyalty_tx_customer ON public.pos_loyalty_tra
 CREATE INDEX IF NOT EXISTS idx_pos_loyalty_tx_tenant ON public.pos_loyalty_transactions(tenant_id);
 
 ALTER TABLE public.pos_loyalty_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_loyalty_transactions_access" ON public.pos_loyalty_transactions;
 CREATE POLICY "pos_loyalty_transactions_access" ON public.pos_loyalty_transactions
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));

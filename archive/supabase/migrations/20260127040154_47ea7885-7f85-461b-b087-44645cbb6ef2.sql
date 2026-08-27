@@ -29,6 +29,7 @@ AS $$
 $$;
 
 -- Allow anyone to register a village (pending approval by admin)
+DROP POLICY IF EXISTS "Anyone can register village" ON public.villages;
 CREATE POLICY "Anyone can register village" 
 ON public.villages 
 FOR INSERT 
@@ -38,6 +39,7 @@ WITH CHECK (
 );
 
 -- Allow anyone to register a merchant (pending approval by verifikator)
+DROP POLICY IF EXISTS "Anyone can register merchant" ON public.merchants;
 CREATE POLICY "Anyone can register merchant"
 ON public.merchants
 FOR INSERT
@@ -47,6 +49,7 @@ WITH CHECK (
 );
 
 -- Verifikator can manage merchants (approve/reject)
+DROP POLICY IF EXISTS "Verifikator can manage merchants" ON public.merchants;
 CREATE POLICY "Verifikator can manage merchants"
 ON public.merchants
 FOR ALL

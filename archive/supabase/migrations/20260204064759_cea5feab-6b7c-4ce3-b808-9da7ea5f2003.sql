@@ -152,9 +152,11 @@ DROP POLICY IF EXISTS "couriers_public_read" ON public.couriers;
 CREATE POLICY "couriers_public_read" ON public.couriers
   FOR SELECT USING (registration_status = 'APPROVED' AND status = 'ACTIVE');
 
+DROP POLICY IF EXISTS "couriers_own_access" ON public.couriers;
 CREATE POLICY "couriers_own_access" ON public.couriers
   FOR ALL USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "couriers_admin_access" ON public.couriers;
 CREATE POLICY "couriers_admin_access" ON public.couriers
   FOR ALL USING (public.is_admin());
 
@@ -164,14 +166,18 @@ DROP POLICY IF EXISTS "orders_merchant_access" ON public.orders;
 DROP POLICY IF EXISTS "orders_courier_access" ON public.orders;
 DROP POLICY IF EXISTS "orders_admin_access" ON public.orders;
 
+DROP POLICY IF EXISTS "orders_buyer_access" ON public.orders;
 CREATE POLICY "orders_buyer_access" ON public.orders
   FOR ALL USING (buyer_id = auth.uid());
 
+DROP POLICY IF EXISTS "orders_merchant_access" ON public.orders;
 CREATE POLICY "orders_merchant_access" ON public.orders
   FOR ALL USING (public.is_order_merchant(id));
 
+DROP POLICY IF EXISTS "orders_courier_access" ON public.orders;
 CREATE POLICY "orders_courier_access" ON public.orders
   FOR ALL USING (public.is_order_courier(id));
 
+DROP POLICY IF EXISTS "orders_admin_access" ON public.orders;
 CREATE POLICY "orders_admin_access" ON public.orders
   FOR ALL USING (public.is_admin());

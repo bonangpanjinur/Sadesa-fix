@@ -25,10 +25,12 @@ CREATE TABLE public.verifikator_earnings (
 ALTER TABLE public.verifikator_earnings ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+DROP POLICY IF EXISTS "Admins can manage all earnings" ON public.verifikator_earnings;
 CREATE POLICY "Admins can manage all earnings"
   ON public.verifikator_earnings FOR ALL
   USING (is_admin());
 
+DROP POLICY IF EXISTS "Verifikators can view own earnings" ON public.verifikator_earnings;
 CREATE POLICY "Verifikators can view own earnings"
   ON public.verifikator_earnings FOR SELECT
   USING (verifikator_id = auth.uid());

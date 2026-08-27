@@ -42,9 +42,13 @@ CREATE INDEX IF NOT EXISTS idx_pos_journal_lines_account ON public.pos_journal_l
 ALTER TABLE public.pos_tax_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_journal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_journal_lines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Tenant owners manage tax profiles" ON public.pos_tax_profiles;
 CREATE POLICY "Tenant owners manage tax profiles" ON public.pos_tax_profiles FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view tax profiles" ON public.pos_tax_profiles;
 CREATE POLICY "Tenant users view tax profiles" ON public.pos_tax_profiles FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Tenant users view journals" ON public.pos_journal_entries;
 CREATE POLICY "Tenant users view journals" ON public.pos_journal_entries FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view journal lines" ON public.pos_journal_lines;
 CREATE POLICY "Tenant users view journal lines" ON public.pos_journal_lines FOR SELECT TO authenticated USING (journal_entry_id IN (SELECT id FROM public.pos_journal_entries WHERE tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
 
 CREATE OR REPLACE FUNCTION public.post_pos_journal_entry(

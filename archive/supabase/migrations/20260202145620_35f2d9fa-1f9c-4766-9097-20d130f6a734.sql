@@ -14,6 +14,7 @@ ON public.profiles
 FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Service role has full access to profiles" ON public.profiles;
 CREATE POLICY "Service role has full access to profiles"
 ON public.profiles
 FOR ALL

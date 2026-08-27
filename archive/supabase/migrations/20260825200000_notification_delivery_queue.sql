@@ -19,7 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_notification_jobs_due ON public.notification_deli
 CREATE INDEX IF NOT EXISTS idx_notification_jobs_recipient ON public.notification_delivery_jobs(recipient_id, created_at DESC);
 
 ALTER TABLE public.notification_delivery_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own notification jobs" ON public.notification_delivery_jobs;
 CREATE POLICY "Users view own notification jobs" ON public.notification_delivery_jobs FOR SELECT TO authenticated USING (recipient_id = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage notification jobs" ON public.notification_delivery_jobs;
 CREATE POLICY "Admins manage notification jobs" ON public.notification_delivery_jobs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)

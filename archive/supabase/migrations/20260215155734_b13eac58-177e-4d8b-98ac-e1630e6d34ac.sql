@@ -11,10 +11,12 @@ CREATE TABLE IF NOT EXISTS public.group_announcements (
 
 ALTER TABLE public.group_announcements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Verifikator can manage own announcements" ON public.group_announcements;
 CREATE POLICY "Verifikator can manage own announcements"
   ON public.group_announcements FOR ALL
   USING (verifikator_id = auth.uid());
 
+DROP POLICY IF EXISTS "Group members can read announcements" ON public.group_announcements;
 CREATE POLICY "Group members can read announcements"
   ON public.group_announcements FOR SELECT
   USING (

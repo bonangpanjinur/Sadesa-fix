@@ -38,6 +38,7 @@ CREATE TABLE public.promotions (
 ALTER TABLE public.promotions ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view active & approved promotions within date range
+DROP POLICY IF EXISTS "Anyone can view active promotions" ON public.promotions;
 CREATE POLICY "Anyone can view active promotions"
 ON public.promotions
 FOR SELECT
@@ -49,12 +50,14 @@ USING (
 );
 
 -- Admin can manage all promotions
+DROP POLICY IF EXISTS "Admins can manage promotions" ON public.promotions;
 CREATE POLICY "Admins can manage promotions"
 ON public.promotions
 FOR ALL
 USING (is_admin());
 
 -- Villages can create promotions for themselves
+DROP POLICY IF EXISTS "Villages can create own promotions" ON public.promotions;
 CREATE POLICY "Villages can create own promotions"
 ON public.promotions
 FOR INSERT
@@ -64,6 +67,7 @@ WITH CHECK (
 );
 
 -- Merchants can create promotions for themselves  
+DROP POLICY IF EXISTS "Merchants can create own promotions" ON public.promotions;
 CREATE POLICY "Merchants can create own promotions"
 ON public.promotions
 FOR INSERT

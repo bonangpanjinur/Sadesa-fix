@@ -1,6 +1,7 @@
 -- Fix overly permissive RLS policy on page_views (WITH CHECK true)
 DROP POLICY IF EXISTS "Anyone can insert page views" ON public.page_views;
 
+DROP POLICY IF EXISTS "Authenticated or anonymous can insert their own page view" ON public.page_views;
 CREATE POLICY "Authenticated or anonymous can insert their own page view"
 ON public.page_views
 FOR INSERT

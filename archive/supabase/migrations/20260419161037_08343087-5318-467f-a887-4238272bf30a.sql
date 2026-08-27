@@ -9,6 +9,7 @@ DROP POLICY IF EXISTS "Users can delete their own payment proofs" ON storage.obj
 
 -- SELECT: buyer (owner of order), merchant of order, or admin
 -- Path convention: orders/{order_id}/{filename}
+DROP POLICY IF EXISTS "Buyer/merchant/admin can view payment proofs" ON storage.objects;
 CREATE POLICY "Buyer/merchant/admin can view payment proofs"
 ON storage.objects
 FOR SELECT
@@ -27,6 +28,7 @@ USING (
 );
 
 -- INSERT: any authenticated user (validated at app level via order ownership)
+DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
 CREATE POLICY "Authenticated users can upload payment proofs"
 ON storage.objects
 FOR INSERT
@@ -34,6 +36,7 @@ TO authenticated
 WITH CHECK (bucket_id = 'payment-proofs');
 
 -- UPDATE: only the buyer of the order
+DROP POLICY IF EXISTS "Buyer can update own payment proofs" ON storage.objects;
 CREATE POLICY "Buyer can update own payment proofs"
 ON storage.objects
 FOR UPDATE
@@ -48,6 +51,7 @@ USING (
 );
 
 -- DELETE: only buyer or admin
+DROP POLICY IF EXISTS "Buyer or admin can delete payment proofs" ON storage.objects;
 CREATE POLICY "Buyer or admin can delete payment proofs"
 ON storage.objects
 FOR DELETE

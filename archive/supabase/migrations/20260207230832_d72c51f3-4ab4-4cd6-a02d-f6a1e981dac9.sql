@@ -7,31 +7,37 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('admin-assets', 'admin-as
 ON CONFLICT (id) DO NOTHING;
 
 -- Allow public read access to promotions bucket
+DROP POLICY IF EXISTS "Public can view promotion images" ON storage.objects;
 CREATE POLICY "Public can view promotion images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'promotions');
 
 -- Allow authenticated users to upload to promotions bucket
+DROP POLICY IF EXISTS "Authenticated users can upload promotion images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload promotion images"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'promotions' AND auth.role() = 'authenticated');
 
 -- Allow authenticated users to delete promotion images
+DROP POLICY IF EXISTS "Authenticated users can delete promotion images" ON storage.objects;
 CREATE POLICY "Authenticated users can delete promotion images"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'promotions' AND auth.role() = 'authenticated');
 
 -- Allow public read access to admin-assets bucket
+DROP POLICY IF EXISTS "Public can view admin assets" ON storage.objects;
 CREATE POLICY "Public can view admin assets"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'admin-assets');
 
 -- Allow authenticated users to upload to admin-assets bucket
+DROP POLICY IF EXISTS "Authenticated users can upload admin assets" ON storage.objects;
 CREATE POLICY "Authenticated users can upload admin assets"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'admin-assets' AND auth.role() = 'authenticated');
 
 -- Allow authenticated users to delete admin assets
+DROP POLICY IF EXISTS "Authenticated users can delete admin assets" ON storage.objects;
 CREATE POLICY "Authenticated users can delete admin assets"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'admin-assets' AND auth.role() = 'authenticated');

@@ -4,6 +4,7 @@
 -- 1. Fix notifications INSERT policy - restrict to user's own notifications
 DROP POLICY IF EXISTS "System can insert notifications for authenticated users" ON public.notifications;
 
+DROP POLICY IF EXISTS "Authenticated users can receive notifications" ON public.notifications;
 CREATE POLICY "Authenticated users can receive notifications" 
 ON public.notifications 
 FOR INSERT 
@@ -16,6 +17,7 @@ WITH CHECK (user_id = auth.uid() OR is_admin());
 DROP POLICY IF EXISTS "Anyone can request password reset" ON public.password_reset_tokens;
 
 -- More restrictive: only allow insert if email matches pattern and not too many recent tokens
+DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tokens;
 CREATE POLICY "Password reset token insert" 
 ON public.password_reset_tokens 
 FOR INSERT 
@@ -42,9 +44,11 @@ CREATE TABLE IF NOT EXISTS public.categories (
 
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view active categories" ON public.categories;
 CREATE POLICY "Anyone can view active categories" 
 ON public.categories FOR SELECT USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage categories" ON public.categories;
 CREATE POLICY "Admins can manage categories" 
 ON public.categories FOR ALL USING (is_admin());
 
@@ -66,14 +70,17 @@ CREATE TABLE IF NOT EXISTS public.verifikator_withdrawals (
 
 ALTER TABLE public.verifikator_withdrawals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Verifikators view own withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators view own withdrawals" 
 ON public.verifikator_withdrawals FOR SELECT 
 USING (verifikator_id = auth.uid() OR is_admin());
 
+DROP POLICY IF EXISTS "Verifikators create withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators create withdrawals" 
 ON public.verifikator_withdrawals FOR INSERT 
 WITH CHECK (verifikator_id = auth.uid() AND status = 'PENDING');
 
+DROP POLICY IF EXISTS "Admins manage withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Admins manage withdrawals" 
 ON public.verifikator_withdrawals FOR ALL USING (is_admin());
 
@@ -89,9 +96,11 @@ CREATE TABLE IF NOT EXISTS public.user_villages (
 
 ALTER TABLE public.user_villages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users view own village assignments" ON public.user_villages;
 CREATE POLICY "Users view own village assignments" 
 ON public.user_villages FOR SELECT 
 USING (user_id = auth.uid() OR is_admin());
 
+DROP POLICY IF EXISTS "Admins manage village assignments" ON public.user_villages;
 CREATE POLICY "Admins manage village assignments" 
 ON public.user_villages FOR ALL USING (is_admin());

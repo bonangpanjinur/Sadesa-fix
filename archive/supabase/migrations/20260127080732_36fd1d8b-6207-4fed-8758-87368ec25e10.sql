@@ -11,15 +11,19 @@ DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
 DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
 DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
 
+DROP POLICY IF EXISTS "Public view product images bucket" ON storage.objects;
 CREATE POLICY "Public view product images bucket" ON storage.objects
   FOR SELECT USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
 CREATE POLICY "Auth users upload product images" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
 CREATE POLICY "Auth users update product images" ON storage.objects
   FOR UPDATE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
 CREATE POLICY "Auth users delete product images" ON storage.objects
   FOR DELETE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 

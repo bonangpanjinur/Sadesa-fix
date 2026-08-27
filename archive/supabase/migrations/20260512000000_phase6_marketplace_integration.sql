@@ -27,6 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_marketplace_sync_tenant ON public.pos_marketp
 CREATE INDEX IF NOT EXISTS idx_pos_marketplace_sync_status ON public.pos_marketplace_sync(tenant_id, sync_status);
 
 ALTER TABLE public.pos_marketplace_sync ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_marketplace_sync_access" ON public.pos_marketplace_sync;
 CREATE POLICY "pos_marketplace_sync_access" ON public.pos_marketplace_sync
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.pos_sync_logs (
 );
 
 ALTER TABLE public.pos_sync_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_sync_logs_access" ON public.pos_sync_logs;
 CREATE POLICY "pos_sync_logs_access" ON public.pos_sync_logs
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
 
@@ -83,6 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_pos_marketplace_orders_tenant ON public.pos_marke
 CREATE INDEX IF NOT EXISTS idx_pos_marketplace_orders_status ON public.pos_marketplace_orders(tenant_id, status);
 
 ALTER TABLE public.pos_marketplace_orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_marketplace_orders_access" ON public.pos_marketplace_orders;
 CREATE POLICY "pos_marketplace_orders_access" ON public.pos_marketplace_orders
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
@@ -108,6 +111,7 @@ CREATE TABLE IF NOT EXISTS public.pos_integration_settings (
 );
 
 ALTER TABLE public.pos_integration_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pos_integration_settings_access" ON public.pos_integration_settings;
 CREATE POLICY "pos_integration_settings_access" ON public.pos_integration_settings
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));

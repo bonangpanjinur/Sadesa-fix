@@ -52,6 +52,7 @@ GRANT SELECT ON public.public_couriers TO authenticated;
 
 -- Also add policy for anon users to view public merchants (via view)
 -- We need a basic SELECT policy for the underlying table to work with the view
+DROP POLICY IF EXISTS "Anon can view basic merchant info" ON public.merchants;
 CREATE POLICY "Anon can view basic merchant info"
 ON public.merchants
 FOR SELECT

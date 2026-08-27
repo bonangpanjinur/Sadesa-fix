@@ -28,12 +28,15 @@ DROP POLICY IF EXISTS "Verifikators can view own withdrawals" ON public.verifika
 DROP POLICY IF EXISTS "Verifikators can create withdrawals" ON public.verifikator_withdrawals;
 DROP POLICY IF EXISTS "Admins can manage all withdrawals" ON public.verifikator_withdrawals;
 
+DROP POLICY IF EXISTS "Verifikators can view own withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators can view own withdrawals" ON public.verifikator_withdrawals
   FOR SELECT USING (verifikator_id = auth.uid());
 
+DROP POLICY IF EXISTS "Verifikators can create withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators can create withdrawals" ON public.verifikator_withdrawals
   FOR INSERT WITH CHECK (verifikator_id = auth.uid() AND status = 'PENDING');
 
+DROP POLICY IF EXISTS "Admins can manage all withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Admins can manage all withdrawals" ON public.verifikator_withdrawals
   FOR ALL USING (is_admin());
 
@@ -116,15 +119,19 @@ DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
 DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
 DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
 
+DROP POLICY IF EXISTS "Public view product images bucket" ON storage.objects;
 CREATE POLICY "Public view product images bucket" ON storage.objects
   FOR SELECT USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
 CREATE POLICY "Auth users upload product images" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
 CREATE POLICY "Auth users update product images" ON storage.objects
   FOR UPDATE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
 CREATE POLICY "Auth users delete product images" ON storage.objects
   FOR DELETE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 
@@ -187,9 +194,11 @@ CREATE TABLE IF NOT EXISTS public.platform_fees (
 ALTER TABLE public.platform_fees ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for platform_fees
+DROP POLICY IF EXISTS "Admins can manage platform_fees" ON public.platform_fees;
 CREATE POLICY "Admins can manage platform_fees" ON public.platform_fees
   FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Merchants can view own fees" ON public.platform_fees;
 CREATE POLICY "Merchants can view own fees" ON public.platform_fees
   FOR SELECT USING (
     EXISTS (
@@ -219,6 +228,7 @@ CREATE TABLE IF NOT EXISTS public.broadcast_notifications (
 ALTER TABLE public.broadcast_notifications ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for broadcast_notifications
+DROP POLICY IF EXISTS "Admins can manage broadcasts" ON public.broadcast_notifications;
 CREATE POLICY "Admins can manage broadcasts" ON public.broadcast_notifications
   FOR ALL USING (is_admin());
 
@@ -238,9 +248,11 @@ CREATE TABLE IF NOT EXISTS public.courier_earnings (
 ALTER TABLE public.courier_earnings ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for courier_earnings
+DROP POLICY IF EXISTS "Admins can manage courier earnings" ON public.courier_earnings;
 CREATE POLICY "Admins can manage courier earnings" ON public.courier_earnings
   FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Couriers can view own earnings" ON public.courier_earnings;
 CREATE POLICY "Couriers can view own earnings" ON public.courier_earnings
   FOR SELECT USING (
     EXISTS (
@@ -295,16 +307,19 @@ CREATE TABLE IF NOT EXISTS public.wishlists (
 ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for wishlists
+DROP POLICY IF EXISTS "Users can view own wishlists" ON public.wishlists;
 CREATE POLICY "Users can view own wishlists" 
     ON public.wishlists 
     FOR SELECT 
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can add to own wishlist" ON public.wishlists;
 CREATE POLICY "Users can add to own wishlist" 
     ON public.wishlists 
     FOR INSERT 
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can remove from own wishlist" ON public.wishlists;
 CREATE POLICY "Users can remove from own wishlist" 
     ON public.wishlists 
     FOR DELETE 
@@ -329,6 +344,7 @@ DROP POLICY IF EXISTS "Active couriers visible to authenticated" ON public.couri
 -- 3. User is the courier themselves
 -- 4. User is a merchant with an order assigned to that courier
 -- 5. User is a buyer with an order assigned to that courier
+DROP POLICY IF EXISTS "Authorized users can view courier info" ON public.couriers;
 CREATE POLICY "Authorized users can view courier info"
 ON public.couriers
 FOR SELECT
@@ -358,6 +374,7 @@ DROP POLICY IF EXISTS "Anyone can view active merchants" ON public.merchants;
 
 -- Create policy: Only expose limited merchant data to unauthenticated users
 -- For full data access, require authentication and specific roles
+DROP POLICY IF EXISTS "Authenticated users can view active merchants" ON public.merchants;
 CREATE POLICY "Authenticated users can view active merchants"
 ON public.merchants
 FOR SELECT
@@ -469,6 +486,7 @@ GRANT SELECT ON public.public_couriers TO authenticated;
 
 -- Also add policy for anon users to view public merchants (via view)
 -- We need a basic SELECT policy for the underlying table to work with the view
+DROP POLICY IF EXISTS "Anon can view basic merchant info" ON public.merchants;
 CREATE POLICY "Anon can view basic merchant info"
 ON public.merchants
 FOR SELECT
@@ -493,18 +511,22 @@ CREATE TABLE public.push_subscriptions (
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Users can manage their own subscriptions
+DROP POLICY IF EXISTS "Users can view their own push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can view their own push subscriptions"
 ON public.push_subscriptions FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can insert their own push subscriptions"
 ON public.push_subscriptions FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can delete their own push subscriptions"
 ON public.push_subscriptions FOR DELETE
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own push subscriptions" ON public.push_subscriptions;
 CREATE POLICY "Users can update their own push subscriptions"
 ON public.push_subscriptions FOR UPDATE
 USING (auth.uid() = user_id);
@@ -559,24 +581,28 @@ CREATE TABLE public.saved_addresses (
 ALTER TABLE public.saved_addresses ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own addresses
+DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can view own addresses"
 ON public.saved_addresses
 FOR SELECT
 USING (auth.uid() = user_id);
 
 -- Users can insert their own addresses
+DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can insert own addresses"
 ON public.saved_addresses
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own addresses
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can update own addresses"
 ON public.saved_addresses
 FOR UPDATE
 USING (auth.uid() = user_id);
 
 -- Users can delete their own addresses
+DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can delete own addresses"
 ON public.saved_addresses
 FOR DELETE
@@ -677,40 +703,50 @@ ALTER TABLE public.backup_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- Voucher policies
+DROP POLICY IF EXISTS "Vouchers viewable by everyone" ON public.vouchers;
 CREATE POLICY "Vouchers viewable by everyone" ON public.vouchers
   FOR SELECT USING (is_active = true AND (start_date <= now()) AND (end_date IS NULL OR end_date >= now()));
 
+DROP POLICY IF EXISTS "Merchants manage own vouchers" ON public.vouchers;
 CREATE POLICY "Merchants manage own vouchers" ON public.vouchers
   FOR ALL USING (
     merchant_id IN (SELECT id FROM merchants WHERE user_id = auth.uid())
     OR public.is_admin()
   );
 
+DROP POLICY IF EXISTS "Admins manage all vouchers" ON public.vouchers;
 CREATE POLICY "Admins manage all vouchers" ON public.vouchers
   FOR ALL USING (public.is_admin());
 
 -- Voucher usage policies
+DROP POLICY IF EXISTS "Users view own usage" ON public.voucher_usages;
 CREATE POLICY "Users view own usage" ON public.voucher_usages
   FOR SELECT USING (user_id = auth.uid() OR public.is_admin());
 
+DROP POLICY IF EXISTS "Users can use vouchers" ON public.voucher_usages;
 CREATE POLICY "Users can use vouchers" ON public.voucher_usages
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
 -- SEO policies (admin only)
+DROP POLICY IF EXISTS "Anyone can view SEO settings" ON public.seo_settings;
 CREATE POLICY "Anyone can view SEO settings" ON public.seo_settings
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Admins manage SEO" ON public.seo_settings;
 CREATE POLICY "Admins manage SEO" ON public.seo_settings
   FOR ALL USING (public.is_admin());
 
 -- Backup policies (admin only)
+DROP POLICY IF EXISTS "Admins view backups" ON public.backup_logs;
 CREATE POLICY "Admins view backups" ON public.backup_logs
   FOR SELECT USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins create backups" ON public.backup_logs;
 CREATE POLICY "Admins create backups" ON public.backup_logs
   FOR INSERT WITH CHECK (public.is_admin());
 
 -- Rate limits policies
+DROP POLICY IF EXISTS "Rate limits public" ON public.rate_limits;
 CREATE POLICY "Rate limits public" ON public.rate_limits
   FOR ALL USING (true);
 
@@ -870,12 +906,15 @@ DROP POLICY IF EXISTS "Rate limits public" ON public.rate_limits;
 
 -- Rate limits should only allow insert/update from server (via security definer function)
 -- No direct public access needed
+DROP POLICY IF EXISTS "Rate limits managed by functions" ON public.rate_limits;
 CREATE POLICY "Rate limits managed by functions" ON public.rate_limits
   FOR SELECT USING (identifier = auth.uid()::text OR public.is_admin());
 
+DROP POLICY IF EXISTS "Rate limits insert via functions" ON public.rate_limits;
 CREATE POLICY "Rate limits insert via functions" ON public.rate_limits
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
 CREATE POLICY "Rate limits update via functions" ON public.rate_limits  
   FOR UPDATE USING (true);
 -- ===== END SOURCE: 20260128112256_d0cfd142-d893-4f05-9c1d-2f43ed686887.sql =====
@@ -1058,12 +1097,15 @@ DROP POLICY IF EXISTS "Anyone can view product images storage" ON storage.object
 DROP POLICY IF EXISTS "Authenticated users can upload product images storage" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own product images storage" ON storage.objects;
 
+DROP POLICY IF EXISTS "Anyone can view product images storage" ON storage.objects;
 CREATE POLICY "Anyone can view product images storage" ON storage.objects
     FOR SELECT USING (bucket_id = 'product-images');
 
+DROP POLICY IF EXISTS "Authenticated users can upload product images storage" ON storage.objects;
 CREATE POLICY "Authenticated users can upload product images storage" ON storage.objects
     FOR INSERT WITH CHECK (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Users can delete own product images storage" ON storage.objects;
 CREATE POLICY "Users can delete own product images storage" ON storage.objects
     FOR DELETE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
 -- ===== END SOURCE: 20260128115030_30a887fa-9eed-41a0-9f35-c6cf6ed702fd.sql =====
@@ -1098,10 +1140,12 @@ ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_images ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for product_variants
+DROP POLICY IF EXISTS "Anyone can view active product variants" ON public.product_variants;
 CREATE POLICY "Anyone can view active product variants"
 ON public.product_variants FOR SELECT
 USING (is_active = true);
 
+DROP POLICY IF EXISTS "Merchants can manage their product variants" ON public.product_variants;
 CREATE POLICY "Merchants can manage their product variants"
 ON public.product_variants FOR ALL
 USING (
@@ -1114,10 +1158,12 @@ USING (
 );
 
 -- RLS Policies for product_images
+DROP POLICY IF EXISTS "Anyone can view product images" ON public.product_images;
 CREATE POLICY "Anyone can view product images"
 ON public.product_images FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Merchants can manage their product images" ON public.product_images;
 CREATE POLICY "Merchants can manage their product images"
 ON public.product_images FOR ALL
 USING (
@@ -1130,10 +1176,12 @@ USING (
 );
 
 -- Admin policies
+DROP POLICY IF EXISTS "Admins can manage all product variants" ON public.product_variants;
 CREATE POLICY "Admins can manage all product variants"
 ON public.product_variants FOR ALL
 USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins can manage all product images" ON public.product_images;
 CREATE POLICY "Admins can manage all product images"
 ON public.product_images FOR ALL
 USING (public.is_admin());
@@ -1172,10 +1220,12 @@ CREATE TABLE IF NOT EXISTS public.flash_sales (
 -- RLS for flash_sales
 ALTER TABLE public.flash_sales ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public can view active flash sales" ON public.flash_sales;
 CREATE POLICY "Public can view active flash sales" 
 ON public.flash_sales FOR SELECT 
 USING (status = 'ACTIVE' AND end_time > now());
 
+DROP POLICY IF EXISTS "Merchants can manage their flash sales" ON public.flash_sales;
 CREATE POLICY "Merchants can manage their flash sales" 
 ON public.flash_sales FOR ALL 
 USING (
@@ -1184,6 +1234,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage all flash sales" ON public.flash_sales;
 CREATE POLICY "Admins can manage all flash sales"
 ON public.flash_sales FOR ALL
 USING (
@@ -1211,6 +1262,7 @@ END $$;
 
 -- Fix product_variants policies
 DROP POLICY IF EXISTS "Public can view product variants" ON public.product_variants;
+DROP POLICY IF EXISTS "Public can view active product variants" ON public.product_variants;
 CREATE POLICY "Public can view active product variants" 
 ON public.product_variants FOR SELECT 
 USING (is_active = true);
@@ -1248,6 +1300,7 @@ END $$;
 -- 1. Fix notifications table: "System can insert notifications" with WITH CHECK (true)
 DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
 
+DROP POLICY IF EXISTS "System can insert notifications for authenticated users" ON public.notifications;
 CREATE POLICY "System can insert notifications for authenticated users" 
 ON public.notifications 
 FOR INSERT 
@@ -1258,12 +1311,14 @@ WITH CHECK (true);
 DROP POLICY IF EXISTS "Rate limits insert via functions" ON public.rate_limits;
 DROP POLICY IF EXISTS "Rate limits update via functions" ON public.rate_limits;
 
+DROP POLICY IF EXISTS "Users can insert own rate limits" ON public.rate_limits;
 CREATE POLICY "Users can insert own rate limits" 
 ON public.rate_limits 
 FOR INSERT 
 TO authenticated
 WITH CHECK (identifier = (auth.uid())::text);
 
+DROP POLICY IF EXISTS "Users can update own rate limits" ON public.rate_limits;
 CREATE POLICY "Users can update own rate limits"
 ON public.rate_limits 
 FOR UPDATE 
@@ -1271,18 +1326,21 @@ TO authenticated
 USING (identifier = (auth.uid())::text);
 
 -- 3. Fix password_reset_tokens table - add policies
+DROP POLICY IF EXISTS "Anyone can request password reset" ON public.password_reset_tokens;
 CREATE POLICY "Anyone can request password reset" 
 ON public.password_reset_tokens 
 FOR INSERT 
 TO anon, authenticated
 WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Users can verify their tokens" ON public.password_reset_tokens;
 CREATE POLICY "Users can verify their tokens" 
 ON public.password_reset_tokens 
 FOR SELECT 
 TO anon, authenticated
 USING (true);
 
+DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens;
 CREATE POLICY "Tokens can be marked as used" 
 ON public.password_reset_tokens 
 FOR UPDATE 
@@ -1298,6 +1356,7 @@ USING (used_at IS NULL AND expires_at > now());
 -- 1. Fix notifications INSERT policy - restrict to user's own notifications
 DROP POLICY IF EXISTS "System can insert notifications for authenticated users" ON public.notifications;
 
+DROP POLICY IF EXISTS "Authenticated users can receive notifications" ON public.notifications;
 CREATE POLICY "Authenticated users can receive notifications" 
 ON public.notifications 
 FOR INSERT 
@@ -1310,6 +1369,7 @@ WITH CHECK (user_id = auth.uid() OR is_admin());
 DROP POLICY IF EXISTS "Anyone can request password reset" ON public.password_reset_tokens;
 
 -- More restrictive: only allow insert if email matches pattern and not too many recent tokens
+DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tokens;
 CREATE POLICY "Password reset token insert" 
 ON public.password_reset_tokens 
 FOR INSERT 
@@ -1336,9 +1396,11 @@ CREATE TABLE IF NOT EXISTS public.categories (
 
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view active categories" ON public.categories;
 CREATE POLICY "Anyone can view active categories" 
 ON public.categories FOR SELECT USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage categories" ON public.categories;
 CREATE POLICY "Admins can manage categories" 
 ON public.categories FOR ALL USING (is_admin());
 
@@ -1360,14 +1422,17 @@ CREATE TABLE IF NOT EXISTS public.verifikator_withdrawals (
 
 ALTER TABLE public.verifikator_withdrawals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Verifikators view own withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators view own withdrawals" 
 ON public.verifikator_withdrawals FOR SELECT 
 USING (verifikator_id = auth.uid() OR is_admin());
 
+DROP POLICY IF EXISTS "Verifikators create withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators create withdrawals" 
 ON public.verifikator_withdrawals FOR INSERT 
 WITH CHECK (verifikator_id = auth.uid() AND status = 'PENDING');
 
+DROP POLICY IF EXISTS "Admins manage withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Admins manage withdrawals" 
 ON public.verifikator_withdrawals FOR ALL USING (is_admin());
 
@@ -1383,10 +1448,12 @@ CREATE TABLE IF NOT EXISTS public.user_villages (
 
 ALTER TABLE public.user_villages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users view own village assignments" ON public.user_villages;
 CREATE POLICY "Users view own village assignments" 
 ON public.user_villages FOR SELECT 
 USING (user_id = auth.uid() OR is_admin());
 
+DROP POLICY IF EXISTS "Admins manage village assignments" ON public.user_villages;
 CREATE POLICY "Admins manage village assignments" 
 ON public.user_villages FOR ALL USING (is_admin());
 
@@ -1399,6 +1466,7 @@ VALUES ('review-images', 'review-images', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Create policy for users to upload their own review images
+DROP POLICY IF EXISTS "Users can upload their own review images" ON storage.objects;
 CREATE POLICY "Users can upload their own review images"
 ON storage.objects
 FOR INSERT
@@ -1408,12 +1476,14 @@ WITH CHECK (
 );
 
 -- Create policy for public read access to review images
+DROP POLICY IF EXISTS "Review images are publicly accessible" ON storage.objects;
 CREATE POLICY "Review images are publicly accessible"
 ON storage.objects
 FOR SELECT
 USING (bucket_id = 'review-images');
 
 -- Create policy for users to delete their own review images
+DROP POLICY IF EXISTS "Users can delete their own review images" ON storage.objects;
 CREATE POLICY "Users can delete their own review images"
 ON storage.objects
 FOR DELETE
@@ -1486,6 +1556,7 @@ ON public.profiles
 FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Service role has full access to profiles" ON public.profiles;
 CREATE POLICY "Service role has full access to profiles"
 ON public.profiles
 FOR ALL
@@ -1702,6 +1773,7 @@ CREATE POLICY "Buyers can view own orders"
   USING (auth.uid() = buyer_id);
 
 -- Recreate Admin policy using direct check without function call
+DROP POLICY IF EXISTS "Admins can manage all orders" ON public.orders;
 CREATE POLICY "Admins can manage all orders"
   ON public.orders
   FOR ALL
@@ -1772,21 +1844,27 @@ DROP POLICY IF EXISTS "Couriers can view own data" ON public.couriers;
 DROP POLICY IF EXISTS "Couriers can update own location" ON public.couriers;
 
 -- 3. Recreate policies with proper function calls
+DROP POLICY IF EXISTS "Admins can manage couriers" ON public.couriers;
 CREATE POLICY "Admins can manage couriers" ON public.couriers
 FOR ALL USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Verifikator can manage couriers" ON public.couriers;
 CREATE POLICY "Verifikator can manage couriers" ON public.couriers
 FOR ALL USING (public.is_verifikator());
 
+DROP POLICY IF EXISTS "Anyone can register as courier" ON public.couriers;
 CREATE POLICY "Anyone can register as courier" ON public.couriers
 FOR INSERT WITH CHECK (registration_status = 'PENDING' AND status = 'INACTIVE');
 
+DROP POLICY IF EXISTS "Active couriers visible to authenticated" ON public.couriers;
 CREATE POLICY "Active couriers visible to authenticated" ON public.couriers
 FOR SELECT USING (status = 'ACTIVE' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Couriers can view own data" ON public.couriers;
 CREATE POLICY "Couriers can view own data" ON public.couriers
 FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Couriers can update own location" ON public.couriers;
 CREATE POLICY "Couriers can update own location" ON public.couriers
 FOR UPDATE USING (user_id = auth.uid() AND status = 'ACTIVE');
 

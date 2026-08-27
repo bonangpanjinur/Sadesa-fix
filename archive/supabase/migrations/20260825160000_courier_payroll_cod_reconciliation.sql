@@ -39,11 +39,15 @@ CREATE INDEX IF NOT EXISTS idx_courier_cod_status ON public.courier_cod_reconcil
 
 ALTER TABLE public.courier_commission_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.courier_cod_reconciliations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admins manage courier commission rules" ON public.courier_commission_rules;
 CREATE POLICY "Admins manage courier commission rules" ON public.courier_commission_rules FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DROP POLICY IF EXISTS "Couriers view own COD reconciliation" ON public.courier_cod_reconciliations;
 CREATE POLICY "Couriers view own COD reconciliation" ON public.courier_cod_reconciliations FOR SELECT TO authenticated
   USING (courier_id IN (SELECT id FROM public.couriers WHERE user_id = auth.uid()) OR public.is_admin());
+DROP POLICY IF EXISTS "Couriers submit own COD reconciliation" ON public.courier_cod_reconciliations;
 CREATE POLICY "Couriers submit own COD reconciliation" ON public.courier_cod_reconciliations FOR INSERT TO authenticated
   WITH CHECK (submitted_by = auth.uid() AND courier_id IN (SELECT id FROM public.couriers WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Admins manage COD reconciliation" ON public.courier_cod_reconciliations;
 CREATE POLICY "Admins manage COD reconciliation" ON public.courier_cod_reconciliations FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 

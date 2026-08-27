@@ -11,27 +11,32 @@ DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can delete user roles" ON public.user_roles;
 
 -- Recreate complete policies
+DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
 CREATE POLICY "Users can view own roles"
   ON public.user_roles FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
 CREATE POLICY "Admins can view all roles"
   ON public.user_roles FOR SELECT
   TO authenticated
   USING (is_admin());
 
+DROP POLICY IF EXISTS "Admins can insert user roles" ON public.user_roles;
 CREATE POLICY "Admins can insert user roles"
   ON public.user_roles FOR INSERT
   TO authenticated
   WITH CHECK (is_admin());
 
+DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;
 CREATE POLICY "Admins can update user roles"
   ON public.user_roles FOR UPDATE
   TO authenticated
   USING (is_admin())
   WITH CHECK (is_admin());
 
+DROP POLICY IF EXISTS "Admins can delete user roles" ON public.user_roles;
 CREATE POLICY "Admins can delete user roles"
   ON public.user_roles FOR DELETE
   TO authenticated
@@ -56,10 +61,12 @@ CREATE TABLE IF NOT EXISTS public.pos_packages (
 
 ALTER TABLE public.pos_packages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view active POS packages" ON public.pos_packages;
 CREATE POLICY "Anyone can view active POS packages"
   ON public.pos_packages FOR SELECT
   USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage POS packages" ON public.pos_packages;
 CREATE POLICY "Admins can manage POS packages"
   ON public.pos_packages FOR ALL
   USING (is_admin());
@@ -85,18 +92,22 @@ CREATE TABLE IF NOT EXISTS public.pos_subscriptions (
 
 ALTER TABLE public.pos_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can view own POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Merchants can view own POS subscriptions"
   ON public.pos_subscriptions FOR SELECT
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_subscriptions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Merchants can create POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Merchants can create POS subscriptions"
   ON public.pos_subscriptions FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_subscriptions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Merchants can update own POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Merchants can update own POS subscriptions"
   ON public.pos_subscriptions FOR UPDATE
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_subscriptions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage all POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Admins can manage all POS subscriptions"
   ON public.pos_subscriptions FOR ALL
   USING (is_admin());
@@ -123,10 +134,12 @@ CREATE TABLE IF NOT EXISTS public.pos_transactions (
 
 ALTER TABLE public.pos_transactions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can manage own POS transactions" ON public.pos_transactions;
 CREATE POLICY "Merchants can manage own POS transactions"
   ON public.pos_transactions FOR ALL
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_transactions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can view all POS transactions" ON public.pos_transactions;
 CREATE POLICY "Admins can view all POS transactions"
   ON public.pos_transactions FOR SELECT
   USING (is_admin());
@@ -148,10 +161,12 @@ CREATE TABLE IF NOT EXISTS public.pos_settings (
 
 ALTER TABLE public.pos_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can manage own POS settings" ON public.pos_settings;
 CREATE POLICY "Merchants can manage own POS settings"
   ON public.pos_settings FOR ALL
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_settings.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage all POS settings" ON public.pos_settings;
 CREATE POLICY "Admins can manage all POS settings"
   ON public.pos_settings FOR ALL
   USING (is_admin());

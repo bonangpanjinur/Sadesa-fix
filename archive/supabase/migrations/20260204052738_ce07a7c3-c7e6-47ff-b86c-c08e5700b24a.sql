@@ -71,6 +71,7 @@ TO authenticated
 USING (user_id = auth.uid());
 
 -- 2. Admins can manage all couriers using security definer function
+DROP POLICY IF EXISTS "Admins can manage couriers" ON public.couriers;
 CREATE POLICY "Admins can manage couriers"
 ON public.couriers
 FOR ALL
@@ -78,6 +79,7 @@ TO authenticated
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- 3. Verifikator can manage couriers
+DROP POLICY IF EXISTS "Verifikator can manage couriers" ON public.couriers;
 CREATE POLICY "Verifikator can manage couriers"
 ON public.couriers
 FOR ALL
@@ -85,6 +87,7 @@ TO authenticated
 USING (public.has_role(auth.uid(), 'verifikator'));
 
 -- 4. Anyone can register as courier
+DROP POLICY IF EXISTS "Anyone can register as courier" ON public.couriers;
 CREATE POLICY "Anyone can register as courier"
 ON public.couriers
 FOR INSERT
@@ -92,6 +95,7 @@ TO authenticated
 WITH CHECK (registration_status = 'PENDING' AND status = 'INACTIVE');
 
 -- 5. Couriers can update own location
+DROP POLICY IF EXISTS "Couriers can update own location" ON public.couriers;
 CREATE POLICY "Couriers can update own location"
 ON public.couriers
 FOR UPDATE
@@ -99,6 +103,7 @@ TO authenticated
 USING (user_id = auth.uid() AND status = 'ACTIVE');
 
 -- 6. Public view for approved couriers (for order assignment)
+DROP POLICY IF EXISTS "Public can view approved couriers" ON public.couriers;
 CREATE POLICY "Public can view approved couriers"
 ON public.couriers
 FOR SELECT
@@ -119,18 +124,21 @@ DROP POLICY IF EXISTS "Merchants can update own orders" ON public.orders;
 DROP POLICY IF EXISTS "Merchants can view own orders" ON public.orders;
 
 -- 1. Buyers can view and manage their own orders
+DROP POLICY IF EXISTS "Buyers can view own orders" ON public.orders;
 CREATE POLICY "Buyers can view own orders"
 ON public.orders
 FOR SELECT
 TO authenticated
 USING (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Buyers can create orders" ON public.orders;
 CREATE POLICY "Buyers can create orders"
 ON public.orders
 FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
 CREATE POLICY "Buyers can update own pending orders"
 ON public.orders
 FOR UPDATE
@@ -138,6 +146,7 @@ TO authenticated
 USING (auth.uid() = buyer_id AND status = 'NEW');
 
 -- 2. Admins can manage all orders
+DROP POLICY IF EXISTS "Admins can manage all orders" ON public.orders;
 CREATE POLICY "Admins can manage all orders"
 ON public.orders
 FOR ALL
@@ -145,12 +154,14 @@ TO authenticated
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- 3. Couriers can view and update assigned orders using security definer
+DROP POLICY IF EXISTS "Couriers can view assigned orders" ON public.orders;
 CREATE POLICY "Couriers can view assigned orders"
 ON public.orders
 FOR SELECT
 TO authenticated
 USING (public.is_courier_owner(auth.uid(), courier_id));
 
+DROP POLICY IF EXISTS "Couriers can update assigned orders" ON public.orders;
 CREATE POLICY "Couriers can update assigned orders"
 ON public.orders
 FOR UPDATE
@@ -158,12 +169,14 @@ TO authenticated
 USING (public.is_courier_owner(auth.uid(), courier_id));
 
 -- 4. Merchants can view and update their orders using security definer
+DROP POLICY IF EXISTS "Merchants can view own orders" ON public.orders;
 CREATE POLICY "Merchants can view own orders"
 ON public.orders
 FOR SELECT
 TO authenticated
 USING (public.is_order_merchant(auth.uid(), merchant_id));
 
+DROP POLICY IF EXISTS "Merchants can update own orders" ON public.orders;
 CREATE POLICY "Merchants can update own orders"
 ON public.orders
 FOR UPDATE

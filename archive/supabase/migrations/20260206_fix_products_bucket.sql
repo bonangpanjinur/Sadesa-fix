@@ -10,11 +10,13 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Set up RLS policies for the 'products' bucket
 -- 1. Public: Anyone can view images
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 CREATE POLICY "Public Access"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'products');
 
 -- 2. Authenticated (Merchant): Can upload images
+DROP POLICY IF EXISTS "Merchant Upload" ON storage.objects;
 CREATE POLICY "Merchant Upload"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -23,6 +25,7 @@ WITH CHECK (
 );
 
 -- 3. Authenticated (Merchant): Can update own images
+DROP POLICY IF EXISTS "Merchant Update" ON storage.objects;
 CREATE POLICY "Merchant Update"
 ON storage.objects FOR UPDATE
 USING (
@@ -31,6 +34,7 @@ USING (
 );
 
 -- 4. Authenticated (Merchant): Can delete own images
+DROP POLICY IF EXISTS "Merchant Delete" ON storage.objects;
 CREATE POLICY "Merchant Delete"
 ON storage.objects FOR DELETE
 USING (

@@ -12,12 +12,14 @@ CREATE INDEX IF NOT EXISTS idx_orders_courier_id ON public.orders(courier_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 
 -- Update RLS policies for couriers to view assigned orders
+DROP POLICY IF EXISTS "Couriers can view assigned orders" ON public.orders;
 CREATE POLICY "Couriers can view assigned orders" 
 ON public.orders 
 FOR SELECT 
 USING (courier_id IN (SELECT id FROM couriers WHERE user_id = auth.uid()));
 
 -- Couriers can update assigned orders (status changes)
+DROP POLICY IF EXISTS "Couriers can update assigned orders" ON public.orders;
 CREATE POLICY "Couriers can update assigned orders" 
 ON public.orders 
 FOR UPDATE 

@@ -32,13 +32,17 @@ CREATE INDEX IF NOT EXISTS idx_pos_stock_batches_fefo
 
 ALTER TABLE public.pos_warehouses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pos_stock_batches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view warehouses" ON public.pos_warehouses;
 CREATE POLICY "POS users view warehouses" ON public.pos_warehouses FOR SELECT TO authenticated
   USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant owners manage warehouses" ON public.pos_warehouses;
 CREATE POLICY "Tenant owners manage warehouses" ON public.pos_warehouses FOR ALL TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "POS users view stock batches" ON public.pos_stock_batches;
 CREATE POLICY "POS users view stock batches" ON public.pos_stock_batches FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "Tenant owners manage stock batches" ON public.pos_stock_batches;
 CREATE POLICY "Tenant owners manage stock batches" ON public.pos_stock_batches FOR ALL TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
   WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));

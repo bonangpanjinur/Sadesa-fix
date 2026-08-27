@@ -10,6 +10,7 @@ DROP POLICY IF EXISTS "Public view merchants bucket" ON storage.objects;
 DROP POLICY IF EXISTS "Allow users to upload certificates" ON storage.objects;
 DROP POLICY IF EXISTS "Allow users to upload ktp" ON storage.objects;
 
+DROP POLICY IF EXISTS "Owners and reviewers can read merchant documents" ON storage.objects;
 CREATE POLICY "Owners and reviewers can read merchant documents"
 ON storage.objects FOR SELECT TO authenticated
 USING (
@@ -25,6 +26,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Owners can upload merchant documents" ON storage.objects;
 CREATE POLICY "Owners can upload merchant documents"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
@@ -40,6 +42,7 @@ WITH CHECK (
   AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')
 );
 
+DROP POLICY IF EXISTS "Owners can update merchant documents" ON storage.objects;
 CREATE POLICY "Owners can update merchant documents"
 ON storage.objects FOR UPDATE TO authenticated
 USING (
@@ -51,6 +54,7 @@ WITH CHECK (
   AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
 );
 
+DROP POLICY IF EXISTS "Owners can delete merchant documents" ON storage.objects;
 CREATE POLICY "Owners can delete merchant documents"
 ON storage.objects FOR DELETE TO authenticated
 USING (
@@ -64,6 +68,7 @@ DROP POLICY IF EXISTS "Authenticated users can upload merchant gallery images" O
 DROP POLICY IF EXISTS "Users can update own merchant gallery images" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete own merchant gallery images" ON storage.objects;
 
+DROP POLICY IF EXISTS "Merchant owners can upload gallery images" ON storage.objects;
 CREATE POLICY "Merchant owners can upload gallery images"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
@@ -87,6 +92,7 @@ WITH CHECK (
   AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp')
 );
 
+DROP POLICY IF EXISTS "Merchant owners can update gallery images" ON storage.objects;
 CREATE POLICY "Merchant owners can update gallery images"
 ON storage.objects FOR UPDATE TO authenticated
 USING (
@@ -129,6 +135,7 @@ WITH CHECK (
   )
 );
 
+DROP POLICY IF EXISTS "Merchant owners can delete gallery images" ON storage.objects;
 CREATE POLICY "Merchant owners can delete gallery images"
 ON storage.objects FOR DELETE TO authenticated
 USING (

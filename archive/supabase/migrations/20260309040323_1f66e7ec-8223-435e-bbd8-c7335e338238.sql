@@ -9,16 +9,19 @@ CREATE TABLE IF NOT EXISTS public.merchant_favorites (
 
 ALTER TABLE public.merchant_favorites ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own favorites" ON public.merchant_favorites;
 CREATE POLICY "Users can view their own favorites"
   ON public.merchant_favorites
   FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own favorites" ON public.merchant_favorites;
 CREATE POLICY "Users can insert their own favorites"
   ON public.merchant_favorites
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own favorites" ON public.merchant_favorites;
 CREATE POLICY "Users can delete their own favorites"
   ON public.merchant_favorites
   FOR DELETE

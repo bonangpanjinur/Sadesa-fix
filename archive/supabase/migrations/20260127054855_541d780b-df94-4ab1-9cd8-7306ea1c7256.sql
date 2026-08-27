@@ -1,4 +1,5 @@
 -- Allow merchants to manage their own products
+DROP POLICY IF EXISTS "Merchants can manage own products" ON public.products;
 CREATE POLICY "Merchants can manage own products"
 ON public.products
 FOR ALL
@@ -18,6 +19,7 @@ WITH CHECK (
 );
 
 -- Allow merchants to view their own orders
+DROP POLICY IF EXISTS "Merchants can view own orders" ON public.orders;
 CREATE POLICY "Merchants can view own orders"
 ON public.orders
 FOR SELECT
@@ -30,6 +32,7 @@ USING (
 );
 
 -- Allow merchants to update their own orders
+DROP POLICY IF EXISTS "Merchants can update own orders" ON public.orders;
 CREATE POLICY "Merchants can update own orders"
 ON public.orders
 FOR UPDATE
@@ -42,18 +45,21 @@ USING (
 );
 
 -- Allow merchants to view own data
+DROP POLICY IF EXISTS "Merchants can view own data" ON public.merchants;
 CREATE POLICY "Merchants can view own data"
 ON public.merchants
 FOR SELECT
 USING (user_id = auth.uid());
 
 -- Allow merchants to update own data
+DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants;
 CREATE POLICY "Merchants can update own data"
 ON public.merchants
 FOR UPDATE
 USING (user_id = auth.uid());
 
 -- Allow admin desa to manage tourism in their village
+DROP POLICY IF EXISTS "Admin desa can manage tourism" ON public.tourism;
 CREATE POLICY "Admin desa can manage tourism"
 ON public.tourism
 FOR ALL

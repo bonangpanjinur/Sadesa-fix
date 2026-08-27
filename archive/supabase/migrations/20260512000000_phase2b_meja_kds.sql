@@ -41,9 +41,11 @@ CREATE TABLE IF NOT EXISTS pos_table_orders (
 ALTER TABLE pos_tables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_table_orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tenant_tables" ON pos_tables;
 CREATE POLICY "tenant_tables" ON pos_tables
   FOR ALL USING (tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "tenant_table_orders" ON pos_table_orders;
 CREATE POLICY "tenant_table_orders" ON pos_table_orders
   FOR ALL USING (tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid()));
 

@@ -18,10 +18,12 @@ CREATE TABLE IF NOT EXISTS public.flash_sales (
 -- RLS for flash_sales
 ALTER TABLE public.flash_sales ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public can view active flash sales" ON public.flash_sales;
 CREATE POLICY "Public can view active flash sales" 
 ON public.flash_sales FOR SELECT 
 USING (status = 'ACTIVE' AND end_time > now());
 
+DROP POLICY IF EXISTS "Merchants can manage their flash sales" ON public.flash_sales;
 CREATE POLICY "Merchants can manage their flash sales" 
 ON public.flash_sales FOR ALL 
 USING (
@@ -30,6 +32,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage all flash sales" ON public.flash_sales;
 CREATE POLICY "Admins can manage all flash sales"
 ON public.flash_sales FOR ALL
 USING (
@@ -57,6 +60,7 @@ END $$;
 
 -- Fix product_variants policies
 DROP POLICY IF EXISTS "Public can view product variants" ON public.product_variants;
+DROP POLICY IF EXISTS "Public can view active product variants" ON public.product_variants;
 CREATE POLICY "Public can view active product variants" 
 ON public.product_variants FOR SELECT 
 USING (is_active = true);

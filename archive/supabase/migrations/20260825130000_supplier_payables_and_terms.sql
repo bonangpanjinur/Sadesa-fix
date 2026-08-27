@@ -29,8 +29,10 @@ CREATE INDEX IF NOT EXISTS idx_pos_supplier_payments_po ON public.pos_supplier_p
 CREATE INDEX IF NOT EXISTS idx_pos_supplier_payments_supplier ON public.pos_supplier_payments(tenant_id, supplier_id, paid_at DESC);
 
 ALTER TABLE public.pos_supplier_payments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "POS users view supplier payments" ON public.pos_supplier_payments;
 CREATE POLICY "POS users view supplier payments" ON public.pos_supplier_payments FOR SELECT TO authenticated
   USING (public.pos_user_can_access_outlet(tenant_id, outlet_id));
+DROP POLICY IF EXISTS "POS users create supplier payments" ON public.pos_supplier_payments;
 CREATE POLICY "POS users create supplier payments" ON public.pos_supplier_payments FOR INSERT TO authenticated
   WITH CHECK (created_by = auth.uid() AND public.pos_user_can_access_outlet(tenant_id, outlet_id));
 

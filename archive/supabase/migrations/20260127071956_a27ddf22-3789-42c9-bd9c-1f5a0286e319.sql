@@ -35,15 +35,18 @@ ALTER TABLE public.transaction_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.merchant_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- RLS for transaction_packages (public read, admin manage)
+DROP POLICY IF EXISTS "Anyone can view active packages" ON public.transaction_packages;
 CREATE POLICY "Anyone can view active packages" 
 ON public.transaction_packages FOR SELECT 
 USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage packages" ON public.transaction_packages;
 CREATE POLICY "Admins can manage packages" 
 ON public.transaction_packages FOR ALL 
 USING (is_admin());
 
 -- RLS for merchant_subscriptions
+DROP POLICY IF EXISTS "Merchants can view own subscriptions" ON public.merchant_subscriptions;
 CREATE POLICY "Merchants can view own subscriptions" 
 ON public.merchant_subscriptions FOR SELECT 
 USING (EXISTS (
@@ -52,6 +55,7 @@ USING (EXISTS (
   AND merchants.user_id = auth.uid()
 ));
 
+DROP POLICY IF EXISTS "Merchants can create subscriptions" ON public.merchant_subscriptions;
 CREATE POLICY "Merchants can create subscriptions" 
 ON public.merchant_subscriptions FOR INSERT 
 WITH CHECK (EXISTS (
@@ -60,6 +64,7 @@ WITH CHECK (EXISTS (
   AND merchants.user_id = auth.uid()
 ) AND status = 'PENDING');
 
+DROP POLICY IF EXISTS "Admins can manage all subscriptions" ON public.merchant_subscriptions;
 CREATE POLICY "Admins can manage all subscriptions" 
 ON public.merchant_subscriptions FOR ALL 
 USING (is_admin());

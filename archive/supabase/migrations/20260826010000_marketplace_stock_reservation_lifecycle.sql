@@ -23,8 +23,11 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_reservations_expiry ON public.marketp
 CREATE INDEX IF NOT EXISTS idx_marketplace_reservation_items_product ON public.marketplace_stock_reservation_items(product_id);
 ALTER TABLE public.marketplace_stock_reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marketplace_stock_reservation_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Buyers view own stock reservations" ON public.marketplace_stock_reservations;
 CREATE POLICY "Buyers view own stock reservations" ON public.marketplace_stock_reservations FOR SELECT TO authenticated USING (buyer_id = auth.uid());
+DROP POLICY IF EXISTS "Merchants view order reservations" ON public.marketplace_stock_reservations;
 CREATE POLICY "Merchants view order reservations" ON public.marketplace_stock_reservations FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM public.orders o JOIN public.merchants m ON m.id = o.merchant_id WHERE o.id = order_id AND m.user_id = auth.uid()));
+DROP POLICY IF EXISTS "Users view own reservation items" ON public.marketplace_stock_reservation_items;
 CREATE POLICY "Users view own reservation items" ON public.marketplace_stock_reservation_items FOR SELECT TO authenticated USING (reservation_id IN (SELECT id FROM public.marketplace_stock_reservations WHERE buyer_id = auth.uid() OR EXISTS (SELECT 1 FROM public.orders o JOIN public.merchants m ON m.id = o.merchant_id WHERE o.id = marketplace_stock_reservations.order_id AND m.user_id = auth.uid())));
 
 CREATE OR REPLACE FUNCTION public.reserve_marketplace_stock(

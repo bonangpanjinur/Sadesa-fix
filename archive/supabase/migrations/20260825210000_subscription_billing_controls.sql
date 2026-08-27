@@ -23,8 +23,10 @@ CREATE TABLE IF NOT EXISTS public.subscription_billing_events (
 CREATE INDEX IF NOT EXISTS idx_subscription_events_subscription ON public.subscription_billing_events(subscription_id, created_at DESC);
 
 ALTER TABLE public.subscription_billing_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Merchant views own subscription events" ON public.subscription_billing_events;
 CREATE POLICY "Merchant views own subscription events" ON public.subscription_billing_events FOR SELECT TO authenticated
   USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage subscription events" ON public.subscription_billing_events;
 CREATE POLICY "Admins manage subscription events" ON public.subscription_billing_events FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.record_subscription_billing_event(

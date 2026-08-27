@@ -8,6 +8,7 @@
 -- Fix the permissive INSERT policy - restrict to authenticated users whose merchant matches
 DROP POLICY IF EXISTS "System can insert quota logs" ON public.quota_usage_logs;
 
+DROP POLICY IF EXISTS "Authenticated users can insert quota logs" ON public.quota_usage_logs;
 CREATE POLICY "Authenticated users can insert quota logs" ON public.quota_usage_logs
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -45,11 +46,13 @@ CREATE TABLE IF NOT EXISTS public.quota_audit_logs (
 -- Enable RLS for quota_audit_logs
 ALTER TABLE public.quota_audit_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can view their own quota logs" ON public.quota_audit_logs;
 CREATE POLICY "Merchants can view their own quota logs"
 ON public.quota_audit_logs FOR SELECT
 TO authenticated
 USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can view all quota logs" ON public.quota_audit_logs;
 CREATE POLICY "Admins can view all quota logs"
 ON public.quota_audit_logs FOR SELECT
 TO authenticated
@@ -620,6 +623,7 @@ USING (
 -- Drop the restrictive buyer update policy and replace with one that covers all buyer-updatable statuses
 DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
 
+DROP POLICY IF EXISTS "Buyers can update own orders" ON public.orders;
 CREATE POLICY "Buyers can update own orders"
 ON public.orders
 FOR UPDATE
@@ -643,6 +647,7 @@ DROP POLICY IF EXISTS "Anyone can register village" ON public.villages;
 DROP POLICY IF EXISTS "villages_register" ON public.villages;
 
 -- Allow authenticated users to register villages (PENDING + inactive)
+DROP POLICY IF EXISTS "Authenticated users can register village" ON public.villages;
 CREATE POLICY "Authenticated users can register village"
 ON public.villages
 FOR INSERT
@@ -661,6 +666,7 @@ USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
 -- Allow admin_desa to update their own village
+DROP POLICY IF EXISTS "Admin desa can update own village" ON public.villages;
 CREATE POLICY "Admin desa can update own village"
 ON public.villages
 FOR UPDATE
@@ -686,6 +692,7 @@ USING (public.is_admin())
 WITH CHECK (public.is_admin());
 
 -- Users can view their own assignments
+DROP POLICY IF EXISTS "Users view own village assignments" ON public.user_villages;
 CREATE POLICY "Users view own village assignments"
 ON public.user_villages
 FOR SELECT
@@ -693,6 +700,7 @@ TO authenticated
 USING (user_id = auth.uid() OR public.is_admin());
 
 -- Authenticated users can insert their own assignment (for registration)
+DROP POLICY IF EXISTS "Users can register own village assignment" ON public.user_villages;
 CREATE POLICY "Users can register own village assignment"
 ON public.user_villages
 FOR INSERT
@@ -721,27 +729,32 @@ DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can delete user roles" ON public.user_roles;
 
 -- Recreate complete policies
+DROP POLICY IF EXISTS "Users can view own roles" ON public.user_roles;
 CREATE POLICY "Users can view own roles"
   ON public.user_roles FOR SELECT
   TO authenticated
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
 CREATE POLICY "Admins can view all roles"
   ON public.user_roles FOR SELECT
   TO authenticated
   USING (is_admin());
 
+DROP POLICY IF EXISTS "Admins can insert user roles" ON public.user_roles;
 CREATE POLICY "Admins can insert user roles"
   ON public.user_roles FOR INSERT
   TO authenticated
   WITH CHECK (is_admin());
 
+DROP POLICY IF EXISTS "Admins can update user roles" ON public.user_roles;
 CREATE POLICY "Admins can update user roles"
   ON public.user_roles FOR UPDATE
   TO authenticated
   USING (is_admin())
   WITH CHECK (is_admin());
 
+DROP POLICY IF EXISTS "Admins can delete user roles" ON public.user_roles;
 CREATE POLICY "Admins can delete user roles"
   ON public.user_roles FOR DELETE
   TO authenticated
@@ -766,10 +779,12 @@ CREATE TABLE IF NOT EXISTS public.pos_packages (
 
 ALTER TABLE public.pos_packages ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view active POS packages" ON public.pos_packages;
 CREATE POLICY "Anyone can view active POS packages"
   ON public.pos_packages FOR SELECT
   USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage POS packages" ON public.pos_packages;
 CREATE POLICY "Admins can manage POS packages"
   ON public.pos_packages FOR ALL
   USING (is_admin());
@@ -795,18 +810,22 @@ CREATE TABLE IF NOT EXISTS public.pos_subscriptions (
 
 ALTER TABLE public.pos_subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can view own POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Merchants can view own POS subscriptions"
   ON public.pos_subscriptions FOR SELECT
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_subscriptions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Merchants can create POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Merchants can create POS subscriptions"
   ON public.pos_subscriptions FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_subscriptions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Merchants can update own POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Merchants can update own POS subscriptions"
   ON public.pos_subscriptions FOR UPDATE
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_subscriptions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage all POS subscriptions" ON public.pos_subscriptions;
 CREATE POLICY "Admins can manage all POS subscriptions"
   ON public.pos_subscriptions FOR ALL
   USING (is_admin());
@@ -833,10 +852,12 @@ CREATE TABLE IF NOT EXISTS public.pos_transactions (
 
 ALTER TABLE public.pos_transactions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can manage own POS transactions" ON public.pos_transactions;
 CREATE POLICY "Merchants can manage own POS transactions"
   ON public.pos_transactions FOR ALL
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_transactions.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can view all POS transactions" ON public.pos_transactions;
 CREATE POLICY "Admins can view all POS transactions"
   ON public.pos_transactions FOR SELECT
   USING (is_admin());
@@ -858,10 +879,12 @@ CREATE TABLE IF NOT EXISTS public.pos_settings (
 
 ALTER TABLE public.pos_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can manage own POS settings" ON public.pos_settings;
 CREATE POLICY "Merchants can manage own POS settings"
   ON public.pos_settings FOR ALL
   USING (EXISTS (SELECT 1 FROM merchants WHERE merchants.id = pos_settings.merchant_id AND merchants.user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can manage all POS settings" ON public.pos_settings;
 CREATE POLICY "Admins can manage all POS settings"
   ON public.pos_settings FOR ALL
   USING (is_admin());
@@ -927,14 +950,17 @@ CREATE TABLE IF NOT EXISTS public.courier_withdrawal_requests (
 -- RLS for courier_withdrawal_requests
 ALTER TABLE public.courier_withdrawal_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Couriers can view own withdrawals" ON public.courier_withdrawal_requests;
 CREATE POLICY "Couriers can view own withdrawals"
 ON public.courier_withdrawal_requests FOR SELECT
 USING (courier_id = public.get_user_courier_id());
 
+DROP POLICY IF EXISTS "Couriers can create own withdrawals" ON public.courier_withdrawal_requests;
 CREATE POLICY "Couriers can create own withdrawals"
 ON public.courier_withdrawal_requests FOR INSERT
 WITH CHECK (courier_id = public.get_user_courier_id());
 
+DROP POLICY IF EXISTS "Admins full access courier withdrawals" ON public.courier_withdrawal_requests;
 CREATE POLICY "Admins full access courier withdrawals"
 ON public.courier_withdrawal_requests FOR ALL
 USING (public.is_admin());
@@ -1135,7 +1161,9 @@ CREATE TABLE IF NOT EXISTS public.halal_regulations (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE public.halal_regulations ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read halal_regulations" ON public.halal_regulations;
 CREATE POLICY "Anyone can read halal_regulations" ON public.halal_regulations FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admin can manage halal_regulations" ON public.halal_regulations;
 CREATE POLICY "Admin can manage halal_regulations" ON public.halal_regulations FOR ALL USING (public.is_admin());
 
 -- 4. Create increment_product_view function
@@ -1240,10 +1268,12 @@ DROP POLICY IF EXISTS "Merchants can view own data" ON public.merchants;
 DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants;
 
 -- Buat policy baru yang mengizinkan akses ke semua kolom (termasuk verifikator_code)
+DROP POLICY IF EXISTS "Merchants can view own data" ON public.merchants;
 CREATE POLICY "Merchants can view own data"
 ON public.merchants FOR SELECT
 USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants;
 CREATE POLICY "Merchants can update own data"
 ON public.merchants FOR UPDATE
 USING (auth.uid() = id);
@@ -1332,18 +1362,22 @@ CREATE INDEX idx_chat_messages_auto_delete ON public.chat_messages(auto_delete_a
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 
 -- Policies: only sender/receiver can access
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can view own chat messages"
 ON public.chat_messages FOR SELECT
 USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
 CREATE POLICY "Users can send chat messages"
 ON public.chat_messages FOR INSERT
 WITH CHECK (auth.uid() = sender_id);
 
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
 CREATE POLICY "Users can update own messages read status"
 ON public.chat_messages FOR UPDATE
 USING (auth.uid() = receiver_id);
 
+DROP POLICY IF EXISTS "Admins can manage all chat messages" ON public.chat_messages;
 CREATE POLICY "Admins can manage all chat messages"
 ON public.chat_messages FOR ALL
 USING (is_admin());
@@ -1379,11 +1413,13 @@ CREATE INDEX idx_page_views_product ON public.page_views(product_id, created_at)
 ALTER TABLE public.page_views ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can insert page views (anonymous tracking)
+DROP POLICY IF EXISTS "Anyone can insert page views" ON public.page_views;
 CREATE POLICY "Anyone can insert page views"
 ON public.page_views FOR INSERT
 WITH CHECK (true);
 
 -- Merchants can view their own page views
+DROP POLICY IF EXISTS "Merchants can view own page views" ON public.page_views;
 CREATE POLICY "Merchants can view own page views"
 ON public.page_views FOR SELECT
 USING (
@@ -1460,10 +1496,12 @@ CREATE TABLE IF NOT EXISTS public.group_announcements (
 
 ALTER TABLE public.group_announcements ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Verifikator can manage own announcements" ON public.group_announcements;
 CREATE POLICY "Verifikator can manage own announcements"
   ON public.group_announcements FOR ALL
   USING (verifikator_id = auth.uid());
 
+DROP POLICY IF EXISTS "Group members can read announcements" ON public.group_announcements;
 CREATE POLICY "Group members can read announcements"
   ON public.group_announcements FOR SELECT
   USING (

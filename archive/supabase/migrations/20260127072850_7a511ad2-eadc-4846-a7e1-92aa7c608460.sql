@@ -44,19 +44,23 @@ ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.kas_payments ENABLE ROW LEVEL SECURITY;
 
 -- Trade Groups Policies
+DROP POLICY IF EXISTS "Verifikators can manage own groups" ON public.trade_groups;
 CREATE POLICY "Verifikators can manage own groups"
 ON public.trade_groups FOR ALL
 USING (verifikator_id = auth.uid() OR is_admin());
 
+DROP POLICY IF EXISTS "Admins can manage all groups" ON public.trade_groups;
 CREATE POLICY "Admins can manage all groups"
 ON public.trade_groups FOR ALL
 USING (is_admin());
 
+DROP POLICY IF EXISTS "Anyone can view active groups" ON public.trade_groups;
 CREATE POLICY "Anyone can view active groups"
 ON public.trade_groups FOR SELECT
 USING (is_active = true);
 
 -- Group Members Policies
+DROP POLICY IF EXISTS "Verifikators can manage group members" ON public.group_members;
 CREATE POLICY "Verifikators can manage group members"
 ON public.group_members FOR ALL
 USING (
@@ -67,6 +71,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can view own membership" ON public.group_members;
 CREATE POLICY "Merchants can view own membership"
 ON public.group_members FOR SELECT
 USING (
@@ -77,11 +82,13 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage all members" ON public.group_members;
 CREATE POLICY "Admins can manage all members"
 ON public.group_members FOR ALL
 USING (is_admin());
 
 -- Kas Payments Policies
+DROP POLICY IF EXISTS "Verifikators can manage payments in their groups" ON public.kas_payments;
 CREATE POLICY "Verifikators can manage payments in their groups"
 ON public.kas_payments FOR ALL
 USING (
@@ -92,6 +99,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Merchants can view own payments" ON public.kas_payments;
 CREATE POLICY "Merchants can view own payments"
 ON public.kas_payments FOR SELECT
 USING (
@@ -102,6 +110,7 @@ USING (
   )
 );
 
+DROP POLICY IF EXISTS "Admins can manage all payments" ON public.kas_payments;
 CREATE POLICY "Admins can manage all payments"
 ON public.kas_payments FOR ALL
 USING (is_admin());

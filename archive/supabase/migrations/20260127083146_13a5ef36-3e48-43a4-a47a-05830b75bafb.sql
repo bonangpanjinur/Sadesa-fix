@@ -25,9 +25,11 @@ CREATE TABLE IF NOT EXISTS public.platform_fees (
 ALTER TABLE public.platform_fees ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for platform_fees
+DROP POLICY IF EXISTS "Admins can manage platform_fees" ON public.platform_fees;
 CREATE POLICY "Admins can manage platform_fees" ON public.platform_fees
   FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Merchants can view own fees" ON public.platform_fees;
 CREATE POLICY "Merchants can view own fees" ON public.platform_fees
   FOR SELECT USING (
     EXISTS (
@@ -57,6 +59,7 @@ CREATE TABLE IF NOT EXISTS public.broadcast_notifications (
 ALTER TABLE public.broadcast_notifications ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for broadcast_notifications
+DROP POLICY IF EXISTS "Admins can manage broadcasts" ON public.broadcast_notifications;
 CREATE POLICY "Admins can manage broadcasts" ON public.broadcast_notifications
   FOR ALL USING (is_admin());
 
@@ -76,9 +79,11 @@ CREATE TABLE IF NOT EXISTS public.courier_earnings (
 ALTER TABLE public.courier_earnings ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for courier_earnings
+DROP POLICY IF EXISTS "Admins can manage courier earnings" ON public.courier_earnings;
 CREATE POLICY "Admins can manage courier earnings" ON public.courier_earnings
   FOR ALL USING (is_admin());
 
+DROP POLICY IF EXISTS "Couriers can view own earnings" ON public.courier_earnings;
 CREATE POLICY "Couriers can view own earnings" ON public.courier_earnings
   FOR SELECT USING (
     EXISTS (

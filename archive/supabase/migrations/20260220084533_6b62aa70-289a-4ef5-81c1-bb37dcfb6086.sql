@@ -12,6 +12,7 @@ CREATE TABLE public.merchant_gallery (
 ALTER TABLE public.merchant_gallery ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view gallery images of active merchants
+DROP POLICY IF EXISTS "Public can view merchant gallery" ON public.merchant_gallery;
 CREATE POLICY "Public can view merchant gallery"
   ON public.merchant_gallery FOR SELECT
   USING (EXISTS (
@@ -22,6 +23,7 @@ CREATE POLICY "Public can view merchant gallery"
   ));
 
 -- Merchants can manage own gallery
+DROP POLICY IF EXISTS "Merchants can manage own gallery" ON public.merchant_gallery;
 CREATE POLICY "Merchants can manage own gallery"
   ON public.merchant_gallery FOR ALL
   USING (EXISTS (
@@ -31,6 +33,7 @@ CREATE POLICY "Merchants can manage own gallery"
   ));
 
 -- Admins can manage all galleries
+DROP POLICY IF EXISTS "Admins can manage all galleries" ON public.merchant_gallery;
 CREATE POLICY "Admins can manage all galleries"
   ON public.merchant_gallery FOR ALL
   USING (is_admin());
@@ -40,18 +43,22 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('merchant-gallery', 'merc
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for merchant gallery
+DROP POLICY IF EXISTS "Public can view merchant gallery images" ON storage.objects;
 CREATE POLICY "Public can view merchant gallery images"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'merchant-gallery');
 
+DROP POLICY IF EXISTS "Authenticated users can upload merchant gallery images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload merchant gallery images"
   ON storage.objects FOR INSERT
   WITH CHECK (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Users can update own merchant gallery images" ON storage.objects;
 CREATE POLICY "Users can update own merchant gallery images"
   ON storage.objects FOR UPDATE
   USING (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Users can delete own merchant gallery images" ON storage.objects;
 CREATE POLICY "Users can delete own merchant gallery images"
   ON storage.objects FOR DELETE
   USING (bucket_id = 'merchant-gallery' AND auth.uid() IS NOT NULL);

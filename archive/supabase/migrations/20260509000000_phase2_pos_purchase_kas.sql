@@ -128,18 +128,22 @@ ALTER TABLE pos_cash_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_cash_mutations ENABLE ROW LEVEL SECURITY;
 
 -- Purchase Orders
+DROP POLICY IF EXISTS "tenant_owner_manage_purchase_orders" ON pos_purchase_orders;
 CREATE POLICY "tenant_owner_manage_purchase_orders" ON pos_purchase_orders FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_purchase_orders" ON pos_purchase_orders;
 CREATE POLICY "tenant_users_select_purchase_orders" ON pos_purchase_orders FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_po_items" ON pos_purchase_order_items;
 CREATE POLICY "tenant_owner_manage_po_items" ON pos_purchase_order_items FOR ALL USING (
   purchase_order_id IN (
     SELECT id FROM pos_purchase_orders
     WHERE tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   )
 );
+DROP POLICY IF EXISTS "tenant_users_select_po_items" ON pos_purchase_order_items;
 CREATE POLICY "tenant_users_select_po_items" ON pos_purchase_order_items FOR SELECT USING (
   purchase_order_id IN (
     SELECT id FROM pos_purchase_orders
@@ -148,9 +152,11 @@ CREATE POLICY "tenant_users_select_po_items" ON pos_purchase_order_items FOR SEL
 );
 
 -- Purchase Returns
+DROP POLICY IF EXISTS "tenant_owner_manage_purchase_returns" ON pos_purchase_returns;
 CREATE POLICY "tenant_owner_manage_purchase_returns" ON pos_purchase_returns FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_owner_manage_purchase_return_items" ON pos_purchase_return_items;
 CREATE POLICY "tenant_owner_manage_purchase_return_items" ON pos_purchase_return_items FOR ALL USING (
   purchase_return_id IN (
     SELECT id FROM pos_purchase_returns
@@ -159,23 +165,29 @@ CREATE POLICY "tenant_owner_manage_purchase_return_items" ON pos_purchase_return
 );
 
 -- Cash Sessions
+DROP POLICY IF EXISTS "tenant_owner_manage_cash_sessions" ON pos_cash_sessions;
 CREATE POLICY "tenant_owner_manage_cash_sessions" ON pos_cash_sessions FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_cash_sessions" ON pos_cash_sessions;
 CREATE POLICY "tenant_users_select_cash_sessions" ON pos_cash_sessions FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_manage_own_sessions" ON pos_cash_sessions;
 CREATE POLICY "tenant_users_manage_own_sessions" ON pos_cash_sessions FOR ALL USING (
   cashier_id = auth.uid()
 );
 
 -- Cash Mutations
+DROP POLICY IF EXISTS "tenant_owner_manage_cash_mutations" ON pos_cash_mutations;
 CREATE POLICY "tenant_owner_manage_cash_mutations" ON pos_cash_mutations FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_cash_mutations" ON pos_cash_mutations;
 CREATE POLICY "tenant_users_select_cash_mutations" ON pos_cash_mutations FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_manage_own_mutations" ON pos_cash_mutations;
 CREATE POLICY "tenant_users_manage_own_mutations" ON pos_cash_mutations FOR INSERT WITH CHECK (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );

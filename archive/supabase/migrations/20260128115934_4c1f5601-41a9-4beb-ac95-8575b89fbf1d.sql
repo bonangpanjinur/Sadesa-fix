@@ -27,10 +27,12 @@ ALTER TABLE public.product_variants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.product_images ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for product_variants
+DROP POLICY IF EXISTS "Anyone can view active product variants" ON public.product_variants;
 CREATE POLICY "Anyone can view active product variants"
 ON public.product_variants FOR SELECT
 USING (is_active = true);
 
+DROP POLICY IF EXISTS "Merchants can manage their product variants" ON public.product_variants;
 CREATE POLICY "Merchants can manage their product variants"
 ON public.product_variants FOR ALL
 USING (
@@ -43,10 +45,12 @@ USING (
 );
 
 -- RLS Policies for product_images
+DROP POLICY IF EXISTS "Anyone can view product images" ON public.product_images;
 CREATE POLICY "Anyone can view product images"
 ON public.product_images FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Merchants can manage their product images" ON public.product_images;
 CREATE POLICY "Merchants can manage their product images"
 ON public.product_images FOR ALL
 USING (
@@ -59,10 +63,12 @@ USING (
 );
 
 -- Admin policies
+DROP POLICY IF EXISTS "Admins can manage all product variants" ON public.product_variants;
 CREATE POLICY "Admins can manage all product variants"
 ON public.product_variants FOR ALL
 USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins can manage all product images" ON public.product_images;
 CREATE POLICY "Admins can manage all product images"
 ON public.product_images FOR ALL
 USING (public.is_admin());

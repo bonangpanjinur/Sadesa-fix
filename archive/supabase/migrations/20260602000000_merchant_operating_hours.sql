@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.merchant_operating_hours (
 ALTER TABLE public.merchant_operating_hours ENABLE ROW LEVEL SECURITY;
 
 -- Merchant bisa baca dan kelola jam operasional miliknya sendiri
+DROP POLICY IF EXISTS "merchant_own_hours" ON public.merchant_operating_hours;
 CREATE POLICY "merchant_own_hours" ON public.merchant_operating_hours
   USING (
     merchant_id IN (
@@ -25,12 +26,14 @@ CREATE POLICY "merchant_own_hours" ON public.merchant_operating_hours
   );
 
 -- Admin bisa baca semua
+DROP POLICY IF EXISTS "admin_read_hours" ON public.merchant_operating_hours;
 CREATE POLICY "admin_read_hours" ON public.merchant_operating_hours
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE user_id = auth.uid() AND role = 'admin')
   );
 
 -- Publik bisa baca (untuk menampilkan jadwal di halaman toko)
+DROP POLICY IF EXISTS "public_read_hours" ON public.merchant_operating_hours;
 CREATE POLICY "public_read_hours" ON public.merchant_operating_hours
   FOR SELECT USING (true);
 

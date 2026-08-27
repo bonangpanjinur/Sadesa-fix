@@ -23,11 +23,13 @@ CREATE TABLE IF NOT EXISTS public.quota_audit_logs (
 -- Enable RLS for quota_audit_logs
 ALTER TABLE public.quota_audit_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Merchants can view their own quota logs" ON public.quota_audit_logs;
 CREATE POLICY "Merchants can view their own quota logs"
 ON public.quota_audit_logs FOR SELECT
 TO authenticated
 USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()));
 
+DROP POLICY IF EXISTS "Admins can view all quota logs" ON public.quota_audit_logs;
 CREATE POLICY "Admins can view all quota logs"
 ON public.quota_audit_logs FOR SELECT
 TO authenticated

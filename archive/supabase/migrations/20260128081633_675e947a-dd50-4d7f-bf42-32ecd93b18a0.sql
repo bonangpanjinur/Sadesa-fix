@@ -26,24 +26,28 @@ CREATE TABLE public.saved_addresses (
 ALTER TABLE public.saved_addresses ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own addresses
+DROP POLICY IF EXISTS "Users can view own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can view own addresses"
 ON public.saved_addresses
 FOR SELECT
 USING (auth.uid() = user_id);
 
 -- Users can insert their own addresses
+DROP POLICY IF EXISTS "Users can insert own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can insert own addresses"
 ON public.saved_addresses
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
 -- Users can update their own addresses
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can update own addresses"
 ON public.saved_addresses
 FOR UPDATE
 USING (auth.uid() = user_id);
 
 -- Users can delete their own addresses
+DROP POLICY IF EXISTS "Users can delete own addresses" ON public.saved_addresses;
 CREATE POLICY "Users can delete own addresses"
 ON public.saved_addresses
 FOR DELETE

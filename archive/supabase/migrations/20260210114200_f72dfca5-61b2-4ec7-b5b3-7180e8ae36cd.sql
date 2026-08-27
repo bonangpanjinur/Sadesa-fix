@@ -28,14 +28,17 @@ CREATE TABLE IF NOT EXISTS public.courier_withdrawal_requests (
 -- RLS for courier_withdrawal_requests
 ALTER TABLE public.courier_withdrawal_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Couriers can view own withdrawals" ON public.courier_withdrawal_requests;
 CREATE POLICY "Couriers can view own withdrawals"
 ON public.courier_withdrawal_requests FOR SELECT
 USING (courier_id = public.get_user_courier_id());
 
+DROP POLICY IF EXISTS "Couriers can create own withdrawals" ON public.courier_withdrawal_requests;
 CREATE POLICY "Couriers can create own withdrawals"
 ON public.courier_withdrawal_requests FOR INSERT
 WITH CHECK (courier_id = public.get_user_courier_id());
 
+DROP POLICY IF EXISTS "Admins full access courier withdrawals" ON public.courier_withdrawal_requests;
 CREATE POLICY "Admins full access courier withdrawals"
 ON public.courier_withdrawal_requests FOR ALL
 USING (public.is_admin());

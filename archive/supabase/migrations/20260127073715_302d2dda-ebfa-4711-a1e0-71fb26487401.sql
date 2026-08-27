@@ -22,12 +22,15 @@ DROP POLICY IF EXISTS "Verifikators can view own withdrawals" ON public.verifika
 DROP POLICY IF EXISTS "Verifikators can create withdrawals" ON public.verifikator_withdrawals;
 DROP POLICY IF EXISTS "Admins can manage all withdrawals" ON public.verifikator_withdrawals;
 
+DROP POLICY IF EXISTS "Verifikators can view own withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators can view own withdrawals" ON public.verifikator_withdrawals
   FOR SELECT USING (verifikator_id = auth.uid());
 
+DROP POLICY IF EXISTS "Verifikators can create withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Verifikators can create withdrawals" ON public.verifikator_withdrawals
   FOR INSERT WITH CHECK (verifikator_id = auth.uid() AND status = 'PENDING');
 
+DROP POLICY IF EXISTS "Admins can manage all withdrawals" ON public.verifikator_withdrawals;
 CREATE POLICY "Admins can manage all withdrawals" ON public.verifikator_withdrawals
   FOR ALL USING (is_admin());
 

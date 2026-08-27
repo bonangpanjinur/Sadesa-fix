@@ -739,6 +739,7 @@ TO authenticated
 USING (user_id = auth.uid());
 
 -- 2. Admins can manage all couriers using security definer function
+DROP POLICY IF EXISTS "Admins can manage couriers" ON public.couriers;
 CREATE POLICY "Admins can manage couriers"
 ON public.couriers
 FOR ALL
@@ -746,6 +747,7 @@ TO authenticated
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- 3. Verifikator can manage couriers
+DROP POLICY IF EXISTS "Verifikator can manage couriers" ON public.couriers;
 CREATE POLICY "Verifikator can manage couriers"
 ON public.couriers
 FOR ALL
@@ -753,6 +755,7 @@ TO authenticated
 USING (public.has_role(auth.uid(), 'verifikator'));
 
 -- 4. Anyone can register as courier
+DROP POLICY IF EXISTS "Anyone can register as courier" ON public.couriers;
 CREATE POLICY "Anyone can register as courier"
 ON public.couriers
 FOR INSERT
@@ -760,6 +763,7 @@ TO authenticated
 WITH CHECK (registration_status = 'PENDING' AND status = 'INACTIVE');
 
 -- 5. Couriers can update own location
+DROP POLICY IF EXISTS "Couriers can update own location" ON public.couriers;
 CREATE POLICY "Couriers can update own location"
 ON public.couriers
 FOR UPDATE
@@ -767,6 +771,7 @@ TO authenticated
 USING (user_id = auth.uid() AND status = 'ACTIVE');
 
 -- 6. Public view for approved couriers (for order assignment)
+DROP POLICY IF EXISTS "Public can view approved couriers" ON public.couriers;
 CREATE POLICY "Public can view approved couriers"
 ON public.couriers
 FOR SELECT
@@ -787,18 +792,21 @@ DROP POLICY IF EXISTS "Merchants can update own orders" ON public.orders;
 DROP POLICY IF EXISTS "Merchants can view own orders" ON public.orders;
 
 -- 1. Buyers can view and manage their own orders
+DROP POLICY IF EXISTS "Buyers can view own orders" ON public.orders;
 CREATE POLICY "Buyers can view own orders"
 ON public.orders
 FOR SELECT
 TO authenticated
 USING (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Buyers can create orders" ON public.orders;
 CREATE POLICY "Buyers can create orders"
 ON public.orders
 FOR INSERT
 TO authenticated
 WITH CHECK (auth.uid() = buyer_id);
 
+DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
 CREATE POLICY "Buyers can update own pending orders"
 ON public.orders
 FOR UPDATE
@@ -806,6 +814,7 @@ TO authenticated
 USING (auth.uid() = buyer_id AND status = 'NEW');
 
 -- 2. Admins can manage all orders
+DROP POLICY IF EXISTS "Admins can manage all orders" ON public.orders;
 CREATE POLICY "Admins can manage all orders"
 ON public.orders
 FOR ALL
@@ -813,12 +822,14 @@ TO authenticated
 USING (public.has_role(auth.uid(), 'admin'));
 
 -- 3. Couriers can view and update assigned orders using security definer
+DROP POLICY IF EXISTS "Couriers can view assigned orders" ON public.orders;
 CREATE POLICY "Couriers can view assigned orders"
 ON public.orders
 FOR SELECT
 TO authenticated
 USING (public.is_courier_owner(auth.uid(), courier_id));
 
+DROP POLICY IF EXISTS "Couriers can update assigned orders" ON public.orders;
 CREATE POLICY "Couriers can update assigned orders"
 ON public.orders
 FOR UPDATE
@@ -826,12 +837,14 @@ TO authenticated
 USING (public.is_courier_owner(auth.uid(), courier_id));
 
 -- 4. Merchants can view and update their orders using security definer
+DROP POLICY IF EXISTS "Merchants can view own orders" ON public.orders;
 CREATE POLICY "Merchants can view own orders"
 ON public.orders
 FOR SELECT
 TO authenticated
 USING (public.is_order_merchant(auth.uid(), merchant_id));
 
+DROP POLICY IF EXISTS "Merchants can update own orders" ON public.orders;
 CREATE POLICY "Merchants can update own orders"
 ON public.orders
 FOR UPDATE
@@ -1091,9 +1104,11 @@ DROP POLICY IF EXISTS "couriers_public_read" ON public.couriers;
 CREATE POLICY "couriers_public_read" ON public.couriers
   FOR SELECT USING (registration_status = 'APPROVED' AND status = 'ACTIVE');
 
+DROP POLICY IF EXISTS "couriers_own_access" ON public.couriers;
 CREATE POLICY "couriers_own_access" ON public.couriers
   FOR ALL USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "couriers_admin_access" ON public.couriers;
 CREATE POLICY "couriers_admin_access" ON public.couriers
   FOR ALL USING (public.is_admin());
 
@@ -1103,15 +1118,19 @@ DROP POLICY IF EXISTS "orders_merchant_access" ON public.orders;
 DROP POLICY IF EXISTS "orders_courier_access" ON public.orders;
 DROP POLICY IF EXISTS "orders_admin_access" ON public.orders;
 
+DROP POLICY IF EXISTS "orders_buyer_access" ON public.orders;
 CREATE POLICY "orders_buyer_access" ON public.orders
   FOR ALL USING (buyer_id = auth.uid());
 
+DROP POLICY IF EXISTS "orders_merchant_access" ON public.orders;
 CREATE POLICY "orders_merchant_access" ON public.orders
   FOR ALL USING (public.is_order_merchant(id));
 
+DROP POLICY IF EXISTS "orders_courier_access" ON public.orders;
 CREATE POLICY "orders_courier_access" ON public.orders
   FOR ALL USING (public.is_order_courier(id));
 
+DROP POLICY IF EXISTS "orders_admin_access" ON public.orders;
 CREATE POLICY "orders_admin_access" ON public.orders
   FOR ALL USING (public.is_admin());
 -- ===== END SOURCE: 20260204064759_cea5feab-6b7c-4ce3-b808-9da7ea5f2003.sql =====
@@ -1187,11 +1206,13 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Set up RLS policies for the 'products' bucket
 -- 1. Public: Anyone can view images
+DROP POLICY IF EXISTS "Public Access" ON storage.objects;
 CREATE POLICY "Public Access"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'products');
 
 -- 2. Authenticated (Merchant): Can upload images
+DROP POLICY IF EXISTS "Merchant Upload" ON storage.objects;
 CREATE POLICY "Merchant Upload"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -1200,6 +1221,7 @@ WITH CHECK (
 );
 
 -- 3. Authenticated (Merchant): Can update own images
+DROP POLICY IF EXISTS "Merchant Update" ON storage.objects;
 CREATE POLICY "Merchant Update"
 ON storage.objects FOR UPDATE
 USING (
@@ -1208,6 +1230,7 @@ USING (
 );
 
 -- 4. Authenticated (Merchant): Can delete own images
+DROP POLICY IF EXISTS "Merchant Delete" ON storage.objects;
 CREATE POLICY "Merchant Delete"
 ON storage.objects FOR DELETE
 USING (
@@ -1424,21 +1447,25 @@ VALUES ('village-images', 'village-images', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Allow public read access to village images
+DROP POLICY IF EXISTS "Village images are publicly accessible" ON storage.objects;
 CREATE POLICY "Village images are publicly accessible"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'village-images');
 
 -- Allow authenticated users to upload village images
+DROP POLICY IF EXISTS "Authenticated users can upload village images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload village images"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'village-images' AND auth.role() = 'authenticated');
 
 -- Allow authenticated users to update village images
+DROP POLICY IF EXISTS "Authenticated users can update village images" ON storage.objects;
 CREATE POLICY "Authenticated users can update village images"
 ON storage.objects FOR UPDATE
 USING (bucket_id = 'village-images' AND auth.role() = 'authenticated');
 
 -- Allow authenticated users to delete village images
+DROP POLICY IF EXISTS "Authenticated users can delete village images" ON storage.objects;
 CREATE POLICY "Authenticated users can delete village images"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'village-images' AND auth.role() = 'authenticated');
@@ -1511,21 +1538,25 @@ VALUES ('payment-proofs', 'payment-proofs', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS: Public read access for payment proof images
+DROP POLICY IF EXISTS "Payment proofs are publicly viewable" ON storage.objects;
 CREATE POLICY "Payment proofs are publicly viewable"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'payment-proofs');
 
 -- RLS: Authenticated users can upload payment proofs
+DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
 CREATE POLICY "Authenticated users can upload payment proofs"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'payment-proofs' AND auth.role() = 'authenticated');
 
 -- RLS: Users can update their own payment proofs
+DROP POLICY IF EXISTS "Users can update their own payment proofs" ON storage.objects;
 CREATE POLICY "Users can update their own payment proofs"
 ON storage.objects FOR UPDATE
 USING (bucket_id = 'payment-proofs' AND auth.role() = 'authenticated');
 
 -- RLS: Users can delete their own payment proofs
+DROP POLICY IF EXISTS "Users can delete their own payment proofs" ON storage.objects;
 CREATE POLICY "Users can delete their own payment proofs"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'payment-proofs' AND auth.role() = 'authenticated');
@@ -1550,31 +1581,37 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('admin-assets', 'admin-as
 ON CONFLICT (id) DO NOTHING;
 
 -- Allow public read access to promotions bucket
+DROP POLICY IF EXISTS "Public can view promotion images" ON storage.objects;
 CREATE POLICY "Public can view promotion images"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'promotions');
 
 -- Allow authenticated users to upload to promotions bucket
+DROP POLICY IF EXISTS "Authenticated users can upload promotion images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload promotion images"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'promotions' AND auth.role() = 'authenticated');
 
 -- Allow authenticated users to delete promotion images
+DROP POLICY IF EXISTS "Authenticated users can delete promotion images" ON storage.objects;
 CREATE POLICY "Authenticated users can delete promotion images"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'promotions' AND auth.role() = 'authenticated');
 
 -- Allow public read access to admin-assets bucket
+DROP POLICY IF EXISTS "Public can view admin assets" ON storage.objects;
 CREATE POLICY "Public can view admin assets"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'admin-assets');
 
 -- Allow authenticated users to upload to admin-assets bucket
+DROP POLICY IF EXISTS "Authenticated users can upload admin assets" ON storage.objects;
 CREATE POLICY "Authenticated users can upload admin assets"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'admin-assets' AND auth.role() = 'authenticated');
 
 -- Allow authenticated users to delete admin assets
+DROP POLICY IF EXISTS "Authenticated users can delete admin assets" ON storage.objects;
 CREATE POLICY "Authenticated users can delete admin assets"
 ON storage.objects FOR DELETE
 USING (bucket_id = 'admin-assets' AND auth.role() = 'authenticated');

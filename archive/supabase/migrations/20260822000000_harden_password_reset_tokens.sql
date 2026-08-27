@@ -9,6 +9,7 @@ DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tok
 DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens;
 
 -- Keep the table available only to trusted server-side service_role jobs.
+DROP POLICY IF EXISTS "Service role manages password reset tokens" ON public.password_reset_tokens;
 CREATE POLICY "Service role manages password reset tokens"
   ON public.password_reset_tokens
   FOR ALL

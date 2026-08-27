@@ -23,9 +23,13 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_shipments_order ON public.marketplace
 CREATE INDEX IF NOT EXISTS idx_marketplace_shipment_items_order_item ON public.marketplace_shipment_items(order_item_id);
 ALTER TABLE public.marketplace_shipments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.marketplace_shipment_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Buyer views own marketplace shipments" ON public.marketplace_shipments;
 CREATE POLICY "Buyer views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid()));
+DROP POLICY IF EXISTS "Merchant views own marketplace shipments" ON public.marketplace_shipments;
 CREATE POLICY "Merchant views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin());
+DROP POLICY IF EXISTS "Buyer views own shipment items" ON public.marketplace_shipment_items;
 CREATE POLICY "Buyer views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid())));
+DROP POLICY IF EXISTS "Merchant views own shipment items" ON public.marketplace_shipment_items;
 CREATE POLICY "Merchant views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin()));
 
 CREATE OR REPLACE FUNCTION public.create_marketplace_shipment(p_order_id uuid, p_items jsonb, p_tracking_number text DEFAULT NULL)

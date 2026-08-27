@@ -54,6 +54,7 @@ AS $$
 $$;
 
 -- RLS: Users can view chat messages where they are participants
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can view own chat messages"
 ON public.chat_messages
 FOR SELECT
@@ -63,6 +64,7 @@ USING (
 );
 
 -- RLS: Users can send chat messages if they are a participant
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
 CREATE POLICY "Users can send chat messages"
 ON public.chat_messages
 FOR INSERT
@@ -72,6 +74,7 @@ WITH CHECK (
 );
 
 -- RLS: Users can update read status on messages they received
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
 CREATE POLICY "Users can update own messages read status"
 ON public.chat_messages
 FOR UPDATE
@@ -83,11 +86,13 @@ VALUES ('chat-images', 'chat-images', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for chat images
+DROP POLICY IF EXISTS "Authenticated users can upload chat images" ON storage.objects;
 CREATE POLICY "Authenticated users can upload chat images"
 ON storage.objects
 FOR INSERT
 WITH CHECK (bucket_id = 'chat-images' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Anyone can view chat images" ON storage.objects;
 CREATE POLICY "Anyone can view chat images"
 ON storage.objects
 FOR SELECT

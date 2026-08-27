@@ -109,22 +109,27 @@ ALTER TABLE pos_notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pos_user_outlet_access ENABLE ROW LEVEL SECURITY;
 
 -- Stock Transfers
+DROP POLICY IF EXISTS "tenant_owner_manage_transfers" ON pos_stock_transfers;
 CREATE POLICY "tenant_owner_manage_transfers" ON pos_stock_transfers FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_select_transfers" ON pos_stock_transfers;
 CREATE POLICY "tenant_users_select_transfers" ON pos_stock_transfers FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_create_transfers" ON pos_stock_transfers;
 CREATE POLICY "tenant_users_create_transfers" ON pos_stock_transfers FOR INSERT WITH CHECK (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
 
+DROP POLICY IF EXISTS "tenant_owner_manage_transfer_items" ON pos_stock_transfer_items;
 CREATE POLICY "tenant_owner_manage_transfer_items" ON pos_stock_transfer_items FOR ALL USING (
   transfer_id IN (
     SELECT id FROM pos_stock_transfers
     WHERE tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
   )
 );
+DROP POLICY IF EXISTS "tenant_users_select_transfer_items" ON pos_stock_transfer_items;
 CREATE POLICY "tenant_users_select_transfer_items" ON pos_stock_transfer_items FOR SELECT USING (
   transfer_id IN (
     SELECT id FROM pos_stock_transfers
@@ -133,12 +138,15 @@ CREATE POLICY "tenant_users_select_transfer_items" ON pos_stock_transfer_items F
 );
 
 -- Audit Logs (read-only untuk semua, insert untuk semua)
+DROP POLICY IF EXISTS "tenant_owner_read_audit" ON pos_audit_logs;
 CREATE POLICY "tenant_owner_read_audit" ON pos_audit_logs FOR SELECT USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_read_audit" ON pos_audit_logs;
 CREATE POLICY "tenant_users_read_audit" ON pos_audit_logs FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );
+DROP POLICY IF EXISTS "tenant_users_write_audit" ON pos_audit_logs;
 CREATE POLICY "tenant_users_write_audit" ON pos_audit_logs FOR INSERT WITH CHECK (
   tenant_id IN (
     SELECT id FROM pos_tenants WHERE user_id = auth.uid()
@@ -148,17 +156,21 @@ CREATE POLICY "tenant_users_write_audit" ON pos_audit_logs FOR INSERT WITH CHECK
 );
 
 -- Notifications
+DROP POLICY IF EXISTS "tenant_owner_manage_notif" ON pos_notifications;
 CREATE POLICY "tenant_owner_manage_notif" ON pos_notifications FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "user_own_notif" ON pos_notifications;
 CREATE POLICY "user_own_notif" ON pos_notifications FOR ALL USING (
   user_id = auth.uid()
 );
 
 -- User Outlet Access
+DROP POLICY IF EXISTS "tenant_owner_manage_access" ON pos_user_outlet_access;
 CREATE POLICY "tenant_owner_manage_access" ON pos_user_outlet_access FOR ALL USING (
   tenant_id IN (SELECT id FROM pos_tenants WHERE user_id = auth.uid())
 );
+DROP POLICY IF EXISTS "tenant_users_read_access" ON pos_user_outlet_access;
 CREATE POLICY "tenant_users_read_access" ON pos_user_outlet_access FOR SELECT USING (
   tenant_id IN (SELECT tenant_id FROM pos_users WHERE user_id = auth.uid() AND is_active = true)
 );

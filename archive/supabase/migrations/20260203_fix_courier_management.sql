@@ -26,21 +26,27 @@ DROP POLICY IF EXISTS "Couriers can view own data" ON public.couriers;
 DROP POLICY IF EXISTS "Couriers can update own location" ON public.couriers;
 
 -- 3. Recreate policies with proper function calls
+DROP POLICY IF EXISTS "Admins can manage couriers" ON public.couriers;
 CREATE POLICY "Admins can manage couriers" ON public.couriers
 FOR ALL USING (public.is_admin());
 
+DROP POLICY IF EXISTS "Verifikator can manage couriers" ON public.couriers;
 CREATE POLICY "Verifikator can manage couriers" ON public.couriers
 FOR ALL USING (public.is_verifikator());
 
+DROP POLICY IF EXISTS "Anyone can register as courier" ON public.couriers;
 CREATE POLICY "Anyone can register as courier" ON public.couriers
 FOR INSERT WITH CHECK (registration_status = 'PENDING' AND status = 'INACTIVE');
 
+DROP POLICY IF EXISTS "Active couriers visible to authenticated" ON public.couriers;
 CREATE POLICY "Active couriers visible to authenticated" ON public.couriers
 FOR SELECT USING (status = 'ACTIVE' AND auth.uid() IS NOT NULL);
 
+DROP POLICY IF EXISTS "Couriers can view own data" ON public.couriers;
 CREATE POLICY "Couriers can view own data" ON public.couriers
 FOR SELECT USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "Couriers can update own location" ON public.couriers;
 CREATE POLICY "Couriers can update own location" ON public.couriers
 FOR UPDATE USING (user_id = auth.uid() AND status = 'ACTIVE');
 

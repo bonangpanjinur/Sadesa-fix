@@ -31,10 +31,12 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Recreate the policies that were dropped by CASCADE
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
 CREATE POLICY "Users can view own chat messages"
 ON public.chat_messages FOR SELECT
 USING (auth.uid() = sender_id OR auth.uid() = receiver_id OR is_chat_participant(auth.uid(), order_id, chat_type));
 
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
 CREATE POLICY "Users can send chat messages"
 ON public.chat_messages FOR INSERT
 WITH CHECK (auth.uid() = sender_id AND is_chat_participant(auth.uid(), order_id, chat_type));
