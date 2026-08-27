@@ -60,8 +60,8 @@
         "20260203_cleanup_package_table.sql",
         "20260203_fix_courier_management.sql"
       ],
-      "sha256": "f8da4d0fa7e233caee108cac6edbb721ff99c03c45e76fa1ba51d285218b5908",
-      "bytes": 59203
+      "sha256": "d942e8825ae6955534f6910c96c67d4d213801a822b80956faa13f63bf3758f2",
+      "bytes": 59527
     },
     {
       "file": "03_20260203_fix_i_to_20260207234919.sql",
@@ -90,8 +90,8 @@
         "20260207230832_d72c51f3-4ab4-4cd6-a02d-f6a1e981dac9.sql",
         "20260207234919_3b703a60-74a4-4b19-914a-bce0c90381c7.sql"
       ],
-      "sha256": "89fe48b7f4f4d6733fe30b7f0ee650e959997d7578d933be0aeb05df4f99f4bf",
-      "bytes": 55845
+      "sha256": "43286cded653b50a665ad242f33da2d7352ff8d3bae96d002fe294d4a23df4e9",
+      "bytes": 56075
     },
     {
       "file": "04_20260207234930_to_20260220084303.sql",

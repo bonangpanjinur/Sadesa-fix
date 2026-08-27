@@ -1648,12 +1648,22 @@ BEGIN
     END IF;
 END $$;
 
--- Ensure kas_fee is numeric for percentage
-ALTER TABLE public.transaction_packages 
-ALTER COLUMN kas_fee TYPE NUMERIC(5,2);
-
--- Add comment to clarify relationship with quota_tiers
-COMMENT ON TABLE public.transaction_packages IS 'Paket kuota transaksi yang dapat dibeli oleh merchant. Jumlah kuota yang dikonsumsi per transaksi diatur di tabel quota_tiers.';
+-- Ensure package columns are adjusted only after the package table exists.
+DO $$
+BEGIN
+    IF to_regclass('public.transaction_packages') IS NOT NULL
+       AND EXISTS (
+           SELECT 1
+           FROM information_schema.columns
+           WHERE table_schema = 'public'
+             AND table_name = 'transaction_packages'
+             AND column_name = 'kas_fee'
+       ) THEN
+        ALTER TABLE public.transaction_packages
+        ALTER COLUMN kas_fee TYPE NUMERIC(5,2);
+        COMMENT ON TABLE public.transaction_packages IS 'Paket kuota transaksi yang dapat dibeli oleh merchant. Jumlah kuota yang dikonsumsi per transaksi diatur di tabel quota_tiers.';
+    END IF;
+END $$;
 
 -- ===== END SOURCE: 20260203_cleanup_package_table.sql =====
 

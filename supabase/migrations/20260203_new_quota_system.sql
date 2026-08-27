@@ -37,7 +37,18 @@ INSERT INTO public.quota_tiers (min_price, max_price, credit_cost) VALUES
 -- 2. Modify transaction_packages to use "credits" instead of "transactions"
 -- We'll keep the column name transaction_quota but treat it as credits conceptually, 
 -- or we can add a comment to clarify.
-COMMENT ON COLUMN public.transaction_packages.transaction_quota IS 'Total credits provided by this package';
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'transaction_packages'
+      AND column_name = 'transaction_quota'
+  ) THEN
+    COMMENT ON COLUMN public.transaction_packages.transaction_quota IS 'Total credits provided by this package';
+  END IF;
+END $$;
 
 -- 3. Create a function to calculate credit cost based on product price
 CREATE OR REPLACE FUNCTION public.calculate_order_credit_cost(p_order_id UUID)
