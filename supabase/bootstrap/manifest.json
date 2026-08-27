@@ -239,7 +239,7 @@
         "20260829100000_security_privilege_hardening.sql",
         "20260829110000_legacy_security_definer_hardening.sql"
       ],
-      "sha256": "861fc3484f23732358f659194f0c5fc73e1120cb8c2ecb4012ef851f7f2ff5b0",
+      "sha256": "6ecf4ed0088af72b51ef039827ded188e3886d171a373d79cdcc0999072a50f9",
       "bytes": 123890
     }
   ]

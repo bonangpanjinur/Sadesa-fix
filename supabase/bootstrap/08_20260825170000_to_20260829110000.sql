@@ -1226,11 +1226,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_customers_tenant_auth_user
 CREATE INDEX IF NOT EXISTS idx_pos_customers_tenant_phone
   ON public.pos_customers(tenant_id, phone) WHERE phone IS NOT NULL;
 
+ALTER TABLE public.crm_segment_members DROP CONSTRAINT IF EXISTS crm_segment_members_pkey;
 ALTER TABLE public.crm_segment_members
   ALTER COLUMN customer_id DROP NOT NULL;
 ALTER TABLE public.crm_segment_members
   ADD COLUMN IF NOT EXISTS pos_customer_id uuid REFERENCES public.pos_customers(id) ON DELETE CASCADE;
-ALTER TABLE public.crm_segment_members DROP CONSTRAINT IF EXISTS crm_segment_members_pkey;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_segment_members_auth
   ON public.crm_segment_members(segment_id, customer_id) WHERE customer_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_segment_members_pos
