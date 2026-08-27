@@ -8,7 +8,10 @@ const GS  = 0x1d;
 const LF  = 0x0a;
 
 interface SerialPortLike { writable: WritableStream<Uint8Array> | null; open(options: { baudRate: number }): Promise<void>; close(): Promise<void>; }
-interface BluetoothCharacteristicLike { writeValueWithoutResponse(data: Uint8Array): Promise<void>; }
+interface BluetoothCharacteristicLike {
+  writeValueWithoutResponse?: (data: Uint8Array) => Promise<void>;
+  writeValue?: (data: Uint8Array) => Promise<void>;
+}
 interface BluetoothServerLike { getPrimaryService(uuid: string): Promise<{ getCharacteristic(uuid: string): Promise<BluetoothCharacteristicLike> }>; }
 interface BluetoothDeviceLike { name?: string; gatt: { connect(): Promise<BluetoothServerLike>; disconnect(): void } }
 
@@ -226,6 +229,16 @@ const NORDIC_UART_SERVICE  = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const NORDIC_UART_TX_CHAR  = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // Write
 const GENERIC_PRINTER_SERVICE = "000018f0-0000-1000-8000-00805f9b34fb";
 const GENERIC_PRINTER_CHAR    = "00002af1-0000-1000-8000-00805f9b34fb";
+const COMMON_BLE_PRINTER_PROFILES = [
+  { service: "0000ff00-0000-1000-8000-00805f9b34fb", characteristic: "0000ff02-0000-1000-8000-00805f9b34fb" },
+  { service: "0000ffe0-0000-1000-8000-00805f9b34fb", characteristic: "0000ffe1-0000-1000-8000-00805f9b34fb" },
+  { service: "49535343-fe7d-4ae5-8fa9-9fafd205e455", characteristic: "49535343-1e4d-4bd9-ba61-23c647249616" },
+] as const;
+const BLE_PRINTER_SERVICES = [
+  NORDIC_UART_SERVICE,
+  GENERIC_PRINTER_SERVICE,
+  ...COMMON_BLE_PRINTER_PROFILES.map(profile => profile.service),
+];
 
 export class BluetoothPrinter {
   private device: BluetoothDeviceLike | null = null;
@@ -234,37 +247,59 @@ export class BluetoothPrinter {
   deviceName = "";
 
   static isSupported(): boolean {
-    return typeof navigator !== "undefined" && "bluetooth" in navigator;
+    return typeof window !== "undefined"
+      && window.isSecureContext
+      && "bluetooth" in navigator
+      && typeof navigator.bluetooth?.requestDevice === "function";
+  }
+
+  static getSupportMessage(): string {
+    if (typeof navigator !== "undefined" && /iPad|iPhone|iPod/i.test(navigator.userAgent)) {
+      return "Web Bluetooth tidak tersedia di iOS/iPadOS. Gunakan Chrome/Edge desktop atau Android, atau pilih USB/WiFi.";
+    }
+    if (typeof window !== "undefined" && !window.isSecureContext) {
+      return "Web Bluetooth hanya dapat digunakan melalui HTTPS atau localhost.";
+    }
+    if (typeof navigator === "undefined" || !("bluetooth" in navigator)) {
+      return "Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome/Edge terbaru.";
+    }
+    return "Web Bluetooth tidak tersedia pada browser ini. Gunakan Chrome/Edge terbaru.";
   }
 
   async connect(): Promise<boolean> {
     if (!BluetoothPrinter.isSupported()) {
-      throw new Error("Web Bluetooth tidak didukung. Gunakan Chrome/Edge terbaru di HTTPS.");
+      throw new Error(BluetoothPrinter.getSupportMessage());
     }
     try {
+      // acceptAllDevices diperlukan karena banyak printer thermal memakai UUID
+      // vendor-specific dan nama perangkatnya tidak konsisten. Pengguna tetap
+      // memilih perangkat secara eksplisit pada browser picker.
       this.device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { services: [NORDIC_UART_SERVICE] },
-          { services: [GENERIC_PRINTER_SERVICE] },
-          { namePrefix: "Printer" },
-          { namePrefix: "MTP" },
-          { namePrefix: "RPP" },
-          { namePrefix: "PTP" },
-          { namePrefix: "Bluetherm" },
-        ],
-        optionalServices: [NORDIC_UART_SERVICE, GENERIC_PRINTER_SERVICE],
+        acceptAllDevices: true,
+        optionalServices: BLE_PRINTER_SERVICES,
       });
 
       const server = await this.device.gatt.connect();
       this.deviceName = this.device.name || "Printer Bluetooth";
 
-      // Coba Nordic UART dulu, fallback ke Generic Printer
-      try {
-        const service = await server.getPrimaryService(NORDIC_UART_SERVICE);
-        this.txChar = await service.getCharacteristic(NORDIC_UART_TX_CHAR);
-      } catch {
-        const service = await server.getPrimaryService(GENERIC_PRINTER_SERVICE);
-        this.txChar = await service.getCharacteristic(GENERIC_PRINTER_CHAR);
+      const profiles = [
+        { service: NORDIC_UART_SERVICE, characteristic: NORDIC_UART_TX_CHAR },
+        { service: GENERIC_PRINTER_SERVICE, characteristic: GENERIC_PRINTER_CHAR },
+        ...COMMON_BLE_PRINTER_PROFILES,
+      ];
+      let lastError: unknown = null;
+      for (const profile of profiles) {
+        try {
+          const service = await server.getPrimaryService(profile.service);
+          this.txChar = await service.getCharacteristic(profile.characteristic);
+          break;
+        } catch (err: unknown) {
+          lastError = err;
+        }
+      }
+      if (!this.txChar) {
+        await this.disconnect();
+        throw new Error(`Profil printer Bluetooth tidak dikenali untuk ${this.deviceName}. Pastikan printer mendukung BLE ESC/POS; printer Bluetooth Classic/SPP tidak dapat dipakai melalui Web Bluetooth.${lastError instanceof Error ? ` Detail: ${lastError.message}` : ""}`);
       }
 
       this.connected = true;
@@ -285,10 +320,13 @@ export class BluetoothPrinter {
 
   async send(data: number[]): Promise<void> {
     if (!this.txChar) throw new Error("Printer Bluetooth tidak terhubung.");
-    const CHUNK = 512;
+    // 180 byte aman untuk mayoritas BLE MTU tanpa perlu negotiated MTU.
+    const CHUNK = 180;
     for (let i = 0; i < data.length; i += CHUNK) {
       const chunk = new Uint8Array(data.slice(i, i + CHUNK));
-      await this.txChar.writeValueWithoutResponse(chunk);
+      if (this.txChar.writeValueWithoutResponse) await this.txChar.writeValueWithoutResponse(chunk);
+      else if (this.txChar.writeValue) await this.txChar.writeValue(chunk);
+      else throw new Error("Characteristic printer tidak mendukung operasi tulis.");
       await new Promise(r => setTimeout(r, 20));
     }
   }

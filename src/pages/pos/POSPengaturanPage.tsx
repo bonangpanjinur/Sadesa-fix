@@ -52,6 +52,8 @@ export default function POSPengaturanPage() {
   const [testingPrint, setTestingPrint] = useState(false);
 
   const uniPrinter = getUniversalPrinter();
+  const bluetoothSupported = BluetoothPrinter.isSupported();
+  const bluetoothSupportMessage = BluetoothPrinter.getSupportMessage();
 
   const updatePrinter = (patch: Partial<PrinterSettings>) => {
     setPrinterSettings(prev => ({ ...prev, ...patch }));
@@ -619,15 +621,18 @@ export default function POSPengaturanPage() {
                       <div className="text-center py-2">
                         <Bluetooth className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                         <p className="text-sm text-muted-foreground">Belum ada printer dipasangkan</p>
-                        <p className="text-xs text-muted-foreground mt-1">Pastikan printer Bluetooth sudah menyala dan dalam jangkauan</p>
+                        <p className="text-xs text-muted-foreground mt-1">Pastikan printer Bluetooth menyala, sudah dipilih dari dialog browser, dan berada dalam jangkauan</p>
+                        {!bluetoothSupported && (
+                          <p className="text-xs text-amber-700 mt-2">{bluetoothSupportMessage}</p>
+                        )}
                       </div>
                     )}
                     <Button
                       onClick={uniPrinter.bluetooth.connected ? disconnectPrinter : connectBluetooth}
-                      disabled={printerStatus === 'connecting'}
+                      disabled={printerStatus === 'connecting' || (!uniPrinter.bluetooth.connected && !bluetoothSupported)}
                       className={uniPrinter.bluetooth.connected ? '' : 'bg-blue-600 hover:bg-blue-700 text-white w-full'}>
                       <Bluetooth className="h-4 w-4 mr-1.5" />
-                      {uniPrinter.bluetooth.connected ? 'Putuskan Bluetooth' : printerStatus === 'connecting' ? 'Mencari printer...' : 'Cari & Hubungkan Printer Bluetooth'}
+                      {uniPrinter.bluetooth.connected ? 'Putuskan Bluetooth' : printerStatus === 'connecting' ? 'Mencari printer...' : bluetoothSupported ? 'Cari & Hubungkan Printer Bluetooth' : 'Bluetooth tidak tersedia di perangkat ini'}
                     </Button>
                   </div>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 space-y-1">
@@ -635,7 +640,7 @@ export default function POSPengaturanPage() {
                     <p>• Nordic UART Service (GATT) — paling umum</p>
                     <p>• Generic Printer Profile (Zicox, Xprinter, HPRT, Sewoo, Bixolon)</p>
                     <p>• Merek: MTP-II, RPP300, PTP-II, Bluetherm, Rongta, iDPRT</p>
-                    <p className="mt-1 text-amber-700">⚠ Tidak didukung di iOS Safari / Firefox</p>
+                    <p className="mt-1 text-amber-700">⚠ Web Bluetooth tidak tersedia di iOS Safari/Firefox dan tidak dapat terhubung ke printer Bluetooth Classic/SPP. Gunakan Chrome/Edge desktop atau Android dengan HTTPS, atau pilih USB/WiFi.</p>
                   </div>
                 </CardContent>
               </Card>
