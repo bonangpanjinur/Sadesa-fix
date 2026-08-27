@@ -59,7 +59,7 @@ export default function AdminMerchantsPage() {
     })) as unknown as MerchantRow[];
   };
 
-  const { data: merchants = [], isLoading: loading } = useQuery<MerchantRow[]>({
+  const { data: merchants = [], isLoading: loading, error, refetch } = useQuery<MerchantRow[]>({
     queryKey: ['admin-merchants-list'],
     queryFn: fetchMerchantsData,
     staleTime: 30_000,
@@ -241,6 +241,8 @@ export default function AdminMerchantsPage() {
         searchPlaceholder="Cari nama merchant..."
         filters={filters}
         loading={loading}
+        error={error instanceof Error ? error.message : error ? 'Gagal memuat data merchant. Silakan coba lagi.' : null}
+        onRetry={() => void refetch()}
         emptyMessage="Belum ada merchant terdaftar"
       />
 

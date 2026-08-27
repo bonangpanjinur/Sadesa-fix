@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AdminFilterBar, AdminStatePanel } from '@/components/admin/AdminPagePrimitives';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, X, Eye, Search, Loader2, Wallet, Building } from 'lucide-react';
+import { Check, X, Eye, Loader2, Wallet, Building, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
@@ -64,9 +64,11 @@ export default function AdminWithdrawalsPage() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchWithdrawals = useCallback(async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       let query = supabase
         .from('withdrawal_requests')
@@ -90,6 +92,7 @@ export default function AdminWithdrawalsPage() {
       })));
     } catch (error) {
       console.error('Error fetching withdrawals:', error);
+      setErrorMessage('Gagal memuat data penarikan. Periksa koneksi dan permission database, lalu coba lagi.');
       toast({
         title: 'Error',
         description: 'Gagal memuat data penarikan',
@@ -257,43 +260,34 @@ export default function AdminWithdrawalsPage() {
       subtitle="Kelola permintaan penarikan saldo merchant"
     >
       <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-        <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+        <div className="mb-4 overflow-x-auto">
           <TabsList>
             <TabsTrigger value="all">Semua</TabsTrigger>
             <TabsTrigger value="PENDING" className="gap-2">
               Menunggu
-              {pendingCount > 0 && (
-                <Badge variant="destructive" className="h-5 px-1.5">
-                  {pendingCount}
-                </Badge>
-              )}
+              {pendingCount > 0 && <Badge variant="destructive" className="h-5 px-1.5">{pendingCount}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="APPROVED">Disetujui</TabsTrigger>
             <TabsTrigger value="COMPLETED">Selesai</TabsTrigger>
             <TabsTrigger value="REJECTED">Ditolak</TabsTrigger>
           </TabsList>
-
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Cari merchant, bank..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
         </div>
+        <AdminFilterBar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Cari merchant, pemilik rekening, atau bank..."
+          hasFilters={Boolean(search)}
+          onReset={() => setSearch('')}
+          actions={<Button variant="outline" size="sm" onClick={() => void fetchWithdrawals()} disabled={loading} className="gap-2"><RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} /> Segarkan</Button>}
+        />
 
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            <AdminStatePanel type="loading" title="Memuat permintaan penarikan" description="Menyiapkan saldo merchant, rekening tujuan, dan status transfer." />
+          ) : errorMessage ? (
+            <AdminStatePanel type="error" description={errorMessage} actionLabel="Coba lagi" onAction={() => void fetchWithdrawals()} />
           ) : filteredWithdrawals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <Wallet className="h-12 w-12 mb-3 opacity-50" />
-              <p>Tidak ada permintaan penarikan</p>
-            </div>
+            <AdminStatePanel type="empty" title={search ? 'Tidak ada hasil yang cocok' : 'Tidak ada permintaan penarikan'} description={search ? 'Ubah kata kunci pencarian untuk melihat data lain.' : 'Belum ada data penarikan pada status ini.'} />
           ) : (
             <Table>
               <TableHeader>
