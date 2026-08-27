@@ -1,6 +1,6 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql .. 20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql
+-- Source range: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql .. 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql
 
 
 -- ===== BEGIN SOURCE: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql =====
@@ -1065,3 +1065,15 @@ EXCEPTION
 END $$;
 
 -- ===== END SOURCE: 20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql =====
+
+-- ===== BEGIN SOURCE: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql =====
+
+-- Fix UPDATE policy to include WITH CHECK
+DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
+CREATE POLICY "Users can update own addresses"
+ON public.saved_addresses FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- ===== END SOURCE: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql =====

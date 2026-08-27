@@ -1,34 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql .. 20260822020000_add_payment_webhook_idempotency.sql
+-- Source range: 20260419161037_08343087-5318-467f-a887-4238272bf30a.sql .. 20260822030000_harden_storage_ownership.sql
 
-
--- ===== BEGIN SOURCE: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql =====
-ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_check;
-
--- Use a trigger-based validation instead of CHECK so we can reference categories table
-CREATE OR REPLACE FUNCTION public.validate_product_category()
-RETURNS trigger
-LANGUAGE plpgsql
-SET search_path = public
-AS $$
-BEGIN
-  IF NEW.category IS NULL OR NEW.category = '' THEN
-    RAISE EXCEPTION 'Kategori produk wajib diisi';
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.categories WHERE slug = NEW.category AND is_active = true) THEN
-    RAISE EXCEPTION 'Kategori "%" tidak valid atau tidak aktif', NEW.category;
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_validate_product_category ON public.products;
-CREATE TRIGGER trg_validate_product_category
-BEFORE INSERT OR UPDATE OF category ON public.products
-FOR EACH ROW EXECUTE FUNCTION public.validate_product_category();
-
--- ===== END SOURCE: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql =====
 
 -- ===== BEGIN SOURCE: 20260419161037_08343087-5318-467f-a887-4238272bf30a.sql =====
 -- Privatize the payment-proofs bucket
@@ -3434,3 +3407,167 @@ CREATE POLICY "Service role manages payment webhook events"
   USING (true) WITH CHECK (true);
 
 -- ===== END SOURCE: 20260822020000_add_payment_webhook_idempotency.sql =====
+
+-- ===== BEGIN SOURCE: 20260822030000_harden_storage_ownership.sql =====
+-- Storage hardening for sensitive documents and merchant gallery.
+
+-- The legacy merchants bucket contains KTP/certificate paths and must not be
+-- publicly readable. Public storefront images use dedicated public buckets.
+UPDATE storage.buckets
+SET public = false
+WHERE id = 'merchants';
+
+DROP POLICY IF EXISTS "Public view merchants bucket" ON storage.objects;
+DROP POLICY IF EXISTS "Allow users to upload certificates" ON storage.objects;
+DROP POLICY IF EXISTS "Allow users to upload ktp" ON storage.objects;
+
+DROP POLICY IF EXISTS "Owners and reviewers can read merchant documents" ON storage.objects;
+CREATE POLICY "Owners and reviewers can read merchant documents"
+ON storage.objects FOR SELECT TO authenticated
+USING (
+  bucket_id = 'merchants'
+  AND (
+    owner = auth.uid()
+    OR public.is_admin()
+    OR public.is_verifikator()
+    OR (
+      (storage.foldername(name))[1] IN ('ktp', 'certificate')
+      AND (storage.foldername(name))[2] = auth.uid()::text
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "Owners can upload merchant documents" ON storage.objects;
+CREATE POLICY "Owners can upload merchant documents"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'merchants'
+  AND (
+    (
+      (storage.foldername(name))[1] IN ('ktp', 'certificate')
+      AND (storage.foldername(name))[2] = auth.uid()::text
+    )
+    OR public.is_admin()
+    OR public.is_verifikator()
+  )
+  AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')
+);
+
+DROP POLICY IF EXISTS "Owners can update merchant documents" ON storage.objects;
+CREATE POLICY "Owners can update merchant documents"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+  bucket_id = 'merchants'
+  AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
+)
+WITH CHECK (
+  bucket_id = 'merchants'
+  AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
+);
+
+DROP POLICY IF EXISTS "Owners can delete merchant documents" ON storage.objects;
+CREATE POLICY "Owners can delete merchant documents"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'merchants'
+  AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
+);
+
+-- Merchant gallery remains publicly readable, but writes are restricted to the
+-- merchant owner, the related village administrator, or platform admin.
+DROP POLICY IF EXISTS "Authenticated users can upload merchant gallery images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own merchant gallery images" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own merchant gallery images" ON storage.objects;
+
+DROP POLICY IF EXISTS "Merchant owners can upload gallery images" ON storage.objects;
+CREATE POLICY "Merchant owners can upload gallery images"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'merchant-gallery'
+  AND (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.merchants m
+      WHERE (storage.foldername(name))[1] = m.id::text
+        AND m.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.user_villages uv
+      WHERE (storage.foldername(name))[1] = 'villages'
+        AND (storage.foldername(name))[2] = uv.village_id::text
+        AND uv.user_id = auth.uid()
+        AND uv.role = 'admin_desa'
+    )
+  )
+  AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp')
+);
+
+DROP POLICY IF EXISTS "Merchant owners can update gallery images" ON storage.objects;
+CREATE POLICY "Merchant owners can update gallery images"
+ON storage.objects FOR UPDATE TO authenticated
+USING (
+  bucket_id = 'merchant-gallery'
+  AND (
+    owner = auth.uid()
+    OR public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.merchants m
+      WHERE (storage.foldername(name))[1] = m.id::text
+        AND m.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.user_villages uv
+      WHERE (storage.foldername(name))[1] = 'villages'
+        AND (storage.foldername(name))[2] = uv.village_id::text
+        AND uv.user_id = auth.uid()
+        AND uv.role = 'admin_desa'
+    )
+  )
+)
+WITH CHECK (
+  bucket_id = 'merchant-gallery'
+  AND (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.merchants m
+      WHERE (storage.foldername(name))[1] = m.id::text
+        AND m.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.user_villages uv
+      WHERE (storage.foldername(name))[1] = 'villages'
+        AND (storage.foldername(name))[2] = uv.village_id::text
+        AND uv.user_id = auth.uid()
+        AND uv.role = 'admin_desa'
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "Merchant owners can delete gallery images" ON storage.objects;
+CREATE POLICY "Merchant owners can delete gallery images"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'merchant-gallery'
+  AND (
+    owner = auth.uid()
+    OR public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.merchants m
+      WHERE (storage.foldername(name))[1] = m.id::text
+        AND m.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.user_villages uv
+      WHERE (storage.foldername(name))[1] = 'villages'
+        AND (storage.foldername(name))[2] = uv.village_id::text
+        AND uv.user_id = auth.uid()
+        AND uv.role = 'admin_desa'
+    )
+  )
+);
+
+-- ===== END SOURCE: 20260822030000_harden_storage_ownership.sql =====

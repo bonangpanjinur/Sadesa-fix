@@ -1,19 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql .. 20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql
+-- Source range: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql .. 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql
 
-
--- ===== BEGIN SOURCE: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql =====
-
--- Fix UPDATE policy to include WITH CHECK
-DROP POLICY IF EXISTS "Users can update own addresses" ON public.saved_addresses;
-CREATE POLICY "Users can update own addresses"
-ON public.saved_addresses FOR UPDATE
-TO authenticated
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
-
--- ===== END SOURCE: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql =====
 
 -- ===== BEGIN SOURCE: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql =====
 
@@ -1240,3 +1228,30 @@ WITH CHECK (
 );
 
 -- ===== END SOURCE: 20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql =====
+
+-- ===== BEGIN SOURCE: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql =====
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_check;
+
+-- Use a trigger-based validation instead of CHECK so we can reference categories table
+CREATE OR REPLACE FUNCTION public.validate_product_category()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.category IS NULL OR NEW.category = '' THEN
+    RAISE EXCEPTION 'Kategori produk wajib diisi';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.categories WHERE slug = NEW.category AND is_active = true) THEN
+    RAISE EXCEPTION 'Kategori "%" tidak valid atau tidak aktif', NEW.category;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validate_product_category ON public.products;
+CREATE TRIGGER trg_validate_product_category
+BEFORE INSERT OR UPDATE OF category ON public.products
+FOR EACH ROW EXECUTE FUNCTION public.validate_product_category();
+
+-- ===== END SOURCE: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql =====

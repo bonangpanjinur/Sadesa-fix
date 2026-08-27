@@ -1,68 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260825200000_notification_delivery_queue.sql .. 20260829150000_pos_tenant_merchant_mapping.sql
+-- Source range: 20260825210000_subscription_billing_controls.sql .. 20260829150000_pos_tenant_merchant_mapping.sql
 
-
--- ===== BEGIN SOURCE: 20260825200000_notification_delivery_queue.sql =====
-CREATE TABLE IF NOT EXISTS public.notification_delivery_jobs (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  recipient_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  channel text NOT NULL CHECK (channel IN ('whatsapp','push','email','in_app')),
-  template_key text NOT NULL,
-  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
-  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','sent','failed','dead_letter','cancelled','opted_out')),
-  attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
-  max_attempts integer NOT NULL DEFAULT 5 CHECK (max_attempts > 0),
-  next_attempt_at timestamptz NOT NULL DEFAULT now(),
-  provider_message_id text,
-  last_error text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  sent_at timestamptz,
-  dead_letter_at timestamptz
-);
-CREATE INDEX IF NOT EXISTS idx_notification_jobs_due ON public.notification_delivery_jobs(status, next_attempt_at) WHERE status IN ('queued','failed');
-CREATE INDEX IF NOT EXISTS idx_notification_jobs_recipient ON public.notification_delivery_jobs(recipient_id, created_at DESC);
-
-ALTER TABLE public.notification_delivery_jobs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Users view own notification jobs" ON public.notification_delivery_jobs;
-CREATE POLICY "Users view own notification jobs" ON public.notification_delivery_jobs FOR SELECT TO authenticated USING (recipient_id = auth.uid() OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage notification jobs" ON public.notification_delivery_jobs;
-CREATE POLICY "Admins manage notification jobs" ON public.notification_delivery_jobs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
-
-CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
-RETURNS public.notification_delivery_jobs
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_job public.notification_delivery_jobs%ROWTYPE;
-BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Notification job claim requires admin access' USING ERRCODE = '42501'; END IF;
-  UPDATE public.notification_delivery_jobs
-  SET status = 'processing', attempts = attempts + 1
-  WHERE id = p_job_id AND status IN ('queued','failed') AND next_attempt_at <= now() AND attempts < max_attempts
-  RETURNING * INTO v_job;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
-  RETURN v_job;
-END; $$;
-
-CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
-RETURNS public.notification_delivery_jobs
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_job public.notification_delivery_jobs%ROWTYPE; v_status text; v_next timestamptz;
-BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Notification job completion requires admin access' USING ERRCODE = '42501'; END IF;
-  SELECT * INTO v_job FROM public.notification_delivery_jobs WHERE id = p_job_id FOR UPDATE;
-  IF NOT FOUND OR v_job.status <> 'processing' THEN RAISE EXCEPTION 'Notification job is not processing' USING ERRCODE = '55000'; END IF;
-  IF p_success THEN v_status := 'sent'; ELSE v_status := CASE WHEN v_job.attempts >= v_job.max_attempts THEN 'dead_letter' ELSE 'failed' END; END IF;
-  v_next := CASE WHEN v_status = 'failed' THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7)))) ELSE NULL END;
-  UPDATE public.notification_delivery_jobs SET status = v_status, provider_message_id = COALESCE(p_provider_message_id, provider_message_id), last_error = NULLIF(trim(p_error), ''), next_attempt_at = COALESCE(v_next, next_attempt_at), sent_at = CASE WHEN p_success THEN now() ELSE sent_at END, dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END WHERE id = p_job_id RETURNING * INTO v_job;
-  RETURN v_job;
-END; $$;
-REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO authenticated;
-
--- ===== END SOURCE: 20260825200000_notification_delivery_queue.sql =====
 
 -- ===== BEGIN SOURCE: 20260825210000_subscription_billing_controls.sql =====
 ALTER TABLE public.merchant_subscriptions
@@ -1369,6 +1308,91 @@ GRANT EXECUTE ON FUNCTION public.request_pos_stock_adjustment(uuid, uuid, uuid, 
 GRANT EXECUTE ON FUNCTION public.decide_pos_stock_adjustment(uuid, boolean, text) TO authenticated;
 
 -- ===== END SOURCE: 20260827120000_stock_adjustment_approval_rpc.sql =====
+
+-- ===== BEGIN SOURCE: 20260827180000_add_cashback_tables.sql =====
+-- SaDesa cashback rules and ledger
+-- Safe to replay: all objects and policies are guarded or recreated by name.
+
+CREATE TABLE IF NOT EXISTS public.cashback_rules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  cashback_percent numeric(5,2) NOT NULL,
+  min_order_amount numeric(14,2) NOT NULL DEFAULT 0,
+  max_cashback numeric(14,2),
+  category text,
+  is_active boolean NOT NULL DEFAULT true,
+  valid_from timestamptz NOT NULL DEFAULT now(),
+  valid_until timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT cashback_rules_name_not_blank CHECK (length(btrim(name)) > 0),
+  CONSTRAINT cashback_rules_percent_range CHECK (cashback_percent > 0 AND cashback_percent <= 50),
+  CONSTRAINT cashback_rules_min_order_non_negative CHECK (min_order_amount >= 0),
+  CONSTRAINT cashback_rules_max_positive CHECK (max_cashback IS NULL OR max_cashback > 0),
+  CONSTRAINT cashback_rules_valid_period CHECK (valid_until IS NULL OR valid_until >= valid_from)
+);
+
+CREATE INDEX IF NOT EXISTS cashback_rules_active_period_idx
+  ON public.cashback_rules (is_active, valid_from, valid_until);
+
+CREATE TABLE IF NOT EXISTS public.cashback_transactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  order_id uuid REFERENCES public.orders(id) ON DELETE SET NULL,
+  rule_id uuid REFERENCES public.cashback_rules(id) ON DELETE SET NULL,
+  amount numeric(14,2) NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  confirmed_at timestamptz,
+  CONSTRAINT cashback_transactions_amount_positive CHECK (amount > 0),
+  CONSTRAINT cashback_transactions_status_valid CHECK (status IN ('pending', 'confirmed', 'cancelled', 'reversed'))
+);
+
+CREATE INDEX IF NOT EXISTS cashback_transactions_user_created_idx
+  ON public.cashback_transactions (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS cashback_transactions_status_idx
+  ON public.cashback_transactions (status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS cashback_transactions_order_rule_unique_idx
+  ON public.cashback_transactions (order_id, rule_id)
+  WHERE order_id IS NOT NULL AND rule_id IS NOT NULL AND status <> 'reversed';
+
+GRANT SELECT ON public.cashback_rules TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.cashback_rules TO authenticated;
+GRANT SELECT ON public.cashback_transactions TO authenticated;
+GRANT ALL ON public.cashback_rules, public.cashback_transactions TO service_role;
+
+ALTER TABLE public.cashback_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cashback_transactions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view active cashback rules" ON public.cashback_rules;
+CREATE POLICY "Public can view active cashback rules"
+  ON public.cashback_rules FOR SELECT
+  TO anon, authenticated
+  USING (is_active = true AND valid_from <= now() AND (valid_until IS NULL OR valid_until >= now()));
+
+DROP POLICY IF EXISTS "Admins can manage cashback rules" ON public.cashback_rules;
+CREATE POLICY "Admins can manage cashback rules"
+  ON public.cashback_rules FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "Users can view own cashback transactions" ON public.cashback_transactions;
+CREATE POLICY "Users can view own cashback transactions"
+  ON public.cashback_transactions FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Admins can view cashback transactions" ON public.cashback_transactions;
+CREATE POLICY "Admins can view cashback transactions"
+  ON public.cashback_transactions FOR SELECT
+  TO authenticated
+  USING (public.is_admin());
+
+COMMENT ON TABLE public.cashback_rules IS 'Database-backed cashback programs managed by SaDesa administrators.';
+COMMENT ON TABLE public.cashback_transactions IS 'Cashback ledger for buyer awards and reversals.';
+
+-- ===== END SOURCE: 20260827180000_add_cashback_tables.sql =====
 
 -- ===== BEGIN SOURCE: 20260828100000_pwa_device_management.sql =====
 CREATE TABLE IF NOT EXISTS public.pwa_device_sessions (

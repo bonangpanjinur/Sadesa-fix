@@ -1,171 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260822030000_harden_storage_ownership.sql .. 20260825190000_crm_segments_campaigns.sql
+-- Source range: 20260822040000_harden_stock_decrement.sql .. 20260825200000_notification_delivery_queue.sql
 
-
--- ===== BEGIN SOURCE: 20260822030000_harden_storage_ownership.sql =====
--- Storage hardening for sensitive documents and merchant gallery.
-
--- The legacy merchants bucket contains KTP/certificate paths and must not be
--- publicly readable. Public storefront images use dedicated public buckets.
-UPDATE storage.buckets
-SET public = false
-WHERE id = 'merchants';
-
-DROP POLICY IF EXISTS "Public view merchants bucket" ON storage.objects;
-DROP POLICY IF EXISTS "Allow users to upload certificates" ON storage.objects;
-DROP POLICY IF EXISTS "Allow users to upload ktp" ON storage.objects;
-
-DROP POLICY IF EXISTS "Owners and reviewers can read merchant documents" ON storage.objects;
-CREATE POLICY "Owners and reviewers can read merchant documents"
-ON storage.objects FOR SELECT TO authenticated
-USING (
-  bucket_id = 'merchants'
-  AND (
-    owner = auth.uid()
-    OR public.is_admin()
-    OR public.is_verifikator()
-    OR (
-      (storage.foldername(name))[1] IN ('ktp', 'certificate')
-      AND (storage.foldername(name))[2] = auth.uid()::text
-    )
-  )
-);
-
-DROP POLICY IF EXISTS "Owners can upload merchant documents" ON storage.objects;
-CREATE POLICY "Owners can upload merchant documents"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (
-  bucket_id = 'merchants'
-  AND (
-    (
-      (storage.foldername(name))[1] IN ('ktp', 'certificate')
-      AND (storage.foldername(name))[2] = auth.uid()::text
-    )
-    OR public.is_admin()
-    OR public.is_verifikator()
-  )
-  AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')
-);
-
-DROP POLICY IF EXISTS "Owners can update merchant documents" ON storage.objects;
-CREATE POLICY "Owners can update merchant documents"
-ON storage.objects FOR UPDATE TO authenticated
-USING (
-  bucket_id = 'merchants'
-  AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
-)
-WITH CHECK (
-  bucket_id = 'merchants'
-  AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
-);
-
-DROP POLICY IF EXISTS "Owners can delete merchant documents" ON storage.objects;
-CREATE POLICY "Owners can delete merchant documents"
-ON storage.objects FOR DELETE TO authenticated
-USING (
-  bucket_id = 'merchants'
-  AND (owner = auth.uid() OR public.is_admin() OR public.is_verifikator())
-);
-
--- Merchant gallery remains publicly readable, but writes are restricted to the
--- merchant owner, the related village administrator, or platform admin.
-DROP POLICY IF EXISTS "Authenticated users can upload merchant gallery images" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update own merchant gallery images" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete own merchant gallery images" ON storage.objects;
-
-DROP POLICY IF EXISTS "Merchant owners can upload gallery images" ON storage.objects;
-CREATE POLICY "Merchant owners can upload gallery images"
-ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (
-  bucket_id = 'merchant-gallery'
-  AND (
-    public.is_admin()
-    OR EXISTS (
-      SELECT 1 FROM public.merchants m
-      WHERE (storage.foldername(name))[1] = m.id::text
-        AND m.user_id = auth.uid()
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.user_villages uv
-      WHERE (storage.foldername(name))[1] = 'villages'
-        AND (storage.foldername(name))[2] = uv.village_id::text
-        AND uv.user_id = auth.uid()
-        AND uv.role = 'admin_desa'
-    )
-  )
-  AND COALESCE(metadata->>'mimetype', '') IN ('image/jpeg', 'image/png', 'image/webp')
-);
-
-DROP POLICY IF EXISTS "Merchant owners can update gallery images" ON storage.objects;
-CREATE POLICY "Merchant owners can update gallery images"
-ON storage.objects FOR UPDATE TO authenticated
-USING (
-  bucket_id = 'merchant-gallery'
-  AND (
-    owner = auth.uid()
-    OR public.is_admin()
-    OR EXISTS (
-      SELECT 1 FROM public.merchants m
-      WHERE (storage.foldername(name))[1] = m.id::text
-        AND m.user_id = auth.uid()
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.user_villages uv
-      WHERE (storage.foldername(name))[1] = 'villages'
-        AND (storage.foldername(name))[2] = uv.village_id::text
-        AND uv.user_id = auth.uid()
-        AND uv.role = 'admin_desa'
-    )
-  )
-)
-WITH CHECK (
-  bucket_id = 'merchant-gallery'
-  AND (
-    public.is_admin()
-    OR EXISTS (
-      SELECT 1 FROM public.merchants m
-      WHERE (storage.foldername(name))[1] = m.id::text
-        AND m.user_id = auth.uid()
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.user_villages uv
-      WHERE (storage.foldername(name))[1] = 'villages'
-        AND (storage.foldername(name))[2] = uv.village_id::text
-        AND uv.user_id = auth.uid()
-        AND uv.role = 'admin_desa'
-    )
-  )
-);
-
-DROP POLICY IF EXISTS "Merchant owners can delete gallery images" ON storage.objects;
-CREATE POLICY "Merchant owners can delete gallery images"
-ON storage.objects FOR DELETE TO authenticated
-USING (
-  bucket_id = 'merchant-gallery'
-  AND (
-    owner = auth.uid()
-    OR public.is_admin()
-    OR EXISTS (
-      SELECT 1 FROM public.merchants m
-      WHERE (storage.foldername(name))[1] = m.id::text
-        AND m.user_id = auth.uid()
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM public.user_villages uv
-      WHERE (storage.foldername(name))[1] = 'villages'
-        AND (storage.foldername(name))[2] = uv.village_id::text
-        AND uv.user_id = auth.uid()
-        AND uv.role = 'admin_desa'
-    )
-  )
-);
-
--- ===== END SOURCE: 20260822030000_harden_storage_ownership.sql =====
 
 -- ===== BEGIN SOURCE: 20260822040000_harden_stock_decrement.sql =====
 -- Prevent overselling: update only when enough stock exists and fail atomically.
@@ -2473,3 +2309,64 @@ DROP POLICY IF EXISTS "Customers view own segment membership" ON public.crm_segm
 CREATE POLICY "Customers view own segment membership" ON public.crm_segment_members FOR SELECT TO authenticated USING (customer_id = auth.uid() OR segment_id IN (SELECT id FROM public.crm_customer_segments WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
 
 -- ===== END SOURCE: 20260825190000_crm_segments_campaigns.sql =====
+
+-- ===== BEGIN SOURCE: 20260825200000_notification_delivery_queue.sql =====
+CREATE TABLE IF NOT EXISTS public.notification_delivery_jobs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  recipient_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  channel text NOT NULL CHECK (channel IN ('whatsapp','push','email','in_app')),
+  template_key text NOT NULL,
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','processing','sent','failed','dead_letter','cancelled','opted_out')),
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  max_attempts integer NOT NULL DEFAULT 5 CHECK (max_attempts > 0),
+  next_attempt_at timestamptz NOT NULL DEFAULT now(),
+  provider_message_id text,
+  last_error text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  sent_at timestamptz,
+  dead_letter_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS idx_notification_jobs_due ON public.notification_delivery_jobs(status, next_attempt_at) WHERE status IN ('queued','failed');
+CREATE INDEX IF NOT EXISTS idx_notification_jobs_recipient ON public.notification_delivery_jobs(recipient_id, created_at DESC);
+
+ALTER TABLE public.notification_delivery_jobs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users view own notification jobs" ON public.notification_delivery_jobs;
+CREATE POLICY "Users view own notification jobs" ON public.notification_delivery_jobs FOR SELECT TO authenticated USING (recipient_id = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage notification jobs" ON public.notification_delivery_jobs;
+CREATE POLICY "Admins manage notification jobs" ON public.notification_delivery_jobs FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_job public.notification_delivery_jobs%ROWTYPE;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Notification job claim requires admin access' USING ERRCODE = '42501'; END IF;
+  UPDATE public.notification_delivery_jobs
+  SET status = 'processing', attempts = attempts + 1
+  WHERE id = p_job_id AND status IN ('queued','failed') AND next_attempt_at <= now() AND attempts < max_attempts
+  RETURNING * INTO v_job;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
+  RETURN v_job;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_job public.notification_delivery_jobs%ROWTYPE; v_status text; v_next timestamptz;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Notification job completion requires admin access' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO v_job FROM public.notification_delivery_jobs WHERE id = p_job_id FOR UPDATE;
+  IF NOT FOUND OR v_job.status <> 'processing' THEN RAISE EXCEPTION 'Notification job is not processing' USING ERRCODE = '55000'; END IF;
+  IF p_success THEN v_status := 'sent'; ELSE v_status := CASE WHEN v_job.attempts >= v_job.max_attempts THEN 'dead_letter' ELSE 'failed' END; END IF;
+  v_next := CASE WHEN v_status = 'failed' THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7)))) ELSE NULL END;
+  UPDATE public.notification_delivery_jobs SET status = v_status, provider_message_id = COALESCE(p_provider_message_id, provider_message_id), last_error = NULLIF(trim(p_error), ''), next_attempt_at = COALESCE(v_next, next_attempt_at), sent_at = CASE WHEN p_success THEN now() ELSE sent_at END, dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END WHERE id = p_job_id RETURNING * INTO v_job;
+  RETURN v_job;
+END; $$;
+REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO authenticated;
+
+-- ===== END SOURCE: 20260825200000_notification_delivery_queue.sql =====
