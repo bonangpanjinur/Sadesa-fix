@@ -112,16 +112,11 @@ export default function AdminWithdrawalsPage() {
     setProcessing(true);
 
     try {
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'APPROVED',
-          admin_notes: adminNotes || null,
-          processed_at: new Date().toISOString(),
-          processed_by: (await supabase.auth.getUser()).data.user?.id,
-        })
-        .eq('id', selectedWithdrawal.id);
-
+      const { error } = await supabase.rpc('process_merchant_withdrawal', {
+        p_withdrawal_id: selectedWithdrawal.id,
+        p_action: 'APPROVE',
+        p_admin_notes: adminNotes || null,
+      });
       if (error) throw error;
 
       toast({
@@ -131,7 +126,7 @@ export default function AdminWithdrawalsPage() {
 
       setShowApproveDialog(false);
       setAdminNotes('');
-      fetchWithdrawals();
+      await fetchWithdrawals();
     } catch (error) {
       console.error('Error approving withdrawal:', error);
       toast({
@@ -149,30 +144,11 @@ export default function AdminWithdrawalsPage() {
     setProcessing(true);
 
     try {
-      // Refund the balance back to merchant using re-fetched data to avoid race condition
-      const { data: freshMerchant } = await supabase
-        .from('merchants')
-        .select('available_balance')
-        .eq('id', selectedWithdrawal.merchant_id)
-        .maybeSingle();
-
-      await supabase
-        .from('merchants')
-        .update({
-          available_balance: (freshMerchant?.available_balance || 0) + selectedWithdrawal.amount,
-        })
-        .eq('id', selectedWithdrawal.merchant_id);
-
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'REJECTED',
-          admin_notes: adminNotes,
-          processed_at: new Date().toISOString(),
-          processed_by: (await supabase.auth.getUser()).data.user?.id,
-        })
-        .eq('id', selectedWithdrawal.id);
-
+      const { error } = await supabase.rpc('process_merchant_withdrawal', {
+        p_withdrawal_id: selectedWithdrawal.id,
+        p_action: 'REJECT',
+        p_admin_notes: adminNotes,
+      });
       if (error) throw error;
 
       toast({
@@ -182,7 +158,7 @@ export default function AdminWithdrawalsPage() {
 
       setShowRejectDialog(false);
       setAdminNotes('');
-      fetchWithdrawals();
+      await fetchWithdrawals();
     } catch (error) {
       console.error('Error rejecting withdrawal:', error);
       toast({
@@ -197,14 +173,10 @@ export default function AdminWithdrawalsPage() {
 
   const handleComplete = async (withdrawal: WithdrawalRequest) => {
     try {
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'COMPLETED',
-          processed_at: new Date().toISOString(),
-        })
-        .eq('id', withdrawal.id);
-
+      const { error } = await supabase.rpc('process_merchant_withdrawal', {
+        p_withdrawal_id: withdrawal.id,
+        p_action: 'COMPLETE',
+      });
       if (error) throw error;
 
       toast({
@@ -212,7 +184,7 @@ export default function AdminWithdrawalsPage() {
         description: 'Transfer telah dikonfirmasi',
       });
 
-      fetchWithdrawals();
+      await fetchWithdrawals();
     } catch (error) {
       console.error('Error completing withdrawal:', error);
       toast({

@@ -2204,3 +2204,61 @@ REVOKE ALL ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) FROM PUBLIC,
 GRANT EXECUTE ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) TO service_role;
 
 -- ===== END SOURCE: 20260829150000_pos_tenant_merchant_mapping.sql =====
+
+-- ===== BEGIN SOURCE: 20260829160000_atomic_merchant_withdrawals.sql =====
+-- All merchant withdrawal balance transitions happen inside one database transaction.
+CREATE OR REPLACE FUNCTION public.create_merchant_withdrawal(
+  p_merchant_id uuid,
+  p_amount integer,
+  p_bank_name text,
+  p_account_number text,
+  p_account_holder text
+)
+RETURNS public.withdrawal_requests
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_merchant public.merchants%ROWTYPE; v_request public.withdrawal_requests%ROWTYPE;
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501'; END IF;
+  IF p_amount IS NULL OR p_amount < 10000 THEN RAISE EXCEPTION 'Minimum withdrawal amount is 10000' USING ERRCODE = '22023'; END IF;
+  IF NULLIF(trim(p_bank_name), '') IS NULL OR NULLIF(trim(p_account_number), '') IS NULL OR NULLIF(trim(p_account_holder), '') IS NULL THEN RAISE EXCEPTION 'Bank details are required' USING ERRCODE = '22023'; END IF;
+  SELECT * INTO v_merchant FROM public.merchants WHERE id = p_merchant_id AND user_id = auth.uid() FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Merchant access denied' USING ERRCODE = '42501'; END IF;
+  IF COALESCE(v_merchant.available_balance, 0) < p_amount THEN RAISE EXCEPTION 'Insufficient available balance' USING ERRCODE = '22003'; END IF;
+  UPDATE public.merchants SET available_balance = COALESCE(available_balance, 0) - p_amount, pending_balance = COALESCE(pending_balance, 0) + p_amount, updated_at = now() WHERE id = p_merchant_id;
+  INSERT INTO public.withdrawal_requests (merchant_id, amount, bank_name, account_number, account_holder, status)
+  VALUES (p_merchant_id, p_amount, trim(p_bank_name), trim(p_account_number), trim(p_account_holder), 'PENDING') RETURNING * INTO v_request;
+  RETURN v_request;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.process_merchant_withdrawal(p_withdrawal_id uuid, p_action text, p_admin_notes text DEFAULT NULL)
+RETURNS public.withdrawal_requests
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_request public.withdrawal_requests%ROWTYPE; v_merchant public.merchants%ROWTYPE; v_action text := upper(trim(p_action));
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501'; END IF;
+  IF v_action NOT IN ('APPROVE', 'REJECT', 'COMPLETE') THEN RAISE EXCEPTION 'Unsupported withdrawal action' USING ERRCODE = '22023'; END IF;
+  SELECT * INTO v_request FROM public.withdrawal_requests WHERE id = p_withdrawal_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Withdrawal request not found' USING ERRCODE = 'P0002'; END IF;
+  SELECT * INTO v_merchant FROM public.merchants WHERE id = v_request.merchant_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Merchant for withdrawal not found' USING ERRCODE = 'P0002'; END IF;
+  IF v_action = 'APPROVE' THEN
+    IF v_request.status <> 'PENDING' THEN RAISE EXCEPTION 'Only pending withdrawals can be approved' USING ERRCODE = '55000'; END IF;
+    UPDATE public.withdrawal_requests SET status = 'APPROVED', admin_notes = NULLIF(trim(COALESCE(p_admin_notes, '')), ''), processed_by = auth.uid(), processed_at = now(), updated_at = now() WHERE id = p_withdrawal_id RETURNING * INTO v_request;
+  ELSIF v_action = 'REJECT' THEN
+    IF v_request.status <> 'PENDING' THEN RAISE EXCEPTION 'Only pending withdrawals can be rejected' USING ERRCODE = '55000'; END IF;
+    IF COALESCE(v_merchant.pending_balance, 0) < v_request.amount THEN RAISE EXCEPTION 'Merchant balance invariant violated: pending balance is below withdrawal amount' USING ERRCODE = '23514'; END IF;
+    UPDATE public.merchants SET available_balance = COALESCE(available_balance, 0) + v_request.amount, pending_balance = COALESCE(pending_balance, 0) - v_request.amount, updated_at = now() WHERE id = v_request.merchant_id;
+    UPDATE public.withdrawal_requests SET status = 'REJECTED', admin_notes = NULLIF(trim(COALESCE(p_admin_notes, '')), ''), processed_by = auth.uid(), processed_at = now(), updated_at = now() WHERE id = p_withdrawal_id RETURNING * INTO v_request;
+  ELSE
+    IF v_request.status <> 'APPROVED' THEN RAISE EXCEPTION 'Only approved withdrawals can be completed' USING ERRCODE = '55000'; END IF;
+    IF COALESCE(v_merchant.pending_balance, 0) < v_request.amount THEN RAISE EXCEPTION 'Merchant balance invariant violated: pending balance is below withdrawal amount' USING ERRCODE = '23514'; END IF;
+    UPDATE public.merchants SET pending_balance = COALESCE(pending_balance, 0) - v_request.amount, total_withdrawn = COALESCE(total_withdrawn, 0) + v_request.amount, updated_at = now() WHERE id = v_request.merchant_id;
+    UPDATE public.withdrawal_requests SET status = 'COMPLETED', admin_notes = COALESCE(NULLIF(trim(COALESCE(p_admin_notes, '')), ''), admin_notes), processed_by = auth.uid(), processed_at = now(), updated_at = now() WHERE id = p_withdrawal_id RETURNING * INTO v_request;
+  END IF;
+  RETURN v_request;
+END; $$;
+REVOKE ALL ON FUNCTION public.create_merchant_withdrawal(uuid, integer, text, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_merchant_withdrawal(uuid, integer, text, text, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.process_merchant_withdrawal(uuid, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.process_merchant_withdrawal(uuid, text, text) TO authenticated;
+-- ===== END SOURCE: 20260829160000_atomic_merchant_withdrawals.sql =====

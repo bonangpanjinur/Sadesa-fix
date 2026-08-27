@@ -142,50 +142,21 @@ export function WithdrawalManager({ merchantId }: WithdrawalManagerProps) {
 
     setSaving(true);
     try {
-      // Re-fetch current balance to prevent race conditions
-      const { data: freshBalance, error: balanceError } = await supabase
-        .from('merchants')
-        .select('available_balance, pending_balance')
-        .eq('id', merchantId)
-        .maybeSingle();
-
-      if (balanceError || !freshBalance) throw new Error('Gagal memverifikasi saldo');
-
-      if (amount > freshBalance.available_balance) {
-        toast.error('Saldo tidak mencukupi. Silakan coba lagi.');
-        setSaving(false);
-        fetchData();
-        return;
-      }
-
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .insert({
-          merchant_id: merchantId,
-          amount,
-          bank_name: bankName,
-          account_number: accountNumber,
-          account_holder: accountHolder,
-          status: 'PENDING',
-        });
-
+      const { error } = await supabase.rpc('create_merchant_withdrawal', {
+        p_merchant_id: merchantId,
+        p_amount: amount,
+        p_bank_name: bankName,
+        p_account_number: accountNumber,
+        p_account_holder: accountHolder,
+      });
       if (error) throw error;
-
-      // Update merchant balance (move to pending) using fresh values
-      await supabase
-        .from('merchants')
-        .update({
-          available_balance: freshBalance.available_balance - amount,
-          pending_balance: (freshBalance.pending_balance || 0) + amount,
-        })
-        .eq('id', merchantId);
 
       toast.success('Permintaan penarikan berhasil diajukan');
       setShowDialog(false);
       resetForm();
-      fetchData();
+      await fetchData();
     } catch (error) {
-      toast.error('Gagal mengajukan penarikan');
+      toast.error(error instanceof Error ? error.message : 'Gagal mengajukan penarikan');
     } finally {
       setSaving(false);
     }

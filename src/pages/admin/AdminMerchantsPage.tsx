@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Store, Eye, Check, X, MoreHorizontal, Plus, Trash2, User } from 'lucide-react';
@@ -39,6 +41,10 @@ export default function AdminMerchantsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [merchantAction, setMerchantAction] = useState<'reject' | 'delete' | null>(null);
+  const [selectedMerchant, setSelectedMerchant] = useState<MerchantRow | null>(null);
+  const [actionReason, setActionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchMerchantsData = async (): Promise<MerchantRow[]> => {
     const { data, error } = await supabase
@@ -69,25 +75,48 @@ export default function AdminMerchantsPage() {
   const fetchMerchants = invalidate;
 
   const handleApprove = async (id: string) => {
-    const success = await approveMerchant(id);
-    if (success) { toast.success('Merchant berhasil disetujui'); invalidate(); }
-    else toast.error('Gagal menyetujui merchant');
+    setActionLoading(true);
+    try {
+      const success = await approveMerchant(id);
+      if (success) { toast.success('Merchant berhasil disetujui'); await invalidate(); }
+      else toast.error('Gagal menyetujui merchant');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleReject = async (id: string) => {
-    const reason = prompt('Alasan penolakan:');
-    if (!reason) return;
-    
-    const success = await rejectMerchant(id, reason);
-    if (success) { toast.success('Merchant ditolak'); invalidate(); }
-    else toast.error('Gagal menolak merchant');
+  const openMerchantAction = (merchant: MerchantRow, action: 'reject' | 'delete') => {
+    setSelectedMerchant(merchant);
+    setMerchantAction(action);
+    setActionReason('');
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus merchant ini? Semua data terkait akan ikut terhapus.')) return;
-    const success = await deleteMerchant(id);
-    if (success) { toast.success('Merchant berhasil dihapus'); invalidate(); }
-    else toast.error('Gagal menghapus merchant');
+  const closeMerchantAction = () => {
+    setSelectedMerchant(null);
+    setMerchantAction(null);
+    setActionReason('');
+  };
+
+  const handleMerchantAction = async () => {
+    if (!selectedMerchant || !merchantAction) return;
+    if (merchantAction === 'reject' && actionReason.trim().length < 10) {
+      toast.error('Alasan penolakan minimal 10 karakter');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const success = merchantAction === 'reject'
+        ? await rejectMerchant(selectedMerchant.id, actionReason.trim())
+        : await deleteMerchant(selectedMerchant.id);
+      if (!success) throw new Error(merchantAction === 'reject' ? 'Gagal menolak merchant' : 'Gagal menghapus merchant');
+      toast.success(merchantAction === 'reject' ? 'Merchant ditolak' : 'Merchant berhasil dihapus');
+      closeMerchantAction();
+      await invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Aksi merchant gagal diproses');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const getStatusBadge = (status: string, regStatus: string) => {
@@ -182,14 +211,14 @@ export default function AdminMerchantsPage() {
                   <Check className="h-4 w-4 mr-2" />
                   Setujui
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleReject(item.id)} className="text-destructive">
+                <DropdownMenuItem onClick={() => openMerchantAction(item, 'reject')} className="text-destructive">
                   <X className="h-4 w-4 mr-2" />
                   Tolak
                 </DropdownMenuItem>
               </>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-destructive">
+            <DropdownMenuItem onClick={() => openMerchantAction(item, 'delete')} className="text-destructive">
               <Trash2 className="h-4 w-4 mr-2" />
               Hapus Merchant
             </DropdownMenuItem>
@@ -251,6 +280,34 @@ export default function AdminMerchantsPage() {
         onOpenChange={setAddDialogOpen}
         onSuccess={fetchMerchants}
       />
+
+      <Dialog open={merchantAction !== null} onOpenChange={(open) => { if (!open) closeMerchantAction(); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{merchantAction === 'reject' ? 'Tolak merchant' : 'Hapus merchant'}</DialogTitle>
+            <DialogDescription>
+              {merchantAction === 'reject'
+                ? `Berikan alasan yang jelas untuk ${selectedMerchant?.name ?? 'merchant ini'}. Alasan akan disimpan sebagai bagian dari audit.`
+                : `Penghapusan ${selectedMerchant?.name ?? 'merchant ini'} bersifat destruktif dan tidak dapat dibatalkan.`}
+            </DialogDescription>
+          </DialogHeader>
+          {merchantAction === 'reject' ? (
+            <div className="space-y-2 py-2">
+              <label htmlFor="merchant-rejection-reason" className="text-sm font-medium">Alasan penolakan</label>
+              <Textarea id="merchant-rejection-reason" value={actionReason} onChange={(event) => setActionReason(event.target.value)} minLength={10} maxLength={500} placeholder="Contoh: Data legalitas usaha belum lengkap..." rows={4} />
+              <p className="text-xs text-muted-foreground">Minimal 10 karakter.</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">Pastikan merchant ini memang harus dihapus. Data terkait dapat ikut terhapus sesuai kebijakan database.</div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={closeMerchantAction} disabled={actionLoading}>Batal</Button>
+            <Button variant="destructive" onClick={() => void handleMerchantAction()} disabled={actionLoading || (merchantAction === 'reject' && actionReason.trim().length < 10)}>
+              {actionLoading ? 'Memproses...' : merchantAction === 'reject' ? 'Tolak merchant' : 'Hapus merchant'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
