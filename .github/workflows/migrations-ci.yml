@@ -4,10 +4,16 @@ on:
   push:
     paths:
       - "supabase/migrations/**"
+      - "supabase/bootstrap/**"
+      - "scripts/build-bootstrap-bundles.py"
+      - "scripts/validate-bootstrap-bundles.py"
       - ".github/workflows/migrations-ci.yml"
   pull_request:
     paths:
       - "supabase/migrations/**"
+      - "supabase/bootstrap/**"
+      - "scripts/build-bootstrap-bundles.py"
+      - "scripts/validate-bootstrap-bundles.py"
       - ".github/workflows/migrations-ci.yml"
   workflow_dispatch:
 
@@ -41,6 +47,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate bootstrap bundle coverage
+        run: python3 scripts/validate-bootstrap-bundles.py
 
       - name: Install psql client
         run: |

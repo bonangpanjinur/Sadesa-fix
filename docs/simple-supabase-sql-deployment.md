@@ -48,6 +48,32 @@ supabase migration list
 
 Jangan menjalankan `supabase db reset` pada staging atau production karena perintah tersebut dapat menghapus data. Reset hanya boleh digunakan pada database lokal disposable.
 
+## Bootstrap project baru dengan bundle SQL
+
+Untuk project Supabase yang benar-benar baru dan belum memiliki data atau histori migration, gunakan bundle di `supabase/bootstrap/`. Bundle dibuat otomatis dari 183 migration aktif, tetap mengikuti urutan dependency, dan dibagi menjadi delapan file agar lebih mudah diunggah atau dijalankan bertahap.
+
+Regenerasi dan validasi bundle dari root repository:
+
+```bash
+pnpm build:db-bootstrap
+pnpm validate:db-bootstrap
+```
+
+Jalankan file bundle sesuai urutan angka, yaitu `01_...sql` sampai `08_...sql`, menggunakan SQL Editor Supabase atau `psql`. Jalankan satu file sampai selesai sebelum memulai file berikutnya:
+
+```bash
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/01_*.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/02_*.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/03_*.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/04_*.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/05_*.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/06_*.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/07_*.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/bootstrap/08_*.sql
+```
+
+`manifest.json` mencatat jumlah source migration, rentang tiap bundle, dan SHA-256 bundle. Jangan menjalankan bundle bootstrap pada project existing karena Supabase tidak akan memiliki histori per-file yang sama dengan migration aktif dan object dapat sudah ada.
+
 ## Menambahkan perubahan database baru
 
 Setiap perubahan baru harus dibuat sebagai migration baru:
@@ -93,4 +119,4 @@ Untuk project existing, jangan mengganti seluruh database dengan `main_migration
 
 Workflow migration CI menggunakan `supabase/migrations/` sebagai `MIG_DIR`. Workflow tersebut menjalankan migration aktif secara berurutan pada database PostgreSQL bersih, mengulanginya untuk pemeriksaan idempotency, lalu melakukan smoke test table, grant, RLS, dan skenario akses.
 
-Dengan aturan ini, anggota tim tidak perlu memilih di antara beberapa folder SQL. Untuk deploy terbaru, jawabannya selalu: **gunakan `supabase/migrations/`, lalu jalankan `supabase db push` terhadap project yang sudah diverifikasi**.
+Dengan aturan ini, anggota tim memiliki dua jalur yang jelas. Untuk **project baru**, gunakan delapan file berurutan di `supabase/bootstrap/`. Untuk **project existing**, gunakan `supabase/migrations/` dan `supabase db push` terhadap project yang sudah diverifikasi.
