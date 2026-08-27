@@ -7,6 +7,7 @@ import {
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AdminStatePanel } from '@/components/admin/AdminPagePrimitives';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -93,7 +94,7 @@ export default function AdminFinancePage() {
     }
   };
 
-  const { data: orders = [], isLoading: loading } = useQuery<OrderFinance[]>({
+  const { data: orders = [], isLoading: loading, error: ordersError, refetch: refetchOrders } = useQuery<OrderFinance[]>({
     queryKey: ['admin-finance-orders', dateRange, customStart?.toISOString(), customEnd?.toISOString()],
     queryFn: async () => {
       const { start, end } = getDateRange();
@@ -284,9 +285,9 @@ export default function AdminFinancePage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
-        </div>
+        <AdminStatePanel type="loading" title="Memuat laporan keuangan" description="Kami sedang menghitung transaksi dan fee pada periode yang dipilih." />
+      ) : ordersError ? (
+        <AdminStatePanel type="error" title="Laporan gagal dimuat" description="Gagal mengambil transaksi keuangan. Periksa koneksi dan permission database." actionLabel="Coba lagi" onAction={() => void refetchOrders()} />
       ) : (
         <>
           {/* Summary Cards */}

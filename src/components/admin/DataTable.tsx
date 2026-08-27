@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { AdminStatePanel } from '@/components/admin/AdminPagePrimitives';
 
 interface Column<T> {
   key: string;
@@ -36,6 +37,8 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   className?: string;
   onExport?: (data: T[]) => void; // Optional export function
+  error?: string | null;
+  onRetry?: () => void;
 }
 
 export function DataTable<T extends { id: string }>({
@@ -50,6 +53,8 @@ export function DataTable<T extends { id: string }>({
   emptyMessage = 'Tidak ada data',
   className,
   onExport,
+  error = null,
+  onRetry,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -165,6 +170,9 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {/* Table */}
+      {error ? (
+        <AdminStatePanel type="error" title="Data gagal dimuat" description={error} actionLabel={onRetry ? 'Coba lagi' : undefined} onAction={onRetry} />
+      ) : (
       <div className="border border-border rounded-xl overflow-hidden bg-card">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -223,9 +231,10 @@ export function DataTable<T extends { id: string }>({
           </table>
         </div>
       </div>
+      )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!error && totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-muted-foreground font-medium">
             Menampilkan <span className="text-foreground">{startIndex + 1}</span>-

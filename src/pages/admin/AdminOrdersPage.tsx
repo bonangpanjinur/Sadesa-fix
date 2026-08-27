@@ -67,7 +67,7 @@ export default function AdminOrdersPage() {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [courierAssignDialogOpen, setCourierAssignDialogOpen] = useState(false);
 
-  const { data: orders = [], isLoading: loading } = useQuery<OrderRow[]>({
+  const { data: orders = [], isLoading: loading, error: ordersError, refetch: refetchOrders } = useQuery<OrderRow[]>({
     queryKey: ['admin-orders-list'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -441,6 +441,8 @@ export default function AdminOrdersPage() {
             searchPlaceholder="Cari ID, pelanggan, atau telepon..."
             filters={filters}
             loading={loading}
+            error={ordersError ? 'Gagal memuat daftar pesanan. Periksa koneksi dan permission database.' : null}
+            onRetry={() => void refetchOrders()}
             onExport={handleExport}
             emptyMessage="Belum ada pesanan yang sesuai"
           />
