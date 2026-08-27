@@ -54,6 +54,25 @@ interface RedirectRule {
   created_at: string;
 }
 
+interface SEOSettingRow {
+  id: string;
+  page_path: string;
+  title: string | null;
+  description: string | null;
+  keywords: string | null;
+  og_image: string | null;
+  og_title: string | null;
+  og_description: string | null;
+  canonical_url: string | null;
+  robots: string | null;
+  updated_at: string | null;
+}
+
+interface AppSettingRow {
+  key: string;
+  value: unknown;
+}
+
 const DEFAULT_META: Partial<SEOMeta> = {
   meta_title: '',
   meta_description: '',
@@ -79,34 +98,133 @@ export default function AdminSEOPage() {
   const [redirectForm, setRedirectForm] = useState({ from_path: '', to_path: '', status_code: 301, is_active: true });
   const [showRedirectForm, setShowRedirectForm] = useState(false);
   const [sitemapGenerated, setSitemapGenerated] = useState(false);
+  const [sitemapLoading, setSitemapLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [toolForm, setToolForm] = useState({
+    googleVerification: '',
+    bingVerification: '',
+    ga4MeasurementId: '',
+    gtmId: '',
+    globalSchema: '',
+  });
 
-  // Ambil semua SEO metadata / Fetch all SEO metadata
-  const { data: metas = [], isLoading: metaLoading } = useQuery<SEOMeta[]>({
-    queryKey: ['admin-seo-metas'],
+  // SEO metadata disimpan pada tabel canonical seo_settings.
+  const { data: seoRows = [], isLoading: metaLoading } = useQuery<SEOSettingRow[]>({
+    queryKey: ['admin-seo-settings'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('seo_meta')
-        .select('*')
-        .order('page_slug');
+        .from('seo_settings')
+        .select('id,page_path,title,description,keywords,og_image,og_title,og_description,canonical_url,robots,updated_at')
+        .order('page_path');
       if (error) throw error;
-      return (data || []) as SEOMeta[];
+      return (data || []) as SEOSettingRow[];
     },
     staleTime: 60_000,
   });
 
-  // Ambil redirect rules / Fetch redirect rules
-  const { data: redirects = [], isLoading: redirectLoading } = useQuery<RedirectRule[]>({
+  const metas: SEOMeta[] = seoRows.map((row) => ({
+    id: row.id,
+    page_slug: row.page_path,
+    page_label: PREDEFINED_PAGES.find((page) => page.path === row.page_path)?.label || row.page_path,
+    meta_title: row.title || '',
+    meta_description: row.description || '',
+    og_title: row.og_title || '',
+    og_description: row.og_description || '',
+    og_image_url: row.og_image || '',
+    canonical_url: row.canonical_url || '',
+    robots: row.robots || 'index, follow',
+    schema_json: '',
+    updated_at: row.updated_at || '',
+  }));
+
+  const { data: redirectSettings, isLoading: redirectLoading } = useQuery<AppSettingRow | null>({
     queryKey: ['admin-seo-redirects'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('seo_redirects')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from('app_settings')
+        .select('key,value')
+        .eq('key', 'seo_redirects')
+        .maybeSingle();
       if (error) throw error;
-      return (data || []) as RedirectRule[];
+      return (data || null) as AppSettingRow | null;
     },
     staleTime: 60_000,
+  });
+
+  const redirects: RedirectRule[] = Array.isArray(redirectSettings?.value)
+    ? redirectSettings.value as RedirectRule[]
+    : [];
+
+  const { data: sitemapStats = { products: 0, merchants: 0, tourism: 0 } } = useQuery<{ products: number; merchants: number; tourism: number }>({
+    queryKey: ['admin-sitemap-stats'],
+    queryFn: async () => {
+      const [products, merchants, tourism] = await Promise.all([
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('merchants').select('id', { count: 'exact', head: true }).eq('registration_status', 'APPROVED'),
+        supabase.from('tourism').select('id', { count: 'exact', head: true }).eq('is_active', true),
+      ]);
+      const failed = [products, merchants, tourism].find((result) => result.error);
+      if (failed?.error) throw failed.error;
+      return { products: products.count || 0, merchants: merchants.count || 0, tourism: tourism.count || 0 };
+    },
+    staleTime: 60_000,
+  });
+
+  const toolKeys = ['seo_google_verification', 'seo_bing_verification', 'seo_ga4_measurement_id', 'seo_gtm_id', 'seo_global_schema'];
+  const { data: toolSettings = [] } = useQuery<AppSettingRow[]>({
+    queryKey: ['admin-seo-tools'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('app_settings').select('key,value').in('key', toolKeys);
+      if (error) throw error;
+      return (data || []) as AppSettingRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    const values = new Map(toolSettings.map((setting) => [setting.key, typeof setting.value === 'string' ? setting.value : '']));
+    setToolForm({
+      googleVerification: values.get('seo_google_verification') || '',
+      bingVerification: values.get('seo_bing_verification') || '',
+      ga4MeasurementId: values.get('seo_ga4_measurement_id') || '',
+      gtmId: values.get('seo_gtm_id') || '',
+      globalSchema: values.get('seo_global_schema') || '',
+    });
+  }, [toolSettings]);
+
+  const saveToolMutation = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      const { error } = await supabase.from('app_settings').upsert({
+        key,
+        category: 'seo',
+        value,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'key' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Konfigurasi SEO berhasil disimpan');
+      queryClient.invalidateQueries({ queryKey: ['admin-seo-tools'] });
+    },
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : 'Gagal menyimpan konfigurasi SEO'),
+  });
+
+  const saveTools = async (entries: Array<[string, string]>) => {
+    await Promise.all(entries.map(([key, value]) => saveToolMutation.mutateAsync({ key, value })));
+  };
+
+  const updateRedirects = useMutation({
+    mutationFn: async (nextRedirects: RedirectRule[]) => {
+      const { error } = await supabase.from('app_settings').upsert({
+        key: 'seo_redirects',
+        category: 'seo',
+        value: nextRedirects,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'key' });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-seo-redirects'] }),
+    onError: (error: unknown) => toast.error(error instanceof Error ? error.message : 'Gagal memperbarui redirect'),
   });
 
   // Simpan SEO metadata / Save SEO metadata
@@ -116,13 +234,20 @@ export default function AdminSEOPage() {
         ...meta,
         updated_at: new Date().toISOString(),
       };
-      if (meta.id) {
-        const { error } = await supabase.from('seo_meta').update(payload).eq('id', meta.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('seo_meta').insert(payload);
-        if (error) throw error;
-      }
+      const pagePath = meta.page_slug || '/';
+      const { error } = await supabase.from('seo_settings').upsert({
+        id: meta.id,
+        page_path: pagePath,
+        title: meta.meta_title || null,
+        description: meta.meta_description || null,
+        og_title: meta.og_title || null,
+        og_description: meta.og_description || null,
+        og_image: meta.og_image_url || null,
+        canonical_url: meta.canonical_url || null,
+        robots: meta.robots || 'index, follow',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'page_path' });
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('SEO metadata berhasil disimpan');
@@ -136,11 +261,12 @@ export default function AdminSEOPage() {
   // Simpan redirect / Save redirect
   const redirectMutation = useMutation({
     mutationFn: async (form: typeof redirectForm) => {
-      const { error } = await supabase.from('seo_redirects').insert({
+      const nextRedirect: RedirectRule = {
         ...form,
+        id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
-      });
-      if (error) throw error;
+      };
+      await updateRedirects.mutateAsync([...redirects, nextRedirect]);
     },
     onSuccess: () => {
       toast.success('Redirect berhasil ditambahkan');
@@ -153,22 +279,49 @@ export default function AdminSEOPage() {
 
   // Toggle redirect aktif / Toggle redirect active
   const toggleRedirect = async (id: string, is_active: boolean) => {
-    await supabase.from('seo_redirects').update({ is_active: !is_active }).eq('id', id);
-    queryClient.invalidateQueries({ queryKey: ['admin-seo-redirects'] });
+    await updateRedirects.mutateAsync(redirects.map((redirect) => redirect.id === id ? { ...redirect, is_active: !is_active } : redirect));
   };
 
   // Hapus redirect / Delete redirect
   const deleteRedirect = async (id: string) => {
-    await supabase.from('seo_redirects').delete().eq('id', id);
+    await updateRedirects.mutateAsync(redirects.filter((redirect) => redirect.id !== id));
     toast.success('Redirect dihapus');
-    queryClient.invalidateQueries({ queryKey: ['admin-seo-redirects'] });
   };
 
-  // Generate sitemap (simulasi) / Generate sitemap (simulation)
-  const generateSitemap = () => {
-    setSitemapGenerated(true);
-    toast.success('Sitemap berhasil diperbarui! File tersedia di /sitemap.xml');
-    setTimeout(() => setSitemapGenerated(false), 3000);
+  const generateSitemap = async () => {
+    setSitemapLoading(true);
+    try {
+      const [products, merchants, tourism] = await Promise.all([
+        supabase.from('products').select('id,updated_at').eq('is_active', true),
+        supabase.from('merchants').select('id,updated_at').eq('registration_status', 'APPROVED'),
+        supabase.from('tourism').select('id,updated_at').eq('is_active', true),
+      ]);
+      const failed = [products, merchants, tourism].find((result) => result.error);
+      if (failed?.error) throw failed.error;
+
+      const origin = window.location.origin;
+      const urls = [
+        ...PREDEFINED_PAGES.map((page) => ({ path: page.path, updatedAt: new Date().toISOString() })),
+        ...(products.data || []).map((row) => ({ path: `/product/${row.id}`, updatedAt: row.updated_at })),
+        ...(merchants.data || []).map((row) => ({ path: `/merchant/${row.id}`, updatedAt: row.updated_at })),
+        ...(tourism.data || []).map((row) => ({ path: `/tourism/${row.id}`, updatedAt: row.updated_at })),
+      ];
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(({ path, updatedAt }) => `\n  <url><loc>${origin}${path}</loc><lastmod>${updatedAt ? new Date(updatedAt).toISOString() : new Date().toISOString()}</lastmod></url>`).join('')}\n</urlset>`;
+      const blob = new Blob([xml], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'sitemap.xml';
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setSitemapGenerated(true);
+      toast.success(`Sitemap dibuat dengan ${urls.length} URL`);
+      window.setTimeout(() => setSitemapGenerated(false), 3000);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Gagal membuat sitemap');
+    } finally {
+      setSitemapLoading(false);
+    }
   };
 
   // Buka editor untuk halaman / Open editor for a page
@@ -187,7 +340,7 @@ export default function AdminSEOPage() {
   // Preview SERP (hasil pencarian Google) / Preview SERP
   const serpTitle = editingMeta?.meta_title || editingPage?.label || 'Judul Halaman';
   const serpDesc  = editingMeta?.meta_description || 'Deskripsi halaman akan muncul di sini...';
-  const serpUrl   = previewUrl || `https://desamart.id${PREDEFINED_PAGES.find(p => p.slug === editingPage?.slug)?.path || '/'}`;
+  const serpUrl   = previewUrl || `${window.location.origin}${PREDEFINED_PAGES.find(p => p.slug === editingPage?.slug)?.path || '/'}`;
 
   return (
     <AdminLayout title="SEO & Konten Publik" subtitle="Kelola metadata, redirect, dan optimasi mesin pencari">
@@ -388,7 +541,10 @@ export default function AdminSEOPage() {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   {[
                     { label: 'Halaman Statis', count: PREDEFINED_PAGES.length },
-                    { label: 'Halaman SEO Kustom', count: metas.length },
+                    { label: 'Produk Aktif', count: sitemapStats.products },
+                    { label: 'Toko Aktif', count: sitemapStats.merchants },
+                    { label: 'Wisata Aktif', count: sitemapStats.tourism },
+                    { label: 'Halaman SEO Kustom', count: metas.filter((meta) => !PREDEFINED_PAGES.some((page) => page.path === meta.page_slug)).length },
                     { label: 'Redirect Aktif', count: redirects.filter(r => r.is_active).length },
                   ].map(s => (
                     <div key={s.label} className="bg-muted/50 rounded-lg p-3">
@@ -397,7 +553,7 @@ export default function AdminSEOPage() {
                     </div>
                   ))}
                 </div>
-                <Button onClick={generateSitemap} disabled={sitemapGenerated} className="w-full">
+                <Button onClick={generateSitemap} disabled={sitemapGenerated || sitemapLoading} className="w-full">
                   {sitemapGenerated ? (
                     <><CheckCircle2 className="h-4 w-4 mr-2 text-emerald-400" /> Sitemap Diperbarui!</>
                   ) : (
@@ -435,17 +591,19 @@ Sitemap: https://desamart.id/sitemap.xml`}
                 <CardDescription className="text-xs">Tambahkan kode verifikasi Google / Bing</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {[
-                  { label: 'Google Search Console Verification Meta Tag', placeholder: 'google-site-verification=...' },
-                  { label: 'Bing Webmaster Verification', placeholder: 'msvalidate.01=...' },
-                ].map(field => (
-                  <div key={field.label} className="space-y-1">
-                    <Label className="text-xs">{field.label}</Label>
-                    <Input placeholder={field.placeholder} className="text-xs font-mono" />
-                  </div>
-                ))}
-                <Button size="sm">
-                  <Save className="h-4 w-4 mr-1" /> Simpan Kode Verifikasi
+                <div className="space-y-1">
+                  <Label className="text-xs">Google Search Console Verification Meta Tag</Label>
+                  <Input value={toolForm.googleVerification} onChange={(event) => setToolForm((prev) => ({ ...prev, googleVerification: event.target.value }))} placeholder="google-site-verification=..." className="text-xs font-mono" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Bing Webmaster Verification</Label>
+                  <Input value={toolForm.bingVerification} onChange={(event) => setToolForm((prev) => ({ ...prev, bingVerification: event.target.value }))} placeholder="msvalidate.01=..." className="text-xs font-mono" />
+                </div>
+                <Button size="sm" onClick={() => void saveTools([
+                  ['seo_google_verification', toolForm.googleVerification],
+                  ['seo_bing_verification', toolForm.bingVerification],
+                ])} disabled={saveToolMutation.isPending}>
+                  <Save className="h-4 w-4 mr-1" /> {saveToolMutation.isPending ? 'Menyimpan...' : 'Simpan Kode Verifikasi'}
                 </Button>
               </CardContent>
             </Card>
@@ -457,14 +615,17 @@ Sitemap: https://desamart.id/sitemap.xml`}
               <CardContent className="space-y-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Google Analytics 4 Measurement ID</Label>
-                  <Input placeholder="G-XXXXXXXXXX" className="text-xs font-mono" />
+                  <Input value={toolForm.ga4MeasurementId} onChange={(event) => setToolForm((prev) => ({ ...prev, ga4MeasurementId: event.target.value }))} placeholder="G-XXXXXXXXXX" className="text-xs font-mono" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Google Tag Manager ID</Label>
-                  <Input placeholder="GTM-XXXXXXX" className="text-xs font-mono" />
+                  <Input value={toolForm.gtmId} onChange={(event) => setToolForm((prev) => ({ ...prev, gtmId: event.target.value }))} placeholder="GTM-XXXXXXX" className="text-xs font-mono" />
                 </div>
-                <Button size="sm">
-                  <Save className="h-4 w-4 mr-1" /> Simpan
+                <Button size="sm" onClick={() => void saveTools([
+                  ['seo_ga4_measurement_id', toolForm.ga4MeasurementId],
+                  ['seo_gtm_id', toolForm.gtmId],
+                ])} disabled={saveToolMutation.isPending}>
+                  <Save className="h-4 w-4 mr-1" /> {saveToolMutation.isPending ? 'Menyimpan...' : 'Simpan'}
                 </Button>
               </CardContent>
             </Card>
@@ -478,10 +639,12 @@ Sitemap: https://desamart.id/sitemap.xml`}
                 <Textarea
                   placeholder={`{\n  "@context": "https://schema.org",\n  "@type": "Organization",\n  "name": "DesaMart"\n}`}
                   rows={8}
+                  value={toolForm.globalSchema}
+                  onChange={(event) => setToolForm((prev) => ({ ...prev, globalSchema: event.target.value }))}
                   className="font-mono text-xs resize-none"
                 />
-                <Button size="sm" className="mt-3">
-                  <Save className="h-4 w-4 mr-1" /> Simpan Schema
+                <Button size="sm" className="mt-3" onClick={() => void saveTools([['seo_global_schema', toolForm.globalSchema]])} disabled={saveToolMutation.isPending}>
+                  <Save className="h-4 w-4 mr-1" /> {saveToolMutation.isPending ? 'Menyimpan...' : 'Simpan Schema'}
                 </Button>
               </CardContent>
             </Card>

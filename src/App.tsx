@@ -7,6 +7,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useRestockNotification } from "@/hooks/useRestockNotification";
+import { PWAProvider } from "@/hooks/PWAProvider";
 import { WhitelabelProvider } from "@/contexts/WhitelabelContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
@@ -312,6 +313,7 @@ const App = () => (
           <WhitelabelProvider>
             <POSProvider>
             <CartProvider>
+              <PWAProvider>
               <Toaster />
               <Sonner />
               <OfflineIndicator />
@@ -1086,6 +1088,7 @@ const App = () => (
             </Routes>
             </Suspense>
           </BrowserRouter>
+              </PWAProvider>
         </CartProvider>
             </POSProvider>
       </WhitelabelProvider>
