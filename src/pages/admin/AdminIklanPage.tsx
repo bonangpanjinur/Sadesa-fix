@@ -105,17 +105,18 @@ export default function AdminIklanPage() {
   const [proofDialog, setProofDialog] = useState<string | null>(null);
 
   // Fetch packages
-  const { data: packages = [], refetch: refetchPkgs } = useQuery<AdPackage[]>({
+  const { data: packages = [], refetch: refetchPkgs, isLoading: packagesLoading, isError: packagesError } = useQuery<AdPackage[]>({
     queryKey: ['admin-ad-packages'],
     queryFn: async () => {
-      const { data } = await supabase.from('ad_packages').select('*').order('price_per_day');
+      const { data, error } = await supabase.from('ad_packages').select('*').order('price_per_day');
+      if (error) throw error;
       return data || [];
     },
     staleTime: 60_000,
   });
 
   // Fetch all ads
-  const { data: ads = [], isLoading: adsLoading, refetch: refetchAds } = useQuery<MerchantAd[]>({
+  const { data: ads = [], isLoading: adsLoading, isError: adsError, refetch: refetchAds } = useQuery<MerchantAd[]>({
     queryKey: ['admin-merchant-ads', filterStatus],
     queryFn: async () => {
       let q = supabase
@@ -123,7 +124,8 @@ export default function AdminIklanPage() {
         .select('*, merchant:merchant_id(name, phone)')
         .order('created_at', { ascending: false });
       if (filterStatus !== 'all') q = q.eq('status', filterStatus);
-      const { data } = await q;
+      const { data, error } = await q;
+      if (error) throw error;
       return data || [];
     },
     staleTime: 30_000,
@@ -191,20 +193,28 @@ export default function AdminIklanPage() {
   // Save package
   const savePkgMutation = useMutation({
     mutationFn: async () => {
-      if (!pkgForm.name?.trim()) throw new Error('Nama paket wajib diisi');
-      if (!pkgForm.price_per_day || pkgForm.price_per_day <= 0) throw new Error('Harga harus > 0');
+      const name = pkgForm.name?.trim() || '';
+      const description = pkgForm.description?.trim() || '';
+      const pricePerDay = Number(pkgForm.price_per_day);
+      const maxDays = Number(pkgForm.max_days);
+      if (!name) throw new Error('Nama paket wajib diisi');
+      if (name.length > 100) throw new Error('Nama paket maksimal 100 karakter');
+      if (description.length > 500) throw new Error('Deskripsi maksimal 500 karakter');
+      if (!PLACEMENT_OPTIONS.some((option) => option.value === pkgForm.placement_type)) throw new Error('Jenis penempatan tidak valid');
+      if (!Number.isInteger(pricePerDay) || pricePerDay <= 0) throw new Error('Harga harus berupa bilangan positif');
+      if (!Number.isInteger(maxDays) || maxDays < 1 || maxDays > 365) throw new Error('Maksimal hari harus antara 1 sampai 365');
       if (editingPkg) {
         const { error } = await supabase.from('ad_packages').update({
-          name: pkgForm.name, placement_type: pkgForm.placement_type,
-          description: pkgForm.description, price_per_day: pkgForm.price_per_day,
-          max_days: pkgForm.max_days, is_active: pkgForm.is_active,
+          name, placement_type: pkgForm.placement_type,
+          description: description || null, price_per_day: pricePerDay,
+          max_days: maxDays, is_active: pkgForm.is_active,
         }).eq('id', editingPkg.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from('ad_packages').insert({
-          name: pkgForm.name, placement_type: pkgForm.placement_type,
-          description: pkgForm.description, price_per_day: pkgForm.price_per_day,
-          max_days: pkgForm.max_days, is_active: pkgForm.is_active,
+          name, placement_type: pkgForm.placement_type,
+          description: description || null, price_per_day: pricePerDay,
+          max_days: maxDays, is_active: pkgForm.is_active,
         });
         if (error) throw error;
       }
@@ -233,12 +243,18 @@ export default function AdminIklanPage() {
 
   const seedPackages = async () => {
     try {
-      const { error } = await supabase.from('ad_packages').insert(DEFAULT_PACKAGES_SEED);
+      const existingPlacements = new Set(packages.map((pkg) => pkg.placement_type));
+      const missingPackages = DEFAULT_PACKAGES_SEED.filter((pkg) => !existingPlacements.has(pkg.placement_type));
+      if (missingPackages.length === 0) {
+        toast.info('Semua paket default sudah tersedia');
+        return;
+      }
+      const { error } = await supabase.from('ad_packages').insert(missingPackages);
       if (error) throw error;
-      toast.success('Paket default berhasil ditambahkan');
-      refetchPkgs();
-    } catch {
-      toast.error('Gagal menambahkan paket default');
+      toast.success(`${missingPackages.length} paket default berhasil ditambahkan`);
+      await refetchPkgs();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menambahkan paket default');
     }
   };
 
@@ -432,6 +448,8 @@ export default function AdminIklanPage() {
               <div className="flex justify-center py-10">
                 <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
               </div>
+            ) : adsError ? (
+              <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>Gagal memuat data iklan. Silakan refresh dan coba lagi.</AlertDescription></Alert>
             ) : ads.length === 0 ? (
               <div className="text-center py-16 text-muted-foreground">
                 <Megaphone className="h-12 w-12 mx-auto mb-3 opacity-20" />
@@ -539,7 +557,11 @@ export default function AdminIklanPage() {
               </div>
             </div>
 
-            {packages.length === 0 ? (
+            {packagesError ? (
+              <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>Gagal memuat paket iklan. Silakan refresh data.</AlertDescription></Alert>
+            ) : packagesLoading ? (
+              <div className="flex justify-center py-10"><RefreshCw className="h-8 w-8 animate-spin text-primary" /></div>
+            ) : packages.length === 0 ? (
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
