@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
+import { POSEmptyState, POSErrorState, POSLoadingState } from '@/components/pos/POSPageStates';
+import { canTransition } from '@/lib/posStateMachine';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -71,6 +73,7 @@ export default function POSMejaPage() {
   const [tables, setTables] = useState<TableItem[]>([]);
   const [orders, setOrders] = useState<TableOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeSection, setActiveSection] = useState('semua');
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -96,6 +99,7 @@ export default function POSMejaPage() {
   const fetchAll = useCallback(async () => {
     if (!tenant) return;
     setLoading(true);
+    setError('');
     try {
       let tq = supabase
         .from('pos_tables' as never)
@@ -115,10 +119,13 @@ export default function POSMejaPage() {
       if (activeOutlet) oq = oq.eq('outlet_id', activeOutlet.id);
 
       const [tRes, oRes] = await Promise.all([tq, oq]);
+      if (tRes.error || oRes.error) throw new Error(tRes.error?.message || oRes.error?.message || 'Gagal memuat data meja');
       setTables((tRes.data || []) as unknown as TableItem[]);
       setOrders((oRes.data || []) as unknown as TableOrder[]);
     } catch (err: unknown) {
-      toast.error('Gagal memuat data: ' + (err instanceof Error ? err.message : String(err)));
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      toast.error('Gagal memuat data: ' + message);
     } finally {
       setLoading(false);
     }
@@ -188,6 +195,10 @@ export default function POSMejaPage() {
 
   const handleStatusChange = async () => {
     if (!statusTarget) return;
+    if (!canTransition('table', statusTarget.status, newStatus)) {
+      toast.error(`Transisi status ${statusTarget.status} ke ${newStatus} tidak diizinkan`);
+      return;
+    }
     try {
       await supabase.from('pos_tables' as never)
         .update({ status: newStatus, updated_at: new Date().toISOString() })
@@ -249,6 +260,11 @@ export default function POSMejaPage() {
   };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
+    const currentOrder = orders.find(order => order.id === orderId);
+    if (currentOrder && !canTransition('kds', currentOrder.status, status)) {
+      toast.error(`Transisi pesanan ${currentOrder.status} ke ${status} tidak diizinkan`);
+      return;
+    }
     try {
       const updates: TableOrderUpdate = { status, updated_at: new Date().toISOString() };
       if (status === 'cooking') updates.cooking_started_at = new Date().toISOString();
@@ -273,10 +289,10 @@ export default function POSMejaPage() {
 
   return (
     <POSLayout title="Manajemen Meja" subtitle="Layout dan status meja restoran">
-      <div className="p-6 space-y-6">
+      <div className="space-y-6">
 
         {/* KPI */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {[
             { label: 'Total Meja', value: stats.total, color: 'text-gray-700' },
             { label: 'Tersedia', value: stats.available, color: 'text-emerald-600' },
@@ -329,12 +345,11 @@ export default function POSMejaPage() {
 
         {/* Table Grid */}
         {loading ? (
-          <div className="text-center py-12 text-muted-foreground">Memuat denah meja...</div>
+          <POSLoadingState label="Memuat denah meja..." />
+        ) : error ? (
+          <POSErrorState description={error} onRetry={() => void fetchAll()} />
         ) : filteredTables.length === 0 ? (
-          <div className="text-center py-12">
-            <Table2 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground">Belum ada meja. Klik "Tambah Meja" untuk mulai.</p>
-          </div>
+          <POSEmptyState title="Belum ada meja" description="Klik Tambah Meja untuk mulai mengatur area dan kapasitas meja." />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filteredTables.map(table => {
@@ -344,8 +359,12 @@ export default function POSMejaPage() {
               return (
                 <div
                   key={table.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Buka pesanan ${table.name}`}
                   onClick={() => openTableOrders(table)}
-                  className={`relative rounded-xl border-2 p-4 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 ${cfg.bg}`}
+                  onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openTableOrders(table); } }}
+                  className={`relative cursor-pointer rounded-xl border-2 p-3 transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:p-4 ${cfg.bg}`}
                 >
                   {/* Status dot */}
                   <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${cfg.color}`} />
@@ -441,7 +460,7 @@ export default function POSMejaPage() {
 
       {/* Dialog Ubah Status */}
       <Dialog open={statusDialog} onOpenChange={setStatusDialog}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Ubah Status — {statusTarget?.name}</DialogTitle>
           </DialogHeader>
@@ -450,7 +469,8 @@ export default function POSMejaPage() {
               <button
                 key={key}
                 onClick={() => setNewStatus(key)}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-colors ${
+                disabled={statusTarget ? !canTransition('table', statusTarget.status, key) && statusTarget.status !== key : false}
+                className={`w-full flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
                   newStatus === key ? 'border-emerald-500 bg-emerald-50' : 'border-border hover:border-muted-foreground'
                 }`}
               >
@@ -546,7 +566,7 @@ export default function POSMejaPage() {
 
       {/* Dialog Buat Pesanan Baru */}
       <Dialog open={addOrderDialog} onOpenChange={setAddOrderDialog}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Buat Pesanan — {selectedTable?.name}</DialogTitle>
           </DialogHeader>
