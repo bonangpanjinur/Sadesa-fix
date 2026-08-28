@@ -106,7 +106,7 @@ export function POSSidebar() {
         )}
       </div>
 
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <nav aria-label="Navigasi POS" className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {menuItems.filter((item) => canAccessPOSPath(roles, item.href)).map((item) => {
           const isActive = item.href === '/pos'
             ? location.pathname === '/pos'
@@ -115,8 +115,9 @@ export function POSSidebar() {
             <Link
               key={item.href}
               to={item.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 isActive
                   ? 'bg-emerald-600 text-white'
                   : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -140,9 +141,10 @@ export function POSSidebar() {
       </nav>
 
       <div className="p-3 border-t border-border space-y-1">
-        <Link
+            <Link
           to="/"
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+          aria-label="Kembali ke marketplace"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
           Kembali ke Marketplace
