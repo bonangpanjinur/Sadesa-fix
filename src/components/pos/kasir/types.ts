@@ -23,7 +23,11 @@ export interface HeldBill {
 }
 
 export interface LastSale {
+  saleId?: string;
   saleNumber: string;
+  createdAt?: string;
+  outletId?: string;
+  printJobId?: string;
   total: number;
   change: number;
   paymentMethod: string;

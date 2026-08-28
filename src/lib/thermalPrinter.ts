@@ -74,7 +74,7 @@ function fmtCur(n: number): string {
   return n.toLocaleString("id-ID");
 }
 
-function buildReceiptBytes(receipt: ReceiptData, paperWidth: PaperWidth): number[] {
+export function buildReceiptBytes(receipt: ReceiptData, paperWidth: PaperWidth): number[] {
   const W = paperWidth === 58 ? 32 : 42;
   const bytes: number[] = [];
 
@@ -478,6 +478,11 @@ export async function printReceiptBrowser(receipt: ReceiptData): Promise<void> {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ReceiptData {
+  saleId?: string;
+  saleNumber?: string;
+  createdAt?: string;
+  outletId?: string;
+  jobId?: string;
   storeName?: string;
   storeAddress?: string;
   storePhone?: string;
