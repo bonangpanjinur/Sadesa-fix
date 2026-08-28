@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
+import { POSEmptyState, POSErrorState, POSLoadingState } from '@/components/pos/POSPageStates';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -58,6 +59,7 @@ export default function POSTransaksiPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('today');
   const [selected, setSelected] = useState<Sale | null>(null);
@@ -66,6 +68,7 @@ export default function POSTransaksiPage() {
   const fetchSales = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     setLoading(true);
+    setError('');
     const now = new Date();
     const { start, end } = dateFilter === 'today'
       ? { start: startOfDay(now), end: endOfDay(now) }
@@ -76,7 +79,7 @@ export default function POSTransaksiPage() {
           : dateFilter === 'month'
             ? { start: startOfMonth(now), end: endOfMonth(now) }
             : { start: startOfDay(now), end: endOfDay(now) };
-    const { data } = await supabase
+    const { data, error: salesError } = await supabase
       .from('pos_sales' as never)
       .select('*')
       .eq('tenant_id', tenant.id)
@@ -84,7 +87,12 @@ export default function POSTransaksiPage() {
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString())
       .order('created_at', { ascending: false });
-    setSales((data || []) as unknown as Sale[]);
+    if (salesError) {
+      setError(salesError.message || 'Gagal memuat transaksi');
+      setSales([]);
+    } else {
+      setSales((data || []) as unknown as Sale[]);
+    }
     setLoading(false);
   }, [tenant, activeOutlet, dateFilter]);
 
@@ -158,7 +166,7 @@ export default function POSTransaksiPage() {
       actions={<Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-1" />Export</Button>}>
 
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
             <CardContent className="p-4">
               <p className="text-emerald-100 text-xs">Omzet Periode</p>
@@ -173,13 +181,13 @@ export default function POSTransaksiPage() {
           </Card>
         </div>
 
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative min-w-0 flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-9" placeholder="Cari no transaksi / customer..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-full sm:w-40">
               <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
@@ -193,17 +201,23 @@ export default function POSTransaksiPage() {
         </div>
 
         {loading ? (
-          <div className="space-y-2">{[...Array(6)].map((_, i) => <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />)}</div>
+          <POSLoadingState label="Memuat riwayat transaksi..." />
+        ) : error ? (
+          <POSErrorState description={error} onRetry={() => void fetchSales()} />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="font-semibold">Belum Ada Transaksi</p>
-            <p className="text-sm text-muted-foreground">Tidak ada transaksi pada periode yang dipilih.</p>
-          </div>
+          <POSEmptyState title="Belum ada transaksi" description="Tidak ada transaksi pada periode atau kata kunci yang dipilih." />
         ) : (
           <div className="space-y-2">
             {filtered.map(s => (
-              <Card key={s.id} className="border shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openDetail(s)}>
+              <Card
+                key={s.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Lihat detail transaksi ${s.sale_number}`}
+                className="cursor-pointer border shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                onClick={() => void openDetail(s)}
+                onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); void openDetail(s); } }}
+              >
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${s.status === 'void' ? 'bg-red-100' : 'bg-emerald-100'}`}>
                     <Receipt className={`h-4 w-4 ${s.status === 'void' ? 'text-red-600' : 'text-emerald-600'}`} />
@@ -226,7 +240,7 @@ export default function POSTransaksiPage() {
                       <span>{paymentLabel[s.payment_method] || s.payment_method}</span>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={e => { e.stopPropagation(); openDetail(s); }}>
+                  <Button aria-label={`Buka detail ${s.sale_number}`} variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={e => { e.stopPropagation(); void openDetail(s); }}>
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
                 </CardContent>
@@ -237,7 +251,7 @@ export default function POSTransaksiPage() {
       </div>
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detail Transaksi — {selected?.sale_number}</DialogTitle>
           </DialogHeader>
@@ -250,7 +264,7 @@ export default function POSTransaksiPage() {
                 </div>
                 {selected.customer_name && <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span>{selected.customer_name}</span></div>}
                 {selected.cashier_name && <div className="flex justify-between"><span className="text-muted-foreground">Kasir</span><span>{selected.cashier_name}</span></div>}
-                <div className="flex justify-between"><span className="text-muted-foreground">Metode</span><span>{paymentLabel[selected.payment_method]}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Metode</span><span>{paymentLabel[selected.payment_method] || selected.payment_method}</span></div>
               </div>
 
               <div>
