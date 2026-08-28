@@ -11,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Receipt, Eye, Download, Calendar, CreditCard, Banknote, QrCode, Printer } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { toast } from 'sonner';
+import { enqueueReceiptData, flushReceiptOutbox } from '@/lib/printOutbox';
+import type { ReceiptData } from '@/lib/thermalPrinter';
 
 interface Sale {
   id: string;
@@ -96,6 +99,40 @@ export default function POSTransaksiPage() {
       .eq('sale_id', sale.id);
     setSelected({ ...sale, pos_sale_items: (data || []) as unknown as SaleItem[] });
     setDetailOpen(true);
+  };
+
+  const reprintReceipt = async () => {
+    if (!selected || !tenant || !activeOutlet) return;
+    const receipt: ReceiptData = {
+      saleId: selected.id,
+      saleNumber: selected.sale_number,
+      createdAt: selected.created_at,
+      outletId: activeOutlet.id,
+      jobId: `receipt:reprint:${selected.id}:${selected.created_at}`,
+      storeName: tenant.name || 'Toko',
+      storeAddress: (tenant as unknown as { address?: string }).address,
+      storePhone: (tenant as unknown as { phone?: string }).phone,
+      receiptHeader: (tenant as unknown as { receipt_header?: string }).receipt_header,
+      receiptFooter: (tenant as unknown as { receipt_footer?: string }).receipt_footer,
+      invoiceNo: selected.sale_number,
+      date: new Date(selected.created_at),
+      cashierName: selected.cashier_name || undefined,
+      customerName: selected.customer_name || undefined,
+      items: (selected.pos_sale_items || []).map(item => ({
+        name: item.variant_name ? `${item.product_name} (${item.variant_name})` : item.product_name,
+        qty: item.qty, price: item.price, discount: item.discount || 0,
+      })),
+      subtotal: selected.subtotal,
+      discountAmount: selected.discount_amount,
+      taxAmount: selected.tax_amount,
+      total: selected.total,
+      paidAmount: selected.payment_amount,
+      changeAmount: selected.change_amount,
+      paymentMethod: paymentLabel[selected.payment_method] || selected.payment_method,
+    };
+    enqueueReceiptData(receipt);
+    const result = await flushReceiptOutbox();
+    if (result.failed > 0) throw new Error('Print Bridge atau printer belum siap; job disimpan di antrean.');
   };
 
   const filtered = sales.filter(s =>
@@ -240,8 +277,8 @@ export default function POSTransaksiPage() {
                 {selected.change_amount > 0 && <div className="flex justify-between text-muted-foreground"><span>Kembalian</span><span>{formatCurrency(selected.change_amount)}</span></div>}
               </div>
 
-              <Button variant="outline" className="w-full" onClick={() => window.print()}>
-                <Printer className="h-4 w-4 mr-2" />Cetak Ulang Struk
+              <Button variant="outline" className="w-full" onClick={() => void reprintReceipt().then(() => toast.success('Struk dikirim ke printer')).catch(error => toast.error(error instanceof Error ? error.message : 'Gagal mencetak ulang'))}>
+                <Printer className="h-4 w-4 mr-2" />Cetak Ulang ke Printer
               </Button>
             </div>
           )}
