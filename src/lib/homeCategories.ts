@@ -28,6 +28,10 @@ export const SECONDARY_HOME_CATEGORIES: HomepageCategory[] = [
 
 export const ALL_HOME_CATEGORIES = [...PRIMARY_HOME_CATEGORIES, ...SECONDARY_HOME_CATEGORIES];
 
+export function normalizeCategorySlug(value: string | null | undefined): string {
+  return (value || '').trim().toLowerCase().replace(/&/g, 'dan').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
 export function getHomepageCategoryHref(category: HomepageCategory): string {
   return category.route || `/products?category=${encodeURIComponent(category.id)}`;
 }

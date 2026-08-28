@@ -8,7 +8,8 @@ import { BottomNav } from '../components/layout/BottomNav';
 import { SearchBar } from '../components/ui/SearchBar';
 import { ProductCard } from '../components/ProductCard';
 import { Skeleton } from '../components/ui/skeleton';
-import { fetchProducts, categories } from '../lib/api';
+import { fetchProducts } from '../lib/api';
+import { ALL_HOME_CATEGORIES, normalizeCategorySlug } from '../lib/homeCategories';
 import { useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
 import {
@@ -37,7 +38,7 @@ function ProductSkeleton() {
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const categoryParam = searchParams.get('category') || 'all';
+  const categoryParam = normalizeCategorySlug(searchParams.get('category')) || 'all';
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(categoryParam);
   const [sortMode, setSortMode] = useState<SortMode>('nearest');
@@ -53,7 +54,7 @@ export default function ProductsPage() {
     let result = products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            product.merchantName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+      const matchesCategory = selectedCategory === 'all' || normalizeCategorySlug(product.category) === selectedCategory;
       return matchesSearch && matchesCategory;
     });
 
@@ -112,7 +113,7 @@ export default function ProductsPage() {
           >
             Semua
           </button>
-          {categories.filter(c => c.id !== 'wisata').map(cat => (
+          {ALL_HOME_CATEGORIES.filter(c => c.id !== 'wisata' && c.id !== 'ojek').map(cat => (
             <button
               key={cat.id}
               onClick={() => handleCategoryChange(cat.id)}
