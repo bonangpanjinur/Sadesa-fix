@@ -1,40 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260203_improve_refund_system.sql .. 20260207_quota_enhancement.sql
+-- Source range: 20260203_new_quota_system.sql .. 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql
 
-
--- ===== BEGIN SOURCE: 20260203_improve_refund_system.sql =====
--- 1. Perbarui tabel refund_requests dengan kolom baru
-ALTER TABLE public.refund_requests
-ADD COLUMN IF NOT EXISTS evidence_urls text[] DEFAULT '{}',
-ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE,
-ADD COLUMN IF NOT EXISTS refund_type text DEFAULT 'FULL';
-
--- 2. Isi data merchant_id untuk data refund yang sudah ada (jika ada)
-UPDATE public.refund_requests rr
-SET merchant_id = o.merchant_id
-FROM public.orders o
-WHERE rr.order_id = o.id AND rr.merchant_id IS NULL;
-
--- 3. Tambahkan index untuk performa pencarian merchant
-CREATE INDEX IF NOT EXISTS idx_refund_requests_merchant ON public.refund_requests(merchant_id);
-
--- 4. Tambahkan kebijakan keamanan (RLS) agar Merchant bisa melihat refund mereka sendiri
-DROP POLICY IF EXISTS "Merchants can view own refunds" ON public.refund_requests;
-CREATE POLICY "Merchants can view own refunds" ON public.refund_requests
-FOR SELECT USING (
-  EXISTS (
-    SELECT 1 FROM public.merchants m
-    WHERE m.id = refund_requests.merchant_id
-    AND m.user_id = auth.uid()
-  )
-);
-
--- 5. Pastikan bucket storage tersedia untuk bukti refund (Opsional jika belum ada)
--- Jalankan ini jika Anda ingin memastikan folder storage bisa diakses
--- INSERT INTO storage.buckets (id, name, public) VALUES ('public_assets', 'public_assets', true) ON CONFLICT (id) DO NOTHING;
-
--- ===== END SOURCE: 20260203_improve_refund_system.sql =====
 
 -- ===== BEGIN SOURCE: 20260203_new_quota_system.sql =====
 -- New Quota System Migration
@@ -2045,3 +2012,21 @@ USING (
 );
 
 -- ===== END SOURCE: 20260207_quota_enhancement.sql =====
+
+-- ===== BEGIN SOURCE: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql =====
+-- Drop the restrictive buyer update policy and replace with one that covers all buyer-updatable statuses
+DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
+
+DROP POLICY IF EXISTS "Buyers can update own orders" ON public.orders;
+CREATE POLICY "Buyers can update own orders"
+ON public.orders
+FOR UPDATE
+USING (
+  auth.uid() = buyer_id
+  AND status IN ('NEW', 'PENDING_PAYMENT', 'DELIVERED')
+)
+WITH CHECK (
+  auth.uid() = buyer_id
+);
+
+-- ===== END SOURCE: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql =====

@@ -1,370 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260822040000_harden_stock_decrement.sql .. 20260825200000_notification_delivery_queue.sql
+-- Source range: 20260823071000_payment_invoice_idempotency.sql .. 20260825235000_price_override_approval_rpc.sql
 
-
--- ===== BEGIN SOURCE: 20260822040000_harden_stock_decrement.sql =====
--- Prevent overselling: update only when enough stock exists and fail atomically.
-CREATE OR REPLACE FUNCTION public.decrement_stock(p_product_id uuid, p_quantity integer)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  IF p_product_id IS NULL OR p_quantity IS NULL OR p_quantity <= 0 THEN
-    RAISE EXCEPTION 'Invalid stock decrement request';
-  END IF;
-
-  UPDATE public.products
-  SET stock = stock - p_quantity,
-      updated_at = now()
-  WHERE id = p_product_id
-    AND stock >= p_quantity;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Insufficient stock or product not found';
-  END IF;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.decrement_stock(uuid, integer) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.decrement_stock(uuid, integer) TO authenticated;
-
--- ===== END SOURCE: 20260822040000_harden_stock_decrement.sql =====
-
--- ===== BEGIN SOURCE: 20260823050000_harden_payment_proof_insert.sql =====
--- Restrict payment-proof uploads to principals who own or fulfill the order.
--- Expected object path: orders/{order_id}/{filename}
-DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
-
-DROP POLICY IF EXISTS "Buyer merchant admin can upload payment proofs" ON storage.objects;
-CREATE POLICY "Buyer merchant admin can upload payment proofs"
-ON storage.objects
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  bucket_id = 'payment-proofs'
-  AND (
-    public.is_admin()
-    OR EXISTS (
-      SELECT 1
-      FROM public.orders o
-      LEFT JOIN public.merchants m ON m.id = o.merchant_id
-      WHERE o.id::text = (storage.foldername(name))[2]
-        AND (o.buyer_id = auth.uid() OR m.user_id = auth.uid())
-    )
-  )
-  AND COALESCE(metadata->>'mimetype', '') IN (
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'application/pdf'
-  )
-);
-
--- ===== END SOURCE: 20260823050000_harden_payment_proof_insert.sql =====
-
--- ===== BEGIN SOURCE: 20260823070000_atomic_pos_checkout.sql =====
--- Atomic POS checkout with request idempotency.
--- All core sale writes and stock mutations execute in one database transaction.
-
-CREATE TABLE IF NOT EXISTS public.pos_sale_requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  outlet_id uuid NOT NULL REFERENCES public.pos_outlets(id) ON DELETE CASCADE,
-  cashier_id uuid NOT NULL REFERENCES auth.users(id),
-  request_key text NOT NULL,
-  sale_id uuid REFERENCES public.pos_sales(id) ON DELETE SET NULL,
-  response jsonb,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tenant_id, outlet_id, request_key)
-);
-
-CREATE INDEX IF NOT EXISTS idx_pos_sale_requests_created_at
-  ON public.pos_sale_requests(created_at DESC);
-
-ALTER TABLE public.pos_sale_requests ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.pos_sale_requests FROM anon, authenticated;
-GRANT ALL ON public.pos_sale_requests TO service_role;
-
-CREATE OR REPLACE FUNCTION public.process_pos_sale(
-  p_request_key text,
-  p_tenant_id uuid,
-  p_outlet_id uuid,
-  p_cashier_id uuid,
-  p_sale jsonb,
-  p_items jsonb
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_existing public.pos_sale_requests%ROWTYPE;
-  v_request_id uuid;
-  v_sale_id uuid;
-  v_item jsonb;
-  v_stock public.pos_stock%ROWTYPE;
-  v_qty numeric;
-  v_before numeric;
-  v_after numeric;
-  v_sale_number text;
-  v_payment_method text;
-  v_total numeric;
-  v_response jsonb;
-  v_recipe record;
-  v_raw public.pos_raw_materials%ROWTYPE;
-  v_usage numeric;
-  v_customer_segment text;
-  v_input_price numeric;
-  v_effective_price numeric;
-  v_computed_subtotal numeric := 0;
-  v_price_override_count integer := 0;
-  v_sale_earned integer := 0;
-  v_sale_redeemed integer := 0;
-BEGIN
-  IF auth.uid() IS NULL OR auth.uid() <> p_cashier_id THEN
-    RAISE EXCEPTION 'Cashier identity mismatch' USING ERRCODE = '42501';
-  END IF;
-
-  IF NOT public.pos_user_can_access_outlet(p_tenant_id, p_outlet_id) THEN
-    RAISE EXCEPTION 'POS outlet access denied' USING ERRCODE = '42501';
-  END IF;
-
-  IF p_request_key IS NULL OR length(trim(p_request_key)) < 16 OR length(p_request_key) > 128 THEN
-    RAISE EXCEPTION 'Invalid POS request key' USING ERRCODE = '22023';
-  END IF;
-  IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
-    RAISE EXCEPTION 'POS sale requires at least one item' USING ERRCODE = '22023';
-  END IF;
-
-  INSERT INTO public.pos_sale_requests(tenant_id, outlet_id, cashier_id, request_key)
-  VALUES (p_tenant_id, p_outlet_id, p_cashier_id, trim(p_request_key))
-  ON CONFLICT (tenant_id, outlet_id, request_key) DO NOTHING
-  RETURNING id INTO v_request_id;
-
-  IF v_request_id IS NULL THEN
-    SELECT * INTO v_existing
-    FROM public.pos_sale_requests
-    WHERE tenant_id = p_tenant_id AND outlet_id = p_outlet_id AND request_key = trim(p_request_key);
-    IF v_existing.response IS NULL THEN
-      RAISE EXCEPTION 'POS request is already being processed' USING ERRCODE = '55P03';
-    END IF;
-    RETURN v_existing.response || jsonb_build_object('duplicate', true);
-  END IF;
-
-  v_sale_number := NULLIF(trim(p_sale->>'sale_number'), '');
-  IF v_sale_number IS NULL THEN
-    RAISE EXCEPTION 'Sale number is required' USING ERRCODE = '22023';
-  END IF;
-
-  v_payment_method := lower(COALESCE(p_sale->>'payment_method', 'cash'));
-  -- The UI historically uses qr_pay; persist it as the schema-supported qris value.
-  IF v_payment_method = 'qr_pay' THEN v_payment_method := 'qris'; END IF;
-  IF v_payment_method NOT IN ('cash', 'qris', 'transfer', 'debit', 'credit', 'split') THEN
-    RAISE EXCEPTION 'Unsupported payment method' USING ERRCODE = '22023';
-  END IF;
-
-  v_total := COALESCE((p_sale->>'total')::numeric, 0);
-  v_customer_segment := lower(COALESCE(NULLIF(p_sale->>'customer_segment', ''), 'retail'));
-  IF v_customer_segment NOT IN ('retail', 'wholesale', 'reseller', 'member', 'outlet') THEN
-    RAISE EXCEPTION 'Unsupported customer segment' USING ERRCODE = '22023';
-  END IF;
-  IF v_total < 0 THEN
-    RAISE EXCEPTION 'Invalid sale total' USING ERRCODE = '22023';
-  END IF;
-
-  -- Resolve price-book prices before inserting the sale. This makes the
-  -- server authoritative for both line prices and the final total.
-  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
-  LOOP
-    v_qty := COALESCE((v_item->>'qty')::numeric, 0);
-    IF v_qty <= 0 THEN RAISE EXCEPTION 'Invalid item quantity' USING ERRCODE = '22023'; END IF;
-    v_input_price := COALESCE((v_item->>'price')::numeric, 0);
-    v_effective_price := COALESCE(public.get_effective_pos_price(
-      p_tenant_id, p_outlet_id, (v_item->>'product_id')::uuid,
-      NULLIF(v_item->>'variant_id', '')::uuid, v_customer_segment
-    ), v_input_price);
-    IF v_effective_price <> v_input_price THEN
-      IF COALESCE((p_sale->>'offline_sync')::boolean, false) THEN
-        RAISE EXCEPTION 'Price conflict for product %: server price is %, queued price is %', v_item->>'product_id', v_effective_price, v_input_price USING ERRCODE = 'P0001', DETAIL = jsonb_build_object('conflict_type', 'PRICE_CHANGED', 'product_id', v_item->>'product_id', 'queued_price', v_input_price, 'server_price', v_effective_price)::text;
-      END IF;
-      v_price_override_count := v_price_override_count + 1;
-    END IF;
-    v_computed_subtotal := v_computed_subtotal + GREATEST(0, (v_effective_price * v_qty) - COALESCE((v_item->>'discount')::numeric, 0));
-  END LOOP;
-  v_total := GREATEST(0, v_computed_subtotal - COALESCE((p_sale->>'discount_amount')::numeric, 0) + COALESCE((p_sale->>'tax_amount')::numeric, 0));
-
-  INSERT INTO public.pos_sales(
-    tenant_id, outlet_id, sale_number, cashier_id, cashier_name,
-    customer_id, customer_name, subtotal, discount_amount, tax_amount, total,
-    payment_method, payment_amount, change_amount, status, notes,
-    promotion_id, voucher_id, voucher_code, promotion_discount, voucher_discount,
-    loyalty_points_earned, loyalty_points_redeemed, loyalty_discount
-  ) VALUES (
-    p_tenant_id, p_outlet_id, v_sale_number, p_cashier_id,
-    NULLIF(p_sale->>'cashier_name', ''), NULLIF(p_sale->>'customer_id', '')::uuid,
-    NULLIF(p_sale->>'customer_name', ''), v_computed_subtotal,
-    COALESCE((p_sale->>'discount_amount')::numeric, 0), COALESCE((p_sale->>'tax_amount')::numeric, 0), v_total,
-    v_payment_method, COALESCE((p_sale->>'payment_amount')::numeric, v_total),
-    COALESCE((p_sale->>'change_amount')::numeric, 0), 'completed', NULLIF(p_sale->>'notes', ''),
-    NULLIF(p_sale->>'promotion_id', '')::uuid, NULLIF(p_sale->>'voucher_id', '')::uuid,
-    NULLIF(p_sale->>'voucher_code', ''), COALESCE((p_sale->>'promotion_discount')::numeric, 0),
-    COALESCE((p_sale->>'voucher_discount')::numeric, 0), COALESCE((p_sale->>'loyalty_points_earned')::integer, 0),
-    COALESCE((p_sale->>'loyalty_points_redeemed')::integer, 0), COALESCE((p_sale->>'loyalty_discount')::numeric, 0)
-  ) RETURNING id INTO v_sale_id;
-  SELECT loyalty_points_earned, loyalty_points_redeemed INTO v_sale_earned, v_sale_redeemed
-  FROM public.pos_sales WHERE id = v_sale_id;
-
-  v_computed_subtotal := 0;
-  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
-  LOOP
-    v_qty := COALESCE((v_item->>'qty')::numeric, 0);
-    IF v_qty <= 0 THEN RAISE EXCEPTION 'Invalid item quantity' USING ERRCODE = '22023'; END IF;
-
-    v_input_price := COALESCE((v_item->>'price')::numeric, 0);
-    v_effective_price := COALESCE(public.get_effective_pos_price(
-      p_tenant_id, p_outlet_id, (v_item->>'product_id')::uuid,
-      NULLIF(v_item->>'variant_id', '')::uuid, v_customer_segment
-    ), v_input_price);
-    IF v_effective_price <> v_input_price THEN
-      v_price_override_count := v_price_override_count + 1;
-    END IF;
-    v_computed_subtotal := v_computed_subtotal + GREATEST(0, (v_effective_price * v_qty) - COALESCE((v_item->>'discount')::numeric, 0));
-
-    INSERT INTO public.pos_sale_items(
-      sale_id, product_id, variant_id, product_name, variant_name, sku,
-      qty, price, cost_price, discount, tax_amount, subtotal, notes
-    ) VALUES (
-      v_sale_id, (v_item->>'product_id')::uuid, NULLIF(v_item->>'variant_id', '')::uuid,
-      COALESCE(v_item->>'name', 'Produk'), NULLIF(v_item->>'variant_name', ''), NULLIF(v_item->>'sku', ''),
-      v_qty, v_effective_price, COALESCE((v_item->>'cost_price')::numeric, 0),
-      COALESCE((v_item->>'discount')::numeric, 0), COALESCE((v_item->>'tax_amount')::numeric, 0),
-      GREATEST(0, (v_effective_price * v_qty) - COALESCE((v_item->>'discount')::numeric, 0) + COALESCE((v_item->>'tax_amount')::numeric, 0)), NULLIF(v_item->>'notes', '')
-    );
-
-    SELECT * INTO v_stock
-    FROM public.pos_stock
-    WHERE tenant_id = p_tenant_id
-      AND outlet_id = p_outlet_id
-      AND product_id = (v_item->>'product_id')::uuid
-      AND variant_id IS NOT DISTINCT FROM NULLIF(v_item->>'variant_id', '')::uuid
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Stock row not found for product %', v_item->>'product_id' USING ERRCODE = 'P0002';
-    END IF;
-    v_before := v_stock.quantity;
-    v_after := v_before - v_qty;
-    IF v_after < 0 THEN
-      RAISE EXCEPTION 'Insufficient stock for product %', v_item->>'product_id' USING ERRCODE = '23514';
-    END IF;
-
-    UPDATE public.pos_stock
-    SET quantity = v_after, updated_at = now()
-    WHERE id = v_stock.id;
-
-    INSERT INTO public.pos_stock_mutations(
-      tenant_id, product_id, variant_id, outlet_id, type, quantity,
-      quantity_before, quantity_after, reference_id, reference_type, notes, created_by
-    ) VALUES (
-      p_tenant_id, (v_item->>'product_id')::uuid, NULLIF(v_item->>'variant_id', '')::uuid,
-      p_outlet_id, 'sale', -v_qty, v_before, v_after, v_sale_id, 'pos_sale',
-      'Atomic POS sale', p_cashier_id
-    );
-  END LOOP;
-
-  IF v_price_override_count > 0 THEN
-    UPDATE public.pos_sales
-    SET subtotal = v_computed_subtotal,
-        total = GREATEST(0, v_computed_subtotal - COALESCE(discount_amount, 0) + COALESCE(tax_amount, 0)),
-        notes = concat_ws(' | ', NULLIF(notes, ''), 'Price book: ' || v_customer_segment)
-    WHERE id = v_sale_id;
-    SELECT total INTO v_total FROM public.pos_sales WHERE id = v_sale_id;
-  END IF;
-
-  -- Consume recipe ingredients under row locks in the same transaction.
-  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items)
-  LOOP
-    FOR v_recipe IN
-      SELECT r.raw_material_id, r.qty_needed
-      FROM public.pos_recipes r
-      WHERE r.tenant_id = p_tenant_id
-        AND r.product_id = (v_item->>'product_id')::uuid
-    LOOP
-      SELECT * INTO v_raw
-      FROM public.pos_raw_materials
-      WHERE id = v_recipe.raw_material_id
-        AND tenant_id = p_tenant_id
-        AND (outlet_id = p_outlet_id OR outlet_id IS NULL)
-      ORDER BY (outlet_id IS NULL)
-      LIMIT 1
-      FOR UPDATE;
-
-      IF NOT FOUND THEN
-        RAISE EXCEPTION 'Raw material is unavailable for product %', v_item->>'product_id' USING ERRCODE = 'P0002';
-      END IF;
-      v_usage := v_recipe.qty_needed * COALESCE((v_item->>'qty')::numeric, 0);
-      IF v_raw.current_stock - v_usage < 0 THEN
-        RAISE EXCEPTION 'Insufficient raw material stock for product %', v_item->>'product_id' USING ERRCODE = '23514';
-      END IF;
-
-      UPDATE public.pos_raw_materials
-      SET current_stock = current_stock - v_usage, updated_at = now()
-      WHERE id = v_raw.id;
-      INSERT INTO public.pos_raw_material_mutations(
-        tenant_id, outlet_id, raw_material_id, type, qty,
-        qty_before, qty_after, reference_id, reference_type, notes, created_by
-      ) VALUES (
-        p_tenant_id, p_outlet_id, v_raw.id, 'usage', -v_usage,
-        v_raw.current_stock, v_raw.current_stock - v_usage, v_sale_id, 'pos_sale',
-        'Atomic POS sale recipe usage', p_cashier_id
-      );
-    END LOOP;
-  END LOOP;
-
-  -- Keep the customer aggregate in the same transaction when a customer is selected.
-  IF NULLIF(p_sale->>'customer_id', '') IS NOT NULL THEN
-    UPDATE public.pos_customers
-    SET total_purchase = COALESCE(total_purchase, 0) + v_total,
-        transaction_count = COALESCE(transaction_count, 0) + 1,
-        last_purchase_at = now(),
-        loyalty_points = GREATEST(0, COALESCE(loyalty_points, 0)
-          - v_sale_redeemed + v_sale_earned),
-        updated_at = now()
-    WHERE id = (p_sale->>'customer_id')::uuid AND tenant_id = p_tenant_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Customer does not belong to tenant' USING ERRCODE = '42501'; END IF;
-  END IF;
-
-  IF NULLIF(p_sale->>'voucher_id', '') IS NOT NULL THEN
-    UPDATE public.pos_vouchers
-    SET used_count = used_count + 1, updated_at = now()
-    WHERE id = (p_sale->>'voucher_id')::uuid AND tenant_id = p_tenant_id
-      AND is_active = true AND (usage_limit IS NULL OR used_count < usage_limit);
-    IF NOT FOUND THEN RAISE EXCEPTION 'Voucher is no longer available' USING ERRCODE = '23514'; END IF;
-    INSERT INTO public.pos_voucher_usages(voucher_id, sale_id, customer_id, customer_name, discount_given)
-    VALUES ((p_sale->>'voucher_id')::uuid, v_sale_id, NULLIF(p_sale->>'customer_id', '')::uuid,
-      NULLIF(p_sale->>'customer_name', ''), COALESCE((p_sale->>'voucher_discount')::numeric, 0));
-  END IF;
-
-  v_response := jsonb_build_object(
-    'sale_id', v_sale_id, 'sale_number', v_sale_number, 'total', v_total,
-    'payment_method', v_payment_method, 'duplicate', false
-  );
-  UPDATE public.pos_sale_requests SET sale_id = v_sale_id, response = v_response WHERE id = v_request_id;
-  RETURN v_response;
-EXCEPTION WHEN OTHERS THEN
-  -- The surrounding transaction rolls back sale, items, stock, and request row together.
-  RAISE;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.process_pos_sale(text, uuid, uuid, uuid, jsonb, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.process_pos_sale(text, uuid, uuid, uuid, jsonb, jsonb) TO authenticated;
-
--- ===== END SOURCE: 20260823070000_atomic_pos_checkout.sql =====
 
 -- ===== BEGIN SOURCE: 20260823071000_payment_invoice_idempotency.sql =====
 -- Reserve one invoice creation attempt per order/provider before calling the
@@ -2370,3 +2007,240 @@ GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO authen
 GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO authenticated;
 
 -- ===== END SOURCE: 20260825200000_notification_delivery_queue.sql =====
+
+-- ===== BEGIN SOURCE: 20260825210000_subscription_billing_controls.sql =====
+ALTER TABLE public.merchant_subscriptions
+  ADD COLUMN IF NOT EXISTS billing_period text NOT NULL DEFAULT 'monthly' CHECK (billing_period IN ('monthly','quarterly','yearly')),
+  ADD COLUMN IF NOT EXISTS current_period_start timestamptz,
+  ADD COLUMN IF NOT EXISTS current_period_end timestamptz,
+  ADD COLUMN IF NOT EXISTS grace_period_until timestamptz,
+  ADD COLUMN IF NOT EXISTS cancel_at_period_end boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS provider_subscription_id text;
+
+CREATE TABLE IF NOT EXISTS public.subscription_billing_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  subscription_id uuid NOT NULL REFERENCES public.merchant_subscriptions(id) ON DELETE CASCADE,
+  provider text NOT NULL,
+  provider_event_id text NOT NULL,
+  event_type text NOT NULL,
+  amount numeric(15,2),
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status text NOT NULL DEFAULT 'received' CHECK (status IN ('received','processed','ignored','failed')),
+  error_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  processed_at timestamptz,
+  UNIQUE(provider, provider_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_subscription_events_subscription ON public.subscription_billing_events(subscription_id, created_at DESC);
+
+ALTER TABLE public.subscription_billing_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Merchant views own subscription events" ON public.subscription_billing_events;
+CREATE POLICY "Merchant views own subscription events" ON public.subscription_billing_events FOR SELECT TO authenticated
+  USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin());
+DROP POLICY IF EXISTS "Admins manage subscription events" ON public.subscription_billing_events;
+CREATE POLICY "Admins manage subscription events" ON public.subscription_billing_events FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE OR REPLACE FUNCTION public.record_subscription_billing_event(
+  p_subscription_id uuid, p_provider text, p_provider_event_id text, p_event_type text, p_amount numeric, p_payload jsonb
+)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_id uuid; v_merchant_id uuid;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Billing event ingestion requires admin access' USING ERRCODE = '42501'; END IF;
+  SELECT merchant_id INTO v_merchant_id FROM public.merchant_subscriptions WHERE id = p_subscription_id;
+  IF v_merchant_id IS NULL THEN RAISE EXCEPTION 'Subscription not found' USING ERRCODE = 'P0002'; END IF;
+  INSERT INTO public.subscription_billing_events(subscription_id, provider, provider_event_id, event_type, amount, payload)
+  VALUES (p_subscription_id, p_provider, p_provider_event_id, p_event_type, p_amount, COALESCE(p_payload, '{}'::jsonb))
+  ON CONFLICT (provider, provider_event_id) DO NOTHING RETURNING id INTO v_id;
+  IF v_id IS NULL THEN RETURN jsonb_build_object('duplicate', true, 'provider_event_id', p_provider_event_id); END IF;
+  RETURN jsonb_build_object('duplicate', false, 'event_id', v_id);
+END; $$;
+REVOKE ALL ON FUNCTION public.record_subscription_billing_event(uuid, text, text, text, numeric, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_subscription_billing_event(uuid, text, text, text, numeric, jsonb) TO service_role;
+
+-- ===== END SOURCE: 20260825210000_subscription_billing_controls.sql =====
+
+-- ===== BEGIN SOURCE: 20260825220000_tax_accounting_journal.sql =====
+CREATE TABLE IF NOT EXISTS public.pos_tax_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  tax_code text NOT NULL,
+  rate numeric(7,4) NOT NULL DEFAULT 0 CHECK (rate >= 0 AND rate <= 100),
+  inclusive boolean NOT NULL DEFAULT false,
+  is_active boolean NOT NULL DEFAULT true,
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(tenant_id, tax_code)
+);
+
+CREATE TABLE IF NOT EXISTS public.pos_journal_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
+  outlet_id uuid REFERENCES public.pos_outlets(id) ON DELETE SET NULL,
+  entry_number text NOT NULL,
+  entry_date date NOT NULL DEFAULT CURRENT_DATE,
+  source_type text NOT NULL CHECK (source_type IN ('sale','payment','refund','purchase','payout','adjustment','tax','settlement')),
+  source_id uuid,
+  memo text NOT NULL,
+  status text NOT NULL DEFAULT 'posted' CHECK (status IN ('draft','posted','reversed')),
+  created_by uuid REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(tenant_id, entry_number)
+);
+CREATE TABLE IF NOT EXISTS public.pos_journal_lines (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  journal_entry_id uuid NOT NULL REFERENCES public.pos_journal_entries(id) ON DELETE CASCADE,
+  account_code text NOT NULL,
+  account_name text NOT NULL,
+  debit numeric(15,2) NOT NULL DEFAULT 0 CHECK (debit >= 0),
+  credit numeric(15,2) NOT NULL DEFAULT 0 CHECK (credit >= 0),
+  tax_profile_id uuid REFERENCES public.pos_tax_profiles(id) ON DELETE SET NULL,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  CHECK ((debit = 0 AND credit > 0) OR (credit = 0 AND debit > 0))
+);
+CREATE INDEX IF NOT EXISTS idx_pos_journal_entries_export ON public.pos_journal_entries(tenant_id, entry_date, status);
+CREATE INDEX IF NOT EXISTS idx_pos_journal_lines_account ON public.pos_journal_lines(journal_entry_id, account_code);
+
+ALTER TABLE public.pos_tax_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pos_journal_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pos_journal_lines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Tenant owners manage tax profiles" ON public.pos_tax_profiles;
+CREATE POLICY "Tenant owners manage tax profiles" ON public.pos_tax_profiles FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view tax profiles" ON public.pos_tax_profiles;
+CREATE POLICY "Tenant users view tax profiles" ON public.pos_tax_profiles FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
+DROP POLICY IF EXISTS "Tenant users view journals" ON public.pos_journal_entries;
+CREATE POLICY "Tenant users view journals" ON public.pos_journal_entries FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "Tenant users view journal lines" ON public.pos_journal_lines;
+CREATE POLICY "Tenant users view journal lines" ON public.pos_journal_lines FOR SELECT TO authenticated USING (journal_entry_id IN (SELECT id FROM public.pos_journal_entries WHERE tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
+
+CREATE OR REPLACE FUNCTION public.post_pos_journal_entry(
+  p_tenant_id uuid, p_outlet_id uuid, p_entry_number text, p_entry_date date, p_source_type text, p_source_id uuid, p_memo text, p_lines jsonb
+)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_entry_id uuid; v_line jsonb; v_debit numeric; v_credit numeric; v_total_debit numeric := 0; v_total_credit numeric := 0;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.pos_user_can_access_outlet(p_tenant_id, p_outlet_id) OR jsonb_typeof(p_lines) <> 'array' OR jsonb_array_length(p_lines) < 2 THEN
+    RAISE EXCEPTION 'Invalid journal entry' USING ERRCODE = '42501';
+  END IF;
+  FOR v_line IN SELECT value FROM jsonb_array_elements(p_lines) LOOP
+    v_debit := COALESCE((v_line->>'debit')::numeric, 0); v_credit := COALESCE((v_line->>'credit')::numeric, 0);
+    IF (v_debit > 0 AND v_credit > 0) OR (v_debit = 0 AND v_credit = 0) THEN RAISE EXCEPTION 'Journal line must contain debit or credit only' USING ERRCODE = '23514'; END IF;
+    v_total_debit := v_total_debit + v_debit; v_total_credit := v_total_credit + v_credit;
+  END LOOP;
+  IF v_total_debit <> v_total_credit THEN RAISE EXCEPTION 'Journal entry is not balanced' USING ERRCODE = '23514'; END IF;
+  INSERT INTO public.pos_journal_entries(tenant_id, outlet_id, entry_number, entry_date, source_type, source_id, memo, created_by)
+  VALUES (p_tenant_id, p_outlet_id, p_entry_number, COALESCE(p_entry_date, CURRENT_DATE), p_source_type, p_source_id, p_memo, auth.uid()) RETURNING id INTO v_entry_id;
+  INSERT INTO public.pos_journal_lines(journal_entry_id, account_code, account_name, debit, credit, tax_profile_id, metadata)
+  SELECT v_entry_id, value->>'account_code', value->>'account_name', COALESCE((value->>'debit')::numeric,0), COALESCE((value->>'credit')::numeric,0), NULLIF(value->>'tax_profile_id','')::uuid, COALESCE(value->'metadata','{}'::jsonb)
+  FROM jsonb_array_elements(p_lines);
+  RETURN v_entry_id;
+END; $$;
+REVOKE ALL ON FUNCTION public.post_pos_journal_entry(uuid, uuid, text, date, text, uuid, text, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.post_pos_journal_entry(uuid, uuid, text, date, text, uuid, text, jsonb) TO authenticated;
+
+-- ===== END SOURCE: 20260825220000_tax_accounting_journal.sql =====
+
+-- ===== BEGIN SOURCE: 20260825230000_worker_claim_and_subscription_processor.sql =====
+CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_job public.notification_delivery_jobs%ROWTYPE;
+BEGIN
+  IF (auth.jwt()->>'role') <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Notification job claim requires worker or admin access' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.notification_delivery_jobs
+  SET status = 'processing', attempts = attempts + 1
+  WHERE id = p_job_id AND status IN ('queued','failed') AND next_attempt_at <= now() AND attempts < max_attempts
+  RETURNING * INTO v_job;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
+  RETURN v_job;
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_job public.notification_delivery_jobs%ROWTYPE; v_status text; v_next timestamptz;
+BEGIN
+  IF (auth.jwt()->>'role') <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Notification job completion requires worker or admin access' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_job FROM public.notification_delivery_jobs WHERE id = p_job_id FOR UPDATE;
+  IF NOT FOUND OR v_job.status <> 'processing' THEN RAISE EXCEPTION 'Notification job is not processing' USING ERRCODE = '55000'; END IF;
+  IF p_success THEN v_status := 'sent'; ELSE v_status := CASE WHEN v_job.attempts >= v_job.max_attempts THEN 'dead_letter' ELSE 'failed' END; END IF;
+  v_next := CASE WHEN v_status = 'failed' THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7)))) ELSE NULL END;
+  UPDATE public.notification_delivery_jobs SET status = v_status, provider_message_id = COALESCE(p_provider_message_id, provider_message_id), last_error = NULLIF(trim(p_error), ''), next_attempt_at = COALESCE(v_next, next_attempt_at), sent_at = CASE WHEN p_success THEN now() ELSE sent_at END, dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END WHERE id = p_job_id RETURNING * INTO v_job;
+  RETURN v_job;
+END; $$;
+REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.process_one_subscription_billing_event()
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_event public.subscription_billing_events%ROWTYPE; v_payload jsonb; v_status text; v_period_start timestamptz; v_period_end timestamptz; v_grace timestamptz;
+BEGIN
+  IF (auth.jwt()->>'role') <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Subscription event processing requires worker or admin access' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_event FROM public.subscription_billing_events WHERE status IN ('received','failed') ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1;
+  IF NOT FOUND THEN RETURN jsonb_build_object('processed', false, 'reason', 'empty'); END IF;
+  v_payload := COALESCE(v_event.payload, '{}'::jsonb);
+  v_period_start := NULLIF(COALESCE(v_payload->>'period_start', v_payload->>'current_period_start'), '')::timestamptz;
+  v_period_end := NULLIF(COALESCE(v_payload->>'period_end', v_payload->>'current_period_end'), '')::timestamptz;
+  v_grace := NULLIF(v_payload->>'grace_period_until', '')::timestamptz;
+  IF v_event.event_type IN ('payment_succeeded','invoice_paid','subscription_renewed') THEN
+    UPDATE public.merchant_subscriptions SET payment_status = 'PAID', status = 'ACTIVE', paid_at = COALESCE(paid_at, now()), current_period_start = COALESCE(v_period_start, current_period_start), current_period_end = COALESCE(v_period_end, current_period_end), grace_period_until = NULL, updated_at = now() WHERE id = v_event.subscription_id;
+    v_status := 'processed';
+  ELSIF v_event.event_type IN ('payment_failed','invoice_failed') THEN
+    UPDATE public.merchant_subscriptions SET payment_status = 'UNPAID', status = CASE WHEN v_grace IS NULL OR v_grace > now() THEN 'PAST_DUE' ELSE 'EXPIRED' END, grace_period_until = COALESCE(v_grace, now() + interval '7 days'), updated_at = now() WHERE id = v_event.subscription_id;
+    v_status := 'processed';
+  ELSIF v_event.event_type IN ('subscription_cancelled','cancelled') THEN
+    UPDATE public.merchant_subscriptions SET status = 'CANCELLED', updated_at = now() WHERE id = v_event.subscription_id;
+    v_status := 'processed';
+  ELSE
+    v_status := 'ignored';
+  END IF;
+  UPDATE public.subscription_billing_events SET status = v_status, processed_at = now(), error_message = NULL WHERE id = v_event.id;
+  RETURN jsonb_build_object('processed', true, 'event_id', v_event.id, 'status', v_status);
+EXCEPTION WHEN OTHERS THEN
+  IF v_event.id IS NOT NULL THEN UPDATE public.subscription_billing_events SET status = 'failed', error_message = SQLERRM WHERE id = v_event.id; END IF;
+  RETURN jsonb_build_object('processed', true, 'event_id', v_event.id, 'status', 'failed', 'error', SQLERRM);
+END; $$;
+REVOKE ALL ON FUNCTION public.process_one_subscription_billing_event() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.process_one_subscription_billing_event() TO authenticated, service_role;
+
+-- ===== END SOURCE: 20260825230000_worker_claim_and_subscription_processor.sql =====
+
+-- ===== BEGIN SOURCE: 20260825235000_price_override_approval_rpc.sql =====
+CREATE OR REPLACE FUNCTION public.decide_pos_price_override(p_request_id uuid, p_approve boolean, p_reason text DEFAULT NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_request public.pos_price_override_requests%ROWTYPE; v_sale public.pos_sales%ROWTYPE; v_item public.pos_sale_items%ROWTYPE; v_subtotal numeric;
+BEGIN
+  SELECT * INTO v_request FROM public.pos_price_override_requests WHERE id = p_request_id FOR UPDATE;
+  IF NOT FOUND OR NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.pos_tenants t WHERE t.id = v_request.tenant_id AND t.user_id = auth.uid())) THEN
+    RAISE EXCEPTION 'Price override approval denied' USING ERRCODE = '42501';
+  END IF;
+  IF v_request.status <> 'pending' THEN RAISE EXCEPTION 'Price override request already decided' USING ERRCODE = '55000'; END IF;
+  IF NOT p_approve THEN
+    UPDATE public.pos_price_override_requests SET status = 'rejected', approved_by = auth.uid(), decided_at = now(), reason = COALESCE(NULLIF(trim(p_reason), ''), reason) WHERE id = p_request_id;
+    RETURN jsonb_build_object('request_id', p_request_id, 'status', 'rejected');
+  END IF;
+  IF v_request.sale_item_id IS NULL THEN RAISE EXCEPTION 'Price override item is required' USING ERRCODE = '22023'; END IF;
+  SELECT * INTO v_item FROM public.pos_sale_items WHERE id = v_request.sale_item_id FOR UPDATE;
+  IF NOT FOUND OR (v_request.sale_id IS NOT NULL AND v_item.sale_id <> v_request.sale_id) THEN RAISE EXCEPTION 'Sale item not found' USING ERRCODE = 'P0002'; END IF;
+  SELECT * INTO v_sale FROM public.pos_sales WHERE id = v_item.sale_id FOR UPDATE;
+  IF NOT FOUND OR v_sale.status <> 'completed' THEN RAISE EXCEPTION 'Only completed POS sales can be price-adjusted' USING ERRCODE = '55000'; END IF;
+  IF v_sale.tenant_id <> v_request.tenant_id OR v_sale.outlet_id <> v_request.outlet_id THEN RAISE EXCEPTION 'Price override scope mismatch' USING ERRCODE = '42501'; END IF;
+  UPDATE public.pos_sale_items SET price = v_request.requested_price, subtotal = GREATEST(0, (v_request.requested_price * qty) - COALESCE(discount, 0)) WHERE id = v_item.id;
+  SELECT COALESCE(SUM(subtotal), 0) INTO v_subtotal FROM public.pos_sale_items WHERE sale_id = v_sale.id;
+  UPDATE public.pos_sales SET subtotal = v_subtotal, total = GREATEST(0, v_subtotal - COALESCE(discount_amount, 0) + COALESCE(tax_amount, 0)), notes = concat_ws(E'\n', notes, 'Approved price override: ', v_request.id::text) WHERE id = v_sale.id;
+  UPDATE public.pos_price_override_requests SET status = 'approved', approved_by = auth.uid(), decided_at = now() WHERE id = p_request_id;
+  RETURN jsonb_build_object('request_id', p_request_id, 'status', 'approved', 'sale_id', v_sale.id, 'new_price', v_request.requested_price, 'new_subtotal', v_subtotal);
+END; $$;
+REVOKE ALL ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) TO authenticated;
+
+-- ===== END SOURCE: 20260825235000_price_override_approval_rpc.sql =====

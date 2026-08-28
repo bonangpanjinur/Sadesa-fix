@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { getSettingByKey } from '@/lib/adminApi';
+import { getPOSSubscriptionState, POS_SUBSCRIPTION_STATE_LABEL } from '@/lib/posSubscription';
 
 interface POSSubscription {
   id: string;
@@ -143,10 +144,6 @@ export default function MerchantPOSSubscribePage() {
 
     setSubmitting(true);
     try {
-      const now = new Date();
-      const expiry = new Date(now);
-      expiry.setMonth(expiry.getMonth() + pkg.duration_months);
-
       const { error } = await supabase.from('pos_subscriptions').insert({
         merchant_id: merchantId,
         package_id: pkg.id,
@@ -154,8 +151,9 @@ export default function MerchantPOSSubscribePage() {
         payment_amount: pkg.price,
         payment_proof_url: paymentProof,
         payment_status: pkg.price === 0 ? 'FREE' : 'PENDING',
-        started_at: now.toISOString(),
-        expired_at: expiry.toISOString(),
+        // The subscription clock starts only after admin approval.
+        started_at: null,
+        expired_at: null,
       });
       if (error) throw error;
       toast.success('Permintaan berhasil dikirim! Menunggu persetujuan admin.');
@@ -177,26 +175,27 @@ export default function MerchantPOSSubscribePage() {
     );
   }
 
-  // Already has pending/active subscription
+  // Active and pending subscriptions have a status-first view. Rejected/expired subscriptions can be renewed or resubmitted below.
   if (existingSub) {
-    const isActive = existingSub.status === 'ACTIVE' && new Date(existingSub.expired_at) > new Date();
-    const isPending = existingSub.status === 'PENDING';
+    const subscriptionState = getPOSSubscriptionState(existingSub);
+    const isActive = subscriptionState === 'ACTIVE' || subscriptionState === 'EXPIRING_SOON';
+    const isPending = subscriptionState === 'PENDING_REVIEW';
 
-    return (
+    if (isActive || isPending || subscriptionState === 'SUSPENDED') return (
       <MerchantLayout title="Langganan Kasir POS" subtitle="Status langganan kasir">
         <div className="max-w-lg mx-auto space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {isActive ? <Check className="h-5 w-5 text-success" /> : isPending ? <Clock className="h-5 w-5 text-warning" /> : <AlertTriangle className="h-5 w-5 text-destructive" />}
-                {isActive ? 'Kasir POS Aktif' : isPending ? 'Menunggu Persetujuan' : 'Langganan Tidak Aktif'}
+                {isActive ? 'Kasir POS Aktif' : isPending ? 'Menunggu Persetujuan Admin' : POS_SUBSCRIPTION_STATE_LABEL[subscriptionState]}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
                 <Badge variant={isActive ? 'success' : isPending ? 'warning' : 'destructive'}>
-                  {existingSub.status}
+                  {POS_SUBSCRIPTION_STATE_LABEL[subscriptionState]}
                 </Badge>
               </div>
               {existingSub.is_trial && (
@@ -225,7 +224,27 @@ export default function MerchantPOSSubscribePage() {
 
   return (
     <MerchantLayout title="Langganan Kasir POS" subtitle="Pilih paket kasir">
-      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-2xl mx-auto space-y-6">
+        {existingSub && (
+          <Card className="border-warning/40 bg-warning/5">
+            <CardContent className="p-4">
+              <p className="font-semibold">Langganan sebelumnya: {POS_SUBSCRIPTION_STATE_LABEL[getPOSSubscriptionState(existingSub)]}</p>
+              {existingSub.rejection_reason && <p className="mt-1 text-sm text-muted-foreground">Catatan admin: {existingSub.rejection_reason}</p>}
+              <p className="mt-2 text-xs text-muted-foreground">Anda dapat memilih paket baru dan mengirim permintaan kembali. Masa aktif baru dimulai setelah disetujui admin.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="pb-3"><CardTitle className="text-base">Alur Aktivasi POS</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 text-sm sm:grid-cols-4">
+            <div><p className="font-semibold">1. Pilih paket</p><p className="text-xs text-muted-foreground">Bandingkan durasi dan harga.</p></div>
+            <div><p className="font-semibold">2. Bayar</p><p className="text-xs text-muted-foreground">Ikuti instruksi pembayaran.</p></div>
+            <div><p className="font-semibold">3. Kirim bukti</p><p className="text-xs text-muted-foreground">Admin memverifikasi permintaan.</p></div>
+            <div><p className="font-semibold">4. Mulai POS</p><p className="text-xs text-muted-foreground">Akses aktif setelah disetujui.</p></div>
+          </CardContent>
+        </Card>
+
         {/* Free Trial */}
         {!hasUsedTrial && (
           <Card className="border-primary/50 bg-primary/5">

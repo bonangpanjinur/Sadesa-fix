@@ -340,3 +340,24 @@ export async function syncPendingSales(
 export function getOfflineScopeKey(tenantId: string, outletId: string): string {
   return scopeKey(tenantId, outletId);
 }
+
+/** Re-queues a failed/conflicted sale for an explicit operator retry. */
+export async function retryPendingSale(id: string): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
+  const store = tx.objectStore(STORES.PENDING_SALES);
+  const request = store.get(id);
+  request.onsuccess = () => {
+    const record = request.result as PendingSale | undefined;
+    if (!record || record.synced) return;
+    store.put({
+      ...record,
+      status: 'queued',
+      next_attempt_at: 0,
+      sync_error: undefined,
+      conflict_code: undefined,
+      conflict_message: undefined,
+    });
+  };
+  await waitForTransaction(tx);
+}

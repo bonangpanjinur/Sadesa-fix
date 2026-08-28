@@ -1,12 +1,10 @@
 import { lazy, Suspense, useState, useEffect, useRef, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getPrinterSettings } from '@/lib/thermalPrinter';
-import { printBridgeClient } from '@/lib/printBridgeClient';
-import { createPrintJobId, toReceiptData } from '@/lib/receiptDomain';
-import { enqueueReceiptJob, flushReceiptOutbox } from '@/lib/printOutbox';
-import type { ReceiptData } from '@/lib/thermalPrinter';
+import { createPrintJobId } from '@/lib/receiptDomain';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -18,7 +16,12 @@ import { POSSidebar } from '@/components/pos/POSSidebar';
 import { cn } from '@/lib/utils';
 import { processAtomicPOSSale } from '@/lib/posCheckout';
 import { calculatePOSPricing } from '@/lib/posPricing';
+import { getEffectivePaymentAmount, validatePOSPayment } from '@/lib/posPaymentValidation';
 import { usePOSOfflineSync } from '@/hooks/usePOSOfflineSync';
+import { usePOSCart } from '@/hooks/usePOSCart';
+import { usePOSPayment } from '@/hooks/usePOSPayment';
+import { usePOSHeldBills } from '@/hooks/usePOSHeldBills';
+import { usePOSReceipt } from '@/hooks/usePOSReceipt';
 import type {
   CartItem, HeldBill, Customer, LastSale, ReceiptStore, LoyaltyProgram,
   Promotion, Voucher, Product, Variant,
@@ -49,7 +52,14 @@ export default function POSKasirPage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Cart
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const {
+    cart,
+    setCart,
+    addItem: addCartItem,
+    updateQty,
+    removeItem,
+    updateDiscount: updateItemDiscount,
+  } = usePOSCart();
   const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState('');
 
@@ -76,28 +86,37 @@ export default function POSKasirPage() {
   const [voucherDiscount, setVoucherDiscount] = useState(0);
   const [voucherError, setVoucherError] = useState('');
 
-  // Printer
-  const [thermalConnected, setThermalConnected] = useState(false);
-  const [thermalConnecting, setThermalConnecting] = useState(false);
-
-  // Payment
-  const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [isSplitPayment, setIsSplitPayment] = useState(false);
-  const [splitMethod2, setSplitMethod2] = useState('transfer');
-  const [splitAmount1, setSplitAmount1] = useState('');
-  const [splitAmount2, setSplitAmount2] = useState('');
-  const [paymentDialog, setPaymentDialog] = useState(false);
-  const [successDialog, setSuccessDialog] = useState(false);
   const paymentRequestKeyRef = useRef<string | null>(null);
   const [lastSale, setLastSale] = useState<LastSale | null>(null);
+
+  // Printer
+  const {
+    thermalConnected,
+    thermalConnecting,
+    connectThermalPrinter,
+    printReceipt,
+  } = usePOSReceipt({
+    tenant: tenant as unknown as ReceiptStore | null,
+    outletReady: Boolean(activeOutlet),
+    lastSale,
+    userEmail: user?.email,
+  });
 
   // QR Pay
   const [qrPayDialog, setQrPayDialog] = useState(false);
 
   // Hold Bill
-  const [heldBills, setHeldBills] = useState<HeldBill[]>([]);
   const [heldBillsDialog, setHeldBillsDialog] = useState(false);
+  const {
+    heldBills,
+    fetchHeldBills,
+    holdBill: persistHeldBill,
+    resumeBill: deleteHeldBill,
+  } = usePOSHeldBills({
+    tenantId: tenant?.id ?? null,
+    outletId: activeOutlet?.id ?? null,
+    cashierId: user?.id ?? null,
+  });
 
   // Variant
   const [variantDialog, setVariantDialog] = useState(false);
@@ -121,7 +140,21 @@ export default function POSKasirPage() {
     subtotal, taxAmount, promoDiscount: calculatedPromoDiscount,
     voucherDiscount: calculatedVoucherDiscount, pointsDiscount,
     total, pointsEarned, change,
-  } = pricing;
+    } = pricing;
+
+  // Payment state is initialized after pricing so the dialog always receives the current total.
+  const {
+    paymentMethod,
+    paymentAmount, setPaymentAmount,
+    isSplitPayment,
+    splitMethod2,
+    splitAmount1,
+    splitAmount2,
+    paymentDialog, setPaymentDialog,
+    successDialog, setSuccessDialog,
+    openPayment: openPaymentState,
+    handlePaymentChange,
+  } = usePOSPayment(total, cart.length);
 
   const fetchProducts = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
@@ -150,13 +183,6 @@ export default function POSKasirPage() {
     setCategories((data || []) as unknown as { id: string; name: string }[]);
   }, [tenant]);
 
-  const fetchHeldBills = useCallback(async () => {
-    if (!tenant || !activeOutlet || !user) return;
-    const { data } = await supabase.from('pos_held_bills' as never).select('*')
-      .eq('tenant_id', tenant.id).eq('outlet_id', activeOutlet.id)
-      .eq('cashier_id', user.id).order('created_at');
-    setHeldBills((data || []).map((h) => ({ ...h, items: h.items || [] })) as unknown as HeldBill[]);
-  }, [tenant, activeOutlet, user]);
 
   const fetchLoyaltyProgram = useCallback(async () => {
     if (!tenant) return;
@@ -243,27 +269,25 @@ export default function POSKasirPage() {
       setVariants((data || []) as unknown as Variant[]); setSelectedProduct(product); setVariantDialog(true); return;
     }
     const price = variantPrice ?? product.price;
-    const existingIdx = cart.findIndex(c => c.productId === product.id && c.variantId === variantId);
-    if (existingIdx >= 0) {
-      const newCart = [...cart]; newCart[existingIdx].qty += 1; setCart(newCart);
-    } else {
-      setCart(prev => [...prev, { productId: product.id, variantId, name: product.name, variantName, price, costPrice: product.cost_price, unit: product.unit, qty: 1, discount: 0, taxRate: product.tax_rate, notes: '' }]);
-    }
+    addCartItem({
+      productId: product.id,
+      variantId,
+      name: product.name,
+      variantName,
+      price,
+      costPrice: product.cost_price,
+      unit: product.unit,
+      qty: 1,
+      discount: 0,
+      taxRate: product.tax_rate,
+      notes: '',
+    });
     setSearch('');
-  }, [cart]);
-
-  const updateQty = (idx: number, delta: number) => {
-    const newCart = [...cart]; newCart[idx].qty = Math.max(0.5, newCart[idx].qty + delta);
-    if (newCart[idx].qty <= 0) newCart.splice(idx, 1); setCart(newCart);
-  };
-  const removeItem = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
-  const updateItemDiscount = (idx: number, val: number) => {
-    const newCart = [...cart]; newCart[idx].discount = Math.min(val, newCart[idx].price * newCart[idx].qty); setCart(newCart);
-  };
+  }, [addCartItem]);
   const clearCart = useCallback(() => {
     setCart([]); setDiscount(0); setAppliedPromo(null); setPromoDiscount(0);
     setAppliedVoucher(null); setVoucherDiscount(0); setVoucherCode(''); setUsePoints(false); setPointsToRedeem(0);
-  }, []);
+  }, [setCart]);
 
   // ── Loyalty ──────────────────────────────────────────────
   const handleTogglePoints = (checked: boolean) => {
@@ -291,46 +315,40 @@ export default function POSKasirPage() {
 
   // ── Payment ──────────────────────────────────────────────
   const openPayment = useCallback(() => {
-    if (cart.length === 0) { toast.error('Keranjang kosong'); return; }
-    setPaymentAmount(String(total)); setPaymentDialog(true);
-  }, [cart.length, total]);
-
-  const handlePaymentChange = (field: string, value: string | boolean) => {
-    if (field === 'paymentMethod') setPaymentMethod(value as string);
-    else if (field === 'paymentAmount') setPaymentAmount(value as string);
-    else if (field === 'isSplitPayment') setIsSplitPayment(value === 'true' || value === true);
-    else if (field === 'splitMethod2') setSplitMethod2(value as string);
-    else if (field === 'splitAmount1') setSplitAmount1(value as string);
-    else if (field === 'splitAmount2') setSplitAmount2(value as string);
-  };
+    if (!openPaymentState()) toast.error('Keranjang kosong');
+  }, [openPaymentState]);
 
   const processPayment = async (paymentMethodOverride?: string) => {
     if (!tenant || !activeOutlet || !user) return;
-    const effectiveMethod = paymentMethodOverride || paymentMethod;
-    if (!paymentMethodOverride) {
-      if (isSplitPayment) {
-        if (Number(splitAmount1) + Number(splitAmount2) !== total) { toast.error('Total pembayaran split harus sama dengan total transaksi'); return; }
-      } else if (effectiveMethod === 'cash' && (Number(paymentAmount) || 0) < total) {
-        toast.error('Jumlah bayar kurang dari total'); return;
-      }
+        const effectiveMethod = paymentMethodOverride || paymentMethod;
+    const storedPaymentMethod = isSplitPayment ? 'split' : effectiveMethod;
+    const validationError = validatePOSPayment({
+      total,
+      paymentMethod: storedPaymentMethod,
+      paymentAmount: Number(paymentAmount) || total,
+      isSplitPayment,
+      splitAmount1: Number(splitAmount1),
+      splitAmount2: Number(splitAmount2),
+      isOnline,
+      usePoints: usePoints && Boolean(loyaltyProgram),
+      pointsToRedeem,
+      minimumRedeemPoints: loyaltyProgram?.min_redeem_points ?? 0,
+    });
+    if (validationError && !paymentMethodOverride) {
+      toast.error(validationError);
+      return;
     }
-    if (usePoints && loyaltyProgram && pointsToRedeem < loyaltyProgram.min_redeem_points) {
-      toast.error(`Min. tukar ${loyaltyProgram.min_redeem_points} poin`); return;
-    }
-
     const requestKey = paymentRequestKeyRef.current ?? crypto.randomUUID();
     paymentRequestKeyRef.current = requestKey;
     const saleNumber = `TRX-${Date.now()}`;
     const createdAt = new Date().toISOString();
-    const storedPaymentMethod = isSplitPayment ? 'split' : effectiveMethod;
-    const paymentAmountValue = isSplitPayment
-      ? Number(splitAmount1) + Number(splitAmount2)
-      : (Number(paymentAmount) || total);
-
-    if (!isOnline && storedPaymentMethod !== 'cash') {
-      toast.error('Pembayaran non-tunai memerlukan koneksi internet');
-      return;
-    }
+        const paymentAmountValue = getEffectivePaymentAmount({
+      total,
+      paymentAmount: Number(paymentAmount) || total,
+      isSplitPayment,
+      splitAmount1: Number(splitAmount1),
+      splitAmount2: Number(splitAmount2),
+    });
 
     try {
       const result = await processAtomicPOSSale(
@@ -437,16 +455,21 @@ export default function POSKasirPage() {
 
   // ── Hold Bill ────────────────────────────────────────────
   const holdBill = useCallback(async () => {
-    if (!tenant || !activeOutlet || !user || cart.length === 0) return;
-    await supabase.from('pos_held_bills' as never).insert({
-      tenant_id: tenant.id, outlet_id: activeOutlet.id, cashier_id: user.id,
-      label: `Bill ${heldBills.length + 1}`,
-      customer_name: selectedCustomer?.name || customerName || null,
-      customer_id: selectedCustomer?.id || null, items: cart, discount_amount: discount, notes,
-    });
-    clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
-    await fetchHeldBills(); toast.success('Transaksi ditahan');
-  }, [tenant, activeOutlet, user, cart, heldBills.length, selectedCustomer, customerName, discount, notes, clearCart, fetchHeldBills]);
+    if (cart.length === 0) return;
+    try {
+      await persistHeldBill({
+        items: cart,
+        discountAmount: discount,
+        notes,
+        customerName: selectedCustomer?.name || customerName || null,
+        customerId: selectedCustomer?.id || null,
+      });
+      clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
+      toast.success('Transaksi ditahan');
+    } catch (error: unknown) {
+      toast.error('Gagal menahan transaksi: ' + (error instanceof Error ? error.message : 'Kesalahan tidak diketahui'));
+    }
+  }, [cart, persistHeldBill, discount, notes, selectedCustomer, customerName, clearCart]);
 
   // ── Fetch and keyboard effects ───────────────────────────
   useEffect(() => {
@@ -484,9 +507,13 @@ export default function POSKasirPage() {
   }, [openPayment, holdBill]);
 
   const resumeBill = async (bill: HeldBill) => {
-    setCart(bill.items); setDiscount(bill.discount_amount); setNotes(bill.notes); setCustomerName(bill.customer_name || '');
-    await supabase.from('pos_held_bills' as never).delete().eq('id', bill.id);
-    await fetchHeldBills(); setHeldBillsDialog(false); toast.success('Transaksi dilanjutkan');
+    try {
+      await deleteHeldBill(bill);
+      setCart(bill.items); setDiscount(bill.discount_amount); setNotes(bill.notes); setCustomerName(bill.customer_name || '');
+      setHeldBillsDialog(false); toast.success('Transaksi dilanjutkan');
+    } catch (error: unknown) {
+      toast.error('Gagal melanjutkan transaksi: ' + (error instanceof Error ? error.message : 'Kesalahan tidak diketahui'));
+    }
   };
 
   // ── Product filter + barcode ─────────────────────────────
@@ -504,49 +531,6 @@ export default function POSKasirPage() {
     else { setSearch(barcode); setScannerOpen(false); toast.info(`Barcode "${barcode}" — pilih produk secara manual`); }
   }, [products, addToCart]);
 
-  // ── Universal Printer ─────────────────────────────────────
-  const connectThermalPrinter = async () => {
-    setThermalConnecting(true);
-    try {
-      const health = await printBridgeClient.health();
-      const printers = await printBridgeClient.listPrinters();
-      if (!health.ok || printers.length === 0) throw new Error('Print Bridge aktif, tetapi belum ada printer yang dikonfigurasi.');
-      setThermalConnected(true);
-      toast.success(`Print Bridge siap · ${printers.find(printer => printer.isDefault)?.name || printers[0].name}`);
-    } catch (err: unknown) {
-      setThermalConnected(false);
-      toast.error(`Print Bridge belum siap: ${err instanceof Error ? err.message : 'Pastikan service lokal berjalan'}`);
-    } finally { setThermalConnecting(false); }
-  };
-
-  const buildReceiptData = (): ReceiptData => {
-    if (!lastSale) throw new Error('Belum ada transaksi untuk dicetak');
-    return toReceiptData({
-      store: tenant as unknown as ReceiptStore,
-      sale: lastSale,
-    }, user?.email);
-  };
-
-  const printReceipt = useCallback(async () => {
-    if (!lastSale || !tenant || !activeOutlet) return;
-    try {
-      enqueueReceiptJob({
-        store: tenant as unknown as ReceiptStore,
-        sale: lastSale,
-      }, user?.email);
-      const result = await flushReceiptOutbox();
-      if (result.failed > 0) {
-        setThermalConnected(false);
-        toast.error('Struk disimpan di antrean. Print Bridge atau printer belum siap.');
-      } else {
-        setThermalConnected(true);
-        toast.success('Struk berhasil dikirim ke printer');
-      }
-    } catch (err: unknown) {
-      setThermalConnected(false);
-      toast.error(`Struk disimpan, tetapi belum tercetak: ${err instanceof Error ? err.message : 'Jalankan Print Bridge'}`);
-    }
-  }, [lastSale, tenant, activeOutlet, user?.email]);
 
   const autoPrintedJobRef = useRef<string | null>(null);
   useEffect(() => {
@@ -692,7 +676,7 @@ export default function POSKasirPage() {
 
     const win = window.open('', '_blank', 'width=400,height=600');
     if (!win) { toast.error('Popup diblokir. Izinkan popup untuk export PDF.'); return; }
-    win.document.write(html);
+    win.document.write(DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }));
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); }, 300);

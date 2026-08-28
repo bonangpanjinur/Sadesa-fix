@@ -129,6 +129,7 @@ export function MerchantSidebar() {
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Kasir POS', href: '/merchant/pos', icon: <Receipt className="h-4 w-4" /> },
+    { label: 'Langganan POS', href: '/merchant/pos/subscribe', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Pesanan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
     { label: 'Fulfillment Parsial', href: '/merchant/fulfillment', icon: <Truck className="h-4 w-4" /> },
     { label: 'Price Book', href: '/merchant/price-book', icon: <BookOpen className="h-4 w-4" /> },
@@ -154,7 +155,7 @@ export function MerchantSidebar() {
     { label: 'Pre-order & Reservasi', href: '/merchant/preorder', icon: <Clock className="h-4 w-4" /> },
     { label: 'Grosir & B2B', href: '/merchant/grosir', icon: <Layers className="h-4 w-4" /> },
     { label: 'Laporan Pajak', href: '/merchant/pajak', icon: <FileText className="h-4 w-4" /> },
-    { label: 'Kuota', href: '/merchant/subscription', icon: <CreditCard className="h-4 w-4" /> },
+    { label: 'Kuota Transaksi Marketplace', href: '/merchant/subscription', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Penarikan', href: '/merchant/withdrawal', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Iuran Kas', href: '/merchant/dues', icon: <WalletIcon className="h-4 w-4" /> },
     { label: 'Pengaturan Kasir', href: '/merchant/pos/settings', icon: <Settings className="h-4 w-4" /> },

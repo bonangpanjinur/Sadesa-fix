@@ -1,69 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql .. 20260203_fix_user_roles_policies.sql
+-- Source range: 20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql .. 20260203_improve_refund_system.sql
 
-
--- ===== BEGIN SOURCE: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql =====
--- ========================================
--- 7. STORAGE BUCKET FOR PRODUCT IMAGES
--- ========================================
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('product-images', 'product-images', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Storage policies for product images (safe to retry)
-DROP POLICY IF EXISTS "Public view product images bucket" ON storage.objects;
-DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
-DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
-DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
-
-DROP POLICY IF EXISTS "Public view product images bucket" ON storage.objects;
-CREATE POLICY "Public view product images bucket" ON storage.objects
-  FOR SELECT USING (bucket_id = 'product-images');
-
-DROP POLICY IF EXISTS "Auth users upload product images" ON storage.objects;
-CREATE POLICY "Auth users upload product images" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
-
-DROP POLICY IF EXISTS "Auth users update product images" ON storage.objects;
-CREATE POLICY "Auth users update product images" ON storage.objects
-  FOR UPDATE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
-
-DROP POLICY IF EXISTS "Auth users delete product images" ON storage.objects;
-CREATE POLICY "Auth users delete product images" ON storage.objects
-  FOR DELETE USING (bucket_id = 'product-images' AND auth.uid() IS NOT NULL);
-
--- ========================================
--- 8. ENABLE REALTIME FOR COURIER TRACKING
--- ========================================
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables
-    WHERE pubname = 'supabase_realtime'
-      AND schemaname = 'public'
-      AND tablename = 'couriers'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.couriers;
-  END IF;
-EXCEPTION
-  WHEN undefined_object THEN NULL;
-END $$;
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables
-    WHERE pubname = 'supabase_realtime'
-      AND schemaname = 'public'
-      AND tablename = 'orders'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
-  END IF;
-EXCEPTION
-  WHEN undefined_object THEN NULL;
-END $$;
-
--- ===== END SOURCE: 20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql =====
 
 -- ===== BEGIN SOURCE: 20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql =====
 -- Add POD (Proof of Delivery) columns to orders
@@ -2040,3 +1978,36 @@ CREATE POLICY "Admins can view all profiles"
     USING (public.is_admin());
 
 -- ===== END SOURCE: 20260203_fix_user_roles_policies.sql =====
+
+-- ===== BEGIN SOURCE: 20260203_improve_refund_system.sql =====
+-- 1. Perbarui tabel refund_requests dengan kolom baru
+ALTER TABLE public.refund_requests
+ADD COLUMN IF NOT EXISTS evidence_urls text[] DEFAULT '{}',
+ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE,
+ADD COLUMN IF NOT EXISTS refund_type text DEFAULT 'FULL';
+
+-- 2. Isi data merchant_id untuk data refund yang sudah ada (jika ada)
+UPDATE public.refund_requests rr
+SET merchant_id = o.merchant_id
+FROM public.orders o
+WHERE rr.order_id = o.id AND rr.merchant_id IS NULL;
+
+-- 3. Tambahkan index untuk performa pencarian merchant
+CREATE INDEX IF NOT EXISTS idx_refund_requests_merchant ON public.refund_requests(merchant_id);
+
+-- 4. Tambahkan kebijakan keamanan (RLS) agar Merchant bisa melihat refund mereka sendiri
+DROP POLICY IF EXISTS "Merchants can view own refunds" ON public.refund_requests;
+CREATE POLICY "Merchants can view own refunds" ON public.refund_requests
+FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.merchants m
+    WHERE m.id = refund_requests.merchant_id
+    AND m.user_id = auth.uid()
+  )
+);
+
+-- 5. Pastikan bucket storage tersedia untuk bukti refund (Opsional jika belum ada)
+-- Jalankan ini jika Anda ingin memastikan folder storage bisa diakses
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('public_assets', 'public_assets', true) ON CONFLICT (id) DO NOTHING;
+
+-- ===== END SOURCE: 20260203_improve_refund_system.sql =====

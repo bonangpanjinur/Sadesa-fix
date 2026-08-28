@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
+import { getPOSSubscriptionState, isPOSSubscriptionActive, POS_SUBSCRIPTION_STATE_LABEL, type POSSubscriptionState } from '@/lib/posSubscription';
 import { POSInvoice } from '@/components/merchant/POSInvoice';
 import { printPOSInvoice } from '@/lib/invoicePrint';
 import { Link } from 'react-router-dom';
@@ -104,6 +105,7 @@ export default function MerchantPOSPage() {
   const [receiptOpen, setReceiptOpen] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [posActive, setPosActive] = useState<boolean | null>(null);
+  const [posSubscriptionState, setPosSubscriptionState] = useState<POSSubscriptionState>('NO_SUBSCRIPTION');
   const [posSettings, setPosSettings] = useState<POSSettings | null>(null);
 
   // Load merchant data & check POS access
@@ -126,13 +128,15 @@ export default function MerchantPOSPage() {
         // Check POS subscription
         const { data: posSub } = await supabase
           .from('pos_subscriptions')
-          .select('*')
+          .select('status, is_trial, expired_at, payment_status')
           .eq('merchant_id', merchant.id)
-          .eq('status', 'ACTIVE')
-          .gte('expired_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
-        setPosActive(!!posSub);
+        const subscriptionState = getPOSSubscriptionState(posSub);
+        setPosSubscriptionState(subscriptionState);
+        setPosActive(isPOSSubscriptionActive(posSub));
 
         // Load POS settings
         const { data: settings } = await supabase
@@ -364,14 +368,14 @@ export default function MerchantPOSPage() {
             <Receipt className="h-10 w-10 text-primary" />
           </div>
           <h2 className="text-xl font-bold">Fitur Kasir POS</h2>
+          <p className="text-sm font-medium text-muted-foreground">Status: {POS_SUBSCRIPTION_STATE_LABEL[posSubscriptionState]}</p>
           <p className="text-muted-foreground">
-            Kelola penjualan langsung di toko dengan sistem kasir modern. 
-            Cetak struk, kelola stok otomatis, dan pantau penjualan harian.
+            Kelola penjualan langsung di toko dengan sistem kasir modern. Cetak struk, kelola stok otomatis, dan pantau penjualan harian.
           </p>
           <Link to="/merchant/pos/subscribe">
             <Button size="lg" className="w-full">
               <CreditCard className="h-4 w-4 mr-2" />
-              Aktifkan Fitur Kasir
+              {posSubscriptionState === 'PENDING_REVIEW' ? 'Lihat Status Permintaan' : posSubscriptionState === 'EXPIRED' ? 'Perpanjang Langganan POS' : 'Mulai Langganan POS'}
             </Button>
           </Link>
         </div>

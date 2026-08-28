@@ -1,244 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260825210000_subscription_billing_controls.sql .. 20260829150000_pos_tenant_merchant_mapping.sql
+-- Source range: 20260826000000_atomic_warehouse_transfer.sql .. 20260829160000_pos_workflow_transition_hardening.sql
 
-
--- ===== BEGIN SOURCE: 20260825210000_subscription_billing_controls.sql =====
-ALTER TABLE public.merchant_subscriptions
-  ADD COLUMN IF NOT EXISTS billing_period text NOT NULL DEFAULT 'monthly' CHECK (billing_period IN ('monthly','quarterly','yearly')),
-  ADD COLUMN IF NOT EXISTS current_period_start timestamptz,
-  ADD COLUMN IF NOT EXISTS current_period_end timestamptz,
-  ADD COLUMN IF NOT EXISTS grace_period_until timestamptz,
-  ADD COLUMN IF NOT EXISTS cancel_at_period_end boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS provider_subscription_id text;
-
-CREATE TABLE IF NOT EXISTS public.subscription_billing_events (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  subscription_id uuid NOT NULL REFERENCES public.merchant_subscriptions(id) ON DELETE CASCADE,
-  provider text NOT NULL,
-  provider_event_id text NOT NULL,
-  event_type text NOT NULL,
-  amount numeric(15,2),
-  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
-  status text NOT NULL DEFAULT 'received' CHECK (status IN ('received','processed','ignored','failed')),
-  error_message text,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  processed_at timestamptz,
-  UNIQUE(provider, provider_event_id)
-);
-CREATE INDEX IF NOT EXISTS idx_subscription_events_subscription ON public.subscription_billing_events(subscription_id, created_at DESC);
-
-ALTER TABLE public.subscription_billing_events ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Merchant views own subscription events" ON public.subscription_billing_events;
-CREATE POLICY "Merchant views own subscription events" ON public.subscription_billing_events FOR SELECT TO authenticated
-  USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage subscription events" ON public.subscription_billing_events;
-CREATE POLICY "Admins manage subscription events" ON public.subscription_billing_events FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
-
-CREATE OR REPLACE FUNCTION public.record_subscription_billing_event(
-  p_subscription_id uuid, p_provider text, p_provider_event_id text, p_event_type text, p_amount numeric, p_payload jsonb
-)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_id uuid; v_merchant_id uuid;
-BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Billing event ingestion requires admin access' USING ERRCODE = '42501'; END IF;
-  SELECT merchant_id INTO v_merchant_id FROM public.merchant_subscriptions WHERE id = p_subscription_id;
-  IF v_merchant_id IS NULL THEN RAISE EXCEPTION 'Subscription not found' USING ERRCODE = 'P0002'; END IF;
-  INSERT INTO public.subscription_billing_events(subscription_id, provider, provider_event_id, event_type, amount, payload)
-  VALUES (p_subscription_id, p_provider, p_provider_event_id, p_event_type, p_amount, COALESCE(p_payload, '{}'::jsonb))
-  ON CONFLICT (provider, provider_event_id) DO NOTHING RETURNING id INTO v_id;
-  IF v_id IS NULL THEN RETURN jsonb_build_object('duplicate', true, 'provider_event_id', p_provider_event_id); END IF;
-  RETURN jsonb_build_object('duplicate', false, 'event_id', v_id);
-END; $$;
-REVOKE ALL ON FUNCTION public.record_subscription_billing_event(uuid, text, text, text, numeric, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.record_subscription_billing_event(uuid, text, text, text, numeric, jsonb) TO service_role;
-
--- ===== END SOURCE: 20260825210000_subscription_billing_controls.sql =====
-
--- ===== BEGIN SOURCE: 20260825220000_tax_accounting_journal.sql =====
-CREATE TABLE IF NOT EXISTS public.pos_tax_profiles (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  tax_code text NOT NULL,
-  rate numeric(7,4) NOT NULL DEFAULT 0 CHECK (rate >= 0 AND rate <= 100),
-  inclusive boolean NOT NULL DEFAULT false,
-  is_active boolean NOT NULL DEFAULT true,
-  created_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(tenant_id, tax_code)
-);
-
-CREATE TABLE IF NOT EXISTS public.pos_journal_entries (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid NOT NULL REFERENCES public.pos_tenants(id) ON DELETE CASCADE,
-  outlet_id uuid REFERENCES public.pos_outlets(id) ON DELETE SET NULL,
-  entry_number text NOT NULL,
-  entry_date date NOT NULL DEFAULT CURRENT_DATE,
-  source_type text NOT NULL CHECK (source_type IN ('sale','payment','refund','purchase','payout','adjustment','tax','settlement')),
-  source_id uuid,
-  memo text NOT NULL,
-  status text NOT NULL DEFAULT 'posted' CHECK (status IN ('draft','posted','reversed')),
-  created_by uuid REFERENCES auth.users(id),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(tenant_id, entry_number)
-);
-CREATE TABLE IF NOT EXISTS public.pos_journal_lines (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  journal_entry_id uuid NOT NULL REFERENCES public.pos_journal_entries(id) ON DELETE CASCADE,
-  account_code text NOT NULL,
-  account_name text NOT NULL,
-  debit numeric(15,2) NOT NULL DEFAULT 0 CHECK (debit >= 0),
-  credit numeric(15,2) NOT NULL DEFAULT 0 CHECK (credit >= 0),
-  tax_profile_id uuid REFERENCES public.pos_tax_profiles(id) ON DELETE SET NULL,
-  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
-  CHECK ((debit = 0 AND credit > 0) OR (credit = 0 AND debit > 0))
-);
-CREATE INDEX IF NOT EXISTS idx_pos_journal_entries_export ON public.pos_journal_entries(tenant_id, entry_date, status);
-CREATE INDEX IF NOT EXISTS idx_pos_journal_lines_account ON public.pos_journal_lines(journal_entry_id, account_code);
-
-ALTER TABLE public.pos_tax_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pos_journal_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pos_journal_lines ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Tenant owners manage tax profiles" ON public.pos_tax_profiles;
-CREATE POLICY "Tenant owners manage tax profiles" ON public.pos_tax_profiles FOR ALL TO authenticated USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())) WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Tenant users view tax profiles" ON public.pos_tax_profiles;
-CREATE POLICY "Tenant users view tax profiles" ON public.pos_tax_profiles FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
-DROP POLICY IF EXISTS "Tenant users view journals" ON public.pos_journal_entries;
-CREATE POLICY "Tenant users view journals" ON public.pos_journal_entries FOR SELECT TO authenticated USING (tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "Tenant users view journal lines" ON public.pos_journal_lines;
-CREATE POLICY "Tenant users view journal lines" ON public.pos_journal_lines FOR SELECT TO authenticated USING (journal_entry_id IN (SELECT id FROM public.pos_journal_entries WHERE tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true) OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())));
-
-CREATE OR REPLACE FUNCTION public.post_pos_journal_entry(
-  p_tenant_id uuid, p_outlet_id uuid, p_entry_number text, p_entry_date date, p_source_type text, p_source_id uuid, p_memo text, p_lines jsonb
-)
-RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_entry_id uuid; v_line jsonb; v_debit numeric; v_credit numeric; v_total_debit numeric := 0; v_total_credit numeric := 0;
-BEGIN
-  IF auth.uid() IS NULL OR NOT public.pos_user_can_access_outlet(p_tenant_id, p_outlet_id) OR jsonb_typeof(p_lines) <> 'array' OR jsonb_array_length(p_lines) < 2 THEN
-    RAISE EXCEPTION 'Invalid journal entry' USING ERRCODE = '42501';
-  END IF;
-  FOR v_line IN SELECT value FROM jsonb_array_elements(p_lines) LOOP
-    v_debit := COALESCE((v_line->>'debit')::numeric, 0); v_credit := COALESCE((v_line->>'credit')::numeric, 0);
-    IF (v_debit > 0 AND v_credit > 0) OR (v_debit = 0 AND v_credit = 0) THEN RAISE EXCEPTION 'Journal line must contain debit or credit only' USING ERRCODE = '23514'; END IF;
-    v_total_debit := v_total_debit + v_debit; v_total_credit := v_total_credit + v_credit;
-  END LOOP;
-  IF v_total_debit <> v_total_credit THEN RAISE EXCEPTION 'Journal entry is not balanced' USING ERRCODE = '23514'; END IF;
-  INSERT INTO public.pos_journal_entries(tenant_id, outlet_id, entry_number, entry_date, source_type, source_id, memo, created_by)
-  VALUES (p_tenant_id, p_outlet_id, p_entry_number, COALESCE(p_entry_date, CURRENT_DATE), p_source_type, p_source_id, p_memo, auth.uid()) RETURNING id INTO v_entry_id;
-  INSERT INTO public.pos_journal_lines(journal_entry_id, account_code, account_name, debit, credit, tax_profile_id, metadata)
-  SELECT v_entry_id, value->>'account_code', value->>'account_name', COALESCE((value->>'debit')::numeric,0), COALESCE((value->>'credit')::numeric,0), NULLIF(value->>'tax_profile_id','')::uuid, COALESCE(value->'metadata','{}'::jsonb)
-  FROM jsonb_array_elements(p_lines);
-  RETURN v_entry_id;
-END; $$;
-REVOKE ALL ON FUNCTION public.post_pos_journal_entry(uuid, uuid, text, date, text, uuid, text, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.post_pos_journal_entry(uuid, uuid, text, date, text, uuid, text, jsonb) TO authenticated;
-
--- ===== END SOURCE: 20260825220000_tax_accounting_journal.sql =====
-
--- ===== BEGIN SOURCE: 20260825230000_worker_claim_and_subscription_processor.sql =====
-CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
-RETURNS public.notification_delivery_jobs
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_job public.notification_delivery_jobs%ROWTYPE;
-BEGIN
-  IF (auth.jwt()->>'role') <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
-    RAISE EXCEPTION 'Notification job claim requires worker or admin access' USING ERRCODE = '42501';
-  END IF;
-  UPDATE public.notification_delivery_jobs
-  SET status = 'processing', attempts = attempts + 1
-  WHERE id = p_job_id AND status IN ('queued','failed') AND next_attempt_at <= now() AND attempts < max_attempts
-  RETURNING * INTO v_job;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
-  RETURN v_job;
-END; $$;
-
-CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
-RETURNS public.notification_delivery_jobs
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_job public.notification_delivery_jobs%ROWTYPE; v_status text; v_next timestamptz;
-BEGIN
-  IF (auth.jwt()->>'role') <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
-    RAISE EXCEPTION 'Notification job completion requires worker or admin access' USING ERRCODE = '42501';
-  END IF;
-  SELECT * INTO v_job FROM public.notification_delivery_jobs WHERE id = p_job_id FOR UPDATE;
-  IF NOT FOUND OR v_job.status <> 'processing' THEN RAISE EXCEPTION 'Notification job is not processing' USING ERRCODE = '55000'; END IF;
-  IF p_success THEN v_status := 'sent'; ELSE v_status := CASE WHEN v_job.attempts >= v_job.max_attempts THEN 'dead_letter' ELSE 'failed' END; END IF;
-  v_next := CASE WHEN v_status = 'failed' THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7)))) ELSE NULL END;
-  UPDATE public.notification_delivery_jobs SET status = v_status, provider_message_id = COALESCE(p_provider_message_id, provider_message_id), last_error = NULLIF(trim(p_error), ''), next_attempt_at = COALESCE(v_next, next_attempt_at), sent_at = CASE WHEN p_success THEN now() ELSE sent_at END, dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END WHERE id = p_job_id RETURNING * INTO v_job;
-  RETURN v_job;
-END; $$;
-REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO authenticated, service_role;
-
-CREATE OR REPLACE FUNCTION public.process_one_subscription_billing_event()
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_event public.subscription_billing_events%ROWTYPE; v_payload jsonb; v_status text; v_period_start timestamptz; v_period_end timestamptz; v_grace timestamptz;
-BEGIN
-  IF (auth.jwt()->>'role') <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
-    RAISE EXCEPTION 'Subscription event processing requires worker or admin access' USING ERRCODE = '42501';
-  END IF;
-  SELECT * INTO v_event FROM public.subscription_billing_events WHERE status IN ('received','failed') ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1;
-  IF NOT FOUND THEN RETURN jsonb_build_object('processed', false, 'reason', 'empty'); END IF;
-  v_payload := COALESCE(v_event.payload, '{}'::jsonb);
-  v_period_start := NULLIF(COALESCE(v_payload->>'period_start', v_payload->>'current_period_start'), '')::timestamptz;
-  v_period_end := NULLIF(COALESCE(v_payload->>'period_end', v_payload->>'current_period_end'), '')::timestamptz;
-  v_grace := NULLIF(v_payload->>'grace_period_until', '')::timestamptz;
-  IF v_event.event_type IN ('payment_succeeded','invoice_paid','subscription_renewed') THEN
-    UPDATE public.merchant_subscriptions SET payment_status = 'PAID', status = 'ACTIVE', paid_at = COALESCE(paid_at, now()), current_period_start = COALESCE(v_period_start, current_period_start), current_period_end = COALESCE(v_period_end, current_period_end), grace_period_until = NULL, updated_at = now() WHERE id = v_event.subscription_id;
-    v_status := 'processed';
-  ELSIF v_event.event_type IN ('payment_failed','invoice_failed') THEN
-    UPDATE public.merchant_subscriptions SET payment_status = 'UNPAID', status = CASE WHEN v_grace IS NULL OR v_grace > now() THEN 'PAST_DUE' ELSE 'EXPIRED' END, grace_period_until = COALESCE(v_grace, now() + interval '7 days'), updated_at = now() WHERE id = v_event.subscription_id;
-    v_status := 'processed';
-  ELSIF v_event.event_type IN ('subscription_cancelled','cancelled') THEN
-    UPDATE public.merchant_subscriptions SET status = 'CANCELLED', updated_at = now() WHERE id = v_event.subscription_id;
-    v_status := 'processed';
-  ELSE
-    v_status := 'ignored';
-  END IF;
-  UPDATE public.subscription_billing_events SET status = v_status, processed_at = now(), error_message = NULL WHERE id = v_event.id;
-  RETURN jsonb_build_object('processed', true, 'event_id', v_event.id, 'status', v_status);
-EXCEPTION WHEN OTHERS THEN
-  IF v_event.id IS NOT NULL THEN UPDATE public.subscription_billing_events SET status = 'failed', error_message = SQLERRM WHERE id = v_event.id; END IF;
-  RETURN jsonb_build_object('processed', true, 'event_id', v_event.id, 'status', 'failed', 'error', SQLERRM);
-END; $$;
-REVOKE ALL ON FUNCTION public.process_one_subscription_billing_event() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.process_one_subscription_billing_event() TO authenticated, service_role;
-
--- ===== END SOURCE: 20260825230000_worker_claim_and_subscription_processor.sql =====
-
--- ===== BEGIN SOURCE: 20260825235000_price_override_approval_rpc.sql =====
-CREATE OR REPLACE FUNCTION public.decide_pos_price_override(p_request_id uuid, p_approve boolean, p_reason text DEFAULT NULL)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_request public.pos_price_override_requests%ROWTYPE; v_sale public.pos_sales%ROWTYPE; v_item public.pos_sale_items%ROWTYPE; v_subtotal numeric;
-BEGIN
-  SELECT * INTO v_request FROM public.pos_price_override_requests WHERE id = p_request_id FOR UPDATE;
-  IF NOT FOUND OR NOT (public.is_admin() OR EXISTS (SELECT 1 FROM public.pos_tenants t WHERE t.id = v_request.tenant_id AND t.user_id = auth.uid())) THEN
-    RAISE EXCEPTION 'Price override approval denied' USING ERRCODE = '42501';
-  END IF;
-  IF v_request.status <> 'pending' THEN RAISE EXCEPTION 'Price override request already decided' USING ERRCODE = '55000'; END IF;
-  IF NOT p_approve THEN
-    UPDATE public.pos_price_override_requests SET status = 'rejected', approved_by = auth.uid(), decided_at = now(), reason = COALESCE(NULLIF(trim(p_reason), ''), reason) WHERE id = p_request_id;
-    RETURN jsonb_build_object('request_id', p_request_id, 'status', 'rejected');
-  END IF;
-  IF v_request.sale_item_id IS NULL THEN RAISE EXCEPTION 'Price override item is required' USING ERRCODE = '22023'; END IF;
-  SELECT * INTO v_item FROM public.pos_sale_items WHERE id = v_request.sale_item_id FOR UPDATE;
-  IF NOT FOUND OR (v_request.sale_id IS NOT NULL AND v_item.sale_id <> v_request.sale_id) THEN RAISE EXCEPTION 'Sale item not found' USING ERRCODE = 'P0002'; END IF;
-  SELECT * INTO v_sale FROM public.pos_sales WHERE id = v_item.sale_id FOR UPDATE;
-  IF NOT FOUND OR v_sale.status <> 'completed' THEN RAISE EXCEPTION 'Only completed POS sales can be price-adjusted' USING ERRCODE = '55000'; END IF;
-  IF v_sale.tenant_id <> v_request.tenant_id OR v_sale.outlet_id <> v_request.outlet_id THEN RAISE EXCEPTION 'Price override scope mismatch' USING ERRCODE = '42501'; END IF;
-  UPDATE public.pos_sale_items SET price = v_request.requested_price, subtotal = GREATEST(0, (v_request.requested_price * qty) - COALESCE(discount, 0)) WHERE id = v_item.id;
-  SELECT COALESCE(SUM(subtotal), 0) INTO v_subtotal FROM public.pos_sale_items WHERE sale_id = v_sale.id;
-  UPDATE public.pos_sales SET subtotal = v_subtotal, total = GREATEST(0, v_subtotal - COALESCE(discount_amount, 0) + COALESCE(tax_amount, 0)), notes = concat_ws(E'\n', notes, 'Approved price override: ', v_request.id::text) WHERE id = v_sale.id;
-  UPDATE public.pos_price_override_requests SET status = 'approved', approved_by = auth.uid(), decided_at = now() WHERE id = p_request_id;
-  RETURN jsonb_build_object('request_id', p_request_id, 'status', 'approved', 'sale_id', v_sale.id, 'new_price', v_request.requested_price, 'new_subtotal', v_subtotal);
-END; $$;
-REVOKE ALL ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) TO authenticated;
-
--- ===== END SOURCE: 20260825235000_price_override_approval_rpc.sql =====
 
 -- ===== BEGIN SOURCE: 20260826000000_atomic_warehouse_transfer.sql =====
 CREATE TABLE IF NOT EXISTS public.pos_warehouse_transfers (
@@ -1478,6 +1241,329 @@ GRANT EXECUTE ON FUNCTION public.revoke_pwa_device(uuid) TO authenticated;
 
 -- ===== END SOURCE: 20260828100000_pwa_device_management.sql =====
 
+-- ===== BEGIN SOURCE: 20260828160000_pos_payment_invariants.sql =====
+-- Enforce payment invariants for every POS sale, including writes outside the checkout RPC.
+CREATE OR REPLACE FUNCTION public.validate_pos_sale_payment()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.total IS NULL OR NEW.total < 0 THEN
+    RAISE EXCEPTION 'POS sale total must be non-negative' USING ERRCODE = '22023';
+  END IF;
+  IF NEW.payment_amount IS NULL OR NEW.payment_amount < 0 THEN
+    RAISE EXCEPTION 'POS payment amount must be non-negative' USING ERRCODE = '22023';
+  END IF;
+  IF NEW.change_amount IS NULL OR NEW.change_amount < 0 THEN
+    RAISE EXCEPTION 'POS change amount must be non-negative' USING ERRCODE = '22023';
+  END IF;
+
+  IF NEW.payment_method = 'cash' THEN
+    IF NEW.payment_amount < NEW.total OR NEW.change_amount <> NEW.payment_amount - NEW.total THEN
+      RAISE EXCEPTION 'Cash payment and change do not match sale total' USING ERRCODE = '22023';
+    END IF;
+  ELSIF NEW.payment_method IN ('qris', 'transfer', 'debit', 'credit', 'split') THEN
+    IF NEW.payment_amount <> NEW.total OR NEW.change_amount <> 0 THEN
+      RAISE EXCEPTION 'Non-cash payment must equal sale total with zero change' USING ERRCODE = '22023';
+    END IF;
+  ELSE
+    RAISE EXCEPTION 'Unsupported POS payment method' USING ERRCODE = '22023';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validate_pos_sale_payment ON public.pos_sales;
+CREATE TRIGGER trg_validate_pos_sale_payment
+BEFORE INSERT OR UPDATE OF total, payment_method, payment_amount, change_amount
+ON public.pos_sales
+FOR EACH ROW EXECUTE FUNCTION public.validate_pos_sale_payment();
+
+REVOKE ALL ON FUNCTION public.validate_pos_sale_payment() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_pos_sale_payment() TO service_role;
+
+-- ===== END SOURCE: 20260828160000_pos_payment_invariants.sql =====
+
+-- ===== BEGIN SOURCE: 20260828170000_pos_authorization_checkout_hardening.sql =====
+-- POS authorization and checkout invariants.
+-- This migration is safe to re-run and keeps enforcement in the database.
+
+CREATE OR REPLACE FUNCTION public.pos_user_has_role(
+  p_tenant_id uuid,
+  p_roles text[]
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.pos_tenants t
+    WHERE t.id = p_tenant_id
+      AND t.user_id = auth.uid()
+      AND 'owner' = ANY(p_roles)
+  )
+  OR EXISTS (
+    SELECT 1
+    FROM public.pos_users u
+    WHERE u.tenant_id = p_tenant_id
+      AND u.user_id = auth.uid()
+      AND u.is_active = true
+      AND u.role = ANY(p_roles)
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.pos_user_has_role(uuid, text[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pos_user_has_role(uuid, text[]) TO authenticated;
+
+-- Sale item visibility must follow the parent sale's assigned outlet.
+DROP POLICY IF EXISTS "tenant_users_select_sale_items" ON public.pos_sale_items;
+DROP POLICY IF EXISTS "POS users can view assigned sale items" ON public.pos_sale_items;
+CREATE POLICY "POS users can view assigned sale items"
+  ON public.pos_sale_items
+  FOR SELECT TO authenticated
+  USING (
+    sale_id IN (
+      SELECT s.id
+      FROM public.pos_sales s
+      WHERE public.pos_user_can_access_outlet(s.tenant_id, s.outlet_id)
+    )
+  );
+
+-- Reject malformed financial line values regardless of whether they came from
+-- the checkout RPC or an administrative write path.
+CREATE OR REPLACE FUNCTION public.validate_pos_sale_item_values()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.qty IS NULL OR NEW.qty <= 0 THEN
+    RAISE EXCEPTION 'POS sale item quantity must be positive' USING ERRCODE = '22023';
+  END IF;
+  IF NEW.price IS NULL OR NEW.price < 0 THEN
+    RAISE EXCEPTION 'POS sale item price must be non-negative' USING ERRCODE = '22023';
+  END IF;
+  IF COALESCE(NEW.discount, 0) < 0 OR COALESCE(NEW.tax_amount, 0) < 0 THEN
+    RAISE EXCEPTION 'POS sale item discount and tax must be non-negative' USING ERRCODE = '22023';
+  END IF;
+  IF NEW.subtotal IS NULL OR NEW.subtotal < 0 THEN
+    RAISE EXCEPTION 'POS sale item subtotal must be non-negative' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validate_pos_sale_item_values ON public.pos_sale_items;
+CREATE TRIGGER trg_validate_pos_sale_item_values
+BEFORE INSERT OR UPDATE OF qty, price, discount, tax_amount, subtotal
+ON public.pos_sale_items
+FOR EACH ROW EXECUTE FUNCTION public.validate_pos_sale_item_values();
+
+REVOKE ALL ON FUNCTION public.validate_pos_sale_item_values() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_pos_sale_item_values() TO service_role;
+
+-- ===== END SOURCE: 20260828170000_pos_authorization_checkout_hardening.sql =====
+
+-- ===== BEGIN SOURCE: 20260828180000_pos_concurrency_hardening.sql =====
+-- Concurrency hardening for POS voucher redemption, cash sessions, and returns.
+
+CREATE OR REPLACE FUNCTION public.validate_pos_cash_session_actor()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- Keep service-role/batch imports compatible while enforcing browser actors.
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.cashier_id IS DISTINCT FROM auth.uid() THEN
+    RAISE EXCEPTION 'Cash session cashier identity mismatch' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.pos_user_has_role(NEW.tenant_id, ARRAY['owner', 'manager', 'kasir']::text[]) THEN
+    RAISE EXCEPTION 'POS role cannot open cash session' USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validate_pos_cash_session_actor ON public.pos_cash_sessions;
+CREATE TRIGGER trg_validate_pos_cash_session_actor
+BEFORE INSERT ON public.pos_cash_sessions
+FOR EACH ROW EXECUTE FUNCTION public.validate_pos_cash_session_actor();
+
+REVOKE ALL ON FUNCTION public.validate_pos_cash_session_actor() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_pos_cash_session_actor() TO service_role;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_voucher_usage_sale_once
+  ON public.pos_voucher_usages(voucher_id, sale_id)
+  WHERE sale_id IS NOT NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pos_sale_returns_total_refund_nonnegative') THEN
+    ALTER TABLE public.pos_sale_returns ADD CONSTRAINT pos_sale_returns_total_refund_nonnegative CHECK (total_refund >= 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pos_sale_return_items_qty_positive') THEN
+    ALTER TABLE public.pos_sale_return_items ADD CONSTRAINT pos_sale_return_items_qty_positive CHECK (qty > 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pos_sale_return_items_values_nonnegative') THEN
+    ALTER TABLE public.pos_sale_return_items ADD CONSTRAINT pos_sale_return_items_values_nonnegative CHECK (price >= 0 AND subtotal >= 0);
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.validate_pos_sale_return_context()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_sale public.pos_sales%ROWTYPE;
+BEGIN
+  SELECT * INTO v_sale
+  FROM public.pos_sales
+  WHERE id = NEW.sale_id
+    AND tenant_id = NEW.tenant_id
+    AND outlet_id = NEW.outlet_id
+  FOR SHARE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Return sale does not belong to tenant and outlet' USING ERRCODE = '42501';
+  END IF;
+  IF v_sale.status NOT IN ('completed', 'refunded', 'partially_refunded') THEN
+    RAISE EXCEPTION 'Only completed POS sales can be returned' USING ERRCODE = '55000';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validate_pos_sale_return_context ON public.pos_sale_returns;
+CREATE TRIGGER trg_validate_pos_sale_return_context
+BEFORE INSERT OR UPDATE OF sale_id, tenant_id, outlet_id
+ON public.pos_sale_returns
+FOR EACH ROW EXECUTE FUNCTION public.validate_pos_sale_return_context();
+
+CREATE OR REPLACE FUNCTION public.validate_pos_sale_return_item_quantity()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_allowed numeric;
+  v_returned numeric;
+BEGIN
+  SELECT si.qty INTO v_allowed
+  FROM public.pos_sale_items si
+  WHERE si.id = NEW.sale_item_id
+    AND si.sale_id = (SELECT sale_id FROM public.pos_sale_returns WHERE id = NEW.return_id)
+  FOR UPDATE;
+  IF v_allowed IS NULL THEN
+    RAISE EXCEPTION 'Return item does not belong to original sale' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT COALESCE(SUM(ri.qty), 0) INTO v_returned
+  FROM public.pos_sale_return_items ri
+  WHERE ri.sale_item_id = NEW.sale_item_id
+    AND ri.return_id <> NEW.return_id;
+  IF NEW.qty > v_allowed - v_returned THEN
+    RAISE EXCEPTION 'Return quantity exceeds purchased quantity' USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_validate_pos_sale_return_item_quantity ON public.pos_sale_return_items;
+CREATE TRIGGER trg_validate_pos_sale_return_item_quantity
+BEFORE INSERT OR UPDATE OF return_id, sale_item_id, qty
+ON public.pos_sale_return_items
+FOR EACH ROW EXECUTE FUNCTION public.validate_pos_sale_return_item_quantity();
+
+REVOKE ALL ON FUNCTION public.validate_pos_sale_return_context() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.validate_pos_sale_return_item_quantity() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_pos_sale_return_context() TO service_role;
+GRANT EXECUTE ON FUNCTION public.validate_pos_sale_return_item_quantity() TO service_role;
+
+-- ===== END SOURCE: 20260828180000_pos_concurrency_hardening.sql =====
+
+-- ===== BEGIN SOURCE: 20260828190000_pos_audit_trail_hardening.sql =====
+-- Server-side audit trail for critical POS mutations.
+
+CREATE INDEX IF NOT EXISTS idx_pos_audit_logs_entity_lookup
+  ON public.pos_audit_logs(tenant_id, module, entity_type, entity_id, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.write_pos_audit_log()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_row jsonb;
+  v_old jsonb;
+  v_tenant_id uuid;
+  v_outlet_id uuid;
+  v_entity_id text;
+  v_action text;
+BEGIN
+  v_row := CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;
+  v_old := CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END;
+  v_tenant_id := NULLIF(v_row->>'tenant_id', '')::uuid;
+  v_outlet_id := NULLIF(v_row->>'outlet_id', '')::uuid;
+  v_entity_id := COALESCE(v_row->>'id', v_row->>'sale_id', v_row->>'session_id');
+  v_action := lower(TG_OP);
+
+  IF v_tenant_id IS NOT NULL THEN
+    INSERT INTO public.pos_audit_logs(
+      tenant_id, outlet_id, user_id, action, module, entity_type,
+      entity_id, description, old_values, new_values
+    ) VALUES (
+      v_tenant_id, v_outlet_id, auth.uid(), v_action, 'pos', TG_TABLE_NAME,
+      v_entity_id, format('%s %s', v_action, TG_TABLE_NAME), v_old,
+      CASE WHEN TG_OP <> 'DELETE' THEN v_row ELSE NULL END
+    );
+  END IF;
+
+  RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_audit_pos_sales ON public.pos_sales;
+CREATE TRIGGER trg_audit_pos_sales
+AFTER INSERT OR UPDATE OR DELETE ON public.pos_sales
+FOR EACH ROW EXECUTE FUNCTION public.write_pos_audit_log();
+
+DROP TRIGGER IF EXISTS trg_audit_pos_sale_returns ON public.pos_sale_returns;
+CREATE TRIGGER trg_audit_pos_sale_returns
+AFTER INSERT OR UPDATE OR DELETE ON public.pos_sale_returns
+FOR EACH ROW EXECUTE FUNCTION public.write_pos_audit_log();
+
+DROP TRIGGER IF EXISTS trg_audit_pos_cash_sessions ON public.pos_cash_sessions;
+CREATE TRIGGER trg_audit_pos_cash_sessions
+AFTER INSERT OR UPDATE OR DELETE ON public.pos_cash_sessions
+FOR EACH ROW EXECUTE FUNCTION public.write_pos_audit_log();
+
+DROP TRIGGER IF EXISTS trg_audit_pos_stock_mutations ON public.pos_stock_mutations;
+CREATE TRIGGER trg_audit_pos_stock_mutations
+AFTER INSERT OR UPDATE OR DELETE ON public.pos_stock_mutations
+FOR EACH ROW EXECUTE FUNCTION public.write_pos_audit_log();
+
+DROP TRIGGER IF EXISTS trg_audit_pos_cash_mutations ON public.pos_cash_mutations;
+CREATE TRIGGER trg_audit_pos_cash_mutations
+AFTER INSERT OR UPDATE OR DELETE ON public.pos_cash_mutations
+FOR EACH ROW EXECUTE FUNCTION public.write_pos_audit_log();
+
+REVOKE ALL ON FUNCTION public.write_pos_audit_log() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.write_pos_audit_log() TO service_role;
+
+-- ===== END SOURCE: 20260828190000_pos_audit_trail_hardening.sql =====
+
 -- ===== BEGIN SOURCE: 20260829100000_security_privilege_hardening.sql =====
 -- SECURITY DEFINER trigger/helper functions must not be callable by browser roles.
 -- Their execution is reserved for database triggers or server-side worker paths.
@@ -2205,60 +2291,144 @@ GRANT EXECUTE ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) TO servic
 
 -- ===== END SOURCE: 20260829150000_pos_tenant_merchant_mapping.sql =====
 
--- ===== BEGIN SOURCE: 20260829160000_atomic_merchant_withdrawals.sql =====
--- All merchant withdrawal balance transitions happen inside one database transaction.
-CREATE OR REPLACE FUNCTION public.create_merchant_withdrawal(
-  p_merchant_id uuid,
-  p_amount integer,
-  p_bank_name text,
-  p_account_number text,
-  p_account_holder text
-)
-RETURNS public.withdrawal_requests
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_merchant public.merchants%ROWTYPE; v_request public.withdrawal_requests%ROWTYPE;
-BEGIN
-  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501'; END IF;
-  IF p_amount IS NULL OR p_amount < 10000 THEN RAISE EXCEPTION 'Minimum withdrawal amount is 10000' USING ERRCODE = '22023'; END IF;
-  IF NULLIF(trim(p_bank_name), '') IS NULL OR NULLIF(trim(p_account_number), '') IS NULL OR NULLIF(trim(p_account_holder), '') IS NULL THEN RAISE EXCEPTION 'Bank details are required' USING ERRCODE = '22023'; END IF;
-  SELECT * INTO v_merchant FROM public.merchants WHERE id = p_merchant_id AND user_id = auth.uid() FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Merchant access denied' USING ERRCODE = '42501'; END IF;
-  IF COALESCE(v_merchant.available_balance, 0) < p_amount THEN RAISE EXCEPTION 'Insufficient available balance' USING ERRCODE = '22003'; END IF;
-  UPDATE public.merchants SET available_balance = COALESCE(available_balance, 0) - p_amount, pending_balance = COALESCE(pending_balance, 0) + p_amount, updated_at = now() WHERE id = p_merchant_id;
-  INSERT INTO public.withdrawal_requests (merchant_id, amount, bank_name, account_number, account_holder, status)
-  VALUES (p_merchant_id, p_amount, trim(p_bank_name), trim(p_account_number), trim(p_account_holder), 'PENDING') RETURNING * INTO v_request;
-  RETURN v_request;
-END; $$;
+-- ===== BEGIN SOURCE: 20260829160000_pos_workflow_transition_hardening.sql =====
+-- Server-side workflow transitions for POS tables and KDS orders.
+-- The expected status prevents stale clients from overwriting a newer state.
 
-CREATE OR REPLACE FUNCTION public.process_merchant_withdrawal(p_withdrawal_id uuid, p_action text, p_admin_notes text DEFAULT NULL)
-RETURNS public.withdrawal_requests
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_request public.withdrawal_requests%ROWTYPE; v_merchant public.merchants%ROWTYPE; v_action text := upper(trim(p_action));
+CREATE OR REPLACE FUNCTION public.transition_pos_table_order(
+  p_order_id uuid,
+  p_to_status text,
+  p_expected_status text DEFAULT NULL
+)
+RETURNS public.pos_table_orders
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_order public.pos_table_orders%ROWTYPE;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_admin() THEN RAISE EXCEPTION 'Admin access required' USING ERRCODE = '42501'; END IF;
-  IF v_action NOT IN ('APPROVE', 'REJECT', 'COMPLETE') THEN RAISE EXCEPTION 'Unsupported withdrawal action' USING ERRCODE = '22023'; END IF;
-  SELECT * INTO v_request FROM public.withdrawal_requests WHERE id = p_withdrawal_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Withdrawal request not found' USING ERRCODE = 'P0002'; END IF;
-  SELECT * INTO v_merchant FROM public.merchants WHERE id = v_request.merchant_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Merchant for withdrawal not found' USING ERRCODE = 'P0002'; END IF;
-  IF v_action = 'APPROVE' THEN
-    IF v_request.status <> 'PENDING' THEN RAISE EXCEPTION 'Only pending withdrawals can be approved' USING ERRCODE = '55000'; END IF;
-    UPDATE public.withdrawal_requests SET status = 'APPROVED', admin_notes = NULLIF(trim(COALESCE(p_admin_notes, '')), ''), processed_by = auth.uid(), processed_at = now(), updated_at = now() WHERE id = p_withdrawal_id RETURNING * INTO v_request;
-  ELSIF v_action = 'REJECT' THEN
-    IF v_request.status <> 'PENDING' THEN RAISE EXCEPTION 'Only pending withdrawals can be rejected' USING ERRCODE = '55000'; END IF;
-    IF COALESCE(v_merchant.pending_balance, 0) < v_request.amount THEN RAISE EXCEPTION 'Merchant balance invariant violated: pending balance is below withdrawal amount' USING ERRCODE = '23514'; END IF;
-    UPDATE public.merchants SET available_balance = COALESCE(available_balance, 0) + v_request.amount, pending_balance = COALESCE(pending_balance, 0) - v_request.amount, updated_at = now() WHERE id = v_request.merchant_id;
-    UPDATE public.withdrawal_requests SET status = 'REJECTED', admin_notes = NULLIF(trim(COALESCE(p_admin_notes, '')), ''), processed_by = auth.uid(), processed_at = now(), updated_at = now() WHERE id = p_withdrawal_id RETURNING * INTO v_request;
-  ELSE
-    IF v_request.status <> 'APPROVED' THEN RAISE EXCEPTION 'Only approved withdrawals can be completed' USING ERRCODE = '55000'; END IF;
-    IF COALESCE(v_merchant.pending_balance, 0) < v_request.amount THEN RAISE EXCEPTION 'Merchant balance invariant violated: pending balance is below withdrawal amount' USING ERRCODE = '23514'; END IF;
-    UPDATE public.merchants SET pending_balance = COALESCE(pending_balance, 0) - v_request.amount, total_withdrawn = COALESCE(total_withdrawn, 0) + v_request.amount, updated_at = now() WHERE id = v_request.merchant_id;
-    UPDATE public.withdrawal_requests SET status = 'COMPLETED', admin_notes = COALESCE(NULLIF(trim(COALESCE(p_admin_notes, '')), ''), admin_notes), processed_by = auth.uid(), processed_at = now(), updated_at = now() WHERE id = p_withdrawal_id RETURNING * INTO v_request;
+  SELECT * INTO v_order
+  FROM public.pos_table_orders
+  WHERE id = p_order_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN RAISE EXCEPTION 'Order meja tidak ditemukan' USING ERRCODE = 'P0002'; END IF;
+  IF NOT public.pos_user_has_role(v_order.tenant_id, ARRAY['owner','manager','kasir','cashier']) THEN
+    RAISE EXCEPTION 'Tidak memiliki akses mengubah order meja' USING ERRCODE = '42501';
   END IF;
-  RETURN v_request;
-END; $$;
-REVOKE ALL ON FUNCTION public.create_merchant_withdrawal(uuid, integer, text, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_merchant_withdrawal(uuid, integer, text, text, text) TO authenticated;
-REVOKE ALL ON FUNCTION public.process_merchant_withdrawal(uuid, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.process_merchant_withdrawal(uuid, text, text) TO authenticated;
--- ===== END SOURCE: 20260829160000_atomic_merchant_withdrawals.sql =====
+  IF p_expected_status IS NOT NULL AND v_order.status <> p_expected_status THEN
+    RAISE EXCEPTION 'Order sudah berubah dari % menjadi %', p_expected_status, v_order.status USING ERRCODE = '40001';
+  END IF;
+  IF p_to_status NOT IN ('pending','cooking','ready','served','paid','cancelled') THEN
+    RAISE EXCEPTION 'Status order tidak valid' USING ERRCODE = '22023';
+  END IF;
+  IF NOT (
+    (v_order.status = 'pending' AND p_to_status IN ('cooking','cancelled')) OR
+    (v_order.status = 'cooking' AND p_to_status IN ('ready','cancelled')) OR
+    (v_order.status = 'ready' AND p_to_status IN ('served','cancelled')) OR
+    (v_order.status = 'served' AND p_to_status = 'paid')
+  ) THEN
+    RAISE EXCEPTION 'Transisi order % ke % tidak diizinkan', v_order.status, p_to_status USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE public.pos_table_orders
+  SET status = p_to_status,
+      cooking_started_at = CASE WHEN p_to_status = 'cooking' THEN COALESCE(cooking_started_at, now()) ELSE cooking_started_at END,
+      ready_at = CASE WHEN p_to_status = 'ready' THEN COALESCE(ready_at, now()) ELSE ready_at END,
+      served_at = CASE WHEN p_to_status = 'served' THEN COALESCE(served_at, now()) ELSE served_at END,
+      updated_at = now()
+  WHERE id = p_order_id
+  RETURNING * INTO v_order;
+
+  RETURN v_order;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.transition_pos_table(
+  p_table_id uuid,
+  p_to_status text,
+  p_expected_status text DEFAULT NULL
+)
+RETURNS public.pos_tables
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_table public.pos_tables%ROWTYPE;
+BEGIN
+  SELECT * INTO v_table FROM public.pos_tables WHERE id = p_table_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Meja tidak ditemukan' USING ERRCODE = 'P0002'; END IF;
+  IF NOT public.pos_user_has_role(v_table.tenant_id, ARRAY['owner','manager','kasir','cashier']) THEN
+    RAISE EXCEPTION 'Tidak memiliki akses mengubah meja' USING ERRCODE = '42501';
+  END IF;
+  IF p_expected_status IS NOT NULL AND v_table.status <> p_expected_status THEN
+    RAISE EXCEPTION 'Meja sudah berubah dari % menjadi %', p_expected_status, v_table.status USING ERRCODE = '40001';
+  END IF;
+  IF p_to_status NOT IN ('available','occupied','reserved','cleaning') THEN
+    RAISE EXCEPTION 'Status meja tidak valid' USING ERRCODE = '22023';
+  END IF;
+  IF NOT (
+    (v_table.status = 'available' AND p_to_status IN ('reserved','occupied','cleaning')) OR
+    (v_table.status = 'reserved' AND p_to_status IN ('occupied','available')) OR
+    (v_table.status = 'occupied' AND p_to_status IN ('cleaning','available')) OR
+    (v_table.status = 'cleaning' AND p_to_status = 'available')
+  ) THEN
+    RAISE EXCEPTION 'Transisi meja % ke % tidak diizinkan', v_table.status, p_to_status USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE public.pos_tables SET status = p_to_status, updated_at = now()
+  WHERE id = p_table_id RETURNING * INTO v_table;
+  RETURN v_table;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.transition_pos_table_order(uuid, text, text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.transition_pos_table(uuid, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.transition_pos_table_order(uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.transition_pos_table(uuid, text, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.create_pos_table_order(
+  p_tenant_id uuid,
+  p_outlet_id uuid,
+  p_table_id uuid,
+  p_order_number text,
+  p_customer_name text DEFAULT NULL,
+  p_notes text DEFAULT NULL,
+  p_items jsonb DEFAULT '[]'::jsonb
+)
+RETURNS public.pos_table_orders
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_table public.pos_tables%ROWTYPE;
+  v_order public.pos_table_orders%ROWTYPE;
+BEGIN
+  IF NOT public.pos_user_has_role(p_tenant_id, ARRAY['owner','manager','kasir','cashier']) THEN
+    RAISE EXCEPTION 'Tidak memiliki akses membuat order meja' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO v_table FROM public.pos_tables WHERE id = p_table_id AND tenant_id = p_tenant_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Meja tidak ditemukan' USING ERRCODE = 'P0002'; END IF;
+  IF p_outlet_id IS DISTINCT FROM v_table.outlet_id THEN
+    RAISE EXCEPTION 'Outlet order tidak sesuai dengan outlet meja' USING ERRCODE = '22023';
+  END IF;
+  IF v_table.status NOT IN ('available','reserved') THEN
+    RAISE EXCEPTION 'Meja sedang tidak tersedia' USING ERRCODE = '55000';
+  END IF;
+
+  INSERT INTO public.pos_table_orders(tenant_id, outlet_id, table_id, table_name, order_number, status, items, customer_name, notes)
+  VALUES (p_tenant_id, p_outlet_id, p_table_id, v_table.name, p_order_number, 'pending', COALESCE(p_items, '[]'::jsonb), p_customer_name, p_notes)
+  RETURNING * INTO v_order;
+
+  UPDATE public.pos_tables SET status = 'occupied', updated_at = now() WHERE id = p_table_id;
+  RETURN v_order;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, text, text, jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, text, text, jsonb) TO authenticated;
+
+-- ===== END SOURCE: 20260829160000_pos_workflow_transition_hardening.sql =====

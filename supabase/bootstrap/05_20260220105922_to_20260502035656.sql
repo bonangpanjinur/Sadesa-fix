@@ -1,26 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql .. 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql
+-- Source range: 20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql .. 20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql
 
-
--- ===== BEGIN SOURCE: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql =====
-
--- Create a function to safely decrement product stock
-CREATE OR REPLACE FUNCTION public.decrement_stock(p_product_id uuid, p_quantity integer)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  UPDATE products
-  SET stock = GREATEST(0, stock - p_quantity),
-      updated_at = now()
-  WHERE id = p_product_id;
-END;
-$$;
-
--- ===== END SOURCE: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql =====
 
 -- ===== BEGIN SOURCE: 20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql =====
 
@@ -1255,3 +1236,150 @@ BEFORE INSERT OR UPDATE OF category ON public.products
 FOR EACH ROW EXECUTE FUNCTION public.validate_product_category();
 
 -- ===== END SOURCE: 20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql =====
+
+-- ===== BEGIN SOURCE: 20260419161037_08343087-5318-467f-a887-4238272bf30a.sql =====
+-- Privatize the payment-proofs bucket
+UPDATE storage.buckets SET public = false WHERE id = 'payment-proofs';
+
+-- Drop old permissive policies
+DROP POLICY IF EXISTS "Payment proofs are publicly viewable" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own payment proofs" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own payment proofs" ON storage.objects;
+
+-- SELECT: buyer (owner of order), merchant of order, or admin
+-- Path convention: orders/{order_id}/{filename}
+DROP POLICY IF EXISTS "Buyer/merchant/admin can view payment proofs" ON storage.objects;
+CREATE POLICY "Buyer/merchant/admin can view payment proofs"
+ON storage.objects
+FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'payment-proofs'
+  AND (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.orders o
+      LEFT JOIN public.merchants m ON o.merchant_id = m.id
+      WHERE o.id::text = (storage.foldername(name))[2]
+        AND (o.buyer_id = auth.uid() OR m.user_id = auth.uid())
+    )
+  )
+);
+
+-- INSERT: any authenticated user (validated at app level via order ownership)
+DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
+CREATE POLICY "Authenticated users can upload payment proofs"
+ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'payment-proofs');
+
+-- UPDATE: only the buyer of the order
+DROP POLICY IF EXISTS "Buyer can update own payment proofs" ON storage.objects;
+CREATE POLICY "Buyer can update own payment proofs"
+ON storage.objects
+FOR UPDATE
+TO authenticated
+USING (
+  bucket_id = 'payment-proofs'
+  AND EXISTS (
+    SELECT 1 FROM public.orders o
+    WHERE o.id::text = (storage.foldername(name))[2]
+      AND o.buyer_id = auth.uid()
+  )
+);
+
+-- DELETE: only buyer or admin
+DROP POLICY IF EXISTS "Buyer or admin can delete payment proofs" ON storage.objects;
+CREATE POLICY "Buyer or admin can delete payment proofs"
+ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'payment-proofs'
+  AND (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.orders o
+      WHERE o.id::text = (storage.foldername(name))[2]
+        AND o.buyer_id = auth.uid()
+    )
+  )
+);
+
+-- ===== END SOURCE: 20260419161037_08343087-5318-467f-a887-4238272bf30a.sql =====
+
+-- ===== BEGIN SOURCE: 20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql =====
+-- =============================================
+-- Phase 1: DB Hardening
+-- =============================================
+
+-- 1. DROP unused function overloads (keep the ones used by RLS policies & app code)
+-- Keep: get_user_courier_id() no-arg (used in RLS)
+DROP FUNCTION IF EXISTS public.get_user_courier_id(uuid);
+
+-- Keep: get_user_merchant_id() no-arg
+DROP FUNCTION IF EXISTS public.get_user_merchant_id(uuid);
+
+-- Keep: use_merchant_quota(p_merchant_id uuid) — used by app via RPC
+DROP FUNCTION IF EXISTS public.use_merchant_quota(uuid, integer);
+
+-- Note: is_order_merchant has 2 overloads, BOTH are referenced by different RLS policies.
+-- Keep both.
+
+-- =============================================
+-- 2. Privatize sensitive storage buckets
+-- =============================================
+UPDATE storage.buckets SET public = false WHERE id IN ('chat-images', 'pod-images');
+
+-- RLS policies for chat-images: only chat participants can read/write
+DROP POLICY IF EXISTS "Chat images: read by participants" ON storage.objects;
+CREATE POLICY "Chat images: read by participants"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'chat-images'
+  AND (
+    is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.chat_messages cm
+      WHERE cm.image_url LIKE '%' || storage.objects.name || '%'
+        AND (cm.sender_id = auth.uid() OR cm.receiver_id = auth.uid())
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "Chat images: upload by authenticated" ON storage.objects;
+CREATE POLICY "Chat images: upload by authenticated"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'chat-images' AND auth.uid() IS NOT NULL);
+
+-- RLS policies for pod-images: only buyer / merchant / courier of the order + admin
+DROP POLICY IF EXISTS "POD images: read by order parties" ON storage.objects;
+CREATE POLICY "POD images: read by order parties"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'pod-images'
+  AND (
+    is_admin()
+    OR EXISTS (
+      SELECT 1
+      FROM public.orders o
+      LEFT JOIN public.merchants m ON m.id = o.merchant_id
+      LEFT JOIN public.couriers c ON c.id = o.courier_id
+      WHERE o.pod_image_url LIKE '%' || storage.objects.name || '%'
+        AND (o.buyer_id = auth.uid() OR m.user_id = auth.uid() OR c.user_id = auth.uid())
+    )
+  )
+);
+
+DROP POLICY IF EXISTS "POD images: upload by courier or merchant" ON storage.objects;
+CREATE POLICY "POD images: upload by courier or merchant"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'pod-images' AND auth.uid() IS NOT NULL);
+
+-- ===== END SOURCE: 20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql =====

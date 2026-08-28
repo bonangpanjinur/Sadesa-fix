@@ -1,10 +1,10 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 188,
+  "migration_count": 193,
   "bundle_count": 8,
   "bundles": [
     {
-      "file": "01_20260127034916_to_20260127073715.sql",
+      "file": "01_20260127034916_to_20260127080732.sql",
       "source_files": [
         "20260127034916_79ea4061-eab6-4151-9591-63293a92b7fe.sql",
         "20260127040144_c74a27a5-34d0-4b71-8b2e-458908a16583.sql",
@@ -29,15 +29,15 @@
         "20260127071956_a27ddf22-3789-42c9-bd9c-1f5a0286e319.sql",
         "20260127072850_7a511ad2-eadc-4846-a7e1-92aa7c608460.sql",
         "20260127073300_6cb5784e-39e2-4626-8d8d-8bdc12a2a2e4.sql",
-        "20260127073715_302d2dda-ebfa-4711-a1e0-71fb26487401.sql"
+        "20260127073715_302d2dda-ebfa-4711-a1e0-71fb26487401.sql",
+        "20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql"
       ],
-      "sha256": "30d009f706f0772711cc2cca398e75b9ec8cc6ecc270c66d38c465bd28d630fe",
-      "bytes": 89097
+      "sha256": "8419be0907fb45930a8de81c3e1cb7b76decabc5b6e0f7918b2c3e04bc8c651d",
+      "bytes": 91518
     },
     {
-      "file": "02_20260127080732_to_20260203_fix_u.sql",
+      "file": "02_20260127083146_to_20260203_impro.sql",
       "source_files": [
-        "20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql",
         "20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql",
         "20260127084919_5b7afc29-bd66-47fc-89ad-ac3ae63cffe9.sql",
         "20260127090723_55ce443e-9544-4fb0-9804-21846e7790d7.sql",
@@ -60,15 +60,15 @@
         "20260203_cleanup_package_table.sql",
         "20260203_fix_courier_management.sql",
         "20260203_fix_is_admin_and_packages.sql",
-        "20260203_fix_user_roles_policies.sql"
+        "20260203_fix_user_roles_policies.sql",
+        "20260203_improve_refund_system.sql"
       ],
-      "sha256": "c6fb878d789a22244ffb3d5c7b19cd19811e11133c57aa605bef4bd0fa949d1c",
-      "bytes": 73871
+      "sha256": "d8afb4ad056b0a1dc5a3148c60b70034b401928f89448dd4c623c40aaec36d8b",
+      "bytes": 72920
     },
     {
-      "file": "03_20260203_impro_to_20260207_quota.sql",
+      "file": "03_20260203_new_q_to_20260208000821.sql",
       "source_files": [
-        "20260203_improve_refund_system.sql",
         "20260203_new_quota_system.sql",
         "20260203_update_package_logic.sql",
         "20260203_update_package_logic_v2.sql",
@@ -91,15 +91,15 @@
         "20260207234919_3b703a60-74a4-4b19-914a-bce0c90381c7.sql",
         "20260207234930_56685a71-d39f-422a-84ff-01a0d4ed0169.sql",
         "20260207_full_quota_system_migration.sql",
-        "20260207_quota_enhancement.sql"
+        "20260207_quota_enhancement.sql",
+        "20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql"
       ],
-      "sha256": "ffe700fb737aee8ab98da5e85824bb6b70078111b9e98484aa5dc2ce8d237389",
-      "bytes": 74168
+      "sha256": "8a1a528ea4e5f91ba3e4ba6583ca4eb2e7450f8b4b6b57029746b1056ba3298d",
+      "bytes": 73346
     },
     {
-      "file": "04_20260208000821_to_20260220101331.sql",
+      "file": "04_20260208001230_to_20260220102410.sql",
       "source_files": [
-        "20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql",
         "20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql",
         "20260208054918_d4a4580e-26df-482d-8fbe-085d2fe7c428.sql",
         "20260208071146_3c0d0a7a-e137-449c-a26b-c606b97790cb.sql",
@@ -122,15 +122,15 @@
         "20260220084533_6b62aa70-289a-4ef5-81c1-bb37dcfb6086.sql",
         "20260220094944_4e9af0cf-2be8-4fa8-ac7b-21d6015ea7ae.sql",
         "20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql",
-        "20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql"
+        "20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql",
+        "20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql"
       ],
-      "sha256": "005e02fbcb9629b8d07ad8a568f223e1f30921b1284f82af31aa8816ad8d1b04",
-      "bytes": 40889
+      "sha256": "1b8e19d89ee20e4c97c9c76f3c61263994075f627178b76bfe1ff3775279080a",
+      "bytes": 40784
     },
     {
-      "file": "05_20260220102410_to_20260419160116.sql",
+      "file": "05_20260220105922_to_20260502035656.sql",
       "source_files": [
-        "20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql",
         "20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql",
         "20260220110705_505c5087-9b55-4a78-9d79-ae00fa83a485.sql",
         "20260220110912_8501cf77-84b6-4db2-863d-e8b5bb274741.sql",
@@ -152,16 +152,16 @@
         "20260403082441_8d12e8c5-2d68-4b47-8660-023667cf0630.sql",
         "20260416025335_c7d8cc12-56f8-4c10-8105-fb50ca6597bf.sql",
         "20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql",
-        "20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql"
+        "20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql",
+        "20260419161037_08343087-5318-467f-a887-4238272bf30a.sql",
+        "20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql"
       ],
-      "sha256": "d09b348caa6d8b139d859b9045696cdf1338daaf11b2fbca20d72d83989531d4",
-      "bytes": 44504
+      "sha256": "e5e59157fca4d26c87829908b1d34af7f9f04422fea9f08ceba4e4205c853dc9",
+      "bytes": 49171
     },
     {
-      "file": "06_20260419161037_to_20260822030000.sql",
+      "file": "06_20260508000000_to_20260823070000.sql",
       "source_files": [
-        "20260419161037_08343087-5318-467f-a887-4238272bf30a.sql",
-        "20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql",
         "20260508000000_phase1_pos_saas.sql",
         "20260509000000_phase2_pos_purchase_kas.sql",
         "20260510000000_phase2_bahan_baku_resep.sql",
@@ -182,17 +182,17 @@
         "20260822000000_harden_password_reset_tokens.sql",
         "20260822010000_harden_pos_rls_tenant_outlet.sql",
         "20260822020000_add_payment_webhook_idempotency.sql",
-        "20260822030000_harden_storage_ownership.sql"
-      ],
-      "sha256": "023abcdbc0e305afa46ec14f4c9a8f9f586623b438e8ddaa0add9285d52f5371",
-      "bytes": 177794
-    },
-    {
-      "file": "07_20260822040000_to_20260825200000.sql",
-      "source_files": [
+        "20260822030000_harden_storage_ownership.sql",
         "20260822040000_harden_stock_decrement.sql",
         "20260823050000_harden_payment_proof_insert.sql",
-        "20260823070000_atomic_pos_checkout.sql",
+        "20260823070000_atomic_pos_checkout.sql"
+      ],
+      "sha256": "06dd45ed56402e7d47066b5122d90ea604a839c5dd9cf2d66c61da90000c3df7",
+      "bytes": 188518
+    },
+    {
+      "file": "07_20260823071000_to_20260825235000.sql",
+      "source_files": [
         "20260823071000_payment_invoice_idempotency.sql",
         "20260823080000_p1_inventory_shift_atomic.sql",
         "20260823090000_harden_payment_settings_access.sql",
@@ -212,18 +212,18 @@
         "20260825170000_dispute_center_approval_workflow.sql",
         "20260825180000_pricebook_loyalty_import_jobs.sql",
         "20260825190000_crm_segments_campaigns.sql",
-        "20260825200000_notification_delivery_queue.sql"
-      ],
-      "sha256": "b731b30892b12d97a3ba926f496b23582a199096f8eac3be081a65d6dadbc3cf",
-      "bytes": 123211
-    },
-    {
-      "file": "08_20260825210000_to_20260829150000.sql",
-      "source_files": [
+        "20260825200000_notification_delivery_queue.sql",
         "20260825210000_subscription_billing_controls.sql",
         "20260825220000_tax_accounting_journal.sql",
         "20260825230000_worker_claim_and_subscription_processor.sql",
-        "20260825235000_price_override_approval_rpc.sql",
+        "20260825235000_price_override_approval_rpc.sql"
+      ],
+      "sha256": "5d625a777f7d05895f9d437f1ed7a569bba92b418ae7fa4e0fb0b14f14bfc795",
+      "bytes": 126095
+    },
+    {
+      "file": "08_20260826000000_to_20260829160000.sql",
+      "source_files": [
         "20260826000000_atomic_warehouse_transfer.sql",
         "20260826010000_atomic_loyalty_checkout_crm.sql",
         "20260826010000_marketplace_stock_reservation_lifecycle.sql",
@@ -237,15 +237,20 @@
         "20260827120000_stock_adjustment_approval_rpc.sql",
         "20260827180000_add_cashback_tables.sql",
         "20260828100000_pwa_device_management.sql",
+        "20260828160000_pos_payment_invariants.sql",
+        "20260828170000_pos_authorization_checkout_hardening.sql",
+        "20260828180000_pos_concurrency_hardening.sql",
+        "20260828190000_pos_audit_trail_hardening.sql",
         "20260829100000_security_privilege_hardening.sql",
         "20260829110000_legacy_security_definer_hardening.sql",
         "20260829120000_subscription_entitlements_usage.sql",
         "20260829130000_subscription_entitlement_enforcement.sql",
         "20260829140000_subscription_runtime_enforcement.sql",
-        "20260829150000_pos_tenant_merchant_mapping.sql"
+        "20260829150000_pos_tenant_merchant_mapping.sql",
+        "20260829160000_pos_workflow_transition_hardening.sql"
       ],
-      "sha256": "195833da9075a589eaa4c7f0d1f4a370290fce787e4517f6a734febd7c6c1e43",
-      "bytes": 140447
+      "sha256": "b60f3172a7e0d9c0f232ae603776f1a92a639e71f83ca92bbe1f5029d839e8b1",
+      "bytes": 140137
     }
   ]
 }

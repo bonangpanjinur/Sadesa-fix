@@ -1,25 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql .. 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql
+-- Source range: 20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql .. 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql
 
-
--- ===== BEGIN SOURCE: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql =====
--- Drop the restrictive buyer update policy and replace with one that covers all buyer-updatable statuses
-DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
-
-DROP POLICY IF EXISTS "Buyers can update own orders" ON public.orders;
-CREATE POLICY "Buyers can update own orders"
-ON public.orders
-FOR UPDATE
-USING (
-  auth.uid() = buyer_id
-  AND status IN ('NEW', 'PENDING_PAYMENT', 'DELIVERED')
-)
-WITH CHECK (
-  auth.uid() = buyer_id
-);
-
--- ===== END SOURCE: 20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql =====
 
 -- ===== BEGIN SOURCE: 20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql =====
 -- 1. Add missing columns to villages table
@@ -1077,3 +1059,22 @@ USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
 -- ===== END SOURCE: 20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql =====
+
+-- ===== BEGIN SOURCE: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql =====
+
+-- Create a function to safely decrement product stock
+CREATE OR REPLACE FUNCTION public.decrement_stock(p_product_id uuid, p_quantity integer)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE products
+  SET stock = GREATEST(0, stock - p_quantity),
+      updated_at = now()
+  WHERE id = p_product_id;
+END;
+$$;
+
+-- ===== END SOURCE: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql =====

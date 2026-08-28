@@ -200,9 +200,12 @@ export default function POSMejaPage() {
       return;
     }
     try {
-      await supabase.from('pos_tables' as never)
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', statusTarget.id);
+      const { error } = await supabase.rpc('transition_pos_table' as never, {
+        p_table_id: statusTarget.id,
+        p_to_status: newStatus,
+        p_expected_status: statusTarget.status,
+      } as never);
+      if (error) throw error;
       toast.success(`Status meja ${statusTarget.name} diubah ke ${STATUS_CONFIG[newStatus as keyof typeof STATUS_CONFIG]?.label}`);
       setStatusDialog(false);
       fetchAll();
@@ -234,20 +237,16 @@ export default function POSMejaPage() {
     setOrderSaving(true);
     try {
       const orderNumber = `ORD-${Date.now()}`;
-      await supabase.from('pos_table_orders' as never).insert({
-        tenant_id: tenant.id,
-        outlet_id: activeOutlet?.id || null,
-        table_id: selectedTable.id,
-        table_name: selectedTable.name,
-        order_number: orderNumber,
-        status: 'pending',
-        items: [],
-        customer_name: orderForm.customer_name || null,
-        notes: orderForm.notes || null,
-      });
-      await supabase.from('pos_tables' as never)
-        .update({ status: 'occupied', updated_at: new Date().toISOString() })
-        .eq('id', selectedTable.id);
+      const { error } = await supabase.rpc('create_pos_table_order' as never, {
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet?.id || null,
+        p_table_id: selectedTable.id,
+        p_order_number: orderNumber,
+        p_customer_name: orderForm.customer_name || null,
+        p_notes: orderForm.notes || null,
+        p_items: [],
+      } as never);
+      if (error) throw error;
       toast.success(`Pesanan ${orderNumber} dibuat untuk ${selectedTable.name}`);
       setAddOrderDialog(false);
       setOrderDialog(false);
@@ -266,11 +265,12 @@ export default function POSMejaPage() {
       return;
     }
     try {
-      const updates: TableOrderUpdate = { status, updated_at: new Date().toISOString() };
-      if (status === 'cooking') updates.cooking_started_at = new Date().toISOString();
-      if (status === 'ready') updates.ready_at = new Date().toISOString();
-      if (status === 'served') updates.served_at = new Date().toISOString();
-      await supabase.from('pos_table_orders' as never).update(updates).eq('id', orderId);
+      const { error } = await supabase.rpc('transition_pos_table_order' as never, {
+        p_order_id: orderId,
+        p_to_status: status,
+        p_expected_status: currentOrder?.status || null,
+      } as never);
+      if (error) throw error;
       toast.success('Status pesanan diperbarui');
       fetchAll();
       if (selectedTable) setTableOrders(getTableOrders(selectedTable.id));

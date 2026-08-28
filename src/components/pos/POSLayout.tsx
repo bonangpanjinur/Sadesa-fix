@@ -21,12 +21,12 @@ interface POSLayoutProps {
 
 export function POSLayout({ children, title, subtitle, actions, fullWidth }: POSLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { tenant, loading, error: tenantError, refetchTenant } = usePOS();
+  const { tenant, loading, posRole, posRoleLoading, error: tenantError, refetchTenant } = usePOS();
   const { user, roles, rolesLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  if (loading || rolesLoading) {
+  if (loading || rolesLoading || posRoleLoading) {
     return (
       <POSLoadingState label="Memuat data usaha..." />
     );
@@ -37,7 +37,7 @@ export function POSLayout({ children, title, subtitle, actions, fullWidth }: POS
     return null;
   }
 
-  if (!canAccessPOSPath(roles, location.pathname)) {
+  if (!canAccessPOSPath(roles, location.pathname, posRole)) {
     navigate('/unauthorized', { replace: true });
     return null;
   }

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { format, differenceInSeconds, differenceInMinutes } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { formatPOSDateTime, formatPOSTime } from '@/lib/posDateTime';
 import { useNavigate } from 'react-router-dom';
 import { posBridgeFetch } from '@/lib/posBridge';
 
@@ -200,27 +201,25 @@ export default function POSKDSPage() {
   }, [fetchOrders]);
 
   const updateStatus = async (orderId: string, newStatus: TableOrder['status']) => {
-    const updates: OrderStatusUpdate = { status: newStatus, updated_at: new Date().toISOString() };
-    if (newStatus === 'cooking') updates.cooking_started_at = new Date().toISOString();
-    if (newStatus === 'ready')   updates.ready_at = new Date().toISOString();
-    if (newStatus === 'served')  updates.served_at = new Date().toISOString();
-
-    // Optimistic update
+    const currentOrder = orders.find((order) => order.id === orderId);
+    if (!currentOrder) return;
+    const previousStatus = currentOrder.status;
     setOrders(prev => prev.map(o =>
-      o.id === orderId ? { ...o, ...updates } : o
+      o.id === orderId ? { ...o, status: newStatus } : o
     ).filter(o => ['pending','cooking','ready'].includes(o.status)));
 
     try {
-      const { error } = await supabase
-        .from('pos_table_orders' as never)
-        .update(updates)
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('transition_pos_table_order' as never, {
+        p_order_id: orderId,
+        p_to_status: newStatus,
+        p_expected_status: previousStatus,
+      } as never);
       if (error) throw error;
       playBeep('action');
       setLastUpdate(new Date());
     } catch (err: unknown) {
       toast.error('Gagal update status: ' + (err instanceof Error ? err.message : String(err)));
-      fetchOrders(); // rollback
+      fetchOrders();
     }
   };
 
@@ -264,7 +263,7 @@ export default function POSKDSPage() {
         <div className="flex items-center gap-3">
           <div className="text-right hidden sm:block">
             <p className="text-xs text-gray-500">Update terakhir</p>
-            <p className="text-sm font-mono">{format(lastUpdate, 'HH:mm:ss')}</p>
+            <p className="text-sm font-mono">{formatPOSTime(lastUpdate, tenant?.timezone || 'Asia/Jakarta')}</p>
           </div>
 
           {/* Active counter */}
@@ -374,7 +373,7 @@ export default function POSKDSPage() {
                               </span>
                             </div>
                             <span className="text-xs text-gray-400 shrink-0">
-                              {format(new Date(order.created_at), 'HH:mm', { locale: idLocale })}
+                              {formatPOSTime(order.created_at, tenant?.timezone || 'Asia/Jakarta')}
                             </span>
                           </div>
                           {order.customer_name && (
@@ -451,13 +450,13 @@ export default function POSKDSPage() {
       {/* ── Footer Clock ─────────────────────────────────────── */}
       <div className="bg-gray-900 border-t border-gray-700 px-4 py-2 flex items-center justify-between text-xs text-gray-500 shrink-0">
         <span>KDS SaDesa POS — realtime via SSE</span>
-        <LiveClock />
+        <LiveClock timeZone={tenant?.timezone || 'Asia/Jakarta'} />
       </div>
     </div>
   );
 }
 
-function LiveClock() {
+function LiveClock({ timeZone = 'Asia/Jakarta' }: { timeZone?: string }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
@@ -465,7 +464,7 @@ function LiveClock() {
   }, []);
   return (
     <span className="font-mono text-gray-300 text-sm">
-      {format(time, 'EEEE, dd MMMM yyyy — HH:mm:ss', { locale: idLocale })}
+      {formatPOSDateTime(time, timeZone)}
     </span>
   );
 }

@@ -124,21 +124,39 @@ export default function AdminPOSPage() {
   };
 
   const handleApproveSub = async (id: string) => {
+    const { data: request, error: requestError } = await supabase
+      .from('pos_subscriptions')
+      .select('id, status, package_id, pos_packages(duration_months)')
+      .eq('id', id)
+      .eq('status', 'PENDING')
+      .maybeSingle();
+    if (requestError || !request) {
+      toast.error(requestError?.message || 'Permintaan sudah diproses atau tidak ditemukan');
+      return;
+    }
+    const durationMonths = Number((request.pos_packages as { duration_months?: number } | null)?.duration_months || 1);
+    const startedAt = new Date();
+    const expiredAt = new Date(startedAt);
+    expiredAt.setMonth(expiredAt.getMonth() + Math.max(1, durationMonths));
     const { error } = await supabase.from('pos_subscriptions').update({
       status: 'ACTIVE',
       payment_status: 'PAID',
-      approved_at: new Date().toISOString(),
-    }).eq('id', id);
-    if (error) { toast.error('Gagal menyetujui'); return; }
-    toast.success('Langganan disetujui');
+      started_at: startedAt.toISOString(),
+      expired_at: expiredAt.toISOString(),
+      approved_at: startedAt.toISOString(),
+    }).eq('id', id).eq('status', 'PENDING');
+    if (error) { toast.error('Gagal menyetujui: ' + error.message); return; }
+    toast.success(`Langganan aktif sampai ${expiredAt.toLocaleDateString('id-ID')}`);
     loadData();
   };
 
   const handleRejectSub = async () => {
     if (!rejectSubId) return;
+    if (!rejectReason.trim()) { toast.error('Alasan penolakan wajib diisi'); return; }
     const { error } = await supabase.from('pos_subscriptions').update({
       status: 'REJECTED',
-      rejection_reason: rejectReason,
+      payment_status: 'REJECTED',
+      rejection_reason: rejectReason.trim() || 'Bukti pembayaran atau data langganan belum dapat diverifikasi.',
     }).eq('id', rejectSubId);
     if (error) { toast.error('Gagal menolak'); return; }
     toast.success('Langganan ditolak');
@@ -151,13 +169,13 @@ export default function AdminPOSPage() {
   const pendingCount = subscriptions.filter(s => s.status === 'PENDING').length;
 
   return (
-    <AdminLayout title="Manajemen Kasir POS" subtitle="Kelola paket, langganan, dan konfigurasi kasir">
+    <AdminLayout title="Manajemen Langganan POS" subtitle="Kelola paket, verifikasi pembayaran, dan akses fitur kasir">
       <Tabs defaultValue="subscriptions" className="space-y-6">
         <TabsList>
           <TabsTrigger value="subscriptions" className="flex items-center gap-2">
-            Permintaan {pendingCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5">{pendingCount}</Badge>}
+              Review Langganan {pendingCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5">{pendingCount}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="packages">Paket Harga</TabsTrigger>
+          <TabsTrigger value="packages">Paket & Fitur</TabsTrigger>
           <TabsTrigger value="config">Konfigurasi</TabsTrigger>
         </TabsList>
 

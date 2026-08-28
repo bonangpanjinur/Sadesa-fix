@@ -96,7 +96,7 @@ export function AdminSidebar({
         { label: 'Desa Wisata', href: '/admin/villages', icon: <MapPin className="h-4 w-4" />, badge: pendingVillages },
         { label: 'Kurir', href: '/admin/couriers', icon: <Bike className="h-4 w-4" />, badge: pendingCouriers },
         { label: 'Kasir POS', href: '/admin/pos', icon: <Receipt className="h-4 w-4" /> },
-        { label: 'Paket Kuota', href: '/admin/transaction-quota', icon: <Package className="h-4 w-4" /> },
+        { label: 'Paket Kuota Marketplace', href: '/admin/transaction-quota', icon: <Package className="h-4 w-4" /> },
         { label: 'Kategori Produk', href: '/admin/categories', icon: <Tags className="h-4 w-4" /> },
         { label: 'Dispute Center', href: '/admin/disputes', icon: <FileText className="h-4 w-4" /> },
       ],

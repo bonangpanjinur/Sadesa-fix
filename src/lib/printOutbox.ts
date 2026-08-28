@@ -45,11 +45,11 @@ export function enqueueReceiptJob(snapshot: ReceiptSnapshot, cashierName?: strin
   return enqueueReceiptData(createPrintJob(snapshot, cashierName, getPrinterSettings().printCopies).receipt);
 }
 
-export async function flushReceiptOutbox(): Promise<{ printed: number; failed: number }> {
+export async function flushReceiptOutbox(filter?: (job: PrintJobEnvelope) => boolean): Promise<{ printed: number; failed: number }> {
   const jobs = readJobs();
   let printed = 0;
   let failed = 0;
-  for (const stored of jobs.filter(job => job.status !== 'printed')) {
+  for (const stored of jobs.filter(job => job.status !== 'printed' && (!filter || filter(hydrate(job))))) {
     try {
       const submitted = await printBridgeClient.submitReceipt(hydrate(stored));
       const finalJob = submitted.status === 'printed' || submitted.status === 'failed'

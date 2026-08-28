@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+
 /**
  * S6-04: Export laporan ke PDF dan Excel
  * Utility untuk semua halaman laporan POS dan marketplace.
@@ -128,8 +130,10 @@ export async function exportToPDF(options: ExportOptions): Promise<void> {
 
   const win = window.open('', '_blank', 'width=900,height=700');
   if (!win) { alert('Aktifkan popup untuk mencetak PDF.'); return; }
-  win.document.write(html);
+  win.document.write(DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }));
   win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
 }
 
 /** Export POS transactions to Excel-compatible CSV */

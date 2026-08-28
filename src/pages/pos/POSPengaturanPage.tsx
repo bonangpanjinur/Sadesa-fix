@@ -22,6 +22,7 @@ import {
 } from '@/lib/thermalPrinter';
 import type { PrinterSettings, ConnectionType } from '@/lib/thermalPrinter';
 import { printBridgeClient } from '@/lib/printBridgeClient';
+import { flushReceiptOutbox, getPendingReceiptCount } from '@/lib/printOutbox';
 
 interface Outlet {
   id: string;
@@ -51,6 +52,8 @@ export default function POSPengaturanPage() {
   const [printerStatus, setPrinterStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [printerMsg, setPrinterMsg] = useState('');
   const [testingPrint, setTestingPrint] = useState(false);
+  const [pendingPrintJobs, setPendingPrintJobs] = useState(() => getPendingReceiptCount());
+  const [flushingPrintJobs, setFlushingPrintJobs] = useState(false);
 
   const uniPrinter = getUniversalPrinter();
   const bluetoothSupported = BluetoothPrinter.isSupported();
@@ -139,6 +142,18 @@ export default function POSPengaturanPage() {
     } finally {
       setTestingPrint(false);
     }
+  };
+
+  const retryPrintJobs = async () => {
+    setFlushingPrintJobs(true);
+    try {
+      const result = await flushReceiptOutbox();
+      setPendingPrintJobs(getPendingReceiptCount());
+      if (result.failed > 0) toast.error('Sebagian job masih gagal; periksa koneksi printer.');
+      else toast.success(result.printed > 0 ? `${result.printed} job berhasil dicetak.` : 'Tidak ada job yang dapat dicetak.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal memproses antrean print');
+    } finally { setFlushingPrintJobs(false); }
   };
 
   const disconnectPrinter = async () => {
@@ -440,6 +455,12 @@ export default function POSPengaturanPage() {
         <TabsContent value="printer">
           <div className="space-y-4">
             {/* Status bar */}
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div><p className="font-semibold">Antrean print: {pendingPrintJobs}</p><p className="text-xs text-muted-foreground">Job gagal atau tertunda akan tetap disimpan dan dapat dicoba ulang.</p></div>
+                <Button variant="outline" size="sm" onClick={() => void retryPrintJobs()} disabled={flushingPrintJobs || pendingPrintJobs === 0}><RefreshCw className="mr-2 h-4 w-4" />{flushingPrintJobs ? 'Memproses...' : 'Coba ulang antrean'}</Button>
+              </CardContent>
+            </Card>
             <div className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium
               ${printerStatus === 'connected' ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
               : printerStatus === 'error' ? 'bg-red-50 border-red-300 text-red-800'
