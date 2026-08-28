@@ -18,9 +18,11 @@ export function ProtectedRoute({
   const { user, loading: authLoading } = useAuth();
   const { roles, loading: rolesLoading, hasAnyRole } = useUserRoles();
   const location = useLocation();
+  const posRouteRoles: AppRole[] = ['admin', 'merchant'];
+  const requiredRoles = allowedRoles ?? (location.pathname === '/pos' || location.pathname.startsWith('/pos/') ? posRouteRoles : undefined);
 
   // Show loading while checking auth state
-  const waitingForRequiredRoles = Boolean(allowedRoles?.length) && rolesLoading;
+  const waitingForRequiredRoles = Boolean(requiredRoles?.length) && rolesLoading;
 
   if (authLoading || waitingForRequiredRoles) {
     return (
@@ -39,8 +41,8 @@ export function ProtectedRoute({
   }
 
   // If specific roles are required, check them
-  if (allowedRoles && allowedRoles.length > 0) {
-    if (!hasAnyRole(allowedRoles)) {
+  if (requiredRoles && requiredRoles.length > 0) {
+    if (!hasAnyRole(requiredRoles)) {
       // User doesn't have required role - redirect to appropriate dashboard
       return <Navigate to="/unauthorized" replace />;
     }

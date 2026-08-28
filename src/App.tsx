@@ -1072,7 +1072,7 @@ const App = () => (
               <Route path="/pos/penggajian" element={<ProtectedRoute><POSPenggajianPage /></ProtectedRoute>} />
               <Route path="/pos/hutang-piutang" element={<ProtectedRoute><POSHutangPiutangPage /></ProtectedRoute>} />
               <Route path="/pos/target-omzet" element={<ProtectedRoute><POSTargetOmzetPage /></ProtectedRoute>} />
-              <Route path="/pos/harga" element={<POSHargaPage />} />
+              <Route path="/pos/harga" element={<ProtectedRoute allowedRoles={['admin', 'merchant']}><POSHargaPage /></ProtectedRoute>} />
               <Route path="/pos/menu-qr" element={<ProtectedRoute><POSMenuQRPage /></ProtectedRoute>} />
 
               {/* Menu Digital QR — publik, tidak perlu login */}

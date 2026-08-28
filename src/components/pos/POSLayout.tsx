@@ -1,4 +1,5 @@
 import { ReactNode, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { POSSidebar } from './POSSidebar';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { usePOS } from '@/contexts/POSContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { QROrderNotificationBell } from './QROrderNotificationBell';
+import { canAccessPOSPath } from './posPermissions';
 
 interface POSLayoutProps {
   children: ReactNode;
@@ -19,10 +21,11 @@ interface POSLayoutProps {
 export function POSLayout({ children, title, subtitle, actions, fullWidth }: POSLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { tenant, loading, error: tenantError, refetchTenant } = usePOS();
-  const { user } = useAuth();
+  const { user, roles, rolesLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  if (loading) {
+  if (loading || rolesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -35,6 +38,11 @@ export function POSLayout({ children, title, subtitle, actions, fullWidth }: POS
 
   if (!user) {
     navigate('/auth');
+    return null;
+  }
+
+  if (!canAccessPOSPath(roles, location.pathname)) {
+    navigate('/unauthorized', { replace: true });
     return null;
   }
 

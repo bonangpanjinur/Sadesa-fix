@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePOS } from '@/contexts/POSContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { canAccessPOSPath } from './posPermissions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SidebarItem {
@@ -23,6 +25,7 @@ interface SidebarItem {
 export function POSSidebar() {
   const location = useLocation();
   const { tenant, outlets, activeOutlet, setActiveOutlet } = usePOS();
+  const { roles } = useAuth();
 
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', href: '/pos', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -104,7 +107,7 @@ export function POSSidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {menuItems.map((item) => {
+        {menuItems.filter((item) => canAccessPOSPath(roles, item.href)).map((item) => {
           const isActive = item.href === '/pos'
             ? location.pathname === '/pos'
             : location.pathname.startsWith(item.href);
