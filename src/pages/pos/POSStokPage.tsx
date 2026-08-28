@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
+import { POSEmptyState, POSErrorState, POSLoadingState } from '@/components/pos/POSPageStates';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -61,6 +62,7 @@ export default function POSStokPage() {
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [mutations, setMutations] = useState<Mutation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [adjustDialog, setAdjustDialog] = useState(false);
   const [selectedStock, setSelectedStock] = useState<StockItem | null>(null);
@@ -71,13 +73,19 @@ export default function POSStokPage() {
 
   const fetchStocks = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
-    const { data } = await supabase
+    setError('');
+    const { data, error: stockError } = await supabase
       .from('pos_stock' as never)
       .select('*, pos_products(name, sku, unit, price, cost_price, is_active)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .order('pos_products(name)');
-    setStocks((data || []) as unknown as StockItem[]);
+    if (stockError) {
+      setError(stockError.message || 'Gagal memuat stok');
+      setStocks([]);
+    } else {
+      setStocks((data || []) as unknown as StockItem[]);
+    }
     setLoading(false);
   }, [tenant, activeOutlet]);
 
@@ -182,8 +190,13 @@ export default function POSStokPage() {
   };
 
   const handleMinStockUpdate = async (stockId: string, minStock: number) => {
-    await supabase.from('pos_stock' as never).update({ min_stock: minStock }).eq('id', stockId);
-    fetchStocks();
+    const { error: updateError } = await supabase.from('pos_stock' as never).update({ min_stock: minStock }).eq('id', stockId);
+    if (updateError) {
+      toast.error(`Batas minimum gagal disimpan: ${updateError.message}`);
+      return;
+    }
+    toast.success('Batas minimum stok diperbarui');
+    void fetchStocks();
   };
 
   const sendReorderNotifications = async () => {
@@ -197,7 +210,7 @@ export default function POSStokPage() {
   return (
     <POSLayout title="Manajemen Stok" subtitle={`Outlet: ${activeOutlet?.name || ''}`}>
       <Tabs defaultValue="stok">
-        <TabsList className="mb-4">
+        <TabsList aria-label="Kategori persediaan" className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto p-1 sm:w-auto">
           <TabsTrigger value="stok">Stok Saat Ini</TabsTrigger>
           <TabsTrigger value="mutasi">Riwayat Mutasi</TabsTrigger>
           <TabsTrigger value="batch">Batch & FEFO</TabsTrigger>
@@ -226,7 +239,7 @@ export default function POSStokPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Card className="border-0 shadow-sm">
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Total Item Produk</p>
@@ -247,12 +260,11 @@ export default function POSStokPage() {
             </div>
 
             {loading ? (
-              <div className="space-y-2">{[...Array(6)].map((_, i) => <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />)}</div>
+              <POSLoadingState label="Memuat stok outlet..." />
+            ) : error ? (
+              <POSErrorState description={error} onRetry={() => void fetchStocks()} />
             ) : filtered.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Belum ada data stok</p>
-              </div>
+              <POSEmptyState title="Belum ada data stok" description="Stok produk akan tampil setelah produk dan outlet dikonfigurasi." />
             ) : (
               <div className="space-y-2">
                 {filtered.map(s => {
