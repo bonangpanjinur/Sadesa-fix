@@ -232,7 +232,7 @@ export default function POSMenuQRPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filtered.map(table => {
-              const menuUrl = tenant ? getMenuUrl(tenant.id, table.id) : '';
+              const menuUrl = tenant ? getPOSMenuUrl(tenant.id, table.id) : '';
               return (
                 <Card key={table.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-3">

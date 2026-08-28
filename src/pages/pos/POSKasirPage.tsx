@@ -133,16 +133,16 @@ export default function POSKasirPage() {
     pointsToRedeem,
     customerPoints: selectedCustomer ? customerPoints : 0,
     loyaltyProgram,
-    paymentAmount: Number(paymentAmount) || 0,
-    paymentMethod,
+    paymentAmount: 0,
+    paymentMethod: 'cash',
   });
   const {
     subtotal, taxAmount, promoDiscount: calculatedPromoDiscount,
     voucherDiscount: calculatedVoucherDiscount, pointsDiscount,
-    total, pointsEarned, change,
-    } = pricing;
+    total, pointsEarned,
+  } = pricing;
 
-  // Payment state is initialized after pricing so the dialog always receives the current total.
+  // Payment state is initialized from the current total; change is derived after the hook is available.
   const {
     paymentMethod,
     paymentAmount, setPaymentAmount,
@@ -155,6 +155,9 @@ export default function POSKasirPage() {
     openPayment: openPaymentState,
     handlePaymentChange,
   } = usePOSPayment(total, cart.length);
+  const change = paymentMethod === 'cash'
+    ? Math.max(0, (Number(paymentAmount) || 0) - total)
+    : 0;
 
   const fetchProducts = useCallback(async () => {
     if (!tenant || !activeOutlet) return;

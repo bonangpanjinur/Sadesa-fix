@@ -51,7 +51,7 @@ export async function flushReceiptOutbox(filter?: (job: PrintJobEnvelope) => boo
   let failed = 0;
   for (const stored of jobs.filter(job => job.status !== 'printed' && (!filter || filter(hydrate(job))))) {
     try {
-      const submitted = await printBridgeClient.submitReceipt(hydrate(stored));
+      const submitted = await printBridgeClient.submitReceipt(hydrate(stored).receipt);
       const finalJob = submitted.status === 'printed' || submitted.status === 'failed'
         ? submitted
         : await printBridgeClient.waitForJob(submitted.jobId);
