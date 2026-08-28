@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { POSSidebar } from '@/components/pos/POSSidebar';
 import { cn } from '@/lib/utils';
 import { processAtomicPOSSale } from '@/lib/posCheckout';
+import { calculatePOSPricing } from '@/lib/posPricing';
 import { usePOSOfflineSync } from '@/hooks/usePOSOfflineSync';
 import type {
   CartItem, HeldBill, Customer, LastSale, ReceiptStore, LoyaltyProgram,
@@ -104,20 +105,23 @@ export default function POSKasirPage() {
   const [variants, setVariants] = useState<Variant[]>([]);
 
   // ── Kalkulasi ────────────────────────────────────────────
-  const subtotal = cart.reduce((s, i) => s + (i.price * i.qty - i.discount), 0);
-  const taxAmount = cart.reduce((s, i) => s + ((i.price * i.qty - i.discount) * i.taxRate / 100), 0);
-  const maxPointsDiscount = loyaltyProgram && selectedCustomer
-    ? Math.min(
-        Math.floor(customerPoints / loyaltyProgram.redeem_rate),
-        Math.floor((subtotal + taxAmount) * loyaltyProgram.max_redeem_percent / 100)
-      )
-    : 0;
-  const pointsDiscount = usePoints && loyaltyProgram
-    ? Math.min(Math.floor(pointsToRedeem / loyaltyProgram.redeem_rate), maxPointsDiscount)
-    : 0;
-  const total = Math.max(0, subtotal + taxAmount - discount - promoDiscount - voucherDiscount - pointsDiscount);
-  const pointsEarned = loyaltyProgram && selectedCustomer ? Math.floor(total / loyaltyProgram.earn_per_rupiah) : 0;
-  const change = paymentMethod === 'cash' ? Math.max(0, (Number(paymentAmount) || 0) - total) : 0;
+  const pricing = calculatePOSPricing({
+    cart,
+    orderDiscount: discount,
+    promo: appliedPromo,
+    voucher: appliedVoucher,
+    usePoints: usePoints && Boolean(selectedCustomer),
+    pointsToRedeem,
+    customerPoints: selectedCustomer ? customerPoints : 0,
+    loyaltyProgram,
+    paymentAmount: Number(paymentAmount) || 0,
+    paymentMethod,
+  });
+  const {
+    subtotal, taxAmount, promoDiscount: calculatedPromoDiscount,
+    voucherDiscount: calculatedVoucherDiscount, pointsDiscount,
+    total, pointsEarned, change,
+  } = pricing;
 
   const fetchProducts = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
@@ -305,7 +309,7 @@ export default function POSKasirPage() {
     const effectiveMethod = paymentMethodOverride || paymentMethod;
     if (!paymentMethodOverride) {
       if (isSplitPayment) {
-        if (Number(splitAmount1) + Number(splitAmount2) < total) { toast.error('Total bayar kurang dari total transaksi'); return; }
+        if (Number(splitAmount1) + Number(splitAmount2) !== total) { toast.error('Total pembayaran split harus sama dengan total transaksi'); return; }
       } else if (effectiveMethod === 'cash' && (Number(paymentAmount) || 0) < total) {
         toast.error('Jumlah bayar kurang dari total'); return;
       }
@@ -341,20 +345,20 @@ export default function POSKasirPage() {
           customer_name: selectedCustomer?.name || customerName || null,
           customer_segment: selectedCustomer?.is_member ? 'member' : 'retail',
           subtotal,
-          discount_amount: discount,
+          discount_amount: discount + calculatedPromoDiscount + calculatedVoucherDiscount + pointsDiscount,
           tax_amount: taxAmount,
           total,
           payment_method: storedPaymentMethod,
           payment_amount: paymentAmountValue,
-          change_amount: isSplitPayment ? Math.max(0, paymentAmountValue - total) : (effectiveMethod === 'cash' ? change : 0),
+          change_amount: effectiveMethod === 'cash' && !isSplitPayment ? change : 0,
           notes: isSplitPayment ? `${notes ? `${notes} | ` : ''}Split: ${effectiveMethod}+${splitMethod2}` : (notes || null),
           promotion_id: appliedPromo?.id || null,
-          promotion_discount: promoDiscount,
+          promotion_discount: calculatedPromoDiscount,
           voucher_id: appliedVoucher?.id || null,
           voucher_code: appliedVoucher?.code || null,
-          voucher_discount: voucherDiscount,
+          voucher_discount: calculatedVoucherDiscount,
           loyalty_points_earned: pointsEarned,
-          loyalty_points_redeemed: usePoints ? pointsToRedeem : 0,
+          loyalty_points_redeemed: usePoints && selectedCustomer ? pointsToRedeem : 0,
           loyalty_discount: pointsDiscount,
         },
         cart.map(item => ({
