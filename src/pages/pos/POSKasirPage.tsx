@@ -2,7 +2,10 @@ import { lazy, Suspense, useState, useEffect, useRef, useCallback } from 'react'
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getUniversalPrinter, printReceiptBrowser, getPrinterSettings } from '@/lib/thermalPrinter';
+import { getPrinterSettings } from '@/lib/thermalPrinter';
+import { printBridgeClient } from '@/lib/printBridgeClient';
+import { createPrintJobId, toReceiptData } from '@/lib/receiptDomain';
+import { enqueueReceiptJob, flushReceiptOutbox } from '@/lib/printOutbox';
 import type { ReceiptData } from '@/lib/thermalPrinter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -314,6 +317,7 @@ export default function POSKasirPage() {
     const requestKey = paymentRequestKeyRef.current ?? crypto.randomUUID();
     paymentRequestKeyRef.current = requestKey;
     const saleNumber = `TRX-${Date.now()}`;
+    const createdAt = new Date().toISOString();
     const storedPaymentMethod = isSplitPayment ? 'split' : effectiveMethod;
     const paymentAmountValue = isSplitPayment
       ? Number(splitAmount1) + Number(splitAmount2)
@@ -369,7 +373,11 @@ export default function POSKasirPage() {
       );
 
       setLastSale({
+        saleId: result.sale_id,
         saleNumber: result.sale_number,
+        createdAt,
+        outletId: activeOutlet.id,
+        printJobId: createPrintJobId(result.sale_id, result.sale_number),
         total: result.total,
         change: effectiveMethod === 'cash' ? change : 0,
         paymentMethod: effectiveMethod,
@@ -493,57 +501,56 @@ export default function POSKasirPage() {
   }, [products, addToCart]);
 
   // ── Universal Printer ─────────────────────────────────────
-  const uniPrinter = getUniversalPrinter();
-
   const connectThermalPrinter = async () => {
-    const settings = getPrinterSettings();
     setThermalConnecting(true);
     try {
-      if (settings.connectionType === 'usb') {
-        const { USBPrinter } = await import('@/lib/thermalPrinter');
-        if (!USBPrinter.isSupported()) { toast.error('Browser tidak mendukung Web Serial API.'); return; }
-        const ok = await uniPrinter.usb.connect(settings.baudRate);
-        if (ok) { setThermalConnected(true); toast.success('Printer USB terhubung!'); }
-      } else if (settings.connectionType === 'bluetooth') {
-        const ok = await uniPrinter.bluetooth.connect();
-        if (ok) { setThermalConnected(true); toast.success(`Printer Bluetooth: ${uniPrinter.bluetooth.deviceName}`); }
-      } else {
-        if (!settings.wifiIp) { toast.error('IP printer WiFi belum diatur. Buka Pengaturan → Printer.'); return; }
-        setThermalConnected(true);
-        toast.success(`Printer WiFi: ${settings.wifiIp}:${settings.wifiPort}`);
-      }
-    } catch (err: unknown) { toast.error('Gagal menghubungkan printer: ' + (err instanceof Error ? err.message : 'Coba lagi')); }
-    finally { setThermalConnecting(false); }
+      const health = await printBridgeClient.health();
+      const printers = await printBridgeClient.listPrinters();
+      if (!health.ok || printers.length === 0) throw new Error('Print Bridge aktif, tetapi belum ada printer yang dikonfigurasi.');
+      setThermalConnected(true);
+      toast.success(`Print Bridge siap · ${printers.find(printer => printer.isDefault)?.name || printers[0].name}`);
+    } catch (err: unknown) {
+      setThermalConnected(false);
+      toast.error(`Print Bridge belum siap: ${err instanceof Error ? err.message : 'Pastikan service lokal berjalan'}`);
+    } finally { setThermalConnecting(false); }
   };
 
-  const buildReceiptData = (): ReceiptData => ({
-    storeName: (tenant as unknown as ReceiptStore)?.name || 'Toko', storeAddress: (tenant as unknown as ReceiptStore)?.address,
-    storePhone: (tenant as unknown as ReceiptStore)?.phone, receiptHeader: (tenant as unknown as ReceiptStore)?.receipt_header,
-    receiptFooter: (tenant as unknown as ReceiptStore)?.receipt_footer, invoiceNo: lastSale.saleNumber,
-    date: new Date(), cashierName: user?.email,
-    customerName: lastSale.customerName !== 'Umum' ? lastSale.customerName : undefined,
-    items: lastSale.items.map((i: CartItem) => ({ name: i.variantName ? `${i.name} (${i.variantName})` : i.name, qty: i.qty, price: i.price, discount: i.discount || 0 })),
-    subtotal: lastSale.subtotal ?? lastSale.total,
-    discountAmount: lastSale.promoDiscount + lastSale.voucherDiscount + lastSale.pointsDiscount,
-    taxAmount: lastSale.taxAmount ?? 0, total: lastSale.total,
-    paidAmount: lastSale.paidAmount ?? lastSale.total, changeAmount: lastSale.change ?? 0,
-    paymentMethod: lastSale.paymentMethod,
-  });
+  const buildReceiptData = (): ReceiptData => {
+    if (!lastSale) throw new Error('Belum ada transaksi untuk dicetak');
+    return toReceiptData({
+      store: tenant as unknown as ReceiptStore,
+      sale: lastSale,
+    }, user?.email);
+  };
 
-  const printReceipt = async () => {
-    if (!lastSale) return;
-    const receiptData = buildReceiptData();
-    if (thermalConnected) {
-      try {
-        await uniPrinter.printReceipt(receiptData);
-        return;
-      } catch (err: unknown) {
-        toast.error('Printer gagal: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui') + '. Beralih ke cetak browser.');
+  const printReceipt = useCallback(async () => {
+    if (!lastSale || !tenant || !activeOutlet) return;
+    try {
+      enqueueReceiptJob({
+        store: tenant as unknown as ReceiptStore,
+        sale: lastSale,
+      }, user?.email);
+      const result = await flushReceiptOutbox();
+      if (result.failed > 0) {
         setThermalConnected(false);
+        toast.error('Struk disimpan di antrean. Print Bridge atau printer belum siap.');
+      } else {
+        setThermalConnected(true);
+        toast.success('Struk berhasil dikirim ke printer');
       }
+    } catch (err: unknown) {
+      setThermalConnected(false);
+      toast.error(`Struk disimpan, tetapi belum tercetak: ${err instanceof Error ? err.message : 'Jalankan Print Bridge'}`);
     }
-    await printReceiptBrowser(receiptData);
-  };
+  }, [lastSale, tenant, activeOutlet, user?.email]);
+
+  const autoPrintedJobRef = useRef<string | null>(null);
+  useEffect(() => {
+    const settings = getPrinterSettings();
+    if (!successDialog || !lastSale || !settings.autoPrint || autoPrintedJobRef.current === lastSale.printJobId) return;
+    autoPrintedJobRef.current = lastSale.printJobId;
+    void printReceipt();
+  }, [successDialog, lastSale, printReceipt]);
 
   const sendReceiptViaWhatsApp = () => {
     if (!lastSale) return;

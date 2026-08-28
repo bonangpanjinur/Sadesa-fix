@@ -21,6 +21,7 @@ import {
   USBPrinter, BluetoothPrinter, WiFiPrinter, getUniversalPrinter,
 } from '@/lib/thermalPrinter';
 import type { PrinterSettings, ConnectionType } from '@/lib/thermalPrinter';
+import { printBridgeClient } from '@/lib/printBridgeClient';
 
 interface Outlet {
   id: string;
@@ -65,22 +66,16 @@ export default function POSPengaturanPage() {
   };
 
   const connectUSB = async () => {
-    if (!USBPrinter.isSupported()) {
-      toast.error('Web Serial tidak didukung. Gunakan Chrome/Edge versi terbaru.');
-      return;
-    }
     setPrinterStatus('connecting');
-    setPrinterMsg('Menghubungkan ke printer USB...');
+    setPrinterMsg('Memeriksa Print Bridge dan printer USB...');
     try {
-      const ok = await uniPrinter.usb.connect(printerSettings.baudRate);
-      if (ok) {
-        setPrinterStatus('connected');
-        setPrinterMsg(`Printer USB terhubung! Baud: ${printerSettings.baudRate}`);
-        toast.success('Printer USB terhubung!');
-      } else {
-        setPrinterStatus('idle');
-        setPrinterMsg('Tidak ada printer dipilih');
-      }
+      const health = await printBridgeClient.health();
+      const printers = await printBridgeClient.listPrinters();
+      const printer = printers.find(item => item.type === 'serial');
+      if (!health.ok || !printer) throw new Error('Printer USB belum dikonfigurasi di Print Bridge.');
+      setPrinterStatus('connected');
+      setPrinterMsg(`Printer USB siap: ${printer.name}`);
+      toast.success('Printer USB siap digunakan tanpa browser');
     } catch (err: unknown) {
       setPrinterStatus('error');
       setPrinterMsg(err instanceof Error ? err.message : String(err));
@@ -89,22 +84,16 @@ export default function POSPengaturanPage() {
   };
 
   const connectBluetooth = async () => {
-    if (!BluetoothPrinter.isSupported()) {
-      toast.error('Web Bluetooth tidak didukung. Gunakan Chrome/Edge terbaru di HTTPS.');
-      return;
-    }
     setPrinterStatus('connecting');
-    setPrinterMsg('Mencari printer Bluetooth...');
+    setPrinterMsg('Memeriksa Print Bridge dan printer Bluetooth...');
     try {
-      const ok = await uniPrinter.bluetooth.connect();
-      if (ok) {
-        setPrinterStatus('connected');
-        setPrinterMsg(`Terhubung ke: ${uniPrinter.bluetooth.deviceName}`);
-        toast.success(`Printer Bluetooth terhubung: ${uniPrinter.bluetooth.deviceName}`);
-      } else {
-        setPrinterStatus('idle');
-        setPrinterMsg('Tidak ada perangkat dipilih');
-      }
+      const health = await printBridgeClient.health();
+      const printers = await printBridgeClient.listPrinters();
+      const printer = printers.find(item => item.name.toLowerCase().includes('bluetooth'));
+      if (!health.ok || !printer) throw new Error('Printer Bluetooth belum dikonfigurasi di Print Bridge.');
+      setPrinterStatus('connected');
+      setPrinterMsg(`Printer Bluetooth siap: ${printer.name}`);
+      toast.success('Printer Bluetooth siap digunakan tanpa browser');
     } catch (err: unknown) {
       setPrinterStatus('error');
       setPrinterMsg(err instanceof Error ? err.message : String(err));
@@ -117,11 +106,13 @@ export default function POSPengaturanPage() {
     setPrinterStatus('connecting');
     setPrinterMsg(`Mengecek ${printerSettings.wifiIp}:${printerSettings.wifiPort}...`);
     try {
-      const wifi = new WiFiPrinter(printerSettings.wifiIp, printerSettings.wifiPort);
-      await wifi.testConnection();
+      const health = await printBridgeClient.health();
+      const printers = await printBridgeClient.listPrinters();
+      const printer = printers.find(item => item.type === 'tcp' && item.host === printerSettings.wifiIp && Number(item.port || 9100) === printerSettings.wifiPort);
+      if (!health.ok || !printer) throw new Error('Printer WiFi/LAN belum dikonfigurasi di Print Bridge.');
       setPrinterStatus('connected');
-      setPrinterMsg(`Printer WiFi aktif: ${printerSettings.wifiIp}:${printerSettings.wifiPort}`);
-      toast.success('Printer WiFi terhubung!');
+      setPrinterMsg(`Printer WiFi aktif: ${printer.name} (${printerSettings.wifiIp}:${printerSettings.wifiPort})`);
+      toast.success('Printer WiFi siap digunakan tanpa browser!');
     } catch (err: unknown) {
       setPrinterStatus('error');
       setPrinterMsg(err instanceof Error ? err.message : String(err));
@@ -133,9 +124,17 @@ export default function POSPengaturanPage() {
     savePrinterSettings(printerSettings);
     setTestingPrint(true);
     try {
-      await uniPrinter.testPrint();
-      toast.success('Test print berhasil dikirim!');
+      const job = await printBridgeClient.testPrint();
+      const finalJob = job.status === 'printed' || job.status === 'failed'
+        ? job
+        : await printBridgeClient.waitForJob(job.jobId);
+      if (finalJob.status === 'failed') throw new Error(finalJob.error || 'Printer menolak test print');
+      toast.success('Test print berhasil dikirim ke printer!');
+      setPrinterStatus('connected');
+      setPrinterMsg('Test print berhasil');
     } catch (err: unknown) {
+      setPrinterStatus('error');
+      setPrinterMsg(err instanceof Error ? err.message : String(err));
       toast.error(`Test print gagal: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setTestingPrint(false);
@@ -143,11 +142,9 @@ export default function POSPengaturanPage() {
   };
 
   const disconnectPrinter = async () => {
-    if (printerSettings.connectionType === 'usb') await uniPrinter.usb.disconnect();
-    if (printerSettings.connectionType === 'bluetooth') await uniPrinter.bluetooth.disconnect();
     setPrinterStatus('idle');
-    setPrinterMsg('');
-    toast.info('Printer diputuskan');
+    setPrinterMsg('Konfigurasi tersimpan; bridge akan memakai printer default berikutnya.');
+    toast.info('Status printer direset');
   };
 
   useEffect(() => {
