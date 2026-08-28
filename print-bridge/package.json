@@ -1,0 +1,14 @@
+{
+  "name": "sadesa-pos-print-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local ESC/POS bridge for SaDesa POS",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs"
+  },
+  "optionalDependencies": {
+    "serialport": "^12.0.0"
+  }
+}
