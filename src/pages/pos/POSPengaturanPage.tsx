@@ -249,7 +249,7 @@ export default function POSPengaturanPage() {
   return (
     <POSLayout title="Pengaturan" subtitle="Konfigurasi usaha, outlet, dan profil sistem">
       <Tabs defaultValue="usaha">
-        <TabsList className="mb-4 flex-wrap h-auto">
+        <TabsList aria-label="Kategori pengaturan POS" className="mb-4 h-auto w-full justify-start gap-1 overflow-x-auto p-1 sm:w-auto sm:flex-wrap">
           <TabsTrigger value="usaha">Profil Usaha</TabsTrigger>
           <TabsTrigger value="outlet">Outlet</TabsTrigger>
           <TabsTrigger value="master">Master Data</TabsTrigger>
@@ -339,7 +339,7 @@ export default function POSPengaturanPage() {
               <div className="space-y-2">
                 {outlets.map(o => (
                   <Card key={o.id} className={`border shadow-sm ${!(o as unknown as Outlet).is_active ? 'opacity-60' : ''}`}>
-                    <CardContent className="p-4 flex items-center gap-3">
+                    <CardContent className="flex items-center gap-3 p-3 sm:p-4">
                       <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <Store className="h-5 w-5 text-emerald-600" />
                       </div>
@@ -355,7 +355,7 @@ export default function POSPengaturanPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch checked={(o as unknown as Outlet).is_active !== false} onCheckedChange={() => toggleOutlet(o as unknown as Outlet)} />
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditOutlet(o as unknown as Outlet)}>
+                        <Button variant="ghost" size="icon" aria-label={`Edit outlet ${o.name}`} className="h-8 w-8" onClick={() => openEditOutlet(o as unknown as Outlet)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -450,7 +450,7 @@ export default function POSPengaturanPage() {
                 : <Printer className="h-4 w-4 flex-shrink-0" />}
               <span className="flex-1">{printerMsg || 'Belum ada printer terhubung'}</span>
               {(printerStatus === 'connected') && (
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={disconnectPrinter}>Putuskan</Button>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={disconnectPrinter}>Reset status</Button>
               )}
             </div>
 
@@ -475,11 +475,11 @@ export default function POSPengaturanPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">USB (Web Serial)</p>
+                      <p className="font-semibold text-sm">USB melalui Print Bridge</p>
                       {printerSettings.connectionType === 'usb' && <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Dipilih</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Hubungkan langsung via kabel USB. Dukungan Chrome/Edge terbaru. Cocok untuk printer counter kasir tetap.</p>
-                    <p className="text-xs text-amber-600 mt-1">⚠ Butuh izin browser pertama kali. Tidak bisa di Firefox/Safari.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Printer USB dikelola service lokal dan mencetak tanpa dialog browser. Cocok untuk counter kasir tetap.</p>
+                    <p className="text-xs text-emerald-600 mt-1">✓ Pastikan Print Bridge aktif di komputer kasir.</p>
                   </div>
                 </button>
 
@@ -513,11 +513,11 @@ export default function POSPengaturanPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">Bluetooth (Web Bluetooth)</p>
+                      <p className="font-semibold text-sm">Bluetooth melalui Print Bridge</p>
                       {printerSettings.connectionType === 'bluetooth' && <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Dipilih</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Printer Bluetooth portabel. Cocok untuk kasir bergerak, SPG, atau lapangan. Nordic UART / Generic Printer.</p>
-                    <p className="text-xs text-amber-600 mt-1">⚠ Butuh Chrome/Edge di HTTPS. Tidak tersedia di iOS.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Printer Bluetooth portabel dikelola service lokal. Cocok untuk kasir bergerak atau lapangan.</p>
+                    <p className="text-xs text-amber-600 mt-1">⚠ Dukungan bergantung pada tipe printer dan adapter Bluetooth di komputer bridge.</p>
                   </div>
                 </button>
               </CardContent>
@@ -530,7 +530,7 @@ export default function POSPengaturanPage() {
                   <CardTitle className="text-sm flex items-center gap-2"><Wifi className="h-4 w-4 text-blue-500" />Konfigurasi WiFi/LAN</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="col-span-2">
                       <Label>IP Address Printer</Label>
                       <Input className="mt-1 font-mono" value={printerSettings.wifiIp}
