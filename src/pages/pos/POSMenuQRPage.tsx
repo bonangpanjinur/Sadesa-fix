@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
+import { printBridgeClient } from '@/lib/printBridgeClient';
+import type { ReceiptData } from '@/lib/thermalPrinter';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -49,6 +51,8 @@ export default function POSMenuQRPage() {
   const [qrDialog, setQrDialog] = useState(false);
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
   const [copied, setCopied] = useState(false);
+  const [bridgeStatus, setBridgeStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [printing, setPrinting] = useState(false);
   const qrRef = useRef<SVGSVGElement | null>(null);
 
   const fetchTables = useCallback(async () => {
@@ -73,6 +77,17 @@ export default function POSMenuQRPage() {
   }, [tenant, activeOutlet]);
 
   useEffect(() => { fetchTables(); }, [fetchTables]);
+
+  const checkPrintBridge = useCallback(async () => {
+    try {
+      await printBridgeClient.health();
+      setBridgeStatus('online');
+    } catch {
+      setBridgeStatus('offline');
+    }
+  }, []);
+
+  useEffect(() => { void checkPrintBridge(); }, [checkPrintBridge]);
 
   const sections = ['semua', ...Array.from(new Set(tables.map(t => t.section))).sort()];
 
@@ -126,95 +141,68 @@ export default function POSMenuQRPage() {
     img.src = url;
   };
 
-  const printQR = () => {
-    if (!tenant || !selectedTable || !qrRef.current) return;
-    const menuUrl = getMenuUrl(tenant.id, selectedTable.id);
-    const svgData = new XMLSerializer().serializeToString(qrRef.current);
-    const svgBase64 = btoa(unescape(encodeURIComponent(svgData)));
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>QR Menu — ${selectedTable.name}</title>
-        <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #fff; }
-          h2 { font-size: 28px; margin: 0 0 6px; color: #111; }
-          p  { color: #555; margin: 4px 0; font-size: 15px; }
-          img { margin: 20px auto; display: block; width: 280px; height: 280px; }
-          .url { font-size: 11px; color: #888; margin-top: 12px; word-break: break-all; }
-          .border { border: 2px dashed #ccc; border-radius: 12px; padding: 30px; display: inline-block; margin-top: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="border">
-          <h2>${tenant.store_name || tenant.name}</h2>
-          <p><strong>${selectedTable.name}</strong> — ${selectedTable.section}</p>
-          <p style="color:#059669;font-weight:bold;font-size:18px;">Scan QR untuk melihat menu & memesan</p>
-          <img src="data:image/svg+xml;base64,${svgBase64}" />
-          <p>Tidak perlu download aplikasi</p>
-          <p class="url">${menuUrl}</p>
-        </div>
-        <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 1000); }</script>
-      </body>
-      </html>
-    `);
-    win.document.close();
+  const makeQrReceipt = (table: TableItem): ReceiptData => {
+    if (!tenant) throw new Error('Tenant belum siap');
+    const now = new Date().toISOString();
+    return {
+      saleId: `qr-menu:${tenant.id}:${table.id}`,
+      saleNumber: `QR-${table.name}`,
+      createdAt: now,
+      outletId: activeOutlet?.id || 'all-outlets',
+      jobId: `qr-menu:${tenant.id}:${table.id}:${Date.now()}`,
+      storeName: tenant.store_name || tenant.name,
+      receiptHeader: table.section,
+      receiptFooter: 'Scan untuk melihat menu & memesan',
+      invoiceNo: `QR-${table.name}`,
+      date: new Date(now),
+      items: [],
+      subtotal: 0,
+      discountAmount: 0,
+      taxAmount: 0,
+      total: 0,
+      paidAmount: 0,
+      changeAmount: 0,
+      paymentMethod: 'QR MENU',
+      qrData: getMenuUrl(tenant.id, table.id),
+    };
   };
 
-  const printAllQR = () => {
-    if (!tenant || tables.length === 0) return;
-    const tableItems = filtered.map(table => {
-      const menuUrl = getMenuUrl(tenant.id, table.id);
-      return `
-        <div class="card">
-          <h3>${tenant.store_name || tenant.name}</h3>
-          <p class="table-name">${table.name}</p>
-          <p class="section">${table.section} · ${table.capacity} orang</p>
-          <p class="instruction">Scan untuk melihat menu &amp; memesan</p>
-          <div class="qr-placeholder" data-url="${menuUrl}" data-table="${table.name}"></div>
-          <p class="url">${menuUrl}</p>
-        </div>
-      `;
-    }).join('');
+  const printQR = async (table = selectedTable) => {
+    if (!table || !tenant) return;
+    setPrinting(true);
+    try {
+      const job = await printBridgeClient.submitReceipt(makeQrReceipt(table));
+      const finished = await printBridgeClient.waitForJob(job.jobId);
+      if (finished.status === 'failed') throw new Error(finished.error || 'Printer menolak job QR');
+      setBridgeStatus('online');
+      toast.success(`QR ${table.name} dikirim ke printer`);
+    } catch (error) {
+      setBridgeStatus('offline');
+      toast.error(error instanceof Error ? error.message : 'Gagal mencetak QR melalui Print Bridge');
+    } finally {
+      setPrinting(false);
+    }
+  };
 
-    const win = window.open('', '_blank');
-    if (!win) { toast.error('Popup diblokir. Izinkan popup untuk browser ini.'); return; }
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Cetak Semua QR Menu</title>
-        <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-        <style>
-          body { font-family: Arial, sans-serif; background: #f5f5f5; }
-          .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px; }
-          .card { background: #fff; border: 2px dashed #ccc; border-radius: 12px; padding: 20px; text-align: center; page-break-inside: avoid; }
-          h3 { margin: 0 0 4px; font-size: 14px; color: #333; }
-          .table-name { font-size: 20px; font-weight: bold; color: #111; margin: 4px 0; }
-          .section { font-size: 12px; color: #777; margin: 2px 0; }
-          .instruction { color: #059669; font-weight: bold; font-size: 13px; margin: 8px 0; }
-          canvas { margin: 10px auto; display: block; }
-          .url { font-size: 9px; color: #aaa; margin-top: 8px; word-break: break-all; }
-          @media print { body { background: #fff; } .grid { gap: 10px; } }
-        </style>
-      </head>
-      <body>
-        <div class="grid">${tableItems}</div>
-        <script>
-          document.querySelectorAll('.qr-placeholder').forEach(el => {
-            const url = el.getAttribute('data-url');
-            const canvas = document.createElement('canvas');
-            el.replaceWith(canvas);
-            QRCode.toCanvas(canvas, url, { width: 160, margin: 1 });
-          });
-          setTimeout(() => { window.print(); }, 1500);
-        </script>
-      </body>
-      </html>
-    `);
-    win.document.close();
+  const printAllQR = async () => {
+    if (!tenant || filtered.length === 0) return;
+    setPrinting(true);
+    let printed = 0;
+    try {
+      for (const table of filtered) {
+        const job = await printBridgeClient.submitReceipt(makeQrReceipt(table));
+        const finished = await printBridgeClient.waitForJob(job.jobId);
+        if (finished.status === 'failed') throw new Error(finished.error || `QR ${table.name} gagal dicetak`);
+        printed += 1;
+      }
+      setBridgeStatus('online');
+      toast.success(`${printed} QR menu dikirim ke printer`);
+    } catch (error) {
+      setBridgeStatus('offline');
+      toast.error(error instanceof Error ? error.message : `Gagal setelah mencetak ${printed} QR`);
+    } finally {
+      setPrinting(false);
+    }
   };
 
   return (
@@ -232,6 +220,17 @@ export default function POSMenuQRPage() {
               <li>Pelanggan memilih menu dan kirim pesanan → langsung masuk ke dapur (KDS)</li>
             </ol>
           </div>
+        </div>
+
+        {/* Print Bridge diagnostic */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <span className={`h-2.5 w-2.5 rounded-full ${bridgeStatus === 'online' ? 'bg-emerald-500' : bridgeStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`} aria-hidden="true" />
+            <span className="font-medium">Print Bridge: {bridgeStatus === 'online' ? 'Terhubung' : bridgeStatus === 'checking' ? 'Memeriksa...' : 'Tidak tersedia'}</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => void checkPrintBridge()} disabled={bridgeStatus === 'checking'}>
+            <RefreshCw className="mr-1 h-4 w-4" /> Periksa koneksi
+          </Button>
         </div>
 
         {/* Controls */}
@@ -258,12 +257,12 @@ export default function POSMenuQRPage() {
                 <ExternalLink className="h-4 w-4 mr-1" /> Preview Menu
               </Button>
             )}
-            <Button
-              size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700"
-              onClick={printAllQR}
-              disabled={filtered.length === 0}
-            >
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => void printAllQR()}
+                disabled={filtered.length === 0 || printing}
+              >
               <Printer className="h-4 w-4 mr-1" /> Cetak Semua QR
             </Button>
           </div>
@@ -347,7 +346,8 @@ export default function POSMenuQRPage() {
                         size="sm"
                         variant="outline"
                         className="h-8 text-xs"
-                        onClick={() => { setSelectedTable(table); printQR(); }}
+                        onClick={() => void printQR(table)}
+                        disabled={printing}
                       >
                         <Printer className="h-3.5 w-3.5 mr-1" /> Cetak
                       </Button>
@@ -408,9 +408,9 @@ export default function POSMenuQRPage() {
                 <Button variant="outline" className="h-9" onClick={downloadQR}>
                   <Download className="h-4 w-4 mr-1.5" /> Unduh PNG
                 </Button>
-                <Button className="h-9 bg-emerald-600 hover:bg-emerald-700" onClick={printQR}>
-                  <Printer className="h-4 w-4 mr-1.5" /> Cetak
-                </Button>
+                        <Button className="h-9 bg-emerald-600 hover:bg-emerald-700" onClick={() => void printQR()} disabled={printing}>
+<Printer className="h-4 w-4 mr-1.5" /> {printing ? 'Mengirim...' : 'Cetak'}
+                        </Button>
               </div>
 
               <Button
