@@ -1,13 +1,14 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, Map, Bike } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, Map, MoreHorizontal } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { FloatingCartButton } from '@/components/layout/FloatingCartButton';
 import { Button } from '@/components/ui/button';
 import { CategoryIcon } from '@/components/CategoryIcon';
-import { useCategories } from '@/hooks/useCategories';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { PRIMARY_HOME_CATEGORIES, SECONDARY_HOME_CATEGORIES } from '@/lib/homeCategories';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
@@ -32,12 +33,11 @@ const Index = () => {
   const { 
     isSectionEnabled, 
     getEnabledSections, 
-    isCategoryVisible, 
     loading: layoutLoading 
   } = useHomepageLayout();
 
   const { location: userLocation } = useUserLocation();
-  const { getHomepageCategories } = useCategories();
+  const [categoriesSheetOpen, setCategoriesSheetOpen] = useState(false);
 
   // Wraps a section fetch so any failure is logged with section name,
   // fetch params, and timestamp before React Query surfaces the error.
@@ -139,9 +139,8 @@ const Index = () => {
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
-  // Filter categories based on admin settings - now dynamic from database
-  const homepageCategories = getHomepageCategories();
-  const visibleCategories = homepageCategories.filter(cat => isCategoryVisible(cat.id));
+  // Primary categories are curated for the homepage; secondary categories stay in Lainnya.
+  const visibleCategories = PRIMARY_HOME_CATEGORIES;
 
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
@@ -165,22 +164,28 @@ const Index = () => {
         if (layoutLoading && visibleCategories.length === 0) return <CategoriesSkeleton />;
         return (
           <section className="mt-4 px-5">
-            {visibleCategories.length > 0 && (
-              <div className="flex justify-between gap-2 overflow-x-auto hide-scrollbar pb-2">
-                {visibleCategories.map((cat) => (
-                  <CategoryIcon key={cat.id} {...cat} />
-                ))}
-                {/* Ojek Desa as category icon */}
-                <Link
-                  to="/ride"
-                  className="flex flex-col items-center gap-1.5 min-w-[60px] cursor-pointer group"
-                >
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center border transition shadow-sm group-hover:scale-105 group-active:scale-95 bg-emerald-100 text-emerald-700 border-emerald-200">
-                    <Bike className="h-5 w-5" />
+            {layoutLoading && visibleCategories.length === 0 ? <CategoriesSkeleton /> : (
+              <>
+                <div className="grid grid-cols-4 gap-x-3 gap-y-4">
+                  {visibleCategories.map((cat) => <CategoryIcon key={cat.id} {...cat} />)}
+                  <button
+                    type="button"
+                    onClick={() => setCategoriesSheetOpen(true)}
+                    className="flex min-w-0 flex-col items-center gap-1.5 cursor-pointer group"
+                    aria-label="Buka kategori lainnya"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-slate-700 shadow-sm transition group-hover:scale-105 group-active:scale-95">
+                      <MoreHorizontal className="h-5 w-5" />
+                    </div>
+                    <span className="text-[10px] font-medium text-muted-foreground">Lainnya</span>
+                  </button>
+                </div>
+                <BottomSheet isOpen={categoriesSheetOpen} onClose={() => setCategoriesSheetOpen(false)} title="Kategori lainnya" snapPoints={[0.72, 0.92]}>
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-5 p-5">
+                    {SECONDARY_HOME_CATEGORIES.map((cat) => <CategoryIcon key={cat.id} {...cat} />)}
                   </div>
-                  <span className="text-[10px] font-medium text-muted-foreground">Ojek</span>
-                </Link>
-              </div>
+                </BottomSheet>
+              </>
             )}
           </section>
         );

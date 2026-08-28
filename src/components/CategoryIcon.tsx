@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, Shirt, Shapes, MapPin, Package } from 'lucide-react';
+import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, HeartPulse, Bike, Smartphone, Car, House, Calendar, Briefcase } from 'lucide-react';
+import { getHomepageCategoryHref } from '@/lib/homeCategories';
 import { cn } from '@/lib/utils';
 
 const icons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -7,6 +8,16 @@ const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   shirt: Shirt,
   shapes: Shapes,
   'map-location-dot': MapPin,
+  'shopping-basket': ShoppingBasket,
+  wrench: Wrench,
+  sprout: Sprout,
+  'heart-pulse': HeartPulse,
+  bike: Bike,
+  smartphone: Smartphone,
+  car: Car,
+  house: House,
+  calendar: Calendar,
+  briefcase: Briefcase,
 };
 
 interface CategoryIconProps {
@@ -14,14 +25,15 @@ interface CategoryIconProps {
   name: string;
   icon: string;
   colorClass: string;
+  route?: string;
 }
 
-export function CategoryIcon({ id, name, icon, colorClass }: CategoryIconProps) {
+export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIconProps) {
   const Icon = icons[icon] || Package;
   
   return (
     <Link
-      to={id === 'wisata' ? '/tourism' : `/products?category=${id}`}
+      to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
       className="flex flex-col items-center gap-1.5 min-w-[60px] cursor-pointer group"
     >
       <div 
