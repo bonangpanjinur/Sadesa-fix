@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { printBridgeClient } from '@/lib/printBridgeClient';
-import { enqueueReceiptJob, flushReceiptOutbox } from '@/lib/printOutbox';
+import { enqueueReceiptData, flushReceiptOutbox } from '@/lib/printOutbox';
+import { createPrintJob } from '@/lib/receiptDomain';
+import { printReceiptBrowser } from '@/lib/thermalPrinter';
 import type { ReceiptStore, LastSale } from '@/components/pos/kasir/types';
 
 interface UsePOSReceiptArgs {
@@ -35,21 +37,29 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
 
   const printReceipt = useCallback(async () => {
     if (!lastSale || !tenant || !outletReady) return false;
+    const receiptJob = createPrintJob({ store: tenant, sale: lastSale }, userEmail);
+    enqueueReceiptData(receiptJob.receipt);
     try {
-      enqueueReceiptJob({ store: tenant, sale: lastSale }, userEmail);
       const result = await flushReceiptOutbox();
       if (result.failed > 0) {
         setThermalConnected(false);
-        toast.error('Struk disimpan di antrean. Print Bridge atau printer belum siap.');
-        return false;
+        await printReceiptBrowser(receiptJob.receipt);
+        toast.info('Print Bridge tidak tersedia. Struk dibuka melalui dialog print browser.');
+        return true;
       }
       setThermalConnected(true);
       toast.success('Struk berhasil dikirim ke printer');
       return true;
     } catch (error: unknown) {
       setThermalConnected(false);
-      toast.error(`Struk disimpan, tetapi belum tercetak: ${error instanceof Error ? error.message : 'Jalankan Print Bridge'}`);
-      return false;
+      try {
+        await printReceiptBrowser(receiptJob.receipt);
+        toast.info('Print Bridge tidak tersedia. Struk dibuka melalui dialog print browser.');
+        return true;
+      } catch (fallbackError: unknown) {
+        toast.error(`Struk disimpan, tetapi belum tercetak: ${fallbackError instanceof Error ? fallbackError.message : 'Aktifkan popup untuk mencetak'}`);
+        return false;
+      }
     }
   }, [lastSale, tenant, outletReady, userEmail]);
 
