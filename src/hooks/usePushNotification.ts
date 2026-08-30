@@ -4,8 +4,9 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
-const API_BASE = "/api/push";
+const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/push-subscription`;
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -53,7 +54,9 @@ export function usePushNotification() {
     setLoading(true);
     try {
       // Get VAPID public key
-      const keyRes = await fetch(`${API_BASE}/vapid-public-key`);
+      const keyRes = await fetch(API_BASE, {
+        headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}` },
+      });
       if (!keyRes.ok) throw new Error("VAPID key unavailable");
       const { publicKey } = await keyRes.json();
 
@@ -70,8 +73,9 @@ export function usePushNotification() {
       });
 
       // Send to server — S5: kirim token auth, bukan user_id
-      const sessionToken = localStorage.getItem("session_token") || "";
-      const res = await fetch(`${API_BASE}/subscribe`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionToken = session?.access_token || "";
+      const res = await fetch(API_BASE, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -99,12 +103,12 @@ export function usePushNotification() {
       const sub = await reg.pushManager.getSubscription();
       if (!sub) { setIsSubscribed(false); return true; }
 
-      const sessionToken = localStorage.getItem("session_token") || "";
-      await fetch(`${API_BASE}/unsubscribe`, {
-        method: "POST",
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(API_BASE, {
+        method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionToken}`,
+          Authorization: `Bearer ${session?.access_token || ""}`,
         },
         body: JSON.stringify({ endpoint: sub.endpoint }),
       });

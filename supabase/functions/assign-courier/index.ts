@@ -112,6 +112,13 @@ Deno.serve(async (req) => {
       )
     }
 
+    if (!['PROCESSING', 'PROCESSED', 'READY'].includes(order.status)) {
+      return new Response(
+        JSON.stringify({ error: `Order status ${order.status} cannot be assigned to a courier` }),
+        { status: 409, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
+      )
+    }
+
     const [{ data: adminRole }, { data: ownedMerchant }] = await Promise.all([
       supabase
         .from('user_roles')
@@ -168,6 +175,7 @@ Deno.serve(async (req) => {
       .eq('is_available', true)
       .not('current_lat', 'is', null)
       .not('current_lng', 'is', null)
+      .gte('last_location_update', new Date(Date.now() - 5 * 60 * 1000).toISOString())
 
     if (courierError || !couriers || couriers.length === 0) {
       return new Response(
@@ -186,7 +194,7 @@ Deno.serve(async (req) => {
       .from('orders')
       .select('courier_id')
       .in('courier_id', courierIds)
-      .in('status', ['ASSIGNED', 'PICKED_UP', 'ON_DELIVERY'])
+      .in('status', ['ASSIGNED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING'])
 
     const orderCounts: Record<string, number> = {}
     activeOrders?.forEach(o => {

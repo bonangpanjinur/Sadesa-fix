@@ -134,12 +134,15 @@ export default function CourierRidesPage() {
   const passengerNames = ridesData?.passengerNames ?? {};
   const loading = courierLoading || ridesLoading;
 
-  // Realtime subscription — invalidate rides query on any ride_requests change
+  // Realtime subscriptions — only invalidate for searchable or owned rides.
   useEffect(() => {
     if (!courierId) return;
     const channel = supabase
       .channel('ride-requests-courier')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests', filter: 'status=eq.SEARCHING' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests', filter: `driver_id=eq.${courierId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
       })
       .subscribe();
@@ -203,17 +206,11 @@ export default function CourierRidesPage() {
     mutationFn: async (newStatus: string) => {
       if (!activeRide || !courierId) return;
       setUpdatingStatus(true);
-      const updateData: Record<string, unknown> = { status: newStatus };
-      if (newStatus === 'PICKED_UP') updateData.picked_up_at = new Date().toISOString();
-      if (newStatus === 'COMPLETED') {
-        updateData.completed_at = new Date().toISOString();
-        updateData.final_fare = activeRide.estimated_fare;
-      }
-      const { error } = await supabase.from('ride_requests').update(updateData).eq('id', activeRide.id);
+      const { error } = await supabase.rpc('transition_ride_status', {
+        p_ride_id: activeRide.id,
+        p_to_status: newStatus,
+      });
       if (error) throw error;
-      if (newStatus === 'COMPLETED') {
-        await supabase.from('courier_earnings').insert({ courier_id: courierId, amount: activeRide.estimated_fare, type: 'RIDE', status: 'PENDING' });
-      }
       return newStatus;
     },
     onSuccess: (newStatus) => {

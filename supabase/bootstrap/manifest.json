@@ -247,10 +247,13 @@
         "20260829130000_subscription_entitlement_enforcement.sql",
         "20260829140000_subscription_runtime_enforcement.sql",
         "20260829150000_pos_tenant_merchant_mapping.sql",
-        "20260829160000_pos_workflow_transition_hardening.sql"
+        "20260829160000_pos_workflow_transition_hardening.sql",
+        "20260830100000_courier_ojek_acceptance_hardening.sql",
+        "20260830101000_courier_ojek_earnings_hardening.sql",
+        "20260830102000_courier_withdrawal_hardening.sql"
       ],
-      "sha256": "b60f3172a7e0d9c0f232ae603776f1a92a639e71f83ca92bbe1f5029d839e8b1",
-      "bytes": 140137
+      "sha256": "48cd6a6e84ee139a5afa8c2ab9ada5a3e874d6300dea10a60911d6bbfd7e1637",
+      "bytes": 147993
     }
   ]
 }

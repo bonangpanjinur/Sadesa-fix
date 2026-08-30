@@ -114,10 +114,11 @@ export async function getAvailableCouriers(
   try {
     const { data: couriers, error } = await supabase
       .from('couriers')
-      .select('id, name, vehicle_type, current_lat, current_lng')
+      .select('id, name, vehicle_type, current_lat, current_lng, last_location_update')
       .eq('status', 'ACTIVE')
       .eq('registration_status', 'APPROVED')
-      .eq('is_available', true);
+      .eq('is_available', true)
+      .gte('last_location_update', new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
     if (error || !couriers) return [];
 
@@ -126,7 +127,7 @@ export async function getAvailableCouriers(
       .from('orders')
       .select('courier_id')
       .in('courier_id', courierIds)
-      .in('status', ['ASSIGNED', 'PICKED_UP', 'SENT']);
+      .in('status', ['ASSIGNED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING']);
 
     const orderCounts: Record<string, number> = {};
     activeOrders?.forEach((o) => {

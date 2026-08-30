@@ -95,17 +95,14 @@ export default function CourierWithdrawalPage() {
       if (!data?.courier) return;
       const amountNum = parseInt(amount);
       if (!amountNum || amountNum <= 0) throw new Error('Masukkan jumlah yang valid');
-      if (amountNum > (data.courier.available_balance || 0)) throw new Error('Saldo tidak mencukupi');
-      const remaining = (data.courier.available_balance || 0) - amountNum;
-      if (remaining < data.minimumBalance) throw new Error(`Saldo setelah penarikan harus minimal ${formatPrice(data.minimumBalance)}`);
       if (!bankName || !accountNumber || !accountHolder) throw new Error('Lengkapi data rekening bank');
 
-      const { error } = await supabase.from('courier_withdrawal_requests').insert({
-        courier_id: data.courier.id,
-        amount: amountNum,
-        bank_name: bankName,
-        account_number: accountNumber,
-        account_holder: accountHolder,
+      const { error } = await supabase.rpc('request_courier_withdrawal', {
+        p_amount: amountNum,
+        p_bank_name: bankName,
+        p_account_number: accountNumber,
+        p_account_holder: accountHolder,
+        p_minimum_balance: data.minimumBalance,
       });
       if (error) throw error;
 

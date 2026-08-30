@@ -2432,3 +2432,253 @@ REVOKE ALL ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, tex
 GRANT EXECUTE ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, text, text, jsonb) TO authenticated;
 
 -- ===== END SOURCE: 20260829160000_pos_workflow_transition_hardening.sql =====
+-- OJK-01: bind ride acceptance to the authenticated courier.
+CREATE OR REPLACE FUNCTION public.accept_ride(p_ride_id uuid, p_courier_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_courier public.couriers%ROWTYPE;
+  v_updated integer;
+  v_active_rides integer;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_courier
+  FROM public.couriers
+  WHERE id = p_courier_id
+    AND user_id = auth.uid()
+  FOR UPDATE;
+
+  IF NOT FOUND
+     OR v_courier.registration_status <> 'APPROVED'
+     OR v_courier.status <> 'ACTIVE'
+     OR v_courier.is_available IS NOT TRUE THEN
+    RAISE EXCEPTION 'Courier is not eligible to accept rides' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT count(*) INTO v_active_rides
+  FROM public.ride_requests
+  WHERE driver_id = v_courier.id
+    AND status IN ('ACCEPTED', 'PICKED_UP', 'IN_TRANSIT');
+
+  IF v_active_rides >= 1 THEN
+    RAISE EXCEPTION 'Courier already has an active ride' USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE public.ride_requests
+  SET driver_id = v_courier.id,
+      status = 'ACCEPTED',
+      accepted_at = now()
+  WHERE id = p_ride_id
+    AND status = 'SEARCHING'
+    AND driver_id IS NULL;
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  IF v_updated = 0 THEN
+    RETURN false;
+  END IF;
+
+  PERFORM public.send_notification(
+    passenger_id,
+    'Driver Ditemukan!',
+    'Driver sedang menuju lokasi jemput Anda',
+    'ride',
+    '/ride/' || p_ride_id::text
+  )
+  FROM public.ride_requests
+  WHERE id = p_ride_id;
+
+  RETURN true;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.accept_ride(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.accept_ride(uuid, uuid) TO authenticated;
+-- OJK-02/OJK-04: server-authoritative ride state transitions and earnings.
+CREATE OR REPLACE FUNCTION public.transition_ride_status(
+  p_ride_id uuid,
+  p_to_status text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_ride public.ride_requests%ROWTYPE;
+  v_courier public.couriers%ROWTYPE;
+  v_fare integer;
+  v_earning_id uuid;
+  v_created_earning boolean := false;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_ride
+  FROM public.ride_requests
+  WHERE id = p_ride_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ride not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT * INTO v_courier
+  FROM public.couriers
+  WHERE id = v_ride.driver_id
+    AND user_id = auth.uid()
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ride transition denied' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_to_status NOT IN ('PICKED_UP', 'IN_TRANSIT', 'COMPLETED') THEN
+    RAISE EXCEPTION 'Invalid ride status' USING ERRCODE = '22023';
+  END IF;
+  IF NOT (
+    (v_ride.status = 'ACCEPTED' AND p_to_status = 'PICKED_UP') OR
+    (v_ride.status = 'PICKED_UP' AND p_to_status = 'IN_TRANSIT') OR
+    (v_ride.status = 'IN_TRANSIT' AND p_to_status = 'COMPLETED')
+  ) THEN
+    RAISE EXCEPTION 'Ride transition from % to % is not allowed', v_ride.status, p_to_status USING ERRCODE = '55000';
+  END IF;
+
+  IF p_to_status = 'PICKED_UP' THEN
+    UPDATE public.ride_requests
+    SET status = p_to_status, picked_up_at = now()
+    WHERE id = p_ride_id;
+  ELSIF p_to_status = 'COMPLETED' THEN
+    v_fare := COALESCE(v_ride.final_fare, v_ride.estimated_fare);
+    IF v_fare IS NULL OR v_fare <= 0 THEN
+      RAISE EXCEPTION 'Ride fare is invalid' USING ERRCODE = '22023';
+    END IF;
+    UPDATE public.ride_requests
+    SET status = p_to_status, final_fare = v_fare, completed_at = now()
+    WHERE id = p_ride_id;
+
+    SELECT id INTO v_earning_id
+    FROM public.courier_earnings
+    WHERE courier_id = v_courier.id
+      AND type = 'RIDE'
+      AND order_id = p_ride_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      INSERT INTO public.courier_earnings(courier_id, order_id, amount, type, status)
+      VALUES (v_courier.id, p_ride_id, v_fare, 'RIDE', 'PENDING')
+      RETURNING id INTO v_earning_id;
+      v_created_earning := true;
+      UPDATE public.couriers
+      SET pending_balance = COALESCE(pending_balance, 0) + v_fare,
+          updated_at = now()
+      WHERE id = v_courier.id;
+    END IF;
+  ELSE
+    UPDATE public.ride_requests
+    SET status = p_to_status
+    WHERE id = p_ride_id;
+  END IF;
+
+  PERFORM public.send_notification(
+    v_ride.passenger_id,
+    CASE p_to_status
+      WHEN 'PICKED_UP' THEN 'Driver sudah menjemput'
+      WHEN 'IN_TRANSIT' THEN 'Perjalanan dimulai'
+      ELSE 'Perjalanan selesai'
+    END,
+    CASE p_to_status
+      WHEN 'PICKED_UP' THEN 'Driver sudah tiba dan menjemput Anda.'
+      WHEN 'IN_TRANSIT' THEN 'Anda sedang dalam perjalanan ke tujuan.'
+      ELSE 'Perjalanan Anda telah selesai.'
+    END,
+    'ride',
+    '/ride/' || p_ride_id::text
+  );
+
+  RETURN jsonb_build_object(
+    'ride_id', p_ride_id,
+    'status', p_to_status,
+    'fare', CASE WHEN p_to_status = 'COMPLETED' THEN v_fare ELSE NULL END,
+    'earning_id', v_earning_id,
+    'earning_created', v_created_earning
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.transition_ride_status(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text) TO authenticated;
+-- OJK-03: prevent concurrent withdrawal requests from overspending balance.
+CREATE OR REPLACE FUNCTION public.request_courier_withdrawal(
+  p_amount numeric,
+  p_bank_name text,
+  p_account_number text,
+  p_account_holder text,
+  p_minimum_balance numeric DEFAULT 50000
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_courier public.couriers%ROWTYPE;
+  v_reserved numeric;
+  v_available numeric;
+  v_minimum_balance numeric;
+  v_request_id uuid;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+  IF p_amount IS NULL OR p_amount <= 0
+     OR NULLIF(trim(p_bank_name), '') IS NULL
+     OR NULLIF(trim(p_account_number), '') IS NULL
+     OR NULLIF(trim(p_account_holder), '') IS NULL THEN
+    RAISE EXCEPTION 'Invalid withdrawal request' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT COALESCE(NULLIF(value->>'amount', '')::numeric, 50000)
+  INTO v_minimum_balance
+  FROM public.app_settings
+  WHERE key = 'courier_minimum_balance';
+  v_minimum_balance := COALESCE(v_minimum_balance, 50000);
+
+  SELECT * INTO v_courier
+  FROM public.couriers
+  WHERE user_id = auth.uid()
+    AND registration_status = 'APPROVED'
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Approved courier profile not found' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT COALESCE(sum(amount), 0) INTO v_reserved
+  FROM public.courier_withdrawal_requests
+  WHERE courier_id = v_courier.id
+    AND status IN ('PENDING', 'APPROVED')
+    AND id IS NOT NULL;
+
+  v_available := COALESCE(v_courier.available_balance, 0) - v_reserved;
+  IF p_amount > v_available OR v_available - p_amount < v_minimum_balance THEN
+    RAISE EXCEPTION 'Insufficient withdrawable balance' USING ERRCODE = '23514';
+  END IF;
+
+  INSERT INTO public.courier_withdrawal_requests(
+    courier_id, amount, bank_name, account_number, account_holder, status
+  ) VALUES (
+    v_courier.id, p_amount, trim(p_bank_name), trim(p_account_number), trim(p_account_holder), 'PENDING'
+  ) RETURNING id INTO v_request_id;
+
+  RETURN jsonb_build_object('request_id', v_request_id, 'amount', p_amount, 'status', 'PENDING');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.request_courier_withdrawal(numeric, text, text, text, numeric) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.request_courier_withdrawal(numeric, text, text, text, numeric) TO authenticated;
+REVOKE INSERT, DELETE ON public.courier_withdrawal_requests FROM authenticated;
+GRANT SELECT, UPDATE ON public.courier_withdrawal_requests TO authenticated;
