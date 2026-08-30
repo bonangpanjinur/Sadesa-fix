@@ -1,11 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "https://sadesa.id",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-};
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin");
+  const allowedOrigin = origin === "https://sadesa.id" || origin === "https://www.sadesa.id"
+    ? origin
+    : "https://www.sadesa.id";
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, idempotency-key",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Vary": "Origin",
+  };
+}
 
 interface CreateInvoiceRequest {
   order_id: string;
@@ -35,10 +42,10 @@ interface InvoiceRequestReservation {
   last_error: string | null;
 }
 
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, req?: Request) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...getCorsHeaders(req ?? new Request("https://www.sadesa.id")), "Content-Type": "application/json" },
   });
 }
 
@@ -71,18 +78,18 @@ async function getXenditSettings(supabaseUrl: string, serviceRoleKey: string): P
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: getCorsHeaders(req) });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   const token = getBearerToken(req);
-  if (!supabaseUrl || !serviceRoleKey || !anonKey || !token) return json({ error: "Unauthorized" }, 401);
+  if (!supabaseUrl || !serviceRoleKey || !anonKey || !token) return json({ error: "Unauthorized" }, 401, req);
 
   try {
     const userClient = getUserClient(supabaseUrl, anonKey, token);
     const { data: userData, error: userError } = await userClient.auth.getUser();
-    if (userError || !userData.user) return json({ error: "Unauthorized" }, 401);
+    if (userError || !userData.user) return json({ error: "Unauthorized" }, 401, req);
     const user = userData.user;
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
     const settings = await getXenditSettings(supabaseUrl, serviceRoleKey);

@@ -212,12 +212,14 @@ export default function CheckoutPage() {
     blockedMerchants, 
     canProceedCheckout, 
     loading: quotaLoading,
-    quotaStatuses 
+    quotaStatuses,
+    error: quotaError,
   } = useMerchantQuota(merchantIds);
 
   // Check merchant operating hours
   const [merchantOperatingInfo, setMerchantOperatingInfo] = useState<Record<string, MerchantOperatingInfo>>({});
   const [operatingHoursLoading, setOperatingHoursLoading] = useState(false);
+  const [operatingHoursError, setOperatingHoursError] = useState<Error | null>(null);
 
   // Load merchant location and payment settings
   useEffect(() => {
@@ -288,16 +290,20 @@ export default function CheckoutPage() {
     const loadMerchantOperatingHours = async () => {
       if (merchantIds.length === 0) {
         setMerchantOperatingInfo({});
+        setOperatingHoursError(null);
         setOperatingHoursLoading(false);
         return;
       }
       
       setOperatingHoursLoading(true);
+      setOperatingHoursError(null);
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('merchants')
           .select('id, name, is_open, open_time, close_time')
           .in('id', merchantIds);
+
+        if (error) throw error;
 
         if (data && !cancelled) {
           const info: Record<string, MerchantOperatingInfo> = {};
@@ -314,6 +320,7 @@ export default function CheckoutPage() {
         }
       } catch (error) {
         console.error('Error loading merchant operating hours:', error);
+        if (!cancelled) setOperatingHoursError(error instanceof Error ? error : new Error('Gagal memeriksa jam toko'));
       } finally {
         if (!cancelled) setOperatingHoursLoading(false);
       }
@@ -331,7 +338,7 @@ export default function CheckoutPage() {
     });
   }, [merchantOperatingInfo]);
 
-  const allMerchantsOpen = closedMerchants.length === 0;
+  const allMerchantsOpen = !operatingHoursError && closedMerchants.length === 0;
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -842,6 +849,12 @@ export default function CheckoutPage() {
           </div>
         )}
 
+        {(quotaError || operatingHoursError) && !quotaLoading && !operatingHoursLoading && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-4 text-sm text-destructive">
+            Ketersediaan toko belum dapat diverifikasi. Periksa koneksi Anda lalu muat ulang halaman sebelum melanjutkan checkout.
+          </div>
+        )}
+
         {/* Order Summary - moved to top */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1187,6 +1200,8 @@ export default function CheckoutPage() {
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Memeriksa Toko...
             </>
+          ) : quotaError || operatingHoursError ? (
+            'Ketersediaan Belum Terverifikasi'
           ) : !allMerchantsOpen ? (
             <>
               <Clock className="h-4 w-4 mr-2" />

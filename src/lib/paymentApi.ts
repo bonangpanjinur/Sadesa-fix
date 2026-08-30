@@ -20,7 +20,7 @@ export interface PaymentStatus {
   payment_method?: string;
 }
 
-const API_BASE = '/api';
+const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/xendit-payment`;
 
 export function getPaymentIdempotencyKey(orderId: string, suppliedKey?: string): string {
   return suppliedKey?.trim() || `payment-invoice:${orderId}`;
@@ -30,7 +30,7 @@ export async function createPaymentInvoice(request: CreatePaymentRequest): Promi
   reportObservability('payment', 'invoice_create_started', 'info', { hasOrderId: Boolean(request.orderId) });
   const { data: { session } } = await supabase.auth.getSession();
   const idempotencyKey = getPaymentIdempotencyKey(request.orderId, request.idempotencyKey);
-  const response = await fetch(`${API_BASE}/xendit/create-invoice`, {
+  const response = await fetch(`${API_BASE}/create-invoice`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ export async function createPaymentInvoice(request: CreatePaymentRequest): Promi
 export async function checkPaymentStatus(invoiceId: string): Promise<PaymentStatus> {
   reportObservability('payment', 'status_check_started', 'info', { hasInvoiceId: Boolean(invoiceId) });
   const { data: { session } } = await supabase.auth.getSession();
-  const response = await fetch(`${API_BASE}/xendit/check-status?invoice_id=${encodeURIComponent(invoiceId)}`, {
+  const response = await fetch(`${API_BASE}/check-status?invoice_id=${encodeURIComponent(invoiceId)}`, {
     headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
   });
 

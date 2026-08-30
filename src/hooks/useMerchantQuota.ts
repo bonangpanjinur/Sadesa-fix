@@ -140,6 +140,7 @@ export async function fetchMerchantQuotaStatuses(
 export function useMerchantQuota(merchantIds: string[]) {
   const [quotaStatuses, setQuotaStatuses] = useState<Record<string, MerchantQuotaStatus>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [blockedMerchants, setBlockedMerchants] = useState<MerchantQuotaStatus[]>([]);
   const idsKey = merchantIds.join(',');
 
@@ -148,15 +149,18 @@ export function useMerchantQuota(merchantIds: string[]) {
     if (ids.length === 0) {
       setQuotaStatuses({});
       setBlockedMerchants([]);
+      setError(null);
       setLoading(false);
       return;
     }
     try {
+      setError(null);
       const statuses = await fetchMerchantQuotaStatuses(ids);
       setQuotaStatuses(statuses);
       setBlockedMerchants(Object.values(statuses).filter((s) => !s.canTransact));
     } catch (error) {
       console.error('Error checking merchant quotas:', error);
+      setError(error instanceof Error ? error : new Error('Gagal memeriksa kuota toko'));
     } finally {
       setLoading(false);
     }
@@ -169,12 +173,13 @@ export function useMerchantQuota(merchantIds: string[]) {
     return () => clearInterval(interval);
   }, [checkQuotas]);
 
-  const canProceedCheckout = blockedMerchants.length === 0 && !loading;
+  const canProceedCheckout = blockedMerchants.length === 0 && !loading && !error;
 
   return {
     quotaStatuses,
     blockedMerchants,
     loading,
+    error,
     canProceedCheckout,
     refetch: checkQuotas,
   };
