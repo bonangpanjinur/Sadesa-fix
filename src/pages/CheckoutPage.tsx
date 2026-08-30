@@ -288,7 +288,8 @@ export default function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
     const loadMerchantOperatingHours = async () => {
-      if (merchantIds.length === 0) {
+      const ids = merchantIdsKey ? merchantIdsKey.split(',') : [];
+      if (ids.length === 0) {
         setMerchantOperatingInfo({});
         setOperatingHoursError(null);
         setOperatingHoursLoading(false);
@@ -301,7 +302,7 @@ export default function CheckoutPage() {
         const { data, error } = await supabase
           .from('merchants')
           .select('id, name, is_open, open_time, close_time')
-          .in('id', merchantIds);
+          .in('id', ids);
 
         if (error) throw error;
 
@@ -328,7 +329,7 @@ export default function CheckoutPage() {
 
     loadMerchantOperatingHours();
     return () => { cancelled = true; };
-  }, [merchantIds]);
+  }, [merchantIdsKey]);
 
   // Get closed merchants
   const closedMerchants = useMemo(() => {
