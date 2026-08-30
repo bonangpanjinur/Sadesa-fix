@@ -28,12 +28,26 @@ export class ErrorBoundary extends Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({ errorInfo });
+
+    // A deploy can leave an older HTML shell pointing at a removed hashed chunk.
+    // Reload once so the browser obtains the current shell/service worker; avoid
+    // an infinite reload loop when the chunk is genuinely broken.
+    const isChunkError = /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed/i.test(error.message);
+    if (isChunkError && sessionStorage.getItem('sadesa-chunk-reload') !== '1') {
+      sessionStorage.setItem('sadesa-chunk-reload', '1');
+      window.location.reload();
+    }
     
     // Optional: Send to error reporting service
     // reportError(error, errorInfo);
   }
 
   private handleReset = () => {
+    if (this.state.error && /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed/i.test(this.state.error.message)) {
+      sessionStorage.removeItem('sadesa-chunk-reload');
+      window.location.reload();
+      return;
+    }
     this.setState({ hasError: false, error: null, errorInfo: null });
     this.props.onReset?.();
   };
