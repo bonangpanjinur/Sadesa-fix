@@ -27,6 +27,35 @@ export interface AddressSummary {
 
 // Nominatim API for geocoding (OpenStreetMap)
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
+const NOMINATIM_MIN_INTERVAL_MS = 1100;
+const NOMINATIM_429_COOLDOWN_MS = 30_000;
+const geocodingCache = new Map<string, unknown>();
+let nextNominatimRequestAt = 0;
+let nominatimCooldownUntil = 0;
+
+async function fetchNominatim<T>(url: string, cacheKey: string): Promise<T | null> {
+  const cached = geocodingCache.get(cacheKey);
+  if (cached !== undefined) return cached as T;
+  if (Date.now() < nominatimCooldownUntil) return null;
+
+  const waitMs = Math.max(0, nextNominatimRequestAt - Date.now());
+  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+  nextNominatimRequestAt = Date.now() + NOMINATIM_MIN_INTERVAL_MS;
+
+  const response = await fetch(url, {
+    headers: { 'User-Agent': 'PasarDesa/1.0' },
+  });
+  if (response.status === 429) {
+    nominatimCooldownUntil = Date.now() + NOMINATIM_429_COOLDOWN_MS;
+    console.warn('Nominatim rate limit reached; geocoding paused temporarily');
+    return null;
+  }
+  if (!response.ok) throw new Error('Geocoding failed');
+
+  const result = await response.json() as T;
+  geocodingCache.set(cacheKey, result);
+  return result;
+}
 
 /**
  * Forward geocoding - convert address to coordinates
@@ -50,19 +79,12 @@ export async function geocodeAddress(
       countrycodes: 'id',
     });
 
-    const response = await fetch(`${NOMINATIM_URL}/search?${params.toString()}`, {
-      headers: {
-        'User-Agent': 'PasarDesa/1.0',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Geocoding failed');
-    }
-
-    const results = await response.json();
+    const results = await fetchNominatim<Array<{ lat: string; lon: string; display_name: string }>>(
+      `${NOMINATIM_URL}/search?${params.toString()}`,
+      `forward:${query}`,
+    );
     
-    if (results.length > 0) {
+    if (results && results.length > 0) {
       return {
         lat: parseFloat(results[0].lat),
         lng: parseFloat(results[0].lon),
@@ -83,14 +105,12 @@ export async function geocodeAddress(
         countrycodes: 'id',
       });
 
-      const fallbackResponse = await fetch(`${NOMINATIM_URL}/search?${fallbackParams.toString()}`, {
-        headers: {
-          'User-Agent': 'PasarDesa/1.0',
-        },
-      });
+      const fallbackResults = await fetchNominatim<Array<{ lat: string; lon: string; display_name: string }>>(
+        `${NOMINATIM_URL}/search?${fallbackParams.toString()}`,
+        `forward:${fallbackQuery}`,
+      );
 
-      if (fallbackResponse.ok) {
-        const fallbackResults = await fallbackResponse.json();
+      if (fallbackResults) {
         if (fallbackResults.length > 0) {
           return {
             lat: parseFloat(fallbackResults[0].lat),
@@ -121,17 +141,10 @@ export async function reverseGeocode(lat: number, lng: number): Promise<ReverseG
       'accept-language': 'id',
     });
 
-    const response = await fetch(`${NOMINATIM_URL}/reverse?${params.toString()}`, {
-      headers: {
-        'User-Agent': 'PasarDesa/1.0',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Reverse geocoding failed');
-    }
-
-    const result = await response.json();
+    const result = await fetchNominatim<{ address?: Record<string, string>; display_name?: string }>(
+      `${NOMINATIM_URL}/reverse?${params.toString()}`,
+      `reverse:${lat.toFixed(5)},${lng.toFixed(5)}`,
+    );
     
     if (result.address) {
       const addr = result.address;
