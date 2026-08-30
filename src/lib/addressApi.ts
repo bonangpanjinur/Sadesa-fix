@@ -1,6 +1,6 @@
 // Wilayah.id API for Indonesian regions
 // Source: https://wilayah.id/
-// Uses parallel race strategy: all fetch methods run simultaneously, fastest wins
+// Uses a same-origin/server proxy first, with a single Supabase proxy fallback.
 
 export interface Region {
   code: string;
@@ -92,8 +92,6 @@ const STATIC_PROVINCES: Region[] = [
   { code: "96", name: "Papua Barat Daya" },
 ];
 
-const EMSIFA_BASE_URL = 'https://www.emsifa.com/api-wilayah-indonesia/api';
-
 let BASE_URL = 'https://wilayah.id/api';
 
 // Try to load custom API URL from localStorage (cached from system settings)
@@ -122,97 +120,40 @@ export function setBaseUrl(url: string) {
   } catch (err) { console.warn('[address] gagal menyimpan URL API wilayah:', err); }
 }
 
-async function fetchDirect(url: string, signal?: AbortSignal): Promise<Response | null> {
+async function fetchViaLocalProxy(type: string, code: string | undefined, signal?: AbortSignal): Promise<Response | null> {
+  const params = new URLSearchParams({ type });
+  if (code) params.append('code', code);
+
   try {
-    const response = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
-      signal,
-    });
-    if (response.ok) return response;
+    // Prefer the application's own proxy when the host provides one.
+    const localResponse = await fetch(`/api/wilayah?${params.toString()}`, { signal });
+    const contentType = localResponse.headers.get('content-type') || '';
+    if (localResponse.ok && contentType.includes('application/json')) return localResponse;
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error;
-    console.warn('Direct fetch failed:', error);
   }
-  return null;
-}
 
-async function fetchViaLocalProxy(type: string, code: string | undefined, signal?: AbortSignal): Promise<Response | null> {
   try {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     if (!projectId) return null;
-
-    const params = new URLSearchParams({ type });
-    if (code) params.append('code', code);
-
     const response = await fetch(
       `https://${projectId}.supabase.co/functions/v1/wilayah-proxy?${params.toString()}`,
       {
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '',
-        },
+        // GET plus apikey is sufficient for a public Edge Function and avoids
+        // the unnecessary Content-Type preflight from the old implementation.
+        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '' },
         signal,
       },
     );
     if (response.ok) return response;
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error;
-    console.warn('Wilayah proxy fetch failed:', error);
   }
   return null;
-}
-
-
-async function fetchViaCorsProxy(url: string, signal?: AbortSignal): Promise<Response | null> {
-  try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl, { signal });
-    if (response.ok) return response;
-  } catch (error) {
-    if ((error as Error).name === 'AbortError') throw error;
-    console.warn('CORS proxy fetch failed:', error);
-  }
-  return null;
-}
-
-
-async function fetchViaEmsifa(type: string, code: string | undefined, signal?: AbortSignal): Promise<Region[]> {
-  let url: string;
-  switch (type) {
-    case 'provinces': url = `${EMSIFA_BASE_URL}/provinces.json`; break;
-    case 'regencies': url = `${EMSIFA_BASE_URL}/regencies/${code}.json`; break;
-    case 'districts': url = `${EMSIFA_BASE_URL}/districts/${code}.json`; break;
-    case 'villages': url = `${EMSIFA_BASE_URL}/villages/${code}.json`; break;
-    default: return [];
-  }
-
-  const response = await fetch(url, {
-    headers: { 'Accept': 'application/json' },
-    signal,
-  });
-
-  if (!response.ok) throw new Error(`Emsifa returned ${response.status}`);
-
-  const data: Array<{ id: string; name: string }> = await response.json();
-  return data.map(item => ({ code: item.id, name: toTitleCase(item.name) }));
-}
-
-// Wrap a fetch function so it rejects (instead of resolving null) on failure
-async function mustSucceed(fn: () => Promise<Response | null>): Promise<Response> {
-  const result = await fn();
-  if (!result) throw new Error('fetch returned null');
-  return result;
 }
 
 async function fetchWithFallbacks(type: string, code?: string): Promise<Region[]> {
-  let url: string;
-  switch (type) {
-    case 'provinces': url = `${BASE_URL}/provinces.json`; break;
-    case 'regencies': url = `${BASE_URL}/regencies/${code}.json`; break;
-    case 'districts': url = `${BASE_URL}/districts/${code}.json`; break;
-    case 'villages': url = `${BASE_URL}/villages/${code}.json`; break;
-    default: return [];
-  }
+  if (!['provinces', 'regencies', 'districts', 'villages'].includes(type)) return [];
 
   const controller = new AbortController();
   const { signal } = controller;
@@ -221,39 +162,19 @@ async function fetchWithFallbacks(type: string, code?: string): Promise<Region[]
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    // 5-way parallel race — Emsifa is primary (no CORS issues), others are fallbacks
-    // Emsifa returns Region[] directly, others return Response that needs parsing
-    const emsifaPromise = fetchViaEmsifa(type, code, signal);
-
-    const wilayahPromises = [
-      mustSucceed(() => fetchDirect(url, signal)),
-      mustSucceed(() => fetchViaLocalProxy(type, code, signal)),
-      mustSucceed(() => fetchViaCorsProxy(url, signal)),
-    ];
-
-    // Parse wilayah.id responses into Region[]
-    const wilayahParsed = wilayahPromises.map(p =>
-      p.then(async (res) => {
-        const result: WilayahResponse = await res.json();
-        return result.data || [];
-      })
-    );
-
-    // Race all 5 strategies — first to return Region[] wins
-    const allPromises = [emsifaPromise, ...wilayahParsed];
-
-    const result = await new Promise<Region[]>((resolve, reject) => {
-      let rejections = 0;
-      for (const p of allPromises) {
-        p.then((data) => {
-          if (data && data.length > 0) resolve(data);
-          else throw new Error('Empty result');
-        }).catch(() => {
-          rejections++;
-          if (rejections === allPromises.length) reject(new Error('All failed'));
-        });
-      }
-    });
+    // Third-party region APIs are not called directly from the browser because
+    // their CORS headers are inconsistent. One user action now produces one
+    // controlled proxy flow instead of several console errors.
+    const response = await fetchViaLocalProxy(type, code, signal);
+    if (!response) throw new Error('Wilayah proxy unavailable');
+    const json = await response.json();
+    const result = Array.isArray(json)
+      ? json.map((item: { id?: string; code?: string; name: string }) => ({
+          code: item.code ?? item.id ?? '',
+          name: toTitleCase(item.name),
+        }))
+      : ((json as WilayahResponse).data || []);
+    if (result.length === 0) throw new Error('Wilayah proxy returned an empty result');
 
     clearTimeout(timeout);
     controller.abort();
