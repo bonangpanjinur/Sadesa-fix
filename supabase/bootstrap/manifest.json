@@ -1,6 +1,6 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 197,
+  "migration_count": 199,
   "bundle_count": 8,
   "bundles": [
     {
@@ -251,10 +251,12 @@
         "20260830100000_courier_ojek_acceptance_hardening.sql",
         "20260830101000_courier_ojek_earnings_hardening.sql",
         "20260830102000_courier_withdrawal_hardening.sql",
-        "20260830110000_courier_specific_assignment.sql"
+        "20260830110000_courier_specific_assignment.sql",
+        "20260830120000_create_checkout_orders_atomic.sql",
+        "20260830121000_checkout_marketplace_voucher_validation.sql"
       ],
-      "sha256": "d68178472debc19ce867e210302450ca5761c45c327d9d740bfdbab5a5b6b7dd",
-      "bytes": 151096
+      "sha256": "af797b9db0e636ce20f64cc80526a5e11b1952a4c0eda131beae96dd1c1f4d7c",
+      "bytes": 183476
     }
   ]
 }

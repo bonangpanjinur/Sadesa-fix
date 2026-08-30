@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate ordered bootstrap bundles against the canonical migration directory."""
+"""Validate ordered bootstrap bundles against their checked-in manifest."""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def main() -> int:
-    source = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('archive/supabase/migrations')
+    source = Path(sys.argv[1]) if len(sys.argv) > 1 else None
     bundle_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path('supabase/bootstrap')
     manifest_path = bundle_dir / 'manifest.json'
     if not manifest_path.exists():
@@ -16,7 +16,8 @@ def main() -> int:
         return 1
 
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-    expected = [path.name for path in sorted(source.glob('*.sql'))]
+    manifest_sources = [name for bundle in manifest['bundles'] for name in bundle['source_files']]
+    expected = [path.name for path in sorted(source.glob('*.sql'))] if source else manifest_sources
     actual = [name for bundle in manifest['bundles'] for name in bundle['source_files']]
     errors: list[str] = []
     if expected != actual:

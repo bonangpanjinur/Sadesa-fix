@@ -2781,3 +2781,879 @@ $$;
 
 REVOKE ALL ON FUNCTION public.assign_specific_courier(uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.assign_specific_courier(uuid, uuid) TO authenticated;
+
+
+-- ===== BEGIN SOURCE: 20260830100000_courier_ojek_acceptance_hardening.sql =====
+-- OJK-01: bind ride acceptance to the authenticated courier.
+CREATE OR REPLACE FUNCTION public.accept_ride(p_ride_id uuid, p_courier_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_courier public.couriers%ROWTYPE;
+  v_updated integer;
+  v_active_rides integer;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_courier
+  FROM public.couriers
+  WHERE id = p_courier_id
+    AND user_id = auth.uid()
+  FOR UPDATE;
+
+  IF NOT FOUND
+     OR v_courier.registration_status <> 'APPROVED'
+     OR v_courier.status <> 'ACTIVE'
+     OR v_courier.is_available IS NOT TRUE THEN
+    RAISE EXCEPTION 'Courier is not eligible to accept rides' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT count(*) INTO v_active_rides
+  FROM public.ride_requests
+  WHERE driver_id = v_courier.id
+    AND status IN ('ACCEPTED', 'PICKED_UP', 'IN_TRANSIT');
+
+  IF v_active_rides >= 1 THEN
+    RAISE EXCEPTION 'Courier already has an active ride' USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE public.ride_requests
+  SET driver_id = v_courier.id,
+      status = 'ACCEPTED',
+      accepted_at = now()
+  WHERE id = p_ride_id
+    AND status = 'SEARCHING'
+    AND driver_id IS NULL;
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  IF v_updated = 0 THEN
+    RETURN false;
+  END IF;
+
+  PERFORM public.send_notification(
+    passenger_id,
+    'Driver Ditemukan!',
+    'Driver sedang menuju lokasi jemput Anda',
+    'ride',
+    '/ride/' || p_ride_id::text
+  )
+  FROM public.ride_requests
+  WHERE id = p_ride_id;
+
+  RETURN true;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.accept_ride(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.accept_ride(uuid, uuid) TO authenticated;
+
+-- ===== END SOURCE: 20260830100000_courier_ojek_acceptance_hardening.sql =====
+
+
+-- ===== BEGIN SOURCE: 20260830101000_courier_ojek_earnings_hardening.sql =====
+-- OJK-02/OJK-04: server-authoritative ride state transitions and earnings.
+CREATE OR REPLACE FUNCTION public.transition_ride_status(
+  p_ride_id uuid,
+  p_to_status text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_ride public.ride_requests%ROWTYPE;
+  v_courier public.couriers%ROWTYPE;
+  v_fare integer;
+  v_earning_id uuid;
+  v_created_earning boolean := false;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_ride
+  FROM public.ride_requests
+  WHERE id = p_ride_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ride not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT * INTO v_courier
+  FROM public.couriers
+  WHERE id = v_ride.driver_id
+    AND user_id = auth.uid()
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Ride transition denied' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_to_status NOT IN ('PICKED_UP', 'IN_TRANSIT', 'COMPLETED') THEN
+    RAISE EXCEPTION 'Invalid ride status' USING ERRCODE = '22023';
+  END IF;
+  IF NOT (
+    (v_ride.status = 'ACCEPTED' AND p_to_status = 'PICKED_UP') OR
+    (v_ride.status = 'PICKED_UP' AND p_to_status = 'IN_TRANSIT') OR
+    (v_ride.status = 'IN_TRANSIT' AND p_to_status = 'COMPLETED')
+  ) THEN
+    RAISE EXCEPTION 'Ride transition from % to % is not allowed', v_ride.status, p_to_status USING ERRCODE = '55000';
+  END IF;
+
+  IF p_to_status = 'PICKED_UP' THEN
+    UPDATE public.ride_requests
+    SET status = p_to_status, picked_up_at = now()
+    WHERE id = p_ride_id;
+  ELSIF p_to_status = 'COMPLETED' THEN
+    v_fare := COALESCE(v_ride.final_fare, v_ride.estimated_fare);
+    IF v_fare IS NULL OR v_fare <= 0 THEN
+      RAISE EXCEPTION 'Ride fare is invalid' USING ERRCODE = '22023';
+    END IF;
+    UPDATE public.ride_requests
+    SET status = p_to_status, final_fare = v_fare, completed_at = now()
+    WHERE id = p_ride_id;
+
+    SELECT id INTO v_earning_id
+    FROM public.courier_earnings
+    WHERE courier_id = v_courier.id
+      AND type = 'RIDE'
+      AND order_id = p_ride_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      INSERT INTO public.courier_earnings(courier_id, order_id, amount, type, status)
+      VALUES (v_courier.id, p_ride_id, v_fare, 'RIDE', 'PENDING')
+      RETURNING id INTO v_earning_id;
+      v_created_earning := true;
+      UPDATE public.couriers
+      SET pending_balance = COALESCE(pending_balance, 0) + v_fare,
+          updated_at = now()
+      WHERE id = v_courier.id;
+    END IF;
+  ELSE
+    UPDATE public.ride_requests
+    SET status = p_to_status
+    WHERE id = p_ride_id;
+  END IF;
+
+  PERFORM public.send_notification(
+    v_ride.passenger_id,
+    CASE p_to_status
+      WHEN 'PICKED_UP' THEN 'Driver sudah menjemput'
+      WHEN 'IN_TRANSIT' THEN 'Perjalanan dimulai'
+      ELSE 'Perjalanan selesai'
+    END,
+    CASE p_to_status
+      WHEN 'PICKED_UP' THEN 'Driver sudah tiba dan menjemput Anda.'
+      WHEN 'IN_TRANSIT' THEN 'Anda sedang dalam perjalanan ke tujuan.'
+      ELSE 'Perjalanan Anda telah selesai.'
+    END,
+    'ride',
+    '/ride/' || p_ride_id::text
+  );
+
+  RETURN jsonb_build_object(
+    'ride_id', p_ride_id,
+    'status', p_to_status,
+    'fare', CASE WHEN p_to_status = 'COMPLETED' THEN v_fare ELSE NULL END,
+    'earning_id', v_earning_id,
+    'earning_created', v_created_earning
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.transition_ride_status(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text) TO authenticated;
+
+-- ===== END SOURCE: 20260830101000_courier_ojek_earnings_hardening.sql =====
+
+
+-- ===== BEGIN SOURCE: 20260830102000_courier_withdrawal_hardening.sql =====
+-- OJK-03: prevent concurrent withdrawal requests from overspending balance.
+CREATE OR REPLACE FUNCTION public.request_courier_withdrawal(
+  p_amount numeric,
+  p_bank_name text,
+  p_account_number text,
+  p_account_holder text,
+  p_minimum_balance numeric DEFAULT 50000
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_courier public.couriers%ROWTYPE;
+  v_reserved numeric;
+  v_available numeric;
+  v_minimum_balance numeric;
+  v_request_id uuid;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+  IF p_amount IS NULL OR p_amount <= 0
+     OR NULLIF(trim(p_bank_name), '') IS NULL
+     OR NULLIF(trim(p_account_number), '') IS NULL
+     OR NULLIF(trim(p_account_holder), '') IS NULL THEN
+    RAISE EXCEPTION 'Invalid withdrawal request' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT COALESCE(NULLIF(value->>'amount', '')::numeric, 50000)
+  INTO v_minimum_balance
+  FROM public.app_settings
+  WHERE key = 'courier_minimum_balance';
+  v_minimum_balance := COALESCE(v_minimum_balance, 50000);
+
+  SELECT * INTO v_courier
+  FROM public.couriers
+  WHERE user_id = auth.uid()
+    AND registration_status = 'APPROVED'
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Approved courier profile not found' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT COALESCE(sum(amount), 0) INTO v_reserved
+  FROM public.courier_withdrawal_requests
+  WHERE courier_id = v_courier.id
+    AND status IN ('PENDING', 'APPROVED')
+    AND id IS NOT NULL;
+
+  v_available := COALESCE(v_courier.available_balance, 0) - v_reserved;
+  IF p_amount > v_available OR v_available - p_amount < v_minimum_balance THEN
+    RAISE EXCEPTION 'Insufficient withdrawable balance' USING ERRCODE = '23514';
+  END IF;
+
+  INSERT INTO public.courier_withdrawal_requests(
+    courier_id, amount, bank_name, account_number, account_holder, status
+  ) VALUES (
+    v_courier.id, p_amount, trim(p_bank_name), trim(p_account_number), trim(p_account_holder), 'PENDING'
+  ) RETURNING id INTO v_request_id;
+
+  RETURN jsonb_build_object('request_id', v_request_id, 'amount', p_amount, 'status', 'PENDING');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.request_courier_withdrawal(numeric, text, text, text, numeric) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.request_courier_withdrawal(numeric, text, text, text, numeric) TO authenticated;
+REVOKE INSERT, DELETE ON public.courier_withdrawal_requests FROM authenticated;
+GRANT SELECT, UPDATE ON public.courier_withdrawal_requests TO authenticated;
+
+-- ===== END SOURCE: 20260830102000_courier_withdrawal_hardening.sql =====
+
+
+-- ===== BEGIN SOURCE: 20260830110000_courier_specific_assignment.sql =====
+-- OJK-13: atomically assign a specific courier from an authorized merchant/admin.
+CREATE OR REPLACE FUNCTION public.assign_specific_courier(
+  p_order_id uuid,
+  p_courier_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_order public.orders%ROWTYPE;
+  v_courier public.couriers%ROWTYPE;
+  v_active_orders integer;
+  v_courier_user_id uuid;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+  IF p_order_id IS NULL OR p_courier_id IS NULL THEN
+    RAISE EXCEPTION 'Order and courier are required' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_order
+  FROM public.orders
+  WHERE id = p_order_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT (public.is_admin() OR EXISTS (
+    SELECT 1 FROM public.merchants m
+    WHERE m.id = v_order.merchant_id AND m.user_id = auth.uid()
+  )) THEN
+    RAISE EXCEPTION 'Not allowed to assign this order' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_order.courier_id IS NOT NULL THEN
+    RAISE EXCEPTION 'Order already has courier assigned' USING ERRCODE = '23505';
+  END IF;
+  IF v_order.status NOT IN ('PROCESSING', 'PROCESSED', 'READY') THEN
+    RAISE EXCEPTION 'Order status cannot be assigned to a courier' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_courier
+  FROM public.couriers
+  WHERE id = p_courier_id
+  FOR UPDATE;
+  IF NOT FOUND OR v_courier.status <> 'ACTIVE'
+     OR v_courier.registration_status <> 'APPROVED'
+     OR v_courier.is_available IS NOT TRUE
+     OR v_courier.last_location_update IS NULL
+     OR v_courier.last_location_update < now() - interval '5 minutes' THEN
+    RAISE EXCEPTION 'Courier is not available' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT count(*) INTO v_active_orders
+  FROM public.orders
+  WHERE courier_id = p_courier_id
+    AND status IN ('ASSIGNED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING');
+  IF v_active_orders >= 3 THEN
+    RAISE EXCEPTION 'Courier capacity is full' USING ERRCODE = '55000';
+  END IF;
+
+  UPDATE public.orders
+  SET courier_id = p_courier_id,
+      status = 'ASSIGNED',
+      assigned_at = now(),
+      updated_at = now()
+  WHERE id = p_order_id AND courier_id IS NULL;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Order was assigned by another request' USING ERRCODE = '40001';
+  END IF;
+
+  v_courier_user_id := v_courier.user_id;
+  IF v_courier_user_id IS NOT NULL THEN
+    INSERT INTO public.notifications(user_id, title, message, type, link)
+    VALUES (
+      v_courier_user_id,
+      'Pesanan Baru Ditugaskan',
+      'Anda mendapat pesanan baru #' || upper(left(p_order_id::text, 8)) || '. Segera ambil pesanan.',
+      'order',
+      '/courier'
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'order_id', p_order_id,
+    'courier_id', p_courier_id,
+    'status', 'ASSIGNED'
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.assign_specific_courier(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.assign_specific_courier(uuid, uuid) TO authenticated;
+
+-- ===== END SOURCE: 20260830110000_courier_specific_assignment.sql =====
+
+
+-- ===== BEGIN SOURCE: 20260830120000_create_checkout_orders_atomic.sql =====
+-- Checkout transaction boundary: prices, totals, stock and merchant quota are
+-- calculated and committed together by the database.
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS checkout_request_id text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS orders_buyer_checkout_request_uidx
+  ON public.orders (buyer_id, checkout_request_id)
+  WHERE checkout_request_id IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.create_checkout_orders(
+  p_items jsonb,
+  p_delivery_type text,
+  p_delivery_name text,
+  p_delivery_phone text,
+  p_delivery_address text DEFAULT NULL,
+  p_delivery_lat numeric DEFAULT NULL,
+  p_delivery_lng numeric DEFAULT NULL,
+  p_payment_method text DEFAULT 'COD',
+  p_distance_km numeric DEFAULT 0,
+  p_notes text DEFAULT NULL,
+  p_checkout_request_id text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id uuid := auth.uid();
+  v_item jsonb;
+  v_line record;
+  v_merchant record;
+  v_product public.products%ROWTYPE;
+  v_order_id uuid;
+  v_order_ids jsonb := '[]'::jsonb;
+  v_existing jsonb;
+  v_subtotal integer;
+  v_shipping integer;
+  v_cod_fee integer;
+  v_total integer;
+  v_credits integer;
+  v_distance numeric;
+  v_shipping_settings jsonb;
+  v_cod_settings jsonb;
+  v_base_fee integer;
+  v_per_km_fee integer;
+  v_min_fee integer;
+  v_max_fee integer;
+  v_free_shipping_min integer;
+  v_cod_fee_setting integer;
+  v_expiry timestamptz;
+  v_has_subscription boolean;
+  v_quota_ok boolean;
+  v_free_quota integer;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+  IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'Cart is empty' USING ERRCODE = '22023';
+  END IF;
+  IF p_delivery_type NOT IN ('PICKUP', 'INTERNAL') THEN
+    RAISE EXCEPTION 'Invalid delivery type' USING ERRCODE = '22023';
+  END IF;
+  IF p_payment_method NOT IN ('COD', 'TRANSFER', 'ONLINE') THEN
+    RAISE EXCEPTION 'Invalid payment method' USING ERRCODE = '22023';
+  END IF;
+  IF nullif(trim(p_delivery_name), '') IS NULL OR nullif(trim(p_delivery_phone), '') IS NULL THEN
+    RAISE EXCEPTION 'Delivery name and phone are required' USING ERRCODE = '22023';
+  END IF;
+  IF p_delivery_type = 'INTERNAL' AND nullif(trim(p_delivery_address), '') IS NULL THEN
+    RAISE EXCEPTION 'Delivery address is required' USING ERRCODE = '22023';
+  END IF;
+  IF p_distance_km IS NULL OR p_distance_km < 0 OR p_distance_km > 500 THEN
+    RAISE EXCEPTION 'Invalid delivery distance' USING ERRCODE = '22023';
+  END IF;
+  IF p_delivery_lat IS NOT NULL AND abs(p_delivery_lat) > 90 THEN
+    RAISE EXCEPTION 'Invalid delivery latitude' USING ERRCODE = '22023';
+  END IF;
+  IF p_delivery_lng IS NOT NULL AND abs(p_delivery_lng) > 180 THEN
+    RAISE EXCEPTION 'Invalid delivery longitude' USING ERRCODE = '22023';
+  END IF;
+  IF p_checkout_request_id IS NOT NULL
+     AND (length(trim(p_checkout_request_id)) < 8 OR length(p_checkout_request_id) > 120) THEN
+    RAISE EXCEPTION 'Invalid checkout request id' USING ERRCODE = '22023';
+  END IF;
+
+  -- An idempotent retry returns the orders created by the first request.
+  IF p_checkout_request_id IS NOT NULL THEN
+    SELECT jsonb_agg(jsonb_build_object(
+      'order_id', o.id,
+      'merchant_id', o.merchant_id,
+      'subtotal', o.subtotal,
+      'shipping_cost', o.shipping_cost,
+      'total', o.total,
+      'status', o.status,
+      'payment_status', o.payment_status
+    ) ORDER BY o.created_at)
+    INTO v_existing
+    FROM public.orders o
+    WHERE o.buyer_id = v_user_id
+      AND o.checkout_request_id = p_checkout_request_id;
+    IF v_existing IS NOT NULL THEN
+      RETURN jsonb_build_object('success', true, 'idempotent', true, 'orders', v_existing);
+    END IF;
+  END IF;
+
+  -- Normalize and validate the client cart. Only product_id and quantity are
+  -- accepted; client-supplied price, subtotal, merchant and stock are ignored.
+  CREATE TEMP TABLE checkout_lines (
+    product_id uuid PRIMARY KEY,
+    quantity integer NOT NULL CHECK (quantity > 0)
+  ) ON COMMIT DROP;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
+    IF NULLIF(v_item->>'product_id', '') IS NULL
+       OR (v_item->>'quantity') !~ '^[0-9]+$'
+       OR (v_item->>'quantity')::integer <= 0
+       OR (v_item->>'quantity')::integer > 999 THEN
+      RAISE EXCEPTION 'Invalid checkout item' USING ERRCODE = '22023';
+    END IF;
+    INSERT INTO checkout_lines(product_id, quantity)
+    VALUES ((v_item->>'product_id')::uuid, (v_item->>'quantity')::integer)
+    ON CONFLICT (product_id) DO UPDATE
+      SET quantity = checkout_lines.quantity + EXCLUDED.quantity;
+  END LOOP;
+
+  IF EXISTS (SELECT 1 FROM checkout_lines WHERE quantity > 999) THEN
+    RAISE EXCEPTION 'Item quantity is too large' USING ERRCODE = '22023';
+  END IF;
+
+  -- Lock products in deterministic product_id order. This prevents two
+  -- concurrent checkouts from overselling the same stock.
+  FOR v_line IN
+    SELECT cl.product_id, cl.quantity
+    FROM checkout_lines cl
+    ORDER BY cl.product_id
+  LOOP
+    SELECT * INTO v_product
+    FROM public.products
+    WHERE id = v_line.product_id
+    FOR UPDATE;
+    IF NOT FOUND OR v_product.is_active IS NOT TRUE THEN
+      RAISE EXCEPTION 'Product is unavailable: %', v_line.product_id USING ERRCODE = 'P0002';
+    END IF;
+    IF v_product.stock - COALESCE(v_product.reserved_stock, 0) < v_line.quantity THEN
+      RAISE EXCEPTION 'Insufficient stock for product %', v_product.name USING ERRCODE = '23514';
+    END IF;
+  END LOOP;
+
+  SELECT COALESCE(value, '{}'::jsonb) INTO v_shipping_settings
+  FROM public.app_settings WHERE key = 'shipping_base_fee' LIMIT 1;
+  v_base_fee := COALESCE((v_shipping_settings->>'base_fee')::integer, 5000);
+  v_per_km_fee := COALESCE((v_shipping_settings->>'per_km_fee')::integer, 2000);
+  v_min_fee := COALESCE((v_shipping_settings->>'min_fee')::integer, 5000);
+  v_max_fee := COALESCE((v_shipping_settings->>'max_fee')::integer, 50000);
+  v_free_shipping_min := COALESCE((v_shipping_settings->>'free_shipping_min_order')::integer, 100000);
+  v_distance := round(COALESCE(p_distance_km, 0)::numeric, 2);
+
+  SELECT COALESCE(value, '{}'::jsonb) INTO v_cod_settings
+  FROM public.app_settings WHERE key = 'cod_settings' LIMIT 1;
+  v_cod_fee_setting := COALESCE((v_cod_settings->>'service_fee')::integer, 0);
+
+  -- One order is created per merchant, matching the current marketplace model.
+  FOR v_merchant IN
+    SELECT p.merchant_id,
+           sum(p.price * cl.quantity)::integer AS subtotal,
+           sum(get_quota_cost(p.price) * cl.quantity)::integer AS credits
+    FROM checkout_lines cl
+    JOIN public.products p ON p.id = cl.product_id
+    GROUP BY p.merchant_id
+    ORDER BY p.merchant_id
+  LOOP
+    v_subtotal := v_merchant.subtotal;
+    v_shipping := CASE
+      WHEN p_delivery_type = 'PICKUP' OR v_subtotal >= v_free_shipping_min THEN 0
+      ELSE LEAST(v_max_fee, GREATEST(v_min_fee, v_base_fee + round(v_per_km_fee * v_distance)::integer))
+    END;
+    v_cod_fee := CASE WHEN p_payment_method = 'COD' THEN v_cod_fee_setting ELSE 0 END;
+    v_total := v_subtotal + v_shipping + v_cod_fee;
+    v_credits := v_merchant.credits;
+    v_expiry := CASE WHEN p_payment_method = 'COD' THEN now() + interval '30 minutes'
+                     ELSE now() + interval '60 minutes' END;
+
+    -- Serialize checkout per merchant. Premium quota is reserved by the
+    -- existing atomic function; free quota is counted while this merchant row
+    -- is locked, so two parallel checkouts cannot both pass the limit.
+    PERFORM 1 FROM public.merchants WHERE id = v_merchant.merchant_id FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Merchant is unavailable' USING ERRCODE = 'P0002';
+    END IF;
+    SELECT EXISTS (
+      SELECT 1 FROM public.merchant_subscriptions
+      WHERE merchant_id = v_merchant.merchant_id AND status = 'ACTIVE' AND expired_at > now()
+    ) INTO v_has_subscription;
+    IF v_has_subscription THEN
+      SELECT EXISTS (
+        SELECT 1 FROM public.merchant_subscriptions
+        WHERE merchant_id = v_merchant.merchant_id AND status = 'ACTIVE'
+          AND expired_at > now() AND transaction_quota - used_quota >= v_credits
+      ) INTO v_quota_ok;
+      IF v_quota_ok THEN
+        v_quota_ok := public.deduct_merchant_quota(v_merchant.merchant_id, v_credits);
+      END IF;
+    ELSE
+      SELECT COALESCE((value->>'limit')::integer, 100) INTO v_free_quota
+      FROM public.app_settings WHERE key = 'free_tier_quota' LIMIT 1;
+      v_free_quota := COALESCE(v_free_quota, 100);
+      SELECT count(*) + 1 <= v_free_quota INTO v_quota_ok
+      FROM public.orders
+      WHERE merchant_id = v_merchant.merchant_id
+        AND created_at >= date_trunc('month', now());
+    END IF;
+    IF NOT COALESCE(v_quota_ok, false) THEN
+      RAISE EXCEPTION 'Merchant quota is insufficient' USING ERRCODE = '23514';
+    END IF;
+
+    INSERT INTO public.orders(
+      buyer_id, merchant_id, status, handled_by, delivery_type,
+      delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng,
+      shipping_cost, subtotal, total, notes, payment_method, payment_status,
+      confirmation_deadline, cod_service_fee, buyer_distance_km, checkout_request_id
+    ) VALUES (
+      v_user_id, v_merchant.merchant_id,
+      CASE WHEN p_payment_method = 'COD' THEN 'PENDING_CONFIRMATION'
+           WHEN p_payment_method IN ('TRANSFER', 'ONLINE') THEN 'PENDING_PAYMENT'
+           ELSE 'NEW' END,
+      'ADMIN', p_delivery_type, trim(p_delivery_name), trim(p_delivery_phone),
+      p_delivery_address, p_delivery_lat, p_delivery_lng, v_shipping, v_subtotal,
+      v_total, p_notes,
+      p_payment_method,
+      CASE WHEN p_payment_method = 'COD' THEN 'COD'
+           WHEN p_payment_method = 'TRANSFER' THEN 'PENDING_TRANSFER'
+           ELSE 'UNPAID' END,
+      CASE WHEN p_payment_method = 'COD' THEN v_expiry ELSE NULL END,
+      v_cod_fee, v_distance, p_checkout_request_id
+    ) RETURNING id INTO v_order_id;
+
+    INSERT INTO public.order_items(order_id, product_id, product_name, product_price, quantity, subtotal)
+    SELECT v_order_id, p.id, p.name, p.price, cl.quantity, p.price * cl.quantity
+    FROM checkout_lines cl
+    JOIN public.products p ON p.id = cl.product_id
+    WHERE p.merchant_id = v_merchant.merchant_id
+    ORDER BY p.id;
+
+    PERFORM public.reserve_marketplace_stock(
+      v_order_id,
+      (SELECT jsonb_agg(jsonb_build_object(
+        'product_id', cl.product_id,
+        'variant_id', NULL,
+        'quantity', cl.quantity
+      ) ORDER BY cl.product_id) FROM checkout_lines cl
+       JOIN public.products p ON p.id = cl.product_id
+       WHERE p.merchant_id = v_merchant.merchant_id),
+      v_expiry
+    );
+
+    v_order_ids := v_order_ids || jsonb_build_array(jsonb_build_object(
+      'order_id', v_order_id,
+      'merchant_id', v_merchant.merchant_id,
+      'subtotal', v_subtotal,
+      'shipping_cost', v_shipping,
+      'total', v_total,
+      'status', CASE WHEN p_payment_method = 'COD' THEN 'PENDING_CONFIRMATION' ELSE 'PENDING_PAYMENT' END,
+      'payment_status', CASE WHEN p_payment_method = 'COD' THEN 'COD' WHEN p_payment_method = 'TRANSFER' THEN 'PENDING_TRANSFER' ELSE 'UNPAID' END
+    ));
+  END LOOP;
+
+  RETURN jsonb_build_object('success', true, 'idempotent', false, 'orders', v_order_ids);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_checkout_orders(
+  jsonb, text, text, text, text, numeric, numeric, text, numeric, text, text
+) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_checkout_orders(
+  jsonb, text, text, text, text, numeric, numeric, text, numeric, text, text
+) TO authenticated;
+
+-- ===== END SOURCE: 20260830120000_create_checkout_orders_atomic.sql =====
+
+
+-- ===== BEGIN SOURCE: 20260830121000_checkout_marketplace_voucher_validation.sql =====
+-- Marketplace voucher validation for create_checkout_orders.
+-- This migration keeps the existing 11-argument RPC and adds a 12-argument
+-- overload, so existing clients remain compatible while new clients can send
+-- only a voucher code. All voucher rules and discount amounts are server-side.
+
+CREATE TABLE IF NOT EXISTS public.marketplace_vouchers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text NOT NULL UNIQUE,
+  discount_type text NOT NULL CHECK (discount_type IN ('FIXED', 'PERCENT')),
+  discount_value integer NOT NULL CHECK (discount_value > 0),
+  max_discount integer CHECK (max_discount IS NULL OR max_discount > 0),
+  min_subtotal integer NOT NULL DEFAULT 0 CHECK (min_subtotal >= 0),
+  usage_limit integer CHECK (usage_limit IS NULL OR usage_limit > 0),
+  usage_count integer NOT NULL DEFAULT 0 CHECK (usage_count >= 0),
+  per_buyer_limit integer NOT NULL DEFAULT 1 CHECK (per_buyer_limit > 0),
+  starts_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz,
+  is_active boolean NOT NULL DEFAULT true,
+  merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (expires_at IS NULL OR expires_at > starts_at),
+  CHECK (discount_type <> 'PERCENT' OR discount_value <= 100)
+);
+
+CREATE TABLE IF NOT EXISTS public.marketplace_voucher_redemptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  voucher_id uuid NOT NULL REFERENCES public.marketplace_vouchers(id) ON DELETE RESTRICT,
+  buyer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  discount_amount integer NOT NULL CHECK (discount_amount >= 0),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (voucher_id, order_id)
+);
+
+ALTER TABLE public.marketplace_vouchers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.marketplace_voucher_redemptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Buyers view active marketplace vouchers" ON public.marketplace_vouchers;
+CREATE POLICY "Buyers view active marketplace vouchers"
+ON public.marketplace_vouchers FOR SELECT TO authenticated
+USING (is_active AND starts_at <= now() AND (expires_at IS NULL OR expires_at > now()));
+
+DROP POLICY IF EXISTS "Buyers view own voucher redemptions" ON public.marketplace_voucher_redemptions;
+CREATE POLICY "Buyers view own voucher redemptions"
+ON public.marketplace_voucher_redemptions FOR SELECT TO authenticated
+USING (buyer_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS marketplace_vouchers_code_idx
+  ON public.marketplace_vouchers (lower(code));
+CREATE INDEX IF NOT EXISTS marketplace_voucher_redemptions_buyer_idx
+  ON public.marketplace_voucher_redemptions (voucher_id, buyer_id);
+
+CREATE OR REPLACE FUNCTION public.consume_marketplace_voucher(
+  p_code text,
+  p_buyer_id uuid,
+  p_order_id uuid,
+  p_subtotal integer,
+  p_merchant_id uuid
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_voucher public.marketplace_vouchers%ROWTYPE;
+  v_discount integer;
+BEGIN
+  IF NULLIF(trim(p_code), '') IS NULL THEN RETURN 0; END IF;
+  IF p_buyer_id IS NULL OR p_order_id IS NULL OR p_subtotal < 0
+     OR p_buyer_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Invalid voucher request' USING ERRCODE = '22023';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.orders
+    WHERE id = p_order_id AND buyer_id = p_buyer_id AND merchant_id = p_merchant_id
+  ) THEN
+    RAISE EXCEPTION 'Voucher order ownership validation failed' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_voucher
+  FROM public.marketplace_vouchers
+  WHERE lower(code) = lower(trim(p_code))
+    AND is_active
+    AND starts_at <= now()
+    AND (expires_at IS NULL OR expires_at > now())
+    AND min_subtotal <= p_subtotal
+    AND (merchant_id IS NULL OR merchant_id = p_merchant_id)
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Voucher tidak valid, tidak berlaku untuk toko ini, atau sudah kedaluwarsa' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_voucher.usage_limit IS NOT NULL AND v_voucher.usage_count >= v_voucher.usage_limit THEN
+    RAISE EXCEPTION 'Batas penggunaan voucher sudah tercapai' USING ERRCODE = '23514';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.marketplace_voucher_redemptions
+    WHERE voucher_id = v_voucher.id AND buyer_id = p_buyer_id
+    GROUP BY voucher_id, buyer_id
+    HAVING count(*) >= v_voucher.per_buyer_limit
+  ) THEN
+    RAISE EXCEPTION 'Voucher sudah mencapai batas penggunaan akun ini' USING ERRCODE = '23514';
+  END IF;
+
+  v_discount := CASE
+    WHEN v_voucher.discount_type = 'FIXED' THEN v_voucher.discount_value
+    ELSE floor(p_subtotal * v_voucher.discount_value / 100.0)::integer
+  END;
+  v_discount := LEAST(v_discount, p_subtotal);
+  IF v_voucher.max_discount IS NOT NULL THEN
+    v_discount := LEAST(v_discount, v_voucher.max_discount);
+  END IF;
+
+  UPDATE public.marketplace_vouchers
+  SET usage_count = usage_count + 1, updated_at = now()
+  WHERE id = v_voucher.id;
+  INSERT INTO public.marketplace_voucher_redemptions(voucher_id, buyer_id, order_id, discount_amount)
+  VALUES (v_voucher.id, p_buyer_id, p_order_id, v_discount);
+  RETURN v_discount;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.consume_marketplace_voucher(text, uuid, uuid, integer, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.consume_marketplace_voucher(text, uuid, uuid, integer, uuid) TO authenticated;
+
+-- New overload. It calls the existing atomic 11-argument checkout RPC first;
+-- because PostgreSQL functions share the caller transaction, a voucher error
+-- rolls back orders, stock reservations, quota deduction, and redemption.
+CREATE OR REPLACE FUNCTION public.create_checkout_orders(
+  p_items jsonb,
+  p_delivery_type text,
+  p_delivery_name text,
+  p_delivery_phone text,
+  p_delivery_address text DEFAULT NULL,
+  p_delivery_lat numeric DEFAULT NULL,
+  p_delivery_lng numeric DEFAULT NULL,
+  p_payment_method text DEFAULT 'COD',
+  p_distance_km numeric DEFAULT 0,
+  p_notes text DEFAULT NULL,
+  p_checkout_request_id text DEFAULT NULL,
+  p_voucher_code text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id uuid := auth.uid();
+  v_base jsonb;
+  v_order jsonb;
+  v_order_id uuid;
+  v_merchant_id uuid;
+  v_discount integer;
+  v_total_discount integer := 0;
+  v_voucher_merchant_id uuid;
+  v_applied boolean := false;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+
+  -- The old RPC remains the source of truth for server prices, shipping,
+  -- stock locking and quota. Do not pass any client-calculated discount.
+  v_base := public.create_checkout_orders(
+    p_items, p_delivery_type, p_delivery_name, p_delivery_phone,
+    p_delivery_address, p_delivery_lat, p_delivery_lng, p_payment_method,
+    p_distance_km, p_notes, p_checkout_request_id
+  );
+  IF COALESCE((v_base->>'idempotent')::boolean, false) THEN
+    RETURN v_base;
+  END IF;
+  IF NULLIF(trim(p_voucher_code), '') IS NULL THEN
+    RETURN v_base;
+  END IF;
+
+  SELECT merchant_id INTO v_voucher_merchant_id
+  FROM public.marketplace_vouchers
+  WHERE lower(code) = lower(trim(p_voucher_code));
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Voucher tidak ditemukan' USING ERRCODE = '22023';
+  END IF;
+
+  FOR v_order IN SELECT value FROM jsonb_array_elements(COALESCE(v_base->'orders', '[]'::jsonb)) LOOP
+    v_order_id := (v_order->>'order_id')::uuid;
+    v_merchant_id := (v_order->>'merchant_id')::uuid;
+    IF NOT v_applied AND (v_voucher_merchant_id IS NULL OR v_voucher_merchant_id = v_merchant_id) THEN
+      v_discount := public.consume_marketplace_voucher(
+        p_voucher_code, v_user_id, v_order_id,
+        (v_order->>'subtotal')::integer, v_merchant_id
+      );
+      UPDATE public.orders
+      SET total = GREATEST(0, total - v_discount),
+          flash_sale_discount = COALESCE(flash_sale_discount, 0) + v_discount,
+          updated_at = now()
+      WHERE id = v_order_id AND buyer_id = v_user_id;
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'Checkout order not found while applying voucher' USING ERRCODE = 'P0002';
+      END IF;
+      v_total_discount := v_discount;
+      v_applied := true;
+    END IF;
+  END LOOP;
+
+  IF NOT v_applied THEN
+    RAISE EXCEPTION 'Voucher tidak berlaku untuk merchant pada checkout ini' USING ERRCODE = '22023';
+  END IF;
+
+  RETURN v_base || jsonb_build_object('voucher_discount', v_total_discount);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.create_checkout_orders(
+  jsonb, text, text, text, text, numeric, numeric, text, numeric, text, text, text
+) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_checkout_orders(
+  jsonb, text, text, text, text, numeric, numeric, text, numeric, text, text, text
+) TO authenticated;
+
+-- ===== END SOURCE: 20260830121000_checkout_marketplace_voucher_validation.sql =====
