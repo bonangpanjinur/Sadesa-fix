@@ -184,7 +184,7 @@ export default function CheckoutPage() {
   }, [subtotal, distanceKm, codSettings, codStatus, paymentMethod, xenditAvailable, merchantPaymentSettings]);
 
   // Group items by merchant
-  const itemsByMerchant = items.reduce((acc, item) => {
+  const itemsByMerchant = useMemo(() => items.reduce((acc, item) => {
     const merchantId = item.product.merchantId;
     if (!acc[merchantId]) {
       acc[merchantId] = {
@@ -194,10 +194,17 @@ export default function CheckoutPage() {
     }
     acc[merchantId].items.push(item);
     return acc;
-  }, {} as Record<string, { merchantName: string; items: typeof items }>);
+  }, {} as Record<string, { merchantName: string; items: typeof items }>), [items]);
 
   // Get unique merchant IDs for quota check
-  const merchantIds = useMemo(() => Object.keys(itemsByMerchant), [itemsByMerchant]);
+  const merchantIdsKey = useMemo(
+    () => Object.keys(itemsByMerchant).sort().join(','),
+    [itemsByMerchant],
+  );
+  const merchantIds = useMemo(
+    () => merchantIdsKey ? merchantIdsKey.split(',') : [],
+    [merchantIdsKey],
+  );
   const firstMerchantId = merchantIds[0];
 
   // Check merchant quotas
@@ -277,8 +284,13 @@ export default function CheckoutPage() {
   }, [firstMerchantId, xenditAvailable]);
 
   useEffect(() => {
+    let cancelled = false;
     const loadMerchantOperatingHours = async () => {
-      if (merchantIds.length === 0) return;
+      if (merchantIds.length === 0) {
+        setMerchantOperatingInfo({});
+        setOperatingHoursLoading(false);
+        return;
+      }
       
       setOperatingHoursLoading(true);
       try {
@@ -287,7 +299,7 @@ export default function CheckoutPage() {
           .select('id, name, is_open, open_time, close_time')
           .in('id', merchantIds);
 
-        if (data) {
+        if (data && !cancelled) {
           const info: Record<string, MerchantOperatingInfo> = {};
           data.forEach(m => {
             info[m.id] = {
@@ -303,11 +315,12 @@ export default function CheckoutPage() {
       } catch (error) {
         console.error('Error loading merchant operating hours:', error);
       } finally {
-        setOperatingHoursLoading(false);
+        if (!cancelled) setOperatingHoursLoading(false);
       }
     };
 
     loadMerchantOperatingHours();
+    return () => { cancelled = true; };
   }, [merchantIds]);
 
   // Get closed merchants
