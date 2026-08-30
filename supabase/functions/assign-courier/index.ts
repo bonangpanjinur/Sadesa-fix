@@ -284,24 +284,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Record courier earning (pending)
-    const { data: orderDetails } = await supabase
-      .from('orders')
-      .select('shipping_cost')
-      .eq('id', order_id)
-      .single()
-
-    if (orderDetails?.shipping_cost) {
-      const courierFee = Math.floor(orderDetails.shipping_cost * 0.8) // 80% of shipping
-      await supabase.from('courier_earnings').insert({
-        courier_id: bestCourier.id,
-        order_id: order_id,
-        amount: courierFee,
-        type: 'DELIVERY',
-        status: 'PENDING'
-      })
-    }
-
     return new Response(
       JSON.stringify({
         success: true,

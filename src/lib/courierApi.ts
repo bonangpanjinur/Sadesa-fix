@@ -49,50 +49,14 @@ export async function manualAssignCourier(
   courierId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: courier, error: courierError } = await supabase
-      .from('couriers')
-      .select('id, name, is_available, status')
-      .eq('id', courierId)
-      .maybeSingle();
-
-    if (courierError || !courier) {
-      return { success: false, error: 'Kurir tidak ditemukan' };
+    const { error } = await supabase.rpc('assign_specific_courier', {
+      p_order_id: orderId,
+      p_courier_id: courierId,
+    });
+    if (error) {
+      console.error('Error assigning courier:', error);
+      return { success: false, error: error.message || 'Gagal menugaskan kurir' };
     }
-
-    if (courier.status !== 'ACTIVE') {
-      return { success: false, error: 'Kurir tidak aktif' };
-    }
-
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
-        courier_id: courierId,
-        status: 'ASSIGNED',
-        assigned_at: new Date().toISOString(),
-      })
-      .eq('id', orderId);
-
-    if (updateError) {
-      console.error('Error assigning courier:', updateError);
-      return { success: false, error: 'Gagal menugaskan kurir' };
-    }
-
-    const { data: courierData } = await supabase
-      .from('couriers')
-      .select('user_id')
-      .eq('id', courierId)
-      .maybeSingle();
-
-    if (courierData?.user_id) {
-      await supabase.from('notifications').insert({
-        user_id: courierData.user_id,
-        title: 'Pesanan Baru Ditugaskan',
-        message: `Anda mendapat pesanan baru. Segera ambil pesanan.`,
-        type: 'order',
-        link: '/courier',
-      });
-    }
-
     return { success: true };
   } catch (err) {
     console.error('Error in manualAssignCourier:', err);
