@@ -40,7 +40,7 @@ export const DEFAULT_SETTINGS: PrinterSettings = {
   wifiPort: 9100,
   baudRate: 9600,
   paperWidth: 80,
-  autoPrint: false,
+  autoPrint: true,
   printCopies: 1,
 };
 

@@ -444,9 +444,33 @@ export default function POSKasirPage() {
             notes: notes || undefined,
             created_at: new Date().toISOString(),
           });
+          const offlineSaleNumber = `OFF-${requestKey.slice(0, 8).toUpperCase()}`;
+          setLastSale({
+            saleId: requestKey,
+            saleNumber: offlineSaleNumber,
+            createdAt,
+            outletId: activeOutlet.id,
+            printJobId: createPrintJobId(requestKey, offlineSaleNumber),
+            total,
+            change: Math.max(0, paymentAmountValue - total),
+            paymentMethod: 'cash',
+            customerName: selectedCustomer?.name || customerName || 'Umum',
+            items: [...cart],
+            pointsEarned,
+            pointsRedeemed: usePoints ? pointsToRedeem : 0,
+            pointsDiscount,
+            promoDiscount: calculatedPromoDiscount,
+            voucherDiscount: calculatedVoucherDiscount,
+            appliedPromoName: appliedPromo?.name || null,
+            appliedVoucherCode: appliedVoucher?.code || null,
+            newPointsBalance: null,
+            subtotal,
+            taxAmount,
+            paidAmount: paymentAmountValue,
+          });
           paymentRequestKeyRef.current = null;
           clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
-          resetPayment();
+          resetPayment(); setSuccessDialog(true);
           toast.success('Transaksi disimpan offline dan akan disinkronkan saat online');
           void triggerSync();
           return true;
