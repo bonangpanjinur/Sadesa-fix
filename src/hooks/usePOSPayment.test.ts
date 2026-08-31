@@ -31,6 +31,7 @@ describe('usePOSPayment', () => {
     expect(result.current.splitMethod2).toBe('qris');
     act(() => result.current.resetPayment());
     expect(result.current.isSplitPayment).toBe(false);
+    expect(result.current.splitMethod2).toBe('transfer');
     expect(result.current.splitAmount1).toBe('');
     expect(result.current.paymentDialog).toBe(false);
   });

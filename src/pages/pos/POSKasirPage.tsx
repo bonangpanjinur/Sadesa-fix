@@ -31,7 +31,6 @@ const POSCart = lazy(() => import('@/components/pos/kasir/POSCart').then(({ POSC
 const BarcodeScanner = lazy(() => import('@/components/pos/BarcodeScanner').then(({ BarcodeScanner: Component }) => ({ default: Component })));
 const POSPaymentDialog = lazy(() => import('@/components/pos/kasir/POSPaymentDialog').then(({ POSPaymentDialog: Component }) => ({ default: Component })));
 const POSHeldBills = lazy(() => import('@/components/pos/kasir/POSHeldBills').then(({ POSHeldBills: Component }) => ({ default: Component })));
-const QRPayDialog = lazy(() => import('@/components/pos/kasir/QRPayDialog').then(({ QRPayDialog: Component }) => ({ default: Component })));
 
 export default function POSKasirPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
@@ -102,9 +101,6 @@ export default function POSKasirPage() {
     userEmail: user?.email,
   });
 
-  // QR Pay
-  const [qrPayDialog, setQrPayDialog] = useState(false);
-
   // Hold Bill
   const [heldBillsDialog, setHeldBillsDialog] = useState(false);
   const {
@@ -152,7 +148,7 @@ export default function POSKasirPage() {
     splitAmount2,
     paymentDialog, setPaymentDialog,
     successDialog, setSuccessDialog,
-    openPayment: openPaymentState,
+    openPayment: openPaymentState, resetPayment,
     handlePaymentChange,
   } = usePOSPayment(total, cart.length);
   const change = paymentMethod === 'cash'
@@ -321,15 +317,16 @@ export default function POSKasirPage() {
     if (!openPaymentState()) toast.error('Keranjang kosong');
   }, [openPaymentState]);
 
-  const processPayment = async (paymentMethodOverride?: string) => {
-    if (!tenant || !activeOutlet || !user) return;
-        const effectiveMethod = paymentMethodOverride || paymentMethod;
-    const storedPaymentMethod = isSplitPayment ? 'split' : effectiveMethod;
+  const processPayment = async (paymentMethodOverride?: string): Promise<boolean> => {
+    if (!tenant || !activeOutlet || !user) return false;
+    const effectiveMethod = paymentMethodOverride || paymentMethod;
+    const effectiveIsSplitPayment = isSplitPayment && !paymentMethodOverride;
+    const storedPaymentMethod = effectiveIsSplitPayment ? 'split' : effectiveMethod;
     const validationError = validatePOSPayment({
       total,
       paymentMethod: storedPaymentMethod,
       paymentAmount: Number(paymentAmount) || total,
-      isSplitPayment,
+      isSplitPayment: effectiveIsSplitPayment,
       splitAmount1: Number(splitAmount1),
       splitAmount2: Number(splitAmount2),
       isOnline,
@@ -339,16 +336,16 @@ export default function POSKasirPage() {
     });
     if (validationError && !paymentMethodOverride) {
       toast.error(validationError);
-      return;
+      return false;
     }
     const requestKey = paymentRequestKeyRef.current ?? crypto.randomUUID();
     paymentRequestKeyRef.current = requestKey;
     const saleNumber = `TRX-${Date.now()}`;
     const createdAt = new Date().toISOString();
-        const paymentAmountValue = getEffectivePaymentAmount({
+    const paymentAmountValue = getEffectivePaymentAmount({
       total,
       paymentAmount: Number(paymentAmount) || total,
-      isSplitPayment,
+      isSplitPayment: effectiveIsSplitPayment,
       splitAmount1: Number(splitAmount1),
       splitAmount2: Number(splitAmount2),
     });
@@ -371,8 +368,10 @@ export default function POSKasirPage() {
           total,
           payment_method: storedPaymentMethod,
           payment_amount: paymentAmountValue,
-          change_amount: effectiveMethod === 'cash' && !isSplitPayment ? change : 0,
-          notes: isSplitPayment ? `${notes ? `${notes} | ` : ''}Split: ${effectiveMethod}+${splitMethod2}` : (notes || null),
+          change_amount: effectiveMethod === 'cash' && !effectiveIsSplitPayment
+            ? Math.max(0, paymentAmountValue - total)
+            : 0,
+          notes: effectiveIsSplitPayment ? `${notes ? `${notes} | ` : ''}Split: ${effectiveMethod}+${splitMethod2}` : (notes || null),
           promotion_id: appliedPromo?.id || null,
           promotion_discount: calculatedPromoDiscount,
           voucher_id: appliedVoucher?.id || null,
@@ -404,7 +403,9 @@ export default function POSKasirPage() {
         outletId: activeOutlet.id,
         printJobId: createPrintJobId(result.sale_id, result.sale_number),
         total: result.total,
-        change: effectiveMethod === 'cash' ? change : 0,
+        change: effectiveMethod === 'cash' && !effectiveIsSplitPayment
+          ? Math.max(0, paymentAmountValue - total)
+          : 0,
         paymentMethod: effectiveMethod,
         customerName: selectedCustomer?.name || customerName || 'Umum',
         items: [...cart],
@@ -420,7 +421,8 @@ export default function POSKasirPage() {
 
       paymentRequestKeyRef.current = null;
       clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
-      setPaymentAmount(''); setPaymentDialog(false); setSuccessDialog(true); fetchProducts();
+      resetPayment(); setSuccessDialog(true); fetchProducts();
+      return true;
     } catch (err: unknown) {
       // Keep the request key so a retry after a timeout cannot create a second sale.
       const browserOffline = typeof navigator !== 'undefined' && !navigator.onLine;
@@ -444,15 +446,16 @@ export default function POSKasirPage() {
           });
           paymentRequestKeyRef.current = null;
           clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
-          setPaymentAmount(''); setPaymentDialog(false);
+          resetPayment();
           toast.success('Transaksi disimpan offline dan akan disinkronkan saat online');
           void triggerSync();
-          return;
+          return true;
         } catch (queueError: unknown) {
           toast.error('Gagal menyimpan transaksi offline: ' + (queueError instanceof Error ? queueError.message : 'Kesalahan tidak diketahui'));
         }
       }
       toast.error('Gagal memproses transaksi: ' + (err instanceof Error ? err.message : 'Kesalahan tidak diketahui'));
+      return false;
     }
   };
 
@@ -695,15 +698,15 @@ export default function POSKasirPage() {
   );
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className="flex h-[100dvh] flex-col lg:flex-row bg-background overflow-hidden">
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
       <div className={cn('fixed inset-y-0 left-0 z-50 lg:relative lg:z-0 transform transition-transform duration-200', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')}>
         <POSSidebar />
       </div>
 
-      <div className="flex flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-1 min-w-0 min-h-0 flex-col lg:flex-row overflow-hidden">
         {/* Panel Produk */}
-        <div className="flex-1 flex flex-col min-w-0 border-r">
+        <div className="flex-1 min-h-0 flex flex-col min-w-0 border-b lg:border-b-0 lg:border-r">
           <div className="p-3 border-b bg-background space-y-2">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" onClick={() => setSidebarOpen(true)}>
@@ -789,7 +792,7 @@ export default function POSKasirPage() {
           onSetDiscount={setDiscount} onSetNotes={setNotes}
           onOpenCustomer={() => setCustomerDialog(true)}
           onOpenHeldBills={() => setHeldBillsDialog(true)}
-          onHoldBill={holdBill} onOpenPayment={openPayment} onOpenQRPay={() => setQrPayDialog(true)} onClearCart={clearCart}
+          onHoldBill={holdBill} onOpenPayment={openPayment} onClearCart={clearCart}
           onTogglePoints={handleTogglePoints} onPointsInput={handlePointsInput}
           onApplyVoucher={applyVoucher} onRemoveVoucher={removeVoucher}
           onSetVoucherCode={setVoucherCode} onSetVoucherError={setVoucherError}
@@ -809,7 +812,7 @@ export default function POSKasirPage() {
             appliedPromo={appliedPromo} appliedVoucher={appliedVoucher}
             pointsToRedeem={pointsToRedeem} pointsEarned={pointsEarned}
             selectedCustomer={selectedCustomer} loyaltyProgram={loyaltyProgram}
-            formatCurrency={formatCurrency} onChange={handlePaymentChange} onProcess={() => void processPayment()}
+            formatCurrency={formatCurrency} onChange={handlePaymentChange} onProcess={processPayment}
           />
         </Suspense>
       )}
@@ -941,27 +944,6 @@ export default function POSKasirPage() {
         </DialogContent>
       </Dialog>
 
-      {/* QR Pay dan barcode scanner dimuat on-demand */}
-      {qrPayDialog && (
-        <Suspense fallback={null}>
-          <QRPayDialog
-            open={qrPayDialog}
-            onOpenChange={setQrPayDialog}
-            amount={total}
-            tenantId={tenant?.id || ''}
-            outletId={activeOutlet?.id || ''}
-            cashierName={user?.email || 'Kasir'}
-            storeName={tenant?.name || activeOutlet?.name || 'Toko'}
-            authToken={typeof window !== 'undefined' ? (localStorage.getItem('session_token') || '') : ''}
-            onSuccess={(buyerName) => {
-              setQrPayDialog(false);
-              // Proses transaksi dengan override metode qr_pay (hindari state async issue)
-              processPayment('qr_pay');
-              toast.success(`QR Pay berhasil! Dibayar oleh ${buyerName}`);
-            }}
-          />
-        </Suspense>
-      )}
       {scannerOpen && (
         <Suspense fallback={null}>
           <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetect={onBarcodeDetect} />

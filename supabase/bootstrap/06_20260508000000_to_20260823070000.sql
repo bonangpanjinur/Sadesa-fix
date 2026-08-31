@@ -3667,6 +3667,17 @@ BEGIN
       GREATEST(0, (v_effective_price * v_qty) - COALESCE((v_item->>'discount')::numeric, 0) + COALESCE((v_item->>'tax_amount')::numeric, 0)), NULLIF(v_item->>'notes', '')
     );
 
+    -- Non-stock-tracked products are valid POS items and do not require an
+    -- outlet stock row. Their recipe usage, when configured, is handled below.
+    IF EXISTS (
+      SELECT 1 FROM public.pos_products
+      WHERE id = (v_item->>'product_id')::uuid
+        AND tenant_id = p_tenant_id
+        AND is_stock_tracked IS FALSE
+    ) THEN
+      CONTINUE;
+    END IF;
+
     SELECT * INTO v_stock
     FROM public.pos_stock
     WHERE tenant_id = p_tenant_id

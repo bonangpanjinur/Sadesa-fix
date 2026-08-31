@@ -73,7 +73,7 @@ export function POSCart({
   };
 
   return (
-    <div className="w-80 xl:w-96 flex flex-col bg-card">
+    <div className="w-full lg:w-80 xl:w-96 h-[45dvh] lg:h-auto min-h-0 flex flex-col bg-card">
       {/* Header */}
       <div className="p-3 border-b space-y-2">
         <div className="flex items-center justify-between">

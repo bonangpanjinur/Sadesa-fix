@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Banknote, QrCode, CreditCard, CheckCircle2, Percent, Ticket, Star, Gift } from 'lucide-react';
+import { useState } from 'react';
+import { Banknote, QrCode, CreditCard, CheckCircle2, Percent, Ticket, Star, Gift, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Customer, LoyaltyProgram, Promotion, Voucher } from './types';
 
@@ -38,7 +39,7 @@ interface Props {
   loyaltyProgram: LoyaltyProgram | null;
   formatCurrency: (n: number) => string;
   onChange: (field: string, value: string | boolean) => void;
-  onProcess: () => void;
+  onProcess: () => void | Promise<void>;
 }
 
 export function POSPaymentDialog({
@@ -48,11 +49,26 @@ export function POSPaymentDialog({
   appliedPromo, appliedVoucher, pointsToRedeem, pointsEarned,
   selectedCustomer, loyaltyProgram, formatCurrency, onChange, onProcess,
 }: Props) {
+  const [isProcessing, setIsProcessing] = useState(false);
   const change = paymentMethod === 'cash' ? Math.max(0, (Number(paymentAmount) || 0) - total) : 0;
 
+  const handleProcess = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await onProcess();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!isProcessing) onOpenChange(nextOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="w-[calc(100%-1rem)] max-w-lg max-h-[calc(100dvh-1rem)] overflow-y-auto p-4 sm:p-6">
         <DialogHeader><DialogTitle>Proses Pembayaran</DialogTitle></DialogHeader>
         <div className="space-y-4">
           {/* Ringkasan */}
@@ -181,10 +197,11 @@ export function POSPaymentDialog({
             </div>
           )}
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-          <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={onProcess}>
-            <CheckCircle2 className="h-4 w-4 mr-2" />Selesaikan
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => handleOpenChange(false)} disabled={isProcessing}>Batal</Button>
+          <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700" onClick={() => void handleProcess()} disabled={isProcessing}>
+            {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+            {isProcessing ? 'Memproses...' : 'Selesaikan'}
           </Button>
         </DialogFooter>
       </DialogContent>

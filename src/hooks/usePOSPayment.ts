@@ -23,6 +23,11 @@ export function usePOSPayment(total: number, cartLength: number) {
 
   const openPayment = useCallback(() => {
     if (cartLength === 0) return false;
+    setPaymentMethod('cash');
+    setIsSplitPayment(false);
+    setSplitMethod2('transfer');
+    setSplitAmount1('');
+    setSplitAmount2('');
     setPaymentAmount(String(total));
     setPaymentDialog(true);
     return true;
@@ -41,10 +46,12 @@ export function usePOSPayment(total: number, cartLength: number) {
   }, []);
 
   const resetPayment = useCallback(() => {
+    setPaymentMethod('cash');
     setPaymentAmount('');
     setPaymentDialog(false);
     setSuccessDialog(false);
     setIsSplitPayment(false);
+    setSplitMethod2('transfer');
     setSplitAmount1('');
     setSplitAmount2('');
   }, []);
