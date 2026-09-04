@@ -31,6 +31,8 @@ function json(res, status, payload) {
     'access-control-allow-origin': ALLOWED_ORIGIN,
     'access-control-allow-headers': 'content-type, x-print-bridge-token',
     'access-control-allow-methods': 'GET, POST, OPTIONS',
+    'access-control-allow-private-network': 'true',
+    'vary': 'Origin, Access-Control-Request-Private-Network',
     'cache-control': 'no-store',
   });
   res.end(JSON.stringify(payload));

@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { printBridgeClient } from '@/lib/printBridgeClient';
 import { enqueueReceiptData, flushReceiptOutbox } from '@/lib/printOutbox';
 import { createPrintJob } from '@/lib/receiptDomain';
-import { printReceiptBrowser } from '@/lib/thermalPrinter';
+import { getPrinterSettings, printReceiptBrowser } from '@/lib/thermalPrinter';
 import type { ReceiptStore, LastSale } from '@/components/pos/kasir/types';
 
 interface UsePOSReceiptArgs {
@@ -43,6 +43,10 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
       const result = await flushReceiptOutbox();
       if (result.failed > 0) {
         setThermalConnected(false);
+        if (getPrinterSettings().connectionType === 'usb') {
+          toast.error('Printer USB belum mencetak. Hubungkan printer dari Pengaturan Printer, lalu coba ulang antrean.');
+          return false;
+        }
         await printReceiptBrowser(receiptJob.receipt);
         toast.info('Print Bridge tidak tersedia. Struk dibuka melalui dialog print browser.');
         return true;
@@ -52,6 +56,10 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
       return true;
     } catch (error: unknown) {
       setThermalConnected(false);
+      if (getPrinterSettings().connectionType === 'usb') {
+        toast.error(`Printer USB belum mencetak: ${error instanceof Error ? error.message : 'Hubungkan printer USB dari Pengaturan Printer.'}`);
+        return false;
+      }
       try {
         await printReceiptBrowser(receiptJob.receipt);
         toast.info('Print Bridge tidak tersedia. Struk dibuka melalui dialog print browser.');

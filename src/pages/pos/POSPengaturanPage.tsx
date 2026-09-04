@@ -68,17 +68,22 @@ export default function POSPengaturanPage() {
     toast.success('Pengaturan printer tersimpan');
   };
 
+  const getBridgePrinters = async () => {
+    const { health, printers } = await printBridgeClient.status();
+    if (!health.ok) throw new Error('Print Bridge aktif tetapi health check gagal. Restart service lalu coba lagi.');
+    return printers;
+  };
+
   const connectUSB = async () => {
     setPrinterStatus('connecting');
-    setPrinterMsg('Memeriksa Print Bridge dan printer USB...');
+    setPrinterMsg('Membuka pemilihan printer USB di tablet...');
     try {
-      const health = await printBridgeClient.health();
-      const printers = await printBridgeClient.listPrinters();
-      const printer = printers.find(item => item.type === 'serial');
-      if (!health.ok || !printer) throw new Error('Printer USB belum dikonfigurasi di Print Bridge.');
+      const connected = await uniPrinter.usb.connect(printerSettings.baudRate);
+      if (!connected) throw new Error('Pemilihan printer dibatalkan.');
+      savePrinterSettings(printerSettings);
       setPrinterStatus('connected');
-      setPrinterMsg(`Printer USB siap: ${printer.name}`);
-      toast.success('Printer USB siap digunakan tanpa browser');
+      setPrinterMsg('Printer USB terhubung langsung ke tablet');
+      toast.success('Printer USB siap digunakan dari tablet');
     } catch (err: unknown) {
       setPrinterStatus('error');
       setPrinterMsg(err instanceof Error ? err.message : String(err));
@@ -90,10 +95,9 @@ export default function POSPengaturanPage() {
     setPrinterStatus('connecting');
     setPrinterMsg('Memeriksa Print Bridge dan printer Bluetooth...');
     try {
-      const health = await printBridgeClient.health();
-      const printers = await printBridgeClient.listPrinters();
+      const printers = await getBridgePrinters();
       const printer = printers.find(item => item.name.toLowerCase().includes('bluetooth'));
-      if (!health.ok || !printer) throw new Error('Printer Bluetooth belum dikonfigurasi di Print Bridge.');
+      if (!printer) throw new Error('Printer Bluetooth belum dikonfigurasi di Print Bridge.');
       setPrinterStatus('connected');
       setPrinterMsg(`Printer Bluetooth siap: ${printer.name}`);
       toast.success('Printer Bluetooth siap digunakan tanpa browser');
@@ -109,10 +113,9 @@ export default function POSPengaturanPage() {
     setPrinterStatus('connecting');
     setPrinterMsg(`Mengecek ${printerSettings.wifiIp}:${printerSettings.wifiPort}...`);
     try {
-      const health = await printBridgeClient.health();
-      const printers = await printBridgeClient.listPrinters();
+      const printers = await getBridgePrinters();
       const printer = printers.find(item => item.type === 'tcp' && item.host === printerSettings.wifiIp && Number(item.port || 9100) === printerSettings.wifiPort);
-      if (!health.ok || !printer) throw new Error('Printer WiFi/LAN belum dikonfigurasi di Print Bridge.');
+      if (!printer) throw new Error('Printer WiFi/LAN belum dikonfigurasi di Print Bridge.');
       setPrinterStatus('connected');
       setPrinterMsg(`Printer WiFi aktif: ${printer.name} (${printerSettings.wifiIp}:${printerSettings.wifiPort})`);
       toast.success('Printer WiFi siap digunakan tanpa browser!');
@@ -127,11 +130,15 @@ export default function POSPengaturanPage() {
     savePrinterSettings(printerSettings);
     setTestingPrint(true);
     try {
-      const job = await printBridgeClient.testPrint();
-      const finalJob = job.status === 'printed' || job.status === 'failed'
-        ? job
-        : await printBridgeClient.waitForJob(job.jobId);
-      if (finalJob.status === 'failed') throw new Error(finalJob.error || 'Printer menolak test print');
+      if (printerSettings.connectionType === 'usb') {
+        await uniPrinter.testPrint();
+      } else {
+        const job = await printBridgeClient.testPrint();
+        const finalJob = job.status === 'printed' || job.status === 'failed'
+          ? job
+          : await printBridgeClient.waitForJob(job.jobId);
+        if (finalJob.status === 'failed') throw new Error(finalJob.error || 'Printer menolak test print');
+      }
       toast.success('Test print berhasil dikirim ke printer!');
       setPrinterStatus('connected');
       setPrinterMsg('Test print berhasil');
@@ -470,6 +477,18 @@ export default function POSPengaturanPage() {
                 : printerStatus === 'error' ? <XCircle className="h-4 w-4 flex-shrink-0" />
                 : <Printer className="h-4 w-4 flex-shrink-0" />}
               <span className="flex-1">{printerMsg || 'Belum ada printer terhubung'}</span>
+              {printerStatus === 'error' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    if (printerSettings.connectionType === 'wifi') void testWifiConnection();
+                    else if (printerSettings.connectionType === 'bluetooth') void connectBluetooth();
+                    else void connectUSB();
+                  }}
+                >Coba lagi</Button>
+              )}
               {(printerStatus === 'connected') && (
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={disconnectPrinter}>Reset status</Button>
               )}
@@ -602,6 +621,7 @@ export default function POSPengaturanPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">Kebanyakan printer thermal: 9600 atau 115200</p>
+                    <p className="text-xs text-blue-700 mt-2">Tablet Android: gunakan Chrome terbaru dan adaptor USB OTG. Saat tombol ditekan, pilih printer pada dialog perangkat.</p>
                   </div>
                   <Button onClick={connectUSB} disabled={printerStatus === 'connecting'} className="bg-gray-800 hover:bg-gray-900 text-white">
                     <Usb className="h-4 w-4 mr-1.5" />
@@ -611,8 +631,9 @@ export default function POSPengaturanPage() {
                     <p className="font-semibold">Catatan USB:</p>
                     <p>• Browser akan meminta izin memilih port pertama kali</p>
                     <p>• Jika printer tidak muncul: coba cabut lalu pasang ulang kabel USB</p>
-                    <p>• Driver printer USB harus sudah terpasang di komputer</p>
-                    <p>• Koneksi hilang jika refresh halaman — hubungkan ulang</p>
+                    <p>• Tablet harus mendukung USB OTG dan printer harus terdeteksi oleh sistem</p>
+                    <p>• Koneksi dapat hilang jika halaman ditutup atau printer dicabut — hubungkan ulang</p>
+                    <p>• Jika tombol tidak bekerja, browser tablet mungkin belum mendukung Web Serial</p>
                   </div>
                 </CardContent>
               </Card>

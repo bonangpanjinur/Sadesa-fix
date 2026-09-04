@@ -1,7 +1,16 @@
 import { buildReceiptBytes, getPrinterSettings } from '@/lib/thermalPrinter';
 import type { ReceiptData } from '@/lib/thermalPrinter';
 
-export const PRINT_BRIDGE_URL = 'http://127.0.0.1:18181';
+const DEFAULT_PRINT_BRIDGE_URL = 'http://127.0.0.1:18181';
+
+/**
+ * The bridge runs on the cashier computer, so this must point at loopback by
+ * default. A Vite env override is useful when the bridge is exposed through a
+ * managed local hostname or a different port in a deployment.
+ */
+export const PRINT_BRIDGE_URL = (import.meta.env.VITE_PRINT_BRIDGE_URL || DEFAULT_PRINT_BRIDGE_URL).replace(/\/$/, '');
+
+const BRIDGE_UNAVAILABLE_MESSAGE = `Print Bridge tidak dapat diakses di ${PRINT_BRIDGE_URL}. Jalankan service Print Bridge di komputer kasir, lalu coba lagi.`;
 
 export type PrintJobStatus = 'queued' | 'printing' | 'printed' | 'failed';
 
@@ -49,12 +58,26 @@ function bytesToBase64(bytes: number[]): string {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${PRINT_BRIDGE_URL}${path}`, {
-    ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
-    signal: AbortSignal.timeout(2500),
-  });
-  const payload = await response.json() as T & { error?: string };
+  let response: Response;
+  try {
+    response = await fetch(`${PRINT_BRIDGE_URL}${path}`, {
+      ...init,
+      headers: { 'content-type': 'application/json', ...(init?.headers || {}) },
+      signal: AbortSignal.timeout(2500),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new Error(`Print Bridge tidak merespons dalam 2,5 detik (${PRINT_BRIDGE_URL}). Pastikan servicenya aktif.`);
+    }
+    throw new Error(BRIDGE_UNAVAILABLE_MESSAGE);
+  }
+
+  let payload: T & { error?: string };
+  try {
+    payload = await response.json() as T & { error?: string };
+  } catch {
+    throw new Error(`Respons Print Bridge tidak valid (HTTP ${response.status}). Restart service lalu coba lagi.`);
+  }
   if (!response.ok) throw new Error(payload.error || `Print Bridge HTTP ${response.status}`);
   return payload;
 }
@@ -67,6 +90,12 @@ export const printBridgeClient = {
   async listPrinters(): Promise<PrintBridgePrinter[]> {
     const result = await request<{ printers: PrintBridgePrinter[] }>('/printers');
     return result.printers;
+  },
+
+  async status(): Promise<{ health: PrintBridgeHealth; printers: PrintBridgePrinter[] }> {
+    const health = await this.health();
+    const printers = await this.listPrinters();
+    return { health, printers };
   },
 
   async testPrint(): Promise<PrintBridgeJob> {

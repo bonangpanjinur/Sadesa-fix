@@ -1,6 +1,6 @@
 import { createPrintJob, type PrintJobEnvelope, type ReceiptSnapshot } from '@/lib/receiptDomain';
 import { printBridgeClient } from '@/lib/printBridgeClient';
-import { getPrinterSettings } from '@/lib/thermalPrinter';
+import { getPrinterSettings, getUniversalPrinter } from '@/lib/thermalPrinter';
 
 const OUTBOX_KEY = 'pos_receipt_print_outbox_v1';
 
@@ -51,11 +51,16 @@ export async function flushReceiptOutbox(filter?: (job: PrintJobEnvelope) => boo
   let failed = 0;
   for (const stored of jobs.filter(job => job.status !== 'printed' && (!filter || filter(hydrate(job))))) {
     try {
-      const submitted = await printBridgeClient.submitReceipt(hydrate(stored).receipt);
-      const finalJob = submitted.status === 'printed' || submitted.status === 'failed'
-        ? submitted
-        : await printBridgeClient.waitForJob(submitted.jobId);
-      if (finalJob.status !== 'printed') throw new Error(finalJob.error || 'Printer gagal');
+      const receipt = hydrate(stored).receipt;
+      if (getPrinterSettings().connectionType === 'usb') {
+        await getUniversalPrinter().printReceipt(receipt, stored.copies);
+      } else {
+        const submitted = await printBridgeClient.submitReceipt(receipt);
+        const finalJob = submitted.status === 'printed' || submitted.status === 'failed'
+          ? submitted
+          : await printBridgeClient.waitForJob(submitted.jobId);
+        if (finalJob.status !== 'printed') throw new Error(finalJob.error || 'Printer gagal');
+      }
       stored.status = 'printed'; stored.lastError = undefined; printed += 1;
     } catch (error) {
       stored.status = 'failed'; stored.lastError = error instanceof Error ? error.message : String(error); failed += 1;

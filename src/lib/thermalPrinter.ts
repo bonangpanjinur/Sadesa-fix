@@ -176,6 +176,7 @@ export class USBPrinter {
   }
 
   async connect(baudRate = 9600): Promise<boolean> {
+    if (this.connected) return true;
     if (!USBPrinter.isSupported()) {
       throw new Error("Web Serial API tidak didukung. Gunakan Chrome/Edge terbaru.");
     }
@@ -255,7 +256,10 @@ export class BluetoothPrinter {
 
   static getSupportMessage(): string {
     if (typeof navigator !== "undefined" && /iPad|iPhone|iPod/i.test(navigator.userAgent)) {
-      return "Web Bluetooth tidak tersedia di iOS/iPadOS. Gunakan Chrome/Edge desktop atau Android, atau pilih USB/WiFi.";
+      return "USB langsung dari browser iPad/iPhone tidak didukung. Gunakan tablet Android dengan Chrome terbaru dan adaptor USB OTG, atau gunakan Print Bridge di komputer.";
+    }
+    if (typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent)) {
+      return "Browser tablet ini belum menyediakan Web Serial. Gunakan Chrome Android terbaru, aktifkan USB OTG, dan izinkan akses perangkat saat diminta.";
     }
     if (typeof window !== "undefined" && !window.isSecureContext) {
       return "Web Bluetooth hanya dapat digunakan melalui HTTPS atau localhost.";
@@ -352,9 +356,9 @@ export class UniversalPrinter {
     return s.wifiIp ? `WiFi: ${s.wifiIp}:${s.wifiPort}` : "WiFi Belum Dikonfigurasi";
   }
 
-  async printReceipt(receipt: ReceiptData): Promise<void> {
+  async printReceipt(receipt: ReceiptData, copiesOverride?: number): Promise<void> {
     const s = getPrinterSettings();
-    const copies = Math.max(1, s.printCopies || 1);
+    const copies = Math.max(1, copiesOverride ?? (s.printCopies || 1));
     const bytes = buildReceiptBytes(receipt, s.paperWidth);
 
     for (let i = 0; i < copies; i++) {
