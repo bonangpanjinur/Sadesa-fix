@@ -77,7 +77,10 @@ export function getPOSPermission(path: string): POSMenuPermission | undefined {
 }
 
 export function canAccessPOSPath(roles: AppRole[], path: string, posRole?: POSRole | null): boolean {
-  const permission = getPOSPermission(path);
+  // `/merchant/pos` is a compatibility URL only. Treat it as the canonical
+  // cashier permission while the route itself performs an immediate redirect.
+  const permissionPath = path === '/merchant/pos' ? '/pos/kasir' : path;
+  const permission = getPOSPermission(permissionPath);
   if (!permission) return path === '/pos/setup' && roles.some((role) => ALL_APP_POS_ROLES.includes(role));
   if (!permission.roles.some((role) => roles.includes(role))) return false;
   return posRole ? permission.posRoles.includes(posRole) : true;

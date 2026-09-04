@@ -34,7 +34,3 @@ function printElement(element: HTMLElement | null, title: string, padding: strin
 export function printInvoice(invoiceElement: HTMLElement | null): void {
   printElement(invoiceElement, 'Struk Pesanan', '20px');
 }
-
-export function printPOSInvoice(element: HTMLElement | null): void {
-  printElement(element, 'Struk POS', '10px');
-}

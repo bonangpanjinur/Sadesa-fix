@@ -43,11 +43,15 @@ export interface PendingSale {
   outlet_id: string;
   tenant_id: string;
   cashier_id: string;
+  sale_number?: string;
   items: Array<{
     product_id: string;
+    variant_id?: string | null;
     name: string;
+    variant_name?: string | null;
     qty: number;
     price: number;
+    cost_price?: number;
     discount: number;
     tax_rate: number;
   }>;
@@ -56,6 +60,17 @@ export interface PendingSale {
   tax_amount: number;
   total: number;
   payment_method: string;
+  payment_amount?: number;
+  change_amount?: number;
+  promotion_id?: string | null;
+  promotion_discount?: number;
+  voucher_id?: string | null;
+  voucher_code?: string | null;
+  voucher_discount?: number;
+  loyalty_points_earned?: number;
+  loyalty_points_redeemed?: number;
+  loyalty_discount?: number;
+  customer_segment?: 'retail' | 'wholesale' | 'reseller' | 'member' | 'outlet';
   customer_id?: string | null;
   customer_name?: string | null;
   notes?: string;

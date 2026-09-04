@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp, ShoppingCart, Package, Users, AlertTriangle,
-  ArrowRight, BarChart3, Calendar, CreditCard, Monitor
+  ArrowRight, BarChart3, Calendar, CreditCard
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { format } from 'date-fns';
@@ -155,9 +155,6 @@ export default function POSDashboardPage() {
                   </Button>
                   <Button variant="outline" className="w-full h-9 text-sm" onClick={() => navigate('/pos/laporan')}>
                     <BarChart3 className="h-4 w-4 mr-2" /> Lihat Laporan
-                  </Button>
-                  <Button variant="outline" className="w-full h-9 text-sm border-violet-200 text-violet-700 hover:bg-violet-50" onClick={() => navigate('/pos/kiosk')}>
-                    <Monitor className="h-4 w-4 mr-2" /> Mode Kiosk
                   </Button>
                 </CardContent>
               </Card>

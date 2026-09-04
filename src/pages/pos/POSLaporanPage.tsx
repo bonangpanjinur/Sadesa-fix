@@ -18,7 +18,22 @@ interface ChartPoint { label: string; total: number; count: number; }
 interface TopProduct { name: string; qty: number; total: number; }
 interface PaymentMethod { name: string; value: number; }
 interface SaleItem { product_name: string; qty: number; subtotal: number; }
-interface SaleRow { total: number; discount_amount: number; payment_method: string; created_at: string; pos_sale_items?: SaleItem[]; }
+interface SaleRow { total: number; discount_amount: number; payment_method: string; created_at: string; items: unknown; }
+
+function normaliseSaleItems(value: unknown): SaleItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const raw = item as Record<string, unknown>;
+    const qty = Number(raw.qty ?? raw.quantity ?? 0);
+    const subtotal = Number(raw.subtotal ?? raw.total_price ?? 0);
+    return [{
+      product_name: String(raw.product_name ?? raw.productName ?? raw.name ?? 'Produk'),
+      qty: Number.isFinite(qty) ? qty : 0,
+      subtotal: Number.isFinite(subtotal) ? subtotal : 0,
+    }];
+  });
+}
 
 export default function POSLaporanPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
@@ -50,8 +65,8 @@ export default function POSLaporanPage() {
 
     try {
       const { data: salesData } = await supabase
-        .from('pos_sales' as never)
-        .select('*, pos_sale_items(*)')
+        .from('pos_unified_transaction_history' as never)
+        .select('*')
         .eq('tenant_id', tenant.id)
         .eq('outlet_id', activeOutlet.id)
         .eq('status', 'completed')
@@ -100,7 +115,7 @@ export default function POSLaporanPage() {
       // Top products from sale items
       const productMap: Record<string, { name: string; qty: number; total: number }> = {};
       sales.forEach(s => {
-        (s.pos_sale_items || []).forEach((item: SaleItem) => {
+        normaliseSaleItems(s.items).forEach((item: SaleItem) => {
           const key = item.product_name;
           if (!productMap[key]) productMap[key] = { name: key, qty: 0, total: 0 };
           productMap[key].qty += Number(item.qty);

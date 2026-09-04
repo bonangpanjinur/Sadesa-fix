@@ -37,7 +37,7 @@ describe('usePOSReceipt browser fallback', () => {
     const lastSale = {
       saleId: 'sale-success', saleNumber: 'SALE-002', createdAt: '2026-08-30T15:00:00.000Z',
       outletId: 'outlet-1', printJobId: 'receipt:sale-success', total: 15000, change: 0,
-      paymentMethod: 'cash', customerName: 'Umum', items: [{ name: 'Produk Uji', qty: 1, price: 15000, discount: 0 }],
+      paymentMethod: 'cash', customerName: 'Umum', items: [{ productId: 'product-1', name: 'Produk Uji', qty: 1, price: 15000, discount: 0, costPrice: 0, unit: 'pcs', taxRate: 0, notes: '' }],
       pointsEarned: 0, pointsRedeemed: 0, pointsDiscount: 0, promoDiscount: 0,
       voucherDiscount: 0, appliedPromoName: null, appliedVoucherCode: null, newPointsBalance: null,
       subtotal: 15000, taxAmount: 0, paidAmount: 15000,
@@ -58,7 +58,7 @@ describe('usePOSReceipt browser fallback', () => {
     const lastSale = {
       saleId: 'sale-1', saleNumber: 'SALE-001', createdAt: '2026-08-30T15:00:00.000Z',
       outletId: 'outlet-1', printJobId: 'receipt:sale-1', total: 15000, change: 0,
-      paymentMethod: 'cash', customerName: 'Umum', items: [{ name: 'Produk Uji', qty: 1, price: 15000, discount: 0 }],
+      paymentMethod: 'cash', customerName: 'Umum', items: [{ productId: 'product-1', name: 'Produk Uji', qty: 1, price: 15000, discount: 0, costPrice: 0, unit: 'pcs', taxRate: 0, notes: '' }],
       pointsEarned: 0, pointsRedeemed: 0, pointsDiscount: 0, promoDiscount: 0,
       voucherDiscount: 0, appliedPromoName: null, appliedVoucherCode: null, newPointsBalance: null,
       subtotal: 15000, taxAmount: 0, paidAmount: 15000,

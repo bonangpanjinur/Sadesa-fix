@@ -18,6 +18,10 @@ import type { ReceiptData } from '@/lib/thermalPrinter';
 
 interface Sale {
   id: string;
+  source: 'modern' | 'legacy';
+  source_id: string;
+  tenant_id: string;
+  outlet_id: string;
   sale_number: string;
   cashier_name: string | null;
   customer_name: string | null;
@@ -31,6 +35,7 @@ interface Sale {
   status: string;
   notes: string | null;
   created_at: string;
+  items: unknown;
   pos_sale_items?: SaleItem[];
 }
 
@@ -54,6 +59,25 @@ const paymentLabel: Record<string, string> = {
   cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer',
   debit: 'Debit', credit: 'Kredit', split: 'Split',
 };
+
+function normaliseSaleItems(value: unknown): SaleItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item, index) => {
+    const raw = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+    const qty = Number(raw.qty ?? raw.quantity ?? 1);
+    const price = Number(raw.price ?? 0);
+    const discount = Number(raw.discount ?? 0);
+    return {
+      id: String(raw.id ?? `legacy-item-${index}`),
+      product_name: String(raw.product_name ?? raw.productName ?? raw.name ?? 'Produk'),
+      variant_name: raw.variant_name == null ? null : String(raw.variant_name),
+      qty: Number.isFinite(qty) ? qty : 1,
+      price: Number.isFinite(price) ? price : 0,
+      discount: Number.isFinite(discount) ? discount : 0,
+      subtotal: Number.isFinite(Number(raw.subtotal)) ? Number(raw.subtotal) : Math.max(0, price * qty - discount),
+    };
+  });
+}
 
 export default function POSTransaksiPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
@@ -80,7 +104,7 @@ export default function POSTransaksiPage() {
             ? { start: startOfMonth(now), end: endOfMonth(now) }
             : { start: startOfDay(now), end: endOfDay(now) };
     const { data, error: salesError } = await supabase
-      .from('pos_sales' as never)
+      .from('pos_unified_transaction_history' as never)
       .select('*')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
@@ -101,11 +125,7 @@ export default function POSTransaksiPage() {
   }, [tenant, activeOutlet, fetchSales]);
 
   const openDetail = async (sale: Sale) => {
-    const { data } = await supabase
-      .from('pos_sale_items' as never)
-      .select('*')
-      .eq('sale_id', sale.id);
-    setSelected({ ...sale, pos_sale_items: (data || []) as unknown as SaleItem[] });
+    setSelected({ ...sale, pos_sale_items: normaliseSaleItems(sale.items) });
     setDetailOpen(true);
   };
 
@@ -226,6 +246,7 @@ export default function POSTransaksiPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-semibold text-sm">{s.sale_number}</span>
                       {s.status === 'void' && <Badge variant="destructive" className="text-xs">Void</Badge>}
+                      {s.source === 'legacy' && <Badge variant="outline" className="text-xs">Legacy</Badge>}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                       <span>{format(new Date(s.created_at), 'HH:mm', { locale: idLocale })}</span>

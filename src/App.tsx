@@ -141,7 +141,6 @@ const MerchantScheduledPromoPage = lazy(() => import("./pages/merchant/MerchantS
 const MerchantVisitorStatsPage = lazy(() => import("./pages/merchant/MerchantVisitorStatsPage"));
 const MerchantChatPage = lazy(() => import("./pages/merchant/MerchantChatPage"));
 const MerchantRefundsPage = lazy(() => import("./pages/merchant/MerchantRefundsPage"));
-const MerchantPOSPage = lazy(() => import("./pages/merchant/MerchantPOSPage"));
 const MerchantPOSSubscribePage = lazy(() => import("./pages/merchant/MerchantPOSSubscribePage"));
 const MerchantPOSSettingsPage = lazy(() => import("./pages/merchant/MerchantPOSSettingsPage"));
 const MerchantDuesPage = lazy(() => import("./pages/merchant/MerchantDuesPage"));
@@ -188,7 +187,6 @@ const POSLaporanStokPage = lazy(() => import("./pages/pos/POSLaporanStokPage"));
 const POSLaporanCashflowPage = lazy(() => import("./pages/pos/POSLaporanCashflowPage"));
 const POSAnalitikPage = lazy(() => import("./pages/pos/POSAnalitikPage"));
 const POSAnalitikProdukPage = lazy(() => import("./pages/pos/POSAnalitikProdukPage"));
-const POSKioskPage = lazy(() => import("./pages/pos/POSKioskPage"));
 const POSAkuntansiPage = lazy(() => import("./pages/pos/POSAkuntansiPage"));
 const POSTransferStokPage = lazy(() => import("./pages/pos/POSTransferStokPage"));
 const POSLaporanOutletPage = lazy(() => import("./pages/pos/POSLaporanOutletPage"));
@@ -897,10 +895,11 @@ const App = () => (
                   <MerchantPOSSettingsPage />
                 </ProtectedRoute>
               } />
+              {/* Legacy cashier URL: compatibility redirect; no legacy checkout is mounted. */}
               <Route path="/merchant/pos" element={
-                <ProtectedRoute>
-                  <MerchantPOSPage />
-                </ProtectedRoute>
+                <POSAccessRoute>
+                  <Navigate to="/pos/kasir" replace state={{ fromLegacyRoute: true }} />
+                </POSAccessRoute>
               } />
               <Route path="/merchant/dues" element={
                 <ProtectedRoute>
@@ -1064,7 +1063,8 @@ const App = () => (
               <Route path="/pos/loyalty" element={<POSAccessRoute><POSLoyaltyPage /></POSAccessRoute>} />
               <Route path="/pos/integrasi" element={<POSAccessRoute><POSIntegrasiPage /></POSAccessRoute>} />
               <Route path="/pos/analitik-produk" element={<POSAccessRoute><POSAnalitikProdukPage /></POSAccessRoute>} />
-              <Route path="/pos/kiosk" element={<POSAccessRoute><POSKioskPage /></POSAccessRoute>} />
+              {/* Kiosk is a display mode, not a second transaction engine. */}
+              <Route path="/pos/kiosk" element={<POSAccessRoute><Navigate to="/pos/kasir?mode=kiosk" replace state={{ fromKioskMode: true }} /></POSAccessRoute>} />
               <Route path="/pos/akuntansi" element={<POSAccessRoute><POSAkuntansiPage /></POSAccessRoute>} />
               <Route path="/pos/bahan-baku" element={<POSAccessRoute><POSBahanBakuPage /></POSAccessRoute>} />
               <Route path="/pos/resep" element={<POSAccessRoute><POSResepPage /></POSAccessRoute>} />

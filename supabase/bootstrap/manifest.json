@@ -1,6 +1,6 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 199,
+  "migration_count": 194,
   "bundle_count": 8,
   "bundles": [
     {
@@ -36,7 +36,7 @@
       "bytes": 91518
     },
     {
-      "file": "02_20260127083146_to_20260203_impro.sql",
+      "file": "02_20260127083146_to_20260203_new_q.sql",
       "source_files": [
         "20260127083146_13a5ef36-3e48-43a4-a47a-05830b75bafb.sql",
         "20260127084919_5b7afc29-bd66-47fc-89ad-ac3ae63cffe9.sql",
@@ -61,15 +61,15 @@
         "20260203_fix_courier_management.sql",
         "20260203_fix_is_admin_and_packages.sql",
         "20260203_fix_user_roles_policies.sql",
-        "20260203_improve_refund_system.sql"
+        "20260203_improve_refund_system.sql",
+        "20260203_new_quota_system.sql"
       ],
-      "sha256": "d8afb4ad056b0a1dc5a3148c60b70034b401928f89448dd4c623c40aaec36d8b",
-      "bytes": 72920
+      "sha256": "69cac5ca9c5b53e5d7240a54b1eac7318d18bfc58dbe9779482a6d170934fe7b",
+      "bytes": 77091
     },
     {
-      "file": "03_20260203_new_q_to_20260208000821.sql",
+      "file": "03_20260203_updat_to_20260208001230.sql",
       "source_files": [
-        "20260203_new_quota_system.sql",
         "20260203_update_package_logic.sql",
         "20260203_update_package_logic_v2.sql",
         "20260204052738_ce07a7c3-c7e6-47ff-b86c-c08e5700b24a.sql",
@@ -92,15 +92,15 @@
         "20260207234930_56685a71-d39f-422a-84ff-01a0d4ed0169.sql",
         "20260207_full_quota_system_migration.sql",
         "20260207_quota_enhancement.sql",
-        "20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql"
+        "20260208000821_832d9773-734e-433d-aa7f-2387335ef8d1.sql",
+        "20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql"
       ],
-      "sha256": "8a1a528ea4e5f91ba3e4ba6583ca4eb2e7450f8b4b6b57029746b1056ba3298d",
-      "bytes": 73346
+      "sha256": "ad1b73b64999a090437ab8c4a4538cb261815ab86a01c86df339d68311c04988",
+      "bytes": 72017
     },
     {
-      "file": "04_20260208001230_to_20260220102410.sql",
+      "file": "04_20260208054918_to_20260220105922.sql",
       "source_files": [
-        "20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql",
         "20260208054918_d4a4580e-26df-482d-8fbe-085d2fe7c428.sql",
         "20260208071146_3c0d0a7a-e137-449c-a26b-c606b97790cb.sql",
         "20260210114200_f72dfca5-61b2-4ec7-b5b3-7180e8ae36cd.sql",
@@ -123,15 +123,15 @@
         "20260220094944_4e9af0cf-2be8-4fa8-ac7b-21d6015ea7ae.sql",
         "20260220100643_eb05139c-d230-4b52-b83b-20deb8b8b8bb.sql",
         "20260220101331_54473674-8625-4cd5-bcad-a5faa0c4a3e8.sql",
-        "20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql"
+        "20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql",
+        "20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql"
       ],
-      "sha256": "1b8e19d89ee20e4c97c9c76f3c61263994075f627178b76bfe1ff3775279080a",
-      "bytes": 40784
+      "sha256": "c9cf80d447054b20df6596629462c5e6d33081a5ba670760f0b45c528a8519b0",
+      "bytes": 41477
     },
     {
-      "file": "05_20260220105922_to_20260502035656.sql",
+      "file": "05_20260220110705_to_20260508000000.sql",
       "source_files": [
-        "20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql",
         "20260220110705_505c5087-9b55-4a78-9d79-ae00fa83a485.sql",
         "20260220110912_8501cf77-84b6-4db2-863d-e8b5bb274741.sql",
         "20260220113000_7d04341d-76b7-417a-8020-b8440db4355e.sql",
@@ -154,15 +154,15 @@
         "20260419155930_8d73519f-2835-42c4-b0dd-46f53c787876.sql",
         "20260419160116_b45d64ac-3359-4860-94e7-e8213dfbb3a6.sql",
         "20260419161037_08343087-5318-467f-a887-4238272bf30a.sql",
-        "20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql"
+        "20260502035656_0399f4e0-7366-4d83-a204-ffc75e712691.sql",
+        "20260508000000_phase1_pos_saas.sql"
       ],
-      "sha256": "e5e59157fca4d26c87829908b1d34af7f9f04422fea9f08ceba4e4205c853dc9",
-      "bytes": 49171
+      "sha256": "209d53b44748a553d3f8cc1dec9c6dd7d4dbc7b5d08de0f54d4b1c96cdb3322d",
+      "bytes": 63738
     },
     {
-      "file": "06_20260508000000_to_20260823070000.sql",
+      "file": "06_20260509000000_to_20260823071000.sql",
       "source_files": [
-        "20260508000000_phase1_pos_saas.sql",
         "20260509000000_phase2_pos_purchase_kas.sql",
         "20260510000000_phase2_bahan_baku_resep.sql",
         "20260510000000_phase4_multioutlet_audit.sql",
@@ -185,15 +185,15 @@
         "20260822030000_harden_storage_ownership.sql",
         "20260822040000_harden_stock_decrement.sql",
         "20260823050000_harden_payment_proof_insert.sql",
-        "20260823070000_atomic_pos_checkout.sql"
+        "20260823070000_atomic_pos_checkout.sql",
+        "20260823071000_payment_invoice_idempotency.sql"
       ],
-      "sha256": "06dd45ed56402e7d47066b5122d90ea604a839c5dd9cf2d66c61da90000c3df7",
-      "bytes": 188518
+      "sha256": "e6cc21e97a4dde585b034ba8d22f5ecb8744d11e1e992a6857c9746c55d0f56d",
+      "bytes": 173651
     },
     {
-      "file": "07_20260823071000_to_20260825235000.sql",
+      "file": "07_20260823080000_to_20260826000000.sql",
       "source_files": [
-        "20260823071000_payment_invoice_idempotency.sql",
         "20260823080000_p1_inventory_shift_atomic.sql",
         "20260823090000_harden_payment_settings_access.sql",
         "20260823091000_harden_pos_sale_amounts.sql",
@@ -216,15 +216,15 @@
         "20260825210000_subscription_billing_controls.sql",
         "20260825220000_tax_accounting_journal.sql",
         "20260825230000_worker_claim_and_subscription_processor.sql",
-        "20260825235000_price_override_approval_rpc.sql"
+        "20260825235000_price_override_approval_rpc.sql",
+        "20260826000000_atomic_warehouse_transfer.sql"
       ],
-      "sha256": "5d625a777f7d05895f9d437f1ed7a569bba92b418ae7fa4e0fb0b14f14bfc795",
-      "bytes": 126095
+      "sha256": "43d6b62782642d7d46f85b6e32bed63ff573ca2822af3fd58899929b1bcd8ab5",
+      "bytes": 130595
     },
     {
-      "file": "08_20260826000000_to_20260829160000.sql",
+      "file": "08_20260826010000_to_20260904090000.sql",
       "source_files": [
-        "20260826000000_atomic_warehouse_transfer.sql",
         "20260826010000_atomic_loyalty_checkout_crm.sql",
         "20260826010000_marketplace_stock_reservation_lifecycle.sql",
         "20260826020000_crm_notification_dispatch.sql",
@@ -248,15 +248,10 @@
         "20260829140000_subscription_runtime_enforcement.sql",
         "20260829150000_pos_tenant_merchant_mapping.sql",
         "20260829160000_pos_workflow_transition_hardening.sql",
-        "20260830100000_courier_ojek_acceptance_hardening.sql",
-        "20260830101000_courier_ojek_earnings_hardening.sql",
-        "20260830102000_courier_withdrawal_hardening.sql",
-        "20260830110000_courier_specific_assignment.sql",
-        "20260830120000_create_checkout_orders_atomic.sql",
-        "20260830121000_checkout_marketplace_voucher_validation.sql"
+        "20260904090000_pos_unified_transaction_history.sql"
       ],
-      "sha256": "af797b9db0e636ce20f64cc80526a5e11b1952a4c0eda131beae96dd1c1f4d7c",
-      "bytes": 183476
+      "sha256": "d7768e5b377bd79e86dcc1318f58286f6143bb6c6caa57ca5141ea87d577d219",
+      "bytes": 139073
     }
   ]
 }

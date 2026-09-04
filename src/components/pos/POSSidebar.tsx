@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronDown, Store, RotateCcw, ShoppingBag, Wallet,
   TrendingUp, UserCheck, BoxesIcon, PieChart,
   ArrowRightLeft, GitCompare, Shield, KeyRound, Warehouse,
-  Ticket, Star, Globe, Banknote, Monitor, BookOpen,
+  Ticket, Star, Globe, Banknote, BookOpen,
   FlaskConical, ChefHat, Table2, Tv2,
   Calendar, Clock, DollarSign, Target, CreditCard, QrCode, WifiOff,
 } from 'lucide-react';
@@ -35,7 +35,7 @@ const menuCategories: SidebarCategory[] = [
     id: 'operasional', label: 'Operasional', icon: <ShoppingCart className="h-4 w-4" />,
     items: [
       { label: 'Dashboard', href: '/pos', icon: <LayoutDashboard className="h-4 w-4" /> },
-      { label: 'Kasir (POS)', href: '/pos/kasir', icon: <ShoppingCart className="h-4 w-4" /> },
+      { label: 'Kasir', href: '/pos/kasir', icon: <ShoppingCart className="h-4 w-4" /> },
       { label: 'Manajemen Meja', href: '/pos/meja', icon: <Table2 className="h-4 w-4" /> },
       { label: 'Menu Digital QR', href: '/pos/menu-qr', icon: <QrCode className="h-4 w-4" /> },
       { label: 'KDS (Dapur)', href: '/pos/kds', icon: <Tv2 className="h-4 w-4" /> },
@@ -98,7 +98,6 @@ const menuCategories: SidebarCategory[] = [
       { label: 'Offline Conflict Center', href: '/pos/offline-conflicts', icon: <WifiOff className="h-4 w-4" /> },
       { label: 'Manajemen Akses', href: '/pos/akses', icon: <KeyRound className="h-4 w-4" /> },
       { label: 'Pengguna', href: '/pos/pengguna', icon: <UserCog className="h-4 w-4" /> },
-      { label: 'Mode Kiosk', href: '/pos/kiosk', icon: <Monitor className="h-4 w-4" /> },
       { label: 'Integrasi Marketplace', href: '/pos/integrasi', icon: <Globe className="h-4 w-4" /> },
       { label: 'Pengaturan', href: '/pos/pengaturan', icon: <Settings className="h-4 w-4" /> },
     ],

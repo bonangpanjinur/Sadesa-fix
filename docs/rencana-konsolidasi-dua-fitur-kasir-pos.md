@@ -1,7 +1,7 @@
 # Rencana Perbaikan dan Konsolidasi Dua Fitur Kasir POS
 
 **Repository:** `bonangpanjinur/Sadesa-fix`  
-**Status:** Draft rencana implementasi  
+**Status:** Implementasi cutover kanonis diterapkan; deployment database dan UAT production tetap memerlukan eksekusi runbook
 **Tanggal:** 4 September 2026  
 **Pemilik:** Tim Produk dan Engineering SaDesa
 
@@ -12,6 +12,12 @@ Aplikasi saat ini memiliki dua entry point kasir yang berbeda: `/merchant/pos` d
 Rencana ini menetapkan **`/pos/kasir` sebagai kasir POS utama** karena halaman tersebut sudah menggunakan arsitektur POS SaaS dengan tenant, outlet, role kasir, atomic sale, offline sync, barcode scanner, loyalty, promosi, voucher, dan integrasi printer. Halaman `/merchant/pos` akan dipensiunkan secara bertahap melalui redirect kompatibilitas, bukan langsung dihapus, untuk mencegah kerusakan bookmark dan kehilangan akses pengguna.
 
 > **Prinsip utama:** satu proses checkout, satu sumber kebenaran transaksi, satu sumber kebenaran stok, dan satu model akses POS.
+
+### Keputusan implementasi
+
+Keputusan produk untuk cutover sudah ditetapkan: `/pos/kasir` adalah **satu-satunya checkout aktif**. `/merchant/pos` tetap sebagai redirect kompatibilitas, sedangkan `/pos/kiosk` tidak lagi menjadi mesin transaksi kedua dan hanya mengarahkan ke kasir kanonis. Seluruh transaksi baru harus melalui `process_pos_sale`/`processAtomicPOSSale`, tersimpan di `pos_sales` dan `pos_sale_items`, dengan `pos_stock` pada outlet aktif sebagai sumber stok operasional.
+
+Fitur yang dipakai oleh kasir kanonis mencakup barcode, varian, customer, promo, voucher, loyalty, split payment, pembayaran tunai/non-tunai, hold bill, receipt printer/PDF/WhatsApp, offline queue, sinkronisasi idempotent, serta histori terpadu. Laporan penjualan utama juga membaca `pos_unified_transaction_history` agar transaksi modern dan histori legacy tidak terbelah.
 
 ## 2. Kondisi Saat Ini
 
@@ -30,7 +36,7 @@ Rencana ini menetapkan **`/pos/kasir` sebagai kasir POS utama** karena halaman t
 | Promosi dan loyalty | Tidak menjadi bagian utama checkout | Terintegrasi pada keranjang dan pricing POS |
 | Riwayat | Terikat pada data lama | `/pos/transaksi` membaca `pos_sales` |
 
-Route lama masih terdaftar di `src/App.tsx`, sedangkan menu **Kasir POS** masih tersedia pada `src/components/merchant/MerchantSidebar.tsx`. Route modern `/pos/kasir` dan riwayat `/pos/transaksi` berada di kelompok route POS SaaS. [1] [2] [3]
+Route lama dipertahankan hanya sebagai redirect kompatibilitas. Menu merchant dan POS sekarang menampilkan satu entry **Kasir** ke `/pos/kasir`; route modern `/pos/kasir` dan riwayat `/pos/transaksi` berada di kelompok route POS SaaS. [1] [2] [3]
 
 ## 3. Tujuan Perbaikan
 
@@ -270,10 +276,10 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 [7]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/lib/posCheckout.ts "Atomic POS checkout helper"
 [8]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/contexts/POSContext.tsx "POS tenant and outlet context"
 
-## 13. Keputusan yang Perlu Disetujui
+## 13. Keputusan yang Sudah Ditetapkan
 
-Sebelum implementasi, pemilik produk perlu menyetujui tiga hal: pertama, `/pos/kasir` menjadi satu-satunya checkout resmi; kedua, histori `pos_transactions` akan dimigrasikan ke `pos_sales` atau disajikan melalui unified reporting view; dan ketiga, `products.stock` atau `pos_stock` yang menjadi sumber kebenaran akhir untuk stok operasional. Tanpa keputusan ini, implementasi teknis dapat memindahkan masalah duplikasi dari UI ke database dan laporan.
+Keputusan yang sebelumnya menunggu persetujuan kini diterapkan pada kode: `/pos/kasir` menjadi satu-satunya checkout resmi; histori `pos_transactions` disajikan melalui `pos_unified_transaction_history` dengan mapping idempotent dan exception untuk pemetaan yang ambigu; serta `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS. Migrasi database tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target.
 
 ---
 
-**Dokumen ini adalah rencana perbaikan, bukan perubahan kode.** Implementasi harus dilakukan bertahap dengan backup, staging, rekonsiliasi, dan persetujuan cutover.
+**Dokumen ini menjadi acuan keputusan dan checklist cutover.** Perubahan kode sudah diterapkan di repository; deployment database, backup, rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target.

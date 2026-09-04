@@ -32,7 +32,8 @@ export interface LastSale {
   change: number;
   paymentMethod: string;
   customerName: string;
-  items: CartItem[];
+  customerPhone?: string | null;
+  items: readonly CartItem[];
   pointsEarned: number;
   pointsRedeemed: number;
   pointsDiscount: number;
@@ -149,7 +150,7 @@ export interface Product {
   image_url: string | null;
   is_active: boolean;
   pos_categories?: { name: string } | null;
-  pos_stock?: { quantity: number }[];
+  pos_stock?: { quantity: number; outlet_id?: string }[];
   category_id?: string | null;
 }
 

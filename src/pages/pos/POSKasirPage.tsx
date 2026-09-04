@@ -158,10 +158,14 @@ export default function POSKasirPage() {
   const fetchProducts = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     const { data, error } = await supabase.from('pos_products' as never)
-      .select('*, pos_categories(name), pos_stock(quantity)')
+      .select('*, pos_categories(name), pos_stock(quantity, outlet_id)')
       .eq('tenant_id', tenant.id).eq('is_active', true).order('name');
     if (!error && data) {
-      setProducts(data as unknown as Product[]);
+      const outletProducts = (data as unknown as Product[]).map((product) => ({
+        ...product,
+        pos_stock: (product.pos_stock || []).filter((stock) => !stock.outlet_id || stock.outlet_id === activeOutlet.id),
+      }));
+      setProducts(outletProducts);
     } else if (cachedProducts.length > 0) {
       setProducts(cachedProducts.map((product) => ({
         ...product,
@@ -408,12 +412,16 @@ export default function POSKasirPage() {
           : 0,
         paymentMethod: effectiveMethod,
         customerName: selectedCustomer?.name || customerName || 'Umum',
+        customerPhone: selectedCustomer?.phone || null,
         items: [...cart],
+        subtotal,
+        taxAmount,
+        paidAmount: paymentAmountValue,
         pointsEarned,
         pointsRedeemed: usePoints ? pointsToRedeem : 0,
         pointsDiscount,
-        promoDiscount,
-        voucherDiscount,
+        promoDiscount: calculatedPromoDiscount,
+        voucherDiscount: calculatedVoucherDiscount,
         appliedPromoName: appliedPromo?.name || null,
         appliedVoucherCode: appliedVoucher?.code || null,
         newPointsBalance: selectedCustomer ? Math.max(0, customerPoints - (usePoints ? pointsToRedeem : 0) + pointsEarned) : null,
@@ -428,23 +436,45 @@ export default function POSKasirPage() {
       const browserOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       if ((browserOffline || !isOnline) && storedPaymentMethod === 'cash') {
         try {
+          const offlineSaleNumber = `OFF-${requestKey.slice(0, 8).toUpperCase()}`;
           await saveOfflineSale({
             id: requestKey,
+            sale_number: offlineSaleNumber,
             outlet_id: activeOutlet.id,
             tenant_id: tenant.id,
             cashier_id: user.id,
             items: cart.map(item => ({
-              product_id: item.productId, name: item.name, qty: item.qty,
-              price: item.price, discount: item.discount, tax_rate: item.taxRate,
+              product_id: item.productId,
+              variant_id: item.variantId || null,
+              name: item.name,
+              variant_name: item.variantName || null,
+              qty: item.qty,
+              price: item.price,
+              cost_price: item.costPrice,
+              discount: item.discount,
+              tax_rate: item.taxRate,
             })),
-            subtotal, discount_amount: discount, tax_amount: taxAmount, total,
+            subtotal,
+            discount_amount: discount + calculatedPromoDiscount + calculatedVoucherDiscount + pointsDiscount,
+            tax_amount: taxAmount,
+            total,
             payment_method: 'cash',
+            payment_amount: paymentAmountValue,
+            change_amount: Math.max(0, paymentAmountValue - total),
+            promotion_id: appliedPromo?.id || null,
+            promotion_discount: calculatedPromoDiscount,
+            voucher_id: appliedVoucher?.id || null,
+            voucher_code: appliedVoucher?.code || null,
+            voucher_discount: calculatedVoucherDiscount,
+            loyalty_points_earned: pointsEarned,
+            loyalty_points_redeemed: usePoints && selectedCustomer ? pointsToRedeem : 0,
+            loyalty_discount: pointsDiscount,
+            customer_segment: selectedCustomer?.is_member ? 'member' : 'retail',
             customer_id: selectedCustomer?.id || null,
             customer_name: selectedCustomer?.name || customerName || null,
             notes: notes || undefined,
             created_at: new Date().toISOString(),
           });
-          const offlineSaleNumber = `OFF-${requestKey.slice(0, 8).toUpperCase()}`;
           setLastSale({
             saleId: requestKey,
             saleNumber: offlineSaleNumber,
@@ -455,6 +485,7 @@ export default function POSKasirPage() {
             change: Math.max(0, paymentAmountValue - total),
             paymentMethod: 'cash',
             customerName: selectedCustomer?.name || customerName || 'Umum',
+            customerPhone: selectedCustomer?.phone || null,
             items: [...cart],
             pointsEarned,
             pointsRedeemed: usePoints ? pointsToRedeem : 0,
@@ -574,8 +605,8 @@ export default function POSKasirPage() {
     if (!lastSale) return;
     const storeName = (tenant as unknown as ReceiptStore)?.name || 'Toko';
     const storePhone = (tenant as unknown as ReceiptStore)?.phone || '';
-    const now = new Date();
-    const tgl = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const receiptDate = lastSale.createdAt ? new Date(lastSale.createdAt) : new Date();
+    const tgl = receiptDate.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const payLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', debit: 'Debit', qr_pay: 'QR Pay' };
     const methodLabel = payLabel[lastSale.paymentMethod] || lastSale.paymentMethod;
 
@@ -613,7 +644,7 @@ export default function POSKasirPage() {
     lines.push(`Terima kasih telah berbelanja! 🙏`);
 
     const message = encodeURIComponent(lines.join('\n'));
-    const customerPhone = selectedCustomer?.phone?.replace(/\D/g, '').replace(/^0/, '62') || '';
+    const customerPhone = lastSale.customerPhone?.replace(/\D/g, '').replace(/^0/, '62') || '';
     const url = customerPhone
       ? `https://wa.me/${customerPhone}?text=${message}`
       : `https://wa.me/?text=${message}`;
@@ -627,8 +658,8 @@ export default function POSKasirPage() {
     const storePhone = (tenant as unknown as ReceiptStore)?.phone || '';
     const receiptHeader = (tenant as unknown as ReceiptStore)?.receipt_header || '';
     const receiptFooter = (tenant as unknown as ReceiptStore)?.receipt_footer || 'Terima kasih telah berbelanja!';
-    const now = new Date();
-    const tgl = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const receiptDate = lastSale.createdAt ? new Date(lastSale.createdAt) : new Date();
+    const tgl = receiptDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     const payLabel: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', debit: 'Debit', qr_pay: 'QR Pay' };
     const methodLabel = payLabel[lastSale.paymentMethod] || lastSale.paymentMethod;
 

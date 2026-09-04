@@ -1,87 +1,7 @@
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
--- Source range: 20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql .. 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql
+-- Source range: 20260208054918_d4a4580e-26df-482d-8fbe-085d2fe7c428.sql .. 20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql
 
-
--- ===== BEGIN SOURCE: 20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql =====
--- 1. Add missing columns to villages table
-ALTER TABLE public.villages ADD COLUMN IF NOT EXISTS province text;
-ALTER TABLE public.villages ADD COLUMN IF NOT EXISTS updated_at timestamp with time zone DEFAULT now();
-
--- 2. Fix RLS policies for villages table
--- Drop existing INSERT policy that's too restrictive
-DROP POLICY IF EXISTS "Anyone can register village" ON public.villages;
-DROP POLICY IF EXISTS "villages_register" ON public.villages;
-
--- Allow authenticated users to register villages (PENDING + inactive)
-DROP POLICY IF EXISTS "Authenticated users can register village" ON public.villages;
-CREATE POLICY "Authenticated users can register village"
-ON public.villages
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  registration_status = 'PENDING' AND is_active = false
-);
-
--- Ensure admin ALL policy covers everything (recreate to be safe)
-DROP POLICY IF EXISTS "Admins can manage villages" ON public.villages;
-CREATE POLICY "Admins can manage villages"
-ON public.villages
-FOR ALL
-TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
-
--- Allow admin_desa to update their own village
-DROP POLICY IF EXISTS "Admin desa can update own village" ON public.villages;
-CREATE POLICY "Admin desa can update own village"
-ON public.villages
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.user_villages uv
-    WHERE uv.village_id = id AND uv.user_id = auth.uid()
-  )
-);
-
--- 3. Fix RLS policies for user_villages table
--- Drop existing policies
-DROP POLICY IF EXISTS "Admins manage village assignments" ON public.user_villages;
-DROP POLICY IF EXISTS "Users view own village assignments" ON public.user_villages;
-
--- Admin full access
-CREATE POLICY "Admins manage village assignments"
-ON public.user_villages
-FOR ALL
-TO authenticated
-USING (public.is_admin())
-WITH CHECK (public.is_admin());
-
--- Users can view their own assignments
-DROP POLICY IF EXISTS "Users view own village assignments" ON public.user_villages;
-CREATE POLICY "Users view own village assignments"
-ON public.user_villages
-FOR SELECT
-TO authenticated
-USING (user_id = auth.uid() OR public.is_admin());
-
--- Authenticated users can insert their own assignment (for registration)
-DROP POLICY IF EXISTS "Users can register own village assignment" ON public.user_villages;
-CREATE POLICY "Users can register own village assignment"
-ON public.user_villages
-FOR INSERT
-TO authenticated
-WITH CHECK (user_id = auth.uid());
-
--- Add updated_at trigger for villages
-DROP TRIGGER IF EXISTS update_villages_updated_at ON public.villages;
-CREATE TRIGGER update_villages_updated_at
-BEFORE UPDATE ON public.villages
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
-
--- ===== END SOURCE: 20260208001230_1b037de1-9dcb-4862-bb8f-b4dfd16e8d3e.sql =====
 
 -- ===== BEGIN SOURCE: 20260208054918_d4a4580e-26df-482d-8fbe-085d2fe7c428.sql =====
 
@@ -1078,3 +998,106 @@ END;
 $$;
 
 -- ===== END SOURCE: 20260220102410_b1e662ad-3482-496a-aa4d-f8078ad98c25.sql =====
+
+-- ===== BEGIN SOURCE: 20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql =====
+
+-- Fase 1: Upgrade tabel chat_messages untuk multi-tipe chat
+
+-- Tambah kolom chat_type dan image_url
+ALTER TABLE public.chat_messages
+  ADD COLUMN IF NOT EXISTS chat_type TEXT DEFAULT 'buyer_merchant',
+  ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- Index untuk query berdasarkan chat_type
+CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_type ON public.chat_messages(order_id, chat_type);
+
+-- Drop existing RLS policies yang akan di-update
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
+
+-- Helper function: cek apakah user adalah kurir pada order tertentu
+CREATE OR REPLACE FUNCTION public.is_chat_participant(
+  _user_id uuid,
+  _order_id uuid,
+  _chat_type text
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT CASE
+    WHEN _chat_type = 'buyer_merchant' THEN
+      EXISTS (
+        SELECT 1 FROM orders o
+        LEFT JOIN merchants m ON o.merchant_id = m.id
+        WHERE o.id = _order_id
+          AND (o.buyer_id = _user_id OR m.user_id = _user_id)
+      )
+    WHEN _chat_type = 'buyer_courier' THEN
+      EXISTS (
+        SELECT 1 FROM orders o
+        LEFT JOIN couriers c ON o.courier_id = c.id
+        WHERE o.id = _order_id
+          AND (o.buyer_id = _user_id OR c.user_id = _user_id)
+      )
+    WHEN _chat_type = 'merchant_courier' THEN
+      EXISTS (
+        SELECT 1 FROM orders o
+        LEFT JOIN merchants m ON o.merchant_id = m.id
+        LEFT JOIN couriers c ON o.courier_id = c.id
+        WHERE o.id = _order_id
+          AND (m.user_id = _user_id OR c.user_id = _user_id)
+      )
+    ELSE false
+  END
+$$;
+
+-- RLS: Users can view chat messages where they are participants
+DROP POLICY IF EXISTS "Users can view own chat messages" ON public.chat_messages;
+CREATE POLICY "Users can view own chat messages"
+ON public.chat_messages
+FOR SELECT
+USING (
+  (auth.uid() = sender_id OR auth.uid() = receiver_id)
+  OR is_chat_participant(auth.uid(), order_id, chat_type)
+);
+
+-- RLS: Users can send chat messages if they are a participant
+DROP POLICY IF EXISTS "Users can send chat messages" ON public.chat_messages;
+CREATE POLICY "Users can send chat messages"
+ON public.chat_messages
+FOR INSERT
+WITH CHECK (
+  auth.uid() = sender_id
+  AND is_chat_participant(auth.uid(), order_id, chat_type)
+);
+
+-- RLS: Users can update read status on messages they received
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
+CREATE POLICY "Users can update own messages read status"
+ON public.chat_messages
+FOR UPDATE
+USING (auth.uid() = receiver_id);
+
+-- Create storage bucket for chat images
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('chat-images', 'chat-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage policies for chat images
+DROP POLICY IF EXISTS "Authenticated users can upload chat images" ON storage.objects;
+CREATE POLICY "Authenticated users can upload chat images"
+ON storage.objects
+FOR INSERT
+WITH CHECK (bucket_id = 'chat-images' AND auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Anyone can view chat images" ON storage.objects;
+CREATE POLICY "Anyone can view chat images"
+ON storage.objects
+FOR SELECT
+USING (bucket_id = 'chat-images');
+
+-- ===== END SOURCE: 20260220105922_a9d87006-18a0-4ab2-aaff-87e7b485b798.sql =====
