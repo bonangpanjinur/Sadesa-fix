@@ -1,6 +1,8 @@
 // Wilayah.id API for Indonesian regions
 // Source: https://wilayah.id/
-// Uses a same-origin/server proxy first, with a single Supabase proxy fallback.
+// Uses the application proxy first, then Supabase Edge Function, then the
+// public upstream as a last resort so address selectors remain usable even
+// when one deployment's proxy is unavailable.
 
 export interface Region {
   code: string;
@@ -93,6 +95,7 @@ const STATIC_PROVINCES: Region[] = [
 ];
 
 let BASE_URL = 'https://wilayah.id/api';
+const EMSIFA_API_URL = 'https://www.emsifa.com/api-wilayah-indonesia/api';
 
 // Try to load custom API URL from localStorage (cached from system settings)
 try {
@@ -135,20 +138,39 @@ async function fetchViaLocalProxy(type: string, code: string | undefined, signal
 
   try {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    if (!projectId) return null;
-    const response = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/wilayah-proxy?${params.toString()}`,
-      {
-        // GET plus apikey is sufficient for a public Edge Function and avoids
-        // the unnecessary Content-Type preflight from the old implementation.
-        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '' },
-        signal,
-      },
-    );
-    if (response.ok) return response;
+    if (projectId) {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/wilayah-proxy?${params.toString()}`,
+        {
+          // GET plus apikey is sufficient for a public Edge Function and avoids
+          // the unnecessary Content-Type preflight from the old implementation.
+          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '' },
+          signal,
+        },
+      );
+      if (response.ok && (response.headers.get('content-type') || '').includes('application/json')) {
+        return response;
+      }
+    }
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error;
   }
+
+  try {
+    // The upstream explicitly allows browser requests. Keep this as the final
+    // fallback for deployments where the local or Supabase proxy is missing,
+    // stale, or temporarily returning an error.
+    const upstreamUrl = `${EMSIFA_API_URL}/${type === 'provinces' ? 'provinces' : `${type}/${code}`}.json`;
+    const response = await fetch(upstreamUrl, {
+      headers: { Accept: 'application/json' },
+      signal,
+    });
+    const contentType = response.headers.get('content-type') || '';
+    if (response.ok && contentType.includes('application/json')) return response;
+  } catch (error) {
+    if ((error as Error).name === 'AbortError') throw error;
+  }
+
   return null;
 }
 
@@ -162,9 +184,8 @@ async function fetchWithFallbacks(type: string, code?: string): Promise<Region[]
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    // Third-party region APIs are not called directly from the browser because
-    // their CORS headers are inconsistent. One user action now produces one
-    // controlled proxy flow instead of several console errors.
+    // Prefer controlled proxy flows, with the public upstream retained as a
+    // last-resort fallback for production deployments that have no proxy.
     const response = await fetchViaLocalProxy(type, code, signal);
     if (!response) throw new Error('Wilayah proxy unavailable');
     const json = await response.json();
