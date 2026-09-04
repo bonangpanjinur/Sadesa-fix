@@ -7,7 +7,7 @@
 
 ## Ringkasan
 
-Perubahan POS yang sudah dipush menambahkan penguatan otorisasi, invariant pembayaran, dan fondasi checkout yang lebih aman. Migration database yang paling penting untuk deployment ini adalah `20260828160000_pos_payment_invariants.sql`. File yang sama tersedia dalam bentuk bootstrap di `supabase/bootstrap/08_20260826010000_to_20260904090000.sql`.
+Perubahan POS yang sudah dipush menambahkan penguatan otorisasi, invariant pembayaran, dan fondasi checkout yang lebih aman. Migration database yang paling penting untuk deployment ini adalah `20260828160000_pos_payment_invariants.sql`. File yang sama tersedia dalam bentuk bootstrap di `supabase/bootstrap/08_20260826010000_to_20260829160000.sql`.
 
 Migration tersebut menambahkan validasi database agar nilai pembayaran POS konsisten dengan total transaksi. Pembayaran tunai tidak boleh kurang dari total dan kembalian harus sesuai. Pembayaran non-tunai harus sama dengan total transaksi dan tidak boleh menghasilkan kembalian. Validasi ini berada di database sehingga tidak hanya bergantung pada UI atau client PWA.
 
@@ -23,8 +23,9 @@ Implementasi konsolidasi juga menambahkan `20260904090000_pos_unified_transactio
 | 4 | `archive/supabase/migrations/20260823092000_harden_pos_sale_totals.sql` | Penguatan konsistensi total penjualan | Tinggi; perlu verifikasi data existing |
 | 5 | `archive/supabase/migrations/20260828160000_pos_payment_invariants.sql` | Invariant pembayaran dan kembalian | Tinggi; migration utama dari perubahan terbaru |
 | 6 | `supabase/bootstrap/07_20260822040000_to_20260825200000.sql` | Bundle bootstrap fungsi/schema POS yang digunakan repository | Tinggi; hanya jalankan pada database yang menggunakan jalur bootstrap |
-| 7 | `supabase/bootstrap/08_20260826010000_to_20260904090000.sql` | Bootstrap bundle yang memuat invariant pembayaran dan unified history terbaru | Tinggi; jangan dijalankan dua kali terhadap target yang sama |
-| 8 | `archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql` | Mapping idempotent dan unified reporting histori legacy/modern | Tinggi; validasi mapping tenant/outlet pada staging sebelum rollout |
+| 7 | `supabase/bootstrap/08_20260826010000_to_20260829160000.sql` | Bootstrap bundle yang memuat invariant pembayaran dan hardening POS sampai workflow transition | Tinggi; jangan dijalankan dua kali terhadap target yang sama |
+| 8 | `supabase/bootstrap/09_20260904090000_to_20260904090000.sql` | Bootstrap standalone untuk mapping idempotent dan unified reporting histori legacy/modern | Tinggi; validasi mapping tenant/outlet pada staging sebelum rollout |
+| 9 | `archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql` | Sumber migration untuk bundle bootstrap unified history | Referensi sumber; gunakan bundle bootstrap untuk jalur bootstrap |
 
 Direktori `archive/supabase/migrations` dan `supabase/bootstrap` memiliki peran berbeda. Tim deployment harus memastikan terlebih dahulu apakah environment target dikelola menggunakan histori migration Supabase atau bundle bootstrap repository. **Jangan menjalankan kedua representasi migration yang sama pada database target yang sama tanpa memastikan idempotency-nya.**
 
@@ -73,6 +74,7 @@ Perubahan database belum dieksekusi ke project Supabase production oleh proses i
 
 - [Migration atomic POS checkout](../archive/supabase/migrations/20260823070000_atomic_pos_checkout.sql)
 - [Migration invariant pembayaran POS](../archive/supabase/migrations/20260828160000_pos_payment_invariants.sql)
-- [Bootstrap invariant pembayaran POS](../supabase/bootstrap/09_20260828160000_pos_payment_invariants.sql)
-- [Unified transaction history migration](../archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql)
+- [Bootstrap POS sampai workflow transition](../supabase/bootstrap/08_20260826010000_to_20260829160000.sql)
+- [Bootstrap unified transaction history](../supabase/bootstrap/09_20260904090000_to_20260904090000.sql)
+- [Unified transaction history source migration](../archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql)
 - [Script validasi migration](../scripts/validate-migrations.sh)

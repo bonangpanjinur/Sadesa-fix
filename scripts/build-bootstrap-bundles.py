@@ -17,6 +17,12 @@ def main() -> int:
     parser.add_argument('--source', type=Path, default=Path('archive/supabase/migrations'))
     parser.add_argument('--output', type=Path, default=Path('supabase/bootstrap'))
     parser.add_argument('--bundles', type=int, default=8)
+    parser.add_argument(
+        '--separate-final',
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help='Keep the newest migration in its own final bootstrap SQL file.',
+    )
     args = parser.parse_args()
 
     files = sorted(args.source.glob('*.sql'))
@@ -28,19 +34,25 @@ def main() -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     for old in args.output.glob('*.sql'):
         old.unlink()
-    manifest: dict[str, object] = {
-        'source': str(args.source),
-        'migration_count': len(files),
-        'bundle_count': args.bundles,
-        'bundles': [],
-    }
-
     base, remainder = divmod(len(files), args.bundles)
+    selected_groups: list[list[Path]] = []
     start = 0
     for bundle_number in range(1, args.bundles + 1):
         size = base + (1 if bundle_number <= remainder else 0)
-        selected = files[start:start + size]
+        selected_groups.append(files[start:start + size])
         start += size
+    if args.separate_final:
+        newest = selected_groups[-1].pop()
+        selected_groups.append([newest])
+
+    manifest: dict[str, object] = {
+        'source': str(args.source),
+        'migration_count': len(files),
+        'bundle_count': len(selected_groups),
+        'bundles': [],
+    }
+
+    for bundle_number, selected in enumerate(selected_groups, start=1):
         first = selected[0].stem[:14]
         last = selected[-1].stem[:14]
         output = args.output / f'{bundle_number:02d}_{first}_to_{last}.sql'
@@ -67,7 +79,7 @@ def main() -> int:
     (args.output / 'manifest.json').write_text(
         json.dumps(manifest, indent=2) + '\n', encoding='utf-8'
     )
-    print(f'Built {args.bundles} ordered bundles from {len(files)} migrations in {args.output}')
+    print(f'Built {len(selected_groups)} ordered bundles from {len(files)} migrations in {args.output}')
     return 0
 
 

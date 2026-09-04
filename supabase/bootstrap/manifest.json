@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 194,
-  "bundle_count": 8,
+  "bundle_count": 9,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -223,7 +223,7 @@
       "bytes": 130595
     },
     {
-      "file": "08_20260826010000_to_20260904090000.sql",
+      "file": "08_20260826010000_to_20260829160000.sql",
       "source_files": [
         "20260826010000_atomic_loyalty_checkout_crm.sql",
         "20260826010000_marketplace_stock_reservation_lifecycle.sql",
@@ -247,11 +247,18 @@
         "20260829130000_subscription_entitlement_enforcement.sql",
         "20260829140000_subscription_runtime_enforcement.sql",
         "20260829150000_pos_tenant_merchant_mapping.sql",
-        "20260829160000_pos_workflow_transition_hardening.sql",
+        "20260829160000_pos_workflow_transition_hardening.sql"
+      ],
+      "sha256": "93a1bb54ccb7030ca29dbebd32d9205c02b6a56fe0a940b932ddb05a07aa8053",
+      "bytes": 132394
+    },
+    {
+      "file": "09_20260904090000_to_20260904090000.sql",
+      "source_files": [
         "20260904090000_pos_unified_transaction_history.sql"
       ],
-      "sha256": "d7768e5b377bd79e86dcc1318f58286f6143bb6c6caa57ca5141ea87d577d219",
-      "bytes": 139073
+      "sha256": "692d6651c9aa63c5330e8bd8880ffae709b71e703ec050fb092ace7e2dcc0d1c",
+      "bytes": 6949
     }
   ]
 }
