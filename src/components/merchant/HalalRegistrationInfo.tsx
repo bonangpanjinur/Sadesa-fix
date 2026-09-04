@@ -39,9 +39,16 @@ export function HalalRegistrationInfo({ onStatusChange }: HalalRegistrationInfoP
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${type}/${fileName}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Sesi login tidak ditemukan. Silakan masuk kembali.');
+      }
+
+      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      // Storage RLS requires merchant documents to be stored under
+      // {type}/{authenticated-user-id}/{filename}.
+      const filePath = `${type}/${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('merchants')
