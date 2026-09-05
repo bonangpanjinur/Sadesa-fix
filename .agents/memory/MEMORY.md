@@ -1,0 +1,1 @@
+- [Package manager runtime](package-manager-runtime.md) — this workspace currently exposes pnpm 10 while the repository pins pnpm 9.15.9; direct pnpm commands may self-install and abort.

@@ -56,7 +56,7 @@ Fitur kasir yang sudah tersedia meliputi barcode, varian POS, customer, promo, v
 |---|---|---|
 | Entry point | **✅** | `/merchant/pos` dan `/merchant/pos/kasir`; `/pos/*` hanya redirect kompatibilitas. |
 | Halaman kasir | **✅** | `src/pages/pos/POSKasirPage.tsx` dipakai pada route Merchant kanonik. |
-| Layout | **🟡** | Fungsi sudah berada di namespace Merchant, tetapi halaman kasir masih memakai `POSLayout`/`POSSidebar`; penyatuan visual penuh dengan `MerchantLayout` belum selesai. |
+| Layout | **✅** | Kasir kanonis memakai navigasi `MerchantSidebar`; engine checkout tetap memakai konteks, akses, dan komponen POS modern. |
 | Produk | **🟡** | `products` Merchant menjadi sumber katalog; `pos_products` dipertahankan sebagai projection kompatibilitas. Migrasi belum diverifikasi di target. |
 | Transaksi | **✅** | Transaksi baru memakai `pos_sales` dan `pos_sale_items` melalui atomic checkout. |
 | Identitas usaha | **🟡** | `pos_tenants.merchant_id` dan backfill mapping sudah disiapkan; deployment migrasi belum diverifikasi. |
