@@ -56,7 +56,7 @@ Fitur kasir yang sudah tersedia meliputi barcode, varian POS, customer, promo, v
 |---|---|---|
 | Entry point | **✅** | `/merchant/pos` dan `/merchant/pos/kasir`; `/pos/*` hanya redirect kompatibilitas. |
 | Halaman kasir | **✅** | `src/pages/pos/POSKasirPage.tsx` dipakai pada route Merchant kanonik. |
-| Layout | **🟡** | Fungsi sudah berada di namespace Merchant, tetapi halaman kasir masih memakai `POSLayout`/`POSSidebar`; penyatuan visual penuh dengan `MerchantLayout` belum selesai. |
+| Layout | **🟡 SEBAGIAN — SHELL DISATUKAN** | `POSKasirPage` kini memakai `POSLayout` bersama sehingga guard akses, sidebar, header, dan shell area Merchant/POS tidak diduplikasi; penyatuan visual penuh dengan `MerchantLayout` masih belum selesai. |
 | Produk | **🟡** | `products` Merchant menjadi sumber katalog; `pos_products` dipertahankan sebagai projection kompatibilitas. Migrasi belum diverifikasi di target. |
 | Transaksi | **✅** | Transaksi baru memakai `pos_sales` dan `pos_sale_items` melalui atomic checkout. |
 | Identitas usaha | **🟡** | `pos_tenants.merchant_id` dan backfill mapping sudah disiapkan; deployment migrasi belum diverifikasi. |
@@ -159,6 +159,8 @@ Jika migrasi fisik ke `pos_sales` berisiko mengubah laporan atau trigger, gunaka
 
 ### Fase 4 — Cutover checkout — **✅ SELESAI DI KODE / 🟡 MENUNGGU VALIDASI ENVIRONMENT**
 
+Perubahan lokal bertahap pada audit ini menyatukan shell `POSKasirPage` dengan `POSLayout`, menghapus sidebar wrapper duplikat, dan mempertahankan alur checkout, dialog, serta panel produk/keranjang. Typecheck, test suite, dan build tetap lulus setelah perubahan.
+
 Setelah tenant, outlet, produk, stok, dan akses tervalidasi, ubah navigasi dan route lama. Checkout modern harus menjadi satu-satunya alur aktif.
 
 Checklist cutover:
@@ -197,7 +199,7 @@ Setelah masa observasi selesai:
 | `src/App.tsx` | **✅** | Route kanonik POS berada di `/merchant/pos/*`; `/pos/*` dan dashboard `/merchant/pos` menjadi redirect kompatibilitas, dengan telemetry route legacy. |
 | `src/components/merchant/MerchantSidebar.tsx` | **✅** | Link Kasir diarahkan ke area Merchant. |
 | `src/components/pos/POSSidebar.tsx` | **✅** | Link internal memakai prefix `/merchant/pos/*`. |
-| `src/pages/pos/POSKasirPage.tsx` | **✅** | Dipakai sebagai checkout kanonik pada route Merchant. |
+| `src/pages/pos/POSKasirPage.tsx` | **✅ / 🟡 VISUAL** | Dipakai sebagai checkout kanonik pada route Merchant dan kini menggunakan `POSLayout` bersama; penyatuan visual penuh dengan `MerchantLayout` masih tersisa. |
 | `src/pages/pos/POSTransaksiPage.tsx` | **🟡** | Histori modern tersedia; rekonsiliasi histori legacy belum divalidasi production. |
 | `src/pages/merchant/MerchantPOSPage.tsx` | **✅** | File legacy sudah tidak ada dan tidak memiliki referensi aktif di `src`. |
 | `src/components/merchant/POSInvoice.tsx` | **✅** | File legacy sudah tidak ada dan tidak memiliki referensi aktif di `src`. |

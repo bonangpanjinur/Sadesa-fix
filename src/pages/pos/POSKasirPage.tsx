@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Search, Package, ChevronLeft, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
+import { Search, Package, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { POSSidebar } from '@/components/pos/POSSidebar';
+import { POSLayout } from '@/components/pos/POSLayout';
 import { cn } from '@/lib/utils';
 import { processAtomicPOSSale } from '@/lib/posCheckout';
 import { calculatePOSPricing } from '@/lib/posPricing';
@@ -46,7 +46,6 @@ export default function POSKasirPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -753,20 +752,16 @@ export default function POSKasirPage() {
   );
 
   return (
-    <div className="flex h-[100dvh] flex-col lg:flex-row bg-background overflow-hidden">
-      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <div className={cn('fixed inset-y-0 left-0 z-50 lg:relative lg:z-0 transform transition-transform duration-200', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')}>
-        <POSSidebar />
-      </div>
-
-      <div className="flex flex-1 min-w-0 min-h-0 flex-col lg:flex-row overflow-hidden">
+    <POSLayout
+      title="Kasir"
+      subtitle={activeOutlet?.name ? `Outlet: ${activeOutlet.name}` : 'Checkout POS'}
+      fullWidth
+    >
+      <div className="flex h-full min-h-0 flex-1 flex-col lg:flex-row overflow-hidden">
         {/* Panel Produk */}
         <div className="flex-1 min-h-0 flex flex-col min-w-0 border-b lg:border-b-0 lg:border-r">
           <div className="p-3 border-b bg-background space-y-2">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" onClick={() => setSidebarOpen(true)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input ref={searchRef} className="pl-9 pr-9 h-9" placeholder="Cari produk / scan barcode... (F8)"
@@ -1005,6 +1000,6 @@ export default function POSKasirPage() {
           <BarcodeScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetect={onBarcodeDetect} />
         </Suspense>
       )}
-    </div>
+    </POSLayout>
   );
 }
