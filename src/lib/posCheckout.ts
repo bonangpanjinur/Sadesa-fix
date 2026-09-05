@@ -59,7 +59,18 @@ export async function processAtomicPOSSale(
 ): Promise<AtomicPOSSaleResult> {
   const traceId = createTraceId('pos-sale');
   const startedAt = Date.now();
-  reportObservability('payment', 'pos_checkout_started', 'info', { itemCount: items.length, offline: Boolean(sale.offline_sync), paymentMethod: sale.payment_method }, undefined, { traceId });
+  const telemetryContext = {
+    checkoutSource: 'merchant_pos_kasir',
+    transactionSource: sale.offline_sync ? 'offline_queue' : 'online_checkout',
+    tenantId,
+    outletId,
+    cashierId,
+    requestKeyPrefix: requestKey.slice(0, 12),
+    itemCount: items.length,
+    offline: Boolean(sale.offline_sync),
+    paymentMethod: sale.payment_method,
+  };
+  reportObservability('payment', 'pos_checkout_started', 'info', telemetryContext, undefined, { traceId });
   try {
     const { data, error } = await supabase.rpc('process_pos_sale' as never, {
       p_request_key: requestKey,
@@ -71,10 +82,10 @@ export async function processAtomicPOSSale(
     } as never);
     if (error) throw error;
     const result = data as unknown as AtomicPOSSaleResult;
-    reportObservability('payment', result.duplicate ? 'pos_checkout_duplicate' : 'pos_checkout_succeeded', 'info', { itemCount: items.length, duplicate: result.duplicate, offline: Boolean(sale.offline_sync), durationMs: Date.now() - startedAt }, undefined, { traceId, durationMs: Date.now() - startedAt });
+    reportObservability('payment', result.duplicate ? 'pos_checkout_duplicate' : 'pos_checkout_succeeded', 'info', { ...telemetryContext, duplicate: result.duplicate, durationMs: Date.now() - startedAt }, undefined, { traceId, durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
-    reportObservability('payment', 'pos_checkout_failed', 'error', { itemCount: items.length, offline: Boolean(sale.offline_sync), errorCode: getErrorCode(error) }, error, { traceId, durationMs: Date.now() - startedAt });
+    reportObservability('payment', 'pos_checkout_failed', 'error', { ...telemetryContext, errorCode: getErrorCode(error) }, error, { traceId, durationMs: Date.now() - startedAt });
     throw error;
   }
 }

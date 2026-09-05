@@ -21,7 +21,7 @@
 | Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS, mapping idempotent, manifest deployment, dan migration-history file sudah tersedia; SQL belum diverifikasi diterapkan di environment target. |
 | Stok per outlet | **🟡 SEBAGIAN** | Backfill row `pos_stock` per outlet aktif sudah ditambahkan secara idempotent dengan kuantitas existing tidak ditimpa; deployment dan UAT masih belum selesai. |
 | Test dan build | **✅ SELESAI** | 31 file test lulus, 86 test lulus, 20 dilewati; build berhasil. |
-| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Kode observability checkout sudah tersedia, tetapi belum ada bukti eksekusi deployment, rekonsiliasi, dan UAT di environment target. |
+| UAT, observability, rekonsiliasi production | **🟡 SEBAGIAN** | Telemetry checkout kini membawa source, tenant, outlet, kasir, request key prefix, dan status offline; deployment, rekonsiliasi, serta UAT environment target tetap belum tersedia. |
 
 ## 1. Ringkasan Eksekutif
 
@@ -186,13 +186,13 @@ Setelah masa observasi selesai:
 | `src/components/pos/POSSidebar.tsx` | **✅** | Link internal memakai prefix `/merchant/pos/*`. |
 | `src/pages/pos/POSKasirPage.tsx` | **✅** | Dipakai sebagai checkout kanonik pada route Merchant. |
 | `src/pages/pos/POSTransaksiPage.tsx` | **🟡** | Histori modern tersedia; rekonsiliasi histori legacy belum divalidasi production. |
-| `src/pages/merchant/MerchantPOSPage.tsx` | **⬜ BELUM** | Belum dihapus; perlu audit referensi sebelum dipensiunkan. |
-| `src/components/merchant/POSInvoice.tsx` | **⬜ BELUM** | Belum dihapus atau dinyatakan archived. |
+| `src/pages/merchant/MerchantPOSPage.tsx` | **✅** | File legacy sudah tidak ada dan tidak memiliki referensi aktif di `src`. |
+| `src/components/merchant/POSInvoice.tsx` | **✅** | File legacy sudah tidak ada dan tidak memiliki referensi aktif di `src`. |
 | `src/lib/posCheckout.ts` | **✅** | Atomic checkout dan idempotency digunakan. |
 | `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
 | `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; sudah dimasukkan ke manifest bootstrap, tetapi belum diverifikasi telah diterapkan. |
 | `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. |
-| `docs/` | **🟡** | Dokumen ini diperbarui; runbook deployment dan hasil UAT belum tersedia. |
+| `docs/` | **🟡** | Status implementasi, hasil quality gate lokal, dan gap environment diperbarui; runbook deployment serta hasil UAT belum tersedia. |
 
 ## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
 
@@ -240,16 +240,16 @@ Quality gate saat audit:
 
 | Gate | Status | Bukti |
 |---|---|---|
-| `pnpm exec tsc --noEmit` | **⬜ BELUM DIVERIFIKASI** | Belum dijalankan sebagai perintah terpisah pada audit ini. |
+| `pnpm exec tsc --noEmit` | **✅** | Typecheck berhasil setelah dependensi dipasang. |
 | `pnpm run test -- --run` | **✅** | 31 file lulus; 86 test lulus; 20 dilewati. |
 | `pnpm build` | **✅** | Build production berhasil. |
 | `git diff --check` | **✅** | Tidak ada whitespace error pada perubahan yang diaudit. |
 
-Error TypeScript yang ditemukan pada test POS receipt harus dibereskan atau diberi tiket terpisah sebelum gate tipe dinyatakan hijau. Error tersebut tidak boleh disamarkan sebagai bagian dari migrasi.
+Typecheck terpisah berhasil pada verifikasi lanjutan; tidak ada error TypeScript yang menghalangi gate tipe.
 
-## 9. Observability dan Rollback — **⬜ BELUM**
+## 9. Observability dan Rollback — **🟡 SEBAGIAN**
 
-Tambahkan telemetry untuk route lama, redirect, checkout source, transaction source, tenant, outlet, dan hasil sinkronisasi. Setiap transaksi sebaiknya dapat dilacak dari request key ke `pos_sales`, item, perubahan stok, pembayaran, dan receipt job.
+Telemetry checkout sudah mencatat checkout source, transaction source, tenant, outlet, kasir, request key prefix, status offline, duplicate result, error code, dan durasi. Telemetry route lama, redirect, sinkronisasi end-to-end, serta korelasi database ke item/stok/pembayaran/receipt masih memerlukan instrumentasi atau verifikasi environment target.
 
 Rollback tidak boleh mengaktifkan kembali dua checkout secara bersamaan. Bila cutover bermasalah, rollback harus dilakukan dengan salah satu dari dua cara berikut:
 
@@ -271,7 +271,7 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 - **⬜** Tidak ada mismatch kritis selama masa observasi belum dapat dinyatakan karena observasi belum dijalankan.
 - **✅ di kode / 🟡 UAT** Role POS dan permission diuji oleh test suite; pengujian RLS production dan UAT masih belum selesai.
 - **✅** Test suite dan build produksi lulus; UAT belum lulus.
-- **⬜** Implementasi legacy belum seluruhnya dihapus atau diberi status archived.
+- **✅** File implementasi legacy yang tercantum dalam rencana sudah tidak ada dan tidak memiliki referensi aktif di `src`.
 
 ## 11. Urutan Prioritas
 

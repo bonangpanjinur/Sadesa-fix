@@ -6,9 +6,13 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 
 import { processAtomicPOSSale } from './posCheckout';
+import { clearObservabilityEvents, getObservabilityEvents } from './observability';
 
 describe('processAtomicPOSSale', () => {
-  beforeEach(() => rpc.mockReset());
+  beforeEach(() => {
+    rpc.mockReset();
+    clearObservabilityEvents();
+  });
 
   it('calls the atomic RPC with the complete transaction contract', async () => {
     rpc.mockResolvedValue({
@@ -32,6 +36,16 @@ describe('processAtomicPOSSale', () => {
       p_cashier_id: 'cashier-1',
       p_sale: sale,
       p_items: items,
+    });
+    expect(getObservabilityEvents()[0]).toMatchObject({
+      event: 'pos_checkout_started',
+      context: expect.objectContaining({
+        checkoutSource: 'merchant_pos_kasir',
+        transactionSource: 'online_checkout',
+        tenantId: 'tenant-1',
+        outletId: 'outlet-1',
+        cashierId: 'cashier-1',
+      }),
     });
   });
 

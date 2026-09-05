@@ -56,7 +56,7 @@ export function POSLayout({ children, title, subtitle, actions, fullWidth }: POS
           <p className="mt-2 text-sm text-muted-foreground">
             Anda belum memiliki usaha yang terdaftar di sistem POS. Buat usaha terlebih dahulu untuk mulai menggunakan kasir.
           </p>
-          <Button onClick={() => navigate('/pos/setup')} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={() => navigate('/merchant/pos/setup')} className="mt-4 w-full bg-emerald-600 hover:bg-emerald-700">
             Buat Usaha Sekarang
           </Button>
         </div>
