@@ -1,7 +1,7 @@
 # Rencana Perbaikan dan Konsolidasi Dua Fitur Kasir POS
 
 **Repository:** `bonangpanjinur/Sadesa-fix`  
-**Status:** Implementasi cutover kanonis dan hardening migration diterapkan; deployment database target dan UAT production tetap memerlukan eksekusi runbook
+**Status:** Implementasi cutover kanonis dan hardening migration diterapkan; quality gate lokal lulus, sedangkan deployment database target, observability production, dan UAT tetap tertunda karena environment target belum tersedia
 **Tanggal:** 4 September 2026  
 **Pemilik:** Tim Produk dan Engineering SaDesa
 **Audit status:** 5 September 2026
@@ -21,9 +21,22 @@
 | Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS, mapping idempotent, manifest deployment, dan migration-history file sudah tersedia; SQL belum diverifikasi diterapkan di environment target. |
 | Stok per outlet | **🟡 SEBAGIAN** | Backfill row `pos_stock` per outlet aktif sudah ditambahkan secara idempotent dengan kuantitas existing tidak ditimpa; deployment dan UAT masih belum selesai. |
 | Test dan build | **✅ SELESAI** | 31 file test lulus, 86 test lulus, 20 dilewati; build berhasil. |
-| UAT, observability, rekonsiliasi production | **🟡 SEBAGIAN** | Telemetry checkout kini membawa source, tenant, outlet, kasir, request key prefix, dan status offline; deployment, rekonsiliasi, serta UAT environment target tetap belum tersedia. |
+| UAT, observability, rekonsiliasi production | **🟡 SEBAGIAN / TERBLOKIR ENVIRONMENT** | Telemetry checkout kini membawa source, tenant, outlet, kasir, request key prefix, dan status offline; quality gate lokal lulus, tetapi deployment, rekonsiliasi, telemetry production, dan UAT target belum dapat dieksekusi tanpa akses environment. |
 
 ## 1. Ringkasan Eksekutif
+
+### Hasil audit repository — 5 September 2026
+
+Quality gate lokal pada commit yang diaudit berhasil dijalankan setelah dependensi dipasang: `pnpm exec tsc --noEmit`, `pnpm run test -- --run`, `pnpm build`, dan `git diff --check` seluruhnya lulus. Tidak ada kredensial atau koneksi database Supabase target yang tersedia pada sesi ini, sehingga fase yang mensyaratkan deployment, query rekonsiliasi, observasi telemetry production, dan UAT tidak boleh ditandai selesai hanya berdasarkan verifikasi lokal.
+
+| Item tertunda | Status eksekusi audit | Tindakan berikutnya |
+|---|---|---|
+| Deployment migrasi bootstrap/history | **TERTUNDA** | Jalankan runbook deployment pada staging, lalu verifikasi smoke test database. |
+| Baseline dan rekonsiliasi target | **TERTUNDA** | Jalankan `pnpm run pos:baseline` dengan role read-only dan simpan report sebelum/sesudah migrasi. |
+| Masa observasi checkout | **TERTUNDA** | Rollout allowlist merchant dan pantau event telemetry selama satu siklus operasional penuh. |
+| UAT P0 dan non-P0 | **TERTUNDA** | Lengkapi `docs/pos-consolidation-uat-runbook.md` dengan bukti transaksi, screenshot, dan hasil tiap skenario. |
+
+
 
 Pada awalnya terdapat dua entry point kasir: `/merchant/pos` dan `/pos/kasir`. Implementasi telah dikonsolidasikan sehingga **kasir berada di area Merchant** dengan route kanonik `/merchant/pos/kasir`. Route lama `/pos/*` tetap dipertahankan hanya sebagai redirect kompatibilitas.
 
@@ -159,9 +172,9 @@ Checklist cutover:
 7. **✅ di kode / 🟡 rekonsiliasi belum** Receipt dan reprint membaca format POS modern.
 8. **✅ di kode / 🟡 UAT belum** Offline queue hanya memproses transaksi yang belum berhasil diselesaikan.
 
-### Fase 5 — Masa observasi — **⬜ BELUM**
+### Fase 5 — Masa observasi — **🟡 TERTUNDA ENVIRONMENT**
 
-Selama minimal satu siklus operasional penuh, pantau error checkout, transaksi duplikat, mismatch stok, transaksi offline yang gagal sinkron, kegagalan cetak, dan akses user yang ditolak secara tidak semestinya.
+Selama minimal satu siklus operasional penuh, pantau error checkout, transaksi duplikat, mismatch stok, transaksi offline yang gagal sinkron, kegagalan cetak, dan akses user yang ditolak secara tidak semestinya. Implementasi telemetry dan checklist observasi sudah tersedia di kode/runbook; eksekusi observasi belum dapat dilakukan pada audit ini karena environment target dan sumber telemetry production tidak tersedia.
 
 Gunakan feature flag atau allowlist merchant untuk melakukan rollout bertahap. Jangan menghapus halaman legacy sebelum metrik cutover stabil dan semua exception kritis ditutup.
 
@@ -192,7 +205,7 @@ Setelah masa observasi selesai:
 | `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
 | `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; manifest serta smoke test kini memeriksa mapping tenant, projection produk, dan stok outlet, tetapi belum dijalankan pada database target. |
 | `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. Readiness tetap harus diverifikasi setelah deployment. |
-| `docs/` | **🟡** | Status implementasi, baseline report, readiness smoke test, dan [runbook UAT](pos-consolidation-uat-runbook.md) tersedia; eksekusi deployment, rekonsiliasi, serta hasil UAT target belum tersedia. |
+| `docs/` | **🟡** | Status implementasi, baseline report, readiness smoke test, dan [runbook UAT](pos-consolidation-uat-runbook.md) tersedia; quality gate lokal telah diverifikasi, sementara eksekusi deployment, observasi, rekonsiliasi, serta hasil UAT target masih tertunda karena akses environment belum tersedia. |
 
 ## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
 
@@ -268,9 +281,9 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 - **🟡** Tidak ada transaksi baru yang menulis ke `pos_transactions` belum diverifikasi melalui telemetry/database target.
 - **🟡** Stok POS per outlet sudah memiliki backfill idempotent yang membuat row nol hanya jika belum ada; migrasi database dan UAT belum diverifikasi diterapkan.
 - **🟡** Histori transaksi lama sudah memiliki migration map dan unified reporting view; rekonsiliasi serta verifikasi end-to-end belum dijalankan pada target.
-- **🟡** Runbook UAT dan telemetry observasi tersedia; tidak ada mismatch kritis belum dapat dinyatakan sebelum observasi dijalankan.
+- **🟡 tertunda environment** Runbook UAT dan telemetry observasi tersedia; tidak ada mismatch kritis belum dapat dinyatakan sebelum observasi target dijalankan.
 - **✅ di kode / 🟡 UAT** Role POS dan permission diuji oleh test suite; pengujian RLS production dan UAT masih belum selesai.
-- **✅** Test suite dan build produksi lulus; UAT belum lulus.
+- **✅ lokal / 🟡 UAT** Test suite dan build produksi lulus pada audit lokal; UAT target belum lulus.
 - **✅** File implementasi legacy yang tercantum dalam rencana sudah tidak ada dan tidak memiliki referensi aktif di `src`.
 
 ## 11. Urutan Prioritas
@@ -278,7 +291,7 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 | Prioritas | Pekerjaan | Alasan |
 |---|---|---|
 | P0 | Redirect `/merchant/pos` dan hentikan checkout legacy setelah kesiapan POS tervalidasi | Mencegah transaksi baru masuk ke dua sumber data |
-| P0 | Validasi mapping tenant, outlet, produk, dan stok | Mencegah user masuk ke POS modern dengan data tidak lengkap |
+| P0 | Validasi mapping tenant, outlet, produk, dan stok | Mencegah user masuk ke POS modern dengan data tidak lengkap; eksekusi target masih tertunda environment |
 | P0 | Pastikan idempotency dan atomic checkout | Mencegah transaksi ganda dan data parsial |
 | P1 | Unified reporting untuk histori legacy dan modern | Menjaga kontinuitas laporan selama migrasi |
 | P1 | Konsolidasi menu, label, dan dokumentasi | Menghilangkan kebingungan pengguna |
@@ -299,8 +312,8 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 
 ## 13. Keputusan yang Sudah Ditetapkan
 
-Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pada kode: `/merchant/pos/kasir` menjadi checkout resmi; `/pos/*` hanya compatibility redirect; `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS; dan produk Merchant menjadi sumber katalog dengan projection kompatibilitas pada `pos_products`. Migrasi database produk/tenant tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target. Rekonsiliasi histori legacy, observability, dan UAT masih **BELUM** selesai.
+Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pada kode: `/merchant/pos/kasir` menjadi checkout resmi; `/pos/*` hanya compatibility redirect; `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS; dan produk Merchant menjadi sumber katalog dengan projection kompatibilitas pada `pos_products`. Quality gate lokal telah lulus. Migrasi database produk/tenant tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target. Rekonsiliasi histori legacy, observability, dan UAT tetap **TERTUNDA ENVIRONMENT**, bukan dianggap selesai berdasarkan test suite lokal.
 
 ---
 
-**Dokumen ini menjadi acuan keputusan dan checklist cutover.** Perubahan kode utama dan hardening migration sudah diterapkan di repository dan ditandai statusnya di atas. Deployment database, backup, rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target. Connector Supabase pada sesi ini belum aktif, sehingga verifikasi langsung terhadap target tidak dilakukan.
+**Dokumen ini menjadi acuan keputusan dan checklist cutover.** Perubahan kode utama dan hardening migration sudah diterapkan di repository dan ditandai statusnya di atas. Quality gate lokal telah lulus pada audit 5 September 2026. Deployment database, backup, rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target. Connector Supabase pada sesi ini belum aktif dan variabel koneksi target tidak tersedia, sehingga verifikasi langsung terhadap target tidak dilakukan.
