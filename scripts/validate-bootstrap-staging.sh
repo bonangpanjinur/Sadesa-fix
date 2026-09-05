@@ -139,7 +139,8 @@ DECLARE
     'notification_delivery_jobs', 'pos_tenants', 'pos_outlets',
     'pos_products', 'pos_stock', 'pos_sales', 'pos_sale_items',
     'pos_transaction_migration_map', 'pos_unified_transaction_history',
-    'marketplace_stock_reservations', 'marketplace_stock_allocations'
+    'marketplace_stock_reservations', 'marketplace_stock_allocations',
+    'pos_legacy_reconciliation_report'
   ];
   table_name text;
 BEGIN
@@ -172,7 +173,8 @@ DECLARE
     'complete_notification_delivery_job', 'process_pos_sale',
     'sync_merchant_product_to_pos', 'ensure_pos_stock_rows_for_product',
     'reserve_marketplace_stock', 'release_marketplace_stock_reservation',
-    'consume_marketplace_stock_reservation'
+    'consume_marketplace_stock_reservation',
+    'reconcile_exact_legacy_pos_transactions'
   ];
 BEGIN
   FOREACH function_name IN ARRAY required_functions LOOP
