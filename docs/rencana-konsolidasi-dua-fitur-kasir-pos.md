@@ -1,7 +1,7 @@
 # Rencana Perbaikan dan Konsolidasi Dua Fitur Kasir POS
 
 **Repository:** `bonangpanjinur/Sadesa-fix`  
-**Status:** Implementasi cutover kanonis dan hardening migration diterapkan; deployment database target dan UAT production tetap memerlukan eksekusi runbook
+**Status:** Implementasi cutover kanonis, hardening migration, dan fondasi rekonsiliasi legacy diterapkan; deployment database target dan UAT production tetap memerlukan eksekusi runbook
 **Tanggal:** 4 September 2026  
 **Pemilik:** Tim Produk dan Engineering SaDesa
 **Audit status:** 5 September 2026
@@ -21,7 +21,7 @@
 | Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS, mapping idempotent, manifest deployment, dan migration-history file sudah tersedia; SQL belum diverifikasi diterapkan di environment target. |
 | Stok per outlet | **🟡 SEBAGIAN** | Backfill row `pos_stock` per outlet aktif sudah ditambahkan secara idempotent dengan kuantitas existing tidak ditimpa; deployment dan UAT masih belum selesai. |
 | Test dan build | **✅ SELESAI** | 31 file test lulus, 86 test lulus, 20 dilewati; build berhasil. |
-| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Fondasi laporan rekonsiliasi dan fungsi exact-match sudah tersedia, tetapi belum ada bukti eksekusi dan persetujuan hasil di environment target. |
+| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Laporan exception dan fungsi exact-match legacy sudah tersedia; eksekusi, observability, dan persetujuan hasil masih belum dilakukan di environment target. |
 
 ## 1. Ringkasan Eksekutif
 
@@ -65,7 +65,7 @@ Perbaikan harus mencapai tujuan berikut:
 3. **✅** Menyatukan transaksi baru ke `pos_sales` dan `pos_sale_items`.
 4. **🟡** Menentukan sumber kebenaran stok per outlet; sinkronisasi marketplace belum diverifikasi end-to-end.
 5. **🟡** Memetakan Merchant ke `pos_tenants`, `pos_outlets`, pengguna POS, dan projection produk; deployment mapping belum diverifikasi.
-6. **🟡** Menyediakan fondasi unified history/mapping, tetapi rekonsiliasi data legacy belum dibuktikan di environment target.
+6. **🟡** Menyediakan unified history, laporan exception, dan rekonsiliasi exact-match; hasil rekonsiliasi legacy belum dibuktikan di environment target.
 7. **✅** Mengurangi ambiguitas menu dan mengarahkan entry Kasir ke area Merchant.
 8. **🟡** Atomic checkout dan idempotency sudah ada; bukti UAT tidak menggandakan transaksi atau stok masih belum tersedia.
 
@@ -130,7 +130,7 @@ Produk lama pada `products` perlu dipetakan ke `pos_products`. Setiap mapping ha
 - Perbedaan harga, SKU, kategori, dan stok dicatat sebagai exception.
 - Setiap perubahan stok selama cutover harus memiliki audit trail.
 
-### Fase 3 — Migrasi dan rekonsiliasi histori transaksi — **⬜ BELUM**
+### Fase 3 — Migrasi dan rekonsiliasi histori transaksi — **🟡 FONDASI SELESAI / MENUNGGU EKSEKUSI TARGET**
 
 `pos_transactions` dan `pos_sales` tidak boleh dianggap identik tanpa pemeriksaan skema. Data lama perlu diklasifikasikan sebagai berikut:
 
@@ -142,7 +142,9 @@ Produk lama pada `products` perlu dipetakan ke `pos_products`. Setiap mapping ha
 | Transaksi tanpa merchant/outlet yang dapat dipetakan | Jangan migrasikan otomatis; simpan sebagai data exception |
 | Transaksi yang sudah tercermin pada `orders` | Hindari pembuatan order baru; simpan referensi sumber |
 
-Jika migrasi fisik ke `pos_sales` berisiko mengubah laporan atau trigger, gunakan pendekatan **unified reporting view** terlebih dahulu. View tersebut dapat menggabungkan data modern dan legacy untuk kebutuhan histori, sementara transaksi baru tetap hanya masuk ke `pos_sales`.
+Jika migrasi fisik ke `pos_sales` berisiko mengubah laporan atau trigger, gunakan pendekatan **unified reporting view** terlebih dahulu. View `pos_unified_transaction_history` menggabungkan data modern dan legacy untuk kebutuhan histori, sementara transaksi baru tetap hanya masuk ke `pos_sales`.
+
+Migration `11_20260905100000_pos_legacy_reconciliation.sql` menambahkan view `pos_legacy_reconciliation_report` dan fungsi `reconcile_exact_legacy_pos_transactions()`. Fungsi tersebut hanya menandai pasangan unik dengan tenant, nomor transaksi, dan total identik. Fungsi tersebut tidak membuat transaksi baru, tidak menghapus transaksi legacy, dan tidak menyalin item atau pembayaran. Snapshot, review exception, dan persetujuan auditor/finance tetap wajib dilakukan pada environment target.
 
 ### Fase 4 — Cutover checkout — **✅ SELESAI DI KODE / 🟡 MENUNGGU VALIDASI ENVIRONMENT**
 
@@ -185,7 +187,7 @@ Setelah masa observasi selesai:
 | `src/components/merchant/MerchantSidebar.tsx` | **✅** | Link Kasir diarahkan ke area Merchant. |
 | `src/components/pos/POSSidebar.tsx` | **✅** | Link internal memakai prefix `/merchant/pos/*`. |
 | `src/pages/pos/POSKasirPage.tsx` | **✅** | Dipakai sebagai checkout kanonik pada route Merchant. |
-| `src/pages/pos/POSTransaksiPage.tsx` | **🟡** | Histori modern tersedia; rekonsiliasi histori legacy belum divalidasi production. |
+| `src/pages/pos/POSTransaksiPage.tsx` | **🟡** | Histori modern tersedia; laporan rekonsiliasi legacy tersedia di database, tetapi belum divalidasi production. |
 | `src/pages/merchant/MerchantPOSPage.tsx` | **⬜ BELUM** | Belum dihapus; perlu audit referensi sebelum dipensiunkan. |
 | `src/components/merchant/POSInvoice.tsx` | **⬜ BELUM** | Belum dihapus atau dinyatakan archived. |
 | `src/lib/posCheckout.ts` | **✅** | Atomic checkout dan idempotency digunakan. |
@@ -298,10 +300,12 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 [7]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/lib/posCheckout.ts "Atomic POS checkout helper"
 [8]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/contexts/POSContext.tsx "POS tenant and outlet context"
 [9]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql "Merchant product catalog and outlet stock integration"
+[10]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/supabase/bootstrap/11_20260905100000_pos_legacy_reconciliation.sql "POS legacy reconciliation report and exact-match function"
+[11]: https://github.com/bonangpanjinur/Sadesa-fix/pull/1 "POS legacy reconciliation pull request"
 
 ## 13. Keputusan yang Sudah Ditetapkan
 
-Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pada kode: `/merchant/pos/kasir` menjadi checkout resmi; `/pos/*` hanya compatibility redirect; `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS; dan produk Merchant menjadi sumber katalog dengan projection kompatibilitas pada `pos_products`. Migrasi database produk/tenant tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target. Rekonsiliasi histori legacy, observability, dan UAT masih **BELUM** selesai.
+Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pada kode: `/merchant/pos/kasir` menjadi checkout resmi; `/pos/*` hanya compatibility redirect; `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS; produk Merchant menjadi sumber katalog dengan projection kompatibilitas pada `pos_products`; dan rekonsiliasi legacy menggunakan laporan exception serta exact-match tanpa menyalin transaksi. Migration database, review exception, persetujuan rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target.
 
 ---
 
