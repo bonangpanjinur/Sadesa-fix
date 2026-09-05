@@ -211,6 +211,44 @@ WHERE outlet.is_active = true
     SELECT 1 FROM public.pos_stock stock WHERE stock.outlet_id = outlet.id
   );
 
+DO $$
+DECLARE
+  tenants_without_merchant integer;
+  active_outlets_without_stock integer;
+  active_products_without_projection integer;
+BEGIN
+  SELECT count(*) INTO tenants_without_merchant
+  FROM public.pos_tenants
+  WHERE is_active = true AND merchant_id IS NULL;
+  IF tenants_without_merchant > 0 THEN
+    RAISE EXCEPTION 'Readiness failed: % active POS tenant(s) have no merchant mapping', tenants_without_merchant;
+  END IF;
+
+  SELECT count(*) INTO active_outlets_without_stock
+  FROM public.pos_outlets outlet
+  WHERE outlet.is_active = true
+    AND NOT EXISTS (
+      SELECT 1 FROM public.pos_stock stock
+      WHERE stock.tenant_id = outlet.tenant_id AND stock.outlet_id = outlet.id
+    );
+  IF active_outlets_without_stock > 0 THEN
+    RAISE EXCEPTION 'Readiness failed: % active outlet(s) have no POS stock rows', active_outlets_without_stock;
+  END IF;
+
+  SELECT count(*) INTO active_products_without_projection
+  FROM public.products product
+  JOIN public.pos_tenants tenant ON tenant.merchant_id = product.merchant_id AND tenant.is_active = true
+  WHERE product.is_active = true
+    AND NOT EXISTS (
+      SELECT 1 FROM public.pos_products projection
+      WHERE projection.tenant_id = tenant.id
+        AND projection.merchant_product_id = product.id
+    );
+  IF active_products_without_projection > 0 THEN
+    RAISE EXCEPTION 'Readiness failed: % active merchant product mapping(s) are missing POS projections', active_products_without_projection;
+  END IF;
+END $$;
+
 SELECT c.relname AS table_name,
        c.relrowsecurity AS rls_enabled,
        count(p.policyname) AS policy_count

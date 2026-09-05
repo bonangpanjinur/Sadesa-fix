@@ -190,8 +190,8 @@ Setelah masa observasi selesai:
 | `src/components/merchant/POSInvoice.tsx` | **✅** | File legacy sudah tidak ada dan tidak memiliki referensi aktif di `src`. |
 | `src/lib/posCheckout.ts` | **✅** | Atomic checkout dan idempotency digunakan. |
 | `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
-| `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; sudah dimasukkan ke manifest bootstrap, tetapi belum diverifikasi telah diterapkan. |
-| `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. |
+| `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; manifest serta smoke test kini memeriksa mapping tenant, projection produk, dan stok outlet, tetapi belum dijalankan pada database target. |
+| `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. Readiness tetap harus diverifikasi setelah deployment. |
 | `docs/` | **🟡** | Status implementasi, hasil quality gate lokal, dan gap environment diperbarui; runbook deployment serta hasil UAT belum tersedia. |
 
 ## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
