@@ -165,7 +165,7 @@ Selama minimal satu siklus operasional penuh, pantau error checkout, transaksi d
 
 Gunakan feature flag atau allowlist merchant untuk melakukan rollout bertahap. Jangan menghapus halaman legacy sebelum metrik cutover stabil dan semua exception kritis ditutup.
 
-### Fase 6 — Pensiun implementasi lama — **⬜ BELUM**
+### Fase 6 — Pensiun implementasi lama — **✅ SELESAI DI KODE / 🟡 DOKUMENTASI DAN OBSERVASI LANJUTAN**
 
 Setelah masa observasi selesai:
 
@@ -217,7 +217,7 @@ Tambahkan atau perbarui pengujian untuk memastikan:
 
 | Skenario | Hasil yang diharapkan |
 |---|---|
-| Akses `/merchant/pos` | Redirect ke `/pos/kasir` tanpa membuat checkout legacy |
+| Akses `/merchant/pos` | Redirect ke `/merchant/pos/kasir` tanpa membuat checkout legacy |
 | User merchant tanpa tenant POS | Masuk ke setup/error state yang jelas |
 | User kasir dengan satu outlet | Outlet aktif dipilih otomatis |
 | User kasir dengan banyak outlet | Hanya outlet yang diizinkan yang tersedia |
