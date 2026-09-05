@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Search, Package, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
+import { Search, Package, ChevronLeft, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 import { MerchantSidebar } from '@/components/merchant/MerchantSidebar';
@@ -50,6 +50,7 @@ export default function POSKasirPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -1015,5 +1016,7 @@ export default function POSKasirPage() {
         </Suspense>
       )}
     </POSLayout>
+      </div>
+    </div>
   );
 }
