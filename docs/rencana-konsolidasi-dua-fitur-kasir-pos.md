@@ -94,11 +94,11 @@ Redirect harus tetap berada di balik autentikasi dan tidak boleh memberikan akse
 
 ## 5. Tahapan Implementasi
 
-### Fase 0 — Baseline dan pembekuan perubahan — **⬜ BELUM**
+### Fase 0 — Baseline dan pembekuan perubahan — **🟡 SEBAGIAN**
 
 Sebelum migrasi dimulai, tim harus mencatat jumlah merchant aktif, jumlah tenant POS, jumlah outlet, jumlah produk aktif, jumlah `pos_transactions`, jumlah `pos_sales`, dan nilai stok pada kedua sistem. Selama periode migrasi, perubahan struktur checkout lama harus dibekukan agar hasil rekonsiliasi tidak berubah di tengah proses.
 
-**Output fase:** snapshot database, daftar merchant terdampak, dan laporan perbedaan data.
+**Output fase:** snapshot database, daftar merchant terdampak, dan laporan perbedaan data. Script `pnpm run pos:baseline` kini menyediakan snapshot hitungan dan total yang dapat diulang; eksekusi pada database target dan pembekuan perubahan masih harus dilakukan oleh operator.
 
 ### Fase 1 — Validasi kesiapan POS modern — **🟡 SEBAGIAN**
 
@@ -130,7 +130,7 @@ Produk lama pada `products` perlu dipetakan ke `pos_products`. Setiap mapping ha
 - Perbedaan harga, SKU, kategori, dan stok dicatat sebagai exception.
 - Setiap perubahan stok selama cutover harus memiliki audit trail.
 
-### Fase 3 — Migrasi dan rekonsiliasi histori transaksi — **⬜ BELUM**
+### Fase 3 — Migrasi dan rekonsiliasi histori transaksi — **🟡 SEBAGIAN**
 
 `pos_transactions` dan `pos_sales` tidak boleh dianggap identik tanpa pemeriksaan skema. Data lama perlu diklasifikasikan sebagai berikut:
 
@@ -192,7 +192,7 @@ Setelah masa observasi selesai:
 | `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
 | `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; manifest serta smoke test kini memeriksa mapping tenant, projection produk, dan stok outlet, tetapi belum dijalankan pada database target. |
 | `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. Readiness tetap harus diverifikasi setelah deployment. |
-| `docs/` | **🟡** | Status implementasi, hasil quality gate lokal, dan gap environment diperbarui; runbook deployment serta hasil UAT belum tersedia. |
+| `docs/` | **🟡** | Status implementasi, baseline report, readiness smoke test, dan [runbook UAT](pos-consolidation-uat-runbook.md) tersedia; eksekusi deployment, rekonsiliasi, serta hasil UAT target belum tersedia. |
 
 ## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
 
@@ -267,8 +267,8 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 - **✅ di kode** Semua transaksi baru diarahkan ke `pos_sales` dan `pos_sale_items`.
 - **🟡** Tidak ada transaksi baru yang menulis ke `pos_transactions` belum diverifikasi melalui telemetry/database target.
 - **🟡** Stok POS per outlet sudah memiliki backfill idempotent yang membuat row nol hanya jika belum ada; migrasi database dan UAT belum diverifikasi diterapkan.
-- **⬜** Histori transaksi lama belum direkonsiliasi dan diverifikasi end-to-end.
-- **⬜** Tidak ada mismatch kritis selama masa observasi belum dapat dinyatakan karena observasi belum dijalankan.
+- **🟡** Histori transaksi lama sudah memiliki migration map dan unified reporting view; rekonsiliasi serta verifikasi end-to-end belum dijalankan pada target.
+- **🟡** Runbook UAT dan telemetry observasi tersedia; tidak ada mismatch kritis belum dapat dinyatakan sebelum observasi dijalankan.
 - **✅ di kode / 🟡 UAT** Role POS dan permission diuji oleh test suite; pengujian RLS production dan UAT masih belum selesai.
 - **✅** Test suite dan build produksi lulus; UAT belum lulus.
 - **✅** File implementasi legacy yang tercantum dalam rencana sudah tidak ada dan tidak memiliki referensi aktif di `src`.

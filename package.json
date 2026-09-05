@@ -22,6 +22,7 @@
     "build:db-bootstrap": "python3 scripts/build-bootstrap-bundles.py --bundles 8",
     "validate:db-bootstrap": "python3 scripts/validate-bootstrap-bundles.py",
     "validate:bootstrap:staging": "bash scripts/validate-bootstrap-staging.sh",
+    "pos:baseline": "bash scripts/run-pos-baseline-report.sh",
     "validate:package-manager": "python3 scripts/validate-package-manager.py",
     "deploy:staging:db": "bash scripts/deploy-supabase-staging.sh",
     "audit:rls": "python3 scripts/audit-rls-static.py",
