@@ -4,84 +4,103 @@
 **Status:** Implementasi cutover kanonis diterapkan; deployment database dan UAT production tetap memerlukan eksekusi runbook
 **Tanggal:** 4 September 2026  
 **Pemilik:** Tim Produk dan Engineering SaDesa
+**Audit status:** 5 September 2026
+
+### Legenda status
+
+- **✅ SELESAI** — sudah diterapkan di kode dan/atau sudah diverifikasi dengan test/build.
+- **🟡 SEBAGIAN** — fondasi sudah ada, tetapi masih memerlukan migrasi database, konfigurasi, observasi, atau verifikasi environment.
+- **⬜ BELUM** — belum diterapkan atau belum ada bukti pelaksanaan.
+
+### Ringkasan status saat ini
+
+| Area | Status | Catatan |
+|---|---|---|
+| Konsolidasi route ke Merchant | **✅ SELESAI** | Route kanonik berada di `/merchant/pos/*`; `/pos/*` hanya redirect kompatibilitas. |
+| Kasir satu alur | **✅ SELESAI** | Checkout memakai `POSKasirPage` dan `processAtomicPOSSale`. |
+| Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS dan migrasi sudah dibuat; SQL belum diverifikasi diterapkan di environment target. |
+| Stok per outlet | **🟡 SEBAGIAN** | `pos_stock` tetap digunakan per outlet; mapping dan backfill memerlukan deployment migrasi. |
+| Test dan build | **✅ SELESAI** | 31 file test lulus, 86 test lulus, 20 dilewati; build berhasil. |
+| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Belum ada bukti eksekusi di environment target. |
 
 ## 1. Ringkasan Eksekutif
 
-Aplikasi saat ini memiliki dua entry point kasir yang berbeda: `/merchant/pos` dan `/pos/kasir`. Keduanya menyediakan keranjang, checkout, pembayaran, pengurangan stok, dan pencetakan struk, tetapi menggunakan model data, kontrol akses, dan alur transaksi yang berbeda. Halaman `/pos/transaksi` bukan kasir kedua; halaman tersebut adalah riwayat transaksi dan detail transaksi.
+Pada awalnya terdapat dua entry point kasir: `/merchant/pos` dan `/pos/kasir`. Implementasi telah dikonsolidasikan sehingga **kasir berada di area Merchant** dengan route kanonik `/merchant/pos/kasir`. Route lama `/pos/*` tetap dipertahankan hanya sebagai redirect kompatibilitas.
 
-Rencana ini menetapkan **`/pos/kasir` sebagai kasir POS utama** karena halaman tersebut sudah menggunakan arsitektur POS SaaS dengan tenant, outlet, role kasir, atomic sale, offline sync, barcode scanner, loyalty, promosi, voucher, dan integrasi printer. Halaman `/merchant/pos` akan dipensiunkan secara bertahap melalui redirect kompatibilitas, bukan langsung dihapus, untuk mencegah kerusakan bookmark dan kehilangan akses pengguna.
+Kasir Merchant menggunakan arsitektur POS SaaS dengan tenant, outlet, role kasir, atomic sale, offline sync, barcode scanner, loyalty, promosi, voucher, dan integrasi printer. Halaman `/merchant/pos/transaksi` adalah histori transaksi, bukan mesin checkout kedua.
 
-> **Prinsip utama:** satu proses checkout, satu sumber kebenaran transaksi, satu sumber kebenaran stok, dan satu model akses POS.
+> **Prinsip utama:** satu area Merchant, satu proses checkout, satu sumber kebenaran transaksi, stok operasional per outlet, dan satu model akses POS.
 
-### Keputusan implementasi
+### Keputusan implementasi — **✅ SELESAI DI KODE / 🟡 MENUNGGU DEPLOYMENT**
 
-Keputusan produk untuk cutover sudah ditetapkan: `/pos/kasir` adalah **satu-satunya checkout aktif**. `/merchant/pos` tetap sebagai redirect kompatibilitas, sedangkan `/pos/kiosk` tidak lagi menjadi mesin transaksi kedua dan hanya mengarahkan ke kasir kanonis. Seluruh transaksi baru harus melalui `process_pos_sale`/`processAtomicPOSSale`, tersimpan di `pos_sales` dan `pos_sale_items`, dengan `pos_stock` pada outlet aktif sebagai sumber stok operasional.
+Route kanonik saat ini adalah `/merchant/pos/kasir`. Seluruh transaksi baru menggunakan `process_pos_sale`/`processAtomicPOSSale`, tersimpan di `pos_sales` dan `pos_sale_items`, dengan `pos_stock` pada outlet aktif sebagai sumber stok operasional. Mode kiosk mengarah ke kasir yang sama.
 
-Fitur yang dipakai oleh kasir kanonis mencakup barcode, varian, customer, promo, voucher, loyalty, split payment, pembayaran tunai/non-tunai, hold bill, receipt printer/PDF/WhatsApp, offline queue, sinkronisasi idempotent, serta histori terpadu. Laporan penjualan utama juga membaca `pos_unified_transaction_history` agar transaksi modern dan histori legacy tidak terbelah.
+Fitur kasir yang sudah tersedia meliputi barcode, varian POS, customer, promo, voucher, loyalty, split payment, pembayaran tunai/non-tunai, hold bill, printer/PDF/WhatsApp, offline queue, sinkronisasi idempotent, dan histori POS. Integrasi katalog produk Merchant melalui projection dan migrasi database sudah disiapkan, tetapi perlu dijalankan serta diverifikasi pada database target.
 
 ## 2. Kondisi Saat Ini
 
-| Area | Implementasi lama | Implementasi utama yang dituju |
+| Area | Status | Implementasi saat ini |
 |---|---|---|
-| Entry point | `/merchant/pos` | `/pos/kasir` |
-| Halaman | `src/pages/merchant/MerchantPOSPage.tsx` | `src/pages/pos/POSKasirPage.tsx` |
-| Layout | `MerchantLayout` | `POSLayout` dan `POSSidebar` |
-| Produk | `products` | `pos_products` |
-| Transaksi | `orders`, `order_items`, `pos_transactions` | `pos_sales`, `pos_sale_items` |
-| Identitas usaha | `merchants` | `pos_tenants` |
-| Lokasi operasi | Tidak mendukung outlet POS secara eksplisit | `pos_outlets` dengan outlet aktif |
-| Akses | Protected route untuk user merchant | `POSAccessRoute` dan role POS |
-| Pembayaran | Tunai, QRIS, transfer | Alur pembayaran POS dengan validasi dan dukungan split payment |
-| Offline | Tidak tersedia sebagai alur utama | `usePOSOfflineSync` |
-| Promosi dan loyalty | Tidak menjadi bagian utama checkout | Terintegrasi pada keranjang dan pricing POS |
-| Riwayat | Terikat pada data lama | `/pos/transaksi` membaca `pos_sales` |
+| Entry point | **✅** | `/merchant/pos` dan `/merchant/pos/kasir`; `/pos/*` hanya redirect kompatibilitas. |
+| Halaman kasir | **✅** | `src/pages/pos/POSKasirPage.tsx` dipakai pada route Merchant kanonik. |
+| Layout | **🟡** | Fungsi sudah berada di namespace Merchant, tetapi halaman kasir masih memakai `POSLayout`/`POSSidebar`; penyatuan visual penuh dengan `MerchantLayout` belum selesai. |
+| Produk | **🟡** | `products` Merchant menjadi sumber katalog; `pos_products` dipertahankan sebagai projection kompatibilitas. Migrasi belum diverifikasi di target. |
+| Transaksi | **✅** | Transaksi baru memakai `pos_sales` dan `pos_sale_items` melalui atomic checkout. |
+| Identitas usaha | **🟡** | `pos_tenants.merchant_id` dan backfill mapping sudah disiapkan; deployment migrasi belum diverifikasi. |
+| Lokasi operasi | **✅** | `pos_outlets` dengan outlet aktif digunakan oleh kasir dan `pos_stock`. |
+| Akses | **✅** | `POSAccessRoute` dan role POS tetap diterapkan. |
+| Pembayaran | **✅** | Validasi pembayaran dan split payment tersedia serta diuji oleh test suite. |
+| Offline | **✅** | `usePOSOfflineSync` dan outbox tersedia; UAT offline belum dilakukan. |
+| Promosi dan loyalty | **✅** | Terintegrasi pada keranjang dan pricing POS. |
+| Riwayat | **🟡** | Histori POS tersedia; rekonsiliasi histori legacy dan unified reporting production belum diverifikasi. |
 
-Route lama dipertahankan hanya sebagai redirect kompatibilitas. Menu merchant dan POS sekarang menampilkan satu entry **Kasir** ke `/pos/kasir`; route modern `/pos/kasir` dan riwayat `/pos/transaksi` berada di kelompok route POS SaaS. [1] [2] [3]
+Route lama dipertahankan hanya sebagai redirect kompatibilitas. Menu Merchant dan POS sekarang mengarah ke satu area Merchant, yaitu `/merchant/pos/kasir`; route `/pos/kasir` bukan lagi URL kanonik.
 
 ## 3. Tujuan Perbaikan
 
 Perbaikan harus mencapai tujuan berikut:
 
-1. Menjadikan `/pos/kasir` sebagai satu-satunya alur checkout aktif.
-2. Mempertahankan kompatibilitas URL lama melalui redirect sementara.
-3. Menyatukan transaksi baru ke `pos_sales` dan `pos_sale_items`.
-4. Menentukan sumber kebenaran stok dan memastikan stok marketplace tidak tertinggal.
-5. Memetakan merchant lama ke `pos_tenants`, `pos_outlets`, pengguna POS, produk POS, dan sesi kas.
-6. Menyediakan jalur migrasi atau rekonsiliasi untuk data `pos_transactions` lama.
-7. Menghapus ambiguitas menu dan dokumentasi sehingga pengguna hanya melihat satu menu **Kasir**.
-8. Menjamin bahwa perubahan tidak menggandakan transaksi, mengurangi stok dua kali, atau menghilangkan histori penjualan.
+1. **✅** Menjadikan `/merchant/pos/kasir` sebagai satu-satunya alur checkout aktif.
+2. **✅** Mempertahankan kompatibilitas URL lama melalui redirect sementara.
+3. **✅** Menyatukan transaksi baru ke `pos_sales` dan `pos_sale_items`.
+4. **🟡** Menentukan sumber kebenaran stok per outlet; sinkronisasi marketplace belum diverifikasi end-to-end.
+5. **🟡** Memetakan Merchant ke `pos_tenants`, `pos_outlets`, pengguna POS, dan projection produk; deployment mapping belum diverifikasi.
+6. **🟡** Menyediakan fondasi unified history/mapping, tetapi rekonsiliasi data legacy belum dibuktikan di environment target.
+7. **✅** Mengurangi ambiguitas menu dan mengarahkan entry Kasir ke area Merchant.
+8. **🟡** Atomic checkout dan idempotency sudah ada; bukti UAT tidak menggandakan transaksi atau stok masih belum tersedia.
 
 ## 4. Keputusan Arsitektur yang Diusulkan
 
 ### 4.1 Kasir utama
 
-`/pos/kasir` ditetapkan sebagai implementasi kanonis. Semua transaksi kasir baru wajib menggunakan `processAtomicPOSSale` atau jalur transaksi POS resmi yang setara. Checkout tidak boleh lagi membuat `orders` dan `pos_transactions` secara terpisah dari browser untuk transaksi kasir baru.
+`/merchant/pos/kasir` ditetapkan sebagai implementasi kanonis. **✅** Semua transaksi kasir baru menggunakan `processAtomicPOSSale` atau jalur transaksi POS resmi yang setara. Checkout tidak membuat `orders` dan `pos_transactions` secara terpisah dari browser untuk transaksi kasir baru.
 
 ### 4.2 Route kompatibilitas
 
-Route `/merchant/pos` dipertahankan sementara sebagai redirect ke `/pos/kasir`. Redirect ini diperlukan untuk bookmark lama, dokumentasi lama, dan link eksternal. Setelah masa transisi selesai dan telemetry menunjukkan tidak ada ketergantungan aktif, halaman lama dapat dihapus.
+Route `/pos/*` dipertahankan sementara sebagai redirect ke prefix kanonik `/merchant/pos/*`. Redirect ini diperlukan untuk bookmark lama, dokumentasi lama, dan link eksternal. Route `/merchant/pos` sendiri menjadi dashboard POS Merchant, sedangkan `/merchant/pos/kasir` menjadi checkout. Setelah masa observasi selesai dan telemetry menunjukkan tidak ada ketergantungan aktif, compatibility route dapat dipensiunkan.
 
 Contoh target perubahan:
 
 ```tsx
-<Route path="/merchant/pos" element={<Navigate to="/pos/kasir" replace />} />
+<Route path="/pos/*" element={<LegacyPOSRedirect />} />
+<Route path="/merchant/pos/kasir" element={<POSKasirPage />} />
 ```
 
 Redirect harus tetap berada di balik autentikasi dan tidak boleh memberikan akses POS kepada user yang tidak lolos pemeriksaan `POSAccessRoute`.
 
 ### 4.3 Menu
 
-Link **Kasir POS** pada `MerchantSidebar` diubah menjadi **Kasir** yang mengarah ke `/pos/kasir`, atau dihapus apabila navigasi merchant tidak lagi menjadi tempat masuk POS. Pada `POSSidebar`, label **Kasir (POS)** disederhanakan menjadi **Kasir**. Link **Transaksi** tetap dipertahankan sebagai riwayat transaksi, tetapi diberi deskripsi yang jelas bila diperlukan.
+**✅** Link **Kasir POS** pada `MerchantSidebar` sudah menjadi **Kasir** dan mengarah ke `/merchant/pos/kasir`. Pada `POSSidebar`, link internal juga memakai prefix `/merchant/pos/*`. Link **Transaksi** dipertahankan sebagai riwayat transaksi.
 
 ## 5. Tahapan Implementasi
 
-### Fase 0 — Baseline dan pembekuan perubahan
+### Fase 0 — Baseline dan pembekuan perubahan — **⬜ BELUM**
 
 Sebelum migrasi dimulai, tim harus mencatat jumlah merchant aktif, jumlah tenant POS, jumlah outlet, jumlah produk aktif, jumlah `pos_transactions`, jumlah `pos_sales`, dan nilai stok pada kedua sistem. Selama periode migrasi, perubahan struktur checkout lama harus dibekukan agar hasil rekonsiliasi tidak berubah di tengah proses.
 
 **Output fase:** snapshot database, daftar merchant terdampak, dan laporan perbedaan data.
 
-### Fase 1 — Validasi kesiapan POS modern
+### Fase 1 — Validasi kesiapan POS modern — **🟡 SEBAGIAN**
 
 Untuk setiap merchant aktif, validasi keberadaan dan konsistensi objek berikut:
 
@@ -98,7 +117,7 @@ Untuk setiap merchant aktif, validasi keberadaan dan konsistensi objek berikut:
 
 Merchant yang gagal validasi tidak boleh dipaksa masuk ke checkout modern tanpa perbaikan mapping. Mereka harus masuk ke halaman setup atau daftar pengecualian untuk ditangani admin.
 
-### Fase 2 — Konsolidasi master data
+### Fase 2 — Konsolidasi master data — **🟡 SEBAGIAN**
 
 Buat proses idempotent untuk memetakan merchant lama ke tenant dan outlet POS. Proses ini harus menggunakan identifier yang stabil, mencatat mapping lama-baru, dan tidak membuat tenant duplikat ketika dijalankan ulang.
 
@@ -111,7 +130,7 @@ Produk lama pada `products` perlu dipetakan ke `pos_products`. Setiap mapping ha
 - Perbedaan harga, SKU, kategori, dan stok dicatat sebagai exception.
 - Setiap perubahan stok selama cutover harus memiliki audit trail.
 
-### Fase 3 — Migrasi dan rekonsiliasi histori transaksi
+### Fase 3 — Migrasi dan rekonsiliasi histori transaksi — **⬜ BELUM**
 
 `pos_transactions` dan `pos_sales` tidak boleh dianggap identik tanpa pemeriksaan skema. Data lama perlu diklasifikasikan sebagai berikut:
 
@@ -125,28 +144,28 @@ Produk lama pada `products` perlu dipetakan ke `pos_products`. Setiap mapping ha
 
 Jika migrasi fisik ke `pos_sales` berisiko mengubah laporan atau trigger, gunakan pendekatan **unified reporting view** terlebih dahulu. View tersebut dapat menggabungkan data modern dan legacy untuk kebutuhan histori, sementara transaksi baru tetap hanya masuk ke `pos_sales`.
 
-### Fase 4 — Cutover checkout
+### Fase 4 — Cutover checkout — **✅ SELESAI DI KODE / 🟡 MENUNGGU VALIDASI ENVIRONMENT**
 
 Setelah tenant, outlet, produk, stok, dan akses tervalidasi, ubah navigasi dan route lama. Checkout modern harus menjadi satu-satunya alur aktif.
 
 Checklist cutover:
 
-1. `/merchant/pos` melakukan redirect ke `/pos/kasir`.
-2. `MerchantSidebar` tidak lagi menampilkan halaman kasir lama.
-3. Semua tombol checkout baru memanggil alur POS modern.
-4. Nomor transaksi dan idempotency key berasal dari domain POS modern.
-5. Pengurangan stok dilakukan satu kali dan dicatat pada transaksi POS.
-6. Pembayaran, kembalian, split payment, pajak, diskon, voucher, dan loyalty mengikuti aturan POS modern.
-7. Receipt dan reprint membaca format `pos_sales`.
-8. Offline queue hanya memproses transaksi yang belum berhasil diselesaikan.
+1. **✅** `/pos/*` melakukan redirect ke prefix `/merchant/pos/*`; `/merchant/pos/kasir` menjadi checkout kanonik.
+2. **✅** `MerchantSidebar` tidak lagi menampilkan halaman kasir lama.
+3. **✅** Tombol checkout baru memanggil alur POS modern.
+4. **✅** Nomor transaksi dan idempotency key berasal dari domain POS modern.
+5. **✅ di kode / 🟡 UAT belum** Pengurangan stok dilakukan satu kali melalui `pos_stock` outlet aktif.
+6. **✅** Pembayaran, kembalian, split payment, pajak, diskon, voucher, dan loyalty mengikuti aturan POS modern.
+7. **✅ di kode / 🟡 rekonsiliasi belum** Receipt dan reprint membaca format POS modern.
+8. **✅ di kode / 🟡 UAT belum** Offline queue hanya memproses transaksi yang belum berhasil diselesaikan.
 
-### Fase 5 — Masa observasi
+### Fase 5 — Masa observasi — **⬜ BELUM**
 
 Selama minimal satu siklus operasional penuh, pantau error checkout, transaksi duplikat, mismatch stok, transaksi offline yang gagal sinkron, kegagalan cetak, dan akses user yang ditolak secara tidak semestinya.
 
 Gunakan feature flag atau allowlist merchant untuk melakukan rollout bertahap. Jangan menghapus halaman legacy sebelum metrik cutover stabil dan semua exception kritis ditutup.
 
-### Fase 6 — Pensiun implementasi lama
+### Fase 6 — Pensiun implementasi lama — **⬜ BELUM**
 
 Setelah masa observasi selesai:
 
@@ -160,21 +179,21 @@ Setelah masa observasi selesai:
 
 ## 6. Perubahan File yang Direncanakan
 
-| File/area | Perubahan |
-|---|---|
-| `src/App.tsx` | Ubah `/merchant/pos` menjadi redirect kompatibilitas; pertahankan `/pos/kasir` dan `/pos/transaksi`. |
-| `src/components/merchant/MerchantSidebar.tsx` | Hapus atau arahkan ulang menu kasir lama ke `/pos/kasir`. |
-| `src/components/pos/POSSidebar.tsx` | Ubah label menjadi **Kasir** dan pastikan link aktif konsisten. |
-| `src/pages/pos/POSKasirPage.tsx` | Pertahankan sebagai checkout kanonis; tutup gap yang ditemukan dalam pengujian. |
-| `src/pages/pos/POSTransaksiPage.tsx` | Jadikan histori modern; tambahkan sumber legacy bila unified reporting diperlukan. |
-| `src/pages/merchant/MerchantPOSPage.tsx` | Jadikan deprecated selama transisi, lalu hapus setelah cutover. |
-| `src/components/merchant/POSInvoice.tsx` | Hapus setelah seluruh pencetakan memakai receipt domain POS modern. |
-| `src/lib/posCheckout.ts` | Tetapkan sebagai jalur transaksi baru dan idempotent. |
-| `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | Validasi retry, deduplikasi, dan rekonsiliasi transaksi offline. |
-| `supabase/bootstrap/` | Tambahkan migration idempotent hanya jika mapping tenant, produk, stok, atau histori membutuhkan schema/data migration. |
-| `docs/` | Perbarui runbook, role matrix, dan dokumentasi pengguna setelah cutover. |
+| File/area | Status | Hasil aktual |
+|---|---|---|
+| `src/App.tsx` | **✅** | Route kanonik POS berada di `/merchant/pos/*`; `/pos/*` menjadi redirect kompatibilitas. |
+| `src/components/merchant/MerchantSidebar.tsx` | **✅** | Link Kasir diarahkan ke area Merchant. |
+| `src/components/pos/POSSidebar.tsx` | **✅** | Link internal memakai prefix `/merchant/pos/*`. |
+| `src/pages/pos/POSKasirPage.tsx` | **✅** | Dipakai sebagai checkout kanonik pada route Merchant. |
+| `src/pages/pos/POSTransaksiPage.tsx` | **🟡** | Histori modern tersedia; rekonsiliasi histori legacy belum divalidasi production. |
+| `src/pages/merchant/MerchantPOSPage.tsx` | **⬜ BELUM** | Belum dihapus; perlu audit referensi sebelum dipensiunkan. |
+| `src/components/merchant/POSInvoice.tsx` | **⬜ BELUM** | Belum dihapus atau dinyatakan archived. |
+| `src/lib/posCheckout.ts` | **✅** | Atomic checkout dan idempotency digunakan. |
+| `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
+| `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS dan projection produk sudah dibuat; belum diverifikasi telah diterapkan. |
+| `docs/` | **🟡** | Dokumen ini diperbarui; runbook deployment dan hasil UAT belum tersedia. |
 
-## 7. Keamanan dan Integritas Data
+## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
 
 Konsolidasi harus mempertahankan kontrol pada level database. Redirect route tidak boleh menjadi pengganti RLS. Semua RPC transaksi harus memvalidasi tenant, outlet, kasir, total, item, stok, dan idempotency key di server/database.
 
@@ -216,18 +235,18 @@ UAT harus melibatkan minimal satu merchant satu outlet, satu merchant multi-outl
 
 ### Quality gates
 
-Sebelum deployment, jalankan:
+Quality gate saat audit:
 
-```sh
-pnpm exec tsc --noEmit
-pnpm run test -- --run
-pnpm build
-git diff --check
-```
+| Gate | Status | Bukti |
+|---|---|---|
+| `pnpm exec tsc --noEmit` | **⬜ BELUM DIVERIFIKASI** | Belum dijalankan sebagai perintah terpisah pada audit ini. |
+| `pnpm run test -- --run` | **✅** | 31 file lulus; 86 test lulus; 20 dilewati. |
+| `pnpm build` | **✅** | Build production berhasil. |
+| `git diff --check` | **✅** | Tidak ada whitespace error pada perubahan yang diaudit. |
 
-Error TypeScript yang sudah ada pada test POS receipt harus dibereskan atau diberi tiket terpisah sebelum gate tipe dinyatakan hijau. Error tersebut tidak boleh disamarkan sebagai bagian dari migrasi.
+Error TypeScript yang ditemukan pada test POS receipt harus dibereskan atau diberi tiket terpisah sebelum gate tipe dinyatakan hijau. Error tersebut tidak boleh disamarkan sebagai bagian dari migrasi.
 
-## 9. Observability dan Rollback
+## 9. Observability dan Rollback — **⬜ BELUM**
 
 Tambahkan telemetry untuk route lama, redirect, checkout source, transaction source, tenant, outlet, dan hasil sinkronisasi. Setiap transaksi sebaiknya dapat dilacak dari request key ke `pos_sales`, item, perubahan stok, pembayaran, dan receipt job.
 
@@ -242,16 +261,16 @@ Jangan menghidupkan kembali `/merchant/pos` untuk membuat transaksi baru setelah
 
 Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 
-- Pengguna hanya melihat satu menu **Kasir**.
-- `/merchant/pos` tidak lagi menjalankan checkout legacy.
-- Semua transaksi baru tersimpan pada `pos_sales` dan `pos_sale_items`.
-- Tidak ada transaksi baru yang menulis ke `pos_transactions`.
-- Stok POS dan stok marketplace memiliki aturan sinkronisasi yang terdokumentasi.
-- Histori transaksi lama tetap dapat ditelusuri.
-- Tidak ada mismatch kritis pada total transaksi atau stok selama masa observasi.
-- Role POS dan RLS telah diuji untuk owner, manager, kasir, finance, dan auditor.
-- Test suite, build produksi, dan UAT lulus.
-- Implementasi legacy sudah dihapus atau diberi status archived dengan alasan yang terdokumentasi.
+- **✅** Pengguna diarahkan ke satu area/menu **Kasir**.
+- **✅** `/merchant/pos` tidak menjalankan checkout legacy; `/pos/*` hanya compatibility redirect.
+- **✅ di kode** Semua transaksi baru diarahkan ke `pos_sales` dan `pos_sale_items`.
+- **🟡** Tidak ada transaksi baru yang menulis ke `pos_transactions` belum diverifikasi melalui telemetry/database target.
+- **🟡** Stok POS per outlet sudah dirancang dan dimigrasikan di kode, tetapi migrasi database belum diverifikasi diterapkan.
+- **⬜** Histori transaksi lama belum direkonsiliasi dan diverifikasi end-to-end.
+- **⬜** Tidak ada mismatch kritis selama masa observasi belum dapat dinyatakan karena observasi belum dijalankan.
+- **✅ di kode / 🟡 UAT** Role POS dan permission diuji oleh test suite; pengujian RLS production dan UAT masih belum selesai.
+- **✅** Test suite dan build produksi lulus; UAT belum lulus.
+- **⬜** Implementasi legacy belum seluruhnya dihapus atau diberi status archived.
 
 ## 11. Urutan Prioritas
 
@@ -275,11 +294,12 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 [6]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/components/pos/POSSidebar.tsx "POS navigation"
 [7]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/lib/posCheckout.ts "Atomic POS checkout helper"
 [8]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/contexts/POSContext.tsx "POS tenant and outlet context"
+[9]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql "Merchant product catalog and outlet stock integration"
 
 ## 13. Keputusan yang Sudah Ditetapkan
 
-Keputusan yang sebelumnya menunggu persetujuan kini diterapkan pada kode: `/pos/kasir` menjadi satu-satunya checkout resmi; histori `pos_transactions` disajikan melalui `pos_unified_transaction_history` dengan mapping idempotent dan exception untuk pemetaan yang ambigu; serta `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS. Migrasi database tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target.
+Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pada kode: `/merchant/pos/kasir` menjadi checkout resmi; `/pos/*` hanya compatibility redirect; `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS; dan produk Merchant menjadi sumber katalog dengan projection kompatibilitas pada `pos_products`. Migrasi database produk/tenant tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target. Rekonsiliasi histori legacy, observability, dan UAT masih **BELUM** selesai.
 
 ---
 
-**Dokumen ini menjadi acuan keputusan dan checklist cutover.** Perubahan kode sudah diterapkan di repository; deployment database, backup, rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target.
+**Dokumen ini menjadi acuan keputusan dan checklist cutover.** Perubahan kode utama sudah diterapkan di repository dan ditandai statusnya di atas; deployment database, backup, rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target.
