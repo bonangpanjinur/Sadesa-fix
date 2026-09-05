@@ -138,7 +138,8 @@ DECLARE
     'subscription_usage_ledger', 'pwa_device_sessions',
     'notification_delivery_jobs', 'pos_tenants', 'pos_outlets',
     'pos_products', 'pos_stock', 'pos_sales', 'pos_sale_items',
-    'pos_transaction_migration_map', 'pos_unified_transaction_history'
+    'pos_transaction_migration_map', 'pos_unified_transaction_history',
+    'pos_legacy_reconciliation_report'
   ];
   table_name text;
 BEGIN
@@ -169,7 +170,8 @@ DECLARE
     'require_subscription_feature', 'consume_subscription_usage',
     'consume_whatsapp_delivery_usage', 'claim_notification_delivery_job',
     'complete_notification_delivery_job', 'process_pos_sale',
-    'sync_merchant_product_to_pos', 'ensure_pos_stock_rows_for_product'
+    'sync_merchant_product_to_pos', 'ensure_pos_stock_rows_for_product',
+    'reconcile_exact_legacy_pos_transactions'
   ];
 BEGIN
   FOREACH function_name IN ARRAY required_functions LOOP

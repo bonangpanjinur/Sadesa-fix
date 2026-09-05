@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 195,
-  "bundle_count": 10,
+  "migration_count": 196,
+  "bundle_count": 11,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -263,10 +263,18 @@
     {
       "file": "10_20260905000000_merchant_pos_product_catalog.sql",
       "source_files": [
-        "10_20260905000000_merchant_pos_product_catalog.sql"
+        "20260905000000_merchant_pos_product_catalog.sql"
       ],
       "sha256": "5c07a264ca358fe1e6b4b43578593a82cb0341284fc6e0d6bce041d0d088ccdb",
       "bytes": 4960
+    },
+    {
+      "file": "11_20260905100000_pos_legacy_reconciliation.sql",
+      "source_files": [
+        "20260905100000_pos_legacy_reconciliation.sql"
+      ],
+      "sha256": "115f15aedc990ec6c4f0a5de15acfaf81e726ac2776c152320f2e215155465d4",
+      "bytes": 4357
     }
   ]
 }

@@ -21,7 +21,7 @@
 | Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS, mapping idempotent, manifest deployment, dan migration-history file sudah tersedia; SQL belum diverifikasi diterapkan di environment target. |
 | Stok per outlet | **🟡 SEBAGIAN** | Backfill row `pos_stock` per outlet aktif sudah ditambahkan secara idempotent dengan kuantitas existing tidak ditimpa; deployment dan UAT masih belum selesai. |
 | Test dan build | **✅ SELESAI** | 31 file test lulus, 86 test lulus, 20 dilewati; build berhasil. |
-| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Kode observability checkout sudah tersedia, tetapi belum ada bukti eksekusi deployment, rekonsiliasi, dan UAT di environment target. |
+| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Fondasi laporan rekonsiliasi dan fungsi exact-match sudah tersedia, tetapi belum ada bukti eksekusi dan persetujuan hasil di environment target. |
 
 ## 1. Ringkasan Eksekutif
 
@@ -192,6 +192,8 @@ Setelah masa observasi selesai:
 | `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
 | `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; sudah dimasukkan ke manifest bootstrap, tetapi belum diverifikasi telah diterapkan. |
 | `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. |
+| `supabase/bootstrap/11_20260905100000_pos_legacy_reconciliation.sql` | **🟡** | Laporan exception dan fungsi exact-match legacy sudah tersedia; eksekusi snapshot, review exception, dan persetujuan hasil masih menunggu environment target. |
+| `archive/supabase/migrations/20260905100000_pos_legacy_reconciliation.sql` | **🟡** | Representasi migration-history untuk laporan rekonsiliasi; gunakan hanya pada target yang memakai histori migration. |
 | `docs/` | **🟡** | Dokumen ini diperbarui; runbook deployment dan hasil UAT belum tersedia. |
 
 ## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
@@ -267,7 +269,7 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 - **✅ di kode** Semua transaksi baru diarahkan ke `pos_sales` dan `pos_sale_items`.
 - **🟡** Tidak ada transaksi baru yang menulis ke `pos_transactions` belum diverifikasi melalui telemetry/database target.
 - **🟡** Stok POS per outlet sudah memiliki backfill idempotent yang membuat row nol hanya jika belum ada; migrasi database dan UAT belum diverifikasi diterapkan.
-- **⬜** Histori transaksi lama belum direkonsiliasi dan diverifikasi end-to-end.
+- **🟡** Histori transaksi lama sudah memiliki laporan exception dan fungsi exact-match yang tidak menyalin transaksi; rekonsiliasi dan verifikasi end-to-end pada target belum selesai.
 - **⬜** Tidak ada mismatch kritis selama masa observasi belum dapat dinyatakan karena observasi belum dijalankan.
 - **✅ di kode / 🟡 UAT** Role POS dan permission diuji oleh test suite; pengujian RLS production dan UAT masih belum selesai.
 - **✅** Test suite dan build produksi lulus; UAT belum lulus.

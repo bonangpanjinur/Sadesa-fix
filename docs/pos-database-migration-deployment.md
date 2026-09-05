@@ -28,6 +28,8 @@ Implementasi konsolidasi juga menambahkan `20260904090000_pos_unified_transactio
 | 9 | `archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql` | Sumber migration untuk bundle bootstrap unified history | Referensi sumber; gunakan bundle bootstrap untuk jalur bootstrap |
 | 10 | `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | Mapping Merchant–POS, projection katalog, dan backfill row stok per outlet aktif | Tinggi; jangan menimpa stok existing dan jangan menjalankan bersama representasi migration-history |
 | 11 | `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | Representasi migration-history untuk mapping katalog dan stok outlet | Referensi alternatif; gunakan hanya jika target memakai migration history |
+| 12 | `supabase/bootstrap/11_20260905100000_pos_legacy_reconciliation.sql` | Laporan exception dan rekonsiliasi exact-match legacy tanpa menyalin transaksi | Tinggi; jalankan hanya setelah snapshot dan review exception tersedia |
+| 13 | `archive/supabase/migrations/20260905100000_pos_legacy_reconciliation.sql` | Representasi migration-history laporan rekonsiliasi legacy | Referensi alternatif; jangan diterapkan bersama bundle bootstrap yang sama |
 
 Direktori `archive/supabase/migrations` dan `supabase/bootstrap` memiliki peran berbeda. Tim deployment harus memastikan terlebih dahulu apakah environment target dikelola menggunakan histori migration Supabase atau bundle bootstrap repository. **Jangan menjalankan kedua representasi migration yang sama pada database target yang sama tanpa memastikan idempotency-nya.**
 
@@ -44,7 +46,22 @@ bash scripts/validate-migrations.sh archive/supabase/migrations
 STAGING_BOOTSTRAP_REPLAY=true bash scripts/validate-bootstrap-staging.sh
 ```
 
-Validator staging memeriksa seluruh bundle berdasarkan manifest, mengulang deployment untuk menguji idempotency, memastikan tabel/view POS dan fungsi katalog tersedia, memeriksa kolom mapping Merchant, serta menghitung outlet aktif yang belum memiliki row stok. Setelah migration selesai, lakukan smoke test berikut pada staging: buat transaksi tunai dengan pembayaran lebih besar dan pastikan kembalian benar; coba pembayaran tunai kurang dari total dan pastikan ditolak; coba pembayaran non-tunai dengan nominal berbeda dari total dan pastikan ditolak; kirim request checkout yang sama dua kali menggunakan request key yang sama dan pastikan hanya satu penjualan tercatat; lalu verifikasi pengurangan stok, voucher, loyalty, dan payment record.
+Validator staging memeriksa seluruh bundle berdasarkan manifest, mengulang deployment untuk menguji idempotency, memastikan tabel/view POS dan fungsi katalog serta rekonsiliasi tersedia, memeriksa kolom mapping Merchant, serta menghitung outlet aktif yang belum memiliki row stok. Setelah migration selesai, lakukan smoke test berikut pada staging: buat transaksi tunai dengan pembayaran lebih besar dan pastikan kembalian benar; coba pembayaran tunai kurang dari total dan pastikan ditolak; coba pembayaran non-tunai dengan nominal berbeda dari total dan pastikan ditolak; kirim request checkout yang sama dua kali menggunakan request key yang sama dan pastikan hanya satu penjualan tercatat; lalu verifikasi pengurangan stok, voucher, loyalty, dan payment record.
+
+### Rekonsiliasi histori legacy
+
+Ambil snapshot dan simpan hasil laporan sebelum melakukan perubahan status mapping:
+
+```sql
+SELECT reconciliation_status, count(*)
+FROM public.pos_legacy_reconciliation_report
+GROUP BY reconciliation_status
+ORDER BY reconciliation_status;
+```
+
+Review semua baris `merchant_tenant_unmapped`, `outlet_mapping_required`, `multiple_modern_candidates`, dan `total_mismatch`. Hanya setelah exception tersebut diselesaikan secara manual, administrator boleh menjalankan `SELECT * FROM public.reconcile_exact_legacy_pos_transactions();`. Fungsi tersebut hanya memasangkan baris dengan tenant, nomor transaksi, dan total yang identik serta memiliki tepat satu kandidat modern. Fungsi tidak membuat `pos_sales`, tidak menghapus `pos_transactions`, dan tidak menyalin item atau pembayaran.
+
+Acceptance criteria rekonsiliasi adalah tidak ada `exact_match_ready`, `total_mismatch`, atau `multiple_modern_candidates` yang belum ditinjau; seluruh baris yang tidak dapat dipasangkan tetap terlihat pada unified history; dan jumlah transaksi serta total finansial legacy yang direkonsiliasi cocok dengan laporan audit yang disetujui.
 
 ## Deployment production
 
