@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 194,
-  "bundle_count": 9,
+  "migration_count": 195,
+  "bundle_count": 10,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",

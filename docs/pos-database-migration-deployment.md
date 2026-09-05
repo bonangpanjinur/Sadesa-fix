@@ -26,6 +26,8 @@ Implementasi konsolidasi juga menambahkan `20260904090000_pos_unified_transactio
 | 7 | `supabase/bootstrap/08_20260826010000_to_20260829160000.sql` | Bootstrap bundle yang memuat invariant pembayaran dan hardening POS sampai workflow transition | Tinggi; jangan dijalankan dua kali terhadap target yang sama |
 | 8 | `supabase/bootstrap/09_20260904090000_to_20260904090000.sql` | Bootstrap standalone untuk mapping idempotent dan unified reporting histori legacy/modern | Tinggi; validasi mapping tenant/outlet pada staging sebelum rollout |
 | 9 | `archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql` | Sumber migration untuk bundle bootstrap unified history | Referensi sumber; gunakan bundle bootstrap untuk jalur bootstrap |
+| 10 | `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | Mapping Merchant–POS, projection katalog, dan backfill row stok per outlet aktif | Tinggi; jangan menimpa stok existing dan jangan menjalankan bersama representasi migration-history |
+| 11 | `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | Representasi migration-history untuk mapping katalog dan stok outlet | Referensi alternatif; gunakan hanya jika target memakai migration history |
 
 Direktori `archive/supabase/migrations` dan `supabase/bootstrap` memiliki peran berbeda. Tim deployment harus memastikan terlebih dahulu apakah environment target dikelola menggunakan histori migration Supabase atau bundle bootstrap repository. **Jangan menjalankan kedua representasi migration yang sama pada database target yang sama tanpa memastikan idempotency-nya.**
 
@@ -39,9 +41,10 @@ Sebelum deployment, jalankan validasi repository:
 cd /path/to/remix-of-umkm-sadesa
 bash scripts/validate-migrations.sh supabase/bootstrap
 bash scripts/validate-migrations.sh archive/supabase/migrations
+STAGING_BOOTSTRAP_REPLAY=true bash scripts/validate-bootstrap-staging.sh
 ```
 
-Setelah migration selesai, lakukan smoke test berikut pada staging: buat transaksi tunai dengan pembayaran lebih besar dan pastikan kembalian benar; coba pembayaran tunai kurang dari total dan pastikan ditolak; coba pembayaran non-tunai dengan nominal berbeda dari total dan pastikan ditolak; kirim request checkout yang sama dua kali menggunakan request key yang sama dan pastikan hanya satu penjualan tercatat; lalu verifikasi pengurangan stok, voucher, loyalty, dan payment record.
+Validator staging memeriksa seluruh bundle berdasarkan manifest, mengulang deployment untuk menguji idempotency, memastikan tabel/view POS dan fungsi katalog tersedia, memeriksa kolom mapping Merchant, serta menghitung outlet aktif yang belum memiliki row stok. Setelah migration selesai, lakukan smoke test berikut pada staging: buat transaksi tunai dengan pembayaran lebih besar dan pastikan kembalian benar; coba pembayaran tunai kurang dari total dan pastikan ditolak; coba pembayaran non-tunai dengan nominal berbeda dari total dan pastikan ditolak; kirim request checkout yang sama dua kali menggunakan request key yang sama dan pastikan hanya satu penjualan tercatat; lalu verifikasi pengurangan stok, voucher, loyalty, dan payment record.
 
 ## Deployment production
 
@@ -65,6 +68,7 @@ Perubahan database belum dieksekusi ke project Supabase production oleh proses i
 | Test suite berhasil pada validasi terakhir | Selesai |
 | Migration file tersedia di repository | Selesai |
 | Unified history migration dan bootstrap bundle tersedia | Selesai |
+| Validator staging mencakup katalog dan stok POS | Selesai |
 | Migration tervalidasi pada database staging | Belum dilakukan |
 | Backup database production | Harus dilakukan oleh operator deployment |
 | Smoke test checkout production | Belum dilakukan |

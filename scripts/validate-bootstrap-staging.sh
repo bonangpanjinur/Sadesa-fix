@@ -101,7 +101,18 @@ apply_bundles() {
   migration_count="$(sed -n 's/^[[:space:]]*\"migration_count\":[[:space:]]*\([0-9][0-9]*\),/\1/p' "$BOOTSTRAP_DIR/manifest.json")"
   [[ "$migration_count" =~ ^[0-9]+$ ]] || { echo "Could not read migration_count from manifest" >&2; return 1; }
   mapfile -t bundles < <(find "$BOOTSTRAP_DIR" -maxdepth 1 -type f -name '[0-9][0-9]_*.sql' -printf '%f\n' | sort)
-  ((${#bundles[@]} == 8)) || { echo "Expected 8 bootstrap bundles, found ${#bundles[@]}" >&2; return 1; }
+  local manifest_bundle_count
+  manifest_bundle_count="$(python3 - "$BOOTSTRAP_DIR/manifest.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding='utf-8') as handle:
+    print(len(json.load(handle)['bundles']))
+PY
+)"
+  ((${#bundles[@]} == manifest_bundle_count)) || {
+    echo "Bootstrap bundle count does not match manifest: found ${#bundles[@]}, expected ${manifest_bundle_count}" >&2
+    return 1
+  }
   echo "[${pass}] Applying ${#bundles[@]} bootstrap bundles containing ${migration_count} migrations"
   local bundle
   for bundle in "${bundles[@]}"; do
@@ -125,7 +136,9 @@ DECLARE
     'subscription_plans', 'subscription_plan_entitlements',
     'merchant_subscription_entitlements', 'subscription_usage_counters',
     'subscription_usage_ledger', 'pwa_device_sessions',
-    'notification_delivery_jobs'
+    'notification_delivery_jobs', 'pos_tenants', 'pos_outlets',
+    'pos_products', 'pos_stock', 'pos_sales', 'pos_sale_items',
+    'pos_transaction_migration_map', 'pos_unified_transaction_history'
   ];
   table_name text;
 BEGIN
@@ -155,7 +168,8 @@ DECLARE
     'register_pwa_device', 'get_subscription_entitlement',
     'require_subscription_feature', 'consume_subscription_usage',
     'consume_whatsapp_delivery_usage', 'claim_notification_delivery_job',
-    'complete_notification_delivery_job'
+    'complete_notification_delivery_job', 'process_pos_sale',
+    'sync_merchant_product_to_pos', 'ensure_pos_stock_rows_for_product'
   ];
 BEGIN
   FOREACH function_name IN ARRAY required_functions LOOP
@@ -167,6 +181,35 @@ BEGIN
     END IF;
   END LOOP;
 END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'pos_tenants' AND column_name = 'merchant_id'
+  ) THEN
+    RAISE EXCEPTION 'Missing public.pos_tenants.merchant_id';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'pos_products' AND column_name = 'merchant_product_id'
+  ) THEN
+    RAISE EXCEPTION 'Missing public.pos_products.merchant_product_id';
+  END IF;
+END $$;
+
+SELECT
+  count(*) FILTER (WHERE merchant_id IS NULL) AS tenants_without_merchant,
+  count(*) AS active_pos_tenants
+FROM public.pos_tenants
+WHERE is_active = true;
+
+SELECT count(*) AS active_outlets_without_stock_rows
+FROM public.pos_outlets outlet
+WHERE outlet.is_active = true
+  AND NOT EXISTS (
+    SELECT 1 FROM public.pos_stock stock WHERE stock.outlet_id = outlet.id
+  );
 
 SELECT c.relname AS table_name,
        c.relrowsecurity AS rls_enabled,
