@@ -10,9 +10,10 @@ interface MerchantLayoutProps {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  fullWidth?: boolean;
 }
 
-export function MerchantLayout({ children, title, subtitle, actions }: MerchantLayoutProps) {
+export function MerchantLayout({ children, title, subtitle, actions, fullWidth = false }: MerchantLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -33,7 +34,7 @@ export function MerchantLayout({ children, title, subtitle, actions }: MerchantL
         <MerchantSidebar />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen">
+      <div className={cn('flex flex-1 flex-col min-w-0', fullWidth ? 'h-dvh min-h-0' : 'h-screen')}>
         {/* Header (Fixed) */}
         <div className="flex items-center justify-between p-4 lg:px-8 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30">
           <div className="flex items-center gap-3">
@@ -52,8 +53,8 @@ export function MerchantLayout({ children, title, subtitle, actions }: MerchantL
         </div>
 
         {/* Content (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <div className="max-w-6xl mx-auto">
+        <div className={fullWidth ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 overflow-y-auto p-4 lg:p-8'}>
+          <div className={fullWidth ? 'h-full min-w-0' : 'max-w-6xl mx-auto'}>
             {children}
           </div>
         </div>
