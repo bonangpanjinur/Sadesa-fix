@@ -11,7 +11,8 @@ describe('POS permission registry', () => {
   it('allows cashier operations but denies finance and administration pages', () => {
     expect(access('/pos/kasir', 'kasir')).toBe(true);
     expect(access('/merchant/pos', 'kasir')).toBe(true);
-    expect(access('/merchant/pos', 'finance')).toBe(false);
+    expect(access('/merchant/pos', 'finance')).toBe(true);
+    expect(access('/merchant/pos/kasir', 'finance')).toBe(false);
     expect(access('/pos/transaksi', 'kasir')).toBe(true);
     expect(access('/pos/kas', 'kasir')).toBe(false);
     expect(access('/pos/pengguna', 'kasir')).toBe(false);

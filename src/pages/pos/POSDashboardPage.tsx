@@ -56,7 +56,7 @@ export default function POSDashboardPage() {
             <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg">
               <AlertTriangle className="h-4 w-4 flex-shrink-0" />
               <span className="text-sm font-medium">{stats.lowStockCount} produk stok menipis</span>
-              <Button variant="ghost" size="sm" className="ml-auto text-amber-700 h-7" onClick={() => navigate('/pos/stok')}>
+              <Button variant="ghost" size="sm" className="ml-auto text-amber-700 h-7" onClick={() => navigate('/merchant/pos/stok')}>
                 Lihat <ArrowRight className="h-3 w-3 ml-1" />
               </Button>
             </div>
@@ -138,7 +138,7 @@ export default function POSDashboardPage() {
                       <p className="text-lg font-bold">{stats?.totalCustomers || 0}</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => navigate('/pos/customer')}>
+                  <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => navigate('/merchant/pos/customer')}>
                     Kelola Customer <ArrowRight className="h-3 w-3 ml-1" />
                   </Button>
                 </CardContent>
@@ -147,13 +147,13 @@ export default function POSDashboardPage() {
               <Card className="border-0 shadow-sm">
                 <CardContent className="p-4 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Menu Cepat</p>
-                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-9 text-sm" onClick={() => navigate('/pos/kasir')}>
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 h-9 text-sm" onClick={() => navigate('/merchant/pos/kasir')}>
                     <ShoppingCart className="h-4 w-4 mr-2" /> Buka Kasir
                   </Button>
-                  <Button variant="outline" className="w-full h-9 text-sm" onClick={() => navigate('/pos/produk')}>
+                  <Button variant="outline" className="w-full h-9 text-sm" onClick={() => navigate('/merchant/pos/produk')}>
                     <Package className="h-4 w-4 mr-2" /> Tambah Produk
                   </Button>
-                  <Button variant="outline" className="w-full h-9 text-sm" onClick={() => navigate('/pos/laporan')}>
+                  <Button variant="outline" className="w-full h-9 text-sm" onClick={() => navigate('/merchant/pos/laporan')}>
                     <BarChart3 className="h-4 w-4 mr-2" /> Lihat Laporan
                   </Button>
                 </CardContent>

@@ -208,6 +208,12 @@ const POSTargetOmzetPage = lazy(() => import("./pages/pos/POSTargetOmzetPage"));
 const POSHargaPage = lazy(() => import("./pages/pos/POSHargaPage"));
 const POSMenuQRPage = lazy(() => import("./pages/pos/POSMenuQRPage"));
 
+function LegacyPOSRedirect() {
+  const location = useLocation();
+  const targetPath = location.pathname.replace(/^\/pos(?=\/|$)/, '/merchant/pos');
+  return <Navigate to={`${targetPath}${location.search}`} replace state={{ fromLegacyRoute: true }} />;
+}
+
 // Desa Pages
 const DesaDashboardPage = lazy(() => import("./pages/desa/DesaDashboardPage"));
 const DesaMerchantPage = lazy(() => import("./pages/desa/DesaMerchantPage"));
@@ -1031,52 +1037,54 @@ const App = () => (
               {/* Custom store link - must be before catch-all */}
               <Route path="/s/:slug" element={<MerchantSlugResolver />} />
 
+              {/* Legacy POS routes: preserve bookmarks while Merchant becomes canonical. */}
+              <Route path="/pos/*" element={<POSAccessRoute><LegacyPOSRedirect /></POSAccessRoute>} />
               {/* POS SaaS Routes */}
-              <Route path="/pos/setup" element={<POSAccessRoute><POSSetupPage /></POSAccessRoute>} />
-              <Route path="/pos" element={<POSAccessRoute><POSDashboardPage /></POSAccessRoute>} />
-              <Route path="/pos/kasir" element={<POSAccessRoute><POSKasirPage /></POSAccessRoute>} />
-              <Route path="/pos/transaksi" element={<POSAccessRoute><POSTransaksiPage /></POSAccessRoute>} />
-              <Route path="/pos/retur" element={<POSAccessRoute><POSReturPage /></POSAccessRoute>} />
-              <Route path="/pos/produk" element={<POSAccessRoute><POSProdukPage /></POSAccessRoute>} />
-              <Route path="/pos/kategori" element={<POSAccessRoute><POSKategoriPage /></POSAccessRoute>} />
-              <Route path="/pos/customer" element={<POSAccessRoute><POSCustomerPage /></POSAccessRoute>} />
-              <Route path="/pos/supplier" element={<POSAccessRoute><POSSupplierPage /></POSAccessRoute>} />
-              <Route path="/pos/hutang" element={<POSAccessRoute><POSHutangPage /></POSAccessRoute>} />
-              <Route path="/pos/gudang" element={<POSAccessRoute><POSGudangPage /></POSAccessRoute>} />
-              <Route path="/pos/stok" element={<POSAccessRoute><POSStokPage /></POSAccessRoute>} />
-              <Route path="/pos/laporan" element={<POSAccessRoute><POSLaporanPage /></POSAccessRoute>} />
-              <Route path="/pos/pengguna" element={<POSAccessRoute><POSPenggunaPage /></POSAccessRoute>} />
-              <Route path="/pos/pengaturan" element={<POSAccessRoute><POSPengaturanPage /></POSAccessRoute>} />
-              <Route path="/pos/pembelian" element={<POSAccessRoute><POSPembelianPage /></POSAccessRoute>} />
-              <Route path="/pos/kas" element={<POSAccessRoute><POSKasPage /></POSAccessRoute>} />
-              <Route path="/pos/laporan/laba-rugi" element={<POSAccessRoute><POSLaporanLabaRugiPage /></POSAccessRoute>} />
-              <Route path="/pos/laporan/kasir" element={<POSAccessRoute><POSLaporanKasirPage /></POSAccessRoute>} />
-              <Route path="/pos/laporan/stok" element={<POSAccessRoute><POSLaporanStokPage /></POSAccessRoute>} />
-              <Route path="/pos/laporan/cashflow" element={<POSAccessRoute><POSLaporanCashflowPage /></POSAccessRoute>} />
-              <Route path="/pos/analitik" element={<POSAccessRoute><POSAnalitikPage /></POSAccessRoute>} />
-              <Route path="/pos/transfer-stok" element={<POSAccessRoute><POSTransferStokPage /></POSAccessRoute>} />
-              <Route path="/pos/laporan/outlet" element={<POSAccessRoute><POSLaporanOutletPage /></POSAccessRoute>} />
-              <Route path="/pos/audit" element={<POSAccessRoute><POSAuditPage /></POSAccessRoute>} />
-              <Route path="/pos/offline-conflicts" element={<POSAccessRoute><POSOfflineConflictPage /></POSAccessRoute>} />
-              <Route path="/pos/akses" element={<POSAccessRoute><POSAksesPage /></POSAccessRoute>} />
-              <Route path="/pos/promosi" element={<POSAccessRoute><POSPromosiPage /></POSAccessRoute>} />
-              <Route path="/pos/loyalty" element={<POSAccessRoute><POSLoyaltyPage /></POSAccessRoute>} />
-              <Route path="/pos/integrasi" element={<POSAccessRoute><POSIntegrasiPage /></POSAccessRoute>} />
-              <Route path="/pos/analitik-produk" element={<POSAccessRoute><POSAnalitikProdukPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/setup" element={<POSAccessRoute><POSSetupPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos" element={<POSAccessRoute><POSDashboardPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/kasir" element={<POSAccessRoute><POSKasirPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/transaksi" element={<POSAccessRoute><POSTransaksiPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/retur" element={<POSAccessRoute><POSReturPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/produk" element={<POSAccessRoute><POSProdukPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/kategori" element={<POSAccessRoute><POSKategoriPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/customer" element={<POSAccessRoute><POSCustomerPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/supplier" element={<POSAccessRoute><POSSupplierPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/hutang" element={<POSAccessRoute><POSHutangPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/gudang" element={<POSAccessRoute><POSGudangPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/stok" element={<POSAccessRoute><POSStokPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/laporan" element={<POSAccessRoute><POSLaporanPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/pengguna" element={<POSAccessRoute><POSPenggunaPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/pengaturan" element={<POSAccessRoute><POSPengaturanPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/pembelian" element={<POSAccessRoute><POSPembelianPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/kas" element={<POSAccessRoute><POSKasPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/laporan/laba-rugi" element={<POSAccessRoute><POSLaporanLabaRugiPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/laporan/kasir" element={<POSAccessRoute><POSLaporanKasirPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/laporan/stok" element={<POSAccessRoute><POSLaporanStokPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/laporan/cashflow" element={<POSAccessRoute><POSLaporanCashflowPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/analitik" element={<POSAccessRoute><POSAnalitikPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/transfer-stok" element={<POSAccessRoute><POSTransferStokPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/laporan/outlet" element={<POSAccessRoute><POSLaporanOutletPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/audit" element={<POSAccessRoute><POSAuditPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/offline-conflicts" element={<POSAccessRoute><POSOfflineConflictPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/akses" element={<POSAccessRoute><POSAksesPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/promosi" element={<POSAccessRoute><POSPromosiPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/loyalty" element={<POSAccessRoute><POSLoyaltyPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/integrasi" element={<POSAccessRoute><POSIntegrasiPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/analitik-produk" element={<POSAccessRoute><POSAnalitikProdukPage /></POSAccessRoute>} />
               {/* Kiosk is a display mode, not a second transaction engine. */}
-              <Route path="/pos/kiosk" element={<POSAccessRoute><Navigate to="/pos/kasir?mode=kiosk" replace state={{ fromKioskMode: true }} /></POSAccessRoute>} />
-              <Route path="/pos/akuntansi" element={<POSAccessRoute><POSAkuntansiPage /></POSAccessRoute>} />
-              <Route path="/pos/bahan-baku" element={<POSAccessRoute><POSBahanBakuPage /></POSAccessRoute>} />
-              <Route path="/pos/resep" element={<POSAccessRoute><POSResepPage /></POSAccessRoute>} />
-              <Route path="/pos/meja" element={<POSAccessRoute><POSMejaPage /></POSAccessRoute>} />
-              <Route path="/pos/kds" element={<POSAccessRoute><POSKDSPage /></POSAccessRoute>} />
-              <Route path="/pos/jadwal" element={<POSAccessRoute><POSJadwalPage /></POSAccessRoute>} />
-              <Route path="/pos/absensi" element={<POSAccessRoute><POSAbsensiPage /></POSAccessRoute>} />
-              <Route path="/pos/penggajian" element={<POSAccessRoute><POSPenggajianPage /></POSAccessRoute>} />
-              <Route path="/pos/hutang-piutang" element={<POSAccessRoute><POSHutangPiutangPage /></POSAccessRoute>} />
-              <Route path="/pos/target-omzet" element={<POSAccessRoute><POSTargetOmzetPage /></POSAccessRoute>} />
-              <Route path="/pos/harga" element={<POSAccessRoute><POSHargaPage /></POSAccessRoute>} />
-              <Route path="/pos/menu-qr" element={<POSAccessRoute><POSMenuQRPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/kiosk" element={<POSAccessRoute><Navigate to="/merchant/pos/kasir?mode=kiosk" replace state={{ fromKioskMode: true }} /></POSAccessRoute>} />
+              <Route path="/merchant/pos/akuntansi" element={<POSAccessRoute><POSAkuntansiPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/bahan-baku" element={<POSAccessRoute><POSBahanBakuPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/resep" element={<POSAccessRoute><POSResepPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/meja" element={<POSAccessRoute><POSMejaPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/kds" element={<POSAccessRoute><POSKDSPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/jadwal" element={<POSAccessRoute><POSJadwalPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/absensi" element={<POSAccessRoute><POSAbsensiPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/penggajian" element={<POSAccessRoute><POSPenggajianPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/hutang-piutang" element={<POSAccessRoute><POSHutangPiutangPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/target-omzet" element={<POSAccessRoute><POSTargetOmzetPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/harga" element={<POSAccessRoute><POSHargaPage /></POSAccessRoute>} />
+              <Route path="/merchant/pos/menu-qr" element={<POSAccessRoute><POSMenuQRPage /></POSAccessRoute>} />
 
               {/* Menu Digital QR — publik, tidak perlu login */}
               <Route path="/menu/:tenantId/:tableId" element={<MenuPublicPage />} />

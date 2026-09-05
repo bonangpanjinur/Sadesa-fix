@@ -92,7 +92,7 @@ export default function POSSetupPage() {
       }
 
       toast.success('Usaha berhasil dibuat! Selamat datang di SaDesa POS.');
-      navigate('/pos', { replace: true });
+      navigate('/merchant/pos', { replace: true });
       window.location.reload();
     } catch (err: unknown) {
       if (createdTenantId) {

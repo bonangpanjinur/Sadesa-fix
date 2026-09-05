@@ -128,7 +128,7 @@ export function MerchantSidebar() {
 
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { label: 'Kasir', href: '/pos/kasir', icon: <Receipt className="h-4 w-4" /> },
+    { label: 'Kasir', href: '/merchant/pos/kasir', icon: <Receipt className="h-4 w-4" /> },
     { label: 'Langganan POS', href: '/merchant/pos/subscribe', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Pesanan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
     { label: 'Fulfillment Parsial', href: '/merchant/fulfillment', icon: <Truck className="h-4 w-4" /> },

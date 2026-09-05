@@ -312,7 +312,7 @@ export default function POSMejaPage() {
         {/* Controls */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => navigate('/pos/kds')} className="border-orange-400 text-orange-600 hover:bg-orange-50">
+            <Button variant="outline" size="sm" onClick={() => navigate('/merchant/pos/kds')} className="border-orange-400 text-orange-600 hover:bg-orange-50">
               <ChefHat className="h-4 w-4 mr-1" /> Buka KDS (Dapur)
             </Button>
             <Button variant="outline" size="sm" onClick={fetchAll}>

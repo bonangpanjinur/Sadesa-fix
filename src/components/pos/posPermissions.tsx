@@ -28,48 +28,48 @@ const REPORTS: POSRole[] = ['owner', 'manager', 'finance', 'auditor'];
 const WORKFORCE: POSRole[] = ['owner', 'manager', 'finance'];
 
 export const POS_MENU_PERMISSIONS: POSMenuPermission[] = [
-  { path: '/pos', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ALL_APP_POS_ROLES.length ? ['owner', 'manager', 'kasir', 'staff_gudang', 'purchasing', 'finance', 'auditor'] : [] },
-  { path: '/pos/kasir', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
-  { path: '/pos/transaksi', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: OPERATIONS },
-  { path: '/pos/retur', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
-  { path: '/pos/meja', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
-  { path: '/pos/kds', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
-  { path: '/pos/menu-qr', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
-  { path: '/pos/kiosk', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
-  { path: '/pos/customer', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: OPERATIONS },
-  { path: '/pos/produk', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/kategori', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/stok', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/bahan-baku', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/resep', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/gudang', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/transfer-stok', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/supplier', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
-  { path: '/pos/pembelian', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'purchasing'] },
-  { path: '/pos/hutang', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
-  { path: '/pos/hutang-piutang', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
-  { path: '/pos/kas', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
-  { path: '/pos/akuntansi', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
-  { path: '/pos/laporan', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
-  { path: '/pos/laporan/laba-rugi', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
-  { path: '/pos/laporan/kasir', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
-  { path: '/pos/laporan/stok', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: [...INVENTORY, 'finance', 'auditor'] },
-  { path: '/pos/laporan/cashflow', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
-  { path: '/pos/laporan/outlet', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
-  { path: '/pos/analitik', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
-  { path: '/pos/analitik-produk', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
-  { path: '/pos/audit', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'auditor'] },
-  { path: '/pos/akses', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
-  { path: '/pos/promosi', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
-  { path: '/pos/loyalty', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
-  { path: '/pos/integrasi', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
-  { path: '/pos/jadwal', area: 'workforce', roles: ALL_APP_POS_ROLES, posRoles: WORKFORCE },
-  { path: '/pos/absensi', area: 'workforce', roles: ALL_APP_POS_ROLES, posRoles: WORKFORCE },
-  { path: '/pos/penggajian', area: 'workforce', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'finance'] },
-  { path: '/pos/target-omzet', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
-  { path: '/pos/pengguna', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
-  { path: '/pos/pengaturan', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
-  { path: '/pos/harga', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ALL_APP_POS_ROLES.length ? ['owner', 'manager', 'kasir', 'staff_gudang', 'purchasing', 'finance', 'auditor'] : [] },
+  { path: '/merchant/pos/kasir', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
+  { path: '/merchant/pos/transaksi', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: OPERATIONS },
+  { path: '/merchant/pos/retur', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
+  { path: '/merchant/pos/meja', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
+  { path: '/merchant/pos/kds', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
+  { path: '/merchant/pos/menu-qr', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
+  { path: '/merchant/pos/kiosk', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'kasir'] },
+  { path: '/merchant/pos/customer', area: 'operations', roles: ALL_APP_POS_ROLES, posRoles: OPERATIONS },
+  { path: '/merchant/pos/produk', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/kategori', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/stok', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/bahan-baku', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/resep', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/gudang', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/transfer-stok', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/supplier', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: INVENTORY },
+  { path: '/merchant/pos/pembelian', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'purchasing'] },
+  { path: '/merchant/pos/hutang', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
+  { path: '/merchant/pos/hutang-piutang', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
+  { path: '/merchant/pos/kas', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
+  { path: '/merchant/pos/akuntansi', area: 'finance', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
+  { path: '/merchant/pos/laporan', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
+  { path: '/merchant/pos/laporan/laba-rugi', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
+  { path: '/merchant/pos/laporan/kasir', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
+  { path: '/merchant/pos/laporan/stok', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: [...INVENTORY, 'finance', 'auditor'] },
+  { path: '/merchant/pos/laporan/cashflow', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: FINANCE },
+  { path: '/merchant/pos/laporan/outlet', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
+  { path: '/merchant/pos/analitik', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
+  { path: '/merchant/pos/analitik-produk', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: REPORTS },
+  { path: '/merchant/pos/audit', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'auditor'] },
+  { path: '/merchant/pos/akses', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos/promosi', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos/loyalty', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos/integrasi', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos/jadwal', area: 'workforce', roles: ALL_APP_POS_ROLES, posRoles: WORKFORCE },
+  { path: '/merchant/pos/absensi', area: 'workforce', roles: ALL_APP_POS_ROLES, posRoles: WORKFORCE },
+  { path: '/merchant/pos/penggajian', area: 'workforce', roles: ALL_APP_POS_ROLES, posRoles: ['owner', 'manager', 'finance'] },
+  { path: '/merchant/pos/target-omzet', area: 'reports', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos/pengguna', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos/pengaturan', area: 'administration', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
+  { path: '/merchant/pos/harga', area: 'inventory', roles: ALL_APP_POS_ROLES, posRoles: OWNER_MANAGER },
 ];
 
 export function getPOSPermission(path: string): POSMenuPermission | undefined {
@@ -77,11 +77,11 @@ export function getPOSPermission(path: string): POSMenuPermission | undefined {
 }
 
 export function canAccessPOSPath(roles: AppRole[], path: string, posRole?: POSRole | null): boolean {
-  // `/merchant/pos` is a compatibility URL only. Treat it as the canonical
-  // cashier permission while the route itself performs an immediate redirect.
-  const permissionPath = path === '/merchant/pos' ? '/pos/kasir' : path;
+  // Legacy `/pos/*` URLs remain readable only to redirect into Merchant.
+  // Permission checks always use the canonical Merchant namespace.
+  const permissionPath = path.replace(/^\/pos(?=\/|$)/, '/merchant/pos');
   const permission = getPOSPermission(permissionPath);
-  if (!permission) return path === '/pos/setup' && roles.some((role) => ALL_APP_POS_ROLES.includes(role));
+  if (!permission) return permissionPath === '/merchant/pos/setup' && roles.some((role) => ALL_APP_POS_ROLES.includes(role));
   if (!permission.roles.some((role) => roles.includes(role))) return false;
   return posRole ? permission.posRoles.includes(posRole) : true;
 }

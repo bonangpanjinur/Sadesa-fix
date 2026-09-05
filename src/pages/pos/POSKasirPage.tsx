@@ -747,7 +747,7 @@ export default function POSKasirPage() {
     <div className="flex items-center justify-center h-screen">
       <div className="text-center">
         <p className="text-muted-foreground mb-4">Buat usaha terlebih dahulu</p>
-        <Button onClick={() => navigate('/pos/setup')} className="bg-emerald-600 hover:bg-emerald-700">Buat Usaha</Button>
+        <Button onClick={() => navigate('/merchant/pos/setup')} className="bg-emerald-600 hover:bg-emerald-700">Buat Usaha</Button>
       </div>
     </div>
   );
