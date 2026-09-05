@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "python-3.12", "bash"]
+modules = ["nodejs-24"]
 [agent]
 expertMode = true
 stack = "BEST_EFFORT_FALLBACK"
@@ -8,20 +8,7 @@ integrations = ["javascript_database:1.0.0"]
 channel = "stable-25_05"
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start API server"
+runButton = "Start application"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -35,29 +22,9 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
-[[workflows.workflow]]
-name = "Start API server"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run server"
-waitForPort = 3001
-
-[[ports]]
-localPort = 3001
-externalPort = 3001
-
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3001
 
 [deployment]
 deploymentTarget = "static"

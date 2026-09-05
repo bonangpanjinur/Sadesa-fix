@@ -8,10 +8,10 @@ DesaMart is a multi-role e-commerce platform and tourism directory for Indonesia
 - **Build Tool**: Vite (port 5000)
 - **Styling**: Tailwind CSS + shadcn/ui components
 - **Backend/Database**: Supabase (PostgreSQL, Auth, Storage, Realtime)
-- **API Server**: Express (port 3001) — proxies sensitive operations server-side
+- **Backend/API**: Supabase Edge Functions (the SPA has no local API server)
 - **State Management**: TanStack Query (React Query)
-- **Routing**: React Router v6
-- **Package Manager**: npm
+- **Routing**: React Router
+- **Package Manager**: pnpm 9.15.9 (the repository also contains a generated npm lockfile for compatibility)
 
 ## Project Structure
 - `src/` - Main application source
@@ -19,38 +19,25 @@ DesaMart is a multi-role e-commerce platform and tourism directory for Indonesia
   - `pages/` - Routed pages by user role (admin, merchant, courier, verifikator, buyer, desa, pos, ride)
   - `hooks/` - Custom React hooks
   - `integrations/supabase/` - Supabase client config and generated types
-  - `integrations/lovable/` - Stub (social OAuth disabled on Replit)
+- `integrations/lovable/` - Stub (social OAuth disabled on Replit)
   - `lib/` - Utilities, API wrappers, i18n
   - `contexts/` - React Contexts (Auth, Cart, Whitelabel, POS)
   - `types/` - TypeScript definitions
-- `supabase/` - DB migrations (schema reference) and Edge Functions (reference only)
+- `supabase/` - DB migrations, bootstrap bundles, and Edge Functions
 - `public/` - Static assets and PWA manifest
-- `server/` - Express API server (index.ts) — replaces Supabase Edge Functions
-
-## Server API Routes (server/index.ts)
-All Supabase Edge Functions have been ported to local Express routes:
-- `GET /api/wilayah` - Indonesian region data proxy (replaces wilayah-proxy edge function)
-- `POST /api/assign-courier` - Auto-assign nearest courier to order (replaces assign-courier edge function)
-- `POST /api/xendit/create-invoice` - Create Xendit payment invoice (replaces xendit-payment edge function)
-- `GET /api/xendit/check-status` - Check Xendit payment status
-- `POST /api/xendit/webhook` - Xendit payment webhook handler (replaces xendit-webhook edge function)
-
-Vite dev server proxies `/api/*` to the Express server at port 3001.
 
 ## Environment Variables (set in Replit Env Vars)
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon/public key
 - `VITE_SUPABASE_PROJECT_ID` - Supabase project ID
-- `SUPABASE_URL` - Supabase URL for server-side use (set if different from VITE_SUPABASE_URL)
-- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key for server-side admin operations (optional — falls back to anon key)
+- Server-only Supabase service-role keys, payment secrets, callback tokens, database passwords, and signing keys belong in Supabase Edge Function secrets, never in `VITE_*` variables.
 
 ## Development
 - Frontend dev server runs on port 5000 (host: 0.0.0.0)
-- API server runs on port 3001
-- `npm run dev` - Start Vite frontend dev server
-- `npm run server` - Start Express API server
-- `npm run build` - Build for production
-- `npm test` - Run tests
+- Replit uses one `Start application` workflow: `npm run dev`
+- `pnpm dev` or `npm run dev` - Start Vite frontend dev server
+- `pnpm build` or `npm run build` - Build for production
+- `pnpm test` or `npm test` - Run tests
 
 ## User Roles
 - `buyer` - Default role, browses and orders products

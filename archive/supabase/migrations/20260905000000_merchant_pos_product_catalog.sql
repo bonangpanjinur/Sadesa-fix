@@ -80,6 +80,12 @@ AS $$
 DECLARE
   v_outlet public.pos_outlets%ROWTYPE;
 BEGIN
+  -- A failed or deleted projection must never result in an invalid
+  -- pos_stock row with a NULL product_id.
+  IF p_product_id IS NULL THEN
+    RETURN;
+  END IF;
+
   FOR v_outlet IN
     SELECT *
     FROM public.pos_outlets

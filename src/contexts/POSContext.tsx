@@ -132,13 +132,25 @@ export function POSProvider({ children }: { children: ReactNode }) {
         const assignedOutletIds = (assignmentRows || [])
           .map((row) => row.outlet_id)
           .filter((id): id is string => typeof id === 'string');
-        if (assignedOutletIds.length > 0) outletQuery = outletQuery.in('id', assignedOutletIds);
+        // An active POS member without an explicit outlet assignment must not
+        // silently receive access to every outlet. Owners are the only role
+        // that intentionally sees the full tenant outlet list.
+        if (assignedOutletIds.length === 0) {
+          setOutlets([]);
+          setActiveOutlet(null);
+          return;
+        }
+        outletQuery = outletQuery.in('id', assignedOutletIds);
       }
       const { data, error: outletError } = await outletQuery.order('name');
       if (outletError) throw new Error(outletError.message);
       const outletList = (data || []) as unknown as POSOutlet[];
       setOutlets(outletList);
-      setActiveOutlet((prev) => prev ?? outletList[0] ?? null);
+      setActiveOutlet((prev) => (
+        prev && outletList.some((outlet) => outlet.id === prev.id)
+          ? prev
+          : outletList[0] ?? null
+      ));
     } catch (err) {
       console.error('Error fetching outlets:', err);
     }

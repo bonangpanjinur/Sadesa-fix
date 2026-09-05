@@ -7,8 +7,11 @@ import path from "path";
 export default defineConfig(() => ({
   server: {
     host: "0.0.0.0",
-    port: 8080,
-    allowedHosts: process.env.VITE_ALLOWED_HOSTS?.split(',').map((host) => host.trim()).filter(Boolean) ?? [],
+    port: 5000,
+    // Replit serves the preview through a proxied host that is not known at
+    // build time. Keep the optional env override for local hardening, but
+    // allow the Replit proxy to reach Vite in the development workflow.
+    allowedHosts: true,
   },
 
   plugins: [
