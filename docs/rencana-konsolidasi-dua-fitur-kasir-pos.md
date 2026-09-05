@@ -56,7 +56,11 @@ Fitur kasir yang sudah tersedia meliputi barcode, varian POS, customer, promo, v
 |---|---|---|
 | Entry point | **✅** | `/merchant/pos` dan `/merchant/pos/kasir`; `/pos/*` hanya redirect kompatibilitas. |
 | Halaman kasir | **✅** | `src/pages/pos/POSKasirPage.tsx` dipakai pada route Merchant kanonik. |
+
 | Layout | **✅** | Kasir kanonis memakai navigasi `MerchantSidebar`; engine checkout tetap memakai konteks, akses, dan komponen POS modern. |
+
+| Layout | **✅ DI KODE** | `POSKasirPage` memakai `POSLayout`, dan `POSLayout` kini mendelegasikan sidebar, header, notifikasi, responsive drawer, serta shell visual ke `MerchantLayout`; mode `fullWidth` menjaga area checkout tetap memenuhi viewport. |
+
 | Produk | **🟡** | `products` Merchant menjadi sumber katalog; `pos_products` dipertahankan sebagai projection kompatibilitas. Migrasi belum diverifikasi di target. |
 | Transaksi | **✅** | Transaksi baru memakai `pos_sales` dan `pos_sale_items` melalui atomic checkout. |
 | Identitas usaha | **🟡** | `pos_tenants.merchant_id` dan backfill mapping sudah disiapkan; deployment migrasi belum diverifikasi. |
@@ -159,6 +163,8 @@ Jika migrasi fisik ke `pos_sales` berisiko mengubah laporan atau trigger, gunaka
 
 ### Fase 4 — Cutover checkout — **✅ SELESAI DI KODE / 🟡 MENUNGGU VALIDASI ENVIRONMENT**
 
+Perubahan lokal bertahap pada audit ini menyatukan shell `POSKasirPage` dan `POSLayout` dengan `MerchantLayout`, menghapus sidebar/header wrapper POS yang duplikat, menambahkan mode `fullWidth` untuk checkout, dan mempertahankan alur checkout, dialog, serta panel produk/keranjang. Typecheck, test suite, dan build tetap lulus setelah perubahan.
+
 Setelah tenant, outlet, produk, stok, dan akses tervalidasi, ubah navigasi dan route lama. Checkout modern harus menjadi satu-satunya alur aktif.
 
 Checklist cutover:
@@ -196,8 +202,8 @@ Setelah masa observasi selesai:
 |---|---|---|
 | `src/App.tsx` | **✅** | Route kanonik POS berada di `/merchant/pos/*`; `/pos/*` dan dashboard `/merchant/pos` menjadi redirect kompatibilitas, dengan telemetry route legacy. |
 | `src/components/merchant/MerchantSidebar.tsx` | **✅** | Link Kasir diarahkan ke area Merchant. |
-| `src/components/pos/POSSidebar.tsx` | **✅** | Link internal memakai prefix `/merchant/pos/*`. |
-| `src/pages/pos/POSKasirPage.tsx` | **✅** | Dipakai sebagai checkout kanonik pada route Merchant. |
+| `src/components/pos/POSSidebar.tsx` | **✅ KOMPATIBILITAS** | Link internal memakai prefix `/merchant/pos/*`; layout kanonik Merchant sekarang menggunakan `MerchantSidebar`. |
+| `src/pages/pos/POSKasirPage.tsx` | **✅** | Dipakai sebagai checkout kanonik pada route Merchant dan menggunakan `POSLayout` yang terintegrasi dengan `MerchantLayout`. |
 | `src/pages/pos/POSTransaksiPage.tsx` | **🟡** | Histori modern tersedia; rekonsiliasi histori legacy belum divalidasi production. |
 | `src/pages/merchant/MerchantPOSPage.tsx` | **✅** | File legacy sudah tidak ada dan tidak memiliki referensi aktif di `src`. |
 | `src/components/merchant/POSInvoice.tsx` | **✅** | File legacy sudah tidak ada dan tidak memiliki referensi aktif di `src`. |
@@ -205,11 +211,12 @@ Setelah masa observasi selesai:
 | `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
 | `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; manifest serta smoke test kini memeriksa mapping tenant, projection produk, dan stok outlet, tetapi belum dijalankan pada database target. |
 | `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. Readiness tetap harus diverifikasi setelah deployment. |
+| `scripts/audit-rls-static.py` | **✅ DI KODE / 🟡 TARGET** | Audit lokal kini mengenali `pos_sale_requests` dan `payment_invoice_requests` sebagai tabel server-only serta memvalidasi RLS, pencabutan akses `anon/authenticated`, dan grant `service_role`; hasil database target tetap belum diverifikasi. |
 | `docs/` | **🟡** | Status implementasi, baseline report, readiness smoke test, dan [runbook UAT](pos-consolidation-uat-runbook.md) tersedia; quality gate lokal telah diverifikasi, sementara eksekusi deployment, observasi, rekonsiliasi, serta hasil UAT target masih tertunda karena akses environment belum tersedia. |
 
 ## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
 
-Konsolidasi harus mempertahankan kontrol pada level database. Redirect route tidak boleh menjadi pengganti RLS. Semua RPC transaksi harus memvalidasi tenant, outlet, kasir, total, item, stok, dan idempotency key di server/database.
+Konsolidasi harus mempertahankan kontrol pada level database. Redirect route tidak boleh menjadi pengganti RLS. Semua RPC transaksi harus memvalidasi tenant, outlet, kasir, total, item, stok, dan idempotency key di server/database. Audit RLS lokal sekarang membedakan tabel server-only yang sengaja tidak memiliki policy authenticated dari tabel yang benar-benar belum memiliki perlindungan.
 
 Halaman lama saat ini melakukan beberapa operasi berurutan dari browser, termasuk pengurangan kuota, insert order, insert item, insert transaksi POS, dan update stok. Pola tersebut berisiko meninggalkan data setengah jadi ketika salah satu operasi gagal. Karena itu, transaksi baru wajib menggunakan alur atomic POS modern dan tidak boleh mempertahankan checkout legacy sebagai fallback diam-diam.
 
@@ -282,9 +289,10 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 - **🟡** Stok POS per outlet sudah memiliki backfill idempotent yang membuat row nol hanya jika belum ada; migrasi database dan UAT belum diverifikasi diterapkan.
 - **🟡** Histori transaksi lama sudah memiliki migration map dan unified reporting view; rekonsiliasi serta verifikasi end-to-end belum dijalankan pada target.
 - **🟡 tertunda environment** Runbook UAT dan telemetry observasi tersedia; tidak ada mismatch kritis belum dapat dinyatakan sebelum observasi target dijalankan.
-- **✅ di kode / 🟡 UAT** Role POS dan permission diuji oleh test suite; pengujian RLS production dan UAT masih belum selesai.
+- **✅ di kode / 🟡 target** Role POS dan permission diuji oleh test suite; audit RLS lokal memvalidasi tabel server-only dan policy statis, tetapi pengujian RLS production dan UAT masih belum selesai.
 - **✅ lokal / 🟡 UAT** Test suite dan build produksi lulus pada audit lokal; UAT target belum lulus.
 - **✅** File implementasi legacy yang tercantum dalam rencana sudah tidak ada dan tidak memiliki referensi aktif di `src`.
+- **✅ di kode / 🟡 validasi visual browser** `MerchantLayout` menjadi shell visual kanonik POS; validasi interaksi visual pada browser target tetap perlu dilakukan sebagai bagian UAT.
 
 ## 11. Urutan Prioritas
 
@@ -312,7 +320,7 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 
 ## 13. Keputusan yang Sudah Ditetapkan
 
-Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pada kode: `/merchant/pos/kasir` menjadi checkout resmi; `/pos/*` hanya compatibility redirect; `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS; dan produk Merchant menjadi sumber katalog dengan projection kompatibilitas pada `pos_products`. Quality gate lokal telah lulus. Migrasi database produk/tenant tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target. Rekonsiliasi histori legacy, observability, dan UAT tetap **TERTUNDA ENVIRONMENT**, bukan dianggap selesai berdasarkan test suite lokal.
+Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pada kode: `/merchant/pos/kasir` menjadi checkout resmi; `/pos/*` hanya compatibility redirect; `pos_stock` pada outlet aktif menjadi sumber kebenaran stok POS; dan produk Merchant menjadi sumber katalog dengan projection kompatibilitas pada `pos_products`. Quality gate lokal telah lulus, shell visual POS kini memakai `MerchantLayout`, dan audit RLS lokal telah diperkuat untuk memvalidasi tabel server-only. Migrasi database produk/tenant tetap harus dijalankan melalui staging dan runbook deployment sebelum dianggap aktif di environment target. Rekonsiliasi histori legacy, observability, dan UAT tetap **TERTUNDA ENVIRONMENT**, bukan dianggap selesai berdasarkan test suite lokal.
 
 ---
 
