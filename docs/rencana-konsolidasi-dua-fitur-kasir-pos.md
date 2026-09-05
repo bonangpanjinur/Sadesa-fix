@@ -16,7 +16,7 @@
 
 | Area | Status | Catatan |
 |---|---|---|
-| Konsolidasi route ke Merchant | **✅ SELESAI** | Route kanonik berada di `/merchant/pos/*`; `/pos/*` hanya redirect kompatibilitas. |
+| Konsolidasi route ke Merchant | **✅ SELESAI** | Route kanonik berada di `/merchant/pos/*`; `/pos/*` dan `/merchant/pos` hanya redirect kompatibilitas terukur ke kasir kanonis. |
 | Kasir satu alur | **✅ SELESAI** | Checkout memakai `POSKasirPage` dan `processAtomicPOSSale`. |
 | Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS, mapping idempotent, manifest deployment, dan migration-history file sudah tersedia; SQL belum diverifikasi diterapkan di environment target. |
 | Stok per outlet | **🟡 SEBAGIAN** | Backfill row `pos_stock` per outlet aktif sudah ditambahkan secara idempotent dengan kuantitas existing tidak ditimpa; deployment dan UAT masih belum selesai. |
@@ -181,7 +181,7 @@ Setelah masa observasi selesai:
 
 | File/area | Status | Hasil aktual |
 |---|---|---|
-| `src/App.tsx` | **✅** | Route kanonik POS berada di `/merchant/pos/*`; `/pos/*` menjadi redirect kompatibilitas. |
+| `src/App.tsx` | **✅** | Route kanonik POS berada di `/merchant/pos/*`; `/pos/*` dan dashboard `/merchant/pos` menjadi redirect kompatibilitas, dengan telemetry route legacy. |
 | `src/components/merchant/MerchantSidebar.tsx` | **✅** | Link Kasir diarahkan ke area Merchant. |
 | `src/components/pos/POSSidebar.tsx` | **✅** | Link internal memakai prefix `/merchant/pos/*`. |
 | `src/pages/pos/POSKasirPage.tsx` | **✅** | Dipakai sebagai checkout kanonik pada route Merchant. |
@@ -249,7 +249,7 @@ Typecheck terpisah berhasil pada verifikasi lanjutan; tidak ada error TypeScript
 
 ## 9. Observability dan Rollback — **🟡 SEBAGIAN**
 
-Telemetry checkout sudah mencatat checkout source, transaction source, tenant, outlet, kasir, request key prefix, status offline, duplicate result, error code, dan durasi. Telemetry route lama, redirect, sinkronisasi end-to-end, serta korelasi database ke item/stok/pembayaran/receipt masih memerlukan instrumentasi atau verifikasi environment target.
+Telemetry checkout sudah mencatat checkout source, transaction source, tenant, outlet, kasir, request key prefix, status offline, duplicate result, error code, dan durasi. Redirect route legacy kini mencatat source path, target path, dan keberadaan query. Sinkronisasi end-to-end serta korelasi database ke item/stok/pembayaran/receipt masih memerlukan verifikasi environment target.
 
 Rollback tidak boleh mengaktifkan kembali dua checkout secara bersamaan. Bila cutover bermasalah, rollback harus dilakukan dengan salah satu dari dua cara berikut:
 

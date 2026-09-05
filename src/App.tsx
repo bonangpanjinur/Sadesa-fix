@@ -17,7 +17,7 @@ import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { POSProvider } from "./contexts/POSContext";
 import { POSAccessRoute } from "@/components/pos/posPermissions";
-import { logUnhandledErrors } from '@/lib/observability';
+import { logUnhandledErrors, reportObservability } from '@/lib/observability';
 
 // Lazy-load semua halaman agar bundle awal kecil (P2-02)
 // Pages
@@ -211,6 +211,13 @@ const POSMenuQRPage = lazy(() => import("./pages/pos/POSMenuQRPage"));
 function LegacyPOSRedirect() {
   const location = useLocation();
   const targetPath = location.pathname.replace(/^\/pos(?=\/|$)/, '/merchant/pos');
+  useEffect(() => {
+    reportObservability('navigation', 'legacy_pos_redirect', 'info', {
+      sourcePath: location.pathname,
+      targetPath,
+      hasQuery: Boolean(location.search),
+    });
+  }, [location.pathname, location.search, targetPath]);
   return <Navigate to={`${targetPath}${location.search}`} replace state={{ fromLegacyRoute: true }} />;
 }
 
@@ -904,7 +911,7 @@ const App = () => (
               {/* Legacy cashier URL: compatibility redirect; no legacy checkout is mounted. */}
               <Route path="/merchant/pos" element={
                 <POSAccessRoute>
-                  <Navigate to="/pos/kasir" replace state={{ fromLegacyRoute: true }} />
+                  <Navigate to="/merchant/pos/kasir" replace state={{ fromLegacyRoute: true }} />
                 </POSAccessRoute>
               } />
               <Route path="/merchant/dues" element={
