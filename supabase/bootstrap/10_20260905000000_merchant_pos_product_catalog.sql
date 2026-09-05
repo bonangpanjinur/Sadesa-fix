@@ -69,6 +69,33 @@ BEGIN
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.sync_merchant_product_to_pos(uuid, uuid) FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION public.ensure_pos_stock_rows_for_product(p_product_id uuid, p_tenant_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_outlet public.pos_outlets%ROWTYPE;
+BEGIN
+  FOR v_outlet IN
+    SELECT *
+    FROM public.pos_outlets
+    WHERE tenant_id = p_tenant_id
+      AND is_active = true
+  LOOP
+    -- Existing quantity and min_stock are operational data and must never be overwritten.
+    INSERT INTO public.pos_stock (tenant_id, product_id, outlet_id, quantity, min_stock)
+    VALUES (p_tenant_id, p_product_id, v_outlet.id, 0, 0)
+    ON CONFLICT (product_id, variant_id, outlet_id) DO NOTHING;
+  END LOOP;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ensure_pos_stock_rows_for_product(uuid, uuid) FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION public.sync_merchant_product_to_pos_trigger()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -82,6 +109,10 @@ BEGIN
     SELECT * FROM public.pos_tenants WHERE merchant_id = NEW.merchant_id AND is_active = true
   LOOP
     PERFORM public.sync_merchant_product_to_pos(NEW.id, v_tenant.id);
+    PERFORM public.ensure_pos_stock_rows_for_product(
+      (SELECT id FROM public.pos_products WHERE tenant_id = v_tenant.id AND merchant_product_id = NEW.id LIMIT 1),
+      v_tenant.id
+    );
   END LOOP;
   RETURN NEW;
 END;
@@ -106,6 +137,10 @@ BEGIN
       WHERE merchant_id = v_product.merchant_id AND is_active = true
     LOOP
       PERFORM public.sync_merchant_product_to_pos(v_product.id, v_tenant.id);
+      PERFORM public.ensure_pos_stock_rows_for_product(
+        (SELECT id FROM public.pos_products WHERE tenant_id = v_tenant.id AND merchant_product_id = v_product.id LIMIT 1),
+        v_tenant.id
+      );
     END LOOP;
   END LOOP;
 END;

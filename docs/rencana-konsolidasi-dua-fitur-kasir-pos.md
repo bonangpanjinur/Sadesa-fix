@@ -1,7 +1,7 @@
 # Rencana Perbaikan dan Konsolidasi Dua Fitur Kasir POS
 
 **Repository:** `bonangpanjinur/Sadesa-fix`  
-**Status:** Implementasi cutover kanonis diterapkan; deployment database dan UAT production tetap memerlukan eksekusi runbook
+**Status:** Implementasi cutover kanonis dan hardening migration diterapkan; deployment database target dan UAT production tetap memerlukan eksekusi runbook
 **Tanggal:** 4 September 2026  
 **Pemilik:** Tim Produk dan Engineering SaDesa
 **Audit status:** 5 September 2026
@@ -18,10 +18,10 @@
 |---|---|---|
 | Konsolidasi route ke Merchant | **✅ SELESAI** | Route kanonik berada di `/merchant/pos/*`; `/pos/*` hanya redirect kompatibilitas. |
 | Kasir satu alur | **✅ SELESAI** | Checkout memakai `POSKasirPage` dan `processAtomicPOSSale`. |
-| Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS dan migrasi sudah dibuat; SQL belum diverifikasi diterapkan di environment target. |
-| Stok per outlet | **🟡 SEBAGIAN** | `pos_stock` tetap digunakan per outlet; mapping dan backfill memerlukan deployment migrasi. |
+| Produk Merchant sebagai katalog utama | **🟡 SEBAGIAN** | Projection POS, mapping idempotent, manifest deployment, dan migration-history file sudah tersedia; SQL belum diverifikasi diterapkan di environment target. |
+| Stok per outlet | **🟡 SEBAGIAN** | Backfill row `pos_stock` per outlet aktif sudah ditambahkan secara idempotent dengan kuantitas existing tidak ditimpa; deployment dan UAT masih belum selesai. |
 | Test dan build | **✅ SELESAI** | 31 file test lulus, 86 test lulus, 20 dilewati; build berhasil. |
-| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Belum ada bukti eksekusi di environment target. |
+| UAT, observability, rekonsiliasi production | **⬜ BELUM** | Kode observability checkout sudah tersedia, tetapi belum ada bukti eksekusi deployment, rekonsiliasi, dan UAT di environment target. |
 
 ## 1. Ringkasan Eksekutif
 
@@ -190,7 +190,8 @@ Setelah masa observasi selesai:
 | `src/components/merchant/POSInvoice.tsx` | **⬜ BELUM** | Belum dihapus atau dinyatakan archived. |
 | `src/lib/posCheckout.ts` | **✅** | Atomic checkout dan idempotency digunakan. |
 | `src/lib/posOfflineDB.ts` dan `src/hooks/usePOSOfflineSync.ts` | **✅ DI KODE / 🟡 UAT BELUM** | Outbox, retry, dan sinkronisasi tersedia; belum diuji pada environment target. |
-| `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS dan projection produk sudah dibuat; belum diverifikasi telah diterapkan. |
+| `supabase/bootstrap/10_20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Migrasi mapping Merchant–POS, projection produk, dan backfill row stok per outlet sudah dibuat; sudah dimasukkan ke manifest bootstrap, tetapi belum diverifikasi telah diterapkan. |
+| `archive/supabase/migrations/20260905000000_merchant_pos_product_catalog.sql` | **🟡** | Representasi untuk environment yang memakai histori migration; jangan diterapkan bersamaan dengan bootstrap bundle pada database yang sama. |
 | `docs/` | **🟡** | Dokumen ini diperbarui; runbook deployment dan hasil UAT belum tersedia. |
 
 ## 7. Keamanan dan Integritas Data — **🟡 SEBAGIAN**
@@ -265,7 +266,7 @@ Konsolidasi dianggap selesai apabila seluruh kondisi berikut terpenuhi:
 - **✅** `/merchant/pos` tidak menjalankan checkout legacy; `/pos/*` hanya compatibility redirect.
 - **✅ di kode** Semua transaksi baru diarahkan ke `pos_sales` dan `pos_sale_items`.
 - **🟡** Tidak ada transaksi baru yang menulis ke `pos_transactions` belum diverifikasi melalui telemetry/database target.
-- **🟡** Stok POS per outlet sudah dirancang dan dimigrasikan di kode, tetapi migrasi database belum diverifikasi diterapkan.
+- **🟡** Stok POS per outlet sudah memiliki backfill idempotent yang membuat row nol hanya jika belum ada; migrasi database dan UAT belum diverifikasi diterapkan.
 - **⬜** Histori transaksi lama belum direkonsiliasi dan diverifikasi end-to-end.
 - **⬜** Tidak ada mismatch kritis selama masa observasi belum dapat dinyatakan karena observasi belum dijalankan.
 - **✅ di kode / 🟡 UAT** Role POS dan permission diuji oleh test suite; pengujian RLS production dan UAT masih belum selesai.
@@ -302,4 +303,4 @@ Keputusan yang sebelumnya menunggu persetujuan kini diterapkan sebagian besar pa
 
 ---
 
-**Dokumen ini menjadi acuan keputusan dan checklist cutover.** Perubahan kode utama sudah diterapkan di repository dan ditandai statusnya di atas; deployment database, backup, rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target.
+**Dokumen ini menjadi acuan keputusan dan checklist cutover.** Perubahan kode utama dan hardening migration sudah diterapkan di repository dan ditandai statusnya di atas. Deployment database, backup, rekonsiliasi, observability, dan UAT tetap harus dijalankan bertahap pada environment target. Connector Supabase pada sesi ini belum aktif, sehingga verifikasi langsung terhadap target tidak dilakukan.

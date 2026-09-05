@@ -259,6 +259,14 @@
       ],
       "sha256": "692d6651c9aa63c5330e8bd8880ffae709b71e703ec050fb092ace7e2dcc0d1c",
       "bytes": 6949
+    },
+    {
+      "file": "10_20260905000000_merchant_pos_product_catalog.sql",
+      "source_files": [
+        "10_20260905000000_merchant_pos_product_catalog.sql"
+      ],
+      "sha256": "5c07a264ca358fe1e6b4b43578593a82cb0341284fc6e0d6bce041d0d088ccdb",
+      "bytes": 4960
     }
   ]
 }
