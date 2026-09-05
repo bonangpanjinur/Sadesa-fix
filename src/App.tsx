@@ -1045,7 +1045,8 @@ const App = () => (
               <Route path="/merchant/pos/kasir" element={<POSAccessRoute><POSKasirPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/transaksi" element={<POSAccessRoute><POSTransaksiPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/retur" element={<POSAccessRoute><POSReturPage /></POSAccessRoute>} />
-              <Route path="/merchant/pos/produk" element={<POSAccessRoute><POSProdukPage /></POSAccessRoute>} />
+              {/* Product catalog is owned by Merchant; POS only consumes it with outlet stock. */}
+              <Route path="/merchant/pos/produk" element={<POSAccessRoute><MerchantProductsPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/kategori" element={<POSAccessRoute><POSKategoriPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/customer" element={<POSAccessRoute><POSCustomerPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/supplier" element={<POSAccessRoute><POSSupplierPage /></POSAccessRoute>} />

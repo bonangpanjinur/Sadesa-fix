@@ -53,9 +53,19 @@ export default function POSSetupPage() {
     setLoading(true);
     let createdTenantId: string | null = null;
     try {
+      const { data: merchant } = await supabase
+        .from('merchants')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const tenantPayload = {
+        ...tenantData,
+        user_id: user.id,
+        ...(merchant?.id ? { merchant_id: merchant.id } : {}),
+      };
       const { data: insertedTenant, error: tenantError } = await supabase
         .from('pos_tenants' as never)
-        .insert({ ...tenantData, user_id: user.id })
+        .insert(tenantPayload)
         .select('id')
         .single();
 
