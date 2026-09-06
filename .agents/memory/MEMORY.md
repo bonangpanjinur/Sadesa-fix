@@ -1,1 +1,2 @@
 - [Package manager runtime](package-manager-runtime.md) — this workspace currently exposes pnpm 10 while the repository pins pnpm 9.15.9; direct pnpm commands may self-install and abort.
+- [GitHub push path](github-push.md) — direct HTTPS push lacks credentials; use the connected GitHub integration for publishing commits.
