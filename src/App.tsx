@@ -167,7 +167,6 @@ const POSSetupPage = lazy(() => import("./pages/pos/POSSetupPage"));
 const POSDashboardPage = lazy(() => import("./pages/pos/POSDashboardPage"));
 const POSKasirPage = lazy(() => import("./pages/pos/POSKasirPage"));
 const POSTransaksiPage = lazy(() => import("./pages/pos/POSTransaksiPage"));
-const POSProdukPage = lazy(() => import("./pages/pos/POSProdukPage"));
 const POSKategoriPage = lazy(() => import("./pages/pos/POSKategoriPage"));
 const POSCustomerPage = lazy(() => import("./pages/pos/POSCustomerPage"));
 const POSSupplierPage = lazy(() => import("./pages/pos/POSSupplierPage"));
@@ -1045,8 +1044,8 @@ const App = () => (
               <Route path="/merchant/pos/kasir" element={<POSAccessRoute><POSKasirPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/transaksi" element={<POSAccessRoute><POSTransaksiPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/retur" element={<POSAccessRoute><POSReturPage /></POSAccessRoute>} />
-              {/* Product catalog is owned by Merchant; POS only consumes it with outlet stock. */}
-              <Route path="/merchant/pos/produk" element={<POSAccessRoute><MerchantProductsPage /></POSAccessRoute>} />
+              {/* Product catalog is owned by Merchant; keep the old POS URL as a compatibility redirect. */}
+              <Route path="/merchant/pos/produk" element={<POSAccessRoute><Navigate to="/merchant/products" replace /></POSAccessRoute>} />
               <Route path="/merchant/pos/kategori" element={<POSAccessRoute><POSKategoriPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/customer" element={<POSAccessRoute><POSCustomerPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/supplier" element={<POSAccessRoute><POSSupplierPage /></POSAccessRoute>} />

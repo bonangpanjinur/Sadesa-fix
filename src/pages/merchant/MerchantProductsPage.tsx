@@ -286,7 +286,7 @@ export default function MerchantProductsPage() {
   const filters = [{ key: 'category', label: 'Kategori', options: categories.map(cat => ({ value: cat.slug, label: cat.name })) }];
 
   return (
-    <MerchantLayout title="Produk" subtitle="Kelola produk toko Anda">
+    <MerchantLayout title="Katalog Produk" subtitle="Sumber katalog untuk marketplace dan POS">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />

@@ -48,8 +48,7 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
   },
   {
     id: 'inventori', label: 'Inventori & Pembelian', icon: <Package className="h-4 w-4" />,
-    items: [
-      { label: 'Produk', href: '/merchant/pos/produk', icon: <Package className="h-4 w-4" /> },
+      items: [
       { label: 'Harga', href: '/merchant/pos/harga', icon: <Tag className="h-4 w-4" /> },
       { label: 'Bahan Baku', href: '/merchant/pos/bahan-baku', icon: <FlaskConical className="h-4 w-4" /> },
       { label: 'Resep Produk', href: '/merchant/pos/resep', icon: <ChefHat className="h-4 w-4" /> },

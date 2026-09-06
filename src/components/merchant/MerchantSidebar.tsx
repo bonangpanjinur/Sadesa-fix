@@ -152,8 +152,8 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       ],
     },
     {
-      id: 'catalog', label: 'Produk & Stok', icon: <Package className="h-4 w-4" />, items: [
-        { label: 'Produk', href: '/merchant/products', icon: <Package className="h-4 w-4" />, badge: lowStockCount },
+      id: 'catalog', label: 'Katalog & Stok', icon: <Package className="h-4 w-4" />, items: [
+        { label: 'Katalog Produk', href: '/merchant/products', icon: <Package className="h-4 w-4" />, badge: lowStockCount },
         { label: 'Manajemen Stok', href: '/merchant/stock', icon: <Layers className="h-4 w-4" />, badge: lowStockCount || undefined },
         { label: 'Price Book', href: '/merchant/price-book', icon: <BookOpen className="h-4 w-4" /> },
         { label: 'Galeri Toko', href: '/merchant/gallery', icon: <Images className="h-4 w-4" /> },
