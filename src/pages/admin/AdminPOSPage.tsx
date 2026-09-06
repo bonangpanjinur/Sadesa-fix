@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard, Link2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard, Link2, AlertTriangle, CheckCircle2, MoreHorizontal, Ban, RotateCcw, CalendarPlus, Play } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { getSettingByKey, updateAppSetting } from '@/lib/adminApi';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface POSPackage {
   id: string;
@@ -43,6 +46,8 @@ interface POSSubscription {
   merchant_id: string;
   merchant_name?: string;
   package_name?: string;
+  package_id: string | null;
+  package_duration_months?: number;
   status: string;
   payment_amount: number;
   payment_proof_url: string | null;
@@ -52,6 +57,8 @@ interface POSSubscription {
   is_trial: boolean;
   rejection_reason: string | null;
   created_at: string;
+  tenant_status?: string;
+  tenant_is_active?: boolean;
 }
 
 interface POSIntegrationHealth {
@@ -77,6 +84,10 @@ export default function AdminPOSPage() {
   const [addPkgOpen, setAddPkgOpen] = useState(false);
   const [newPkg, setNewPkg] = useState({ name: '', description: '', duration_months: 1, price: 0 });
   const [viewProofUrl, setViewProofUrl] = useState<string | null>(null);
+  const [detailSub, setDetailSub] = useState<POSSubscription | null>(null);
+  const [extensionSub, setExtensionSub] = useState<POSSubscription | null>(null);
+  const [extensionMonths, setExtensionMonths] = useState(1);
+  const [actioningId, setActioningId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectSubId, setRejectSubId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -92,12 +103,17 @@ export default function AdminPOSPage() {
         getSettingByKey('pos_config'),
         supabase.rpc('get_pos_integration_health' as never),
       ]);
+      const tenantRes = await supabase.from('pos_tenants').select('merchant_id, status, is_active');
+      const tenantByMerchant = new Map((tenantRes.data || []).map((tenant) => [tenant.merchant_id, tenant]));
 
       setPackages(pkgsRes.data || []);
       setSubscriptions((subsRes.data || []).map((s: POSSubscriptionRow) => ({
         ...s,
         merchant_name: s.merchants?.name || '-',
         package_name: s.pos_packages?.name || (s.is_trial ? 'Trial Gratis' : '-'),
+        package_duration_months: (s.pos_packages as { duration_months?: number } | null)?.duration_months,
+        tenant_status: tenantByMerchant.get(s.merchant_id)?.status,
+        tenant_is_active: tenantByMerchant.get(s.merchant_id)?.is_active,
       })));
       if (config?.value) {
         setTrialDays(((config.value as POSConfig).trial_days) || 30);
@@ -140,47 +156,64 @@ export default function AdminPOSPage() {
     loadData();
   };
 
-  const handleApproveSub = async (id: string) => {
-    const { data: request, error: requestError } = await supabase
-      .from('pos_subscriptions')
-      .select('id, status, package_id, pos_packages(duration_months)')
-      .eq('id', id)
-      .eq('status', 'PENDING')
-      .maybeSingle();
-    if (requestError || !request) {
-      toast.error(requestError?.message || 'Permintaan sudah diproses atau tidak ditemukan');
-      return;
+  type SubscriptionAction = 'APPROVE' | 'REJECT' | 'SUSPEND' | 'REACTIVATE' | 'EXTEND' | 'CANCEL';
+
+  const runSubscriptionAction = async (
+    id: string,
+    action: SubscriptionAction,
+    options: { extensionMonths?: number; rejectionReason?: string } = {},
+  ) => {
+    setActioningId(id);
+    const { error } = await supabase.rpc('admin_manage_pos_subscription' as never, {
+      p_subscription_id: id,
+      p_action: action,
+      p_extension_months: options.extensionMonths || 1,
+      p_rejection_reason: options.rejectionReason || null,
+    } as never);
+    if (error) {
+      toast.error(`Gagal ${action.toLowerCase()}: ${error.message}`);
+      setActioningId(null);
+      return false;
     }
-    const durationMonths = Number((request.pos_packages as { duration_months?: number } | null)?.duration_months || 1);
-    const startedAt = new Date();
-    const expiredAt = new Date(startedAt);
-    expiredAt.setMonth(expiredAt.getMonth() + Math.max(1, durationMonths));
-    const { error } = await supabase.from('pos_subscriptions').update({
-      status: 'ACTIVE',
-      payment_status: 'PAID',
-      started_at: startedAt.toISOString(),
-      expired_at: expiredAt.toISOString(),
-      approved_at: startedAt.toISOString(),
-    }).eq('id', id).eq('status', 'PENDING');
-    if (error) { toast.error('Gagal menyetujui: ' + error.message); return; }
-    toast.success(`Langganan aktif sampai ${expiredAt.toLocaleDateString('id-ID')}`);
-    loadData();
+    toast.success(action === 'EXTEND' ? 'Langganan berhasil diperpanjang' : 'Aksi langganan berhasil diterapkan');
+    await loadData();
+    setActioningId(null);
+    return true;
   };
 
   const handleRejectSub = async () => {
     if (!rejectSubId) return;
     if (!rejectReason.trim()) { toast.error('Alasan penolakan wajib diisi'); return; }
-    const { error } = await supabase.from('pos_subscriptions').update({
-      status: 'REJECTED',
-      payment_status: 'REJECTED',
-      rejection_reason: rejectReason.trim() || 'Bukti pembayaran atau data langganan belum dapat diverifikasi.',
-    }).eq('id', rejectSubId);
-    if (error) { toast.error('Gagal menolak'); return; }
-    toast.success('Langganan ditolak');
+    const ok = await runSubscriptionAction('' + rejectSubId, 'REJECT', { rejectionReason: rejectReason.trim() });
+    if (!ok) return;
     setRejectDialogOpen(false);
     setRejectSubId(null);
     setRejectReason('');
-    loadData();
+  };
+
+  const handleSuspend = async (sub: POSSubscription) => {
+    if (window.confirm(`Tangguhkan akses POS untuk ${sub.merchant_name}?`)) {
+      await runSubscriptionAction(sub.id, 'SUSPEND');
+    }
+  };
+
+  const handleCancel = async (sub: POSSubscription) => {
+    if (window.confirm(`Batalkan langganan POS ${sub.merchant_name}? Akses operasional akan dihentikan.`)) {
+      await runSubscriptionAction(sub.id, 'CANCEL');
+    }
+  };
+
+  const handleReactivate = async (sub: POSSubscription) => {
+    await runSubscriptionAction(sub.id, 'REACTIVATE');
+  };
+
+  const handleExtend = async () => {
+    if (!extensionSub || extensionMonths < 1) return;
+    const ok = await runSubscriptionAction(extensionSub.id, 'EXTEND', { extensionMonths });
+    if (ok) {
+      setExtensionSub(null);
+      setExtensionMonths(1);
+    }
   };
 
   const pendingCount = subscriptions.filter(s => s.status === 'PENDING').length;
@@ -244,20 +277,90 @@ export default function AdminPOSPage() {
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(sub.created_at).toLocaleDateString('id-ID')}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {sub.status === 'PENDING' && (
-                              <div className="flex gap-1 justify-end">
-                                <Button size="sm" onClick={() => handleApproveSub(sub.id)}>
-                                  <Check className="h-3 w-3 mr-1" /> Setuju
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => {
-                                  setRejectSubId(sub.id);
-                                  setRejectDialogOpen(true);
-                                }}>
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
+                           <TableCell className="text-right">
+                             <div className="flex items-center justify-end gap-1">
+                               {sub.status === 'PENDING' && (
+                                 <>
+                                   <Button size="sm" onClick={() => runSubscriptionAction(sub.id, 'APPROVE')} disabled={actioningId === sub.id}>
+                                     <Check className="h-3 w-3 mr-1" /> Setuju
+                                   </Button>
+                                   <Button size="sm" variant="destructive" onClick={() => {
+                                     setRejectSubId(sub.id);
+                                     setRejectDialogOpen(true);
+                                   }} disabled={actioningId === sub.id}>
+                                     <X className="h-3 w-3" />
+                                   </Button>
+                                 </>
+                               )}
+                               <Button variant="ghost" size="icon" title="Lihat detail" aria-label={`Lihat detail ${sub.merchant_name}`} onClick={() => setDetailSub(sub)}>
+                                 <Eye className="h-4 w-4" />
+                               </Button>
+                               {(sub.status === 'ACTIVE' || sub.status === 'EXPIRED') && (
+                                 <Button variant="ghost" size="icon" title="Perpanjang" aria-label={`Perpanjang ${sub.merchant_name}`} onClick={() => { setExtensionSub(sub); setExtensionMonths(1); }} disabled={actioningId === sub.id}>
+                                   <CalendarPlus className="h-4 w-4" />
+                                 </Button>
+                               )}
+                               {sub.status === 'ACTIVE' && (
+                                 <Button variant="ghost" size="icon" title="Tangguhkan akses" aria-label={`Tangguhkan ${sub.merchant_name}`} onClick={() => handleSuspend(sub)} disabled={actioningId === sub.id}>
+                                   <Ban className="h-4 w-4" />
+                                 </Button>
+                               )}
+                               {['SUSPENDED', 'CANCELLED', 'EXPIRED', 'REJECTED'].includes(sub.status) && (
+                                 <Button variant="ghost" size="icon" title="Aktifkan kembali" aria-label={`Aktifkan kembali ${sub.merchant_name}`} onClick={() => handleReactivate(sub)} disabled={actioningId === sub.id}>
+                                   <Play className="h-4 w-4" />
+                                 </Button>
+                               )}
+                               {sub.status !== 'CANCELLED' && sub.status !== 'REJECTED' && (
+                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Batalkan langganan" aria-label={`Batalkan ${sub.merchant_name}`} onClick={() => handleCancel(sub)} disabled={actioningId === sub.id}>
+                                   <RotateCcw className="h-4 w-4" />
+                                 </Button>
+                               )}
+                               <DropdownMenu>
+                                 <DropdownMenuTrigger asChild>
+                                   <Button variant="outline" size="icon" aria-label={`Aksi ${sub.merchant_name}`} disabled={actioningId === sub.id}>
+                                     {actioningId === sub.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                                   </Button>
+                                 </DropdownMenuTrigger>
+                                 <DropdownMenuContent align="end" className="w-52">
+                                   <DropdownMenuItem onClick={() => setDetailSub(sub)}>
+                                     <Eye className="mr-2 h-4 w-4" /> Lihat detail
+                                   </DropdownMenuItem>
+                                   {sub.status === 'PENDING' && (
+                                     <>
+                                       <DropdownMenuItem onClick={() => runSubscriptionAction(sub.id, 'APPROVE')}>
+                                         <Check className="mr-2 h-4 w-4" /> Setujui permintaan
+                                       </DropdownMenuItem>
+                                       <DropdownMenuItem onClick={() => { setRejectSubId(sub.id); setRejectDialogOpen(true); }}>
+                                         <X className="mr-2 h-4 w-4" /> Tolak permintaan
+                                       </DropdownMenuItem>
+                                     </>
+                                   )}
+                                   {(sub.status === 'ACTIVE' || sub.status === 'EXPIRED') && (
+                                     <DropdownMenuItem onClick={() => { setExtensionSub(sub); setExtensionMonths(1); }}>
+                                       <CalendarPlus className="mr-2 h-4 w-4" /> Perpanjang
+                                     </DropdownMenuItem>
+                                   )}
+                                   {sub.status === 'ACTIVE' && (
+                                     <DropdownMenuItem onClick={() => handleSuspend(sub)}>
+                                       <Ban className="mr-2 h-4 w-4" /> Tangguhkan akses
+                                     </DropdownMenuItem>
+                                   )}
+                                   {['SUSPENDED', 'CANCELLED', 'EXPIRED', 'REJECTED'].includes(sub.status) && (
+                                     <DropdownMenuItem onClick={() => handleReactivate(sub)}>
+                                       <Play className="mr-2 h-4 w-4" /> Aktifkan kembali
+                                     </DropdownMenuItem>
+                                   )}
+                                   {sub.status !== 'CANCELLED' && sub.status !== 'REJECTED' && (
+                                     <>
+                                       <DropdownMenuSeparator />
+                                       <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleCancel(sub)}>
+                                         <RotateCcw className="mr-2 h-4 w-4" /> Batalkan langganan
+                                       </DropdownMenuItem>
+                                     </>
+                                   )}
+                                 </DropdownMenuContent>
+                               </DropdownMenu>
+                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -421,6 +524,41 @@ export default function AdminPOSPage() {
           {viewProofUrl && (
             <img src={viewProofUrl} alt="Bukti" className="w-full rounded-lg" />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detailSub} onOpenChange={(open) => !open && setDetailSub(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Detail langganan POS</DialogTitle></DialogHeader>
+          {detailSub && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 text-sm">
+              <span className="text-muted-foreground">Merchant</span><span className="font-medium">{detailSub.merchant_name}</span>
+              <span className="text-muted-foreground">Paket</span><span>{detailSub.package_name}</span>
+              <span className="text-muted-foreground">Status langganan</span><span>{detailSub.status}</span>
+              <span className="text-muted-foreground">Status tenant POS</span><span>{detailSub.tenant_status || 'Belum dibuat'}</span>
+              <span className="text-muted-foreground">Pembayaran</span><span>{detailSub.payment_status}</span>
+              <span className="text-muted-foreground">Mulai</span><span>{detailSub.started_at ? new Date(detailSub.started_at).toLocaleDateString('id-ID') : '-'}</span>
+              <span className="text-muted-foreground">Berakhir</span><span>{detailSub.expired_at ? new Date(detailSub.expired_at).toLocaleDateString('id-ID') : '-'}</span>
+              {detailSub.rejection_reason && <><span className="text-muted-foreground">Catatan</span><span>{detailSub.rejection_reason}</span></>}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!extensionSub} onOpenChange={(open) => !open && setExtensionSub(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Perpanjang langganan</DialogTitle>
+            <CardDescription>{extensionSub?.merchant_name} akan tetap memakai paket saat ini.</CardDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label htmlFor="extension-months">Tambahan durasi (bulan)</Label>
+            <Input id="extension-months" type="number" min={1} value={extensionMonths} onChange={(event) => setExtensionMonths(Math.max(1, Number(event.target.value) || 1))} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExtensionSub(null)}>Batal</Button>
+            <Button onClick={handleExtend} disabled={!!actioningId}><CalendarPlus className="mr-2 h-4 w-4" />Perpanjang</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

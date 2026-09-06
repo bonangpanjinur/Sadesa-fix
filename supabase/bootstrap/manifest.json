@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 196,
-  "bundle_count": 12,
+  "migration_count": 198,
+  "bundle_count": 13,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -280,6 +280,14 @@
       "file": "12_20260906010000_pos_feature_gate.sql",
       "source_files": [
         "12_20260906010000_pos_feature_gate.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
+    },
+    {
+      "file": "13_20260906020000_pos_subscription_admin_actions.sql",
+      "source_files": [
+        "13_20260906020000_pos_subscription_admin_actions.sql"
       ],
       "sha256": "pending",
       "bytes": 0
