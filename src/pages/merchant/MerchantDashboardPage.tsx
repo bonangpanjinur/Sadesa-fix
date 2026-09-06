@@ -1,12 +1,27 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Package, Receipt, TrendingUp, DollarSign, AlertCircle, Settings,
-  BarChart3, Star, Wallet, Percent, CreditCard, QrCode, CheckCircle, XCircle, Bell, Eye, Clock
+import {
+  AlertCircle,
+  ArrowUpRight,
+  BarChart3,
+  Bell,
+  CalendarDays,
+  CheckCircle,
+  CircleCheck,
+  Eye,
+  Package,
+  Percent,
+  Receipt,
+  Settings,
+  Sparkles,
+  Star,
+  Store,
+  TrendingUp,
+  Wallet,
+  XCircle,
 } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
-import { StatsCard } from '@/components/admin/StatsCard';
 import { SalesAreaChart, OrdersBarChart } from '@/components/admin/SalesChart';
 import { QuickStats } from '@/components/merchant/QuickStats';
 import { StockAlerts } from '@/components/merchant/StockAlerts';
@@ -26,7 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { formatPrice } from '@/lib/utils';
+import { cn, formatPrice } from '@/lib/utils';
 import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
 
 interface MerchantData {
@@ -55,7 +70,6 @@ export default function MerchantDashboardPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // React Query: merchant data (P3-01)
   const { data: merchant = null, isLoading: merchantLoading } = useQuery<MerchantData | null>({
     queryKey: ['merchant-profile', user?.id],
     queryFn: async () => {
@@ -71,7 +85,6 @@ export default function MerchantDashboardPage() {
     staleTime: 60_000,
   });
 
-  // React Query: merchant orders for chart (P3-01)
   const { data: orders = [] } = useQuery<OrderData[]>({
     queryKey: ['merchant-orders-chart', merchant?.id],
     queryFn: async () => {
@@ -90,7 +103,6 @@ export default function MerchantDashboardPage() {
 
   const loading = merchantLoading;
 
-  // Realtime orders with sound notification
   const handleNewOrder = useCallback((_order: OrderRow) => {
     queryClient.invalidateQueries({ queryKey: ['merchant-orders-chart', merchant?.id] });
   }, [merchant?.id, queryClient]);
@@ -100,12 +112,13 @@ export default function MerchantDashboardPage() {
     onNewOrder: handleNewOrder,
   });
 
-  // New orders waiting for action
-  const pendingOrders = realtimeOrders.filter(o => o.status === 'NEW' || o.status === 'PENDING_CONFIRMATION').slice(0, 5);
+  const pendingOrders = realtimeOrders
+    .filter(order => order.status === 'NEW' || order.status === 'PENDING_CONFIRMATION')
+    .slice(0, 5);
 
   const salesChartData = useMemo(() => {
     const dateMap = new Map<string, { revenue: number; orders: number }>();
-    
+
     orders.forEach((order) => {
       const date = order.created_at.split('T')[0];
       const existing = dateMap.get(date) || { revenue: 0, orders: 0 };
@@ -116,12 +129,10 @@ export default function MerchantDashboardPage() {
     });
 
     const result: { date: string; revenue: number; orders: number }[] = [];
-    for (let i = 13; i >= 0; i--) {
+    for (let i = 13; i >= 0; i -= 1) {
       const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const data = dateMap.get(date) || { revenue: 0, orders: 0 };
-      result.push({ date, ...data });
+      result.push({ date, ...(dateMap.get(date) || { revenue: 0, orders: 0 }) });
     }
-    
     return result;
   }, [orders]);
 
@@ -149,8 +160,21 @@ export default function MerchantDashboardPage() {
   if (loading) {
     return (
       <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+        <div className="space-y-6 pb-8" data-testid="merchant-dashboard-loading">
+          <div className="space-y-3">
+            <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+            <div className="h-9 w-72 animate-pulse rounded-lg bg-muted" />
+            <div className="h-4 w-96 max-w-full animate-pulse rounded bg-muted" />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
+            <div className="h-44 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-44 animate-pulse rounded-2xl bg-muted" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="h-28 animate-pulse rounded-xl bg-muted" />
+            ))}
+          </div>
         </div>
       </MerchantLayout>
     );
@@ -159,15 +183,21 @@ export default function MerchantDashboardPage() {
   if (!merchant) {
     return (
       <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-          <h2 className="font-bold text-lg mb-2">Toko Belum Terdaftar</h2>
-          <p className="text-muted-foreground mb-4">
-            Anda belum memiliki toko. Daftar sekarang untuk mulai berjualan.
-          </p>
-          <Button onClick={() => navigate('/register/merchant')}>
-            Daftar Sebagai Merchant
-          </Button>
+        <div className="flex min-h-[calc(100dvh-12rem)] items-center justify-center py-12" data-testid="merchant-dashboard-missing">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Store className="h-7 w-7" />
+            </div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Mulai berjualan</p>
+            <h2 className="text-2xl font-semibold tracking-tight">Toko belum terdaftar</h2>
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
+              Daftarkan toko Anda untuk mengelola produk, pesanan, dan performa penjualan dari satu tempat.
+            </p>
+            <Button className="mt-6" onClick={() => navigate('/register/merchant')} data-testid="button-register-merchant">
+              Daftar sebagai merchant
+              <ArrowUpRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </MerchantLayout>
     );
@@ -176,18 +206,24 @@ export default function MerchantDashboardPage() {
   if (merchant.registration_status === 'PENDING') {
     return (
       <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center mb-4 animate-pulse">
-            <AlertCircle className="h-8 w-8 text-warning" />
+        <div className="flex min-h-[calc(100dvh-12rem)] items-center justify-center py-12" data-testid="merchant-dashboard-pending">
+          <div className="w-full max-w-xl rounded-2xl border border-warning/30 bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-warning/10 text-warning">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-warning">Sedang ditinjau</p>
+            <h2 className="text-2xl font-semibold tracking-tight">Menunggu persetujuan</h2>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+              Pendaftaran toko Anda sedang dalam proses review. Kami akan memberi tahu Anda setelah keputusan tersedia.
+            </p>
+            <div className="mx-auto mt-6 flex max-w-sm items-center gap-3 rounded-xl bg-warning/5 p-3 text-left">
+              <CalendarDays className="h-4 w-4 shrink-0 text-warning" />
+              <p className="text-xs leading-5 text-muted-foreground">Tidak perlu mengirim ulang data selama proses review berlangsung.</p>
+            </div>
+            <Button variant="outline" className="mt-6" onClick={() => navigate('/')} data-testid="button-pending-home">
+              Kembali ke beranda
+            </Button>
           </div>
-          <h2 className="font-bold text-lg mb-2">Menunggu Persetujuan</h2>
-          <p className="text-muted-foreground max-w-md mb-4">
-            Pendaftaran toko Anda sedang dalam proses review. 
-            Kami akan memberitahu Anda setelah disetujui.
-          </p>
-          <Button variant="outline" onClick={() => navigate('/')}>
-            Kembali ke Beranda
-          </Button>
         </div>
       </MerchantLayout>
     );
@@ -196,294 +232,334 @@ export default function MerchantDashboardPage() {
   if (merchant.registration_status === 'REJECTED') {
     return (
       <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
-            <AlertCircle className="h-8 w-8 text-destructive" />
-          </div>
-          <h2 className="font-bold text-lg mb-2">Pendaftaran Ditolak</h2>
-          <p className="text-muted-foreground max-w-md mb-4">
-            {merchant.rejection_reason || 'Maaf, pendaftaran toko Anda tidak disetujui. Silakan coba mendaftar kembali.'}
-          </p>
-          <div className="flex gap-2 justify-center">
-            <Button variant="outline" onClick={() => navigate('/')}>
-              Beranda
-            </Button>
-            <Button onClick={() => navigate('/register/merchant')}>
-              Daftar Ulang
-            </Button>
+        <div className="flex min-h-[calc(100dvh-12rem)] items-center justify-center py-12" data-testid="merchant-dashboard-rejected">
+          <div className="w-full max-w-xl rounded-2xl border border-destructive/30 bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+              <AlertCircle className="h-7 w-7" />
+            </div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-destructive">Perlu diperbaiki</p>
+            <h2 className="text-2xl font-semibold tracking-tight">Pendaftaran ditolak</h2>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
+              {merchant.rejection_reason || 'Pendaftaran toko Anda belum disetujui. Periksa kembali data toko dan kirim pendaftaran baru.'}
+            </p>
+            <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => navigate('/')} data-testid="button-rejected-home">
+                Beranda
+              </Button>
+              <Button onClick={() => navigate('/register/merchant')} data-testid="button-reregister-merchant">
+                Daftar ulang
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </MerchantLayout>
     );
   }
 
+  const currentHour = new Date().getHours();
+  const greeting = currentHour < 12 ? 'Selamat pagi' : currentHour < 17 ? 'Selamat siang' : 'Selamat malam';
+  const todayLabel = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date());
+
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
-      {/* Welcome Card */}
-      <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-4 mb-4">
-        <h2 className="font-bold text-base text-foreground">
-          {new Date().getHours() < 12 ? '🌅 Selamat Pagi' : new Date().getHours() < 17 ? '☀️ Selamat Siang' : '🌙 Selamat Malam'}, {merchant.name}!
-        </h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          {pendingOrders.length > 0
-            ? `Anda punya ${pendingOrders.length} pesanan baru menunggu konfirmasi.`
-            : 'Semua pesanan sudah ditangani. Kerja bagus! 🎉'}
-        </p>
-      </div>
-
-      {/* 1. Quota Alert Banner - High priority, at the top */}
-      <QuotaAlertBanner />
-
-      {/* 2. Store Status Card - Optimized for space */}
-      <div className="bg-card rounded-xl border border-border p-4 mb-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            {merchant.image_url ? (
-              <img src={merchant.image_url} alt={merchant.name} className="w-10 h-10 rounded-full object-cover border border-border" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Package className="h-5 w-5 text-primary" />
+      <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
+          <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] via-card to-card p-5 shadow-sm sm:p-7">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
+            <div className="relative">
+              <div className="mb-6 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Ruang kerja merchant
               </div>
-            )}
-            <div>
-              <h3 className="font-semibold text-base leading-tight">{merchant.name}</h3>
-              <p className="text-xs text-muted-foreground">
-                {merchant.is_open ? 'Toko sedang buka' : 'Toko sedang tutup'}
+              <div className="max-w-2xl">
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                  {greeting}, {merchant.name}
+                </h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                  {pendingOrders.length > 0
+                    ? `Ada ${pendingOrders.length} pesanan baru yang perlu Anda konfirmasi.`
+                    : 'Semua pesanan sudah tertangani. Gunakan waktu ini untuk merapikan toko.'}
+                </p>
+              </div>
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                  {todayLabel}
+                </span>
+                <span className="flex items-center gap-2">
+                  <CircleCheck className="h-3.5 w-3.5 text-success" />
+                  Data diperbarui otomatis
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                {merchant.image_url ? (
+                  <img src={merchant.image_url} alt={merchant.name} className="h-11 w-11 rounded-xl border border-border object-cover" />
+                ) : (
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Package className="h-5 w-5" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{merchant.name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Status operasional</p>
+                </div>
+              </div>
+              <div className={cn(
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                merchant.is_open ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+              )}>
+                <span className={cn('h-2.5 w-2.5 rounded-full', merchant.is_open ? 'bg-success' : 'bg-muted-foreground')} />
+              </div>
+            </div>
+            <div className="mt-7">
+              <p className="text-2xl font-semibold tracking-tight">{merchant.is_open ? 'Toko sedang buka' : 'Toko sedang tutup'}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {merchant.is_open ? 'Pesanan baru dapat masuk seperti biasa.' : 'Buka toko saat Anda siap menerima pesanan.'}
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => navigate(`/merchant/${merchant.slug || merchant.id}`)}
-            >
-              <Eye className="h-3.5 w-3.5 mr-1.5" />
-              Lihat Toko
-            </Button>
-            <StoreQRCode 
-              merchantId={merchant.id} 
-              merchantName={merchant.name}
-              merchantImage={merchant.image_url}
-              slug={merchant.slug}
-            />
-            <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-full border border-border">
-              <div className={`w-2 h-2 rounded-full ${merchant.is_open ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground'}`} />
-              <Label className="text-xs font-medium cursor-pointer" htmlFor="store-status">
-                {merchant.is_open ? 'Buka' : 'Tutup'}
-              </Label>
-              <Switch
-                id="store-status"
-                checked={merchant.is_open}
-                onCheckedChange={toggleStoreStatus}
-                disabled={updatingStatus}
-                className="scale-75 origin-right"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Quota, Group Status, and Kas Card */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-        <QuotaStatusCard />
-        <MerchantGroupCard />
-        <MerchantKasCard merchantId={merchant.id} />
-      </div>
-
-      {/* Daily Summary */}
-      <div className="mb-4">
-        <DailySummaryCard merchantId={merchant.id} />
-      </div>
-
-      {/* Quick Stats - Compact */}
-      <div className="mb-4">
-        <QuickStats merchantId={merchant.id} />
-      </div>
-
-      {/* Tabs - Main Content Area */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-2 lg:grid-cols-4 w-full sticky top-[73px] z-20 bg-background/95 backdrop-blur shadow-sm border border-border rounded-lg p-1">
-          <TabsTrigger value="overview" className="flex items-center gap-2 text-xs lg:text-sm py-2">
-            <TrendingUp className="h-3.5 w-3.5" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="orders" className="flex items-center gap-2 text-xs lg:text-sm py-2">
-            <Receipt className="h-3.5 w-3.5" />
-            Pesanan
-          </TabsTrigger>
-          <TabsTrigger value="stock" className="flex items-center gap-2 text-xs lg:text-sm py-2">
-            <Package className="h-3.5 w-3.5" />
-            Stok
-          </TabsTrigger>
-          <TabsTrigger value="more" className="flex items-center gap-2 text-xs lg:text-sm py-2">
-            <BarChart3 className="h-3.5 w-3.5" />
-            Lainnya
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4 mt-0">
-          {/* Quick Action: Pending Orders */}
-          {pendingOrders.length > 0 ? (
-            <div className="bg-card rounded-xl border border-warning/30 p-4">
-              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                <Bell className="h-4 w-4 text-warning" />
-                Pesanan Menunggu ({pendingOrders.length})
-              </h4>
-              <div className="space-y-2">
-                {pendingOrders.map(order => (
-                  <div key={order.id} className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-                    <div>
-                      <p className="text-sm font-medium">{order.delivery_name || 'Pelanggan'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatPrice(order.total)} • {new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
-                        onClick={() => updateOrderStatus(order.id, 'CANCELED', 'Ditolak oleh merchant')}
-                      >
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Tolak
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => updateOrderStatus(order.id, 'PROCESSED')}
-                      >
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Terima
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => navigate(`/merchant/${merchant.slug || merchant.id}`)}
+                data-testid="button-view-store"
+              >
+                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                Lihat toko
+              </Button>
+              <StoreQRCode merchantId={merchant.id} merchantName={merchant.name} merchantImage={merchant.image_url} slug={merchant.slug} />
+              <div className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:flex-1">
+                <Label className="cursor-pointer text-xs font-medium" htmlFor="store-status">
+                  {merchant.is_open ? 'Buka' : 'Tutup'}
+                </Label>
+                <Switch
+                  id="store-status"
+                  checked={merchant.is_open}
+                  onCheckedChange={toggleStoreStatus}
+                  disabled={updatingStatus}
+                  data-testid="switch-store-status"
+                />
               </div>
             </div>
-          ) : (
-            <div className="bg-card rounded-xl border border-success/30 p-6 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-success" />
+          </div>
+        </section>
+
+        <QuotaAlertBanner />
+
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="merchant-status-cards">
+          <QuotaStatusCard />
+          <MerchantGroupCard />
+          <MerchantKasCard merchantId={merchant.id} />
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+          <DailySummaryCard merchantId={merchant.id} />
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Kondisi hari ini</p>
+                <h3 className="mt-1 text-base font-semibold">Aktivitas pesanan</h3>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <TrendingUp className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-sm leading-6 text-muted-foreground">
+              {pendingOrders.length > 0
+                ? 'Prioritaskan pesanan baru agar waktu respons toko tetap cepat.'
+                : 'Belum ada pesanan yang membutuhkan tindakan segera.'}
+            </p>
+            <div className="mt-5 flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-3">
+              <div className={cn(
+                'flex h-9 w-9 items-center justify-center rounded-lg',
+                pendingOrders.length > 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+              )}>
+                {pendingOrders.length > 0 ? <Bell className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
               </div>
               <div>
-                <p className="font-semibold text-sm text-foreground">Semua Pesanan Ditangani</p>
-                <p className="text-xs text-muted-foreground">Tidak ada pesanan yang menunggu konfirmasi saat ini.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Charts - Reduced height or better layout */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-card rounded-xl border border-border p-1 overflow-hidden">
-              <SalesAreaChart data={salesChartData} title="Pendapatan (14 Hari)" />
-            </div>
-            <div className="bg-card rounded-xl border border-border p-1 overflow-hidden">
-              <OrdersBarChart data={salesChartData} title="Pesanan (14 Hari)" />
-            </div>
-          </div>
-
-          {/* Stock Alerts and Recent Reviews */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-card rounded-xl border border-border p-4">
-              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-warning" />
-                Peringatan Stok
-              </h4>
-              <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                <StockAlerts merchantId={merchant.id} />
-              </div>
-            </div>
-            <div className="bg-card rounded-xl border border-border p-1 overflow-hidden">
-              <div className="max-h-[465px] overflow-y-auto custom-scrollbar">
-                <CustomerReviews merchantId={merchant.id} />
+                <p className="text-sm font-semibold">{pendingOrders.length > 0 ? `${pendingOrders.length} perlu ditinjau` : 'Semua tertangani'}</p>
+                <p className="text-xs text-muted-foreground">Status realtime aktif</p>
               </div>
             </div>
           </div>
-        </TabsContent>
+        </section>
 
-        <TabsContent value="orders" className="mt-0">
-          <div className="bg-card rounded-xl border border-border p-1 min-h-[400px]">
-            <OrderStatusManager merchantId={merchant.id} />
+        <section>
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Snapshot performa</p>
+              <h3 className="mt-1 text-lg font-semibold tracking-tight">Angka penting toko Anda</h3>
+            </div>
+            <span className="hidden text-xs text-muted-foreground sm:block">Hari ini</span>
           </div>
-        </TabsContent>
+          <QuickStats merchantId={merchant.id} />
+        </section>
 
-        <TabsContent value="stock" className="mt-0">
-          <div className="bg-card rounded-xl border border-border p-4 min-h-[400px]">
-            <StockAlerts merchantId={merchant.id} />
-          </div>
-        </TabsContent>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
+          <TabsList className="sticky top-[73px] z-20 grid w-full grid-cols-2 rounded-xl border border-border bg-background/95 p-1 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid-cols-4">
+            <TabsTrigger value="overview" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-overview">
+              <TrendingUp className="h-3.5 w-3.5" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-orders">
+              <Receipt className="h-3.5 w-3.5" />
+              Pesanan
+            </TabsTrigger>
+            <TabsTrigger value="stock" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-stock">
+              <Package className="h-3.5 w-3.5" />
+              Stok
+            </TabsTrigger>
+            <TabsTrigger value="more" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-more">
+              <BarChart3 className="h-3.5 w-3.5" />
+              Lainnya
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="more" className="mt-0 space-y-4">
-          {/* Jam Operasional — P3-04 */}
-          <MerchantOperatingHoursCard merchantId={merchant.id} />
+          <TabsContent value="overview" className="mt-0 space-y-5">
+            {pendingOrders.length > 0 ? (
+              <div className="rounded-2xl border border-warning/30 bg-warning/[0.04] p-4 shadow-sm sm:p-5" data-testid="pending-orders-panel">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
+                      <Bell className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">Pesanan menunggu konfirmasi</h4>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">Tinjau detail lalu terima atau tolak pesanan berikut.</p>
+                    </div>
+                  </div>
+                  <span className="w-fit rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">{pendingOrders.length} pesanan</span>
+                </div>
+                <div className="space-y-2">
+                  {pendingOrders.map(order => (
+                    <div key={order.id} className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-3 sm:flex-row sm:items-center sm:justify-between" data-testid={`pending-order-${order.id}`}>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{order.delivery_name || 'Pelanggan'}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatPrice(order.total)} <span className="mx-1.5 text-border">•</span>
+                          {new Date(order.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2 sm:shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 flex-1 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive sm:flex-none"
+                          onClick={() => updateOrderStatus(order.id, 'CANCELED', 'Ditolak oleh merchant')}
+                          data-testid={`button-reject-order-${order.id}`}
+                        >
+                          <XCircle className="mr-1 h-3 w-3" />
+                          Tolak
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 flex-1 text-xs sm:flex-none"
+                          onClick={() => updateOrderStatus(order.id, 'PROCESSED')}
+                          data-testid={`button-accept-order-${order.id}`}
+                        >
+                          <CheckCircle className="mr-1 h-3 w-3" />
+                          Terima
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4 rounded-2xl border border-success/25 bg-success/[0.04] p-5 shadow-sm" data-testid="orders-clear-state">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success">
+                  <CheckCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Semua pesanan tertangani</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Tidak ada pesanan yang menunggu konfirmasi saat ini.</p>
+                </div>
+              </div>
+            )}
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            <Button 
-              variant="outline" 
-              className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
-              onClick={() => navigate('/merchant/products')}
-            >
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Package className="h-5 w-5 text-primary" />
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+              <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                <SalesAreaChart data={salesChartData} title="Pendapatan 14 hari terakhir" />
               </div>
-              <span className="text-xs font-medium">Produk</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
-              onClick={() => navigate('/merchant/analytics')}
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-blue-500" />
+              <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                <OrdersBarChart data={salesChartData} title="Pesanan 14 hari terakhir" />
               </div>
-              <span className="text-xs font-medium">Analitik</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
-              onClick={() => navigate('/merchant/reviews')}
-            >
-              <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                <Star className="h-5 w-5 text-yellow-500" />
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                    <AlertCircle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold">Peringatan stok</h4>
+                    <p className="text-xs text-muted-foreground">Produk yang perlu diperhatikan</p>
+                  </div>
+                </div>
+                <div className="max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                  <StockAlerts merchantId={merchant.id} />
+                </div>
               </div>
-              <span className="text-xs font-medium">Ulasan</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
-              onClick={() => navigate('/merchant/promo')}
-            >
-              <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                <Percent className="h-5 w-5 text-purple-500" />
+              <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                <div className="max-h-[465px] overflow-y-auto custom-scrollbar">
+                  <CustomerReviews merchantId={merchant.id} />
+                </div>
               </div>
-              <span className="text-xs font-medium">Promo</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
-              onClick={() => navigate('/merchant/withdrawal')}
-            >
-              <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                <Wallet className="h-5 w-5 text-green-500" />
-              </div>
-              <span className="text-xs font-medium">Penarikan</span>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-primary/5 hover:border-primary/50 transition-all"
-              onClick={() => navigate('/merchant/settings')}
-            >
-              <div className="w-10 h-10 rounded-full bg-gray-500/10 flex items-center justify-center">
-                <Settings className="h-5 w-5 text-gray-500" />
-              </div>
-              <span className="text-xs font-medium">Pengaturan</span>
-            </Button>
-          </div>
-        </TabsContent>
-      </Tabs>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="orders" className="mt-0">
+            <div className="min-h-[400px] rounded-2xl border border-border bg-card p-1 shadow-sm">
+              <OrderStatusManager merchantId={merchant.id} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="stock" className="mt-0">
+            <div className="min-h-[400px] rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+              <StockAlerts merchantId={merchant.id} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="more" className="mt-0 space-y-5">
+            <MerchantOperatingHoursCard merchantId={merchant.id} />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {[
+                { label: 'Produk', icon: Package, path: '/merchant/products', tone: 'bg-primary/10 text-primary' },
+                { label: 'Analitik', icon: BarChart3, path: '/merchant/analytics', tone: 'bg-info/10 text-info' },
+                { label: 'Ulasan', icon: Star, path: '/merchant/reviews', tone: 'bg-warning/10 text-warning' },
+                { label: 'Promo', icon: Percent, path: '/merchant/promo', tone: 'bg-destructive/10 text-destructive' },
+                { label: 'Penarikan', icon: Wallet, path: '/merchant/withdrawal', tone: 'bg-success/10 text-success' },
+                { label: 'Pengaturan', icon: Settings, path: '/merchant/settings', tone: 'bg-muted text-muted-foreground' },
+              ].map((item) => (
+                <Button
+                  key={item.label}
+                  variant="outline"
+                  className="h-auto min-h-28 flex-col items-center justify-center gap-3 rounded-xl border-border bg-card py-4 transition-colors hover:border-primary/40 hover:bg-primary/[0.03]"
+                  onClick={() => navigate(item.path)}
+                  data-testid={`button-merchant-${item.label.toLowerCase()}`}
+                >
+                  <span className={cn('flex h-10 w-10 items-center justify-center rounded-xl', item.tone)}>
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs font-medium">{item.label}</span>
+                </Button>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </MerchantLayout>
   );
 }
