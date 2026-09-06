@@ -20,7 +20,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
     <div className="flex min-h-screen bg-background">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-foreground/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -31,7 +31,10 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        <MerchantSidebar />
+        <MerchantSidebar
+          onClose={() => setSidebarOpen(false)}
+          onNavigate={() => setSidebarOpen(false)}
+        />
       </div>
 
       <div className={cn('flex flex-1 flex-col min-w-0', fullWidth ? 'h-dvh min-h-0' : 'h-screen')}>
