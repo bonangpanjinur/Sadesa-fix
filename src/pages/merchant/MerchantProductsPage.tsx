@@ -141,6 +141,7 @@ export default function MerchantProductsPage() {
       toast.success(editingProduct ? 'Produk berhasil diperbarui' : 'Produk berhasil ditambahkan');
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['merchant-products', merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['pos-products'] });
     },
     onError: (err: unknown) => {
       const errorMessage = err instanceof Error ? err.message : 'Gagal menyimpan produk';

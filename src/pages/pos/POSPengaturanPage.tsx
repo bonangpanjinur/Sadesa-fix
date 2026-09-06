@@ -199,13 +199,30 @@ export default function POSPengaturanPage() {
     setSaving(true);
     try {
       if (tenant) {
-        await supabase.from('pos_tenants' as never).update(tenantForm).eq('id', tenant.id);
+        const { error } = await supabase.from('pos_tenants' as never).update({
+          name: tenantForm.name,
+          phone: tenantForm.phone || null,
+          address: tenantForm.address || null,
+          timezone: tenantForm.timezone,
+          currency: tenantForm.currency,
+          receipt_header: tenantForm.receipt_header || null,
+          receipt_footer: tenantForm.receipt_footer || null,
+        }).eq('id', tenant.id);
+        if (error) throw error;
         toast.success('Profil usaha berhasil disimpan');
         await refetchTenant();
       } else {
-        const { data: newTenant, error } = await supabase.from('pos_tenants' as never).insert({ ...tenantForm, user_id: user.id }).select().single();
+        const { error } = await supabase.rpc('ensure_merchant_pos_workspace' as never, {
+          p_name: tenantForm.name,
+          p_phone: tenantForm.phone || null,
+          p_address: tenantForm.address || null,
+          p_timezone: tenantForm.timezone,
+          p_currency: tenantForm.currency,
+          p_outlet_name: `${tenantForm.name} - Outlet Utama`,
+          p_outlet_address: tenantForm.address || null,
+          p_outlet_phone: tenantForm.phone || null,
+        } as never);
         if (error) throw error;
-        await supabase.from('pos_outlets' as never).insert({ tenant_id: (newTenant as unknown as { id: string }).id, name: tenantForm.name + ' - Outlet Utama' });
         toast.success('Usaha berhasil dibuat!');
         await refetchTenant();
         window.location.reload();

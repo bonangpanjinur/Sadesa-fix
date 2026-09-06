@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard } from 'lucide-react';
+import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard, Link2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,6 +54,20 @@ interface POSSubscription {
   created_at: string;
 }
 
+interface POSIntegrationHealth {
+  tenant_id: string;
+  tenant_name: string;
+  merchant_id: string | null;
+  merchant_name: string | null;
+  owner_user_id: string;
+  outlet_count: number;
+  source_product_count: number;
+  linked_product_count: number;
+  unlinked_pos_product_count: number;
+  sync_gap_count: number | null;
+  status: 'READY' | 'NEEDS_MAPPING' | 'NEEDS_SYNC' | 'NEEDS_OUTLET';
+}
+
 export default function AdminPOSPage() {
   const [packages, setPackages] = useState<POSPackage[]>([]);
   const [subscriptions, setSubscriptions] = useState<POSSubscription[]>([]);
@@ -66,15 +80,17 @@ export default function AdminPOSPage() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectSubId, setRejectSubId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [integrationHealth, setIntegrationHealth] = useState<POSIntegrationHealth[]>([]);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [pkgsRes, subsRes, config] = await Promise.all([
+      const [pkgsRes, subsRes, config, healthRes] = await Promise.all([
         supabase.from('pos_packages').select('*').order('sort_order'),
         supabase.from('pos_subscriptions').select('*, merchants(name), pos_packages(name)').order('created_at', { ascending: false }),
         getSettingByKey('pos_config'),
+        supabase.rpc('get_pos_integration_health' as never),
       ]);
 
       setPackages(pkgsRes.data || []);
@@ -86,6 +102,7 @@ export default function AdminPOSPage() {
       if (config?.value) {
         setTrialDays(((config.value as POSConfig).trial_days) || 30);
       }
+      if (!healthRes.error) setIntegrationHealth((healthRes.data || []) as unknown as POSIntegrationHealth[]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -171,11 +188,12 @@ export default function AdminPOSPage() {
   return (
     <AdminLayout title="Manajemen Langganan POS" subtitle="Kelola paket, verifikasi pembayaran, dan akses fitur kasir">
       <Tabs defaultValue="subscriptions" className="space-y-6">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="subscriptions" className="flex items-center gap-2">
               Review Langganan {pendingCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5">{pendingCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="packages">Paket & Fitur</TabsTrigger>
+          <TabsTrigger value="integration" className="flex items-center gap-2"><Link2 className="h-4 w-4" />Integrasi Merchant–POS</TabsTrigger>
           <TabsTrigger value="config">Konfigurasi</TabsTrigger>
         </TabsList>
 
@@ -308,6 +326,58 @@ export default function AdminPOSPage() {
                 {savingConfig ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 Simpan Konfigurasi
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="integration" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Kontrol Integrasi Merchant–POS</CardTitle>
+              <CardDescription>
+                Merchant adalah identitas dan sumber katalog. POS menyimpan proyeksi operasional dan stok per outlet.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {integrationHealth.length === 0 ? (
+                <div className="py-10 text-center text-muted-foreground">Belum ada tenant POS yang terdaftar.</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tenant POS</TableHead>
+                      <TableHead>Merchant</TableHead>
+                      <TableHead>Outlet</TableHead>
+                      <TableHead>Katalog</TableHead>
+                      <TableHead>Produk POS</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {integrationHealth.map((row) => {
+                      const ready = row.status === 'READY';
+                      return (
+                        <TableRow key={row.tenant_id}>
+                          <TableCell className="font-medium">{row.tenant_name}</TableCell>
+                          <TableCell>{row.merchant_name || <span className="text-muted-foreground">Belum terhubung</span>}</TableCell>
+                          <TableCell>{row.outlet_count}</TableCell>
+                          <TableCell>{row.source_product_count} / {row.linked_product_count}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">{row.unlinked_pos_product_count} legacy</div>
+                            {row.sync_gap_count ? <div className="text-xs text-amber-600">{row.sync_gap_count} belum tersinkron</div> : null}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={ready ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
+                              {ready ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <AlertTriangle className="h-3 w-3 mr-1" />}
+                              {row.status === 'READY' ? 'Siap' : row.status === 'NEEDS_MAPPING' ? 'Perlu mapping' : row.status === 'NEEDS_SYNC' ? 'Perlu sinkronisasi' : 'Perlu outlet'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

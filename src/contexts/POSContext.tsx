@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface POSTenant {
   id: string;
+  merchant_id?: string | null;
   name: string;
   store_name?: string;
   logo_url?: string;

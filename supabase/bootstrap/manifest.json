@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 195,
-  "bundle_count": 10,
+  "bundle_count": 11,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -267,6 +267,14 @@
       ],
       "sha256": "5c07a264ca358fe1e6b4b43578593a82cb0341284fc6e0d6bce041d0d088ccdb",
       "bytes": 4960
+    },
+    {
+      "file": "11_20260906000000_merchant_pos_control_plane.sql",
+      "source_files": [
+        "20260906000000_merchant_pos_control_plane.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
     }
   ]
 }

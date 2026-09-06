@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +23,7 @@ interface VariantRow { id: string; name: string; sku: string | null; barcode: st
 
 interface Product {
   id: string;
+  merchant_product_id?: string | null;
   name: string;
   sku: string | null;
   barcode: string | null;
@@ -55,6 +57,7 @@ interface Brand { id: string; name: string; }
 
 export default function POSProdukPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -135,9 +138,34 @@ export default function POSProdukPage() {
       };
 
       let productId = editing?.id;
-      if (editing) {
-        await supabase.from('pos_products' as never).update(payload).eq('id', editing.id);
+      if (editing?.merchant_product_id) {
+        const { error: sourceError } = await supabase.from('products').update({
+          name: payload.name,
+          price: payload.price,
+          description: payload.description,
+          is_active: payload.is_active,
+          updated_at: new Date().toISOString(),
+        }).eq('id', editing.merchant_product_id);
+        if (sourceError) throw sourceError;
+        const { error: posError } = await supabase.from('pos_products' as never).update({
+          sku: payload.sku,
+          barcode: payload.barcode,
+          category_id: payload.category_id,
+          brand_id: payload.brand_id,
+          unit: payload.unit,
+          cost_price: payload.cost_price,
+          tax_rate: payload.tax_rate,
+          is_stock_tracked: payload.is_stock_tracked,
+          has_variants: payload.has_variants,
+        }).eq('id', editing.id);
+        if (posError) throw posError;
+      } else if (editing) {
+        const { error } = await supabase.from('pos_products' as never).update(payload).eq('id', editing.id);
+        if (error) throw error;
       } else {
+        if (tenant.merchant_id) {
+          throw new Error('Produk baru harus dibuat melalui Katalog Merchant agar tidak terjadi duplikasi.');
+        }
         const { data } = await supabase.from('pos_products' as never).insert(payload).select().single();
         productId = (data as unknown as { id: string } | null)?.id;
         if (activeOutlet && productId && !form.has_variants) {
@@ -195,6 +223,10 @@ export default function POSProdukPage() {
   });
 
   const openAdd = () => {
+    if (tenant?.merchant_id) {
+      navigate('/merchant/products');
+      return;
+    }
     setEditing(null);
     setVariants([]);
     setForm({ name: '', sku: '', barcode: '', category_id: '', brand_id: '', unit: 'pcs', price: '', cost_price: '', tax_rate: '0', description: '', is_stock_tracked: true, has_variants: false, is_active: true });
@@ -275,7 +307,7 @@ export default function POSProdukPage() {
       actions={
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-1" />Export</Button>
-          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Tambah Produk</Button>
+          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{tenant?.merchant_id ? 'Kelola di Katalog Merchant' : 'Tambah Produk'}</Button>
         </div>
       }>
 
@@ -324,6 +356,7 @@ export default function POSProdukPage() {
                       <div className="flex gap-1.5 mt-1 flex-wrap">
                         {p.sku && <Badge variant="outline" className="text-xs">{p.sku}</Badge>}
                         {p.pos_categories?.name && <Badge variant="secondary" className="text-xs">{p.pos_categories.name}</Badge>}
+                        {p.merchant_product_id && <Badge className="bg-blue-100 text-blue-700 border-0 text-xs">Katalog Merchant</Badge>}
                         {p.has_variants && <Badge className="bg-purple-100 text-purple-700 border-0 text-xs">Varian</Badge>}
                         {!p.is_active && <Badge variant="destructive" className="text-xs">Nonaktif</Badge>}
                       </div>

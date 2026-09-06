@@ -51,68 +51,23 @@ export default function POSSetupPage() {
     if (!outletData.name.trim()) { toast.error('Nama outlet wajib diisi'); return; }
 
     setLoading(true);
-    let createdTenantId: string | null = null;
     try {
-      const { data: merchant } = await supabase
-        .from('merchants')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const tenantPayload = {
-        ...tenantData,
-        user_id: user.id,
-        ...(merchant?.id ? { merchant_id: merchant.id } : {}),
-      };
-      const { data: insertedTenant, error: tenantError } = await supabase
-        .from('pos_tenants' as never)
-        .insert(tenantPayload)
-        .select('id')
-        .single();
-
-      let tenantId = (insertedTenant as unknown as { id?: string } | null)?.id;
-      if (tenantError) {
-        const databaseError = tenantError as DatabaseError;
-        if (databaseError.code !== '23505') throw tenantError;
-        const { data: existingTenant, error: existingTenantError } = await supabase
-          .from('pos_tenants' as never)
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (existingTenantError) throw existingTenantError;
-        tenantId = (existingTenant as unknown as { id?: string } | null)?.id;
-      }
-
-      if (!tenantId) throw new Error('Usaha gagal dibuat karena ID tenant tidak tersedia');
-      if (!tenantError) createdTenantId = tenantId;
-
-      const { data: existingOutlet, error: existingOutletError } = await supabase
-        .from('pos_outlets' as never)
-        .select('id')
-        .eq('tenant_id', tenantId)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-      if (existingOutletError) throw existingOutletError;
-
-      if (!existingOutlet) {
-        const { error: outletError } = await supabase
-          .from('pos_outlets' as never)
-          .insert({ ...outletData, tenant_id: tenantId });
-        if (outletError) throw outletError;
-      }
+      const { error } = await supabase.rpc('ensure_merchant_pos_workspace' as never, {
+        p_name: tenantData.name,
+        p_phone: tenantData.phone || null,
+        p_address: tenantData.address || null,
+        p_timezone: tenantData.timezone,
+        p_currency: tenantData.currency,
+        p_outlet_name: outletData.name,
+        p_outlet_address: outletData.address || null,
+        p_outlet_phone: outletData.phone || null,
+      } as never);
+      if (error) throw error;
 
       toast.success('Usaha berhasil dibuat! Selamat datang di SaDesa POS.');
       navigate('/merchant/pos', { replace: true });
       window.location.reload();
     } catch (err: unknown) {
-      if (createdTenantId) {
-        const { error: cleanupError } = await supabase
-          .from('pos_tenants' as never)
-          .delete()
-          .eq('id', createdTenantId)
-          .eq('user_id', user.id);
-        if (cleanupError) console.error('Failed to rollback POS tenant creation:', cleanupError);
-      }
       const message = getDatabaseErrorMessage(err);
       toast.error(message.includes('duplicate') || message.includes('unique')
         ? 'Usaha untuk akun ini sudah terdaftar. Silakan buka POS.'
