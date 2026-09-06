@@ -264,7 +264,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
             <Store className="h-5 w-5" />
           </span>
-          <span className="truncate font-heading text-sm font-semibold">Merchant & POS</span>
+          <span className="truncate font-heading text-sm font-semibold">Workspace Merchant</span>
         </Link>
         <Button type="button" variant="ghost" size="icon" className="h-9 w-9 lg:hidden" onClick={onClose} aria-label="Tutup navigasi">
           <X className="h-5 w-5" />
@@ -305,7 +305,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
         {canSeePOS && (
           <section className="mt-5 border-t border-sidebar-border pt-4" aria-label="Point of Sale">
-            <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Point of Sale</p>
+            <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Operasional POS</p>
             <Button
               type="button"
               variant="ghost"
@@ -321,7 +321,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
             >
               <span className="flex min-w-0 items-center gap-3">
                 <Receipt className={cn('h-4 w-4 shrink-0 text-muted-foreground', isPOSPath && 'text-sidebar-primary')} />
-                <span className="truncate">Kasir & POS</span>
+                <span className="truncate">Buka POS</span>
                 <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                   {visiblePOSCategories.reduce((total, category) => total + category.items.length, 0)}
                 </span>

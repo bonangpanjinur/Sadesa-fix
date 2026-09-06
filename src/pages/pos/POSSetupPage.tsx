@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -78,14 +79,14 @@ export default function POSSetupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-2xl mb-4">
+    <MerchantLayout title="Siapkan POS" subtitle="Aktifkan kasir dan operasional outlet dari workspace merchant">
+      <div className="mx-auto w-full max-w-lg py-4 sm:py-8">
+        <div className="mb-8 text-center">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
             <Store className="h-8 w-8 text-emerald-600" />
           </div>
-          <h1 className="text-2xl font-bold">Selamat Datang di SaDesa POS</h1>
-          <p className="text-muted-foreground mt-1">Sistem Kasir & Manajemen UMKM</p>
+          <h1 className="text-2xl font-bold">Aktifkan POS untuk toko Anda</h1>
+          <p className="mt-1 text-muted-foreground">Satu workspace untuk mengelola toko online dan operasional kasir.</p>
         </div>
 
         <div className="flex items-center justify-center gap-2 mb-6">
@@ -190,13 +191,13 @@ export default function POSSetupPage() {
                   onClick={handleCreate}
                   disabled={loading}
                 >
-                  {loading ? 'Menyimpan...' : 'Mulai Sekarang 🚀'}
+                  {loading ? 'Menyimpan...' : 'Mulai Sekarang'}
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
       </div>
-    </div>
+    </MerchantLayout>
   );
 }
