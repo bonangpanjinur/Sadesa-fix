@@ -1,11 +1,34 @@
 {
   "name": "SaDesa",
   "short_name": "SaDesa",
+  "id": "/",
   "description": "Marketplace UMKM & Desa Wisata Indonesia",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#10b981",
+  "categories": [
+    "shopping",
+    "business",
+    "lifestyle"
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/sadesa-home-narrow.jpg",
+      "sizes": "480x720",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Beranda SaDesa di perangkat mobile"
+    },
+    {
+      "src": "/screenshots/sadesa-home-wide.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Beranda SaDesa di layar desktop"
+    }
+  ],
   "icons": [
     {
       "src": "/branding/sadesa-icon-192.png",

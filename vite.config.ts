@@ -17,16 +17,46 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'branding/sadesa-favicon.png', 'branding/sadesa-icon-192.png', 'branding/sadesa-icon-512.png', 'robots.txt'],
+      includeAssets: [
+        'favicon.ico',
+        'branding/sadesa-favicon.png',
+        'branding/sadesa-icon-192.png',
+        'branding/sadesa-icon-512.png',
+        'screenshots/sadesa-home-wide.jpg',
+        'screenshots/sadesa-home-narrow.jpg',
+        'robots.txt',
+      ],
       manifest: {
         name: 'SaDesa',
         short_name: 'SaDesa',
+        id: '/',
         description: 'Marketplace UMKM & Desa Wisata Indonesia',
         theme_color: '#10b981',
         background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
+        orientation: 'portrait-primary',
+        categories: ['shopping', 'business', 'lifestyle'],
+        screenshots: [
+          {
+            src: 'screenshots/sadesa-home-narrow.jpg',
+            sizes: '480x720',
+            type: 'image/jpeg',
+            form_factor: 'narrow',
+            label: 'Beranda SaDesa di perangkat mobile',
+          },
+          {
+            src: 'screenshots/sadesa-home-wide.jpg',
+            sizes: '1280x720',
+            type: 'image/jpeg',
+            form_factor: 'wide',
+            label: 'Beranda SaDesa di layar desktop',
+          },
+        ],
         icons: [
           {
             src: 'branding/sadesa-icon-192.png',
@@ -45,7 +75,7 @@ export default defineConfig(() => ({
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,woff2}'],
         runtimeCaching: [
           {
             // Cache only public storefront images; never cache private documents,
