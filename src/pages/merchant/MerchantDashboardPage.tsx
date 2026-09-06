@@ -329,6 +329,15 @@ export default function MerchantDashboardPage() {
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button
+                size="sm"
+                className="flex-1"
+                onClick={() => navigate('/merchant/pos/kasir')}
+                data-testid="button-open-cashier"
+              >
+                <Receipt className="mr-1.5 h-3.5 w-3.5" />
+                Buka kasir
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 className="flex-1"

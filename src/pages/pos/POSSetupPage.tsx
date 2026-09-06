@@ -66,7 +66,7 @@ export default function POSSetupPage() {
       if (error) throw error;
 
       toast.success('Usaha berhasil dibuat! Selamat datang di SaDesa POS.');
-      navigate('/merchant/pos', { replace: true });
+      navigate('/merchant', { replace: true });
       window.location.reload();
     } catch (err: unknown) {
       const message = getDatabaseErrorMessage(err);

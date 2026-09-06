@@ -62,8 +62,17 @@ interface MerchantSidebarProps {
   onNavigate?: () => void;
 }
 
+const POS_GROUP_BY_CATEGORY: Record<string, string> = {
+  operasional: 'sales',
+  inventori: 'catalog',
+  pelanggan: 'customers',
+  laporan: 'insights',
+  'sdm-keuangan': 'team',
+  administrasi: 'team',
+};
+
 function isItemActive(pathname: string, href: string) {
-  if (href === '/merchant' || href === '/merchant/pos') return pathname === href;
+  if (href === '/merchant') return pathname === href;
   return pathname.startsWith(href);
 }
 
@@ -75,22 +84,12 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   const [unrepliedReviews, setUnrepliedReviews] = useState(0);
   const [pendingRefunds, setPendingRefunds] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
-  const isPOSPath = location.pathname.startsWith('/merchant/pos');
   const canSeePOS = roles.some((role) => role === 'merchant' || role === 'admin');
   const [openGroupId, setOpenGroupId] = useState<string | null>(() => {
     try {
       return window.localStorage.getItem('merchant-sidebar-group') || 'sales';
     } catch {
       return 'sales';
-    }
-  });
-  const [posOpen, setPosOpen] = useState(isPOSPath);
-  const [openPOSCategories, setOpenPOSCategories] = useState<Record<string, boolean>>(() => {
-    try {
-      const stored = window.localStorage.getItem('merchant-pos-sidebar-categories');
-      return stored ? JSON.parse(stored) as Record<string, boolean> : { operasional: true };
-    } catch {
-      return { operasional: true };
     }
   });
 
@@ -144,7 +143,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
   const groups = useMemo<SidebarGroup[]>(() => [
     {
-      id: 'sales', label: 'Penjualan', icon: <ShoppingBag className="h-4 w-4" />, items: [
+      id: 'sales', label: 'Penjualan & Operasional', icon: <ShoppingBag className="h-4 w-4" />, items: [
         { label: 'Pesanan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
         { label: 'Fulfillment Parsial', href: '/merchant/fulfillment', icon: <Truck className="h-4 w-4" /> },
         { label: 'Refund', href: '/merchant/refunds', icon: <RotateCcw className="h-4 w-4" />, badge: pendingRefunds },
@@ -152,7 +151,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       ],
     },
     {
-      id: 'catalog', label: 'Katalog & Stok', icon: <Package className="h-4 w-4" />, items: [
+      id: 'catalog', label: 'Katalog, Stok & Pembelian', icon: <Package className="h-4 w-4" />, items: [
         { label: 'Katalog Produk', href: '/merchant/products', icon: <Package className="h-4 w-4" />, badge: lowStockCount },
         { label: 'Manajemen Stok', href: '/merchant/stock', icon: <Layers className="h-4 w-4" />, badge: lowStockCount || undefined },
         { label: 'Price Book', href: '/merchant/price-book', icon: <BookOpen className="h-4 w-4" /> },
@@ -175,7 +174,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       ],
     },
     {
-      id: 'insights', label: 'Analitik & Keuangan', icon: <BarChart3 className="h-4 w-4" />, items: [
+      id: 'insights', label: 'Analitik, Laporan & Keuangan', icon: <BarChart3 className="h-4 w-4" />, items: [
         { label: 'Analitik', href: '/merchant/analytics', icon: <BarChart3 className="h-4 w-4" /> },
         { label: 'Statistik Pengunjung', href: '/merchant/visitor-stats', icon: <Eye className="h-4 w-4" /> },
         { label: 'Insight Bisnis', href: '/merchant/insight', icon: <Lightbulb className="h-4 w-4" /> },
@@ -187,6 +186,11 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         { label: 'Kuota Marketplace', href: '/merchant/subscription', icon: <CreditCard className="h-4 w-4" /> },
       ],
     },
+    {
+      id: 'team', label: 'Tim, Pengaturan & Integrasi', icon: <Settings className="h-4 w-4" />, items: [
+        { label: 'Pengaturan Toko', href: '/merchant/settings', icon: <Settings className="h-4 w-4" /> },
+      ],
+    },
   ], [lowStockCount, pendingOrders, pendingRefunds, unrepliedReviews]);
 
   const visiblePOSCategories = useMemo(() => POS_MENU_CATEGORIES.map((category) => ({
@@ -194,38 +198,40 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
     items: category.items.filter((item) => canAccessPOSPath(roles, item.href, posRole)),
   })).filter((category) => category.items.length > 0), [roles, posRole]);
 
-  const activeMerchantGroupId = groups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
-  const activePOSCategoryId = visiblePOSCategories.find((category) => category.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
+  const integratedGroups = useMemo(() => {
+    const additions = new Map<string, SidebarItem[]>();
+    for (const category of visiblePOSCategories) {
+      const groupId = POS_GROUP_BY_CATEGORY[category.id];
+      if (!groupId) continue;
+      const items = additions.get(groupId) || [];
+      items.push(...category.items.map((item) => ({ label: item.label, href: item.href, icon: item.icon })));
+      additions.set(groupId, items);
+    }
+
+    return groups.map((group) => ({
+      ...group,
+      items: [...group.items, ...(additions.get(group.id) || [])],
+    }));
+  }, [groups, visiblePOSCategories]);
+
+  const activeMerchantGroupId = integratedGroups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
 
   useEffect(() => {
-    if (isPOSPath) {
-      setPosOpen(true);
-      setOpenGroupId(null);
-      return;
-    }
     if (activeMerchantGroupId) {
       setOpenGroupId(activeMerchantGroupId);
-      setPosOpen(false);
     }
-  }, [activeMerchantGroupId, isPOSPath]);
-
-  useEffect(() => {
-    if (!activePOSCategoryId) return;
-    setOpenPOSCategories({ [activePOSCategoryId]: true });
-  }, [activePOSCategoryId]);
+  }, [activeMerchantGroupId]);
 
   useEffect(() => {
     try {
       if (openGroupId) window.localStorage.setItem('merchant-sidebar-group', openGroupId);
-      window.localStorage.setItem('merchant-pos-sidebar-categories', JSON.stringify(openPOSCategories));
     } catch {
       // Sidebar preferences are optional.
     }
-  }, [openGroupId, openPOSCategories]);
+  }, [openGroupId]);
 
   const toggleMerchantGroup = (id: string) => {
     setOpenGroupId((current) => current === id ? null : id);
-    setPosOpen(false);
   };
 
   const renderItem = (item: SidebarItem, nested = false) => {
@@ -275,8 +281,43 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Merchant</p>
         {renderItem({ label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> })}
 
+        {canSeePOS && (tenant || outlets.length > 0) && (
+          <div className="mx-4 mt-4 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Toko aktif</p>
+            <p className="mt-1 truncate font-heading text-xs font-semibold text-sidebar-foreground">
+              {tenant?.name || 'Kasir belum disiapkan'}
+            </p>
+            {outlets.length > 1 && (
+              <Select value={activeOutlet?.id} onValueChange={(value) => {
+                const outlet = outlets.find((candidate) => candidate.id === value);
+                if (outlet) setActiveOutlet(outlet);
+              }}>
+                <SelectTrigger className="mt-2 h-8 border-sidebar-border bg-sidebar text-xs">
+                  <SelectValue placeholder="Pilih outlet" />
+                </SelectTrigger>
+                <SelectContent>
+                  {outlets.map((outlet) => (
+                    <SelectItem key={outlet.id} value={outlet.id} className="text-xs">{outlet.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {outlets.length === 1 && activeOutlet && (
+              <p className="mt-1 truncate text-xs text-muted-foreground">{activeOutlet.name}</p>
+            )}
+            <Link
+              to={tenant ? '/merchant/pos/subscribe' : '/merchant/pos/setup'}
+              onClick={onNavigate}
+              className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-sidebar-primary"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              {tenant ? 'Paket kasir' : 'Aktifkan kasir'}
+            </Link>
+          </div>
+        )}
+
         <div className="mt-2 space-y-0.5">
-          {groups.map((group) => {
+          {integratedGroups.map((group) => {
             const open = openGroupId === group.id;
             const active = activeMerchantGroupId === group.id;
             return (
@@ -302,87 +343,6 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
             );
           })}
         </div>
-
-        {canSeePOS && (
-          <section className="mt-5 border-t border-sidebar-border pt-4" aria-label="Point of Sale">
-            <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Operasional POS</p>
-            <Button
-              type="button"
-              variant="ghost"
-              aria-expanded={posOpen}
-              onClick={() => {
-                setPosOpen((current) => !current);
-                setOpenGroupId(null);
-              }}
-              className={cn(
-                'h-10 w-full justify-between rounded-none border-l-2 px-4 font-body text-sm',
-                isPOSPath ? 'border-sidebar-primary bg-sidebar-accent text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
-              )}
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <Receipt className={cn('h-4 w-4 shrink-0 text-muted-foreground', isPOSPath && 'text-sidebar-primary')} />
-                <span className="truncate">Buka POS</span>
-                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                  {visiblePOSCategories.reduce((total, category) => total + category.items.length, 0)}
-                </span>
-              </span>
-              <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', !posOpen && '-rotate-90')} />
-            </Button>
-
-            {posOpen && (
-              <div className="pb-1">
-                <div className="mx-4 my-2 border-l-2 border-sidebar-border pl-3">
-                  <p className="truncate font-heading text-xs font-semibold text-sidebar-foreground">{tenant?.name || 'POS belum disiapkan'}</p>
-                  {outlets.length > 1 && (
-                    <Select value={activeOutlet?.id} onValueChange={(value) => {
-                      const outlet = outlets.find((candidate) => candidate.id === value);
-                      if (outlet) setActiveOutlet(outlet);
-                    }}>
-                      <SelectTrigger className="mt-2 h-8 border-sidebar-border bg-sidebar text-xs"><SelectValue placeholder="Pilih outlet" /></SelectTrigger>
-                      <SelectContent>{outlets.map((outlet) => <SelectItem key={outlet.id} value={outlet.id} className="text-xs">{outlet.name}</SelectItem>)}</SelectContent>
-                    </Select>
-                  )}
-                  {outlets.length === 1 && activeOutlet && <p className="mt-1 truncate text-xs text-muted-foreground">{activeOutlet.name}</p>}
-                  <Link to="/merchant/pos/subscribe" onClick={onNavigate} className="mt-2 flex items-center gap-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-sidebar-primary">
-                    <CreditCard className="h-3.5 w-3.5" /> Langganan POS
-                  </Link>
-                </div>
-
-                {visiblePOSCategories.map((category) => {
-                  const open = Boolean(openPOSCategories[category.id]);
-                  const active = category.id === activePOSCategoryId;
-                  return (
-                    <div key={category.id}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        aria-expanded={open}
-                        onClick={() => setOpenPOSCategories((current) => current[category.id] ? {} : { [category.id]: true })}
-                        className={cn(
-                          'h-10 w-full justify-between rounded-none border-l-2 px-4 pl-7 font-body text-xs',
-                          active ? 'border-sidebar-primary text-sidebar-accent-foreground' : 'border-transparent text-muted-foreground',
-                        )}
-                      >
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <span className={cn('shrink-0', active && 'text-sidebar-primary')}>{category.icon}</span>
-                          <span className="truncate">{category.label}</span>
-                          <span className="text-[10px] text-muted-foreground">{category.items.length}</span>
-                        </span>
-                        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', !open && '-rotate-90')} />
-                      </Button>
-                      {open && <div>{category.items.map((item) => renderItem(item, true))}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        <section className="mt-5 border-t border-sidebar-border pt-4" aria-label="Pengaturan">
-          <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Pengaturan</p>
-          {renderItem({ label: 'Pengaturan Toko', href: '/merchant/settings', icon: <Settings className="h-4 w-4" /> })}
-        </section>
       </nav>
 
       <div className="shrink-0 border-t border-sidebar-border bg-sidebar-accent/50 p-3">

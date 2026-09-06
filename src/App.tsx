@@ -164,7 +164,6 @@ const OrderStatusPage = lazy(() => import("./pages/OrderStatusPage"));
 
 // POS SaaS Pages
 const POSSetupPage = lazy(() => import("./pages/pos/POSSetupPage"));
-const POSDashboardPage = lazy(() => import("./pages/pos/POSDashboardPage"));
 const POSKasirPage = lazy(() => import("./pages/pos/POSKasirPage"));
 const POSTransaksiPage = lazy(() => import("./pages/pos/POSTransaksiPage"));
 const POSKategoriPage = lazy(() => import("./pages/pos/POSKategoriPage"));
@@ -208,7 +207,9 @@ const POSMenuQRPage = lazy(() => import("./pages/pos/POSMenuQRPage"));
 
 function LegacyPOSRedirect() {
   const location = useLocation();
-  const targetPath = location.pathname.replace(/^\/pos(?=\/|$)/, '/merchant/pos');
+  const targetPath = location.pathname === '/pos'
+    ? '/merchant'
+    : location.pathname.replace(/^\/pos(?=\/|$)/, '/merchant/pos');
   useEffect(() => {
     reportObservability('navigation', 'legacy_pos_redirect', 'info', {
       sourcePath: location.pathname,
@@ -1040,7 +1041,8 @@ const App = () => (
               <Route path="/pos/*" element={<POSAccessRoute><LegacyPOSRedirect /></POSAccessRoute>} />
               {/* POS SaaS Routes */}
               <Route path="/merchant/pos/setup" element={<POSAccessRoute><POSSetupPage /></POSAccessRoute>} />
-              <Route path="/merchant/pos" element={<POSAccessRoute><POSDashboardPage /></POSAccessRoute>} />
+              {/* There is one merchant dashboard. POS is an operational capability inside it. */}
+              <Route path="/merchant/pos" element={<POSAccessRoute><Navigate to="/merchant" replace state={{ fromPOSRoute: true }} /></POSAccessRoute>} />
               <Route path="/merchant/pos/kasir" element={<POSAccessRoute><POSKasirPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/transaksi" element={<POSAccessRoute><POSTransaksiPage /></POSAccessRoute>} />
               <Route path="/merchant/pos/retur" element={<POSAccessRoute><POSReturPage /></POSAccessRoute>} />
