@@ -15,6 +15,42 @@ Dengan pendekatan ini:
 - Toko retail seperti pakaian, sembako, atau kerajinan dapat mengaktifkan kasir, barcode, varian, dan stok.
 - Semua produk, pelanggan, stok, promo, serta laporan tetap berada dalam satu konteks merchant.
 
+## Hubungan Wajib antara Merchant dan POS
+
+POS harus menjadi **modul milik merchant yang sama**, bukan workspace, akun, atau bisnis baru yang berdiri sendiri.
+
+Relasi yang benar:
+
+```text
+Merchant
+├── Profil toko marketplace
+├── Katalog produk bersama
+├── Pelanggan bersama
+├── Stok bersama
+├── Pesanan online
+└── Modul POS opsional
+    ├── Outlet
+    ├── Kasir
+    ├── Transaksi offline
+    ├── Shift
+    └── Operasional toko
+```
+
+Aturan integrasinya:
+
+1. Setiap konfigurasi POS wajib memiliki `merchant_id` yang menunjuk ke merchant pemilik.
+2. Outlet POS adalah anak dari merchant, bukan merchant baru.
+3. User merchant tetap menjadi pemilik utama POS.
+4. Aktivasi, paket, dan status POS dikelola dari workspace merchant.
+5. Katalog produk POS menggunakan katalog merchant yang sama.
+6. Stok online dan offline menggunakan sumber stok merchant yang sama.
+7. Pelanggan dan promo dapat dipakai pada kanal online maupun kasir sesuai aturan modul.
+8. Laporan merchant dapat menggabungkan transaksi online dan offline.
+9. POS menggunakan `MerchantLayout`, `MerchantSidebar`, dan Dashboard Merchant yang sama.
+10. Tidak boleh ada pendaftaran merchant kedua hanya untuk memakai POS.
+
+Jika sistem internal memerlukan entitas `tenant` atau `pos_workspace`, entitas tersebut harus menjadi detail teknis di bawah merchant dan tetap memiliki relasi wajib ke `merchant_id`. Entitas tersebut tidak boleh terlihat sebagai identitas bisnis kedua bagi pengguna.
+
 ## Masalah yang Harus Diselesaikan
 
 Model saat ini berisiko membuat merchant merasa memiliki dua aplikasi:
@@ -30,6 +66,10 @@ Masalah tersebut muncul ketika POS:
 - memakai istilah POS pada hampir setiap item;
 - meminta semua merchant membuat outlet dan workspace kasir;
 - tidak membedakan kebutuhan kafe, retail, dan pedagang online.
+
+Target akhirnya bukan sekadar menggabungkan dua sidebar. Targetnya adalah satu hubungan bisnis:
+
+> **Satu merchant, satu katalog, satu stok, satu laporan, dengan POS sebagai kanal penjualan tambahan.**
 
 ## Model Status POS per Merchant
 
@@ -279,6 +319,23 @@ Opsional:
 
 Produk, stok, pelanggan, promo, dan laporan harus memiliki sumber data merchant yang sama.
 
+### Kepemilikan Data
+
+Merchant adalah sumber kepemilikan data. POS hanya menambahkan kanal dan operasi yang membutuhkan transaksi langsung.
+
+```text
+merchant_id
+  ├── products
+  ├── customers
+  ├── inventory / stock ledger
+  ├── promotions
+  ├── online orders
+  ├── pos outlets
+  └── pos transactions
+```
+
+Jangan membuat katalog POS, daftar pelanggan POS, atau stok POS yang terpisah tanpa alasan bisnis yang jelas. Jika sebuah tabel POS perlu menyimpan salinan data untuk performa, salinan tersebut harus memiliki sumber utama yang jelas dan mekanisme sinkronisasi yang dapat diaudit.
+
 ### Produk dan Stok
 
 Produk yang dibuat di katalog merchant dapat digunakan oleh kasir. Penjualan dari kanal apa pun harus memperbarui stok yang sama.
@@ -297,6 +354,8 @@ Contoh:
 - Produk terjual di marketplace → stok outlet atau stok merchant berkurang.
 - Produk terjual di kasir → stok marketplace ikut diperbarui.
 - Produk dibuat di katalog merchant → dapat dipilih di kasir setelah POS aktif.
+- Merchant tidak perlu membuat ulang produk ketika mengaktifkan POS.
+- Menonaktifkan POS tidak menghapus produk, pelanggan, atau histori transaksi merchant.
 
 ### Pesanan dan Laporan
 
@@ -312,6 +371,27 @@ Contoh filter:
 - Periode tertentu.
 
 Jangan membuat laporan POS yang sepenuhnya terpisah jika metriknya dapat menjadi bagian dari laporan merchant.
+
+## Batas antara Modul dan Kepemilikan
+
+POS boleh memiliki fitur khusus seperti:
+
+- proses pembayaran kasir;
+- shift;
+- outlet;
+- meja;
+- KDS;
+- mode offline;
+- printer struk;
+- pembukaan dan penutupan kas.
+
+Namun fitur tersebut tetap bekerja atas nama merchant yang sama. Dengan demikian:
+
+- `merchant_id` adalah pemilik bisnis;
+- `outlet_id` adalah lokasi operasional;
+- `pos_transaction_id` adalah transaksi kanal kasir;
+- `user_id` adalah pengguna yang menjalankan aktivitas;
+- `channel = pos` membedakan kanal transaksi, bukan pemilik bisnis baru.
 
 ## Status Fitur dan Role Harus Dipisahkan
 
@@ -378,7 +458,9 @@ Jika sistem sudah memiliki tabel tenant, outlet, subscription, atau POS workspac
 - Tambahkan CTA `Aktifkan Kasir`.
 - Tambahkan pilihan jenis bisnis.
 - Tambahkan pilihan modul.
-- Hubungkan setup dengan merchant dan outlet yang sama.
+- Hubungkan setup dengan merchant yang sedang login.
+- Buat outlet sebagai anak merchant yang sama.
+- Pastikan tidak ada flow yang membuat merchant baru ketika POS diaktifkan.
 
 ### Tahap 3 — Konsolidasi Navigasi
 
@@ -412,6 +494,8 @@ Implementasi dianggap selesai jika:
 - Merchant dapat memilih preset sesuai jenis usaha.
 - Merchant kafe melihat modul meja/KDS/QR jika diaktifkan.
 - Merchant retail tidak otomatis melihat meja/KDS.
+- Aktivasi POS menggunakan merchant yang sedang login dan tidak membuat akun merchant kedua.
+- Outlet POS selalu terhubung ke merchant pemilik.
 - Produk yang sama dapat digunakan di marketplace dan kasir.
 - Penjualan online dan offline masuk ke laporan merchant yang sama.
 - Tidak ada Dashboard POS kedua.
