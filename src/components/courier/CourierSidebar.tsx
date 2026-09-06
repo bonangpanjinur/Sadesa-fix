@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -7,7 +8,8 @@ import {
   History,
   Banknote,
   MessageCircle,
-  PiggyBank
+  PiggyBank,
+  Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +21,7 @@ interface SidebarItem {
 
 export function CourierSidebar() {
   const location = useLocation();
+  const [searchTerm, setSearchTerm] = useState('');
 
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', href: '/courier', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -29,6 +32,10 @@ export function CourierSidebar() {
     { label: 'Setor Saldo', href: '/courier/deposit', icon: <PiggyBank className="h-4 w-4" /> },
     { label: 'Penarikan Saldo', href: '/courier/withdrawal', icon: <Banknote className="h-4 w-4" /> },
   ];
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const visibleMenuItems = normalizedSearch
+    ? menuItems.filter((item) => item.label.toLowerCase().includes(normalizedSearch))
+    : menuItems;
 
   return (
     <div className="w-64 h-screen bg-card border-r border-border flex flex-col sticky top-0">
@@ -40,7 +47,17 @@ export function CourierSidebar() {
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border">
-        {menuItems.map((item) => {
+        <div className="mb-3 relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Cari menu kurir..."
+            aria-label="Cari menu kurir"
+            className="h-9 w-full rounded-lg border border-border bg-secondary pl-9 pr-3 text-xs outline-none transition focus-visible:ring-2 focus-visible:ring-primary/40"
+          />
+        </div>
+        {visibleMenuItems.map((item) => {
           const isActive = location.pathname === item.href;
           
           return (
@@ -59,6 +76,9 @@ export function CourierSidebar() {
             </Link>
           );
         })}
+        {visibleMenuItems.length === 0 && (
+          <p className="px-3 py-8 text-center text-xs text-muted-foreground">Menu tidak ditemukan.</p>
+        )}
       </nav>
 
       <div className="p-3 border-t border-border">

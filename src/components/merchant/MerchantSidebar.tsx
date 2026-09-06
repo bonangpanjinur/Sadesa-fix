@@ -23,6 +23,7 @@ import {
   Percent,
   Receipt,
   RotateCcw,
+  Search,
   Settings,
   ShoppingBag,
   Star,
@@ -85,6 +86,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   const [unrepliedReviews, setUnrepliedReviews] = useState(0);
   const [pendingRefunds, setPendingRefunds] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
   const canSeePOS = roles.some((role) => role === 'merchant' || role === 'admin');
   const posEnabled = isPOSOperational(tenant?.status);
   const [openGroupId, setOpenGroupId] = useState<string | null>(() => {
@@ -218,6 +220,17 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   }, [groups, visiblePOSCategories]);
 
   const activeMerchantGroupId = integratedGroups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const showDashboard = !normalizedSearch || 'dashboard'.includes(normalizedSearch);
+  const visibleGroups = integratedGroups
+    .map((group) => ({
+      ...group,
+      items: normalizedSearch
+        ? group.items.filter((item) => item.label.toLowerCase().includes(normalizedSearch))
+        : group.items,
+    }))
+    .filter((group) => group.items.length > 0);
+  const hasVisibleMenu = showDashboard || visibleGroups.length > 0;
 
   useEffect(() => {
     if (activeMerchantGroupId) {
@@ -282,7 +295,19 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
       <nav className="min-h-0 flex-1 overflow-y-auto py-4" aria-label="Menu merchant">
         <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Merchant</p>
-        {renderItem({ label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> })}
+        <div className="mb-3 px-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Cari menu merchant..."
+              aria-label="Cari menu merchant"
+              className="h-9 w-full rounded-lg border border-sidebar-border bg-sidebar-accent/40 pl-9 pr-3 text-xs outline-none transition focus-visible:ring-2 focus-visible:ring-sidebar-primary/40"
+            />
+          </div>
+        </div>
+        {showDashboard && renderItem({ label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> })}
 
         {canSeePOS && (
           <div className="mx-4 mt-4 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3">
@@ -320,8 +345,8 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         )}
 
         <div className="mt-2 space-y-0.5">
-          {integratedGroups.map((group) => {
-            const open = openGroupId === group.id;
+          {visibleGroups.map((group) => {
+            const open = normalizedSearch.length > 0 || openGroupId === group.id;
             const active = activeMerchantGroupId === group.id;
             return (
               <section key={group.id} aria-label={group.label}>
@@ -345,6 +370,9 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
               </section>
             );
           })}
+          {!hasVisibleMenu && (
+             <p className="px-5 py-8 text-center text-xs text-muted-foreground">Menu tidak ditemukan.</p>
+          )}
         </div>
       </nav>
 
