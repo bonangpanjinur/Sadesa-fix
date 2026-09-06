@@ -42,6 +42,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { isPOSModuleEnabled, isPOSOperational, isPOSSetupStatus } from '@/lib/posFeatureGate';
 
 interface SidebarItem {
   label: string;
@@ -85,6 +86,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   const [pendingRefunds, setPendingRefunds] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
   const canSeePOS = roles.some((role) => role === 'merchant' || role === 'admin');
+  const posEnabled = isPOSOperational(tenant?.status);
   const [openGroupId, setOpenGroupId] = useState<string | null>(() => {
     try {
       return window.localStorage.getItem('merchant-sidebar-group') || 'sales';
@@ -195,8 +197,9 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
   const visiblePOSCategories = useMemo(() => POS_MENU_CATEGORIES.map((category) => ({
     ...category,
-    items: category.items.filter((item) => canAccessPOSPath(roles, item.href, posRole)),
-  })).filter((category) => category.items.length > 0), [roles, posRole]);
+    items: category.items.filter((item) => canAccessPOSPath(roles, item.href, posRole)
+      && isPOSModuleEnabled(tenant?.enabled_modules, item.moduleId)),
+  })).filter((category) => posEnabled && category.items.length > 0), [posEnabled, roles, posRole, tenant?.enabled_modules]);
 
   const integratedGroups = useMemo(() => {
     const additions = new Map<string, SidebarItem[]>();
@@ -281,13 +284,13 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Merchant</p>
         {renderItem({ label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> })}
 
-        {canSeePOS && (tenant || outlets.length > 0) && (
+        {canSeePOS && (
           <div className="mx-4 mt-4 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Toko aktif</p>
             <p className="mt-1 truncate font-heading text-xs font-semibold text-sidebar-foreground">
-              {tenant?.name || 'Kasir belum disiapkan'}
+              {tenant?.name || 'Kasir belum diaktifkan'}
             </p>
-            {outlets.length > 1 && (
+            {posEnabled && outlets.length > 1 && (
               <Select value={activeOutlet?.id} onValueChange={(value) => {
                 const outlet = outlets.find((candidate) => candidate.id === value);
                 if (outlet) setActiveOutlet(outlet);
@@ -302,16 +305,16 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                 </SelectContent>
               </Select>
             )}
-            {outlets.length === 1 && activeOutlet && (
+            {posEnabled && outlets.length === 1 && activeOutlet && (
               <p className="mt-1 truncate text-xs text-muted-foreground">{activeOutlet.name}</p>
             )}
             <Link
-              to={tenant ? '/merchant/pos/subscribe' : '/merchant/pos/setup'}
+              to={!tenant || isPOSSetupStatus(tenant.status) ? '/merchant/pos/setup' : '/merchant/pos/subscribe'}
               onClick={onNavigate}
               className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-sidebar-primary"
             >
               <CreditCard className="h-3.5 w-3.5" />
-              {tenant ? 'Paket kasir' : 'Aktifkan kasir'}
+              {posEnabled ? 'Paket kasir' : 'Aktifkan kasir'}
             </Link>
           </div>
         )}

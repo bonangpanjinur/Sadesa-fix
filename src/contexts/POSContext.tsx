@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { isPOSOperational, isPOSStatus, type POSStatus } from '@/lib/posFeatureGate';
 
 interface POSTenant {
   id: string;
@@ -12,6 +13,9 @@ interface POSTenant {
   address?: string;
   currency: string;
   timezone: string;
+  is_active: boolean;
+  status: POSStatus;
+  enabled_modules: string[];
 }
 
 interface POSOutlet {
@@ -31,6 +35,7 @@ function isPOSRole(value: unknown): value is POSRole {
 
 interface POSContextType {
   tenant: POSTenant | null;
+  posEnabled: boolean;
   posRole: POSRole | null;
   posRoleLoading: boolean;
   activeOutlet: POSOutlet | null;
@@ -44,6 +49,20 @@ interface POSContextType {
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
+
+function normalizeTenant(value: unknown): POSTenant | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as Partial<POSTenant> & { status?: unknown; is_active?: unknown };
+  const status = isPOSStatus(row.status)
+    ? row.status
+    : row.is_active === false ? 'inactive' : 'active';
+
+  const enabledModules = Array.isArray(row.enabled_modules)
+    ? row.enabled_modules.filter((module): module is string => typeof module === 'string')
+    : [];
+
+  return { ...row, status, is_active: row.is_active !== false, enabled_modules: enabledModules } as POSTenant;
+}
 
 export function POSProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -83,7 +102,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
       if (ownerError) throw new Error(ownerError.message);
 
-      let resolvedTenant = ownedTenant as unknown as POSTenant | null;
+      let resolvedTenant = normalizeTenant(ownedTenant);
       let resolvedRole: POSRole | null = ownedTenant ? 'owner' : null;
       if (!resolvedTenant) {
         const { data: membership, error: membershipError } = await supabase
@@ -101,7 +120,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
             .eq('id', membership.tenant_id)
             .maybeSingle();
           if (tenantError) throw new Error(tenantError.message);
-          resolvedTenant = memberTenant as unknown as POSTenant | null;
+          resolvedTenant = normalizeTenant(memberTenant);
           resolvedRole = isPOSRole(membership.role) ? membership.role : null;
         }
       }
@@ -197,6 +216,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
   return (
     <POSContext.Provider value={{
       tenant,
+      posEnabled: Boolean(tenant?.is_active && isPOSOperational(tenant?.status)),
       posRole,
       posRoleLoading,
       activeOutlet,

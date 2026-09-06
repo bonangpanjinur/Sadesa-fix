@@ -43,6 +43,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { cn, formatPrice } from '@/lib/utils';
 import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
+import { usePOS } from '@/contexts/POSContext';
 
 interface MerchantData {
   id: string;
@@ -66,6 +67,7 @@ interface OrderData {
 export default function MerchantDashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { posEnabled, loading: posLoading } = usePOS();
   const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -268,6 +270,22 @@ export default function MerchantDashboardPage() {
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
       <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
+        {!posLoading && !posEnabled && (
+          <section className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/[0.06] p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6" data-testid="pos-activation-card">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Operasional toko</p>
+              <h2 className="mt-1 text-lg font-semibold">Butuh kasir untuk toko fisik?</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Aktifkan Kasir untuk menerima pembayaran langsung dan menyinkronkan stok dengan toko online.
+              </p>
+            </div>
+            <Button className="shrink-0" onClick={() => navigate('/merchant/pos/setup')} data-testid="button-activate-pos">
+              Aktifkan Kasir
+              <ArrowUpRight className="ml-2 h-4 w-4" />
+            </Button>
+          </section>
+        )}
+
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
           <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] via-card to-card p-5 shadow-sm sm:p-7">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />

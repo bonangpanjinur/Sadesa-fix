@@ -3,6 +3,8 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePOS, type POSRole } from '@/contexts/POSContext';
 import type { AppRole } from '@/types/auth';
+import { isPOSModuleEnabled, isPOSOperational, isPOSSetupStatus } from '@/lib/posFeatureGate';
+import { getPOSNavigationItem } from './posNavigation';
 
 export type POSArea =
   | 'operations'
@@ -17,6 +19,7 @@ export interface POSMenuPermission {
   area: POSArea;
   roles: AppRole[];
   posRoles: POSRole[];
+  moduleId?: string;
 }
 
 const ALL_APP_POS_ROLES: AppRole[] = ['admin', 'merchant'];
@@ -88,8 +91,9 @@ export function canAccessPOSPath(roles: AppRole[], path: string, posRole?: POSRo
 
 export function POSAccessRoute({ children }: { children: React.ReactNode }) {
   const { user, roles, rolesLoading } = useAuth();
-  const { posRole, posRoleLoading } = usePOS();
+  const { tenant, posEnabled, posRole, posRoleLoading } = usePOS();
   const location = useLocation();
+  const isSetupRoute = location.pathname === '/merchant/pos/setup' || location.pathname === '/pos/setup';
 
   if (rolesLoading || (Boolean(user) && posRoleLoading)) {
     return (
@@ -104,5 +108,16 @@ export function POSAccessRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) return <Navigate to="/auth" state={{ from: location }} replace />;
   if (!canAccessPOSPath(roles, location.pathname, posRole)) return <Navigate to="/unauthorized" replace />;
+  if (isSetupRoute) return <>{children}</>;
+  if (!tenant || isPOSSetupStatus(tenant.status)) {
+    return <Navigate to="/merchant/pos/setup" state={{ from: location }} replace />;
+  }
+  const permissionPath = location.pathname.replace(/^\/pos(?=\/|$)/, '/merchant/pos');
+  const permission = getPOSPermission(permissionPath);
+  const navigationItem = getPOSNavigationItem(permissionPath);
+  if (!posEnabled || !isPOSOperational(tenant.status)
+    || !isPOSModuleEnabled(tenant.enabled_modules, navigationItem?.moduleId ?? permission?.moduleId)) {
+    return <Navigate to="/merchant/pos/subscribe" state={{ from: location }} replace />;
+  }
   return <>{children}</>;
 }

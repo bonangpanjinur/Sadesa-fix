@@ -47,6 +47,7 @@ export interface POSSidebarItem {
   href: string;
   icon: ReactNode;
   badge?: number;
+  moduleId?: string;
 }
 
 export interface POSSidebarCategory {
@@ -69,15 +70,15 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
     label: 'Operasional Toko',
     icon: <ShoppingCart className="h-4 w-4" />,
     items: [
-      { label: 'Kasir', href: '/merchant/pos/kasir', icon: <ShoppingCart className="h-4 w-4" /> },
-      { label: 'Mode Kiosk', href: '/merchant/pos/kiosk', icon: <Store className="h-4 w-4" /> },
-      { label: 'Manajemen Meja', href: '/merchant/pos/meja', icon: <Table2 className="h-4 w-4" /> },
-      { label: 'Menu Digital QR', href: '/merchant/pos/menu-qr', icon: <QrCode className="h-4 w-4" /> },
-      { label: 'KDS (Dapur)', href: '/merchant/pos/kds', icon: <Tv2 className="h-4 w-4" /> },
-      { label: 'Transaksi Toko', href: '/merchant/pos/transaksi', icon: <ClipboardList className="h-4 w-4" /> },
-      { label: 'Retur Toko', href: '/merchant/pos/retur', icon: <RotateCcw className="h-4 w-4" /> },
-      { label: 'Pembelian', href: '/merchant/pos/pembelian', icon: <ShoppingBag className="h-4 w-4" /> },
-      { label: 'Kas Harian', href: '/merchant/pos/kas', icon: <Wallet className="h-4 w-4" /> },
+      { label: 'Kasir', href: '/merchant/pos/kasir', icon: <ShoppingCart className="h-4 w-4" />, moduleId: 'cashier' },
+      { label: 'Mode Kiosk', href: '/merchant/pos/kiosk', icon: <Store className="h-4 w-4" />, moduleId: 'cashier' },
+      { label: 'Manajemen Meja', href: '/merchant/pos/meja', icon: <Table2 className="h-4 w-4" />, moduleId: 'tables' },
+      { label: 'Menu Digital QR', href: '/merchant/pos/menu-qr', icon: <QrCode className="h-4 w-4" />, moduleId: 'qr_menu' },
+      { label: 'KDS (Dapur)', href: '/merchant/pos/kds', icon: <Tv2 className="h-4 w-4" />, moduleId: 'kds' },
+      { label: 'Transaksi Toko', href: '/merchant/pos/transaksi', icon: <ClipboardList className="h-4 w-4" />, moduleId: 'cashier' },
+      { label: 'Retur Toko', href: '/merchant/pos/retur', icon: <RotateCcw className="h-4 w-4" />, moduleId: 'returns' },
+      { label: 'Pembelian', href: '/merchant/pos/pembelian', icon: <ShoppingBag className="h-4 w-4" />, moduleId: 'purchasing' },
+      { label: 'Kas Harian', href: '/merchant/pos/kas', icon: <Wallet className="h-4 w-4" />, moduleId: 'cashier' },
     ],
   },
   {
@@ -86,39 +87,39 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
     icon: <Package className="h-4 w-4" />,
     items: [
       { label: 'Harga Produk', href: '/merchant/pos/harga', icon: <Tag className="h-4 w-4" /> },
-      { label: 'Bahan Baku', href: '/merchant/pos/bahan-baku', icon: <FlaskConical className="h-4 w-4" /> },
-      { label: 'Resep Produk', href: '/merchant/pos/resep', icon: <ChefHat className="h-4 w-4" /> },
+      { label: 'Bahan Baku', href: '/merchant/pos/bahan-baku', icon: <FlaskConical className="h-4 w-4" />, moduleId: 'ingredients' },
+      { label: 'Resep Produk', href: '/merchant/pos/resep', icon: <ChefHat className="h-4 w-4" />, moduleId: 'recipes' },
       { label: 'Kategori Produk', href: '/merchant/pos/kategori', icon: <Tag className="h-4 w-4" /> },
-      { label: 'Supplier', href: '/merchant/pos/supplier', icon: <Truck className="h-4 w-4" /> },
-      { label: 'Hutang Supplier', href: '/merchant/pos/hutang', icon: <CreditCard className="h-4 w-4" /> },
-      { label: 'Stok Outlet', href: '/merchant/pos/stok', icon: <Archive className="h-4 w-4" /> },
-      { label: 'Transfer Stok', href: '/merchant/pos/transfer-stok', icon: <ArrowRightLeft className="h-4 w-4" /> },
-      { label: 'Multi-Gudang', href: '/merchant/pos/gudang', icon: <Warehouse className="h-4 w-4" /> },
+      { label: 'Supplier', href: '/merchant/pos/supplier', icon: <Truck className="h-4 w-4" />, moduleId: 'purchasing' },
+      { label: 'Hutang Supplier', href: '/merchant/pos/hutang', icon: <CreditCard className="h-4 w-4" />, moduleId: 'purchasing' },
+      { label: 'Stok Outlet', href: '/merchant/pos/stok', icon: <Archive className="h-4 w-4" />, moduleId: 'outlet_stock' },
+      { label: 'Transfer Stok', href: '/merchant/pos/transfer-stok', icon: <ArrowRightLeft className="h-4 w-4" />, moduleId: 'multi_outlet' },
+      { label: 'Multi-Gudang', href: '/merchant/pos/gudang', icon: <Warehouse className="h-4 w-4" />, moduleId: 'multi_outlet' },
     ],
   },
   {
     id: 'pelanggan',
-    label: 'Pelanggan & Marketing POS',
+    label: 'Promosi & Pelanggan',
     icon: <Users className="h-4 w-4" />,
     items: [
       { label: 'Pelanggan', href: '/merchant/pos/customer', icon: <Users className="h-4 w-4" /> },
       { label: 'Promosi & Voucher', href: '/merchant/pos/promosi', icon: <Ticket className="h-4 w-4" /> },
       { label: 'Program Loyalty', href: '/merchant/pos/loyalty', icon: <Star className="h-4 w-4" /> },
-      { label: 'Analitik Pelanggan', href: '/merchant/pos/analitik', icon: <PieChart className="h-4 w-4" /> },
+      { label: 'Analitik Pelanggan', href: '/merchant/pos/analitik', icon: <PieChart className="h-4 w-4" />, moduleId: 'sales_reports' },
     ],
   },
   {
     id: 'laporan',
-    label: 'Laporan & Analitik POS',
+    label: 'Analitik & Laporan',
     icon: <BarChart3 className="h-4 w-4" />,
     items: [
-      { label: 'Laporan Penjualan', href: '/merchant/pos/laporan', icon: <BarChart3 className="h-4 w-4" /> },
-      { label: 'Lap. Laba Rugi', href: '/merchant/pos/laporan/laba-rugi', icon: <TrendingUp className="h-4 w-4" /> },
-      { label: 'Lap. Per Kasir', href: '/merchant/pos/laporan/kasir', icon: <UserCheck className="h-4 w-4" /> },
-      { label: 'Laporan Stok', href: '/merchant/pos/laporan/stok', icon: <BoxesIcon className="h-4 w-4" /> },
-      { label: 'Lap. Cashflow', href: '/merchant/pos/laporan/cashflow', icon: <Banknote className="h-4 w-4" /> },
-      { label: 'Lap. Outlet', href: '/merchant/pos/laporan/outlet', icon: <GitCompare className="h-4 w-4" /> },
-      { label: 'Analitik Produk', href: '/merchant/pos/analitik-produk', icon: <TrendingUp className="h-4 w-4" /> },
+      { label: 'Laporan Penjualan', href: '/merchant/pos/laporan', icon: <BarChart3 className="h-4 w-4" />, moduleId: 'sales_reports' },
+      { label: 'Lap. Laba Rugi', href: '/merchant/pos/laporan/laba-rugi', icon: <TrendingUp className="h-4 w-4" />, moduleId: 'sales_reports' },
+      { label: 'Lap. Per Kasir', href: '/merchant/pos/laporan/kasir', icon: <UserCheck className="h-4 w-4" />, moduleId: 'sales_reports' },
+      { label: 'Laporan Stok', href: '/merchant/pos/laporan/stok', icon: <BoxesIcon className="h-4 w-4" />, moduleId: 'outlet_stock' },
+      { label: 'Lap. Cashflow', href: '/merchant/pos/laporan/cashflow', icon: <Banknote className="h-4 w-4" />, moduleId: 'sales_reports' },
+      { label: 'Lap. Outlet', href: '/merchant/pos/laporan/outlet', icon: <GitCompare className="h-4 w-4" />, moduleId: 'multi_outlet' },
+      { label: 'Analitik Produk', href: '/merchant/pos/analitik-produk', icon: <TrendingUp className="h-4 w-4" />, moduleId: 'sales_reports' },
     ],
   },
   {
@@ -151,4 +152,10 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
 
 export function isPOSItemActive(pathname: string, href: string) {
   return href === '/merchant/pos' ? pathname === href : pathname.startsWith(href);
+}
+
+export function getPOSNavigationItem(pathname: string) {
+  return POS_MENU_CATEGORIES
+    .flatMap((category) => category.items)
+    .find((item) => item.href === pathname);
 }
