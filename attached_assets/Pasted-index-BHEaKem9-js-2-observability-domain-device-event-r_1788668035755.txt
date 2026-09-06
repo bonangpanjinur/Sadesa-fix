@@ -1,0 +1,74 @@
+index-BHEaKem9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-06T04:08:59.330Z","traceId":"device-a06606f5-21dc-4157-a531-dd8805650057","context":{"deviceType":"browser","hasTenant":false}}
+www.sadesa.id/:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-06T04:09:00.086Z","traceId":"realtime-7860b7b2-778f-40e9-bff0-b82377448f43","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-efnwsig4du","status":"SUBSCRIBED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-efnwsig4du -> SUBSCRIBED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-06T04:09:00.090Z","traceId":"realtime-0bdcad55-6e3f-4a90-9b86-eed076cd60cb","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-hn126pqkhk7","status":"SUBSCRIBED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-hn126pqkhk7 -> SUBSCRIBED
+index-BHEaKem9.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-06T04:09:00.406Z","traceId":"device-a06606f5-21dc-4157-a531-dd8805650057","durationMs":1076,"context":{"deviceType":"browser","hasTenant":false}}
+blob:https://www.sadesa.id/b5dc78d9-ea1e-4c03-90fd-5ef63f2efdee:1 Manifest: property 'start_url' ignored, URL is invalid.
+blob:https://www.sadesa.id/b5dc78d9-ea1e-4c03-90fd-5ef63f2efdee:1 Manifest: property 'scope' ignored, URL is invalid.
+blob:https://www.sadesa.id/b5dc78d9-ea1e-4c03-90fd-5ef63f2efdee:1 Manifest: property 'src' ignored, URL is invalid.
+blob:https://www.sadesa.id/b5dc78d9-ea1e-4c03-90fd-5ef63f2efdee:1 Manifest: property 'src' ignored, URL is invalid.
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:01.114Z","traceId":"realtime-72fe98aa-708c-4364-ab1c-e96581ec21a5","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-efnwsig4du","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-efnwsig4du -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:01.114Z","traceId":"realtime-1c391be5-5f9d-4498-9533-e610fce31f8c","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-efnwsig4du","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-efnwsig4du -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:01.115Z","traceId":"realtime-a808daf7-548e-4c2b-93ca-bb1ec272aca2","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-hn126pqkhk7","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-hn126pqkhk7 -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:01.115Z","traceId":"realtime-d56f3e5c-3bb6-47b5-9a07-fae2808e273e","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-hn126pqkhk7","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-hn126pqkhk7 -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-06T04:09:04.251Z","traceId":"realtime-b89474c2-2279-44fb-aa7a-e1166216f6f0","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wbb30706xxa","status":"SUBSCRIBED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wbb30706xxa -> SUBSCRIBED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-06T04:09:04.254Z","traceId":"realtime-a49c9d36-3f3c-4e68-be32-d107042164a7","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zd7sucxe329","status":"SUBSCRIBED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zd7sucxe329 -> SUBSCRIBED
+index-BHEaKem9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-06T04:09:05.952Z","traceId":"device-9df590db-06a9-4f3c-8488-e724dd61b940","context":{"deviceType":"browser","hasTenant":false}}
+index-BHEaKem9.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-06T04:09:06.057Z","traceId":"device-9df590db-06a9-4f3c-8488-e724dd61b940","durationMs":105,"context":{"deviceType":"browser","hasTenant":false}}
+index-BHEaKem9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-06T04:09:07.096Z","traceId":"device-9fd76ef1-5865-4965-81be-d937b7a8162a","context":{"deviceType":"browser","hasTenant":false}}
+index-BHEaKem9.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-06T04:09:07.249Z","traceId":"device-9fd76ef1-5865-4965-81be-d937b7a8162a","durationMs":153,"context":{"deviceType":"browser","hasTenant":false}}
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:08.161Z","traceId":"realtime-31bfa9c0-305a-4f16-a9ed-81a740632046","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wbb30706xxa","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wbb30706xxa -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:08.161Z","traceId":"realtime-9a8dbc26-d3c5-459f-8420-9b34a3d6b826","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wbb30706xxa","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wbb30706xxa -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:08.162Z","traceId":"realtime-bc7bf380-87fd-495a-966a-29f9ef907dd7","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zd7sucxe329","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zd7sucxe329 -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-06T04:09:08.162Z","traceId":"realtime-15512472-bec4-4b51-a024-a4dc02816bf1","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zd7sucxe329","status":"CLOSED"}}
+realtimeTelemetry-_c-J2sqN.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zd7sucxe329 -> CLOSED
+index-BHEaKem9.js:2 [observability] {"domain":"pos_webhook","event":"bridge_unavailable","level":"warn","at":"2026-09-06T04:09:09.957Z","traceId":"pos_webhook-b446fcf2-4d2d-4617-ad7e-6ccf7e322530","context":{"path":"/api/db/query"}}
+N @ index-BHEaKem9.js:2
+posBridge-Wn9qVZHK.js:1 [pos-bridge] endpoint tidak tersedia: /api/db/query
+n @ posBridge-Wn9qVZHK.js:1
+react-vendor-wVUb6l2p.js:8 Error: cannot add `postgres_changes` callbacks for realtime:merchant-sidebar-2bcc2013-bbb8-4cc9-820e-02d80550b11e after `subscribe()`.
+    at ye.on (supabase-vendor-CIS1ha1V.js:9:22070)
+    at MerchantLayout-O2D5Wpbd.js:1:1540
+    at fl (react-vendor-wVUb6l2p.js:8:24323)
+    at Ln (react-vendor-wVUb6l2p.js:8:42490)
+    at sa (react-vendor-wVUb6l2p.js:8:36669)
+    at It (react-vendor-wVUb6l2p.js:6:3257)
+    at gc (react-vendor-wVUb6l2p.js:8:41360)
+    at rn (react-vendor-wVUb6l2p.js:8:40333)
+    at ia (react-vendor-wVUb6l2p.js:8:35455)
+    at qe (react-vendor-wVUb6l2p.js:1:9643)
+Ku @ react-vendor-wVUb6l2p.js:8
+index-BHEaKem9.js:2 ErrorBoundary caught an error: Error: cannot add `postgres_changes` callbacks for realtime:merchant-sidebar-2bcc2013-bbb8-4cc9-820e-02d80550b11e after `subscribe()`.
+    at ye.on (supabase-vendor-CIS1ha1V.js:9:22070)
+    at MerchantLayout-O2D5Wpbd.js:1:1540
+    at fl (react-vendor-wVUb6l2p.js:8:24323)
+    at Ln (react-vendor-wVUb6l2p.js:8:42490)
+    at sa (react-vendor-wVUb6l2p.js:8:36669)
+    at It (react-vendor-wVUb6l2p.js:6:3257)
+    at gc (react-vendor-wVUb6l2p.js:8:41360)
+    at rn (react-vendor-wVUb6l2p.js:8:40333)
+    at ia (react-vendor-wVUb6l2p.js:8:35455)
+    at qe (react-vendor-wVUb6l2p.js:1:9643) Object
+componentDidCatch @ index-BHEaKem9.js:2
+POSKasirPage-DG90RByQ.js:2 [pos-offline] failed to refresh product cache: PosBridgeUnavailableError: Fitur POS/QR ini belum tersedia karena layanan POS belum aktif. Hubungi admin untuk mengaktifkannya.
+    at o (posBridge-Wn9qVZHK.js:1:406)
+    at POSKasirPage-DG90RByQ.js:2:5925
+    at POSKasirPage-DG90RByQ.js:2:23861
+    at fl (react-vendor-wVUb6l2p.js:8:24323)
+    at Ln (react-vendor-wVUb6l2p.js:8:42490)
+    at sa (react-vendor-wVUb6l2p.js:8:36669)
+    at It (react-vendor-wVUb6l2p.js:6:3257)
+    at gc (react-vendor-wVUb6l2p.js:8:41360)
+    at rn (react-vendor-wVUb6l2p.js:8:40333)
+    at ia (react-vendor-wVUb6l2p.js:8:35455)

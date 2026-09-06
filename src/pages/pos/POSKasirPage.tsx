@@ -13,8 +13,6 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Package, ChevronLeft, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-import { MerchantSidebar } from '@/components/merchant/MerchantSidebar';
-
 import { POSLayout } from '@/components/pos/POSLayout';
 
 import { cn } from '@/lib/utils';
@@ -50,7 +48,6 @@ export default function POSKasirPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -758,14 +755,6 @@ export default function POSKasirPage() {
 
   return (
 
-    <div className="flex h-[100dvh] flex-col lg:flex-row bg-background overflow-hidden">
-      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <div className={cn('fixed inset-y-0 left-0 z-50 lg:relative lg:z-0 transform transition-transform duration-200', sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')}>
-         <MerchantSidebar />
-      </div>
-
-      <div className="flex flex-1 min-w-0 min-h-0 flex-col lg:flex-row overflow-hidden">
-
     <POSLayout
       title="Kasir"
       subtitle={activeOutlet?.name ? `Outlet: ${activeOutlet.name}` : 'Checkout POS'}
@@ -1016,7 +1005,5 @@ export default function POSKasirPage() {
         </Suspense>
       )}
     </POSLayout>
-      </div>
-    </div>
   );
 }

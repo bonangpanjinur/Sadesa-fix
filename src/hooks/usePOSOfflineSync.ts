@@ -8,8 +8,8 @@ import {
   type OfflineProduct,
   type PendingSale,
 } from '@/lib/posOfflineDB';
-import { posBridgeFetch } from '@/lib/posBridge';
 import { processAtomicPOSSale } from '@/lib/posCheckout';
+import { supabase } from '@/integrations/supabase/client';
 
 interface OfflineProductApiRow {
   id: string;
@@ -24,7 +24,7 @@ interface OfflineProductApiRow {
   image_url: string | null;
   is_active: boolean | null;
   pos_categories?: { name: string } | null;
-  pos_stock?: Array<{ quantity: number }>;
+  pos_stock?: Array<{ quantity: number; outlet_id?: string | null }>;
 }
 
 interface UsePOSOfflineSyncOptions {
@@ -77,13 +77,23 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
   const refreshProductCache = useCallback(async () => {
     if (!outletId || !tenantId || !isOnline) return;
     try {
-      const res = await posBridgeFetch(`/api/db/query?table=pos_products&outlet_id=${encodeURIComponent(outletId)}`, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) return;
-      const { data } = await res.json() as { data?: OfflineProductApiRow[] };
-      if (!Array.isArray(data)) return;
-      const mapped: OfflineProduct[] = data.map((product) => ({
+      // The app is a Vite SPA, so the old Express `/api/db/query` bridge is
+      // not available. Read through Supabase directly, just like the online
+      // POS catalogue does, and keep the result in IndexedDB for offline use.
+      const { data, error } = await supabase
+        .from('pos_products' as never)
+        .select('*, pos_categories(name), pos_stock(quantity, outlet_id)')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      const outletProducts = (data as unknown as OfflineProductApiRow[]).map((product) => ({
+        ...product,
+        pos_stock: (product.pos_stock || []).filter(
+          (stock) => !stock.outlet_id || stock.outlet_id === outletId,
+        ),
+      }));
+      const mapped: OfflineProduct[] = outletProducts.map((product) => ({
         id: product.id,
         tenant_id: tenantId,
         outlet_id: outletId,

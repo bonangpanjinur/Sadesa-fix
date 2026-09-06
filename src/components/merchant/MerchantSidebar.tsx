@@ -123,7 +123,12 @@ export function MerchantSidebar() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      // Unsubscribe before removing so a remount cannot reuse a channel that
+      // still has an active subscription and reject new postgres_changes hooks.
+      void channel.unsubscribe();
+      void supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const menuItems: SidebarItem[] = [
