@@ -2,7 +2,6 @@ import { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
-import { POSSidebar } from './POSSidebar';
 import { usePOS } from '@/contexts/POSContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -67,7 +66,6 @@ export function POSLayout({ children, title, subtitle, actions, fullWidth }: POS
       subtitle={subtitle}
       actions={actions}
       fullWidth={fullWidth}
-      sidebar={<POSSidebar />}
     >
       {children}
     </MerchantLayout>

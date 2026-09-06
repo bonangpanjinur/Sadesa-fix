@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   User, Settings, HelpCircle, LogIn, LogOut, Store, ChevronRight, Edit, Heart, 
   Bell, LayoutDashboard, Shield, CheckCircle, Bike, Building2, MapPin, Star, Clock,
-  MessageCircle, Package, ShoppingCart, Wallet, Users, RefreshCw
+  MessageCircle, Package, Wallet, Users, RefreshCw
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -110,23 +110,12 @@ export default function AccountPage() {
       });
     }
 
-    if (isMerchant) {
+    if (isMerchant || isAdmin) {
       buttons.push({
-        label: 'Dashboard Merchant',
+        label: 'Merchant & POS',
         path: '/merchant',
         icon: <Store className="h-5 w-5" />,
         color: 'bg-warning/10 text-warning border-warning/20',
-      });
-    }
-
-    // POS is only available to merchant/admin accounts. Ordinary buyers
-    // should not see a CTA that will send them to an unauthorized page.
-    if (isMerchant || isAdmin) {
-      buttons.push({
-        label: 'Kasir POS',
-        path: '/merchant/pos/kasir',
-        icon: <ShoppingCart className="h-5 w-5" />,
-        color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       });
     }
 

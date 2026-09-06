@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -7,6 +7,7 @@ import {
   Receipt, 
   Settings, 
   ChevronLeft,
+  ChevronDown,
   Store,
   BarChart3,
   Star,
@@ -36,6 +37,10 @@ import {
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePOS } from '@/contexts/POSContext';
+import { canAccessPOSPath } from '@/components/pos/posPermissions';
+import { POS_MENU_CATEGORIES } from '@/components/pos/POSSidebar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SidebarItem {
   label: string;
@@ -46,11 +51,23 @@ interface SidebarItem {
 
 export function MerchantSidebar() {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
+  const { tenant, outlets, activeOutlet, setActiveOutlet, posRole } = usePOS();
   const [pendingOrders, setPendingOrders] = useState(0);
   const [unrepliedReviews, setUnrepliedReviews] = useState(0);
   const [pendingRefunds, setPendingRefunds] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
+  const isPOSPath = location.pathname.startsWith('/merchant/pos');
+  const canSeePOS = roles.some((role) => role === 'merchant' || role === 'admin');
+  const [posOpen, setPosOpen] = useState(isPOSPath);
+  const [openPOSCategories, setOpenPOSCategories] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = window.localStorage.getItem('merchant-pos-sidebar-categories');
+      return stored ? JSON.parse(stored) as Record<string, boolean> : { operasional: true };
+    } catch {
+      return { operasional: true };
+    }
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -131,10 +148,40 @@ export function MerchantSidebar() {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (isPOSPath) setPosOpen(true);
+  }, [isPOSPath]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('merchant-pos-sidebar-categories', JSON.stringify(openPOSCategories));
+    } catch {
+      // Sidebar preferences are optional.
+    }
+  }, [openPOSCategories]);
+
+  const visiblePOSCategories = useMemo(() => POS_MENU_CATEGORIES.map((category) => ({
+    ...category,
+    items: category.items.filter((item) => canAccessPOSPath(roles, item.href, posRole)),
+  })).filter((category) => category.items.length > 0), [roles, posRole]);
+  const activePOSCategoryId = visiblePOSCategories.find((category) => (
+    category.items.some((item) => (
+      item.href === '/merchant/pos'
+        ? location.pathname === '/merchant/pos'
+        : location.pathname.startsWith(item.href)
+    ))
+  ))?.id;
+
+  useEffect(() => {
+    if (!activePOSCategoryId) return;
+    setOpenPOSCategories((current) => current[activePOSCategoryId] ? current : {
+      ...current,
+      [activePOSCategoryId]: true,
+    });
+  }, [activePOSCategoryId]);
+
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { label: 'Kasir', href: '/merchant/pos/kasir', icon: <Receipt className="h-4 w-4" /> },
-    { label: 'Langganan POS', href: '/merchant/pos/subscribe', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Pesanan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
     { label: 'Fulfillment Parsial', href: '/merchant/fulfillment', icon: <Truck className="h-4 w-4" /> },
     { label: 'Price Book', href: '/merchant/price-book', icon: <BookOpen className="h-4 w-4" /> },
@@ -163,7 +210,6 @@ export function MerchantSidebar() {
     { label: 'Kuota Transaksi Marketplace', href: '/merchant/subscription', icon: <CreditCard className="h-4 w-4" /> },
     { label: 'Penarikan', href: '/merchant/withdrawal', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Iuran Kas', href: '/merchant/dues', icon: <WalletIcon className="h-4 w-4" /> },
-    { label: 'Pengaturan Kasir', href: '/merchant/pos/settings', icon: <Settings className="h-4 w-4" /> },
     { label: 'Pengaturan', href: '/merchant/settings', icon: <Settings className="h-4 w-4" /> },
   ];
 
@@ -172,7 +218,7 @@ export function MerchantSidebar() {
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Store className="h-6 w-6 text-primary" />
-          <span className="font-semibold text-lg">Toko Saya</span>
+          <span className="font-semibold text-lg">Merchant & POS</span>
         </div>
       </div>
 
@@ -210,6 +256,132 @@ export function MerchantSidebar() {
             </Link>
           );
         })}
+        {canSeePOS && (
+          <section className="mt-3 rounded-lg border border-emerald-200/70 bg-emerald-50/30 p-1">
+            <button
+              type="button"
+              aria-expanded={posOpen}
+              onClick={() => setPosOpen((current) => !current)}
+              className={cn(
+                'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition-colors',
+                isPOSPath ? 'bg-emerald-100 text-emerald-800' : 'text-foreground hover:bg-emerald-100/70'
+              )}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <Receipt className="h-4 w-4 text-emerald-600" />
+                <span className="truncate">Kasir & POS</span>
+                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                  {visiblePOSCategories.reduce((total, category) => total + category.items.length, 0)}
+                </span>
+              </span>
+              <ChevronDown className={cn('h-4 w-4 shrink-0 text-emerald-700 transition-transform', !posOpen && '-rotate-90')} />
+            </button>
+
+            {posOpen && (
+              <div className="mt-1 space-y-1 px-1 pb-1">
+                <div className="rounded-lg border border-emerald-100 bg-card p-2">
+                  <div className="mb-2 flex items-center gap-2 px-2 text-xs font-semibold text-emerald-700">
+                    <Store className="h-3.5 w-3.5" />
+                    {tenant?.name || 'POS belum disiapkan'}
+                  </div>
+                  {outlets.length > 1 && (
+                    <Select value={activeOutlet?.id} onValueChange={(value) => {
+                      const outlet = outlets.find((outlet) => outlet.id === value);
+                      if (outlet) setActiveOutlet(outlet);
+                    }}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Pilih outlet" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {outlets.map((outlet) => (
+                          <SelectItem key={outlet.id} value={outlet.id} className="text-xs">
+                            {outlet.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {outlets.length === 1 && activeOutlet && (
+                    <div className="truncate rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+                      📍 {activeOutlet.name}
+                    </div>
+                  )}
+                  <Link
+                    to="/merchant/pos/subscribe"
+                    className="mt-2 flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    <CreditCard className="h-3.5 w-3.5" />
+                    Langganan POS
+                  </Link>
+                </div>
+
+                {visiblePOSCategories.map((category) => {
+                  const isOpen = Boolean(openPOSCategories[category.id]);
+                  const hasActiveItem = category.id === activePOSCategoryId;
+                  return (
+                    <div key={category.id} className="rounded-lg">
+                      <button
+                        type="button"
+                        aria-expanded={isOpen}
+                        onClick={() => setOpenPOSCategories((current) => ({
+                          ...current,
+                          [category.id]: !current[category.id],
+                        }))}
+                        className={cn(
+                          'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs font-semibold transition-colors',
+                          hasActiveItem ? 'text-emerald-700' : 'text-muted-foreground hover:bg-secondary'
+                        )}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className={cn(hasActiveItem ? 'text-emerald-600' : 'text-muted-foreground')}>
+                            {category.icon}
+                          </span>
+                          <span className="truncate">{category.label}</span>
+                          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {category.items.length}
+                          </span>
+                        </span>
+                        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 transition-transform', !isOpen && '-rotate-90')} />
+                      </button>
+                      {isOpen && (
+                        <div className="space-y-0.5 pl-2">
+                          {category.items.map((item) => {
+                            const isActive = item.href === '/merchant/pos'
+                              ? location.pathname === '/merchant/pos'
+                              : location.pathname.startsWith(item.href);
+                            return (
+                              <Link
+                                key={item.href}
+                                to={item.href}
+                                aria-current={isActive ? 'page' : undefined}
+                                className={cn(
+                                  'flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                                  isActive
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                                )}
+                              >
+                                <span className="flex min-w-0 items-center gap-2">
+                                  {item.icon}
+                                  <span className="truncate">{item.label}</span>
+                                </span>
+                                {item.badge !== undefined && item.badge > 0 && (
+                                  <span className="rounded-full bg-destructive px-1.5 py-0.5 text-xs text-white">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </nav>
 
       <div className="p-3 border-t border-border">

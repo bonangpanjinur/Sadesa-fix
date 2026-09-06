@@ -11,10 +11,9 @@ interface MerchantLayoutProps {
   subtitle?: string;
   actions?: ReactNode;
   fullWidth?: boolean;
-  sidebar?: ReactNode;
 }
 
-export function MerchantLayout({ children, title, subtitle, actions, fullWidth = false, sidebar }: MerchantLayoutProps) {
+export function MerchantLayout({ children, title, subtitle, actions, fullWidth = false }: MerchantLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -32,7 +31,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        {sidebar ?? <MerchantSidebar />}
+        <MerchantSidebar />
       </div>
 
       <div className={cn('flex flex-1 flex-col min-w-0', fullWidth ? 'h-dvh min-h-0' : 'h-screen')}>

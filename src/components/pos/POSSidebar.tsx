@@ -16,21 +16,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { canAccessPOSPath } from './posPermissions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface SidebarItem {
+export interface POSSidebarItem {
   label: string;
   href: string;
   icon: React.ReactNode;
   badge?: number;
 }
 
-interface SidebarCategory {
+export interface POSSidebarCategory {
   id: string;
   label: string;
   icon: React.ReactNode;
-  items: SidebarItem[];
+  items: POSSidebarItem[];
 }
 
-const menuCategories: SidebarCategory[] = [
+export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
   {
     id: 'operasional', label: 'Operasional', icon: <ShoppingCart className="h-4 w-4" />,
     items: [
@@ -114,7 +114,7 @@ export function POSSidebar() {
   const location = useLocation();
   const { tenant, outlets, activeOutlet, setActiveOutlet, posRole } = usePOS();
   const { roles } = useAuth();
-  const visibleCategories = useMemo(() => menuCategories.map((category) => ({
+  const visibleCategories = useMemo(() => POS_MENU_CATEGORIES.map((category) => ({
     ...category,
     items: category.items.filter((item) => canAccessPOSPath(roles, item.href, posRole)),
   })).filter((category) => category.items.length > 0), [roles, posRole]);
