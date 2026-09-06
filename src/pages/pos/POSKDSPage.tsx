@@ -166,7 +166,10 @@ export default function POSKDSPage() {
         filter: `tenant_id=eq.${tenant.id}`,
       }, () => fetchOrders())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      void ch.unsubscribe();
+      void supabase.removeChannel(ch);
+    };
   }, [tenant, fetchOrders]);
 
   // Realtime: broadcast channel untuk pesanan QR baru

@@ -120,6 +120,44 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     }
   }, [outletId, tenantId, isOnline]);
 
+  // Keep the offline catalogue fresh when another POS session changes a
+  // product or its outlet stock. The debounce prevents a bulk import from
+  // issuing one cache refresh per row.
+  useEffect(() => {
+    if (!tenantId || !outletId) return;
+
+    let refreshTimer: number | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        void refreshProductCache();
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(`pos-product-cache-${tenantId}-${outletId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pos_products',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, scheduleRefresh)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pos_stock',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer);
+      void channel.unsubscribe();
+      void supabase.removeChannel(channel);
+    };
+  }, [tenantId, outletId, refreshProductCache]);
+
   const saveOfflineSale = useCallback(async (sale: Omit<PendingSale, 'synced'>) => {
     if (!tenantId || !outletId || sale.tenant_id !== tenantId || sale.outlet_id !== outletId) {
       throw new Error('Offline sale scope does not match the active tenant and outlet');

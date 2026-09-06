@@ -141,7 +141,10 @@ export default function POSMejaPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_tables' }, fetchAll)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pos_table_orders' }, fetchAll)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      void channel.unsubscribe();
+      void supabase.removeChannel(channel);
+    };
   }, [tenant, fetchAll]);
 
   const sections = ['semua', ...Array.from(new Set(tables.map(t => t.section))).sort()];

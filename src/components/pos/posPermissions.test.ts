@@ -38,4 +38,10 @@ describe('POS permission registry', () => {
     expect(canAccessPOSPath(['buyer'], '/pos/setup', null)).toBe(false);
     expect(access('/pos/not-registered', 'owner')).toBe(false);
   });
+
+  it('does not let buyers or unknown routes enter the POS namespace', () => {
+    expect(canAccessPOSPath(['buyer'], '/merchant/pos', null)).toBe(false);
+    expect(canAccessPOSPath(['buyer'], '/merchant/pos/kasir', null)).toBe(false);
+    expect(canAccessPOSPath(['merchant'], '/merchant/pos/unknown', 'owner')).toBe(false);
+  });
 });

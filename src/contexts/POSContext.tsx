@@ -65,6 +65,14 @@ export function POSProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Clear the previous user's scope before loading the next one. This
+    // prevents a fast account switch from briefly rendering another tenant's
+    // outlet and POS permissions.
+    setTenant(null);
+    setPosRole(null);
+    setPosRoleLoading(true);
+    setOutlets([]);
+    setActiveOutlet(null);
     setError(null);
     try {
       const { data: ownedTenant, error: ownerError } = await supabase
@@ -100,7 +108,11 @@ export function POSProvider({ children }: { children: ReactNode }) {
       setTenant(resolvedTenant);
       setPosRole(resolvedRole);
       setPosRoleLoading(false);
-      if (!resolvedTenant) return;
+      if (!resolvedTenant) {
+        setOutlets([]);
+        setActiveOutlet(null);
+        return;
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal memuat data usaha';
       console.error('Error fetching POS tenant:', err);
@@ -153,6 +165,9 @@ export function POSProvider({ children }: { children: ReactNode }) {
       ));
     } catch (err) {
       console.error('Error fetching outlets:', err);
+      setOutlets([]);
+      setActiveOutlet(null);
+      setError(err instanceof Error ? err.message : 'Gagal memuat outlet POS');
     }
   }, [tenant, posRole, user?.id]);
 
