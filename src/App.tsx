@@ -142,7 +142,6 @@ const MerchantVisitorStatsPage = lazy(() => import("./pages/merchant/MerchantVis
 const MerchantChatPage = lazy(() => import("./pages/merchant/MerchantChatPage"));
 const MerchantRefundsPage = lazy(() => import("./pages/merchant/MerchantRefundsPage"));
 const MerchantPOSSubscribePage = lazy(() => import("./pages/merchant/MerchantPOSSubscribePage"));
-const MerchantPOSSettingsPage = lazy(() => import("./pages/merchant/MerchantPOSSettingsPage"));
 const MerchantDuesPage = lazy(() => import("./pages/merchant/MerchantDuesPage"));
 const MerchantNotifikasiWAPage = lazy(() => import("./pages/merchant/MerchantNotifikasiWAPage"));
 const MerchantImportExportPage = lazy(() => import("./pages/merchant/MerchantImportExportPage"));
@@ -899,19 +898,13 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/merchant/pos/subscribe" element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['admin', 'merchant']}>
                   <MerchantPOSSubscribePage />
                 </ProtectedRoute>
               } />
               <Route path="/merchant/pos/settings" element={
-                <ProtectedRoute>
-                  <MerchantPOSSettingsPage />
-                </ProtectedRoute>
-              } />
-              {/* Legacy cashier URL: compatibility redirect; no legacy checkout is mounted. */}
-              <Route path="/merchant/pos" element={
                 <POSAccessRoute>
-                  <Navigate to="/merchant/pos/kasir" replace state={{ fromLegacyRoute: true }} />
+                  <Navigate to="/merchant/pos/pengaturan" replace />
                 </POSAccessRoute>
               } />
               <Route path="/merchant/dues" element={

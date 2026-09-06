@@ -36,6 +36,7 @@ const menuCategories: SidebarCategory[] = [
     items: [
       { label: 'Dashboard', href: '/merchant/pos', icon: <LayoutDashboard className="h-4 w-4" /> },
       { label: 'Kasir', href: '/merchant/pos/kasir', icon: <ShoppingCart className="h-4 w-4" /> },
+      { label: 'Mode Kiosk', href: '/merchant/pos/kiosk', icon: <Store className="h-4 w-4" /> },
       { label: 'Manajemen Meja', href: '/merchant/pos/meja', icon: <Table2 className="h-4 w-4" /> },
       { label: 'Menu Digital QR', href: '/merchant/pos/menu-qr', icon: <QrCode className="h-4 w-4" /> },
       { label: 'KDS (Dapur)', href: '/merchant/pos/kds', icon: <Tv2 className="h-4 w-4" /> },
@@ -49,6 +50,7 @@ const menuCategories: SidebarCategory[] = [
     id: 'inventori', label: 'Inventori & Pembelian', icon: <Package className="h-4 w-4" />,
     items: [
       { label: 'Produk', href: '/merchant/pos/produk', icon: <Package className="h-4 w-4" /> },
+      { label: 'Harga', href: '/merchant/pos/harga', icon: <Tag className="h-4 w-4" /> },
       { label: 'Bahan Baku', href: '/merchant/pos/bahan-baku', icon: <FlaskConical className="h-4 w-4" /> },
       { label: 'Resep Produk', href: '/merchant/pos/resep', icon: <ChefHat className="h-4 w-4" /> },
       { label: 'Kategori', href: '/merchant/pos/kategori', icon: <Tag className="h-4 w-4" /> },
