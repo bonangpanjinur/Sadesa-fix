@@ -331,6 +331,14 @@
       ],
       "sha256": "pending",
       "bytes": 0
+    },
+    {
+      "file": "19_20260907050000_pos_entitlement_lifecycle.sql",
+      "source_files": [
+        "19_20260907050000_pos_entitlement_lifecycle.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
     }
   ]
 }

@@ -23,6 +23,7 @@ interface POSSubscription {
   payment_proof_url: string | null;
   started_at: string | null;
   expired_at: string | null;
+  grace_ends_at: string | null;
   rejection_reason: string | null;
 }
 
@@ -178,7 +179,7 @@ export default function MerchantPOSSubscribePage() {
   // Active and pending subscriptions have a status-first view. Rejected/expired subscriptions can be renewed or resubmitted below.
   if (existingSub) {
     const subscriptionState = getPOSSubscriptionState(existingSub);
-    const isActive = subscriptionState === 'ACTIVE' || subscriptionState === 'EXPIRING_SOON';
+    const isActive = subscriptionState === 'ACTIVE' || subscriptionState === 'EXPIRING_SOON' || subscriptionState === 'GRACE_PERIOD';
     const isPending = subscriptionState === 'PENDING_REVIEW';
 
     if (isActive || isPending || subscriptionState === 'SUSPENDED') return (
@@ -188,14 +189,14 @@ export default function MerchantPOSSubscribePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 {isActive ? <Check className="h-5 w-5 text-success" /> : isPending ? <Clock className="h-5 w-5 text-warning" /> : <AlertTriangle className="h-5 w-5 text-destructive" />}
-                {isActive ? 'Kasir POS Aktif' : isPending ? 'Menunggu Persetujuan Admin' : POS_SUBSCRIPTION_STATE_LABEL[subscriptionState]}
+                {subscriptionState === 'GRACE_PERIOD' ? 'Kasir POS dalam Masa Tenggang' : isActive ? 'Kasir POS Aktif' : isPending ? 'Menunggu Persetujuan Admin' : POS_SUBSCRIPTION_STATE_LABEL[subscriptionState]}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
                 <Badge variant={isActive ? 'success' : isPending ? 'warning' : 'destructive'}>
-                  {POS_SUBSCRIPTION_STATE_LABEL[subscriptionState]}
+                   {POS_SUBSCRIPTION_STATE_LABEL[subscriptionState]}
                 </Badge>
               </div>
               {existingSub.is_trial && (
@@ -208,6 +209,11 @@ export default function MerchantPOSSubscribePage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Berlaku hingga</span>
                   <span>{new Date(existingSub.expired_at).toLocaleDateString('id-ID')}</span>
+                </div>
+              )}
+              {subscriptionState === 'GRACE_PERIOD' && existingSub.grace_ends_at && (
+                <div className="rounded-lg bg-warning/10 p-3 text-sm text-warning-foreground">
+                  Transaksi POS masih dapat berjalan sampai {new Date(existingSub.grace_ends_at).toLocaleDateString('id-ID')}. Setelah itu POS akan ditangguhkan, tetapi data marketplace dan histori tetap tersimpan.
                 </div>
               )}
               {existingSub.rejection_reason && (

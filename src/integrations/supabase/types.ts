@@ -1852,6 +1852,7 @@ export type Database = {
           approved_by: string | null
           created_at: string
           expired_at: string | null
+          grace_ends_at: string | null
           id: string
           is_trial: boolean
           merchant_id: string
@@ -1869,6 +1870,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           expired_at?: string | null
+          grace_ends_at?: string | null
           id?: string
           is_trial?: boolean
           merchant_id: string
@@ -1886,6 +1888,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           expired_at?: string | null
+          grace_ends_at?: string | null
           id?: string
           is_trial?: boolean
           merchant_id?: string

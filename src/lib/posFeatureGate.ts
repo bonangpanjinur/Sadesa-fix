@@ -3,6 +3,7 @@ export const POS_STATUSES = [
   'setup_required',
   'trial',
   'active',
+  'grace',
   'suspended',
   'cancelled',
 ] as const;
@@ -14,7 +15,7 @@ export function isPOSStatus(value: unknown): value is POSStatus {
 }
 
 export function isPOSOperational(status: POSStatus | null | undefined) {
-  return status === 'trial' || status === 'active';
+  return status === 'trial' || status === 'active' || status === 'grace';
 }
 
 export function isPOSSetupStatus(status: POSStatus | null | undefined) {
