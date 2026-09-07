@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  cacheProducts,
+  replaceCachedProducts,
   getCachedProducts,
   savePendingSale,
   syncPendingSales,
-  getPendingSaleCount,
+  getOfflineQueueSummary,
+  PRODUCT_CACHE_MAX_AGE_MS,
   type OfflineProduct,
   type PendingSale,
 } from '@/lib/posOfflineDB';
@@ -41,8 +42,10 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [queueSummary, setQueueSummary] = useState({ pending: 0, queued: 0, syncing: 0, failed: 0, conflict: 0 });
   const [cachedProducts, setCachedProducts] = useState<OfflineProduct[]>([]);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [clock, setClock] = useState(() => Date.now());
   const syncInProgress = useRef(false);
 
   const loadCachedProducts = useCallback(async () => {
@@ -57,13 +60,16 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     }
   }, [tenantId, outletId]);
 
-  const refreshPendingCount = useCallback(async () => {
+  const refreshQueueSummary = useCallback(async () => {
     if (!tenantId || !outletId) {
       setPendingCount(0);
+      setQueueSummary({ pending: 0, queued: 0, syncing: 0, failed: 0, conflict: 0 });
       return;
     }
     try {
-      setPendingCount(await getPendingSaleCount(tenantId, outletId));
+      const summary = await getOfflineQueueSummary(tenantId, outletId);
+      setPendingCount(summary.pending);
+      setQueueSummary(summary);
     } catch (error) {
       console.warn('[pos-offline] failed to count queue:', error);
     }
@@ -71,8 +77,13 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
 
   useEffect(() => {
     void loadCachedProducts();
-    void refreshPendingCount();
-  }, [loadCachedProducts, refreshPendingCount]);
+    void refreshQueueSummary();
+  }, [loadCachedProducts, refreshQueueSummary]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setClock(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const refreshProductCache = useCallback(async () => {
     if (!outletId || !tenantId || !isOnline) return;
@@ -112,7 +123,7 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
         stock_qty: product.pos_stock?.[0]?.quantity,
         cached_at: Date.now(),
       }));
-      await cacheProducts(mapped);
+      await replaceCachedProducts(mapped, tenantId, outletId);
       setCachedProducts(mapped);
       setLastSync(new Date());
     } catch (error) {
@@ -163,8 +174,8 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
       throw new Error('Offline sale scope does not match the active tenant and outlet');
     }
     await savePendingSale(sale);
-    await refreshPendingCount();
-  }, [tenantId, outletId, refreshPendingCount]);
+    await refreshQueueSummary();
+  }, [tenantId, outletId, refreshQueueSummary]);
 
   const triggerSync = useCallback(async () => {
     if (!tenantId || !outletId || !isOnline || syncInProgress.current) return { synced: 0, failed: 0 };
@@ -229,19 +240,18 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
           };
         }
       }, { tenantId, outletId });
-      await refreshPendingCount();
+      await refreshQueueSummary();
       if (result.synced > 0 || result.failed > 0) setLastSync(new Date());
       return result;
     } finally {
       setIsSyncing(false);
       syncInProgress.current = false;
     }
-  }, [tenantId, outletId, isOnline, refreshPendingCount]);
+  }, [tenantId, outletId, isOnline, refreshQueueSummary]);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      if (autoSyncOnReconnect) void triggerSync();
     };
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
@@ -252,18 +262,32 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     };
   }, [autoSyncOnReconnect, triggerSync]);
 
+  // The online event fires before React commits isOnline=true. Retrying from
+  // this effect avoids calling a callback that still captured the offline state.
+  useEffect(() => {
+    if (autoSyncOnReconnect && isOnline && tenantId && outletId) void triggerSync();
+  }, [autoSyncOnReconnect, isOnline, tenantId, outletId, triggerSync]);
+
   useEffect(() => {
     if (!autoSyncOnReconnect || !isOnline || !tenantId || !outletId) return;
     const interval = window.setInterval(() => void triggerSync(), 30_000);
     return () => window.clearInterval(interval);
   }, [autoSyncOnReconnect, isOnline, tenantId, outletId, triggerSync]);
 
+  const cacheUpdatedAt = cachedProducts.reduce((latest, product) => Math.max(latest, product.cached_at || 0), 0);
+  const cacheAgeMs = cacheUpdatedAt > 0 ? Math.max(0, clock - cacheUpdatedAt) : null;
+  const isCacheStale = cacheAgeMs === null || cacheAgeMs > PRODUCT_CACHE_MAX_AGE_MS;
+
   return {
     isOnline,
     isSyncing,
     pendingCount,
+    queueSummary,
     cachedProducts,
     lastSync,
+    cacheUpdatedAt: cacheUpdatedAt ? new Date(cacheUpdatedAt) : null,
+    cacheAgeMs,
+    isCacheStale,
     refreshProductCache,
     saveOfflineSale,
     triggerSync,

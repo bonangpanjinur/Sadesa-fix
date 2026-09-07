@@ -4,3 +4,4 @@
 - [Replit runtime config](replit-runtime-config.md) — `.replit` is schema-validated through a temp-file replacement flow; direct edits can be rejected.
 - [POS receipt print contract](pos-receipt-print-contract.md) — POS receipts share an idempotent print contract; marketplace invoices remain separate A4 documents.
 - [Bootstrap manual bundles](bootstrap-manual-bundles.md) — recent POS hardening bundles are canonical bootstrap additions beyond the archived migration source set.
+- [Offline reconnect timing](offline-reconnect-timing.md) — trigger POS queue sync from committed online state, not directly inside the browser online event.

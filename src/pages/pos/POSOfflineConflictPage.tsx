@@ -52,15 +52,25 @@ export default function POSOfflineConflictPage() {
   if (error) return <POSLayout title="Offline Conflict Center"><POSErrorState title="Antrean offline gagal dibaca" description={error} onRetry={() => void load()} /></POSLayout>;
 
   const conflicts = sales.filter((sale) => sale.status === 'conflict' || sale.status === 'failed');
+  const queued = sales.filter((sale) => sale.status === 'queued').length;
+  const syncing = sales.filter((sale) => sale.status === 'syncing').length;
+  const failed = sales.filter((sale) => sale.status === 'failed').length;
+  const conflictCount = sales.filter((sale) => sale.status === 'conflict').length;
   return (
     <POSLayout title="Offline Conflict Center" subtitle="Tinjau transaksi yang belum tersinkronisasi">
       <div className="space-y-5">
         <Card className="border-amber-200 bg-amber-50/60">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3"><WifiOff className="mt-0.5 h-5 w-5 text-amber-700" aria-hidden="true" /><div><p className="font-semibold text-amber-900">Antrean offline: {sales.length}</p><p className="text-sm text-amber-800">Conflict perlu ditinjau sebelum dicoba ulang agar harga dan stok tidak salah.</p></div></div>
+            <div className="flex items-start gap-3"><WifiOff className="mt-0.5 h-5 w-5 text-amber-700" aria-hidden="true" /><div><p className="font-semibold text-amber-900">Antrean offline: {sales.length}</p><p className="text-sm text-amber-800">Transaksi tetap tersimpan di perangkat sampai server mengonfirmasi hasilnya.</p></div></div>
             <Button variant="outline" size="sm" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
           </CardContent>
         </Card>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Menunggu retry</p><p className="mt-1 text-2xl font-bold">{queued}</p></CardContent></Card>
+          <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Sedang sync</p><p className="mt-1 text-2xl font-bold">{syncing}</p></CardContent></Card>
+          <Card className={failed > 0 ? 'border-destructive/30' : undefined}><CardContent className="p-4"><p className="text-xs text-muted-foreground">Dead-letter</p><p className="mt-1 text-2xl font-bold">{failed}</p></CardContent></Card>
+          <Card className={conflictCount > 0 ? 'border-amber-300' : undefined}><CardContent className="p-4"><p className="text-xs text-muted-foreground">Perlu rekonsiliasi</p><p className="mt-1 text-2xl font-bold">{conflictCount}</p></CardContent></Card>
+        </div>
         {conflicts.length === 0 ? <POSEmptyState title="Tidak ada conflict" description="Semua transaksi offline sudah tersinkronisasi atau masih menunggu koneksi." /> : (
           <div className="grid gap-4">
             {conflicts.map((sale) => (

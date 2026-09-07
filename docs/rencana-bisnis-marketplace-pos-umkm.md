@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 7 September 2026:** Fase 1 **selesai secara teknis di repository**. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, constraint database identitas SKU/barcode tenant-scoped, dan validasi aplikasi untuk form katalog sudah tersedia; validasi di staging/production, pengujian konflik, dan pemetaan stok marketplace untuk varian masih terbuka. Migration baru belum diterapkan ke staging/production.
+> **Status implementasi — 7 September 2026:** Fase 1 **selesai secara teknis di repository**. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, constraint database identitas SKU/barcode tenant-scoped, dan validasi aplikasi untuk form katalog sudah tersedia; validasi di staging/production, pengujian konflik, dan pemetaan stok marketplace untuk varian masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**: cache tenant/outlet, antrean IndexedDB idempotent, retry/dead-letter, indikator usia cache, serta conflict center sudah tersedia. Uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Migration baru belum diterapkan ke staging/production.
 
 ## 0. Analisis kesiapan saat ini
 
@@ -11,11 +11,11 @@
 | Katalog dan stok non-varian | **Siap diuji di staging** | POS outlet stock menjadi sumber operasional, marketplace menjadi projection, reservation ledger dan rekonsiliasi sudah tersedia. |
 | Identitas katalog | **Siap setelah migration diterapkan** | Constraint database dan validasi form untuk SKU/barcode unik per tenant sudah tersedia; validasi konsistensi produk–varian–outlet tetap perlu staging. |
 | Projection stale | **Siap setelah migration diterapkan** | Alert warning berbasis umur sinkronisasi dipindai saat halaman Integrasi POS dibuka dan tampil bersama alert error. |
-| POS offline | **Belum siap dipasarkan** | Queue dan retry/conflict center sudah ada, tetapi skenario perangkat ditutup, refresh, listrik mati, dan konflik stok belum teruji menyeluruh. |
+| POS offline | **Siap untuk uji staging/pilot terbatas** | Queue, retry/dead-letter, conflict center, cache stale, dan receipt offline sudah ada; skenario perangkat ditutup, refresh, listrik mati, dan konflik stok masih perlu diuji menyeluruh. |
 | Laporan resmi | **Belum siap dipasarkan sebagai laporan resmi** | Rekonsiliasi shift, payment ledger, jurnal canonical, dan audit harian masih menjadi Fase 4. |
 | Produksi | **Belum siap** | Migration harus diterapkan dan diuji di staging; variabel Supabase publik, Edge Functions, Auth redirect, dan pilot merchant masih perlu dikonfigurasi. |
 
-**Prioritas kerja:** selesaikan hardening Fase 2 dan validasi staging terlebih dahulu, lalu tutup Fase 3 dengan uji offline/conflict sebelum membuka POS secara luas. Jangan menandai fase sebagai siap produksi hanya karena halaman atau RPC sudah ada di repository.
+**Prioritas kerja:** terapkan migration ke staging, validasi Fase 2, lalu uji perangkat dan konflik Fase 3 sebelum membuka POS secara luas. Jangan menandai fase sebagai siap produksi hanya karena halaman atau RPC sudah ada di repository.
 
 ## 1. Ringkasan keputusan
 
@@ -457,14 +457,16 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 
 **Tujuan:** kasir tetap dapat bekerja saat internet tidak stabil tanpa merusak ledger.
 
-- cache katalog per tenant/outlet;
-- queue transaksi offline dengan idempotency key;
-- validasi ulang di server saat sync;
-- deteksi konflik harga, produk, stok, dan subscription;
-- tampilkan usia cache dan jumlah transaksi belum tersinkron;
-- sediakan retry, dead-letter/conflict queue, dan rekonsiliasi;
-- uji perangkat ditutup, browser refresh, listrik mati, dan koneksi putus di tengah checkout;
-- bedakan receipt POS dengan invoice marketplace.
+- [x] cache katalog per tenant/outlet;
+- [x] queue transaksi offline dengan idempotency key;
+- [x] validasi ulang di server saat sync;
+- [x] deteksi dan tampilkan konflik harga, produk/stok, serta subscription melalui status conflict/dead-letter;
+- [x] tampilkan usia cache dan jumlah transaksi belum tersinkron;
+- [x] sediakan retry, dead-letter/conflict queue, dan conflict center untuk rekonsiliasi manual;
+- [ ] uji perangkat ditutup, browser refresh, listrik mati, dan koneksi putus di tengah checkout;
+- [x] bedakan receipt POS dengan invoice marketplace.
+
+**Status saat ini:** **Selesai secara teknis di repository untuk alur offline dasar.** Cache sekarang diganti sebagai snapshot tenant/outlet agar produk yang dihapus/nonaktif tidak tertinggal; antrean menyimpan status `queued`, `syncing`, `failed`, `conflict`, atau `synced`, memakai lease agar klaim yang macet dapat dipulihkan, dan merangkum dead-letter/conflict untuk kasir. Kasir menampilkan usia cache, jumlah antrean, dan tautan ke Conflict Center. Reconnect memulai sync setelah state online benar-benar terpasang, sehingga tidak melewati sync karena timing event browser. Uji perangkat nyata, konflik lintas kanal, serta penerapan migration di staging tetap menjadi prasyarat pilot.
 
 **Kriteria selesai:** kasir dapat bekerja offline secara terbatas dan merchant selalu tahu transaksi mana yang sudah final dan mana yang masih menunggu sync.
 

@@ -10,6 +10,7 @@ const DB_NAME = 'desamart_pos_offline';
 const DB_VERSION = 2;
 const MAX_SYNC_ATTEMPTS = 8;
 const CLAIM_LEASE_MS = 5 * 60_000;
+export const PRODUCT_CACHE_MAX_AGE_MS = 30 * 60_000;
 const STORES = {
   PRODUCTS: 'pos_products',
   PENDING_SALES: 'pending_sales',
@@ -91,6 +92,14 @@ export interface SyncResult {
   retryable?: boolean;
   conflict?: boolean;
   conflictCode?: string;
+}
+
+export interface OfflineQueueSummary {
+  pending: number;
+  queued: number;
+  syncing: number;
+  failed: number;
+  conflict: number;
 }
 
 function scopeKey(tenantId: string, outletId: string): string {
@@ -176,6 +185,31 @@ export async function cacheProducts(products: OfflineProduct[]): Promise<void> {
   await waitForTransaction(tx);
 }
 
+/** Replaces one scoped catalogue snapshot so deleted/deactivated products do not linger offline. */
+export async function replaceCachedProducts(products: OfflineProduct[], tenantId: string, outletId: string): Promise<void> {
+  if (!tenantId || !outletId) throw new Error('Offline product cache scope is required');
+  if (products.some((product) => product.tenant_id !== tenantId || product.outlet_id !== outletId)) {
+    throw new Error('Offline product cache contains a product outside the requested scope');
+  }
+  const db = await openDB();
+  const tx = db.transaction(STORES.PRODUCTS, 'readwrite');
+  const store = tx.objectStore(STORES.PRODUCTS);
+  const request = store.index('scope').openCursor(IDBKeyRange.only([tenantId, outletId]));
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (cursor) {
+      cursor.delete();
+      cursor.continue();
+      return;
+    }
+    const now = Date.now();
+    for (const product of products) {
+      store.put({ ...product, cache_key: productCacheKey(product), cached_at: now });
+    }
+  };
+  await waitForTransaction(tx);
+}
+
 export async function getCachedProducts(tenantId: string, outletId: string): Promise<OfflineProduct[]> {
   if (!tenantId || !outletId) throw new Error('Offline product cache scope is required');
   const db = await openDB();
@@ -242,6 +276,29 @@ export async function getPendingSales(tenantId: string, outletId: string): Promi
 
 export async function getPendingSaleCount(tenantId: string, outletId: string): Promise<number> {
   return (await getPendingSales(tenantId, outletId)).length;
+}
+
+export async function getOfflineQueueSummary(tenantId: string, outletId: string): Promise<OfflineQueueSummary> {
+  if (!tenantId || !outletId) throw new Error('Offline queue scope is required');
+  const db = await openDB();
+  const tx = db.transaction(STORES.PENDING_SALES, 'readonly');
+  const request = tx.objectStore(STORES.PENDING_SALES).index('scope').getAll(IDBKeyRange.only([tenantId, outletId]));
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => {
+      const summary: OfflineQueueSummary = { pending: 0, queued: 0, syncing: 0, failed: 0, conflict: 0 };
+      for (const sale of (request.result || []) as PendingSale[]) {
+        if (sale.synced || sale.status === 'synced') continue;
+        summary.pending++;
+        const status = sale.status || 'queued';
+        if (status === 'queued') summary.queued++;
+        else if (status === 'syncing') summary.syncing++;
+        else if (status === 'failed') summary.failed++;
+        else if (status === 'conflict') summary.conflict++;
+      }
+      resolve(summary);
+    };
+    request.onerror = () => reject(request.error || new Error('Failed to summarize offline queue'));
+  });
 }
 
 export async function markSaleSynced(id: string): Promise<void> {
