@@ -85,10 +85,21 @@ export default function POSPenggunaPage() {
     if (form.pin) payload.pin = form.pin;
     try {
       if (editing) {
-        await supabase.from('pos_users' as never).update(payload).eq('id', editing.id);
+        const { error } = await supabase.from('pos_users' as never).update(payload).eq('id', editing.id);
+        if (error) throw error;
         toast.success('Data pengguna diperbarui');
       } else {
-        await supabase.from('pos_users' as never).insert(payload);
+        const { error } = await supabase.rpc('create_pos_user_with_entitlement_guard' as never, {
+          p_tenant_id: tenant.id,
+          p_name: payload.name,
+          p_email: payload.email,
+          p_phone: payload.phone,
+          p_role: payload.role,
+          p_outlet_id: payload.outlet_id,
+          p_pin: payload.pin || null,
+          p_is_active: payload.is_active,
+        } as never);
+        if (error) throw error;
         toast.success('Pengguna berhasil ditambahkan');
       }
       setDialogOpen(false);

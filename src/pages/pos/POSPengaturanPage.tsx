@@ -252,10 +252,17 @@ export default function POSPengaturanPage() {
     const payload = { ...outletForm, tenant_id: tenant.id, address: outletForm.address || null, phone: outletForm.phone || null };
     try {
       if (editingOutlet) {
-        await supabase.from('pos_outlets' as never).update(payload).eq('id', editingOutlet.id);
+        const { error } = await supabase.from('pos_outlets' as never).update(payload).eq('id', editingOutlet.id);
+        if (error) throw error;
         toast.success('Outlet diperbarui');
       } else {
-        await supabase.from('pos_outlets' as never).insert(payload);
+        const { error } = await supabase.rpc('create_pos_outlet_with_entitlement_guard' as never, {
+          p_tenant_id: tenant.id,
+          p_name: outletForm.name,
+          p_address: outletForm.address || null,
+          p_phone: outletForm.phone || null,
+        } as never);
+        if (error) throw error;
         toast.success('Outlet berhasil ditambahkan');
       }
       setOutletDialog(false);

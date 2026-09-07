@@ -30,6 +30,12 @@ interface POSPackage {
   price: number;
   is_active: boolean;
   sort_order: number;
+  max_outlets: number;
+  max_users: number;
+  add_on_user_price: number;
+  priority_support: boolean;
+  onboarding_discount_percent: number;
+  onboarding_discount_expires_at: string | null;
 }
 
 interface POSSubscriptionRow extends POSSubscription {
@@ -98,7 +104,11 @@ export default function AdminPOSPage() {
   const [trialDays, setTrialDays] = useState(30);
   const [savingConfig, setSavingConfig] = useState(false);
   const [addPkgOpen, setAddPkgOpen] = useState(false);
-  const [newPkg, setNewPkg] = useState({ name: '', description: '', duration_months: 1, price: 0 });
+  const [newPkg, setNewPkg] = useState({
+    name: '', description: '', duration_months: 1, price: 0,
+    max_outlets: 1, max_users: 2, add_on_user_price: 25000,
+    priority_support: false, onboarding_discount_percent: 0, onboarding_discount_expires_at: '',
+  });
   const [viewProofUrl, setViewProofUrl] = useState<string | null>(null);
   const [detailSub, setDetailSub] = useState<POSSubscription | null>(null);
   const [extensionSub, setExtensionSub] = useState<POSSubscription | null>(null);
@@ -109,7 +119,11 @@ export default function AdminPOSPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [integrationHealth, setIntegrationHealth] = useState<POSIntegrationHealth[]>([]);
   const [editPkg, setEditPkg] = useState<POSPackage | null>(null);
-  const [editPkgForm, setEditPkgForm] = useState({ name: '', description: '', duration_months: 1, price: 0, reason: '' });
+  const [editPkgForm, setEditPkgForm] = useState({
+    name: '', description: '', duration_months: 1, price: 0, reason: '',
+    max_outlets: 1, max_users: 2, add_on_user_price: 25000,
+    priority_support: false, onboarding_discount_percent: 0, onboarding_discount_expires_at: '',
+  });
 
   useEffect(() => { loadData(); }, []);
 
@@ -160,12 +174,22 @@ export default function AdminPOSPage() {
       description: newPkg.description || null,
       duration_months: newPkg.duration_months,
       price: newPkg.price,
+      max_outlets: newPkg.max_outlets,
+      max_users: newPkg.max_users,
+      add_on_user_price: newPkg.add_on_user_price,
+      priority_support: newPkg.priority_support,
+      onboarding_discount_percent: newPkg.onboarding_discount_percent,
+      onboarding_discount_expires_at: newPkg.onboarding_discount_expires_at || null,
       sort_order: packages.length,
     });
     if (error) { toast.error('Gagal menambah paket'); return; }
     toast.success('Paket berhasil ditambahkan');
     setAddPkgOpen(false);
-    setNewPkg({ name: '', description: '', duration_months: 1, price: 0 });
+    setNewPkg({
+      name: '', description: '', duration_months: 1, price: 0,
+      max_outlets: 1, max_users: 2, add_on_user_price: 25000,
+      priority_support: false, onboarding_discount_percent: 0, onboarding_discount_expires_at: '',
+    });
     loadData();
   };
 
@@ -195,6 +219,12 @@ export default function AdminPOSPage() {
       p_description: nextValue.description,
       p_duration_months: nextValue.duration_months,
       p_price: nextValue.price,
+        p_max_outlets: editPkgForm.max_outlets,
+        p_max_users: editPkgForm.max_users,
+        p_add_on_user_price: editPkgForm.add_on_user_price,
+        p_priority_support: editPkgForm.priority_support,
+        p_onboarding_discount_percent: editPkgForm.onboarding_discount_percent,
+        p_onboarding_discount_expires_at: editPkgForm.onboarding_discount_expires_at || null,
       p_reason: editPkgForm.reason.trim(),
     } as never);
     if (error) {
@@ -203,7 +233,11 @@ export default function AdminPOSPage() {
     }
     toast.success('Paket berhasil diperbarui dan perubahan dicatat');
     setEditPkg(null);
-    setEditPkgForm({ name: '', description: '', duration_months: 1, price: 0, reason: '' });
+     setEditPkgForm({
+       name: '', description: '', duration_months: 1, price: 0, reason: '',
+       max_outlets: 1, max_users: 2, add_on_user_price: 25000,
+       priority_support: false, onboarding_discount_percent: 0, onboarding_discount_expires_at: '',
+     });
     await loadData();
   };
 
@@ -469,6 +503,12 @@ export default function AdminPOSPage() {
                                 description: pkg.description || '',
                                 duration_months: pkg.duration_months,
                                 price: pkg.price,
+                                max_outlets: pkg.max_outlets ?? 1,
+                                max_users: pkg.max_users ?? 2,
+                                add_on_user_price: pkg.add_on_user_price ?? 25000,
+                                priority_support: pkg.priority_support ?? false,
+                                onboarding_discount_percent: pkg.onboarding_discount_percent ?? 0,
+                                onboarding_discount_expires_at: pkg.onboarding_discount_expires_at?.slice(0, 10) || '',
                                 reason: '',
                               });
                             }}
@@ -483,6 +523,15 @@ export default function AdminPOSPage() {
                       {pkg.description && <p className="text-sm text-muted-foreground">{pkg.description}</p>}
                       <p className="text-2xl font-bold text-primary">{formatPrice(pkg.price)}</p>
                       <p className="text-xs text-muted-foreground">{pkg.duration_months} bulan</p>
+                      <div className="grid grid-cols-2 gap-2 pt-2 text-xs text-muted-foreground">
+                        <span>{pkg.max_outlets ?? 1} outlet</span>
+                        <span>{pkg.max_users ?? 2} pengguna</span>
+                        <span>Add-on: {formatPrice(pkg.add_on_user_price ?? 25000)}/pengguna</span>
+                        <span>{pkg.priority_support ? 'Dukungan prioritas' : 'Dukungan standar'}</span>
+                      </div>
+                      {(pkg.onboarding_discount_percent ?? 0) > 0 && (
+                        <Badge variant="secondary">Promo onboarding {pkg.onboarding_discount_percent}%</Badge>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -631,6 +680,13 @@ export default function AdminPOSPage() {
                 <Input type="number" value={newPkg.price} onChange={e => setNewPkg(p => ({ ...p, price: parseInt(e.target.value) || 0 }))} />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Maks. outlet</Label><Input type="number" min={1} value={newPkg.max_outlets} onChange={e => setNewPkg(p => ({ ...p, max_outlets: Math.max(1, parseInt(e.target.value) || 1) }))} /></div>
+              <div className="space-y-2"><Label>Maks. pengguna/kasir</Label><Input type="number" min={1} value={newPkg.max_users} onChange={e => setNewPkg(p => ({ ...p, max_users: Math.max(1, parseInt(e.target.value) || 1) }))} /></div>
+              <div className="space-y-2"><Label>Harga add-on pengguna</Label><Input type="number" min={0} value={newPkg.add_on_user_price} onChange={e => setNewPkg(p => ({ ...p, add_on_user_price: Math.max(0, parseInt(e.target.value) || 0) }))} /></div>
+              <div className="space-y-2"><Label>Diskon onboarding (%)</Label><Input type="number" min={0} max={100} value={newPkg.onboarding_discount_percent} onChange={e => setNewPkg(p => ({ ...p, onboarding_discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))} /></div>
+              <div className="space-y-2 col-span-2"><Label>Promo berlaku sampai (opsional)</Label><Input type="date" value={newPkg.onboarding_discount_expires_at} onChange={e => setNewPkg(p => ({ ...p, onboarding_discount_expires_at: e.target.value }))} /></div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPkgOpen(false)}>Batal</Button>
@@ -660,6 +716,13 @@ export default function AdminPOSPage() {
                 <Label>Harga (Rp)</Label>
                 <Input type="number" min={0} value={editPkgForm.price} onChange={(e) => setEditPkgForm((p) => ({ ...p, price: Math.max(0, parseInt(e.target.value, 10) || 0) }))} />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Maks. outlet</Label><Input type="number" min={1} value={editPkgForm.max_outlets} onChange={e => setEditPkgForm(p => ({ ...p, max_outlets: Math.max(1, parseInt(e.target.value) || 1) }))} /></div>
+              <div className="space-y-2"><Label>Maks. pengguna/kasir</Label><Input type="number" min={1} value={editPkgForm.max_users} onChange={e => setEditPkgForm(p => ({ ...p, max_users: Math.max(1, parseInt(e.target.value) || 1) }))} /></div>
+              <div className="space-y-2"><Label>Harga add-on pengguna</Label><Input type="number" min={0} value={editPkgForm.add_on_user_price} onChange={e => setEditPkgForm(p => ({ ...p, add_on_user_price: Math.max(0, parseInt(e.target.value) || 0) }))} /></div>
+              <div className="space-y-2"><Label>Diskon onboarding (%)</Label><Input type="number" min={0} max={100} value={editPkgForm.onboarding_discount_percent} onChange={e => setEditPkgForm(p => ({ ...p, onboarding_discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))} /></div>
+              <div className="space-y-2 col-span-2"><Label>Promo berlaku sampai (opsional)</Label><Input type="date" value={editPkgForm.onboarding_discount_expires_at} onChange={e => setEditPkgForm(p => ({ ...p, onboarding_discount_expires_at: e.target.value }))} /></div>
             </div>
             <div className="space-y-2">
               <Label>Alasan perubahan</Label>

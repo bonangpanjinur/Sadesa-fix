@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 210,
-  "bundle_count": 25,
+  "bundle_count": 26,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -384,6 +384,14 @@
       "file": "25_20260907130000_phase4_debt_reconciliation.sql",
       "source_files": [
         "25_20260907130000_phase4_debt_reconciliation.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
+    },
+    {
+      "file": "26_20260908100000_phase5_commercial_entitlements.sql",
+      "source_files": [
+        "26_20260908100000_phase5_commercial_entitlements.sql"
       ],
       "sha256": "pending",
       "bytes": 0

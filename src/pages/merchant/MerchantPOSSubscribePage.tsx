@@ -38,6 +38,12 @@ interface POSPackage {
   duration_months: number;
   price: number;
   is_active: boolean;
+  max_outlets?: number;
+  max_users?: number;
+  add_on_user_price?: number;
+  priority_support?: boolean;
+  onboarding_discount_percent?: number;
+  onboarding_discount_expires_at?: string | null;
 }
 
 export default function MerchantPOSSubscribePage() {
@@ -309,6 +315,17 @@ export default function MerchantPOSSubscribePage() {
                 {pkg.description && <p className="text-sm text-muted-foreground">{pkg.description}</p>}
                 <p className="text-2xl font-bold text-primary">{formatPrice(pkg.price)}</p>
                 <p className="text-xs text-muted-foreground">{pkg.duration_months} bulan</p>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-xs text-muted-foreground">
+                  <span>{pkg.max_outlets ?? 1} outlet</span>
+                  <span>{pkg.max_users ?? 2} pengguna</span>
+                  <span>Add-on {formatPrice(pkg.add_on_user_price ?? 25000)}/pengguna</span>
+                  <span>{pkg.priority_support ? 'Dukungan prioritas' : 'Dukungan standar'}</span>
+                </div>
+                {(pkg.onboarding_discount_percent ?? 0) > 0 && (
+                  <Badge variant="secondary" className="mt-2">
+                    Promo onboarding {pkg.onboarding_discount_percent}%{pkg.onboarding_discount_expires_at ? ` sampai ${new Date(pkg.onboarding_discount_expires_at).toLocaleDateString('id-ID')}` : ''}
+                  </Badge>
+                )}
                 {selectedPkg === pkg.id && (
                   <Badge variant="default"><Check className="h-3 w-3 mr-1" /> Dipilih</Badge>
                 )}
