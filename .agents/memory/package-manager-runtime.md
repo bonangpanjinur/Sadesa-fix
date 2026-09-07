@@ -14,3 +14,9 @@ When using the managed Node package installer, verify `package.json` and `packag
 **Why:** A dependency repair during setup changed an unrelated ESLint root constraint in the npm lockfile even though the manifest was not intentionally changed.
 
 **How to apply:** Review `git diff` after managed installs and restore unrelated lockfile changes before delivering code.
+
+Vercel's pnpm build uses strict dependency resolution, so packages imported directly by a custom VitePWA service worker must be declared directly even when npm's hoisted local install makes them available transitively.
+
+**Why:** The deployment build resolved the main app but failed while bundling `src/sw.ts` because Workbox packages were only transitive dependencies.
+
+**How to apply:** When adding imports to service-worker or build-plugin code, add the package to `package.json` and keep both lockfiles synchronized before deploying.
