@@ -183,14 +183,16 @@ export default function POSHutangPiutangPage() {
     if (amount > selectedDebt.remaining) { toast.error('Jumlah melebihi sisa'); return; }
     setSaving(true);
     try {
-      await supabase.from('pos_debt_payments' as never).insert({
-        debt_id: selectedDebt.id, amount,
-        payment_date: payForm.payment_date, notes: payForm.notes || null,
-      });
-      const newRemaining = selectedDebt.remaining - amount;
-      await supabase.from('pos_debts' as never).update({
-        remaining: newRemaining, status: newRemaining <= 0 ? 'paid' : 'active',
-      }).eq('id', selectedDebt.id);
+      const { error } = await supabase.rpc('record_pos_debt_payment' as never, {
+        p_tenant_id: tenant?.id,
+        p_outlet_id: activeOutlet?.id,
+        p_debt_id: selectedDebt.id,
+        p_amount: amount,
+        p_payment_method: 'cash',
+        p_paid_at: `${payForm.payment_date}T00:00:00`,
+        p_notes: payForm.notes || null,
+      } as never);
+      if (error) throw error;
       toast.success('Pembayaran dicatat');
       setPayDialog(false);
       fetchAll();

@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 208,
-  "bundle_count": 24,
+  "migration_count": 210,
+  "bundle_count": 25,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -376,6 +376,14 @@
       "file": "24_20260907110000_phase4_canonical_reporting.sql",
       "source_files": [
         "24_20260907110000_phase4_canonical_reporting.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
+    },
+    {
+      "file": "25_20260907130000_phase4_debt_reconciliation.sql",
+      "source_files": [
+        "25_20260907130000_phase4_debt_reconciliation.sql"
       ],
       "sha256": "pending",
       "bytes": 0

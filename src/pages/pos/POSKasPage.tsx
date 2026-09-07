@@ -23,6 +23,12 @@ import {
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { openCashSession, closeCashSession, recordCashMutation } from '@/lib/posOperations';
+import {
+  DailyReconciliation,
+  fetchDailyReconciliation,
+  reconcileDaily,
+  reconciliationStatusLabel,
+} from '@/lib/posDailyReconciliation';
 
 interface CashSession {
   id: string;
@@ -93,6 +99,27 @@ export default function POSKasPage() {
 
   const [salesCashToday, setSalesCashToday] = useState(0);
   const [salesNonCashToday, setSalesNonCashToday] = useState(0);
+  const [dailyReconciliation, setDailyReconciliation] = useState<DailyReconciliation | null>(null);
+  const [reconciliationLoading, setReconciliationLoading] = useState(false);
+  const [reconciliationSaving, setReconciliationSaving] = useState(false);
+
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+
+  const fetchReconciliation = useCallback(async () => {
+    if (!tenant || !activeOutlet) return;
+    setReconciliationLoading(true);
+    try {
+      setDailyReconciliation(await fetchDailyReconciliation({
+        tenantId: tenant.id,
+        outletId: activeOutlet.id,
+        date: todayKey,
+      }));
+    } catch (error) {
+      console.error('Failed to load daily reconciliation:', error);
+    } finally {
+      setReconciliationLoading(false);
+    }
+  }, [activeOutlet, tenant, todayKey]);
 
   const fetchSessions = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
@@ -143,7 +170,8 @@ export default function POSKasPage() {
   useEffect(() => {
     fetchSessions();
     fetchTodaySales();
-  }, [fetchSessions, fetchTodaySales]);
+    fetchReconciliation();
+  }, [fetchSessions, fetchTodaySales, fetchReconciliation]);
 
   useEffect(() => {
     if (user) {
@@ -286,7 +314,7 @@ export default function POSKasPage() {
             <p className="text-muted-foreground text-sm">Kelola sesi kasir & mutasi kas</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => { fetchSessions(); fetchTodaySales(); }}>
+            <Button variant="outline" size="sm" onClick={() => { fetchSessions(); fetchTodaySales(); fetchReconciliation(); }}>
               <RefreshCw className="h-4 w-4 mr-1" /> Refresh
             </Button>
             <Button variant="outline" size="sm" onClick={exportCSV}>
@@ -303,6 +331,66 @@ export default function POSKasPage() {
             )}
           </div>
         </div>
+
+        <Card className={dailyReconciliation?.status === 'balanced' ? 'border-emerald-200' : 'border-amber-200'}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <CardTitle className="text-base">Rekonsiliasi Harian</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">Sumber angka: penjualan, retur, mutasi kas, pembayaran supplier, sesi, dan jurnal.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {dailyReconciliation && (
+                  <Badge className={`border-0 ${
+                    dailyReconciliation.status === 'balanced'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : dailyReconciliation.status === 'unbalanced'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {reconciliationStatusLabel(dailyReconciliation.status)}
+                  </Badge>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reconciliationSaving || reconciliationLoading}
+                  onClick={async () => {
+                    if (!tenant || !activeOutlet) return;
+                    setReconciliationSaving(true);
+                    try {
+                      setDailyReconciliation(await reconcileDaily({
+                        tenantId: tenant.id,
+                        outletId: activeOutlet.id,
+                        date: todayKey,
+                      }));
+                      toast.success('Rekonsiliasi harian disimpan');
+                    } catch (error: unknown) {
+                      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan rekonsiliasi');
+                    } finally {
+                      setReconciliationSaving(false);
+                    }
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  {reconciliationSaving ? 'Menyimpan...' : 'Tandai direkonsiliasi'}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {reconciliationLoading || !dailyReconciliation ? (
+              <p className="text-sm text-muted-foreground">Memuat ringkasan rekonsiliasi...</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div><p className="text-xs text-muted-foreground">Penjualan</p><p className="font-semibold">{formatCurrency(dailyReconciliation.sales_total)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Kas masuk non-penjualan</p><p className="font-semibold text-blue-600">{formatCurrency(dailyReconciliation.cash_in)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Bayar supplier</p><p className="font-semibold text-red-600">{formatCurrency(dailyReconciliation.supplier_payments)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Selisih sesi</p><p className={`font-semibold ${dailyReconciliation.shift_difference === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>{formatCurrency(dailyReconciliation.shift_difference)}</p></div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Active Session Banner */}
         {activeSession ? (

@@ -4,6 +4,7 @@ import { isRetryableStatus } from '@/hooks/usePOSOfflineSync';
 import { getProductUnavailableReason } from './productAvailability';
 import { validatePOSPayment, type POSPaymentValidationInput } from './posPaymentValidation';
 import { canTransition } from './posStateMachine';
+import { deriveDailyReconciliationStatus, reconciliationStatusLabel } from './posDailyReconciliation';
 
 const merchantRoles = ['merchant'] as const;
 const paymentDefaults: POSPaymentValidationInput = {
@@ -72,5 +73,16 @@ describe('Fase 4 acceptance matrix: transaksi dan operasional POS', () => {
 
   it('keeps a healthy product available when all storefront guards pass', () => {
     expect(getProductUnavailableReason({ isActive: true, stock: 2, hasQuota: true, isMerchantOpen: true })).toBeUndefined();
+  });
+
+  it.each([
+    [{ unbalancedJournals: 0, unreconciledSessions: 0, shiftDifference: 0 }, 'balanced', 'Seimbang'],
+    [{ unbalancedJournals: 0, unreconciledSessions: 1, shiftDifference: 0 }, 'attention', 'Perlu ditinjau'],
+    [{ unbalancedJournals: 0, unreconciledSessions: 0, shiftDifference: -1250 }, 'attention', 'Perlu ditinjau'],
+    [{ unbalancedJournals: 1, unreconciledSessions: 0, shiftDifference: 0 }, 'unbalanced', 'Jurnal tidak seimbang'],
+  ] as const)('daily reconciliation state is explicit: %s', (input, expectedStatus, expectedLabel) => {
+    const status = deriveDailyReconciliationStatus(input);
+    expect(status).toBe(expectedStatus);
+    expect(reconciliationStatusLabel(status)).toBe(expectedLabel);
   });
 });

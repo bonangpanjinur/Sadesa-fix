@@ -12,7 +12,7 @@
 | Identitas katalog | **Siap setelah migration diterapkan** | Constraint database dan validasi form untuk SKU/barcode unik per tenant sudah tersedia; validasi konsistensi produk–varian–outlet tetap perlu staging. |
 | Projection stale | **Siap setelah migration diterapkan** | Alert warning berbasis umur sinkronisasi dipindai saat halaman Integrasi POS dibuka dan tampil bersama alert error. |
 | POS offline | **Siap untuk uji staging/pilot terbatas** | Queue, retry/dead-letter, conflict center, cache stale, dan receipt offline sudah ada; skenario perangkat ditutup, refresh, listrik mati, dan konflik stok masih perlu diuji menyeluruh. |
-| Laporan resmi | **Fase 4 sedang dikerjakan; belum siap dipasarkan sebagai laporan resmi** | Kontrak laporan canonical dan dasar rekonsiliasi sudah ada; penerapan bundle, rekonsiliasi harian, dan validasi staging/production masih terbuka. |
+| Laporan resmi | **Siap diuji di staging; belum boleh dipasarkan sebagai laporan resmi** | Kontrak laporan canonical, ledger hutang/piutang, jurnal posted, dan rekonsiliasi harian sudah tersedia; penerapan bundle dan validasi staging/production masih terbuka. |
 | Produksi | **Belum siap** | Migration harus diterapkan dan diuji di staging; variabel Supabase publik, Edge Functions, Auth redirect, dan pilot merchant masih perlu dikonfigurasi. |
 
 **Prioritas kerja:** terapkan migration ke staging, validasi Fase 2, lalu uji perangkat dan konflik Fase 3 sebelum membuka POS secara luas. Jangan menandai fase sebagai siap produksi hanya karena halaman atau RPC sudah ada di repository.
@@ -479,16 +479,16 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 
 - [x] samakan definisi omzet, diskon, pajak, retur, HPP, beban, dan settlement di kontrak laporan server-side;
 - [x] gunakan payment ledger dan transaksi canonical sebagai dasar cashflow, tanpa menjumlahkan penjualan dua kali dari mutasi `sales_cash`;
-- hubungkan hutang/piutang ke pembayaran dan kas;
+- [x] hubungkan hutang/piutang ke pembayaran dan kas melalui RPC atomic dan mutasi kas canonical;
 - [x] scope laporan berdasarkan tenant dan outlet aktif;
 - [x] pastikan posting jurnal memvalidasi debit=kredit dan laporan mendeteksi jurnal tidak seimbang;
 - [x] tandai laporan pajak sebagai estimasi sampai memenuhi kebutuhan resmi;
 - [x] export laporan laba-rugi dan cashflow memakai state dataset yang sama dengan layar;
-- tambahkan audit dan rekonsiliasi harian.
+- [x] tambahkan snapshot audit dan rekonsiliasi harian yang menjelaskan selisih sesi, mutasi, pembayaran supplier, dan jurnal.
 
-**Status saat ini:** **Sebagian selesai secara teknis di repository.** Bundle `24_20260907110000_phase4_canonical_reporting.sql` menambahkan RPC laporan canonical tenant/outlet-scoped yang menghitung penjualan selesai, retur disetujui/diproses, HPP dari item penjualan, mutasi kas, pembayaran pembelian, sesi kas, jurnal posted, produk teratas, dan deret harian dengan definisi yang sama untuk layar dan export. Halaman laba-rugi dan cashflow sekarang memakai kontrak tersebut. Laporan pajak tetap estimasi; hutang/piutang, audit harian, penerapan bundle, dan uji rekonsiliasi nyata di staging/production masih terbuka.
+**Status saat ini:** **Selesai secara teknis di repository; siap diuji di staging.** Bundle `24_20260907110000_phase4_canonical_reporting.sql` dan `25_20260907130000_phase4_debt_reconciliation.sql` menyediakan kontrak laporan canonical tenant/outlet-scoped, pembayaran hutang/piutang atomic yang membuat mutasi kas, pembayaran supplier berdasarkan tanggal pembayaran aktual, jurnal posted server-side, dan snapshot rekonsiliasi harian. Halaman laba-rugi, cashflow, akuntansi, hutang/piutang, dan Kas memakai alur canonical tersebut. Laporan pajak tetap estimasi; bundle belum diterapkan dan rekonsiliasi nyata belum diuji di staging/production.
 
-**Kriteria selesai:** merchant dapat menutup shift, merekonsiliasi kas, dan memahami mengapa angka laporan berbeda atau sama dengan saldo aktual. **Belum tercapai penuh** sampai item terbuka di atas selesai.
+**Kriteria selesai:** merchant dapat menutup shift, merekonsiliasi kas, dan memahami mengapa angka laporan berbeda atau sama dengan saldo aktual. **Tercapai secara teknis di repository; status resmi tetap menunggu staging.**
 
 ### Fase 5 — Pertumbuhan dan monetisasi lanjutan
 

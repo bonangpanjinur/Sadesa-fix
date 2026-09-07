@@ -78,148 +78,30 @@ export default function POSAkuntansiPage() {
   };
 
   const generateJournal = async () => {
-    if (!tenant) return;
+    if (!tenant || !activeOutlet) return;
     setLoading(true);
     try {
-      const from = new Date(dateFrom + 'T00:00:00').toISOString();
-      const to = new Date(dateTo + 'T23:59:59').toISOString();
-
-      const [salesRes, returRes, purchaseRes] = await Promise.all([
-        supabase.from('pos_sales' as never)
-          .select('id, sale_number, total_amount, payment_method, payment_amount, created_at, pos_sale_items(quantity, unit_price, total_price, cost_price)')
-          .eq('tenant_id', tenant.id)
-          .eq('status', 'completed')
-          .gte('created_at', from)
-          .lte('created_at', to)
-          .order('created_at'),
-        supabase.from('pos_returns' as never)
-          .select('id, return_number, total_amount, created_at')
-          .eq('tenant_id', tenant.id)
-          .gte('created_at', from)
-          .lte('created_at', to)
-          .order('created_at'),
-        supabase.from('pos_purchases' as never)
-          .select('id, po_number, total_amount, created_at, status')
-          .eq('tenant_id', tenant.id)
-          .gte('created_at', from)
-          .lte('created_at', to)
-          .order('created_at'),
-      ]);
-
-      const journal: JournalEntry[] = [];
-
-      // Sales entries
-      for (const sale of (salesRes.data || []) as unknown as AccountingSale[]) {
-        const dateStr = format(parseISO(sale.created_at), 'dd/MM/yyyy');
-        const cashAccount = sale.payment_method === 'qris'
-          ? ACCOUNT_MAP.qris
-          : sale.payment_method === 'transfer'
-          ? ACCOUNT_MAP.bank
-          : ACCOUNT_MAP.cash;
-
-        // Debit: Kas/Bank/QRIS
-        journal.push({
-          date: dateStr,
-          ref: sale.sale_number,
-          description: `Penjualan ${sale.sale_number}`,
-          account_code: cashAccount.code,
-          account_name: cashAccount.name,
-          debit: Number(sale.total_amount),
-          credit: 0,
-        });
-        // Credit: Pendapatan
-        journal.push({
-          date: dateStr,
-          ref: sale.sale_number,
-          description: `Penjualan ${sale.sale_number}`,
-          account_code: ACCOUNT_MAP.sales.code,
-          account_name: ACCOUNT_MAP.sales.name,
-          debit: 0,
-          credit: Number(sale.total_amount),
-        });
-
-        // COGS entries
-        const items = (sale.pos_sale_items || []) as AccountingSaleItem[];
-        const totalCogs = items.reduce((s: number, i: AccountingSaleItem) => s + Number(i.cost_price || 0) * Number(i.quantity), 0);
-        if (totalCogs > 0) {
-          journal.push({
-            date: dateStr,
-            ref: sale.sale_number,
-            description: `HPP ${sale.sale_number}`,
-            account_code: ACCOUNT_MAP.cogs.code,
-            account_name: ACCOUNT_MAP.cogs.name,
-            debit: totalCogs,
-            credit: 0,
-          });
-          journal.push({
-            date: dateStr,
-            ref: sale.sale_number,
-            description: `HPP ${sale.sale_number}`,
-            account_code: ACCOUNT_MAP.inventory.code,
-            account_name: ACCOUNT_MAP.inventory.name,
-            debit: 0,
-            credit: totalCogs,
-          });
-        }
-      }
-
-      // Return entries
-      for (const ret of (returRes.data || []) as unknown as AccountingReturn[]) {
-        const dateStr = format(parseISO(ret.created_at), 'dd/MM/yyyy');
-        journal.push({
-          date: dateStr,
-          ref: ret.return_number,
-          description: `Retur Penjualan ${ret.return_number}`,
-          account_code: ACCOUNT_MAP.return_in.code,
-          account_name: ACCOUNT_MAP.return_in.name,
-          debit: Number(ret.total_amount),
-          credit: 0,
-        });
-        journal.push({
-          date: dateStr,
-          ref: ret.return_number,
-          description: `Retur Penjualan ${ret.return_number}`,
-          account_code: ACCOUNT_MAP.cash.code,
-          account_name: ACCOUNT_MAP.cash.name,
-          debit: 0,
-          credit: Number(ret.total_amount),
-        });
-      }
-
-      // Purchase entries
-      for (const po of (purchaseRes.data || []) as unknown as AccountingPurchase[]) {
-        if (po.status !== 'received') continue;
-        const dateStr = format(parseISO(po.created_at), 'dd/MM/yyyy');
-        journal.push({
-          date: dateStr,
-          ref: po.po_number,
-          description: `Pembelian ${po.po_number}`,
-          account_code: ACCOUNT_MAP.inventory.code,
-          account_name: ACCOUNT_MAP.inventory.name,
-          debit: Number(po.total_amount),
-          credit: 0,
-        });
-        journal.push({
-          date: dateStr,
-          ref: po.po_number,
-          description: `Pembelian ${po.po_number}`,
-          account_code: ACCOUNT_MAP.payable.code,
-          account_name: ACCOUNT_MAP.payable.name,
-          debit: 0,
-          credit: Number(po.total_amount),
-        });
-      }
-
-      const sumD = journal.reduce((s, e) => s + e.debit, 0);
-      const sumC = journal.reduce((s, e) => s + e.credit, 0);
-      setTotalDebit(sumD);
-      setTotalCredit(sumC);
+      const { data, error } = await supabase.rpc('get_pos_posted_journal' as never, {
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_from: dateFrom,
+        p_to: dateTo,
+      } as never);
+      if (error) throw error;
+      const result = (data || {}) as {
+        entries?: JournalEntry[];
+        total_debit?: number;
+        total_credit?: number;
+      };
+      const journal = result.entries || [];
+      setTotalDebit(Number(result.total_debit || 0));
+      setTotalCredit(Number(result.total_credit || 0));
       setEntries(journal);
 
       if (journal.length === 0) {
         toast.info('Tidak ada transaksi pada periode ini');
       } else {
-        toast.success(`${journal.length} entri jurnal digenerate`);
+        toast.success(`${journal.length} baris jurnal canonical dimuat`);
       }
     } catch (err) {
       toast.error('Gagal mengambil data transaksi');
