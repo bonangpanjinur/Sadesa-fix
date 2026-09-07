@@ -16,10 +16,12 @@ Model yang paling sehat untuk platform ini adalah **freemium berbasis dua produk
 
 3. **Omnichannel**
    - Penjualan offline di POS dan penjualan online di marketplace masuk ke satu model produk dan satu riwayat stok.
-   - POS tetap dapat digunakan ketika internet terputus.
+   - POS dirancang **offline-first** sehingga kasir tetap dapat menjual ketika internet terputus.
    - Marketplace membutuhkan koneksi internet; pesanan online tidak boleh dibuat seolah-olah sudah mengurangi stok offline sebelum reservasi server berhasil.
 
 **Rekomendasi utama:** jangan menjual “fitur POS sebagai add-on kecil” saja. Jual POS sebagai **sistem operasional usaha** yang menghemat stok, waktu kasir, dan kesalahan pencatatan, sementara marketplace gratis menjadi jalur akuisisi merchant dan sumber nilai tambahan.
+
+**Keputusan produk:** POS offline bukan sekadar fitur tambahan. Untuk target UMKM, POS harus tetap bisa dipakai untuk transaksi kasir dasar saat koneksi terputus, lalu melakukan sinkronisasi dan rekonsiliasi ketika online kembali.
 
 ---
 
@@ -198,7 +200,40 @@ Fondasi projection `pos_stock` ke `products.stock`, mapping `pos_marketplace_syn
 
 ---
 
-## 6. Cara kerja online dan offline
+## 6. POS Offline-First dan Cara Kerja Online
+
+### Keputusan offline
+
+POS **boleh digunakan offline**, tetapi tidak semua operasi boleh dilakukan tanpa koneksi. Batasan ini diperlukan agar merchant tetap bisa berjualan tanpa memberi kesempatan pada transaksi ganda, stok negatif, atau laporan palsu.
+
+| Operasi | Saat offline | Aturan |
+|---|---|---|
+| Membuka layar kasir | Boleh | Harus memakai tenant, outlet, dan user yang sudah tersimpan di perangkat |
+| Melihat katalog | Boleh | Menampilkan waktu terakhir sinkronisasi dan status data stale |
+| Penjualan tunai | Boleh | Masuk antrean lokal dengan idempotency key |
+| Cetak struk | Boleh | Struk diberi penanda offline/pending bila belum tersinkron |
+| Hold/resume bill | Boleh | Hanya pada perangkat dan outlet yang sama |
+| Pembayaran QRIS/transfer online | Tidak | Memerlukan validasi provider/server |
+| Order marketplace | Tidak | Marketplace memerlukan koneksi dan reservation server |
+| Perubahan harga massal | Tidak | Harus online dan memiliki otorisasi |
+| Penyesuaian stok besar | Tidak | Harus online agar tercatat atomic dan diaudit |
+| Tutup shift final | Sebaiknya online | Dapat membuat draft offline, tetapi finalisasi memerlukan rekonsiliasi |
+| Laporan final | Tidak | Offline hanya menampilkan ringkasan lokal sementara |
+
+### Syarat agar offline aman
+
+- Cache katalog dan stok dipisahkan berdasarkan `tenant_id` dan `outlet_id`.
+- Cache memiliki waktu kedaluwarsa dan indikator “terakhir diperbarui”.
+- Setiap transaksi offline memiliki ID unik yang tidak berubah saat retry.
+- Transaksi tidak boleh dikirim dua kali ketika perangkat reconnect atau halaman dibuka ulang.
+- Harga dan status produk divalidasi ulang oleh server saat sinkronisasi.
+- Transaksi offline tidak boleh memaksa stok server menjadi negatif.
+- Semua konflik masuk ke daftar yang bisa ditinjau merchant, bukan hilang atau otomatis diabaikan.
+- Queue lokal harus dibersihkan secara aman setelah transaksi benar-benar tersimpan di server.
+- Perangkat yang logout, hilang, atau berganti outlet tidak boleh membaca antrean tenant/outlet lain.
+- Data lokal sensitif perlu dilindungi dan memiliki kebijakan penghapusan perangkat.
+
+Fondasi proyek saat ini sudah mengarah ke model ini melalui cache katalog per tenant/outlet, antrean transaksi lokal, `processAtomicPOSSale`, serta sinkronisasi ketika koneksi kembali. Fondasi tersebut perlu diselesaikan dengan rekonsiliasi konflik, indikator stale data, pemulihan perangkat, dan pengujian kehilangan koneksi sebelum dipasarkan sebagai offline POS.
 
 ### Saat online
 
