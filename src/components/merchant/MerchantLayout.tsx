@@ -4,6 +4,8 @@ import { Menu } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { MerchantCardError } from './MerchantDataState';
 
 interface MerchantLayoutProps {
   children: ReactNode;
@@ -58,7 +60,16 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
         {/* Content (Scrollable) */}
         <div className={fullWidth ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 overflow-y-auto p-4 lg:p-8'}>
           <div className={fullWidth ? 'h-full min-w-0' : 'max-w-6xl mx-auto'}>
-            {children}
+            <ErrorBoundary
+              fallback={
+                <MerchantCardError
+                  message="Halaman merchant mengalami kendala. Coba muat ulang untuk mengambil data terbaru."
+                  onRetry={() => window.location.reload()}
+                />
+              }
+            >
+              {children}
+            </ErrorBoundary>
           </div>
         </div>
       </div>

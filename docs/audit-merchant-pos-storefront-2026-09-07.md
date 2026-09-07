@@ -2,7 +2,7 @@
 
 Tanggal audit: 7 September 2026
 
-Pembaruan terakhir: 7 September 2026 — status per fase diperbarui setelah implementasi source code, ledger stok lintas kanal, pemulihan dependency, dan verifikasi workflow.
+Pembaruan terakhir: 7 September 2026 — status per fase diperbarui setelah implementasi source code, ledger stok lintas kanal, pemulihan dependency, verifikasi workflow, dan penyamaan state data merchant/POS.
 
 ## Ringkasan eksekutif
 
@@ -170,13 +170,13 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - Banyak halaman merchant/POS menangkap error dengan pesan generik atau hanya `console.error`.
 - Beberapa query mengabaikan `error` dan tetap memakai `data || []`.
 - **Dampak:** merchant dapat melihat layar kosong seolah tidak ada data, padahal query gagal.
-- **Status:** fondasi state bersama sudah digunakan di layout/halaman POS; cakupan seluruh halaman merchant/POS belum selesai.
+- **Status:** retry query global dan observability kegagalan query/mutation sudah dipusatkan; layout merchant/POS memiliki error boundary; dashboard merchant, ringkasan harian, peringatan stok, katalog POS, stok POS, dan integrasi marketplace sekarang menampilkan loading/error/retry eksplisit. Halaman legacy lain masih perlu migrasi bertahap bila ditemukan saat staging smoke test.
 
 #### P1-6. Merchant dashboard mencampur marketplace dan POS tanpa ringkasan operasional yang cukup jelas
 
 - Dashboard merchant memuat order online, stok, review, quota, kas, jam buka, QR toko, dan status POS.
 - POS adalah workspace terpisah secara data, tetapi entry point utamanya tetap dashboard merchant.
-- **Status:** ringkasan `Marketplace` dan `Operasional POS`, outlet aktif, jumlah outlet, modul aktif, order pending, dan CTA kasir/rekonsiliasi sudah dipisahkan. Penjualan POS hari ini dan CTA stok kritis masih perlu diperdalam.
+- **Status:** ringkasan `Marketplace` dan `Operasional POS`, outlet aktif, jumlah outlet, modul aktif, order pending, CTA kasir/rekonsiliasi, penjualan POS hari ini dengan scope global-vs-outlet, serta CTA stok kritis ke manajemen stok sudah tersedia.
 
 ### P2 — Peningkatan UX dan maintainability
 
@@ -201,7 +201,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 
 - Checkout sudah memiliki observability event.
 - Belum ada matriks event yang konsisten untuk activation POS, product projection failure, stock mismatch, order status transition, subscription approval, dan storefront unavailable reason.
-- **Status:** sebagian selesai. Event activation POS, sinkronisasi stok/order, dan transisi order sudah tersedia; funnel lengkap, projection failure, subscription approval, dan unavailable reason belum seluruhnya dimatrikkan.
+- **Status:** sebagian selesai. Event activation POS, sinkronisasi stok/order, transisi order, serta kegagalan query/mutation data sudah tersedia; funnel lengkap, projection failure, subscription approval, dan unavailable reason belum seluruhnya dimatrikkan.
 
 ## Rencana implementasi yang disarankan
 

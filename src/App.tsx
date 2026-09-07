@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { CartProvider } from "@/contexts/CartContext";
@@ -264,12 +264,38 @@ const InvoicePage = lazy(() => import("./pages/InvoicePage"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 
 // QueryClient dengan konfigurasi cache optimal (P3-02)
+function stringifyQueryKey(queryKey: readonly unknown[]) {
+  try {
+    return JSON.stringify(queryKey).slice(0, 240);
+  } catch {
+    return '[unserializable-query-key]';
+  }
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      reportObservability('data', 'query_failed', 'error', {
+        queryKey: stringifyQueryKey(query.queryKey),
+        source: 'react-query',
+      }, error);
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      reportObservability('data', 'mutation_failed', 'error', {
+        mutationKey: stringifyQueryKey(mutation.options.mutationKey || []),
+        source: 'react-query',
+      }, error);
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 60_000,
       gcTime: 300_000,
-      retry: 1,
+      retry: 2,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
       refetchOnWindowFocus: false,
     },
   },

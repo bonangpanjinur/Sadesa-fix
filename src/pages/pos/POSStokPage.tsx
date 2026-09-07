@@ -91,25 +91,33 @@ export default function POSStokPage() {
 
   const fetchBatches = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
-    const { data } = await supabase
+    const { data, error: batchesError } = await supabase
       .from('pos_stock_batches' as never)
       .select('*, pos_products(name, unit)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .order('expiry_date', { ascending: true, nullsFirst: false })
       .order('received_at', { ascending: true });
+    if (batchesError) {
+      setError(batchesError.message || 'Gagal memuat batch stok');
+      return;
+    }
     setBatches((data || []) as unknown as BatchItem[]);
   }, [tenant, activeOutlet]);
 
   const fetchMutations = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
-    const { data } = await supabase
+    const { data, error: mutationsError } = await supabase
       .from('pos_stock_mutations' as never)
       .select('*, pos_products(name)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .order('created_at', { ascending: false })
       .limit(100);
+    if (mutationsError) {
+      setError(mutationsError.message || 'Gagal memuat riwayat stok');
+      return;
+    }
     setMutations((data || []) as unknown as Mutation[]);
   }, [tenant, activeOutlet]);
 
@@ -262,7 +270,10 @@ export default function POSStokPage() {
             {loading ? (
               <POSLoadingState label="Memuat stok outlet..." />
             ) : error ? (
-              <POSErrorState description={error} onRetry={() => void fetchStocks()} />
+              <POSErrorState
+                description={error}
+                onRetry={() => void Promise.all([fetchStocks(), fetchBatches(), fetchMutations()])}
+              />
             ) : filtered.length === 0 ? (
               <POSEmptyState title="Belum ada data stok" description="Stok produk akan tampil setelah produk dan outlet dikonfigurasi." />
             ) : (

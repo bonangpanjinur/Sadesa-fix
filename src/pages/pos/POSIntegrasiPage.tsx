@@ -22,6 +22,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { reportObservability } from '@/lib/observability';
+import { POSErrorState } from '@/components/pos/POSPageStates';
 
 interface IntegrationSettings {
   id: string;
@@ -113,6 +114,7 @@ export default function POSIntegrasiPage() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [posProducts, setPosProducts] = useState<POSProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [tab, setTab] = useState('overview');
   const [search, setSearch] = useState('');
@@ -130,62 +132,73 @@ export default function POSIntegrasiPage() {
   const fetchAll = useCallback(async () => {
     if (!tenant) return;
     setLoading(true);
+    setError(null);
 
-    const [{ data: sett }, { data: prods }, { data: orders }, { data: logs }, { data: merch }, { data: posProds }] = await Promise.all([
-      supabase.from('pos_integration_settings' as never).select('*').eq('tenant_id', tenant.id).maybeSingle(),
-      supabase.from('pos_marketplace_sync' as never).select('*, pos_products(name, sku, price)').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
-      supabase.from('pos_marketplace_orders' as never).select('*').eq('tenant_id', tenant.id).order('imported_at', { ascending: false }).limit(50),
-      supabase.from('pos_sync_logs' as never).select('*').eq('tenant_id', tenant.id).order('started_at', { ascending: false }).limit(20),
-      supabase.from('merchants').select('id, name').eq('user_id', user!.id).eq('registration_status', 'APPROVED'),
-      supabase.from('pos_products' as never).select('id, name, sku, price, merchant_product_id').eq('tenant_id', tenant.id).eq('is_active', true).order('name'),
-    ]);
-
-    setSettings(sett as unknown as IntegrationSettings | null);
-    setSyncedProducts((prods || []) as unknown as SyncedProduct[]);
-    setMarketplaceOrders((orders || []) as unknown as MarketplaceOrder[]);
-    setSyncLogs((logs || []) as unknown as SyncLog[]);
-    setMerchants((merch || []) as unknown as Merchant[]);
-    setPosProducts((posProds || []) as unknown as POSProduct[]);
-
-    if (tenant.merchant_id) {
-      const [{ data: marketplaceProducts }, { data: stockRows }] = await Promise.all([
-        supabase.from('products').select('id, name, stock').eq('merchant_id', tenant.merchant_id),
-        supabase.from('pos_stock' as never).select('product_id, quantity, reserved_quantity').eq('tenant_id', tenant.id),
+    try {
+      const [settingsRes, productsRes, ordersRes, logsRes, merchantsRes, posProductsRes] = await Promise.all([
+        supabase.from('pos_integration_settings' as never).select('*').eq('tenant_id', tenant.id).maybeSingle(),
+        supabase.from('pos_marketplace_sync' as never).select('*, pos_products(name, sku, price)').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
+        supabase.from('pos_marketplace_orders' as never).select('*').eq('tenant_id', tenant.id).order('imported_at', { ascending: false }).limit(50),
+        supabase.from('pos_sync_logs' as never).select('*').eq('tenant_id', tenant.id).order('started_at', { ascending: false }).limit(20),
+        supabase.from('merchants').select('id, name').eq('user_id', user!.id).eq('registration_status', 'APPROVED'),
+        supabase.from('pos_products' as never).select('id, name, sku, price, merchant_product_id').eq('tenant_id', tenant.id).eq('is_active', true).order('name'),
       ]);
-      const marketplaceStock = new Map(
-        ((marketplaceProducts || []) as Array<{ id: string; stock: number }>).map((product) => [product.id, Number(product.stock || 0)]),
-      );
-      const stockByProduct = new Map<string, { total: number; reserved: number }>();
-      ((stockRows || []) as unknown as Array<{ product_id: string; quantity: number; reserved_quantity?: number | null }>).forEach((row) => {
-        const current = stockByProduct.get(row.product_id) || { total: 0, reserved: 0 };
-        current.total += Number(row.quantity || 0);
-        current.reserved += Number(row.reserved_quantity || 0);
-        stockByProduct.set(row.product_id, current);
-      });
-      setReconciliation(
-        ((posProds || []) as unknown as Array<POSProduct & { merchant_product_id?: string | null }>).map((product) => {
-          const sourceId = product.merchant_product_id;
-          const stock = stockByProduct.get(product.id) || { total: 0, reserved: 0 };
-          const marketplaceValue = sourceId ? marketplaceStock.get(sourceId) : undefined;
-          const posAvailable = Math.max(stock.total - stock.reserved, 0);
-          const delta = marketplaceValue === undefined ? null : posAvailable - marketplaceValue;
-          return {
-            posProductId: product.id,
-            productName: product.name,
-            sku: product.sku,
-            outletTotal: stock.total,
-            reserved: stock.reserved,
-            posAvailable,
-            marketplaceStock: marketplaceValue ?? null,
-            delta,
-            status: !sourceId ? 'unlinked' : marketplaceValue === undefined ? 'missing' : delta === 0 ? 'ok' : 'mismatch',
-          };
-        }),
-      );
-    } else {
-      setReconciliation([]);
+      const firstError = [settingsRes, productsRes, ordersRes, logsRes, merchantsRes, posProductsRes].find((response) => response.error)?.error;
+      if (firstError) throw firstError;
+
+      setSettings(settingsRes.data as unknown as IntegrationSettings | null);
+      setSyncedProducts((productsRes.data || []) as unknown as SyncedProduct[]);
+      setMarketplaceOrders((ordersRes.data || []) as unknown as MarketplaceOrder[]);
+      setSyncLogs((logsRes.data || []) as unknown as SyncLog[]);
+      setMerchants((merchantsRes.data || []) as unknown as Merchant[]);
+      setPosProducts((posProductsRes.data || []) as unknown as POSProduct[]);
+
+      if (tenant.merchant_id) {
+        const [marketplaceRes, stockRes] = await Promise.all([
+          supabase.from('products').select('id, name, stock').eq('merchant_id', tenant.merchant_id),
+          supabase.from('pos_stock' as never).select('product_id, quantity, reserved_quantity').eq('tenant_id', tenant.id),
+        ]);
+        if (marketplaceRes.error) throw marketplaceRes.error;
+        if (stockRes.error) throw stockRes.error;
+
+        const marketplaceStock = new Map(
+          ((marketplaceRes.data || []) as Array<{ id: string; stock: number }>).map((product) => [product.id, Number(product.stock || 0)]),
+        );
+        const stockByProduct = new Map<string, { total: number; reserved: number }>();
+        ((stockRes.data || []) as unknown as Array<{ product_id: string; quantity: number; reserved_quantity?: number | null }>).forEach((row) => {
+          const current = stockByProduct.get(row.product_id) || { total: 0, reserved: 0 };
+          current.total += Number(row.quantity || 0);
+          current.reserved += Number(row.reserved_quantity || 0);
+          stockByProduct.set(row.product_id, current);
+        });
+        setReconciliation(
+          ((posProductsRes.data || []) as unknown as Array<POSProduct & { merchant_product_id?: string | null }>).map((product) => {
+            const sourceId = product.merchant_product_id;
+            const stock = stockByProduct.get(product.id) || { total: 0, reserved: 0 };
+            const marketplaceValue = sourceId ? marketplaceStock.get(sourceId) : undefined;
+            const posAvailable = Math.max(stock.total - stock.reserved, 0);
+            const delta = marketplaceValue === undefined ? null : posAvailable - marketplaceValue;
+            return {
+              posProductId: product.id,
+              productName: product.name,
+              sku: product.sku,
+              outletTotal: stock.total,
+              reserved: stock.reserved,
+              posAvailable,
+              marketplaceStock: marketplaceValue ?? null,
+              delta,
+              status: !sourceId ? 'unlinked' : marketplaceValue === undefined ? 'missing' : delta === 0 ? 'ok' : 'mismatch',
+            };
+          }),
+        );
+      } else {
+        setReconciliation([]);
+      }
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Data integrasi gagal dimuat.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [tenant, user]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -384,6 +397,14 @@ export default function POSIntegrasiPage() {
     totalOrders: marketplaceOrders.length,
     pendingOrders: marketplaceOrders.filter(o => o.status === 'pending').length,
   };
+
+  if (error && !loading) {
+    return (
+      <POSLayout title="Integrasi Marketplace" subtitle="Sinkronisasi produk & stok dengan SaDesa Marketplace">
+        <POSErrorState description={error} onRetry={() => void fetchAll()} />
+      </POSLayout>
+    );
+  }
 
   return (
     <POSLayout

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Package, Plus, Minus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, Package, ArrowUpRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { MerchantCardError } from './MerchantDataState';
 
 interface LowStockProduct {
   id: string;
@@ -22,9 +22,12 @@ interface StockAlertsProps {
 export function StockAlerts({ merchantId }: StockAlertsProps) {
   const [products, setProducts] = useState<LowStockProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const fetchLowStockProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from('products')
@@ -37,8 +40,8 @@ export function StockAlerts({ merchantId }: StockAlertsProps) {
       // Filter products where stock <= min_stock_alert
       const lowStock = (data || []).filter(p => p.stock <= (p.min_stock_alert || 5));
       setProducts(lowStock);
-    } catch (error) {
-      console.error('Error fetching low stock products:', error);
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Gagal memuat peringatan stok.');
     } finally {
       setLoading(false);
     }
@@ -47,37 +50,6 @@ export function StockAlerts({ merchantId }: StockAlertsProps) {
   useEffect(() => {
     fetchLowStockProducts();
   }, [fetchLowStockProducts]);
-
-  const updateStock = async (productId: string, newStock: number) => {
-    if (newStock < 0) return;
-    setUpdating(productId);
-
-    try {
-      const { error } = await supabase
-        .from('products')
-        .update({ stock: newStock })
-        .eq('id', productId);
-
-      if (error) throw error;
-
-      setProducts(prev => 
-        prev.map(p => p.id === productId ? { ...p, stock: newStock } : p)
-          .filter(p => p.stock <= (p.min_stock_alert || 5))
-      );
-      toast.success('Stok berhasil diperbarui');
-    } catch (error) {
-      toast.error('Gagal memperbarui stok');
-    } finally {
-      setUpdating(null);
-    }
-  };
-
-  const quickRestock = async (productId: string, currentStock: number) => {
-    const product = products.find(p => p.id === productId);
-    const minAlert = product?.min_stock_alert || 5;
-    const newStock = currentStock + (minAlert * 2); // Restock to 2x minimum
-    await updateStock(productId, newStock);
-  };
 
   if (loading) {
     return (
@@ -97,6 +69,10 @@ export function StockAlerts({ merchantId }: StockAlertsProps) {
         </CardContent>
       </Card>
     );
+  }
+
+  if (error) {
+    return <MerchantCardError message={error} onRetry={() => void fetchLowStockProducts()} />;
   }
 
   if (products.length === 0) {
@@ -155,43 +131,13 @@ export function StockAlerts({ merchantId }: StockAlertsProps) {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                onClick={() => updateStock(product.id, product.stock - 1)}
-                disabled={updating === product.id || product.stock <= 0}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              
-              <Input
-                type="number"
-                value={product.stock}
-                onChange={(e) => updateStock(product.id, parseInt(e.target.value) || 0)}
-                className="w-16 h-8 text-center"
-                disabled={updating === product.id}
-              />
-              
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-8 w-8"
-                onClick={() => updateStock(product.id, product.stock + 1)}
-                disabled={updating === product.id}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-
             <Button
               size="sm"
-              variant="default"
-              onClick={() => quickRestock(product.id, product.stock)}
-              disabled={updating === product.id}
+              variant="outline"
+              onClick={() => navigate('/merchant/stock')}
             >
-              Restock
+              Kelola stok
+              <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
             </Button>
           </div>
         ))}

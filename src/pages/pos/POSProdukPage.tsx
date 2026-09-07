@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { Plus, Search, Pencil, Package, X, Download, Printer } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { POSErrorState } from '@/components/pos/POSPageStates';
 
 interface ProductPayload { name: string; sku: string | null; barcode: string | null; category_id: string | null; brand_id: string | null; unit: string; price: number; cost_price: number; tax_rate: number; description: string | null; is_stock_tracked: boolean; has_variants: boolean; is_active: boolean; tenant_id: string; }
 interface VariantRow { id: string; name: string; sku: string | null; barcode: string | null; price: number | null; cost_price: number | null; is_active: boolean; }
@@ -73,44 +74,63 @@ export default function POSProdukPage() {
     is_stock_tracked: true, has_variants: false, is_active: true,
   });
 
-  const { data: products = [], isLoading: loading } = useQuery<Product[]>({
+  const {
+    data: products = [],
+    isLoading: loading,
+    isError: productsError,
+    error: productsQueryError,
+    refetch: refetchProducts,
+  } = useQuery<Product[]>({
     queryKey: ['pos-products', tenant?.id],
     queryFn: async () => {
-      const { data } = await supabase
+        const { data, error } = await supabase
         .from('pos_products' as never)
         .select('*, pos_categories(name), pos_brands(name)')
         .eq('tenant_id', tenant!.id)
         .order('name');
+        if (error) throw error;
       return (data || []) as unknown as Product[];
     },
     enabled: !!tenant,
     staleTime: 60_000,
   });
 
-  const { data: categories = [] } = useQuery<Category[]>({
+  const {
+    data: categories = [],
+    isError: categoriesError,
+    error: categoriesQueryError,
+    refetch: refetchCategories,
+  } = useQuery<Category[]>({
     queryKey: ['pos-categories-meta', tenant?.id],
     queryFn: async () => {
-      const { data } = await supabase
+        const { data, error } = await supabase
         .from('pos_categories' as never)
         .select('id, name')
         .eq('tenant_id', tenant!.id)
         .eq('is_active', true)
         .order('name');
+        if (error) throw error;
       return (data || []) as unknown as Category[];
     },
     enabled: !!tenant,
     staleTime: 120_000,
   });
 
-  const { data: brands = [] } = useQuery<Brand[]>({
+  const {
+    data: brands = [],
+    isError: brandsError,
+    error: brandsQueryError,
+    refetch: refetchBrands,
+  } = useQuery<Brand[]>({
     queryKey: ['pos-brands-meta', tenant?.id],
     queryFn: async () => {
-      const { data } = await supabase
+        const { data, error } = await supabase
         .from('pos_brands' as never)
         .select('id, name')
         .eq('tenant_id', tenant!.id)
         .eq('is_active', true)
         .order('name');
+        if (error) throw error;
       return (data || []) as unknown as Brand[];
     },
     enabled: !!tenant,
@@ -301,6 +321,24 @@ export default function POSProdukPage() {
 
   const activeCount = products.filter(p => p.is_active).length;
   const inactiveCount = products.length - activeCount;
+
+  if (productsError || categoriesError || brandsError) {
+    const metadataError = categoriesQueryError || brandsQueryError;
+    return (
+      <POSLayout title="Manajemen Produk" subtitle="Katalog produk POS">
+        <POSErrorState
+          description={
+            productsQueryError instanceof Error
+              ? productsQueryError.message
+              : metadataError instanceof Error
+                ? metadataError.message
+                : 'Data katalog POS gagal dimuat.'
+          }
+          onRetry={() => void Promise.all([refetchProducts(), refetchCategories(), refetchBrands()])}
+        />
+      </POSLayout>
+    );
+  }
 
   return (
     <POSLayout title="Manajemen Produk" subtitle={`${products.length} produk terdaftar`}

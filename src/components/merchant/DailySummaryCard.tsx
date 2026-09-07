@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
+import { MerchantCardError, MerchantCardLoading } from './MerchantDataState';
 
 interface DailySummaryCardProps {
   merchantId: string;
@@ -15,8 +16,11 @@ export function DailySummaryCard({ merchantId }: DailySummaryCardProps) {
   const [yesterdayRevenue, setYesterdayRevenue] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchDailySummary = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const today = new Date();
       const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
@@ -25,11 +29,12 @@ export function DailySummaryCard({ merchantId }: DailySummaryCardProps) {
       const yesterdayEnd = todayStart;
 
       // Today's orders
-      const { data: todayData } = await supabase
+      const { data: todayData, error: todayError } = await supabase
         .from('orders')
         .select('total, subtotal, status')
         .eq('merchant_id', merchantId)
         .gte('created_at', todayStart);
+      if (todayError) throw todayError;
 
       const doneToday = todayData?.filter(o => o.status === 'DONE') || [];
       setTodayRevenue(doneToday.reduce((s, o) => s + (o.subtotal || o.total), 0));
@@ -40,17 +45,19 @@ export function DailySummaryCard({ merchantId }: DailySummaryCardProps) {
       setPendingOrders(pending.length);
 
       // Yesterday's revenue
-      const { data: yesterdayData } = await supabase
+      const { data: yesterdayData, error: yesterdayError } = await supabase
         .from('orders')
         .select('total, subtotal, status')
         .eq('merchant_id', merchantId)
         .gte('created_at', yesterdayStart)
         .lt('created_at', yesterdayEnd)
         .eq('status', 'DONE');
+      if (yesterdayError) throw yesterdayError;
 
       setYesterdayRevenue(yesterdayData?.reduce((s, o) => s + (o.subtotal || o.total), 0) || 0);
-    } catch (error) {
-      console.error('Error fetching daily summary:', error);
+    } catch (fetchError) {
+      const message = fetchError instanceof Error ? fetchError.message : 'Ringkasan harian gagal dimuat.';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -76,7 +83,8 @@ export function DailySummaryCard({ merchantId }: DailySummaryCardProps) {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return null;
+  if (loading) return <MerchantCardLoading label="Memuat ringkasan hari ini..." />;
+  if (error) return <MerchantCardError message={error} onRetry={() => void fetchDailySummary()} />;
 
   return (
     <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">

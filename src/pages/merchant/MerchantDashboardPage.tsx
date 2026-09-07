@@ -45,6 +45,8 @@ import { cn, formatPrice } from '@/lib/utils';
 import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
 import { usePOS } from '@/contexts/POSContext';
 import { POSOnboardingChecklist } from '@/components/pos/POSOnboardingChecklist';
+import { MerchantCardError } from '@/components/merchant/MerchantDataState';
+import { POSDailySummaryCard } from '@/components/merchant/POSDailySummaryCard';
 
 interface MerchantData {
   id: string;
@@ -73,31 +75,44 @@ export default function MerchantDashboardPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const { data: merchant = null, isLoading: merchantLoading } = useQuery<MerchantData | null>({
+  const {
+    data: merchant = null,
+    isLoading: merchantLoading,
+    isError: merchantQueryError,
+    error: merchantError,
+    refetch: refetchMerchant,
+  } = useQuery<MerchantData | null>({
     queryKey: ['merchant-profile', user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('merchants')
         .select('id, name, is_open, status, registration_status, rejection_reason, image_url, slug')
         .eq('user_id', user.id)
         .maybeSingle();
+      if (error) throw error;
       return data || null;
     },
     enabled: !!user,
     staleTime: 60_000,
   });
 
-  const { data: orders = [] } = useQuery<OrderData[]>({
+  const {
+    data: orders = [],
+    isError: ordersQueryError,
+    error: ordersError,
+    refetch: refetchOrders,
+  } = useQuery<OrderData[]>({
     queryKey: ['merchant-orders-chart', merchant?.id],
     queryFn: async () => {
       if (!merchant?.id) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .select('id, status, total, created_at')
         .eq('merchant_id', merchant.id)
         .order('created_at', { ascending: false })
         .limit(500);
+      if (error) throw error;
       return data || [];
     },
     enabled: !!merchant?.id,
@@ -179,6 +194,17 @@ export default function MerchantDashboardPage() {
             ))}
           </div>
         </div>
+      </MerchantLayout>
+    );
+  }
+
+  if (merchantQueryError) {
+    return (
+      <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
+        <MerchantCardError
+          message={merchantError instanceof Error ? merchantError.message : 'Profil merchant gagal dimuat.'}
+          onRetry={() => void refetchMerchant()}
+        />
       </MerchantLayout>
     );
   }
@@ -347,6 +373,11 @@ export default function MerchantDashboardPage() {
             activeOutletName={activeOutlet?.name}
             enabledModuleCount={tenant.enabled_modules.length}
           />
+           <POSDailySummaryCard
+             tenantId={tenant.id}
+             activeOutletId={activeOutlet?.id}
+             activeOutletName={activeOutlet?.name}
+           />
           </>
         )}
 
@@ -579,14 +610,21 @@ export default function MerchantDashboardPage() {
               </div>
             )}
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
-              <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                <SalesAreaChart data={salesChartData} title="Pendapatan 14 hari terakhir" />
+            {ordersQueryError ? (
+              <MerchantCardError
+                message={ordersError instanceof Error ? ordersError.message : 'Data pesanan gagal dimuat.'}
+                onRetry={() => void refetchOrders()}
+              />
+            ) : (
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+                <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                  <SalesAreaChart data={salesChartData} title="Pendapatan 14 hari terakhir" />
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                  <OrdersBarChart data={salesChartData} title="Pesanan 14 hari terakhir" />
+                </div>
               </div>
-              <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                <OrdersBarChart data={salesChartData} title="Pesanan 14 hari terakhir" />
-              </div>
-            </div>
+            )}
 
             <div className="grid gap-4 xl:grid-cols-2">
               <div className="overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">

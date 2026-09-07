@@ -4,6 +4,7 @@ import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { useNavigate } from 'react-router-dom';
 import { POSErrorState, POSLoadingState } from './POSPageStates';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 interface POSLayoutProps {
   children: ReactNode;
@@ -56,7 +57,17 @@ export function POSLayout({ children, title, subtitle, actions, fullWidth }: POS
       actions={actions}
       fullWidth={fullWidth}
     >
-      {children}
+      <ErrorBoundary
+        fallback={
+          <POSErrorState
+            title="Halaman POS belum dapat ditampilkan"
+            description="Terjadi kendala saat menampilkan modul ini. Muat ulang untuk mengambil data terbaru."
+            onRetry={() => window.location.reload()}
+          />
+        }
+      >
+        {children}
+      </ErrorBoundary>
     </MerchantLayout>
   );
 }
