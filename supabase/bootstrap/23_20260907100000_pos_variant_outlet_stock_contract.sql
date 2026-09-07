@@ -311,7 +311,7 @@ $$;
 
 DROP TRIGGER IF EXISTS trg_sync_merchant_product_variant_delete ON public.product_variants;
 CREATE TRIGGER trg_sync_merchant_product_variant_delete
-AFTER DELETE ON public.product_variants
+BEFORE DELETE ON public.product_variants
 FOR EACH ROW EXECUTE FUNCTION public.sync_merchant_product_variant_delete_trigger();
 
 ALTER TABLE public.marketplace_stock_allocations

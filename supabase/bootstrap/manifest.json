@@ -1,6 +1,6 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 198,
+  "migration_count": 208,
   "bundle_count": 23,
   "bundles": [
     {
@@ -369,8 +369,8 @@
       "source_files": [
         "23_20260907100000_pos_variant_outlet_stock_contract.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "6c86b6b0600b3ebc80952240cc80c4b57277c2eb02ac4de0cc7747c3efe102ca",
+      "bytes": 26766
     }
   ]
 }

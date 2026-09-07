@@ -449,11 +449,11 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] buat rekonsiliasi manual dan otomatis;
 - [x] tambahkan alert jika projection gagal;
 - [x] tambahkan alert jika projection terlalu lama/stale;
-- [ ] selesaikan definisi stok varian dan multi-outlet.
+- [x] selesaikan definisi stok varian dan multi-outlet.
 
-**Status saat ini:** **Sebagian selesai.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur; halaman Integrasi POS sekarang memindai dan menampilkan alert stale. Validasi aplikasi katalog kini menolak benturan identitas sebelum request penyimpanan. Definisi projection stok varian marketplace dan pengujian staging untuk multi-outlet/conflict masih terbuka.
+**Status saat ini:** **Sebagian selesai secara teknis di repository.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` sekarang menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, membuat mapping varian marketplace–POS, memastikan satu row stok per identitas dan outlet, memproyeksikan stok varian ke marketplace, serta memakai allocation/reservation lintas outlet tanpa fallback ke stok parent. Test kontrak aplikasi juga memverifikasi isolasi varian, reservasi, dan alokasi deterministik. Penerapan migration dan pengujian konflik nyata di staging masih terbuka.
 
-**Kriteria selesai:** sebagian tercapai untuk stok produk non-varian yang terhubung. Penjualan POS dan order marketplace sudah memakai guard/reservation/ledger, dan stale projection kini dapat ditandai. Fase belum ditutup sampai cakupan varian, multi-outlet, dan pengujian konflik diverifikasi.
+**Kriteria selesai:** tercapai untuk implementasi teknis di repository; penjualan POS dan order marketplace memakai identitas varian/outlet yang sama, guard/reservation/ledger, dan stale projection dapat ditandai. Fase belum dinyatakan siap produksi sampai bundle diterapkan serta skenario konflik multi-outlet diverifikasi di staging.
 
 ### Fase 3 — POS online/offline yang aman
 
@@ -465,10 +465,11 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] deteksi dan tampilkan konflik harga, produk/stok, serta subscription melalui status conflict/dead-letter;
 - [x] tampilkan usia cache dan jumlah transaksi belum tersinkron;
 - [x] sediakan retry, dead-letter/conflict queue, dan conflict center untuk rekonsiliasi manual;
-- [ ] uji perangkat ditutup, browser refresh, listrik mati, dan koneksi putus di tengah checkout;
+- [x] uji recovery durable untuk perangkat/tab ditutup, browser refresh, listrik mati, dan koneksi putus di tengah checkout;
+- [ ] jalankan uji fisik pada device/PWA staging dan pilot merchant;
 - [x] bedakan receipt POS dengan invoice marketplace.
 
-**Status saat ini:** **Selesai secara teknis di repository untuk alur offline dasar.** Cache sekarang diganti sebagai snapshot tenant/outlet agar produk yang dihapus/nonaktif tidak tertinggal; antrean menyimpan status `queued`, `syncing`, `failed`, `conflict`, atau `synced`, memakai lease agar klaim yang macet dapat dipulihkan, dan merangkum dead-letter/conflict untuk kasir. Kasir menampilkan usia cache, jumlah antrean, dan tautan ke Conflict Center. Reconnect memulai sync setelah state online benar-benar terpasang, sehingga tidak melewati sync karena timing event browser. Uji perangkat nyata, konflik lintas kanal, serta penerapan migration di staging tetap menjadi prasyarat pilot.
+**Status saat ini:** **Selesai secara teknis di repository untuk alur offline dasar dan simulasi recovery.** Cache sekarang diganti sebagai snapshot tenant/outlet dan membawa varian beserta stok outlet; antrean menyimpan status `queued`, `syncing`, `failed`, `conflict`, atau `synced`, memakai lease agar klaim yang macet dapat dipulihkan, dan merangkum dead-letter/conflict untuk kasir. Checkout menulis checkpoint durable sebelum RPC, lalu memulihkannya ke queue dengan request key yang sama setelah tab/perangkat ditutup, refresh, listrik mati, atau koneksi putus. Test recovery mencakup keempat skenario tersebut dan memastikan transaksi yang sudah tersinkron tidak diputar ulang. Uji fisik device/PWA, konflik lintas kanal, serta penerapan migration di staging tetap menjadi prasyarat pilot.
 
 **Kriteria selesai:** kasir dapat bekerja offline secara terbatas dan merchant selalu tahu transaksi mana yang sudah final dan mana yang masih menunggu sync.
 
