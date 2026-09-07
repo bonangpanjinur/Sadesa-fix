@@ -18,6 +18,11 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { POSProvider } from "./contexts/POSContext";
 import { POSAccessRoute } from "@/components/pos/posPermissions";
 import { logUnhandledErrors, reportObservability } from '@/lib/observability';
+import {
+  PwaFileHandlerPage,
+  PwaProtocolHandlerPage,
+  PwaShareTargetPage,
+} from "./pages/PwaCapabilityPage";
 
 // Lazy-load semua halaman agar bundle awal kecil (P2-02)
 // Pages
@@ -382,6 +387,9 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/install" element={<InstallPage />} />
+              <Route path="/share-target" element={<PwaShareTargetPage />} />
+              <Route path="/file-handler" element={<PwaFileHandlerPage />} />
+              <Route path="/protocol-handler" element={<PwaProtocolHandlerPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />

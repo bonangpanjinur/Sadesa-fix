@@ -14,3 +14,9 @@ PWABuilder results can continue showing missing manifest fields when its URL poi
 **Why:** The development-served manifest contained the requested metadata while the user's PWABuilder screenshots still showed the previous warnings.
 
 **How to apply:** After PWA metadata changes, publish a fresh production build, then rescan the exact manifest URL and clear any cached report before judging the result.
+
+When a PWA analyzer does not detect a worker despite a generated `sw.js`, an explicit production `navigator.serviceWorker.register('/sw.js', { scope: '/' })` is a reliable fallback to make registration observable; keep update behavior in the worker itself.
+
+**Why:** Analyzer output showed no service worker while the generated worker already contained Workbox precaching and push handlers.
+
+**How to apply:** Prefer a literal production registration when analyzer detection matters, and validate the built bundle contains both the registration call and `/sw.js`.

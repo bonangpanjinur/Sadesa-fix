@@ -46,6 +46,34 @@ export default defineConfig(() => ({
         orientation: 'portrait-primary',
         categories: ['shopping', 'business', 'lifestyle'],
         prefer_related_applications: false,
+        launch_handler: {
+          client_mode: 'navigate-existing',
+        },
+        share_target: {
+          action: '/share-target',
+          method: 'GET',
+          enctype: 'application/x-www-form-urlencoded',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+          },
+        },
+        file_handlers: [
+          {
+            action: '/file-handler',
+            accept: {
+              'text/csv': ['.csv'],
+              'application/json': ['.json'],
+            },
+          },
+        ],
+        protocol_handlers: [
+          {
+            protocol: 'web+sadesa',
+            url: '/protocol-handler?url=%s',
+          },
+        ],
         shortcuts: [
           {
             name: 'Belanja Produk Desa',

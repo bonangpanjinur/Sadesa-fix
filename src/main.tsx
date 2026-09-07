@@ -2,10 +2,13 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-if (import.meta.env.PROD) {
-  import("virtual:pwa-register").then(({ registerSW }) => {
-    registerSW({ immediate: true });
-  });
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("/sw.js", { scope: "/" })
+    .then((registration) => registration.update())
+    .catch((error: unknown) => {
+      console.warn("Service worker registration failed:", error);
+    });
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
