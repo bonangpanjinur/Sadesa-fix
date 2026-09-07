@@ -48,6 +48,7 @@ export interface POSSidebarItem {
   icon: ReactNode;
   badge?: number;
   moduleId?: string;
+  scope?: 'merchant' | 'pos';
 }
 
 export interface POSSidebarCategory {
@@ -86,7 +87,7 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
     label: 'Inventori & Pembelian',
     icon: <Package className="h-4 w-4" />,
     items: [
-      { label: 'Harga Produk', href: '/merchant/pos/harga', icon: <Tag className="h-4 w-4" /> },
+      { label: 'Katalog Merchant', href: '/merchant/products', icon: <Package className="h-4 w-4" />, scope: 'merchant' },
       { label: 'Bahan Baku', href: '/merchant/pos/bahan-baku', icon: <FlaskConical className="h-4 w-4" />, moduleId: 'ingredients' },
       { label: 'Resep Produk', href: '/merchant/pos/resep', icon: <ChefHat className="h-4 w-4" />, moduleId: 'recipes' },
       { label: 'Kategori Produk', href: '/merchant/pos/kategori', icon: <Tag className="h-4 w-4" /> },
@@ -140,6 +141,7 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
     label: 'Administrasi & Integrasi',
     icon: <Settings className="h-4 w-4" />,
     items: [
+      { label: 'Langganan & Paket POS', href: '/merchant/pos/harga', icon: <CreditCard className="h-4 w-4" /> },
       { label: 'Audit Trail', href: '/merchant/pos/audit', icon: <Shield className="h-4 w-4" /> },
       { label: 'Offline Conflict Center', href: '/merchant/pos/offline-conflicts', icon: <WifiOff className="h-4 w-4" /> },
       { label: 'Manajemen Akses', href: '/merchant/pos/akses', icon: <KeyRound className="h-4 w-4" /> },

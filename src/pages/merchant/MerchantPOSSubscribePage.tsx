@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CreditCard, Check, Clock, Upload, Loader2, AlertTriangle, Gift, Download, Tag } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ interface POSPackage {
 
 export default function MerchantPOSSubscribePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [merchantId, setMerchantId] = useState<string | null>(null);
   const [packages, setPackages] = useState<POSPackage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +69,7 @@ export default function MerchantPOSSubscribePage() {
   const [promoLoading, setPromoLoading] = useState(false);
   const [trialDays, setTrialDays] = useState(30);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
+  const [hasPOSWorkspace, setHasPOSWorkspace] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -81,13 +84,20 @@ export default function MerchantPOSSubscribePage() {
         if (!merchant) { setLoading(false); return; }
         setMerchantId(merchant.id);
 
-        // Load packages
-        const { data: pkgs } = await supabase
-          .from('pos_packages')
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order');
+        const [{ data: pkgs }, { data: tenant }] = await Promise.all([
+          supabase
+            .from('pos_packages')
+            .select('*')
+            .eq('is_active', true)
+            .order('sort_order'),
+          supabase
+            .from('pos_tenants')
+            .select('id')
+            .eq('merchant_id', merchant.id)
+            .maybeSingle(),
+        ]);
         setPackages(pkgs || []);
+        setHasPOSWorkspace(Boolean(tenant));
 
         // Check existing subscription
         const { data: sub } = await supabase
@@ -223,7 +233,7 @@ export default function MerchantPOSSubscribePage() {
 
   if (loading) {
     return (
-      <MerchantLayout title="Langganan Kasir POS" subtitle="Pilih paket kasir">
+      <MerchantLayout title="Langganan POS" subtitle="Pilih paket dan aktifkan operasional kasir">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -238,7 +248,7 @@ export default function MerchantPOSSubscribePage() {
     const isPending = subscriptionState === 'PENDING_REVIEW';
 
     if (isActive || isPending || subscriptionState === 'SUSPENDED') return (
-      <MerchantLayout title="Langganan Kasir POS" subtitle="Status langganan kasir">
+      <MerchantLayout title="Langganan POS" subtitle="Status paket dan akses operasional kasir">
         <div className="max-w-lg mx-auto space-y-6">
           <Card>
             <CardHeader>
@@ -279,6 +289,11 @@ export default function MerchantPOSSubscribePage() {
               <Button variant="outline" className="w-full" onClick={handleExportSubscription}>
                 <Download className="mr-2 h-4 w-4" /> Export Data Subscription
               </Button>
+              {isActive && !hasPOSWorkspace && (
+                <Button className="w-full" onClick={() => navigate('/merchant/pos/setup')}>
+                  Siapkan workspace POS
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -287,7 +302,7 @@ export default function MerchantPOSSubscribePage() {
   }
 
   return (
-    <MerchantLayout title="Langganan Kasir POS" subtitle="Pilih paket kasir">
+    <MerchantLayout title="Langganan POS" subtitle="Pilih paket dan aktifkan operasional kasir">
         <div className="max-w-2xl mx-auto space-y-6">
         {existingSub && (
           <Card className="border-warning/40 bg-warning/5">

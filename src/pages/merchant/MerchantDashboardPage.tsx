@@ -306,8 +306,8 @@ export default function MerchantDashboardPage() {
                 Aktifkan Kasir untuk menerima pembayaran langsung dan menyinkronkan stok dengan toko online.
               </p>
             </div>
-            <Button className="shrink-0" onClick={() => navigate('/merchant/pos/setup')} data-testid="button-activate-pos">
-              Aktifkan Kasir
+            <Button className="shrink-0" onClick={() => navigate('/merchant/pos/subscribe')} data-testid="button-activate-pos">
+              Lihat Paket POS
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Button>
           </section>

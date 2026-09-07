@@ -199,7 +199,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
   const visiblePOSCategories = useMemo(() => POS_MENU_CATEGORIES.map((category) => ({
     ...category,
-    items: category.items.filter((item) => canAccessPOSPath(roles, item.href, posRole)
+    items: category.items.filter((item) => (item.scope === 'merchant' || canAccessPOSPath(roles, item.href, posRole))
       && isPOSModuleEnabled(tenant?.enabled_modules, item.moduleId)),
   })).filter((category) => posEnabled && category.items.length > 0), [posEnabled, roles, posRole, tenant?.enabled_modules]);
 
@@ -326,12 +326,12 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
               <p className="mt-1 truncate text-xs text-muted-foreground">{activeOutlet.name}</p>
             )}
             <Link
-              to={!tenant || isPOSSetupStatus(tenant.status) ? '/merchant/pos/setup' : '/merchant/pos/subscribe'}
+              to={!tenant ? '/merchant/pos/subscribe' : isPOSSetupStatus(tenant.status) ? '/merchant/pos/setup' : '/merchant/pos/subscribe'}
               onClick={onNavigate}
               className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-sidebar-primary"
             >
               <CreditCard className="h-3.5 w-3.5" />
-              {posEnabled ? 'Paket kasir' : 'Aktifkan kasir'}
+              {!tenant ? 'Lihat paket POS' : isPOSSetupStatus(tenant.status) ? 'Lanjutkan setup POS' : 'Kelola langganan POS'}
             </Link>
           </div>
         )}

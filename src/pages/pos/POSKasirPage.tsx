@@ -780,8 +780,9 @@ export default function POSKasirPage() {
   if (!tenant) return (
     <div className="flex items-center justify-center h-screen">
       <div className="text-center">
-        <p className="text-muted-foreground mb-4">Buat usaha terlebih dahulu</p>
-        <Button onClick={() => navigate('/merchant/pos/setup')} className="bg-emerald-600 hover:bg-emerald-700">Buat Usaha</Button>
+        <p className="font-medium">Aktifkan POS terlebih dahulu</p>
+        <p className="mt-1 text-sm text-muted-foreground">Pilih paket POS sebelum membuat workspace dan outlet.</p>
+        <Button onClick={() => navigate('/merchant/pos/subscribe')} className="mt-4 bg-emerald-600 hover:bg-emerald-700">Lihat Paket POS</Button>
       </div>
     </div>
   );
@@ -841,7 +842,17 @@ export default function POSKasirPage() {
             ) : filteredProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40">
                 <Package className="h-10 w-10 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">{search ? 'Produk tidak ditemukan' : 'Belum ada produk'}</p>
+                <p className="text-sm font-medium">{search ? 'Produk tidak ditemukan' : 'Belum ada produk di kasir'}</p>
+                {!search && (
+                  <>
+                    <p className="mt-1 max-w-sm text-center text-xs leading-5 text-muted-foreground">
+                      Produk kasir mengikuti Katalog Merchant. Tambahkan atau aktifkan produk dari sana agar muncul di outlet ini.
+                    </p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/merchant/products')}>
+                      Buka Katalog Merchant
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
