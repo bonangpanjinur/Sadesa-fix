@@ -97,9 +97,15 @@ export default function POSSetupPage() {
       window.location.reload();
     } catch (err: unknown) {
       const message = getDatabaseErrorMessage(err);
-      toast.error(message.includes('duplicate') || message.includes('unique')
-        ? 'Usaha untuk akun ini sudah terdaftar. Silakan buka POS.'
-        : 'Gagal membuat usaha: ' + message);
+      if (message.includes('active POS trial or subscription')) {
+        toast.error('POS belum bisa diaktifkan. Ajukan trial atau langganan terlebih dahulu, lalu tunggu entitlement aktif.');
+      } else if (message.includes('approved and active merchant profile')) {
+        toast.error('Toko harus berstatus disetujui dan aktif sebelum POS dapat diaktifkan.');
+      } else {
+        toast.error(message.includes('duplicate') || message.includes('unique')
+          ? 'Usaha untuk akun ini sudah terdaftar. Silakan buka POS.'
+          : 'Gagal membuat usaha: ' + message);
+      }
     } finally {
       setLoading(false);
     }

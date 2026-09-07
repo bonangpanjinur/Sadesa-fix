@@ -58,7 +58,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 
 - **Bukti:** workflow `Start application` menjalankan `npm run dev`, lalu berhenti dengan `sh: 1: vite: not found`.
 - **Dampak:** tidak bisa melakukan smoke test, screenshot, maupun validasi UI di Replit.
-- **Rencana:** pasang dependency sesuai lockfile yang dipilih, jalankan `npm run dev`, kemudian verifikasi preview dan build tanpa mengubah stack proyek.
+- **Status:** selesai. Dependency dipulihkan, runtime diselaraskan ke Node 22, workflow dan preview sudah berhasil diverifikasi.
 
 #### P0-2. Aktivasi workspace POS dapat melewati langganan/persetujuan admin
 
@@ -67,7 +67,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - Jalur `/merchant/pos/setup` dapat diakses merchant sebelum ada subscription aktif.
 - Jalur subscription terpisah (`MerchantPOSSubscribePage`) membuat request `PENDING`, tetapi tidak menjadi prasyarat pada function aktivasi.
 - **Dampak:** merchant berpotensi memakai POS aktif tanpa trial/subscription yang sah atau tanpa approval admin.
-- **Rencana:** tetapkan state machine tunggal (`setup_required → trial/active → suspended/expired`), jadikan subscription/trial sebagai prasyarat server-side, dan biarkan UI hanya mengikuti state dari database. RPC harus menolak aktivasi langsung bila tidak ada entitlement yang valid.
+- **Status:** implementasi selesai di `supabase/bootstrap/14_20260907000000_pos_activation_entitlement_gate.sql`. RPC sekarang mensyaratkan merchant approved/active dan subscription/trial POS yang ACTIVE serta belum kedaluwarsa. Penerapan ke Supabase staging/production tetap perlu dilakukan saat environment database tersedia.
 
 #### P0-3. Guard merchant terlalu longgar dan tidak konsisten
 
@@ -75,7 +75,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - `useMerchantGuard` dipakai oleh sebagian halaman, tetapi tidak semua halaman merchant melakukan guard yang sama.
 - `/merchant` sendiri dapat dirender oleh user login non-merchant dan baru kemudian mencoba mencari merchant berdasarkan `user_id`.
 - **Dampak:** alur buyer ke halaman merchant tidak jelas; akses UI bergantung pada implementasi masing-masing halaman. RLS tetap penting, tetapi UX dan defense-in-depth tidak konsisten.
-- **Rencana:** buat `MerchantAccessRoute` yang memeriksa role aplikasi, status registrasi, dan merchant profile secara terpusat; bedakan state `belum mendaftar`, `pending`, `rejected`, `suspended`, dan `approved`. Semua route merchant memakai guard tersebut.
+- **Status:** akses role dan status merchant sekarang diperiksa terpusat oleh `ProtectedRoute` untuk seluruh workspace merchant. Dashboard `/merchant` tetap dapat dibuka agar bisa menampilkan pending/rejected, sedangkan subhalaman membutuhkan merchant approved dan ACTIVE.
 
 #### P0-4. Storefront UUID dapat melewati status publik
 
@@ -83,7 +83,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - Akses `/merchant/:uuid` langsung meneruskan ke `MerchantProfilePage`.
 - `MerchantProfilePage` mengambil merchant berdasarkan ID tanpa filter/validasi `registration_status` atau status publik.
 - **Dampak:** toko pending/rejected/inactive berpotensi tetap tampil jika URL ID diketahui, berbeda dengan perilaku URL slug.
-- **Rencana:** satukan resolusi merchant dan aturan publishability dalam satu query/RPC atau shared helper. Semua bentuk URL harus menerapkan aturan publik yang sama, termasuk canonical redirect dan response 404/tersembunyi untuk toko yang tidak boleh tampil.
+- **Status:** selesai di `MerchantSlugResolver`; slug dan UUID sekarang mengambil status merchant dengan aturan yang sama dan toko non-approved/non-active tidak dirender sebagai storefront publik.
 
 #### P0-5. Sumber stok online dan POS belum memiliki kontrak yang tegas
 

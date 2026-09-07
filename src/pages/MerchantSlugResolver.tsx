@@ -22,24 +22,20 @@ export default function MerchantSlugResolver() {
       try {
         const isUuid = UUID_REGEX.test(param);
 
-        if (isUuid) {
-          setMerchantId(param);
+        const query = supabase
+          .from('merchants')
+          .select('id, status, registration_status');
+        const { data, error } = isUuid
+          ? await query.eq('id', param).maybeSingle()
+          : await query.eq('slug', param.toLowerCase()).maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          setMerchantId(data.id);
+          setMerchantStatus({ status: data.status, registration_status: data.registration_status });
         } else {
-          // Slug lookup - no status filter so we can show appropriate messages
-          const { data, error } = await supabase
-            .from('merchants')
-            .select('id, status, registration_status')
-            .eq('slug', param.toLowerCase())
-            .maybeSingle();
-
-          if (error) throw error;
-
-          if (data) {
-            setMerchantId(data.id);
-            setMerchantStatus({ status: data.status, registration_status: data.registration_status });
-          } else {
-            setNotFound(true);
-          }
+          setNotFound(true);
         }
       } catch (error) {
         console.error('Error resolving merchant:', error);
@@ -93,6 +89,19 @@ export default function MerchantSlugResolver() {
         <StoreIcon className="h-16 w-16 text-destructive mb-4" />
         <h1 className="text-xl font-bold mb-2">Toko Tidak Tersedia</h1>
         <p className="text-muted-foreground mb-6">Toko ini tidak tersedia saat ini.</p>
+        <Button variant="outline" onClick={() => window.history.back()}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Kembali
+        </Button>
+      </div>
+    );
+  }
+
+  if (merchantStatus && merchantStatus.status !== 'ACTIVE') {
+    return (
+      <div className="mobile-shell flex flex-col items-center justify-center min-h-screen p-6 text-center">
+        <StoreIcon className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-xl font-bold mb-2">Toko Tidak Tersedia</h1>
+        <p className="text-muted-foreground mb-6">Toko ini sedang tidak aktif untuk menerima kunjungan.</p>
         <Button variant="outline" onClick={() => window.history.back()}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Kembali
         </Button>
