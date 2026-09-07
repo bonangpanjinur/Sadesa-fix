@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 8 September 2026:** Fase 0, Fase 1, dan Fase 4 **selesai secara teknis di repository**. Dashboard admin sekarang menghitung KPI pertumbuhan POS: attach rate, trial-to-paid, MRR, churn 30 hari, dan kesehatan sinkronisasi. Fase 2 **selesai secara teknis di repository** untuk mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, identitas SKU/barcode tenant-scoped, dan stok varian/outlet; validasi staging/production serta pengujian konflik masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**; uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Fase 5 **selesai secara teknis di repository** untuk entitlement komersial, promo partner, dan SLA support. Migration baru belum diterapkan ke staging/production.
+> **Status implementasi — 8 September 2026:** Fase 0, Fase 1, dan Fase 4 **selesai secara teknis di repository**. Dashboard admin sekarang menghitung KPI pertumbuhan POS: attach rate, trial-to-paid, MRR, churn 30 hari, dan kesehatan sinkronisasi. Fase 2 **sebagian selesai secara teknis di repository** untuk mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, identitas SKU/barcode tenant-scoped, dan stok varian/outlet; inbox pesanan marketplace yang mandiri dari POS serta QR menu/order meja masih menjadi pekerjaan terbuka. Validasi staging/production dan pengujian konflik juga masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**; uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Fase 5 **selesai secara teknis di repository** untuk entitlement komersial, promo partner, dan SLA support. Migration baru belum diterapkan ke staging/production.
 
 ## 0. Analisis kesiapan saat ini
 
@@ -35,6 +35,11 @@ Model yang paling sehat untuk platform ini adalah **freemium berbasis dua produk
    - Penjualan offline di POS dan penjualan online di marketplace masuk ke satu model produk dan satu riwayat stok.
    - POS dirancang **offline-first** sehingga kasir tetap dapat menjual ketika internet terputus.
    - Marketplace membutuhkan koneksi internet; pesanan online tidak boleh dibuat seolah-olah sudah mengurangi stok offline sebelum reservasi server berhasil.
+
+4. **Marketplace tidak bergantung pada POS**
+   - Upload produk, halaman toko, inbox pesanan, konfirmasi pesanan, dan fulfillment dasar harus tetap tersedia tanpa subscription POS.
+   - Subscription POS hanya menambahkan kemampuan operasional toko fisik dan projection katalog ke tenant/outlet POS.
+   - POS suspended atau cancelled tidak boleh menutup toko marketplace, menghapus produk, atau menghentikan penerimaan pesanan marketplace.
 
 **Rekomendasi utama:** jangan menjual “fitur POS sebagai add-on kecil” saja. Jual POS sebagai **sistem operasional usaha** yang menghemat stok, waktu kasir, dan kesalahan pencatatan, sementara marketplace gratis menjadi jalur akuisisi merchant dan sumber nilai tambahan.
 
@@ -91,6 +96,7 @@ Fitur dasar yang sebaiknya tersedia untuk seluruh merchant aktif:
 - halaman toko publik;
 - pesanan marketplace;
 - konfirmasi pesanan dan status fulfillment dasar;
+- inbox pesanan marketplace yang dapat dipakai tanpa POS;
 - ulasan dan rating;
 - promosi dasar yang dibatasi;
 - statistik ringan;
@@ -133,7 +139,23 @@ Fitur POS yang menjadi alasan upgrade:
 - laporan kasir, outlet, stok, penjualan, laba rugi, dan cashflow;
 - mode offline untuk penjualan kas;
 - sinkronisasi POS–marketplace;
+- QR menu dan pemesanan sesuai meja per outlet;
 - audit log dan kontrol akses.
+
+### Pesanan meja melalui QR POS
+
+Pemesanan meja adalah fitur POS opsional, bukan perilaku default semua toko marketplace:
+
+- QR dibuat oleh tenant POS untuk kombinasi outlet dan meja tertentu.
+- Untuk kebutuhan meja, gunakan **QR code**, bukan barcode satu dimensi, karena pelanggan akan memindainya dengan kamera ponsel.
+- Scan QR membuka toko Merchant yang sama, tetapi membawa konteks outlet dan meja yang telah divalidasi server.
+- Toko yang dibuka dari marketplace atau tautan biasa tetap menjadi toko online normal tanpa konteks meja.
+- Tombol atau alur “pesan untuk meja” hanya boleh muncul setelah konteks QR meja berhasil diverifikasi; parameter meja yang diketik atau diubah manual dari URL tidak cukup.
+- Order meja dan order marketplace boleh memakai katalog, harga, reservasi, dan ledger stok yang sama, tetapi harus menyimpan kanal/sumber order yang berbeda agar fulfillment dan laporan tidak tercampur.
+- QR harus memiliki scope tenant/outlet/meja, dapat dinonaktifkan atau dicabut, tidak mengekspos ID internal secara langsung, dan dilindungi dari penyalahgunaan serta order berulang.
+- Jika POS tidak aktif, outlet atau meja tidak tersedia, atau QR sudah dicabut, sistem harus menolak konteks meja dengan jelas dan tidak diam-diam menganggapnya sebagai order meja.
+
+Fitur ini memberikan nilai tambahan yang jelas untuk POS tanpa mengurangi akses marketplace gratis. Satu merchant tetap memiliki satu toko publik; QR hanya menambahkan mode pemesanan berbasis meja.
 
 ---
 
@@ -187,9 +209,16 @@ Struktur yang sudah ada (`pos_subscriptions`, status tenant POS, trial, entitlem
 
 ### Sumber kebenaran yang direkomendasikan
 
+Untuk seluruh merchant, **Katalog Merchant** adalah tempat membuat dan mengelola produk master:
+
+- identitas produk, foto, kategori, SKU, barcode, varian, dan informasi jual dibuat dari katalog Merchant;
+- merchant tanpa POS menggunakan katalog tersebut langsung untuk halaman marketplace dan pesanan online;
+- inbox pesanan marketplace tidak boleh membutuhkan `pos_tenant`, subscription POS, atau status operasional POS.
+
 Untuk merchant yang memakai POS:
 
 - **Produk master:** identitas produk, SKU, barcode, varian, harga dasar, dan HPP.
+- **POS catalog projection:** salinan operasional yang menunjuk kembali ke produk master Merchant; bukan produk baru yang dibuat ulang.
 - **POS stock:** stok fisik per outlet; ini sumber kebenaran operasional.
 - **Marketplace stock:** projection dari stok POS yang tersedia untuk dijual online.
 - **Reservation ledger:** reservasi stok online yang sedang menunggu pembayaran/konfirmasi.
@@ -198,8 +227,8 @@ Untuk merchant yang memakai POS:
 
 Untuk merchant marketplace-only:
 
-- `products` tetap menjadi sumber stok marketplace.
-- Jika merchant kemudian berlangganan POS, produk yang sama harus di-link atau dimigrasikan secara terkontrol ke katalog POS.
+- katalog dan stok marketplace tetap dapat berjalan tanpa tenant POS.
+- Jika merchant kemudian berlangganan POS, produk yang sama harus diproyeksikan atau di-link secara terkontrol ke katalog/stok POS.
 - Sistem tidak boleh membuat produk duplikat hanya karena merchant mengaktifkan POS.
 
 ### Aturan penting integrasi katalog
@@ -212,8 +241,18 @@ Untuk merchant marketplace-only:
 6. Nonaktif di marketplace tidak boleh otomatis menghapus histori POS.
 7. Unlink produk memerlukan konfirmasi dan aturan stok yang jelas.
 8. Setiap kegagalan sinkronisasi harus terlihat oleh merchant dan dapat direkonsiliasi.
+9. Status subscription POS tidak boleh menjadi syarat untuk membuat produk atau menerima order marketplace.
+10. Katalog yang belum diproyeksikan ke POS tetap sah untuk marketplace dan tidak boleh dianggap gagal hanya karena merchant belum memilih POS.
 
 Fondasi projection `pos_stock` ke `products.stock`, mapping `pos_marketplace_sync`, dan reservasi stok marketplace sudah searah dengan prinsip ini. Yang perlu dipastikan selanjutnya adalah idempotensi, monitoring, dan pengalaman merchant ketika mapping gagal.
+
+### Kontrak kanal pesanan
+
+- **Marketplace order:** dibuat dari toko publik atau marketplace, tidak membutuhkan POS, dan masuk ke inbox pesanan Merchant gratis.
+- **POS sale:** dibuat oleh kasir atau alur operasional POS, membutuhkan entitlement POS aktif dan outlet yang valid.
+- **Table order:** dibuat setelah QR meja POS berhasil diverifikasi; memakai toko/katalog yang sama, tetapi membawa konteks meja dan outlet.
+
+Ketiga kanal tersebut boleh menggunakan produk master dan ledger stok yang sama, tetapi sumber order, hak akses, status fulfillment, dan metriknya harus dapat dibedakan. Menonaktifkan POS hanya menghentikan POS sale dan table order baru; marketplace order tetap diterima sesuai aturan marketplace.
 
 ---
 
@@ -268,6 +307,14 @@ Alur marketplace:
 2. Saat checkout, server membuat reservation dengan expiry.
 3. Pembayaran/konfirmasi menentukan apakah reservation dikonsumsi atau dilepas.
 4. Order marketplace tidak boleh hanya mengandalkan angka stok dari browser.
+
+Alur order meja:
+
+1. Merchant POS membuat QR untuk outlet dan meja yang aktif.
+2. Pelanggan memindai QR dan server memverifikasi token tenant, outlet, meja, serta status POS.
+3. Pelanggan melihat katalog toko yang sama dalam konteks meja.
+4. Saat checkout, server membuat reservation dan order dengan sumber `table_qr`.
+5. POS/outlet menerima order meja melalui inbox operasional yang sesuai; status meja tidak mengubah perilaku toko publik.
 
 ### Saat offline
 
@@ -404,6 +451,9 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] tetapkan kuota marketplace;
 - [x] tetapkan modul POS per paket;
 - [x] tetapkan refund, upgrade, downgrade, dan grace period;
+- [x] tetapkan marketplace tetap dapat upload produk dan menerima pesanan tanpa POS;
+- [x] tetapkan POS sebagai pilihan berbayar yang memproyeksikan katalog Merchant, bukan membuat katalog kedua;
+- [x] tetapkan QR meja sebagai fitur POS yang hanya aktif setelah scan dan validasi konteks meja;
 - [x] buat halaman pricing dan FAQ;
 - [x] sepakati KPI dan dashboard admin.
 
@@ -450,8 +500,12 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] tambahkan alert jika projection gagal;
 - [x] tambahkan alert jika projection terlalu lama/stale;
 - [x] selesaikan definisi stok varian dan multi-outlet.
+- [ ] pastikan inbox pesanan marketplace dapat digunakan tanpa `pos_tenant` atau entitlement POS;
+- [ ] implementasikan QR per outlet/meja dengan token yang scoped, dapat dicabut, dan tervalidasi server-side;
+- [ ] bedakan toko publik biasa dari table-order context; URL toko biasa tidak boleh mengaktifkan mode meja;
+- [ ] masukkan order meja ke pipeline reservation/stock yang sama dengan kanal lain, dengan source dan fulfillment state yang berbeda;
 
-**Status saat ini:** **Sebagian selesai secara teknis di repository.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` sekarang menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, membuat mapping varian marketplace–POS, memastikan satu row stok per identitas dan outlet, memproyeksikan stok varian ke marketplace, serta memakai allocation/reservation lintas outlet tanpa fallback ke stok parent. Test kontrak aplikasi juga memverifikasi isolasi varian, reservasi, dan alokasi deterministik. Build, lint, test, serta validasi migration/bootstrap terakhir berhasil; penerapan bundle dan pengujian konflik nyata di staging masih terbuka.
+**Status saat ini:** **Sebagian selesai secara teknis di repository.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` sekarang menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, membuat mapping varian marketplace–POS, memastikan satu row stok per identitas dan outlet, memproyeksikan stok varian ke marketplace, serta memakai allocation/reservation lintas outlet tanpa fallback ke stok parent. Test kontrak aplikasi juga memverifikasi isolasi varian, reservasi, dan alokasi deterministik. Kontrak katalog dan stok sudah tersedia, tetapi inbox marketplace yang benar-benar mandiri dari POS, QR/table-order, penerapan bundle, dan pengujian konflik nyata di staging masih terbuka.
 
 **Kriteria selesai:** tercapai untuk implementasi teknis di repository; penjualan POS dan order marketplace memakai identitas varian/outlet yang sama, guard/reservation/ledger, dan stale projection dapat ditandai. Fase belum dinyatakan siap produksi sampai bundle diterapkan serta skenario konflik multi-outlet diverifikasi di staging.
 
@@ -543,6 +597,10 @@ Menu POS sudah luas, tetapi modul laporan, stok, audit, dan pembayaran harus din
 
 Marketplace adalah produk gratis dan kanal akuisisi. POS yang tidak aktif seharusnya menghentikan operasi POS baru, bukan menghapus etalase atau histori merchant.
 
+### Jangan menjadikan POS sebagai syarat marketplace
+
+Merchant harus dapat upload produk, menerima pesanan, mengonfirmasi fulfillment, dan mengelola toko tanpa membeli POS. Upgrade POS harus menjual efisiensi operasional, bukan membuka akses dasar marketplace yang sebelumnya sudah dijanjikan gratis.
+
 ### Jangan membiarkan dua sumber stok diedit bebas
 
 Jika merchant POS boleh mengubah stok melalui `products` dan `pos_stock` sekaligus, integrasi akan kehilangan makna. Arah yang dipilih harus konsisten: POS outlet stock sebagai sumber operasional, marketplace sebagai projection.
@@ -554,6 +612,10 @@ Laporan pajak estimasi, cashflow perkiraan, atau ekspor yang tidak mengambil tra
 ### Jangan membuat offline tanpa rekonsiliasi
 
 Offline adalah fitur keandalan, bukan izin untuk melewati aturan server. Semua transaksi offline harus punya status pending/synced/conflict yang dapat diaudit.
+
+### Jangan menyamakan URL toko dengan konteks meja
+
+Toko yang dibuka dari marketplace tetap harus menjadi toko publik biasa. Konteks meja hanya boleh dibuat dari QR POS yang valid, scoped ke outlet/meja, dan diverifikasi server.
 
 ---
 
@@ -569,6 +631,9 @@ Offline adalah fitur keandalan, bukan izin untuk melewati aturan server. Semua t
 8. **Lakukan pilot terbatas:** 10–20 merchant dengan tipe usaha berbeda sebelum membuka POS secara luas.
 9. **Jangan mengiklankan laporan keuangan/pajak sebagai resmi sebelum rekonsiliasi selesai.**
 10. **Jadikan status sinkronisasi terlihat:** merchant harus tahu produk/stok/transaksi mana yang gagal atau menunggu.
+11. **Pertahankan inbox pesanan marketplace sebagai fitur gratis:** POS hanya menambah kanal kasir, stok outlet, dan automasi operasional.
+12. **Bangun QR meja sebagai mode order terpisah:** gunakan katalog dan stok bersama, tetapi simpan source, konteks meja, dan fulfillment state secara eksplisit.
+13. **Jadikan QR dapat dicabut dan diaudit:** merchant harus dapat menonaktifkan meja/outlet atau mengganti QR tanpa memutus toko publik.
 
 ## Kesimpulan
 
@@ -576,6 +641,7 @@ Strategi terbaik bukan memilih antara online atau offline. Bangun **marketplace 
 
 - marketplace mengutamakan jangkauan dan reservasi stok;
 - POS mengutamakan kecepatan kasir dan ketahanan offline;
+- QR POS menambahkan konteks order meja tanpa membuat toko kedua;
 - server menjadi sumber kebenaran;
 - admin mengendalikan entitlement, harga, dan kualitas;
 - merchant selalu dapat melihat status data dan rekonsiliasinya.
