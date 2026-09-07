@@ -16,11 +16,11 @@ Namun, integrasi saat ini belum sepenuhnya aman dan belum memiliki kontrak bisni
 
 | Area | Kondisi | Kesimpulan |
 |---|---|---|
-| Merchant workspace | Sebagian besar terhubung ke Supabase dan memiliki guard per halaman | Fungsional, tetapi akses dan status merchant perlu disatukan |
+| Merchant workspace | Terhubung ke Supabase dan memiliki guard terpusat | Implementasi guard role/status selesai; perlu uji RLS lintas role di staging |
 | POS routing/role | Routing canonical sudah diarahkan ke `/merchant/pos/*`; permission matrix tersedia | Fondasi baik, perlu validasi mutation per role dan outlet |
 | POS–merchant catalog | Trigger dan RPC projection tersedia | Metadata tetap diproyeksikan; stok tertaut kini memakai agregat POS multi-outlet sebagai projection marketplace |
 | POS checkout | Menggunakan `process_pos_sale` dan request key | Jalur transaksi relatif matang, perlu pengujian role/outlet/offline |
-| Storefront publik | Slug dan URL `/s/:slug` tersedia; status buka dan kuota ditampilkan | Ada bypass status pada akses UUID langsung dan aturan publik perlu diperketat |
+| Storefront publik | Slug dan URL `/s/:slug` tersedia; status publishability diterapkan untuk slug dan UUID | Bypass UUID sudah ditutup; alasan unavailable dan canonical URL masih perlu dirapikan |
 | Operasional Replit | Sudah dapat dijalankan | Workflow aktif pada Node 22 dan port 5000; gate audit dependency masih merah |
 
 ### Pembaruan verifikasi Fase 0
@@ -37,6 +37,33 @@ Setelah dependency dipulihkan dan runtime workspace diselaraskan ke Node 22:
 - `npm audit --audit-level high` masih gagal karena 18 vulnerability dependency (10 high, 4 moderate, 4 low); perbaikannya sengaja dipisahkan dari pemulihan workflow agar tidak melakukan upgrade paksa tanpa regression check.
 
 Dengan hasil tersebut, kemampuan verifikasi aplikasi sudah pulih. Gate keamanan dependency tetap terbuka dan harus dibereskan sebelum release production.
+
+### Status implementasi saat ini
+
+#### Sudah selesai di source code
+
+- Runtime Node diselaraskan ke Node 22, dependency dipulihkan dari lockfile, dan workflow `npm run dev` berjalan di port 5000.
+- Guard workspace merchant memeriksa role serta status merchant; dashboard pending/rejected tetap dapat dibuka, sedangkan subhalaman memerlukan merchant approved dan active.
+- Aktivasi POS sekarang memiliki entitlement gate server-side untuk merchant approved/active dan subscription/trial POS yang masih aktif.
+- Storefront berbasis slug dan UUID memakai aturan publishability yang sama; merchant non-approved/non-active tidak dirender sebagai storefront publik.
+- Projection katalog merchant ke POS tetap tersedia melalui trigger/RPC.
+- Kontrak stok dasar sudah dibuat: `pos_stock` per outlet menjadi sumber operasional, sedangkan `products.stock` menjadi projection marketplace.
+- Sinkronisasi stok POS → marketplace sudah memiliki agregasi seluruh outlet aktif, pengurangan `reserved_quantity`, RPC server-side, trigger otomatis, dan tombol manual yang memakai RPC yang sama.
+- Typecheck, lint tanpa error, test suite, production build, PWA build, validasi migration, dan validasi bootstrap bundle sudah lulus.
+
+#### Sudah diimplementasikan tetapi belum dinyatakan production-ready
+
+- Migration POS activation dan projection stok (`10` sampai `15`) masih tersimpan di repository dan belum diterapkan ke Supabase staging/production karena belum ada database environment yang terhubung.
+- RLS, permission mutation, RPC activation, checkout, dan trigger stok belum diuji dengan identitas nyata owner, manager, kasir, staff gudang, purchasing, finance, auditor, buyer, serta beberapa tenant/outlet.
+- Sinkronisasi POS → marketplace belum memiliki bukti runtime dari database staging; hasil validasi saat ini masih static/local.
+
+#### Belum selesai
+
+- Ledger dua arah untuk order marketplace dan stok outlet POS. Order online masih memakai `products.stock`/`reserved_stock` tanpa alokasi atomik ke outlet POS tertentu.
+- Guard agar edit manual stok merchant tidak dapat membuat produk tertaut POS berbeda dari sumber stok operasional.
+- Reconciliation per produk yang menampilkan total outlet, delta marketplace, projection hilang, error, dan recovery action di UI.
+- Acceptance matrix transaksi POS untuk role, outlet, offline queue, retry/duplicate, split payment, refund/return, voucher, loyalty, stok habis, realtime, dan printer.
+- Penanganan 18 vulnerability dependency tanpa upgrade paksa dan tanpa regresi.
 
 ## Batasan audit
 
@@ -85,14 +112,13 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - **Dampak:** toko pending/rejected/inactive berpotensi tetap tampil jika URL ID diketahui, berbeda dengan perilaku URL slug.
 - **Status:** selesai di `MerchantSlugResolver`; slug dan UUID sekarang mengambil status merchant dengan aturan yang sama dan toko non-approved/non-active tidak dirender sebagai storefront publik.
 
-#### P0-5. Sumber stok online dan POS belum memiliki kontrak yang tegas
+#### P0-5. Kontrak stok online dan POS sudah ada, tetapi belum lengkap lintas kanal
 
-- Migration mendokumentasikan `products` sebagai katalog merchant dan `pos_products` sebagai projection.
-- Trigger merchant → POS hanya menyalin metadata produk dan membuat baris `pos_stock` per outlet.
-- POS checkout memakai `pos_stock`; storefront dan merchant stock memakai `products.stock`.
-- Dalam source yang diaudit belum terlihat kontrak atomik yang mengurangi/men-reserve `products.stock` ketika penjualan POS terjadi, atau sebaliknya.
-- **Dampak:** stok online dan stok outlet bisa berbeda; risiko overselling, angka stok membingungkan, dan laporan merchant tidak sama dengan laporan POS.
-- **Rencana:** putuskan model bisnis secara eksplisit: stok global, stok per outlet, atau stok terpisah untuk online. Lalu implementasikan satu ledger/reservation model dan tampilkan label sumber stok pada merchant/storefront. Tambahkan invariant database untuk mencegah penjualan di luar stok.
+- `products` tetap menjadi katalog merchant, `pos_products` menjadi projection katalog POS, dan `pos_stock` menyimpan stok operasional per outlet.
+- **Status:** kontrak satu arah POS → marketplace sudah diimplementasikan pada `15_20260907010000_pos_marketplace_stock_projection.sql`. `products.stock` diperbarui dari agregat stok tersedia seluruh outlet aktif, setelah dikurangi `reserved_quantity` POS.
+- Sinkronisasi manual di `POSIntegrasiPage` sekarang memakai RPC server-side dan tidak lagi membaca satu baris `pos_stock` atau melakukan update `products` langsung dari client.
+- **Batasan:** order marketplace masih memiliki lifecycle `products.stock`/`reserved_stock` sendiri dan belum mengurangi outlet POS secara atomik. Karena itu kontrak stok sudah lebih jelas, tetapi ledger lintas kanal belum konsisten penuh.
+- **Sisa pekerjaan:** terapkan migration ke staging, uji concurrency/RLS, tambahkan reconciliation UI, lalu tentukan strategi alokasi outlet untuk order marketplace.
 
 ### P1 — Penting untuk alur jelas dan kemudahan penggunaan
 
@@ -174,21 +200,21 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 3. Start workflow, buka preview, dan dokumentasikan smoke test minimum.
 4. Jalankan typecheck, lint, build, dan test yang tidak membutuhkan environment production.
 
-### Fase 1 — Tutup risiko akses dan billing
+### Fase 1 — Tutup risiko akses dan billing (**sebagian besar selesai; staging belum**)
 
-1. Implementasikan `MerchantAccessRoute`.
-2. Satukan status merchant dan POS dalam state machine yang eksplisit.
-3. Jadikan entitlement trial/subscription sebagai validasi server-side pada activation RPC.
-4. Perbaiki resolver storefront agar slug dan UUID memakai aturan publishability yang sama.
-5. Tambahkan staging tests untuk buyer, merchant pending, merchant approved, admin, dan POS member.
+1. **Selesai:** guard role/status merchant sudah terpusat di `ProtectedRoute`.
+2. **Selesai sebagian:** status merchant dan entitlement POS sudah divalidasi di jalur akses/activation, tetapi state machine lintas seluruh flow belum memiliki acceptance test staging.
+3. **Selesai di source code:** entitlement trial/subscription sudah menjadi validasi server-side pada activation RPC; migration belum diterapkan ke Supabase.
+4. **Selesai:** resolver storefront menggunakan aturan publishability yang sama untuk slug dan UUID.
+5. **Belum:** staging tests untuk buyer, merchant pending, merchant approved, admin, dan POS member.
 
-### Fase 2 — Tetapkan integrasi katalog dan stok
+### Fase 2 — Tetapkan integrasi katalog dan stok (**kontrak dasar selesai; ledger lintas kanal belum**)
 
 1. Definisikan sumber kebenaran produk, harga, varian, dan stok. **Stok produk tertaut sekarang ditetapkan: `pos_stock` operasional per outlet → `products.stock` sebagai projection marketplace.**
 2. Audit semua query/mutation `products`, `pos_products`, `pos_stock`, `orders`, dan `pos_sales` berdasarkan scope merchant/tenant/outlet.
 3. Tambahkan reconciliation dan status projection. **Projection agregat server-side dan sinkronisasi manual sudah tersedia; status per produk serta laporan selisih masih perlu diperdalam.**
-4. Pastikan penjualan online dan POS memakai reservation/ledger yang konsisten.
-5. Tambahkan laporan selisih stok dan recovery path.
+4. **Belum:** pastikan penjualan online dan POS memakai reservation/ledger yang konsisten serta mengalokasikan stok ke outlet.
+5. **Belum:** tambahkan laporan selisih stok dan recovery path yang dapat digunakan merchant.
 
 ### Fase 3 — Sederhanakan pengalaman merchant dan POS
 
