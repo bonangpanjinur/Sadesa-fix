@@ -19,6 +19,35 @@ interface PWAStatus {
 }
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
+const BACKGROUND_SYNC_TAG = 'sadesa-background-sync';
+const PERIODIC_SYNC_TAG = 'sadesa-periodic-refresh';
+
+type SyncRegistration = ServiceWorkerRegistration & {
+  sync?: {
+    register: (tag: string) => Promise<void>;
+  };
+  periodicSync?: {
+    getTags: () => Promise<string[]>;
+    register: (tag: string, options: { minInterval: number }) => Promise<void>;
+  };
+};
+
+async function registerPwaSyncCapabilities(registration: ServiceWorkerRegistration) {
+  const syncRegistration = registration as SyncRegistration;
+
+  if (syncRegistration.sync) {
+    await syncRegistration.sync.register(BACKGROUND_SYNC_TAG);
+  }
+
+  if (syncRegistration.periodicSync) {
+    const tags = await syncRegistration.periodicSync.getTags();
+    if (!tags.includes(PERIODIC_SYNC_TAG)) {
+      await syncRegistration.periodicSync.register(PERIODIC_SYNC_TAG, {
+        minInterval: 24 * 60 * 60 * 1000,
+      });
+    }
+  }
+}
 
 function usePWAController(): PWAContextValue {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -108,8 +137,10 @@ function usePWAController(): PWAContextValue {
     window.addEventListener('offline', handleOffline);
 
     if ('serviceWorker' in navigator) {
-      void navigator.serviceWorker.getRegistration().then((registration) => {
-        if (!registration) return;
+      void navigator.serviceWorker.ready.then((registration) => {
+        void registerPwaSyncCapabilities(registration).catch((error: unknown) => {
+          reportObservability('offline_sync', 'capability_registration_failed', 'warn', {}, error);
+        });
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {

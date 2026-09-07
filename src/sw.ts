@@ -10,9 +10,44 @@ cleanupOutdatedCaches();
 clientsClaim();
 self.skipWaiting();
 
+const refreshPublicPwaMetadata = async () => {
+  const response = await fetch('/manifest.webmanifest', { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`Manifest refresh failed with status ${response.status}`);
+  }
+
+  const cache = await caches.open('sadesa-pwa-metadata');
+  await cache.put('/manifest.webmanifest', response.clone());
+
+  const clients = await self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true,
+  });
+  for (const client of clients) {
+    client.postMessage({
+      type: 'SADESA_PWA_SYNC_COMPLETED',
+      resource: 'manifest',
+    });
+  }
+};
+
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+});
+
+self.addEventListener('sync', (event) => {
+  const syncEvent = event as ExtendableEvent & { tag?: string };
+  if (syncEvent.tag === 'sadesa-background-sync') {
+    syncEvent.waitUntil(refreshPublicPwaMetadata());
+  }
+});
+
+self.addEventListener('periodicsync', (event) => {
+  const periodicEvent = event as ExtendableEvent & { tag?: string };
+  if (periodicEvent.tag === 'sadesa-periodic-refresh') {
+    periodicEvent.waitUntil(refreshPublicPwaMetadata());
   }
 });
 

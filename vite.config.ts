@@ -40,7 +40,7 @@ export default defineConfig(() => ({
         theme_color: '#10b981',
         background_color: '#ffffff',
         display: 'standalone',
-        display_override: ['standalone', 'browser'],
+        display_override: ['window-controls-overlay', 'tabbed', 'standalone', 'browser'],
         start_url: '/',
         scope: '/',
         orientation: 'portrait-primary',
@@ -66,6 +66,13 @@ export default defineConfig(() => ({
               'text/csv': ['.csv'],
               'application/json': ['.json'],
             },
+            icons: [
+              {
+                src: 'branding/sadesa-icon-192.png',
+                sizes: '192x192',
+                type: 'image/png',
+              },
+            ],
           },
         ],
         protocol_handlers: [
