@@ -87,6 +87,20 @@ interface ReconciliationRow {
   marketplaceStock: number | null;
   delta: number | null;
   status: 'ok' | 'mismatch' | 'missing' | 'unlinked';
+  sync_status?: string;
+  last_synced_at?: string | null;
+  error_message?: string | null;
+  last_error_at?: string | null;
+}
+
+interface SyncAlert {
+  id: string;
+  sync_id: string;
+  alert_code: string;
+  severity: 'warning' | 'error';
+  message: string;
+  status: 'open' | 'resolved';
+  last_seen_at: string;
 }
 
 const SYNC_TYPES: Record<string, string> = {
@@ -111,6 +125,7 @@ export default function POSIntegrasiPage() {
   const [marketplaceOrders, setMarketplaceOrders] = useState<MarketplaceOrder[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
   const [reconciliation, setReconciliation] = useState<ReconciliationRow[]>([]);
+  const [syncAlerts, setSyncAlerts] = useState<SyncAlert[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [posProducts, setPosProducts] = useState<POSProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,15 +150,16 @@ export default function POSIntegrasiPage() {
     setError(null);
 
     try {
-      const [settingsRes, productsRes, ordersRes, logsRes, merchantsRes, posProductsRes] = await Promise.all([
+      const [settingsRes, productsRes, ordersRes, logsRes, merchantsRes, posProductsRes, alertsRes] = await Promise.all([
         supabase.from('pos_integration_settings' as never).select('*').eq('tenant_id', tenant.id).maybeSingle(),
         supabase.from('pos_marketplace_sync' as never).select('*, pos_products(name, sku, price)').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
         supabase.from('pos_marketplace_orders' as never).select('*').eq('tenant_id', tenant.id).order('imported_at', { ascending: false }).limit(50),
         supabase.from('pos_sync_logs' as never).select('*').eq('tenant_id', tenant.id).order('started_at', { ascending: false }).limit(20),
         supabase.from('merchants').select('id, name').eq('user_id', user!.id).eq('registration_status', 'APPROVED'),
         supabase.from('pos_products' as never).select('id, name, sku, price, merchant_product_id').eq('tenant_id', tenant.id).eq('is_active', true).order('name'),
+        supabase.from('pos_stock_sync_alerts' as never).select('id, sync_id, alert_code, severity, message, status, last_seen_at').eq('tenant_id', tenant.id).eq('status', 'open').order('last_seen_at', { ascending: false }),
       ]);
-      const firstError = [settingsRes, productsRes, ordersRes, logsRes, merchantsRes, posProductsRes].find((response) => response.error)?.error;
+      const firstError = [settingsRes, productsRes, ordersRes, logsRes, merchantsRes, posProductsRes, alertsRes].find((response) => response.error)?.error;
       if (firstError) throw firstError;
 
       setSettings(settingsRes.data as unknown as IntegrationSettings | null);
@@ -152,45 +168,14 @@ export default function POSIntegrasiPage() {
       setSyncLogs((logsRes.data || []) as unknown as SyncLog[]);
       setMerchants((merchantsRes.data || []) as unknown as Merchant[]);
       setPosProducts((posProductsRes.data || []) as unknown as POSProduct[]);
+      setSyncAlerts((alertsRes.data || []) as unknown as SyncAlert[]);
 
       if (tenant.merchant_id) {
-        const [marketplaceRes, stockRes] = await Promise.all([
-          supabase.from('products').select('id, name, stock').eq('merchant_id', tenant.merchant_id),
-          supabase.from('pos_stock' as never).select('product_id, quantity, reserved_quantity').eq('tenant_id', tenant.id),
-        ]);
-        if (marketplaceRes.error) throw marketplaceRes.error;
-        if (stockRes.error) throw stockRes.error;
-
-        const marketplaceStock = new Map(
-          ((marketplaceRes.data || []) as Array<{ id: string; stock: number }>).map((product) => [product.id, Number(product.stock || 0)]),
-        );
-        const stockByProduct = new Map<string, { total: number; reserved: number }>();
-        ((stockRes.data || []) as unknown as Array<{ product_id: string; quantity: number; reserved_quantity?: number | null }>).forEach((row) => {
-          const current = stockByProduct.get(row.product_id) || { total: 0, reserved: 0 };
-          current.total += Number(row.quantity || 0);
-          current.reserved += Number(row.reserved_quantity || 0);
-          stockByProduct.set(row.product_id, current);
-        });
-        setReconciliation(
-          ((posProductsRes.data || []) as unknown as Array<POSProduct & { merchant_product_id?: string | null }>).map((product) => {
-            const sourceId = product.merchant_product_id;
-            const stock = stockByProduct.get(product.id) || { total: 0, reserved: 0 };
-            const marketplaceValue = sourceId ? marketplaceStock.get(sourceId) : undefined;
-            const posAvailable = Math.max(stock.total - stock.reserved, 0);
-            const delta = marketplaceValue === undefined ? null : posAvailable - marketplaceValue;
-            return {
-              posProductId: product.id,
-              productName: product.name,
-              sku: product.sku,
-              outletTotal: stock.total,
-              reserved: stock.reserved,
-              posAvailable,
-              marketplaceStock: marketplaceValue ?? null,
-              delta,
-              status: !sourceId ? 'unlinked' : marketplaceValue === undefined ? 'missing' : delta === 0 ? 'ok' : 'mismatch',
-            };
-          }),
-        );
+        const { data: reconciliationData, error: reconciliationError } = await supabase.rpc('get_pos_stock_reconciliation' as never, {
+          p_tenant_id: tenant.id,
+        } as never);
+        if (reconciliationError) throw reconciliationError;
+        setReconciliation((reconciliationData || []) as unknown as ReconciliationRow[]);
       } else {
         setReconciliation([]);
       }
@@ -264,6 +249,9 @@ export default function POSIntegrasiPage() {
         } as never);
         if (error) throw error;
         const result = data as unknown as { processed?: number; updated?: number };
+        if ((result as { status?: string }).status === 'error') {
+          throw new Error((result as { error_message?: string }).error_message || 'Projection stok gagal');
+        }
         processed = Number(result?.processed || 0);
         success = processed;
       } else if (type === 'order_import' && settings?.is_connected && settings.merchant_id) {
@@ -396,6 +384,8 @@ export default function POSIntegrasiPage() {
     totalPending: syncedProducts.filter(p => p.sync_status === 'pending').length,
     totalOrders: marketplaceOrders.length,
     pendingOrders: marketplaceOrders.filter(o => o.status === 'pending').length,
+    openAlerts: syncAlerts.length,
+    mismatches: reconciliation.filter(row => row.status === 'mismatch' || row.status === 'missing').length,
   };
 
   if (error && !loading) {
@@ -471,6 +461,20 @@ export default function POSIntegrasiPage() {
           </Card>
         ))}
       </div>
+
+      {stats.openAlerts > 0 && (
+        <Card className="mb-6 border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+              <div>
+                <p className="font-semibold text-red-700">{stats.openAlerts} masalah sinkronisasi perlu ditangani</p>
+                <p className="text-sm text-red-600">Projection stok gagal dan tidak akan dianggap pulih sampai sinkronisasi berikutnya berhasil.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4">
@@ -579,6 +583,27 @@ export default function POSIntegrasiPage() {
               <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />Pulihkan Projection
             </Button>
           </div>
+          {syncAlerts.length > 0 && (
+            <Card className="mb-4 border-red-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-red-700">
+                  <AlertCircle className="h-4 w-4" /> Alert Projection Stok
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {syncAlerts.map((alert) => (
+                  <div key={alert.id} className="rounded-md border border-red-100 bg-red-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-red-800">{alert.message}</p>
+                      <span className="text-xs text-red-600 whitespace-nowrap">
+                        {format(parseISO(alert.last_seen_at), 'dd MMM HH:mm', { locale: idLocale })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardContent className="p-0">
               {reconciliation.length === 0 ? (

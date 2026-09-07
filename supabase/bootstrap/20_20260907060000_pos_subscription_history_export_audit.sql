@@ -50,7 +50,8 @@ BEGIN
       is_active,
       sort_order,
       change_type,
-      changed_by
+       changed_by,
+       change_reason
     )
     VALUES (
       NEW.id,
@@ -60,8 +61,9 @@ BEGIN
       NEW.price,
       NEW.is_active,
       NEW.sort_order,
-      CASE WHEN TG_OP = 'INSERT' THEN 'INITIAL' ELSE 'UPDATE' END,
-      auth.uid()
+       CASE WHEN TG_OP = 'INSERT' THEN 'INITIAL' ELSE 'UPDATE' END,
+       auth.uid(),
+       NULLIF(current_setting('app.pos_package_change_reason', true), '')
     );
   END IF;
 
@@ -137,6 +139,74 @@ $$;
 REVOKE ALL ON FUNCTION public.get_pos_package_history(integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_pos_package_history(integer) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.admin_update_pos_package(
+  p_package_id uuid,
+  p_name text,
+  p_description text,
+  p_duration_months integer,
+  p_price integer,
+  p_reason text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_before public.pos_packages%ROWTYPE;
+  v_after public.pos_packages%ROWTYPE;
+  v_reason text := NULLIF(trim(p_reason), '');
+BEGIN
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Only admins can update POS packages' USING ERRCODE = '42501';
+  END IF;
+  IF NULLIF(trim(p_name), '') IS NULL OR v_reason IS NULL THEN
+    RAISE EXCEPTION 'Package name and change reason are required' USING ERRCODE = '22023';
+  END IF;
+  IF COALESCE(p_duration_months, 0) < 1 OR COALESCE(p_price, -1) < 0 THEN
+    RAISE EXCEPTION 'Package duration and price are invalid' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT *
+  INTO v_before
+  FROM public.pos_packages
+  WHERE id = p_package_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'POS package not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  PERFORM set_config('app.pos_package_change_reason', v_reason, true);
+  UPDATE public.pos_packages
+  SET name = trim(p_name),
+      description = NULLIF(trim(COALESCE(p_description, '')), ''),
+      duration_months = p_duration_months,
+      price = p_price
+  WHERE id = p_package_id;
+
+  SELECT * INTO v_after
+  FROM public.pos_packages
+  WHERE id = p_package_id;
+
+  INSERT INTO public.admin_audit_logs (
+    admin_id, action, entity_type, entity_id, old_value, new_value
+  )
+  VALUES (
+    auth.uid(),
+    'UPDATE_POS_PACKAGE',
+    'pos_package',
+    p_package_id,
+    to_jsonb(v_before),
+    to_jsonb(v_after) || jsonb_build_object('reason', v_reason)
+  );
+
+  RETURN to_jsonb(v_after);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_update_pos_package(uuid, text, text, integer, integer, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_update_pos_package(uuid, text, text, integer, integer, text) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.export_pos_subscription_data(p_merchant_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -201,7 +271,7 @@ CREATE OR REPLACE FUNCTION public.admin_manage_pos_subscription(
   p_action text,
   p_extension_months integer DEFAULT 1,
   p_rejection_reason text DEFAULT NULL,
-  p_reason text DEFAULT NULL
+  p_reason text
 )
 RETURNS jsonb
 LANGUAGE plpgsql

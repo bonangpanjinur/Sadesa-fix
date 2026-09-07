@@ -347,6 +347,14 @@
       ],
       "sha256": "pending",
       "bytes": 0
+    },
+    {
+      "file": "21_20260907070000_pos_stock_reconciliation_alerts.sql",
+      "source_files": [
+        "21_20260907070000_pos_stock_reconciliation_alerts.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
     }
   ]
 }

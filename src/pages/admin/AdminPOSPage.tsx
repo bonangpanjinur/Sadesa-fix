@@ -18,7 +18,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { getSettingByKey, updateAppSetting } from '@/lib/adminApi';
-import { logAdminAction } from '@/lib/auditLog';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -190,18 +189,18 @@ export default function AdminPOSPage() {
       duration_months: Math.max(1, editPkgForm.duration_months),
       price: Math.max(0, editPkgForm.price),
     };
-    const { error } = await supabase.from('pos_packages').update(nextValue).eq('id', editPkg.id);
+    const { error } = await supabase.rpc('admin_update_pos_package' as never, {
+      p_package_id: editPkg.id,
+      p_name: nextValue.name,
+      p_description: nextValue.description,
+      p_duration_months: nextValue.duration_months,
+      p_price: nextValue.price,
+      p_reason: editPkgForm.reason.trim(),
+    } as never);
     if (error) {
       toast.error(`Gagal memperbarui paket: ${error.message}`);
       return;
     }
-    await logAdminAction(
-      'UPDATE_POS_PACKAGE',
-      'pos_package',
-      editPkg.id,
-      { name: editPkg.name, description: editPkg.description, duration_months: editPkg.duration_months, price: editPkg.price },
-      { ...nextValue, reason: editPkgForm.reason.trim() },
-    );
     toast.success('Paket berhasil diperbarui dan perubahan dicatat');
     setEditPkg(null);
     setEditPkgForm({ name: '', description: '', duration_months: 1, price: 0, reason: '' });
