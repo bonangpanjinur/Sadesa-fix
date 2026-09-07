@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Store, MapPin, Bike, Clock, CheckCheck, X, Calendar, RefreshCw, Target, CheckCircle2, CreditCard, ShoppingBag } from 'lucide-react';
+import { Store, MapPin, Bike, Clock, CheckCheck, X, Calendar, RefreshCw, Target, CheckCircle2, CreditCard, ShoppingBag, TrendingUp, Activity, AlertTriangle } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { ApprovalCard } from '@/components/admin/ApprovalCard';
@@ -34,6 +34,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { subDays, startOfDay, endOfDay } from 'date-fns';
 import { formatPrice } from '@/lib/utils';
+import { calculatePosBusinessMetrics } from '@/lib/businessKpis';
 
 interface OrderData {
   total: number;
@@ -114,13 +115,54 @@ export default function AdminDashboardPage() {
     staleTime: 60_000,
   });
 
-  const loading = merchantsLoading || villagesLoading || couriersLoading || ordersLoading;
+  const { data: posBusinessMetrics, isLoading: posBusinessMetricsLoading } = useQuery({
+    queryKey: ['admin-pos-business-metrics', realtimeStats.totalMerchants],
+    queryFn: async () => {
+      const [subscriptionsRes, tenantsRes, healthRes] = await Promise.all([
+        supabase
+          .from('pos_subscriptions')
+          .select('merchant_id, is_trial, status, payment_status, payment_amount, created_at, updated_at, started_at, pos_packages(duration_months)'),
+        supabase.from('pos_tenants').select('merchant_id'),
+        supabase.rpc('get_pos_integration_health' as never),
+      ]);
+
+      if (subscriptionsRes.error) console.warn('Gagal memuat metrik subscription POS:', subscriptionsRes.error.message);
+      if (tenantsRes.error) console.warn('Gagal memuat metrik tenant POS:', tenantsRes.error.message);
+      if (healthRes.error) console.warn('Gagal memuat kesehatan integrasi POS:', healthRes.error.message);
+
+      const subscriptions = (subscriptionsRes.data || []).map((subscription) => {
+        const packageData = subscription.pos_packages as { duration_months?: number | string | null } | null;
+        return {
+          merchant_id: subscription.merchant_id,
+          is_trial: subscription.is_trial,
+          status: subscription.status,
+          payment_status: subscription.payment_status,
+          payment_amount: subscription.payment_amount,
+          created_at: subscription.created_at,
+          updated_at: subscription.updated_at,
+          started_at: subscription.started_at,
+          package_duration_months: packageData?.duration_months,
+        };
+      });
+
+      return calculatePosBusinessMetrics({
+        totalMerchants: realtimeStats.totalMerchants,
+        subscriptions,
+        tenants: tenantsRes.data || [],
+        integrationHealth: (healthRes.data || []) as Array<{ status: string | null; sync_gap_count: number | string | null }>,
+      });
+    },
+    staleTime: 60_000,
+  });
+
+  const loading = merchantsLoading || villagesLoading || couriersLoading || ordersLoading || posBusinessMetricsLoading;
 
   const loadData = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-pending-merchants'] });
     queryClient.invalidateQueries({ queryKey: ['admin-pending-villages'] });
     queryClient.invalidateQueries({ queryKey: ['admin-pending-couriers'] });
     queryClient.invalidateQueries({ queryKey: ['admin-orders-chart', dateRange] });
+    queryClient.invalidateQueries({ queryKey: ['admin-pos-business-metrics'] });
   };
 
   // Calculate chart data from orders
@@ -374,15 +416,33 @@ export default function AdminDashboardPage() {
               />
               <StatsCard
                 title="Trial → paid"
-                value="—"
-                description="Belum dihitung: menunggu agregat entitlement POS canonical."
+                value={posBusinessMetrics?.trialToPaidRate === null || posBusinessMetrics?.trialToPaidRate === undefined ? '—' : `${posBusinessMetrics.trialToPaidRate}%`}
+                description={posBusinessMetrics ? `${posBusinessMetrics.convertedTrialMerchantCount} dari ${posBusinessMetrics.trialMerchantCount} merchant trial beralih ke paket berbayar.` : 'Data belum tersedia.'}
                 icon={<CreditCard className="h-5 w-5" />}
               />
               <StatsCard
                 title="Attach rate POS"
-                value="—"
-                description="Belum dihitung: perlu relasi merchant marketplace dan tenant POS."
+                value={posBusinessMetrics?.attachRate === null || posBusinessMetrics?.attachRate === undefined ? '—' : `${posBusinessMetrics.attachRate}%`}
+                description={posBusinessMetrics ? `${posBusinessMetrics.linkedMerchantCount} merchant memiliki tenant POS yang terhubung.` : 'Data belum tersedia.'}
                 icon={<MapPin className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="MRR POS"
+                value={formatPrice(posBusinessMetrics?.mrr || 0)}
+                description="Estimasi pendapatan berulang bulanan dari subscription berbayar aktif."
+                icon={<TrendingUp className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="Churn POS 30 hari"
+                value={posBusinessMetrics?.churnRate === null || posBusinessMetrics?.churnRate === undefined ? '—' : `${posBusinessMetrics.churnRate}%`}
+                description={posBusinessMetrics ? `${posBusinessMetrics.churnedMerchantCount} merchant berhenti dari basis ${posBusinessMetrics.paidMerchantBase}.` : 'Data belum tersedia.'}
+                icon={<Activity className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="Kesehatan sync POS"
+                value={posBusinessMetrics && posBusinessMetrics.integrationTotal > 0 ? `${posBusinessMetrics.integrationReady}/${posBusinessMetrics.integrationTotal}` : '—'}
+                description={posBusinessMetrics ? `${posBusinessMetrics.integrationAttention} perlu perhatian · ${posBusinessMetrics.openSyncGapCount} gap stok terbuka.` : 'Data belum tersedia.'}
+                icon={<AlertTriangle className="h-5 w-5" />}
               />
             </div>
           </section>

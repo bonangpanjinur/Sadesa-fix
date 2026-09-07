@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 7 September 2026:** Fase 0 dan Fase 1 **selesai secara teknis di repository**. Fase 0 sekarang memiliki halaman Pricing/FAQ publik dan KPI bisnis di dashboard admin. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, constraint database identitas SKU/barcode tenant-scoped, dan validasi aplikasi untuk form katalog sudah tersedia; validasi di staging/production, pengujian konflik, dan pemetaan stok marketplace untuk varian masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**: cache tenant/outlet, antrean IndexedDB idempotent, retry/dead-letter, indikator usia cache, serta conflict center sudah tersedia. Uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Migration baru belum diterapkan ke staging/production.
+> **Status implementasi — 8 September 2026:** Fase 0, Fase 1, dan Fase 4 **selesai secara teknis di repository**. Dashboard admin sekarang menghitung KPI pertumbuhan POS: attach rate, trial-to-paid, MRR, churn 30 hari, dan kesehatan sinkronisasi. Fase 2 **selesai secara teknis di repository** untuk mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, identitas SKU/barcode tenant-scoped, dan stok varian/outlet; validasi staging/production serta pengujian konflik masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**; uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Fase 5 **selesai secara teknis di repository** untuk entitlement komersial, promo partner, dan SLA support. Migration baru belum diterapkan ke staging/production.
 
 ## 0. Analisis kesiapan saat ini
 
@@ -15,7 +15,7 @@
 | Laporan resmi | **Siap diuji di staging; belum boleh dipasarkan sebagai laporan resmi** | Kontrak laporan canonical, ledger hutang/piutang, jurnal posted, dan rekonsiliasi harian sudah tersedia; penerapan bundle dan validasi staging/production masih terbuka. |
 | Produksi | **Belum siap** | Migration harus diterapkan dan diuji di staging; variabel Supabase publik, Edge Functions, Auth redirect, dan pilot merchant masih perlu dikonfigurasi. |
 
-**Prioritas kerja:** terapkan migration ke staging, validasi Fase 2, lalu uji perangkat dan konflik Fase 3 sebelum membuka POS secara luas. Jangan menandai fase sebagai siap produksi hanya karena halaman atau RPC sudah ada di repository.
+**Prioritas kerja:** terapkan migration Fase 2–5 ke staging, validasi konflik dan perangkat Fase 2–3, lalu jalankan pilot merchant sebelum membuka POS secara luas. Jangan menandai fase sebagai siap produksi hanya karena halaman, KPI, atau RPC sudah ada di repository.
 
 ## 1. Ringkasan keputusan
 
@@ -521,13 +521,15 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 
 ### Fase 7 — Partner, dukungan, dan rollout bertahap
 
-**Status saat ini:** Backlog setelah Fase 6.
+**Status saat ini:** Sebagian selesai secara teknis di repository; rollout tetap menunggu Fase 6.
 
 - [x] program partner desa/koperasi dengan eligibility, tanggal berakhir, kuota, dan audit redemption;
 - [x] redemption promo onboarding yang idempotent dan tidak dapat dipakai lintas merchant;
 - [x] dukungan prioritas berbasis paket dengan SLA 4 jam dan indikator overdue untuk admin;
-- [ ] dashboard attach rate, trial-to-paid, MRR, churn, dan kesehatan sync;
+- [x] dashboard attach rate, trial-to-paid, MRR, churn, dan kesehatan sync;
 - [ ] rollout bertahap berdasarkan hasil pilot, bukan hanya halaman yang sudah tersedia.
+
+Dashboard Fase 7 menggunakan subscription berstatus `PAID`, tenant POS yang memiliki `merchant_id`, dan RPC kesehatan integrasi sebagai sumber metrik. MRR dan churn tetap merupakan metrik operasional sampai migration diterapkan dan angka direkonsiliasi dengan pembayaran nyata di staging.
 
 ---
 
