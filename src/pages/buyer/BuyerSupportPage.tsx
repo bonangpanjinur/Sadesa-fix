@@ -57,6 +57,9 @@ interface SupportTicket {
   created_at: string;
   updated_at: string;
   messages?: SupportMessage[];
+  priority?: string;
+  priority_source?: string;
+  sla_due_at?: string | null;
 }
 
 interface NewTicketForm {
@@ -79,7 +82,7 @@ export default function BuyerSupportPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('support_tickets')
-        .select('id, subject, category, status, created_at, updated_at')
+        .select('id, subject, category, status, priority, priority_source, sla_due_at, created_at, updated_at')
         .eq('user_id', user!.id)
         .order('updated_at', { ascending: false });
       if (error) throw error;
@@ -108,35 +111,13 @@ export default function BuyerSupportPage() {
   // Buat tiket baru / Create new ticket
   const createMutation = useMutation({
     mutationFn: async (f: NewTicketForm) => {
-      const now = new Date().toISOString();
-      const { data: ticket, error: tErr } = await supabase
-        .from('support_tickets')
-        .insert({
-          user_id: user!.id,
-          subject: f.subject,
-          category: f.category,
-          status: 'open',
-          priority: 'medium',
-          created_at: now,
-          updated_at: now,
-          last_message_at: now,
-          message_count: 1,
-        })
-        .select('id')
-        .single();
-      if (tErr) throw tErr;
-
-      const { error: mErr } = await supabase
-        .from('support_ticket_messages')
-        .insert({
-          ticket_id: ticket.id,
-          sender_id: user!.id,
-          sender_role: 'user',
-          message: f.message,
-          created_at: now,
-        });
-      if (mErr) throw mErr;
-      return ticket;
+      const { data: ticket, error } = await supabase.rpc('create_support_ticket' as never, {
+        p_subject: f.subject,
+        p_category: f.category,
+        p_message: f.message,
+      } as never);
+      if (error) throw error;
+      return { id: ticket };
     },
     onSuccess: () => {
       toast.success('Tiket berhasil dikirim! Tim support kami akan merespons segera.');
@@ -204,7 +185,7 @@ export default function BuyerSupportPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex gap-2">
                 <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                 <p className="text-xs text-blue-700">
-                  Tim kami akan merespons tiket Anda dalam <strong>24 jam kerja</strong>. Untuk bantuan cepat, cek juga halaman FAQ.
+                   Tiket paket standar ditargetkan dijawab dalam <strong>24 jam kerja</strong>. Paket dengan dukungan prioritas mendapat target <strong>4 jam kerja</strong>.
                 </p>
               </div>
 
@@ -241,6 +222,9 @@ export default function BuyerSupportPage() {
                                   <StatusIcon className="h-3 w-3 mr-1" />
                                   {st.label}
                                 </Badge>
+                                {ticket.priority_source === 'pos_priority_support' && (
+                                  <Badge className="text-[10px] px-1.5 py-0 bg-indigo-100 text-indigo-700 border-0">Prioritas</Badge>
+                                )}
                                 <span className="text-[11px] text-muted-foreground">
                                   {formatDistanceToNow(new Date(ticket.updated_at), { addSuffix: true, locale: idLocale })}
                                 </span>

@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 210,
-  "bundle_count": 26,
+  "bundle_count": 27,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -392,6 +392,14 @@
       "file": "26_20260908100000_phase5_commercial_entitlements.sql",
       "source_files": [
         "26_20260908100000_phase5_commercial_entitlements.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
+    },
+    {
+      "file": "27_20260908120000_partner_promotions_priority_support.sql",
+      "source_files": [
+        "27_20260908120000_partner_promotions_priority_support.sql"
       ],
       "sha256": "pending",
       "bytes": 0

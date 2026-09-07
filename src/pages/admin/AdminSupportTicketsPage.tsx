@@ -81,6 +81,9 @@ interface SupportTicket {
   messages?: SupportMessage[];
   last_message_at?: string;
   message_count?: number;
+  priority_source?: string;
+  sla_due_at?: string | null;
+  first_response_at?: string | null;
 }
 
 export default function AdminSupportTicketsPage() {
@@ -101,7 +104,7 @@ export default function AdminSupportTicketsPage() {
     queryFn: async () => {
       let query = supabase
         .from('support_tickets')
-        .select('id, user_id, subject, category, priority, status, created_at, updated_at, last_message_at, message_count')
+        .select('id, user_id, subject, category, priority, priority_source, status, sla_due_at, first_response_at, created_at, updated_at, last_message_at, message_count')
         .order('updated_at', { ascending: false });
 
       if (statusTab !== 'all') query = query.eq('status', statusTab);
@@ -192,6 +195,7 @@ export default function AdminSupportTicketsPage() {
         })
         .eq('id', selectedTicket.id);
       if (ticketErr) throw ticketErr;
+      await supabase.rpc('mark_support_first_response' as never, { p_ticket_id: selectedTicket.id } as never);
     },
     onSuccess: () => {
       toast.success('Balasan terkirim');
@@ -237,6 +241,8 @@ export default function AdminSupportTicketsPage() {
   }, {} as Record<string, number>);
 
   const openCount = (statusCounts['open'] || 0) + (statusCounts['in_progress'] || 0);
+  const isSlaBreached = (ticket: SupportTicket) =>
+    !!ticket.sla_due_at && !['resolved', 'closed'].includes(ticket.status) && new Date(ticket.sla_due_at) < new Date();
 
   return (
     <AdminLayout title="Tiket Support" subtitle="Kelola permintaan bantuan pengguna">
@@ -357,9 +363,17 @@ export default function AdminSupportTicketsPage() {
                       <Badge className={`text-[10px] px-1.5 py-0.5 ${pr.color} border-0 ml-auto`}>
                         {pr.label}
                       </Badge>
+                      {ticket.priority_source === 'pos_priority_support' && (
+                        <Badge className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 border-0">SLA prioritas</Badge>
+                      )}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">
                       {formatDistanceToNow(new Date(ticket.updated_at), { addSuffix: true, locale: idLocale })}
+                      {ticket.sla_due_at && (
+                        <span className={`ml-2 ${isSlaBreached(ticket) ? 'text-red-600 font-medium' : ''}`}>
+                          · SLA {isSlaBreached(ticket) ? 'terlewati' : `sampai ${format(new Date(ticket.sla_due_at), 'dd MMM HH:mm', { locale: idLocale })}`}
+                        </span>
+                      )}
                     </p>
                   </div>
                 );
@@ -406,6 +420,15 @@ export default function AdminSupportTicketsPage() {
                   <Badge variant="outline" className="text-[10px]">
                     {CATEGORY_LABELS[selectedTicket.category] || selectedTicket.category}
                   </Badge>
+                  {selectedTicket.priority_source === 'pos_priority_support' && (
+                    <Badge className="text-[10px] border-0 bg-indigo-100 text-indigo-700">Dukungan prioritas · SLA 4 jam</Badge>
+                  )}
+                  {selectedTicket.sla_due_at && (
+                    <span className={`text-[11px] flex items-center gap-1 ${isSlaBreached(selectedTicket) ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                      <Clock className="h-3 w-3" />
+                      {isSlaBreached(selectedTicket) ? 'SLA terlewati' : `SLA ${format(new Date(selectedTicket.sla_due_at), 'dd MMM HH:mm', { locale: idLocale })}`}
+                    </span>
+                  )}
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1 ml-auto">
                     <Calendar className="h-3 w-3" />
                     {format(new Date(selectedTicket.created_at), 'dd MMM yyyy HH:mm', { locale: idLocale })}

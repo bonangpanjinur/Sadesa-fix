@@ -500,13 +500,13 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] analitik lanjutan;
 - [x] integrasi printer/perangkat;
 - [x] integrasi akuntansi setelah jurnal canonical stabil;
-- [ ] program partner desa/koperasi;
-- [~] promo onboarding dengan expiry — limit diskon dan tanggal expiry sudah tersedia di paket; kode promo dan redemption partner belum selesai;
-- [~] dukungan prioritas — flag dukungan prioritas sudah tersedia di paket; workflow SLA/support belum selesai.
+- [x] program partner desa/koperasi;
+- [x] promo onboarding dengan expiry — admin dapat membuat kode partner berkuota, merchant dapat preview dan redeem satu kali, dan kode ditolak setelah expiry;
+- [x] dukungan prioritas — tiket merchant paket prioritas mendapat target SLA 4 jam, tiket standar 24 jam, dan admin dapat melihat status SLA/overdue.
 
-**Perubahan teknis yang sudah tersedia:** bundle `26_20260908100000_phase5_commercial_entitlements.sql` menambahkan limit `max_outlets` dan `max_users`, harga add-on pengguna, flag dukungan prioritas, konfigurasi diskon onboarding ber-expiry, tabel promosi onboarding, entitlement summary, serta RPC guard untuk membuat outlet dan pengguna. Form admin menampilkan dan mengubah limit paket dengan audit reason; halaman langganan merchant menampilkan kapasitas paket; penambahan outlet/pengguna baru menggunakan guard server-side agar tidak dapat melewati limit melalui browser.
+**Perubahan teknis yang sudah tersedia:** bundle `26_20260908100000_phase5_commercial_entitlements.sql` menambahkan limit `max_outlets` dan `max_users`, harga add-on pengguna, flag dukungan prioritas, konfigurasi diskon onboarding ber-expiry, tabel promosi onboarding, entitlement summary, serta RPC guard untuk membuat outlet dan pengguna. Bundle `27_20260908120000_partner_promotions_priority_support.sql` menambahkan preview dan redemption promo yang atomic/idempotent, pencatatan nominal asli dan diskon pada subscription, program partner desa/koperasi di admin, serta schema dan RPC SLA support. Form admin menampilkan paket dan promo partner; halaman langganan merchant menghitung harga setelah promo; tiket baru otomatis mendapat prioritas dan due time berdasarkan paket.
 
-**Kriteria selesai sementara:** paket dapat menjelaskan kapasitas outlet/pengguna dan harga add-on, serta operasi create outlet/user menolak limit melalui RPC. Fase belum dinyatakan siap produksi sampai bundle diterapkan di staging, alur pembayaran/add-on diuji, dan promosi partner memiliki redemption serta audit end-to-end.
+**Kriteria selesai sementara:** paket dapat menjelaskan kapasitas outlet/pengguna dan harga add-on, operasi create outlet/user menolak limit melalui RPC, promo partner memiliki redemption serta audit end-to-end, dan SLA support tersimpan pada tiket. Fase belum dinyatakan siap produksi sampai bundle diterapkan di staging dan alur pembayaran/add-on/support diuji.
 
 ### Fase 6 — Validasi staging dan pilot merchant
 
@@ -523,9 +523,9 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 
 **Status saat ini:** Backlog setelah Fase 6.
 
-- [ ] program partner desa/koperasi dengan eligibility, tanggal berakhir, dan audit;
-- [ ] redemption promo onboarding yang idempotent dan tidak dapat dipakai lintas merchant;
-- [ ] dukungan prioritas berbasis paket dengan SLA dan eskalasi;
+- [x] program partner desa/koperasi dengan eligibility, tanggal berakhir, kuota, dan audit redemption;
+- [x] redemption promo onboarding yang idempotent dan tidak dapat dipakai lintas merchant;
+- [x] dukungan prioritas berbasis paket dengan SLA 4 jam dan indikator overdue untuk admin;
 - [ ] dashboard attach rate, trial-to-paid, MRR, churn, dan kesehatan sync;
 - [ ] rollout bertahap berdasarkan hasil pilot, bukan hanya halaman yang sudah tersedia.
 

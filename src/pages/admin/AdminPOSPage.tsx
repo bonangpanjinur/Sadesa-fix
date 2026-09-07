@@ -96,6 +96,20 @@ interface POSPackageHistory {
   created_at: string;
 }
 
+interface POSPromotion {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  partner_type: string | null;
+  discount_percent: number;
+  starts_at: string;
+  expires_at: string;
+  max_redemptions: number | null;
+  redeemed_count: number;
+  is_active: boolean;
+}
+
 export default function AdminPOSPage() {
   const [packages, setPackages] = useState<POSPackage[]>([]);
   const [packageHistory, setPackageHistory] = useState<POSPackageHistory[]>([]);
@@ -124,16 +138,22 @@ export default function AdminPOSPage() {
     max_outlets: 1, max_users: 2, add_on_user_price: 25000,
     priority_support: false, onboarding_discount_percent: 0, onboarding_discount_expires_at: '',
   });
+  const [promotions, setPromotions] = useState<POSPromotion[]>([]);
+  const [newPromotion, setNewPromotion] = useState({
+    code: '', name: '', description: '', partner_type: 'Desa/Koperasi',
+    discount_percent: 10, starts_at: '', expires_at: '', max_redemptions: '',
+  });
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [pkgsRes, subsRes, config, healthRes] = await Promise.all([
+      const [pkgsRes, subsRes, config, healthRes, promotionsRes] = await Promise.all([
         supabase.from('pos_packages').select('*').order('sort_order'),
         supabase.from('pos_subscriptions').select('*, merchants(name), pos_packages(name)').order('created_at', { ascending: false }),
         getSettingByKey('pos_config'),
         supabase.rpc('get_pos_integration_health' as never),
+        supabase.from('pos_onboarding_promotions' as never).select('*').order('created_at', { ascending: false }),
       ]);
       const historyRes = await supabase.rpc('get_pos_package_history' as never, { p_limit: 200 } as never);
       const tenantRes = await supabase.from('pos_tenants').select('merchant_id, status, is_active');
@@ -153,11 +173,55 @@ export default function AdminPOSPage() {
         setTrialDays(((config.value as POSConfig).trial_days) || 30);
       }
       if (!healthRes.error) setIntegrationHealth((healthRes.data || []) as unknown as POSIntegrationHealth[]);
+      if (!promotionsRes.error) setPromotions((promotionsRes.data || []) as unknown as POSPromotion[]);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddPromotion = async () => {
+    const code = newPromotion.code.trim().toUpperCase();
+    if (!code || !newPromotion.name.trim() || !newPromotion.expires_at) {
+      toast.error('Kode, nama, dan tanggal berakhir wajib diisi');
+      return;
+    }
+    const startsAt = newPromotion.starts_at ? new Date(newPromotion.starts_at).toISOString() : new Date().toISOString();
+    const expiresAt = new Date(newPromotion.expires_at).toISOString();
+    if (new Date(expiresAt) <= new Date(startsAt)) {
+      toast.error('Tanggal berakhir harus setelah tanggal mulai');
+      return;
+    }
+    const { error } = await supabase.from('pos_onboarding_promotions' as never).insert({
+      code,
+      name: newPromotion.name.trim(),
+      description: newPromotion.description.trim() || null,
+      partner_type: newPromotion.partner_type.trim() || null,
+      discount_percent: Math.min(100, Math.max(0, newPromotion.discount_percent)),
+      starts_at: startsAt,
+      expires_at: expiresAt,
+      max_redemptions: newPromotion.max_redemptions ? Math.max(1, parseInt(newPromotion.max_redemptions, 10) || 1) : null,
+    } as never);
+    if (error) {
+      toast.error(`Gagal membuat promo: ${error.message}`);
+      return;
+    }
+    toast.success('Promo partner berhasil dibuat');
+    setNewPromotion({ code: '', name: '', description: '', partner_type: 'Desa/Koperasi', discount_percent: 10, starts_at: '', expires_at: '', max_redemptions: '' });
+    await loadData();
+  };
+
+  const handleDeactivatePromotion = async (promotion: POSPromotion) => {
+    const { error } = await supabase.from('pos_onboarding_promotions' as never)
+      .update({ is_active: false } as never)
+      .eq('id', promotion.id);
+    if (error) {
+      toast.error(`Gagal menonaktifkan promo: ${error.message}`);
+      return;
+    }
+    toast.success(`Promo ${promotion.code} dinonaktifkan`);
+    await loadData();
   };
 
   const handleSaveConfig = async () => {
@@ -322,6 +386,7 @@ export default function AdminPOSPage() {
               Review Langganan {pendingCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5">{pendingCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="packages">Paket & Fitur</TabsTrigger>
+          <TabsTrigger value="promotions">Promo Partner</TabsTrigger>
           <TabsTrigger value="package-history"><History className="mr-1 h-4 w-4" />Riwayat Paket</TabsTrigger>
           <TabsTrigger value="integration" className="flex items-center gap-2"><Link2 className="h-4 w-4" />Integrasi Merchant–POS</TabsTrigger>
           <TabsTrigger value="config">Konfigurasi</TabsTrigger>
@@ -540,6 +605,50 @@ export default function AdminPOSPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="promotions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Program Partner Desa/Koperasi</CardTitle>
+              <CardDescription>Buat kode onboarding ber-expiry dengan kuota redemption dan audit penggunaan.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2"><Label>Kode promo</Label><Input value={newPromotion.code} onChange={e => setNewPromotion(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="KOPERASI2026" /></div>
+                <div className="space-y-2"><Label>Nama program</Label><Input value={newPromotion.name} onChange={e => setNewPromotion(p => ({ ...p, name: e.target.value }))} placeholder="Promo Koperasi Kecamatan" /></div>
+                <div className="space-y-2"><Label>Partner</Label><Input value={newPromotion.partner_type} onChange={e => setNewPromotion(p => ({ ...p, partner_type: e.target.value }))} placeholder="Desa/Koperasi" /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Deskripsi</Label><Input value={newPromotion.description} onChange={e => setNewPromotion(p => ({ ...p, description: e.target.value }))} placeholder="Keterangan eligibility partner" /></div>
+                <div className="space-y-2"><Label>Diskon (%)</Label><Input type="number" min={0} max={100} value={newPromotion.discount_percent} onChange={e => setNewPromotion(p => ({ ...p, discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)) }))} /></div>
+                <div className="space-y-2"><Label>Mulai (opsional)</Label><Input type="datetime-local" value={newPromotion.starts_at} onChange={e => setNewPromotion(p => ({ ...p, starts_at: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Berakhir</Label><Input type="datetime-local" value={newPromotion.expires_at} onChange={e => setNewPromotion(p => ({ ...p, expires_at: e.target.value }))} /></div>
+                <div className="space-y-2"><Label>Maks. redemption (opsional)</Label><Input type="number" min={1} value={newPromotion.max_redemptions} onChange={e => setNewPromotion(p => ({ ...p, max_redemptions: e.target.value }))} placeholder="Tidak terbatas" /></div>
+              </div>
+              <Button onClick={handleAddPromotion}><Plus className="h-4 w-4 mr-2" /> Buat Promo</Button>
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Kode</TableHead><TableHead>Partner</TableHead><TableHead>Diskon</TableHead><TableHead>Berlaku</TableHead><TableHead>Redemption</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                  <TableBody>
+                    {promotions.map(promotion => {
+                      const expired = new Date(promotion.expires_at) <= new Date();
+                      return (
+                        <TableRow key={promotion.id}>
+                          <TableCell><div className="font-mono font-medium">{promotion.code}</div><div className="text-xs text-muted-foreground">{promotion.name}</div></TableCell>
+                          <TableCell>{promotion.partner_type || '-'}</TableCell>
+                          <TableCell>{promotion.discount_percent}%</TableCell>
+                          <TableCell className="text-xs">{new Date(promotion.expires_at).toLocaleDateString('id-ID')}</TableCell>
+                          <TableCell>{promotion.redeemed_count}{promotion.max_redemptions ? ` / ${promotion.max_redemptions}` : ''}</TableCell>
+                          <TableCell><Badge variant={promotion.is_active && !expired ? 'success' : 'secondary'}>{!promotion.is_active ? 'Nonaktif' : expired ? 'Kedaluwarsa' : 'Aktif'}</Badge></TableCell>
+                          <TableCell className="text-right">{promotion.is_active && !expired && <Button size="sm" variant="outline" onClick={() => handleDeactivatePromotion(promotion)}>Nonaktifkan</Button>}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {promotions.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Belum ada promo partner.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="package-history">
           <Card>
             <CardHeader>
@@ -686,6 +795,7 @@ export default function AdminPOSPage() {
               <div className="space-y-2"><Label>Harga add-on pengguna</Label><Input type="number" min={0} value={newPkg.add_on_user_price} onChange={e => setNewPkg(p => ({ ...p, add_on_user_price: Math.max(0, parseInt(e.target.value) || 0) }))} /></div>
               <div className="space-y-2"><Label>Diskon onboarding (%)</Label><Input type="number" min={0} max={100} value={newPkg.onboarding_discount_percent} onChange={e => setNewPkg(p => ({ ...p, onboarding_discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))} /></div>
               <div className="space-y-2 col-span-2"><Label>Promo berlaku sampai (opsional)</Label><Input type="date" value={newPkg.onboarding_discount_expires_at} onChange={e => setNewPkg(p => ({ ...p, onboarding_discount_expires_at: e.target.value }))} /></div>
+              <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={newPkg.priority_support} onChange={e => setNewPkg(p => ({ ...p, priority_support: e.target.checked }))} /> Dukungan prioritas dengan SLA 4 jam</label>
             </div>
           </div>
           <DialogFooter>
@@ -723,6 +833,7 @@ export default function AdminPOSPage() {
               <div className="space-y-2"><Label>Harga add-on pengguna</Label><Input type="number" min={0} value={editPkgForm.add_on_user_price} onChange={e => setEditPkgForm(p => ({ ...p, add_on_user_price: Math.max(0, parseInt(e.target.value) || 0) }))} /></div>
               <div className="space-y-2"><Label>Diskon onboarding (%)</Label><Input type="number" min={0} max={100} value={editPkgForm.onboarding_discount_percent} onChange={e => setEditPkgForm(p => ({ ...p, onboarding_discount_percent: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))} /></div>
               <div className="space-y-2 col-span-2"><Label>Promo berlaku sampai (opsional)</Label><Input type="date" value={editPkgForm.onboarding_discount_expires_at} onChange={e => setEditPkgForm(p => ({ ...p, onboarding_discount_expires_at: e.target.value }))} /></div>
+              <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={editPkgForm.priority_support} onChange={e => setEditPkgForm(p => ({ ...p, priority_support: e.target.checked }))} /> Dukungan prioritas dengan SLA 4 jam</label>
             </div>
             <div className="space-y-2">
               <Label>Alasan perubahan</Label>

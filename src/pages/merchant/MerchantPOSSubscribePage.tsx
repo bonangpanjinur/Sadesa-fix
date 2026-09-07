@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Check, Clock, Upload, Loader2, AlertTriangle, Gift, Download } from 'lucide-react';
+import { CreditCard, Check, Clock, Upload, Loader2, AlertTriangle, Gift, Download, Tag } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ImageUpload } from '@/components/ui/ImageUpload';
@@ -25,6 +26,9 @@ interface POSSubscription {
   expired_at: string | null;
   grace_ends_at: string | null;
   rejection_reason: string | null;
+  original_amount?: number | null;
+  discount_amount?: number | null;
+  promotion_code?: string | null;
 }
 
 interface POSConfig {
@@ -55,6 +59,12 @@ export default function MerchantPOSSubscribePage() {
   const [paymentProof, setPaymentProof] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [existingSub, setExistingSub] = useState<POSSubscription | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoPreview, setPromoPreview] = useState<{
+    code: string; name: string; partner_type: string | null; discount_percent: number;
+    discount_amount: number; original_amount: number; final_amount: number; expires_at: string;
+  } | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
   const [trialDays, setTrialDays] = useState(30);
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
 
@@ -144,24 +154,23 @@ export default function MerchantPOSSubscribePage() {
     const pkg = packages.find(p => p.id === selectedPkg);
     if (!pkg) return;
 
-    if (pkg.price > 0 && !paymentProof) {
+    const payableAmount = promoPreview?.final_amount ?? pkg.price;
+    if (promoCode.trim() && !promoPreview) {
+      toast.error('Validasi kode promo terlebih dahulu');
+      return;
+    }
+    if (payableAmount > 0 && !paymentProof) {
       toast.error('Silakan upload bukti pembayaran');
       return;
     }
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('pos_subscriptions').insert({
-        merchant_id: merchantId,
-        package_id: pkg.id,
-        status: 'PENDING',
-        payment_amount: pkg.price,
-        payment_proof_url: paymentProof,
-        payment_status: pkg.price === 0 ? 'FREE' : 'PENDING',
-        // The subscription clock starts only after admin approval.
-        started_at: null,
-        expired_at: null,
-      });
+      const { error } = await supabase.rpc('create_pos_subscription_with_promotion' as never, {
+        p_package_id: pkg.id,
+        p_payment_proof_url: paymentProof,
+        p_promo_code: promoCode.trim() || null,
+      } as never);
       if (error) throw error;
       toast.success('Permintaan berhasil dikirim! Menunggu persetujuan admin.');
       window.location.reload();
@@ -170,6 +179,26 @@ export default function MerchantPOSSubscribePage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handlePreviewPromo = async () => {
+    if (!selectedPkg || !promoCode.trim()) {
+      setPromoPreview(null);
+      return;
+    }
+    setPromoLoading(true);
+    const { data, error } = await supabase.rpc('preview_pos_onboarding_promotion' as never, {
+      p_code: promoCode.trim(),
+      p_package_id: selectedPkg,
+    } as never);
+    setPromoLoading(false);
+    if (error) {
+      setPromoPreview(null);
+      toast.error(error.message);
+      return;
+    }
+    setPromoPreview(data as typeof promoPreview);
+    toast.success('Kode promo valid');
   };
 
   const handleExportSubscription = async () => {
@@ -329,6 +358,11 @@ export default function MerchantPOSSubscribePage() {
                 {selectedPkg === pkg.id && (
                   <Badge variant="default"><Check className="h-3 w-3 mr-1" /> Dipilih</Badge>
                 )}
+                {selectedPkg === pkg.id && promoPreview?.final_amount !== undefined && promoPreview.original_amount === pkg.price && (
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2 text-xs text-emerald-700">
+                    Harga setelah promo: <strong>{formatPrice(promoPreview.final_amount)}</strong>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -340,8 +374,40 @@ export default function MerchantPOSSubscribePage() {
           </div>
         )}
 
+        {selectedPkg && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4" /> Kode promo partner</CardTitle>
+              <CardDescription>Masukkan kode dari desa, koperasi, atau partner resmi. Kode hanya dapat digunakan satu kali.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Input
+                  value={promoCode}
+                  onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoPreview(null); }}
+                  placeholder="Contoh: KOPERASI2026"
+                  maxLength={40}
+                  className="uppercase"
+                />
+                <Button variant="outline" onClick={handlePreviewPromo} disabled={!promoCode.trim() || promoLoading}>
+                  {promoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Gunakan'}
+                </Button>
+              </div>
+              {promoPreview && (
+                <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium">{promoPreview.name}{promoPreview.partner_type ? ` · ${promoPreview.partner_type}` : ''}</span>
+                    <Badge variant="secondary">{promoPreview.discount_percent}% off</Badge>
+                  </div>
+                  <p className="mt-1">Potongan {formatPrice(promoPreview.discount_amount)} · berlaku sampai {new Date(promoPreview.expires_at).toLocaleDateString('id-ID')}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Payment Proof */}
-        {selectedPkg && (packages.find(p => p.id === selectedPkg)?.price || 0) > 0 && (
+        {selectedPkg && (promoPreview?.final_amount ?? (packages.find(p => p.id === selectedPkg)?.price || 0)) > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
