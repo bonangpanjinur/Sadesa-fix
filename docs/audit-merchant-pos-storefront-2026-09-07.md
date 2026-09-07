@@ -2,6 +2,8 @@
 
 Tanggal audit: 7 September 2026
 
+Pembaruan terakhir: 7 September 2026 — status implementasi source code, migration POS, kontrak stok POS → marketplace, serta pekerjaan staging yang belum selesai sudah dicatat di dokumen ini.
+
 ## Ringkasan eksekutif
 
 Proyek sudah memiliki fondasi yang cukup lengkap untuk tiga area yang diaudit:
