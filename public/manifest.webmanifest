@@ -2,16 +2,65 @@
   "name": "SaDesa",
   "short_name": "SaDesa",
   "id": "/",
+  "lang": "id",
+  "dir": "ltr",
   "description": "Marketplace UMKM & Desa Wisata Indonesia",
   "start_url": "/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "browser"
+  ],
+  "scope": "/",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#10b981",
+  "prefer_related_applications": false,
   "categories": [
     "shopping",
     "business",
     "lifestyle"
+  ],
+  "shortcuts": [
+    {
+      "name": "Belanja Produk Desa",
+      "short_name": "Belanja",
+      "description": "Jelajahi produk UMKM desa",
+      "url": "/shops",
+      "icons": [
+        {
+          "src": "/branding/sadesa-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Pesanan Saya",
+      "short_name": "Pesanan",
+      "description": "Lihat status pesanan Anda",
+      "url": "/orders",
+      "icons": [
+        {
+          "src": "/branding/sadesa-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Akun Saya",
+      "short_name": "Akun",
+      "description": "Buka profil dan pengaturan akun",
+      "url": "/account",
+      "icons": [
+        {
+          "src": "/branding/sadesa-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ],
   "screenshots": [
     {
