@@ -42,7 +42,7 @@ Dengan hasil tersebut, kemampuan verifikasi aplikasi sudah pulih. Gate keamanan 
 
 ### Status implementasi saat ini
 
-#### Sudah selesai di source code
+#### Selesai
 
 - Runtime Node diselaraskan ke Node 22, dependency dipulihkan dari lockfile, dan workflow `npm run dev` berjalan di port 5000.
 - Guard workspace merchant memeriksa role serta status merchant; dashboard pending/rejected tetap dapat dibuka, sedangkan subhalaman memerlukan merchant approved dan active.
@@ -53,7 +53,7 @@ Dengan hasil tersebut, kemampuan verifikasi aplikasi sudah pulih. Gate keamanan 
 - Sinkronisasi stok POS → marketplace sudah memiliki agregasi seluruh outlet aktif, pengurangan `reserved_quantity`, RPC server-side, trigger otomatis, dan tombol manual yang memakai RPC yang sama.
 - Typecheck, lint tanpa error, test suite, production build, PWA build, validasi migration, dan validasi bootstrap bundle sudah lulus.
 
-#### Sudah diimplementasikan tetapi belum dinyatakan production-ready
+#### Sebagian selesai
 
 - Migration POS activation dan projection stok (`10` sampai `15`) masih tersimpan di repository dan belum diterapkan ke Supabase staging/production karena belum ada database environment yang terhubung.
 - RLS, permission mutation, RPC activation, checkout, dan trigger stok belum diuji dengan identitas nyata owner, manager, kasir, staff gudang, purchasing, finance, auditor, buyer, serta beberapa tenant/outlet.
