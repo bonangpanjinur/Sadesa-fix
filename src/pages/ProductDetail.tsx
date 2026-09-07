@@ -30,6 +30,7 @@ import type { Product } from '@/types';
 import { ProductReviews } from '@/components/product/ProductReviews';
 import { SimilarProducts } from '@/components/product/SimilarProducts';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
+import { getProductUnavailableReason } from '@/lib/productAvailability';
 
 interface MerchantInfo {
   id: string;
@@ -141,26 +142,20 @@ export default function ProductDetail() {
   }
 
   const handleAddToCart = () => {
-    // Check if merchant has active quota
-    if (!hasActiveQuota) {
+    const unavailableReason = getProductUnavailableReason({
+      isActive: product.isActive,
+      stock: product.stock,
+      hasQuota: hasActiveQuota,
+      isMerchantOpen: merchantStatus?.isCurrentlyOpen !== false,
+    });
+    if (unavailableReason) {
       toast({
-        title: 'Toko tidak dapat menerima pesanan',
-        description: 'Toko ini tidak memiliki kuota aktif',
+        title: 'Produk tidak tersedia',
+        description: unavailableReason,
         variant: 'destructive',
       });
       return;
     }
-    
-    // Check if merchant is open
-    if (merchantStatus && !merchantStatus.isCurrentlyOpen) {
-      toast({
-        title: 'Toko sedang tutup',
-        description: merchantStatus.reason,
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     addToCart(product, quantity);
     toast({
       title: '✅ Ditambahkan ke keranjang',
@@ -174,19 +169,27 @@ export default function ProductDetail() {
   };
 
   const handleBuyNow = () => {
-    if (!hasActiveQuota) {
-      toast({ title: 'Toko tidak dapat menerima pesanan', description: 'Toko ini tidak memiliki kuota aktif', variant: 'destructive' });
-      return;
-    }
-    if (merchantStatus && !merchantStatus.isCurrentlyOpen) {
-      toast({ title: 'Toko sedang tutup', description: merchantStatus.reason, variant: 'destructive' });
+    const unavailableReason = getProductUnavailableReason({
+      isActive: product.isActive,
+      stock: product.stock,
+      hasQuota: hasActiveQuota,
+      isMerchantOpen: merchantStatus?.isCurrentlyOpen !== false,
+    });
+    if (unavailableReason) {
+      toast({ title: 'Produk tidak tersedia', description: unavailableReason, variant: 'destructive' });
       return;
     }
     addToCart(product, quantity);
     navigate('/checkout');
   };
 
-  const canOrder = hasActiveQuota && merchantStatus?.isCurrentlyOpen !== false;
+  const unavailableReason = getProductUnavailableReason({
+    isActive: product.isActive,
+    stock: product.stock,
+    hasQuota: hasActiveQuota,
+    isMerchantOpen: merchantStatus?.isCurrentlyOpen !== false,
+  });
+  const canOrder = !unavailableReason;
 
   return (
     <div className="mobile-shell bg-card flex flex-col min-h-screen relative">
@@ -266,14 +269,14 @@ export default function ProductDetail() {
           </div>
 
           {/* Merchant No Quota Banner */}
-          {merchant && !hasActiveQuota && (
+          {merchant && unavailableReason && (
             <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-destructive text-sm">Toko Tidak Dapat Menerima Pesanan</p>
+                  <p className="font-bold text-destructive text-sm">Produk Tidak Dapat Dipesan</p>
                   <p className="text-xs text-destructive/80 mt-1">
-                    Toko ini tidak memiliki kuota aktif. Silakan cari produk serupa dari toko lain.
+                    {unavailableReason}. Silakan cari produk serupa dari toko lain.
                   </p>
                 </div>
               </div>
@@ -426,11 +429,7 @@ export default function ProductDetail() {
             className="w-full"
             size="lg"
           >
-            {!hasActiveQuota ? (
-              <><AlertTriangle className="h-4 w-4 mr-2" />Tidak Dapat Memesan</>
-            ) : (
-              <><Clock className="h-4 w-4 mr-2" />Toko Sedang Tutup</>
-            )}
+            <><AlertTriangle className="h-4 w-4 mr-2" />{unavailableReason || 'Tidak Dapat Memesan'}</>
           </Button>
         )}
       </div>

@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatPrice } from '@/lib/utils';
 import { useTranslation, useFormatters } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface StockProductRow {
   id: string;
@@ -96,6 +97,14 @@ export default function CartPage() {
   }, [items]);
 
   const handleCheckout = () => {
+    if (Object.keys(stockWarnings).length > 0) {
+      toast({
+        title: 'Periksa isi keranjang',
+        description: 'Hapus atau sesuaikan produk yang stoknya berubah sebelum checkout.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!user) {
       navigate('/auth');
       return;

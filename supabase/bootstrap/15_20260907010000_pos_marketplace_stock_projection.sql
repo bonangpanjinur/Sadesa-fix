@@ -19,6 +19,10 @@ DECLARE
   v_processed integer := 0;
   v_updated integer := 0;
 BEGIN
+  -- Allow only this server-side projection path to write marketplace stock
+  -- for products whose operational source is POS stock.
+  PERFORM set_config('app.pos_stock_projection', 'on', true);
+
   SELECT *
   INTO v_tenant
   FROM public.pos_tenants

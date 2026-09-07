@@ -1,6 +1,7 @@
 import { supabase } from '../integrations/supabase/client';
 import type { Product, Village, Tourism, Merchant } from '../types';
 import { isWithinOperatingHours } from './merchantOperatingHours';
+import { getProductUnavailableReason } from './productAvailability';
 
 // Import local images as fallbacks
 import heroVillage from '../assets/hero-village.jpg';
@@ -252,7 +253,13 @@ export async function fetchProducts(): Promise<Product[]> {
     // Operating hours are stored in Indonesian local time (WIB).
     const isMerchantOpen = isManuallyOpen && isWithinOperatingHours(openTime, closeTime);
     
-    const isAvailable = hasQuota && isMerchantOpen && p.is_active;
+    const unavailableReason = getProductUnavailableReason({
+      isActive: p.is_active,
+      stock: Number(p.stock || 0),
+      hasQuota,
+      isMerchantOpen,
+    });
+    const isAvailable = !unavailableReason;
 
     // Get location - prefer merchant location, fallback to village location
     const locationLat = merchant?.location_lat 
@@ -286,6 +293,7 @@ export async function fetchProducts(): Promise<Product[]> {
       isAvailable,
       isMerchantOpen,
       hasQuota,
+      unavailableReason,
       locationLat,
       locationLng,
       sold_count: p.sold_count || 0,
@@ -335,7 +343,13 @@ export async function fetchProduct(id: string): Promise<Product | null> {
   const closeTime = data.merchants?.close_time || '17:00';
   
   const isMerchantOpen = isManuallyOpen && isWithinOperatingHours(openTime, closeTime);
-  const isAvailable = hasQuota && isMerchantOpen && data.is_active;
+  const unavailableReason = getProductUnavailableReason({
+    isActive: data.is_active,
+    stock: Number(data.stock || 0),
+    hasQuota,
+    isMerchantOpen,
+  });
+  const isAvailable = !unavailableReason;
 
   // Calculate discounted price
   const hasDiscount = data.is_promo && data.discount_percent > 0;
@@ -361,6 +375,7 @@ export async function fetchProduct(id: string): Promise<Product | null> {
     isAvailable,
     isMerchantOpen,
     hasQuota,
+    unavailableReason,
   };
 }
 

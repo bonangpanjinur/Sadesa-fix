@@ -41,6 +41,7 @@ import {
 } from '../components/ui/dialog';
 import type { Product } from '../types';
 import { cn } from '../lib/utils';
+import { getProductUnavailableReason } from '../lib/productAvailability';
 
 interface MerchantData {
   id: string;
@@ -174,9 +175,20 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
           category: p.category,
           isActive: p.is_active,
           isPromo: p.is_promo,
-          isAvailable: quotaActive && isMerchantOpen && p.is_active,
+           isAvailable: !getProductUnavailableReason({
+             isActive: p.is_active,
+             stock: Number(p.stock || 0),
+             hasQuota: quotaActive,
+             isMerchantOpen,
+           }),
           isMerchantOpen,
           hasQuota: quotaActive,
+           unavailableReason: getProductUnavailableReason({
+             isActive: p.is_active,
+             stock: Number(p.stock || 0),
+             hasQuota: quotaActive,
+             isMerchantOpen,
+           }),
         }));
         setProducts(mappedProducts);
 

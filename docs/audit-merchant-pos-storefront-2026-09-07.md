@@ -51,6 +51,9 @@ Dengan hasil tersebut, kemampuan verifikasi aplikasi sudah pulih. Gate keamanan 
 - Projection katalog merchant ke POS tetap tersedia melalui trigger/RPC.
 - Kontrak stok dasar sudah dibuat: `pos_stock` per outlet menjadi sumber operasional, sedangkan `products.stock` menjadi projection marketplace.
 - Sinkronisasi stok POS → marketplace sudah memiliki agregasi seluruh outlet aktif, pengurangan `reserved_quantity`, RPC server-side, trigger otomatis, dan tombol manual yang memakai RPC yang sama.
+- Guard server-side mencegah edit manual `products.stock` untuk produk yang tertaut POS; halaman katalog merchant juga menandai produk POS dan menonaktifkan input stoknya.
+- Storefront dan detail produk sekarang menampilkan alasan ketersediaan yang spesifik: produk nonaktif, kuota habis, toko tutup, atau stok habis. Cart memblokir checkout jika validasi stok terbaru menemukan perubahan.
+- Halaman integrasi POS memiliki rekonsiliasi per produk yang membandingkan total outlet, reservasi, stok tersedia POS, projection marketplace, delta, dan tombol recovery sinkronisasi.
 - Typecheck, lint tanpa error, test suite, production build, PWA build, validasi migration, dan validasi bootstrap bundle sudah lulus.
 
 #### Sebagian selesai
@@ -62,8 +65,6 @@ Dengan hasil tersebut, kemampuan verifikasi aplikasi sudah pulih. Gate keamanan 
 #### Belum selesai
 
 - Ledger dua arah untuk order marketplace dan stok outlet POS. Order online masih memakai `products.stock`/`reserved_stock` tanpa alokasi atomik ke outlet POS tertentu.
-- Guard agar edit manual stok merchant tidak dapat membuat produk tertaut POS berbeda dari sumber stok operasional.
-- Reconciliation per produk yang menampilkan total outlet, delta marketplace, projection hilang, error, dan recovery action di UI.
 - Acceptance matrix transaksi POS untuk role, outlet, offline queue, retry/duplicate, split payment, refund/return, voucher, loyalty, stok habis, realtime, dan printer.
 - Penanganan 18 vulnerability dependency tanpa upgrade paksa dan tanpa regresi.
 
@@ -120,7 +121,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - **Status:** kontrak satu arah POS → marketplace sudah diimplementasikan pada `15_20260907010000_pos_marketplace_stock_projection.sql`. `products.stock` diperbarui dari agregat stok tersedia seluruh outlet aktif, setelah dikurangi `reserved_quantity` POS.
 - Sinkronisasi manual di `POSIntegrasiPage` sekarang memakai RPC server-side dan tidak lagi membaca satu baris `pos_stock` atau melakukan update `products` langsung dari client.
 - **Batasan:** order marketplace masih memiliki lifecycle `products.stock`/`reserved_stock` sendiri dan belum mengurangi outlet POS secara atomik. Karena itu kontrak stok sudah lebih jelas, tetapi ledger lintas kanal belum konsisten penuh.
-- **Sisa pekerjaan:** terapkan migration ke staging, uji concurrency/RLS, tambahkan reconciliation UI, lalu tentukan strategi alokasi outlet untuk order marketplace.
+- **Sisa pekerjaan:** terapkan migration ke staging, uji concurrency/RLS, dan tentukan strategi alokasi outlet untuk order marketplace. Rekonsiliasi UI source-code sudah tersedia di halaman integrasi POS.
 
 ### P1 — Penting untuk alur jelas dan kemudahan penggunaan
 
@@ -144,7 +145,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - Trigger `trg_sync_merchant_product_to_pos` memproyeksikan insert/update ke POS.
 - Status projection dan stock rows belum sepenuhnya terlihat di UI merchant.
 - Perubahan kategori, varian, SKU/barcode, cost, dan aturan harga perlu dipastikan konsisten dengan POS.
-- **Status:** kontrak stok dasar sudah diterapkan di migration `15_20260907010000_pos_marketplace_stock_projection.sql`: `pos_stock` menjadi sumber kebenaran operasional untuk produk tertaut, sedangkan `products.stock` menjadi projection marketplace. RPC menghitung total `quantity - reserved_quantity` dari seluruh outlet aktif; trigger menjalankan projection setelah perubahan stok POS; tombol sinkronisasi memakai RPC server-side yang sama. Migration masih perlu diterapkan dan diuji di Supabase staging.
+- **Status:** kontrak stok dasar sudah diterapkan di migration `15_20260907010000_pos_marketplace_stock_projection.sql`: `pos_stock` menjadi sumber kebenaran operasional untuk produk tertaut, sedangkan `products.stock` menjadi projection marketplace. RPC menghitung total `quantity - reserved_quantity` dari seluruh outlet aktif; trigger menjalankan projection setelah perubahan stok POS; tombol sinkronisasi memakai RPC server-side yang sama. Guard edit manual ditambahkan di `16_20260907020000_pos_marketplace_stock_guard.sql`, dan rekonsiliasi per produk tersedia di UI integrasi. Migration masih perlu diterapkan dan diuji di Supabase staging.
 - **Sisa risiko:** penjualan marketplace masih memiliki lifecycle stok sendiri (`products.stock`/`reserved_stock`) dan belum mengalokasikan pengurangan ke outlet POS tertentu. Rekonsiliasi lintas kanal dan fulfillment marketplace perlu menjadi pekerjaan lanjutan sebelum mengklaim ledger stok gabungan sudah konsisten.
 
 #### P1-4. Checkout POS sudah memakai RPC atomik, tetapi acceptance flow belum terbukti
@@ -174,7 +175,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 
 - Produk storefront menandai `isAvailable` berdasarkan kuota, jam buka, dan `is_active`.
 - UI perlu membedakan `toko tutup`, `produk habis`, `kuota habis`, `produk nonaktif`, dan `di luar jam operasional`.
-- **Rencana:** tampilkan alasan unavailable di kartu/detail produk dan cegah checkout dengan pesan yang konsisten.
+ - **Status:** selesai di source code. Kartu/detail produk membedakan produk nonaktif, kuota habis, toko tutup, dan stok habis; cart memblokir checkout ketika validasi stok terbaru menemukan konflik. Tetap perlu verifikasi staging untuk reservation dan concurrency.
 
 #### P2-2. URL storefront perlu canonical dan SEO consistency
 

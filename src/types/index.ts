@@ -75,6 +75,7 @@ export interface Product {
   isAvailable?: boolean;
   isMerchantOpen?: boolean;
   hasQuota?: boolean;
+  unavailableReason?: string;
   // Location coordinates (from merchant/village)
   locationLat?: number | null;
   locationLng?: number | null;

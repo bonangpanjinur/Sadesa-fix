@@ -33,6 +33,7 @@ interface ProductRow {
   is_promo: boolean;
   view_count: number | null;
   order_count: number | null;
+  pos_linked?: boolean;
 }
 
 interface ProductForm {
@@ -91,9 +92,21 @@ export default function MerchantProductsPage() {
   const { data: products = [], isLoading: productsLoading } = useQuery<ProductRow[]>({
     queryKey: ['merchant-products', merchantId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('products').select('*').eq('merchant_id', merchantId!).order('created_at', { ascending: false });
+      const [{ data, error }, { data: posProducts, error: posError }] = await Promise.all([
+        supabase.from('products').select('*').eq('merchant_id', merchantId!).order('created_at', { ascending: false }),
+        supabase.from('pos_products' as never).select('merchant_product_id').not('merchant_product_id', 'is', null),
+      ]);
       if (error) throw error;
-      return data || [];
+      if (posError) throw posError;
+      const linkedProductIds = new Set(
+        ((posProducts || []) as unknown as Array<{ merchant_product_id: string | null }>)
+          .map((row) => row.merchant_product_id)
+          .filter((id): id is string => Boolean(id)),
+      );
+      return (data || []).map((product) => ({
+        ...product,
+        pos_linked: linkedProductIds.has(product.id),
+      }));
     },
     enabled: !!merchantId && !guardLoading,
     staleTime: 60_000,
@@ -130,6 +143,9 @@ export default function MerchantProductsPage() {
       };
 
       if (editingProduct) {
+        if (editingProduct.pos_linked && parsed.data.stock !== editingProduct.stock) {
+          throw new Error('Stok produk tertaut POS hanya dapat diubah dari halaman stok POS');
+        }
         const { error } = await supabase.from('products').update(productData).eq('id', editingProduct.id);
         if (error) throw error;
       } else {
@@ -236,6 +252,7 @@ export default function MerchantProductsPage() {
             <span className={isOutOfStock ? 'text-destructive font-medium' : isLowStock ? 'text-warning font-medium' : ''}>{item.stock}</span>
             {isLowStock && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-warning/50 text-warning">Rendah</Badge>}
             {isOutOfStock && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-destructive/50 text-destructive">Habis</Badge>}
+            {item.pos_linked && <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-primary/50 text-primary">POS</Badge>}
           </div>
         );
       },
@@ -340,7 +357,8 @@ export default function MerchantProductsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Stok</Label>
-                  <Input type="number" min={0} max={1000000} step={1} value={form.stock} onChange={e => { setForm(p => ({ ...p, stock: e.target.value })); setFormErrors(p => ({ ...p, stock: '' })); }} placeholder="0" aria-invalid={Boolean(formErrors.stock)} aria-describedby={formErrors.stock ? 'prod-stock-error' : undefined} />
+                   <Input type="number" min={0} max={1000000} step={1} value={form.stock} disabled={Boolean(editingProduct?.pos_linked)} onChange={e => { setForm(p => ({ ...p, stock: e.target.value })); setFormErrors(p => ({ ...p, stock: '' })); }} placeholder="0" aria-invalid={Boolean(formErrors.stock)} aria-describedby={formErrors.stock ? 'prod-stock-error' : undefined} />
+                   {editingProduct?.pos_linked && <p className="text-xs text-muted-foreground">Stok dikelola dari outlet POS.</p>}
                   {formErrors.stock && <p id="prod-stock-error" role="alert" className="text-xs text-destructive">{formErrors.stock}</p>}
                 </div>
               </div>

@@ -75,6 +75,17 @@ interface SyncLog {
 
 interface Merchant { id: string; name: string; }
 interface POSProduct { id: string; name: string; sku: string | null; price: number; }
+interface ReconciliationRow {
+  posProductId: string;
+  productName: string;
+  sku: string | null;
+  outletTotal: number;
+  reserved: number;
+  posAvailable: number;
+  marketplaceStock: number | null;
+  delta: number | null;
+  status: 'ok' | 'mismatch' | 'missing' | 'unlinked';
+}
 
 const SYNC_TYPES: Record<string, string> = {
   product_sync: 'Sinkron Produk',
@@ -97,6 +108,7 @@ export default function POSIntegrasiPage() {
   const [syncedProducts, setSyncedProducts] = useState<SyncedProduct[]>([]);
   const [marketplaceOrders, setMarketplaceOrders] = useState<MarketplaceOrder[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
+  const [reconciliation, setReconciliation] = useState<ReconciliationRow[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [posProducts, setPosProducts] = useState<POSProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +136,7 @@ export default function POSIntegrasiPage() {
       supabase.from('pos_marketplace_orders' as never).select('*').eq('tenant_id', tenant.id).order('imported_at', { ascending: false }).limit(50),
       supabase.from('pos_sync_logs' as never).select('*').eq('tenant_id', tenant.id).order('started_at', { ascending: false }).limit(20),
       supabase.from('merchants').select('id, name').eq('user_id', user!.id).eq('registration_status', 'APPROVED'),
-      supabase.from('pos_products' as never).select('id, name, sku, price').eq('tenant_id', tenant.id).eq('is_active', true).order('name'),
+      supabase.from('pos_products' as never).select('id, name, sku, price, merchant_product_id').eq('tenant_id', tenant.id).eq('is_active', true).order('name'),
     ]);
 
     setSettings(sett as unknown as IntegrationSettings | null);
@@ -133,6 +145,45 @@ export default function POSIntegrasiPage() {
     setSyncLogs((logs || []) as unknown as SyncLog[]);
     setMerchants((merch || []) as unknown as Merchant[]);
     setPosProducts((posProds || []) as unknown as POSProduct[]);
+
+    if (tenant.merchant_id) {
+      const [{ data: marketplaceProducts }, { data: stockRows }] = await Promise.all([
+        supabase.from('products').select('id, name, stock').eq('merchant_id', tenant.merchant_id),
+        supabase.from('pos_stock' as never).select('product_id, quantity, reserved_quantity').eq('tenant_id', tenant.id),
+      ]);
+      const marketplaceStock = new Map(
+        ((marketplaceProducts || []) as Array<{ id: string; stock: number }>).map((product) => [product.id, Number(product.stock || 0)]),
+      );
+      const stockByProduct = new Map<string, { total: number; reserved: number }>();
+      ((stockRows || []) as unknown as Array<{ product_id: string; quantity: number; reserved_quantity?: number | null }>).forEach((row) => {
+        const current = stockByProduct.get(row.product_id) || { total: 0, reserved: 0 };
+        current.total += Number(row.quantity || 0);
+        current.reserved += Number(row.reserved_quantity || 0);
+        stockByProduct.set(row.product_id, current);
+      });
+      setReconciliation(
+        ((posProds || []) as unknown as Array<POSProduct & { merchant_product_id?: string | null }>).map((product) => {
+          const sourceId = product.merchant_product_id;
+          const stock = stockByProduct.get(product.id) || { total: 0, reserved: 0 };
+          const marketplaceValue = sourceId ? marketplaceStock.get(sourceId) : undefined;
+          const posAvailable = Math.max(stock.total - stock.reserved, 0);
+          const delta = marketplaceValue === undefined ? null : posAvailable - marketplaceValue;
+          return {
+            posProductId: product.id,
+            productName: product.name,
+            sku: product.sku,
+            outletTotal: stock.total,
+            reserved: stock.reserved,
+            posAvailable,
+            marketplaceStock: marketplaceValue ?? null,
+            delta,
+            status: !sourceId ? 'unlinked' : marketplaceValue === undefined ? 'missing' : delta === 0 ? 'ok' : 'mismatch',
+          };
+        }),
+      );
+    } else {
+      setReconciliation([]);
+    }
     setLoading(false);
   }, [tenant, user]);
 
@@ -370,6 +421,7 @@ export default function POSIntegrasiPage() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4">
           <TabsTrigger value="overview"><Package className="h-3.5 w-3.5 mr-1.5" />Produk</TabsTrigger>
+          <TabsTrigger value="reconciliation"><ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />Rekonsiliasi</TabsTrigger>
           <TabsTrigger value="orders">
             <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />Order Masuk
             {stats.pendingOrders > 0 && (
@@ -455,6 +507,70 @@ export default function POSIntegrasiPage() {
                         </TableRow>
                       );
                     })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ---- REKONSILIASI STOK ---- */}
+        <TabsContent value="reconciliation">
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <div>
+              <p className="font-medium">Rekonsiliasi stok lintas kanal</p>
+              <p className="text-sm text-muted-foreground">Stok tersedia POS = total outlet aktif dikurangi reservasi POS.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => syncNow('stock_sync')} disabled={syncing || !settings?.is_connected}>
+              <RefreshCw className={`h-4 w-4 mr-1 ${syncing ? 'animate-spin' : ''}`} />Pulihkan Projection
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              {reconciliation.length === 0 ? (
+                <div className="p-12 text-center">
+                  <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="font-medium">Belum ada produk POS yang bisa direkonsiliasi</p>
+                  <p className="text-sm text-muted-foreground mt-1">Tautkan produk POS ke produk marketplace terlebih dahulu.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produk</TableHead>
+                      <TableHead className="text-right">Total Outlet</TableHead>
+                      <TableHead className="text-right">Reservasi</TableHead>
+                      <TableHead className="text-right">Tersedia POS</TableHead>
+                      <TableHead className="text-right">Marketplace</TableHead>
+                      <TableHead className="text-right">Delta</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reconciliation.map((row) => (
+                      <TableRow key={row.posProductId}>
+                        <TableCell>
+                          <div className="font-medium text-sm">{row.productName}</div>
+                          <div className="text-xs text-muted-foreground">{row.sku || 'Tanpa SKU'}</div>
+                        </TableCell>
+                        <TableCell className="text-right">{row.outletTotal}</TableCell>
+                        <TableCell className="text-right">{row.reserved}</TableCell>
+                        <TableCell className="text-right font-medium">{row.posAvailable}</TableCell>
+                        <TableCell className="text-right">{row.marketplaceStock ?? '—'}</TableCell>
+                        <TableCell className={`text-right font-medium ${row.delta === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {row.delta === null ? '—' : row.delta > 0 ? `+${row.delta}` : row.delta}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={
+                            row.status === 'ok' ? 'bg-emerald-100 text-emerald-700' :
+                            row.status === 'unlinked' ? 'bg-gray-100 text-gray-700' :
+                            'bg-red-100 text-red-700'
+                          }>
+                            {row.status === 'ok' ? 'Sesuai' : row.status === 'unlinked' ? 'Belum tertaut' : row.status === 'missing' ? 'Projection hilang' : 'Selisih'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { CartItem, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { getProductUnavailableReason } from '@/lib/productAvailability';
 
 interface CartContextType {
   items: CartItem[];
@@ -43,15 +44,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = useCallback((product: Product, quantity: number = 1) => {
     // Guard: prevent adding unavailable products
-    if (product.isAvailable === false) {
-      const reason = product.hasQuota === false
-        ? 'Toko tidak memiliki kuota aktif'
-        : product.isMerchantOpen === false
-          ? 'Toko sedang tutup'
-          : 'Produk tidak tersedia';
+    const reason = getProductUnavailableReason({
+      isActive: product.isActive,
+      stock: product.stock,
+      hasQuota: product.hasQuota,
+      isMerchantOpen: product.isMerchantOpen,
+    });
+    if (product.isAvailable === false || reason) {
       toast({
         title: 'Tidak dapat menambahkan ke keranjang',
-        description: reason,
+        description: reason || 'Produk tidak tersedia',
         variant: 'destructive',
       });
       return;

@@ -9,6 +9,7 @@ import { WishlistButton } from '@/components/WishlistButton';
 import { useProductFlashSale } from '@/hooks/useFlashSales';
 import { FlashSaleBadge } from '@/components/FlashSaleTimer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { getProductUnavailableReason } from '@/lib/productAvailability';
 
 interface ProductWithSales extends Product {
   sold_count?: number;
@@ -54,11 +55,12 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
   const originalPrice = flashSale ? flashSale.originalPrice : product.originalPrice || null;
 
   // Get unavailability reason
-  const getUnavailableReason = () => {
-    if (!hasQuota) return 'Kuota Habis';
-    if (!isMerchantOpen) return 'Toko Tutup';
-    return 'Tidak Tersedia';
-  };
+  const unavailableReason = product.unavailableReason || getProductUnavailableReason({
+    isActive: product.isActive,
+    stock: product.stock,
+    hasQuota,
+    isMerchantOpen,
+  }) || 'Tidak Tersedia';
 
   const CardContent = (
     <div
@@ -73,7 +75,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
           <div className="bg-muted/90 px-3 py-2 rounded-lg flex items-center gap-2 shadow-lg border border-border">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs font-semibold text-muted-foreground">
-              {getUnavailableReason()}
+              {unavailableReason}
             </span>
           </div>
         </div>
