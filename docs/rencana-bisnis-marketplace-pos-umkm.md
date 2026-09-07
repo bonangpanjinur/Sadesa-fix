@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 7 September 2026:** Fase 1 **sebagian selesai**. Entitlement POS sekarang sudah memiliki pemeriksaan server-side yang memperhitungkan masa aktif dan masa tenggang, tanpa menonaktifkan marketplace merchant. Detail item yang sudah selesai dan yang masih terbuka dicatat pada bagian fase terkait.
+> **Status implementasi — 7 September 2026:** Fase 1 **selesai secara teknis di repository**. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, dan alert kegagalan projection sudah tersedia; definisi stok varian/multi-outlet serta pengujian offline masih terbuka. Migration baru belum diterapkan ke staging/production.
 
 ## 1. Ringkasan keputusan
 
@@ -401,36 +401,42 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] jadikan subscription/entitlement sebagai sumber izin server-side;
 - [x] pisahkan status merchant marketplace dari status POS;
 - [x] dukung trial, paid, grace, suspended, cancelled pada model entitlement POS;
-- [ ] simpan riwayat perubahan harga/paket;
+- [x] simpan riwayat perubahan harga/paket;
 - [x] pastikan suspend tidak menghapus data POS maupun marketplace;
-- [ ] sediakan export data subscription dan reaktivasi idempotent yang lengkap;
+- [x] sediakan export data subscription dan reaktivasi idempotent yang lengkap;
 - [x] batasi operasi POS berdasarkan entitlement dan role;
-- [ ] tambahkan audit untuk override admin.
+- [x] tambahkan audit untuk override admin.
 
-**Status saat ini:** **Sebagian selesai.** Perubahan yang sudah diterapkan:
+**Status saat ini:** **Selesai secara teknis di repository.** Perubahan yang sudah diterapkan:
 
 - migration `19_20260907050000_pos_entitlement_lifecycle.sql` menambahkan `grace_ends_at`, status `grace`, resolver entitlement, dan validasi subscription pada `is_pos_tenant_active`;
+- migration `20_20260907060000_pos_subscription_history_export_audit.sql` menambahkan snapshot riwayat paket/harga, export subscription, audit lifecycle admin, dan reaktivasi/approval idempotent;
+- edit paket admin menggunakan RPC server-side atomik yang menyimpan alasan perubahan pada history dan audit log;
+- merchant dapat mengunduh export data subscription dalam format JSON;
 - jalur mutasi POS yang memakai guard tenant, termasuk checkout atomic, tidak lagi hanya mempercayai status tenant dari browser;
 - approval/reactivation/extension admin mengatur kembali status tenant dan membersihkan masa tenggang;
 - UI langganan menampilkan status masa tenggang dan tanggal akhirnya;
 - marketplace tetap terpisah dari status operasional POS ketika POS suspended/cancelled.
 
-**Kriteria selesai fase:** belum tercapai penuh. Merchant yang POS-nya suspended sudah tidak dapat membuat transaksi POS baru dan data tidak dihapus, tetapi histori perubahan harga/paket, audit override, serta export subscription masih perlu diselesaikan sebelum fase ini ditutup.
+**Kriteria selesai fase:** tercapai untuk implementasi teknis di repository. Migration database perlu diterapkan dan diuji di staging sebelum dinyatakan siap produksi.
 
 ### Fase 2 — Katalog terpadu dan sinkronisasi stok
 
 **Tujuan:** mencegah produk ganda dan overselling.
 
-- tetapkan mapping produk marketplace–POS;
-- gunakan satu SKU/barcode per tenant;
-- tampilkan status linked/synced/error di UI;
-- gunakan POS outlet stock sebagai sumber operasional merchant POS;
-- gunakan reservation ledger untuk order online;
-- buat rekonsiliasi manual dan otomatis;
-- tambahkan alert jika projection gagal atau terlalu lama;
-- selesaikan definisi stok varian dan multi-outlet.
+- [x] tetapkan mapping produk marketplace–POS;
+- [ ] gunakan satu SKU/barcode per tenant;
+- [x] tampilkan status linked/synced/error di UI;
+- [x] gunakan POS outlet stock sebagai sumber operasional merchant POS;
+- [x] gunakan reservation ledger untuk order online;
+- [x] buat rekonsiliasi manual dan otomatis;
+- [x] tambahkan alert jika projection gagal;
+- [ ] tambahkan alert jika projection terlalu lama/stale;
+- [ ] selesaikan definisi stok varian dan multi-outlet.
 
-**Kriteria selesai:** penjualan POS dan order marketplace tidak dapat menghasilkan stok negatif tanpa konflik yang terlihat.
+**Status saat ini:** **Sebagian selesai.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok yang digunakan halaman Integrasi POS. Definisi stok varian/multi-outlet dan deteksi projection stale berbasis umur masih terbuka.
+
+**Kriteria selesai:** sebagian tercapai untuk stok produk non-varian yang terhubung. Penjualan POS dan order marketplace sudah memakai guard/reservation/ledger, tetapi fase belum ditutup sampai cakupan varian, multi-outlet, stale projection, dan pengujian konflik diverifikasi.
 
 ### Fase 3 — POS online/offline yang aman
 
