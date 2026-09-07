@@ -185,26 +185,18 @@ export default function POSIntegrasiPage() {
     const startTime = new Date().toISOString();
     let processed = 0, success = 0, failed = 0;
 
-    if (type === 'stock_sync' && settings?.is_connected) {
-      // Sinkronkan stok: ambil stok dari pos_stock dan update ke products marketplace
-      const syncItems = syncedProducts.filter(p => p.sync_stock && p.marketplace_product_id && p.sync_status === 'synced');
-      processed = syncItems.length;
-      for (const item of syncItems) {
-        const { data: stock } = await supabase
-          .from('pos_stock' as never)
-          .select('quantity')
-          .eq('product_id', item.pos_product_id)
-          .maybeSingle();
-        if (stock) {
-          const { error } = await supabase
-            .from('products')
-            .update({ stock: (stock as unknown as { quantity: number }).quantity, updated_at: new Date().toISOString() })
-            .eq('id', item.marketplace_product_id!);
-          if (!error) success++;
-          else failed++;
-        }
-      }
-    } else if (type === 'order_import' && settings?.is_connected && settings.merchant_id) {
+    try {
+      if (type === 'stock_sync' && !settings?.is_connected) {
+        throw new Error('Hubungkan POS ke toko marketplace sebelum menyinkronkan stok.');
+      } else if (type === 'stock_sync') {
+        const { data, error } = await supabase.rpc('sync_pos_stock_to_marketplace' as never, {
+          p_tenant_id: tenant.id,
+        } as never);
+        if (error) throw error;
+        const result = data as unknown as { processed?: number; updated?: number };
+        processed = Number(result?.processed || 0);
+        success = processed;
+      } else if (type === 'order_import' && settings?.is_connected && settings.merchant_id) {
       // Impor order baru dari marketplace ke POS
       const { data: newOrders } = await supabase
         .from('orders')
@@ -236,28 +228,32 @@ export default function POSIntegrasiPage() {
         if (!error) success++;
         else failed++;
       }
-    } else {
-      // Simulasi sinkronisasi
-      await new Promise(r => setTimeout(r, 1000));
-      processed = syncedProducts.length;
-      success = processed;
+      } else {
+        // Simulasi sinkronisasi
+        await new Promise(r => setTimeout(r, 1000));
+        processed = syncedProducts.length;
+        success = processed;
+      }
+
+      // Simpan log
+      await supabase.from('pos_sync_logs' as never).insert({
+        tenant_id: tenant.id,
+        sync_type: type,
+        status: failed > 0 && success === 0 ? 'error' : failed > 0 ? 'partial' : 'success',
+        items_processed: processed,
+        items_success: success,
+        items_failed: failed,
+        started_at: startTime,
+        finished_at: new Date().toISOString(),
+      });
+
+      toast.success(`${SYNC_TYPES[type] || type} selesai: ${success} berhasil, ${failed} gagal`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `Gagal menjalankan ${SYNC_TYPES[type] || type}`);
+    } finally {
+      setSyncing(false);
+      fetchAll();
     }
-
-    // Simpan log
-    await supabase.from('pos_sync_logs' as never).insert({
-      tenant_id: tenant.id,
-      sync_type: type,
-      status: failed > 0 && success === 0 ? 'error' : failed > 0 ? 'partial' : 'success',
-      items_processed: processed,
-      items_success: success,
-      items_failed: failed,
-      started_at: startTime,
-      finished_at: new Date().toISOString(),
-    });
-
-    toast.success(`${SYNC_TYPES[type] || type} selesai: ${success} berhasil, ${failed} gagal`);
-    setSyncing(false);
-    fetchAll();
   };
 
   const linkProduct = async () => {
