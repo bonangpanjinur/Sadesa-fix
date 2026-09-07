@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 7 September 2026:** Fase 1 **selesai secara teknis di repository**. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, constraint database identitas SKU/barcode tenant-scoped, dan validasi aplikasi untuk form katalog sudah tersedia; validasi di staging/production, pengujian konflik, dan pemetaan stok marketplace untuk varian masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**: cache tenant/outlet, antrean IndexedDB idempotent, retry/dead-letter, indikator usia cache, serta conflict center sudah tersedia. Uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Migration baru belum diterapkan ke staging/production.
+> **Status implementasi — 7 September 2026:** Fase 0 dan Fase 1 **selesai secara teknis di repository**. Fase 0 sekarang memiliki halaman Pricing/FAQ publik dan KPI bisnis di dashboard admin. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, constraint database identitas SKU/barcode tenant-scoped, dan validasi aplikasi untuk form katalog sudah tersedia; validasi di staging/production, pengujian konflik, dan pemetaan stok marketplace untuk varian masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**: cache tenant/outlet, antrean IndexedDB idempotent, retry/dead-letter, indikator usia cache, serta conflict center sudah tersedia. Uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Migration baru belum diterapkan ke staging/production.
 
 ## 0. Analisis kesiapan saat ini
 
@@ -399,15 +399,17 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 
 **Tujuan:** semua pihak memahami perbedaan marketplace dan POS.
 
-- tetapkan definisi gratis, trial, active, grace, suspended, cancelled;
-- tetapkan paket awal dan harga uji;
-- tetapkan kuota marketplace;
-- tetapkan modul POS per paket;
-- tetapkan refund, upgrade, downgrade, dan grace period;
-- buat halaman pricing dan FAQ;
-- sepakati KPI dan dashboard admin.
+- [x] tetapkan definisi gratis, trial, active, grace, suspended, cancelled;
+- [x] tetapkan paket awal dan harga uji;
+- [x] tetapkan kuota marketplace;
+- [x] tetapkan modul POS per paket;
+- [x] tetapkan refund, upgrade, downgrade, dan grace period;
+- [x] buat halaman pricing dan FAQ;
+- [x] sepakati KPI dan dashboard admin.
 
 **Kriteria selesai:** admin dapat menjelaskan kapan merchant boleh memakai marketplace, kapan POS aktif, dan apa yang terjadi saat pembayaran terlambat.
+
+**Status saat ini:** **Selesai secara teknis di repository.** Aturan produk dan harga uji terdokumentasi di halaman `/pricing`, FAQ menjelaskan lifecycle marketplace/POS, trial, grace, suspend, dan offline, sedangkan dashboard admin menampilkan North Star metric, activation rate, order completion, GMV periode, serta gap metrik billing yang belum memiliki agregat canonical. Harga di halaman diberi label harga uji dan belum dianggap konfigurasi produksi.
 
 ### Fase 1 — Entitlement dan billing yang dapat dipercaya
 

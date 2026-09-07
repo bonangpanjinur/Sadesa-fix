@@ -58,6 +58,7 @@ const MerchantSlugResolver = lazy(() => import("./pages/MerchantSlugResolver"));
 const ShopsPage = lazy(() => import("./pages/ShopsPage"));
 const InstallPage = lazy(() => import("./pages/InstallPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const EmailConfirmationPage = lazy(() => import("./pages/EmailConfirmationPage"));
@@ -417,6 +418,7 @@ const App = () => (
               <Route path="/file-handler" element={<PwaFileHandlerPage />} />
               <Route path="/protocol-handler" element={<PwaProtocolHandlerPage />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/pricing" element={<PricingPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/email-confirmation" element={<EmailConfirmationPage />} />

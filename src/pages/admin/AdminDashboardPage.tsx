@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Store, MapPin, Bike, Clock, CheckCheck, X, Calendar, RefreshCw } from 'lucide-react';
+import { Store, MapPin, Bike, Clock, CheckCheck, X, Calendar, RefreshCw, Target, CheckCircle2, CreditCard, ShoppingBag } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { ApprovalCard } from '@/components/admin/ApprovalCard';
@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { subDays, startOfDay, endOfDay } from 'date-fns';
+import { formatPrice } from '@/lib/utils';
 
 interface OrderData {
   total: number;
@@ -277,6 +278,14 @@ export default function AdminDashboardPage() {
   };
 
   const totalPending = pendingMerchants.length + pendingVillages.length + pendingCouriers.length;
+  const periodCompletedOrders = orders.filter((order) => order.status === 'DONE').length;
+  const periodRevenue = orders
+    .filter((order) => order.status === 'DONE')
+    .reduce((sum, order) => sum + order.total, 0);
+  const orderCompletionRate = orders.length > 0 ? Math.round((periodCompletedOrders / orders.length) * 100) : null;
+  const merchantActivationRate = realtimeStats.totalMerchants > 0
+    ? Math.round((realtimeStats.activeMerchants / realtimeStats.totalMerchants) * 100)
+    : null;
 
   return (
     <AdminLayout title="Dashboard" subtitle="Kelola dan pantau aktivitas aplikasi">
@@ -323,6 +332,60 @@ export default function AdminDashboardPage() {
 
           {/* Live Stats Grid - Real-time data */}
           <LiveStatsGrid stats={realtimeStats} className="mb-8" />
+
+          {/* Phase 0 business KPI contract */}
+          <section className="mb-8" aria-labelledby="business-kpi-title">
+            <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  <h2 id="business-kpi-title" className="text-lg font-semibold">KPI bisnis Fase 0</h2>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  North Star dan metrik operasional yang dipantau dari data aplikasi.
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground">Metrik periode: {dateRange === '7days' ? '7' : dateRange === '14days' ? '14' : '30'} hari</span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <StatsCard
+                title="North Star: merchant aktif"
+                value={realtimeStats.activeMerchants}
+                description="Merchant berstatus ACTIVE; target akhir adalah transaksi valid bulanan."
+                icon={<Target className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="Activation rate merchant"
+                value={merchantActivationRate === null ? '—' : `${merchantActivationRate}%`}
+                description="ACTIVE dibanding seluruh merchant terdaftar."
+                icon={<Store className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="Order berhasil"
+                value={orderCompletionRate === null ? '—' : `${orderCompletionRate}%`}
+                description={`${periodCompletedOrders} dari ${orders.length} order pada periode terpilih.`}
+                icon={<CheckCircle2 className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="GMV marketplace"
+                value={formatPrice(periodRevenue)}
+                description="Total order DONE pada periode terpilih."
+                icon={<ShoppingBag className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="Trial → paid"
+                value="—"
+                description="Belum dihitung: menunggu agregat entitlement POS canonical."
+                icon={<CreditCard className="h-5 w-5" />}
+              />
+              <StatsCard
+                title="Attach rate POS"
+                value="—"
+                description="Belum dihitung: perlu relasi merchant marketplace dan tenant POS."
+                icon={<MapPin className="h-5 w-5" />}
+              />
+            </div>
+          </section>
 
           {/* Charts & Activity Feed */}
           <div className="grid lg:grid-cols-3 gap-6 mb-8">
