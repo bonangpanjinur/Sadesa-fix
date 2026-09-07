@@ -1,0 +1,211 @@
+# Audit Merchant, POS, dan Storefront
+
+Tanggal audit: 7 September 2026
+
+## Ringkasan eksekutif
+
+Proyek sudah memiliki fondasi yang cukup lengkap untuk tiga area yang diaudit:
+
+- Workspace merchant marketplace dengan katalog, order, stok, promosi, ulasan, payout, dan pengaturan toko.
+- POS yang sudah dipusatkan di namespace merchant (`/merchant/pos/*`), dengan outlet, role internal, modul, offline queue, checkout atomik, dan audit.
+- Storefront publik berbasis slug/ID yang menampilkan katalog, jam buka, kuota marketplace, ulasan, galeri, dan status toko.
+
+Namun, integrasi saat ini belum sepenuhnya aman dan belum memiliki kontrak bisnis yang tunggal. Risiko terbesar bukan kekurangan halaman, melainkan perbedaan sumber kebenaran, alur aktivasi yang dapat melompati billing, dan guard UI yang tidak konsisten.
+
+### Status keseluruhan
+
+| Area | Kondisi | Kesimpulan |
+|---|---|---|
+| Merchant workspace | Sebagian besar terhubung ke Supabase dan memiliki guard per halaman | Fungsional, tetapi akses dan status merchant perlu disatukan |
+| POS routing/role | Routing canonical sudah diarahkan ke `/merchant/pos/*`; permission matrix tersedia | Fondasi baik, perlu validasi mutation per role dan outlet |
+| POS–merchant catalog | Trigger dan RPC projection tersedia | Sinkronisasi metadata ada, tetapi stok online/POS belum didefinisikan secara tunggal |
+| POS checkout | Menggunakan `process_pos_sale` dan request key | Jalur transaksi relatif matang, perlu pengujian role/outlet/offline |
+| Storefront publik | Slug dan URL `/s/:slug` tersedia; status buka dan kuota ditampilkan | Ada bypass status pada akses UUID langsung dan aturan publik perlu diperketat |
+| Operasional Replit | Belum dapat dijalankan | Workflow gagal karena `node_modules` belum terpasang; env Supabase belum tersedia |
+
+## Batasan audit
+
+Audit ini dilakukan melalui pembacaan source code, route, query Supabase, migration/bootstrap SQL, dan log workflow. Belum dilakukan:
+
+- login dengan akun buyer, merchant owner, kasir, manager, finance, atau staff;
+- query ke database Supabase yang sedang terhubung;
+- uji RLS dengan beberapa identitas;
+- uji transaksi POS nyata, offline sync, realtime, printer, upload, dan pembayaran;
+- screenshot interaktif karena workflow berhenti pada `vite: not found`.
+
+Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptance test sebelum dianggap selesai.
+
+## Temuan prioritas
+
+### P0 — Wajib dibereskan sebelum merchant/POS dipakai produksi
+
+#### P0-1. Workflow aplikasi tidak dapat start
+
+- **Bukti:** workflow `Start application` menjalankan `npm run dev`, lalu berhenti dengan `sh: 1: vite: not found`.
+- **Dampak:** tidak bisa melakukan smoke test, screenshot, maupun validasi UI di Replit.
+- **Rencana:** pasang dependency sesuai lockfile yang dipilih, jalankan `npm run dev`, kemudian verifikasi preview dan build tanpa mengubah stack proyek.
+
+#### P0-2. Aktivasi workspace POS dapat melewati langganan/persetujuan admin
+
+- `POSSetupPage` langsung memanggil `activate_merchant_pos_workspace`.
+- Function tersebut mengatur `pos_tenants.status = 'active'`, `is_active = true`, dan modul terpilih.
+- Jalur `/merchant/pos/setup` dapat diakses merchant sebelum ada subscription aktif.
+- Jalur subscription terpisah (`MerchantPOSSubscribePage`) membuat request `PENDING`, tetapi tidak menjadi prasyarat pada function aktivasi.
+- **Dampak:** merchant berpotensi memakai POS aktif tanpa trial/subscription yang sah atau tanpa approval admin.
+- **Rencana:** tetapkan state machine tunggal (`setup_required → trial/active → suspended/expired`), jadikan subscription/trial sebagai prasyarat server-side, dan biarkan UI hanya mengikuti state dari database. RPC harus menolak aktivasi langsung bila tidak ada entitlement yang valid.
+
+#### P0-3. Guard merchant terlalu longgar dan tidak konsisten
+
+- Route `/merchant/*` umumnya hanya memakai `ProtectedRoute` tanpa `allowedRoles`.
+- `useMerchantGuard` dipakai oleh sebagian halaman, tetapi tidak semua halaman merchant melakukan guard yang sama.
+- `/merchant` sendiri dapat dirender oleh user login non-merchant dan baru kemudian mencoba mencari merchant berdasarkan `user_id`.
+- **Dampak:** alur buyer ke halaman merchant tidak jelas; akses UI bergantung pada implementasi masing-masing halaman. RLS tetap penting, tetapi UX dan defense-in-depth tidak konsisten.
+- **Rencana:** buat `MerchantAccessRoute` yang memeriksa role aplikasi, status registrasi, dan merchant profile secara terpusat; bedakan state `belum mendaftar`, `pending`, `rejected`, `suspended`, dan `approved`. Semua route merchant memakai guard tersebut.
+
+#### P0-4. Storefront UUID dapat melewati status publik
+
+- `MerchantSlugResolver` hanya memuat `registration_status` saat parameter bukan UUID.
+- Akses `/merchant/:uuid` langsung meneruskan ke `MerchantProfilePage`.
+- `MerchantProfilePage` mengambil merchant berdasarkan ID tanpa filter/validasi `registration_status` atau status publik.
+- **Dampak:** toko pending/rejected/inactive berpotensi tetap tampil jika URL ID diketahui, berbeda dengan perilaku URL slug.
+- **Rencana:** satukan resolusi merchant dan aturan publishability dalam satu query/RPC atau shared helper. Semua bentuk URL harus menerapkan aturan publik yang sama, termasuk canonical redirect dan response 404/tersembunyi untuk toko yang tidak boleh tampil.
+
+#### P0-5. Sumber stok online dan POS belum memiliki kontrak yang tegas
+
+- Migration mendokumentasikan `products` sebagai katalog merchant dan `pos_products` sebagai projection.
+- Trigger merchant → POS hanya menyalin metadata produk dan membuat baris `pos_stock` per outlet.
+- POS checkout memakai `pos_stock`; storefront dan merchant stock memakai `products.stock`.
+- Dalam source yang diaudit belum terlihat kontrak atomik yang mengurangi/men-reserve `products.stock` ketika penjualan POS terjadi, atau sebaliknya.
+- **Dampak:** stok online dan stok outlet bisa berbeda; risiko overselling, angka stok membingungkan, dan laporan merchant tidak sama dengan laporan POS.
+- **Rencana:** putuskan model bisnis secara eksplisit: stok global, stok per outlet, atau stok terpisah untuk online. Lalu implementasikan satu ledger/reservation model dan tampilkan label sumber stok pada merchant/storefront. Tambahkan invariant database untuk mencegah penjualan di luar stok.
+
+### P1 — Penting untuk alur jelas dan kemudahan penggunaan
+
+#### P1-1. POS sudah di-embed ke merchant, tetapi navigasi terlalu padat
+
+- `MerchantSidebar` menggabungkan menu merchant marketplace dan banyak kategori POS.
+- Ada puluhan item POS: kasir, inventori, laporan, workforce, finance, integrasi, dan administrasi.
+- Search sidebar membantu, tetapi hierarchy dan prioritas untuk owner/kasir belum cukup sederhana.
+- **Rencana:** tampilkan dashboard POS sebagai entry point yang berisi checklist setup dan shortcut berdasarkan role; kelompokkan menu menjadi `Jualan`, `Stok`, `Pelanggan`, `Laporan`, `Tim`, `Pengaturan`; sembunyikan menu yang tidak relevan dengan role dan modul; tambahkan breadcrumb/indikator outlet aktif.
+
+#### P1-2. Permission UI perlu diuji bersama permission database
+
+- Matrix `posPermissions` membatasi route berdasarkan `posRole`.
+- Sebagian halaman melakukan mutation langsung ke tabel Supabase, sebagian menggunakan RPC.
+- Policy lama banyak membedakan owner tenant dan anggota `pos_users`; hasil akhirnya perlu diuji untuk kasir, staff gudang, purchasing, finance, dan auditor.
+- **Rencana:** buat matriks akses yang mencakup route, query, mutation, outlet scope, dan expected error. Uji setiap role di staging. Mutation sensitif (uang, stok, role, subscription, return) harus melalui RPC server-side dengan validasi role/outlet.
+
+#### P1-3. Integrasi katalog sudah ada, tetapi lifecycle produk belum lengkap
+
+- Produk merchant dibuat/diubah di `MerchantProductsPage`.
+- Trigger `trg_sync_merchant_product_to_pos` memproyeksikan insert/update ke POS.
+- Belum ada bukti UI/status untuk memberi tahu merchant apakah projection dan stock rows berhasil.
+- Perubahan kategori, varian, SKU/barcode, cost, dan aturan harga perlu dipastikan konsisten dengan POS.
+- **Rencana:** tambahkan status integrasi per produk, reconciliation action, dan log error projection. Tentukan field mana yang canonical di merchant dan field mana yang boleh diedit khusus POS.
+
+#### P1-4. Checkout POS sudah memakai RPC atomik, tetapi acceptance flow belum terbukti
+
+- `POSKasirPage` memanggil `processAtomicPOSSale`.
+- `posCheckout.ts` mengirim `request_key`, tenant, outlet, cashier, sale, dan items.
+- Ada dukungan promo, voucher, loyalty, split payment, QR Pay, offline queue, dan receipt.
+- **Dampak:** kompleksitas tinggi; bug kecil dapat memengaruhi uang, stok, poin, dan retry.
+- **Rencana:** uji skenario nominal, pembayaran kurang, split payment, retry request key, offline cash, duplicate sync, voucher expired, loyalty redemption, stok habis, dan dua kasir pada outlet sama. Pecah UI kasir menjadi modul yang dapat diuji terpisah bila acceptance menemukan regresi.
+
+#### P1-5. Error dan loading state belum seragam
+
+- Banyak halaman merchant/POS menangkap error dengan pesan generik atau hanya `console.error`.
+- Beberapa query mengabaikan `error` dan tetap memakai `data || []`.
+- **Dampak:** merchant dapat melihat layar kosong seolah tidak ada data, padahal query gagal.
+- **Rencana:** gunakan pola state bersama untuk `loading`, `empty`, `error`, `retry`, dan `partial data`; tampilkan pesan yang bisa ditindaklanjuti tanpa membocorkan detail internal.
+
+#### P1-6. Merchant dashboard mencampur marketplace dan POS tanpa ringkasan operasional yang cukup jelas
+
+- Dashboard merchant memuat order online, stok, review, quota, kas, jam buka, QR toko, dan status POS.
+- POS adalah workspace terpisah secara data, tetapi entry point utamanya tetap dashboard merchant.
+- **Rencana:** bedakan ringkasan `Marketplace` dan `Operasional POS`, tampilkan outlet aktif, penjualan hari ini POS, order online pending, stok kritis, dan CTA yang jelas untuk masalah yang perlu tindakan.
+
+### P2 — Peningkatan UX dan maintainability
+
+#### P2-1. Storefront perlu aturan ketersediaan yang terlihat oleh pembeli
+
+- Produk storefront menandai `isAvailable` berdasarkan kuota, jam buka, dan `is_active`.
+- UI perlu membedakan `toko tutup`, `produk habis`, `kuota habis`, `produk nonaktif`, dan `di luar jam operasional`.
+- **Rencana:** tampilkan alasan unavailable di kartu/detail produk dan cegah checkout dengan pesan yang konsisten.
+
+#### P2-2. URL storefront perlu canonical dan SEO consistency
+
+- Tersedia `/s/:slug` dan `/merchant/:slugOrId`.
+- **Rencana:** tetapkan satu URL publik canonical, redirect URL lama, dan pastikan title/meta/OG mengikuti merchant yang sedang dibuka tanpa mengekspos toko yang tidak publishable.
+
+#### P2-3. Printer dan receipt belum satu jalur
+
+- Catatan audit sebelumnya menunjukkan jalur browser print, Web Serial/Web Bluetooth, dan print bridge belum sepenuhnya seragam.
+- `POSTransaksiPage` dan invoice masih memiliki jalur `window.print`.
+- **Rencana:** tetapkan printer contract tunggal, status koneksi nyata, retry, fallback yang terlihat, dan acceptance test untuk USB/Bluetooth/bridge/browser print.
+
+#### P2-4. Observability bisnis perlu dilengkapi
+
+- Checkout sudah memiliki observability event.
+- Belum ada matriks event yang konsisten untuk activation POS, product projection failure, stock mismatch, order status transition, subscription approval, dan storefront unavailable reason.
+- **Rencana:** ukur funnel merchant dari pendaftaran → approved → setup → first product → first sale, lalu ukur failure rate per tahap.
+
+## Rencana implementasi yang disarankan
+
+### Fase 0 — Pulihkan kemampuan verifikasi
+
+1. Pasang dependency dari lockfile yang ditetapkan repository.
+2. Pastikan `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, dan `VITE_SUPABASE_PROJECT_ID` tersedia melalui environment Replit/Supabase yang benar.
+3. Start workflow, buka preview, dan dokumentasikan smoke test minimum.
+4. Jalankan typecheck, lint, build, dan test yang tidak membutuhkan environment production.
+
+### Fase 1 — Tutup risiko akses dan billing
+
+1. Implementasikan `MerchantAccessRoute`.
+2. Satukan status merchant dan POS dalam state machine yang eksplisit.
+3. Jadikan entitlement trial/subscription sebagai validasi server-side pada activation RPC.
+4. Perbaiki resolver storefront agar slug dan UUID memakai aturan publishability yang sama.
+5. Tambahkan staging tests untuk buyer, merchant pending, merchant approved, admin, dan POS member.
+
+### Fase 2 — Tetapkan integrasi katalog dan stok
+
+1. Definisikan sumber kebenaran produk, harga, varian, dan stok.
+2. Audit semua query/mutation `products`, `pos_products`, `pos_stock`, `orders`, dan `pos_sales` berdasarkan scope merchant/tenant/outlet.
+3. Tambahkan reconciliation dan status projection.
+4. Pastikan penjualan online dan POS memakai reservation/ledger yang konsisten.
+5. Tambahkan laporan selisih stok dan recovery path.
+
+### Fase 3 — Sederhanakan pengalaman merchant dan POS
+
+1. Susun ulang sidebar berdasarkan tugas dan role.
+2. Tambahkan POS onboarding checklist: merchant profile, katalog, outlet, printer, kasir, pembayaran, dan first sale.
+3. Pisahkan ringkasan marketplace dari POS di dashboard.
+4. Seragamkan loading/error/empty/retry state.
+5. Tampilkan outlet aktif dan alasan menu/fitur tidak tersedia.
+
+### Fase 4 — Validasi transaksi dan operasional
+
+1. Uji checkout online, offline, retry, duplicate, split payment, refund, return, voucher, loyalty, dan stok habis.
+2. Uji role/permission pada route dan mutation.
+3. Uji realtime order dan recovery setelah koneksi terputus.
+4. Uji printer dan receipt pada jalur yang didukung.
+5. Ambil screenshot desktop dan mobile untuk dashboard merchant, katalog, storefront, kasir, stok, dan setup.
+
+## Acceptance criteria akhir
+
+- Buyer tidak dapat membuka storefront pending/rejected/inactive melalui slug maupun UUID.
+- Buyer tidak dapat masuk ke workspace merchant melalui route langsung.
+- POS tidak dapat aktif atau melakukan mutation operasional tanpa entitlement yang sah.
+- Owner, manager, kasir, staff gudang, purchasing, finance, dan auditor hanya melihat serta menjalankan kemampuan yang diizinkan.
+- Produk yang dibuat/diubah merchant memiliki status projection yang dapat dilihat dan tidak membuat data POS diam-diam stale.
+- Angka stok, penjualan, dan laporan menjelaskan scope global vs outlet dan tidak saling bertentangan.
+- Checkout POS aman terhadap retry/duplicate dan memberikan feedback yang jelas pada sukses, gagal, offline, dan konflik.
+- Storefront menjelaskan alasan produk/toko tidak tersedia.
+- Workflow Replit start bersih dan preview dapat digunakan untuk smoke test.
+
+## Prioritas pengerjaan
+
+1. **P0:** dependency/workflow, merchant guard, subscription gate, storefront publishability.
+2. **P0/P1:** kontrak stok merchant–POS dan permission mutation.
+3. **P1:** checkout acceptance matrix dan error states.
+4. **P1/P2:** navigasi, onboarding, dashboard, storefront messaging.
+5. **P2:** printer consistency, observability, dan refinement visual.
