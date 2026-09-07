@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, Check, Clock, Upload, Loader2, AlertTriangle, Gift } from 'lucide-react';
+import { CreditCard, Check, Clock, Upload, Loader2, AlertTriangle, Gift, Download } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -166,6 +166,26 @@ export default function MerchantPOSSubscribePage() {
     }
   };
 
+  const handleExportSubscription = async () => {
+    if (!merchantId) return;
+    const { data, error } = await supabase.rpc(
+      'export_pos_subscription_data' as never,
+      { p_merchant_id: merchantId } as never,
+    );
+    if (error) {
+      toast.error(`Gagal mengekspor data subscription: ${error.message}`);
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `sadesa-pos-subscription-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success('Export data subscription berhasil diunduh');
+  };
+
   if (loading) {
     return (
       <MerchantLayout title="Langganan Kasir POS" subtitle="Pilih paket kasir">
@@ -221,6 +241,9 @@ export default function MerchantPOSSubscribePage() {
                   <p className="text-sm text-destructive">Alasan ditolak: {existingSub.rejection_reason}</p>
                 </div>
               )}
+              <Button variant="outline" className="w-full" onClick={handleExportSubscription}>
+                <Download className="mr-2 h-4 w-4" /> Export Data Subscription
+              </Button>
             </CardContent>
           </Card>
         </div>

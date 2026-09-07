@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard, Link2, AlertTriangle, CheckCircle2, MoreHorizontal, Ban, RotateCcw, CalendarPlus, Play } from 'lucide-react';
+import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard, Link2, AlertTriangle, CheckCircle2, MoreHorizontal, Ban, RotateCcw, CalendarPlus, Play, Pencil, History } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { getSettingByKey, updateAppSetting } from '@/lib/adminApi';
+import { logAdminAction } from '@/lib/auditLog';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -75,8 +76,24 @@ interface POSIntegrationHealth {
   status: 'READY' | 'NEEDS_MAPPING' | 'NEEDS_SYNC' | 'NEEDS_OUTLET';
 }
 
+interface POSPackageHistory {
+  id: string;
+  package_id: string | null;
+  package_name: string;
+  description: string | null;
+  duration_months: number;
+  price: number;
+  is_active: boolean;
+  sort_order: number;
+  change_type: string;
+  changed_by: string | null;
+  change_reason: string | null;
+  created_at: string;
+}
+
 export default function AdminPOSPage() {
   const [packages, setPackages] = useState<POSPackage[]>([]);
+  const [packageHistory, setPackageHistory] = useState<POSPackageHistory[]>([]);
   const [subscriptions, setSubscriptions] = useState<POSSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [trialDays, setTrialDays] = useState(30);
@@ -92,6 +109,8 @@ export default function AdminPOSPage() {
   const [rejectSubId, setRejectSubId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [integrationHealth, setIntegrationHealth] = useState<POSIntegrationHealth[]>([]);
+  const [editPkg, setEditPkg] = useState<POSPackage | null>(null);
+  const [editPkgForm, setEditPkgForm] = useState({ name: '', description: '', duration_months: 1, price: 0, reason: '' });
 
   useEffect(() => { loadData(); }, []);
 
@@ -103,10 +122,12 @@ export default function AdminPOSPage() {
         getSettingByKey('pos_config'),
         supabase.rpc('get_pos_integration_health' as never),
       ]);
+      const historyRes = await supabase.rpc('get_pos_package_history' as never, { p_limit: 200 } as never);
       const tenantRes = await supabase.from('pos_tenants').select('merchant_id, status, is_active');
       const tenantByMerchant = new Map((tenantRes.data || []).map((tenant) => [tenant.merchant_id, tenant]));
 
       setPackages(pkgsRes.data || []);
+      if (!historyRes.error) setPackageHistory((historyRes.data || []) as unknown as POSPackageHistory[]);
       setSubscriptions((subsRes.data || []).map((s: POSSubscriptionRow) => ({
         ...s,
         merchant_name: s.merchants?.name || '-',
@@ -156,12 +177,43 @@ export default function AdminPOSPage() {
     loadData();
   };
 
+  const handleUpdatePackage = async () => {
+    if (!editPkg) return;
+    if (!editPkgForm.name.trim() || !editPkgForm.reason.trim()) {
+      toast.error('Nama paket dan alasan perubahan wajib diisi');
+      return;
+    }
+
+    const nextValue = {
+      name: editPkgForm.name.trim(),
+      description: editPkgForm.description.trim() || null,
+      duration_months: Math.max(1, editPkgForm.duration_months),
+      price: Math.max(0, editPkgForm.price),
+    };
+    const { error } = await supabase.from('pos_packages').update(nextValue).eq('id', editPkg.id);
+    if (error) {
+      toast.error(`Gagal memperbarui paket: ${error.message}`);
+      return;
+    }
+    await logAdminAction(
+      'UPDATE_POS_PACKAGE',
+      'pos_package',
+      editPkg.id,
+      { name: editPkg.name, description: editPkg.description, duration_months: editPkg.duration_months, price: editPkg.price },
+      { ...nextValue, reason: editPkgForm.reason.trim() },
+    );
+    toast.success('Paket berhasil diperbarui dan perubahan dicatat');
+    setEditPkg(null);
+    setEditPkgForm({ name: '', description: '', duration_months: 1, price: 0, reason: '' });
+    await loadData();
+  };
+
   type SubscriptionAction = 'APPROVE' | 'REJECT' | 'SUSPEND' | 'REACTIVATE' | 'EXTEND' | 'CANCEL';
 
   const runSubscriptionAction = async (
     id: string,
     action: SubscriptionAction,
-    options: { extensionMonths?: number; rejectionReason?: string } = {},
+    options: { extensionMonths?: number; rejectionReason?: string; reason?: string } = {},
   ) => {
     setActioningId(id);
     const { error } = await supabase.rpc('admin_manage_pos_subscription' as never, {
@@ -169,6 +221,7 @@ export default function AdminPOSPage() {
       p_action: action,
       p_extension_months: options.extensionMonths || 1,
       p_rejection_reason: options.rejectionReason || null,
+      p_reason: options.reason || options.rejectionReason || null,
     } as never);
     if (error) {
       toast.error(`Gagal ${action.toLowerCase()}: ${error.message}`);
@@ -192,24 +245,34 @@ export default function AdminPOSPage() {
   };
 
   const handleSuspend = async (sub: POSSubscription) => {
-    if (window.confirm(`Tangguhkan akses POS untuk ${sub.merchant_name}?`)) {
-      await runSubscriptionAction(sub.id, 'SUSPEND');
+    const reason = window.prompt(`Alasan penangguhan akses POS untuk ${sub.merchant_name}:`);
+    if (reason?.trim() && window.confirm(`Tangguhkan akses POS untuk ${sub.merchant_name}?`)) {
+      await runSubscriptionAction(sub.id, 'SUSPEND', { reason: reason.trim() });
     }
   };
 
   const handleCancel = async (sub: POSSubscription) => {
-    if (window.confirm(`Batalkan langganan POS ${sub.merchant_name}? Akses operasional akan dihentikan.`)) {
-      await runSubscriptionAction(sub.id, 'CANCEL');
+    const reason = window.prompt(`Alasan pembatalan langganan POS ${sub.merchant_name}:`);
+    if (reason?.trim() && window.confirm(`Batalkan langganan POS ${sub.merchant_name}? Akses operasional akan dihentikan.`)) {
+      await runSubscriptionAction(sub.id, 'CANCEL', { reason: reason.trim() });
     }
   };
 
   const handleReactivate = async (sub: POSSubscription) => {
-    await runSubscriptionAction(sub.id, 'REACTIVATE');
+    const reason = window.prompt(`Alasan reaktivasi POS untuk ${sub.merchant_name}:`);
+    if (reason?.trim()) await runSubscriptionAction(sub.id, 'REACTIVATE', { reason: reason.trim() });
+  };
+
+  const handleApprove = async (sub: POSSubscription) => {
+    const reason = window.prompt(`Catatan persetujuan POS untuk ${sub.merchant_name} (opsional):`) || undefined;
+    await runSubscriptionAction(sub.id, 'APPROVE', { reason: reason?.trim() || undefined });
   };
 
   const handleExtend = async () => {
     if (!extensionSub || extensionMonths < 1) return;
-    const ok = await runSubscriptionAction(extensionSub.id, 'EXTEND', { extensionMonths });
+    const reason = window.prompt(`Alasan perpanjangan langganan POS untuk ${extensionSub.merchant_name}:`);
+    if (!reason?.trim()) return;
+    const ok = await runSubscriptionAction(extensionSub.id, 'EXTEND', { extensionMonths, reason: reason.trim() });
     if (ok) {
       setExtensionSub(null);
       setExtensionMonths(1);
@@ -226,6 +289,7 @@ export default function AdminPOSPage() {
               Review Langganan {pendingCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5">{pendingCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="packages">Paket & Fitur</TabsTrigger>
+          <TabsTrigger value="package-history"><History className="mr-1 h-4 w-4" />Riwayat Paket</TabsTrigger>
           <TabsTrigger value="integration" className="flex items-center gap-2"><Link2 className="h-4 w-4" />Integrasi Merchant–POS</TabsTrigger>
           <TabsTrigger value="config">Konfigurasi</TabsTrigger>
         </TabsList>
@@ -281,7 +345,7 @@ export default function AdminPOSPage() {
                              <div className="flex items-center justify-end gap-1">
                                {sub.status === 'PENDING' && (
                                  <>
-                                   <Button size="sm" onClick={() => runSubscriptionAction(sub.id, 'APPROVE')} disabled={actioningId === sub.id}>
+                                   <Button size="sm" onClick={() => handleApprove(sub)} disabled={actioningId === sub.id}>
                                      <Check className="h-3 w-3 mr-1" /> Setuju
                                    </Button>
                                    <Button size="sm" variant="destructive" onClick={() => {
@@ -327,7 +391,7 @@ export default function AdminPOSPage() {
                                    </DropdownMenuItem>
                                    {sub.status === 'PENDING' && (
                                      <>
-                                       <DropdownMenuItem onClick={() => runSubscriptionAction(sub.id, 'APPROVE')}>
+                                        <DropdownMenuItem onClick={() => handleApprove(sub)}>
                                          <Check className="mr-2 h-4 w-4" /> Setujui permintaan
                                        </DropdownMenuItem>
                                        <DropdownMenuItem onClick={() => { setRejectSubId(sub.id); setRejectDialogOpen(true); }}>
@@ -394,9 +458,28 @@ export default function AdminPOSPage() {
                     <CardContent className="p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <h4 className="font-bold">{pkg.name}</h4>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeletePackage(pkg.id)} className="text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit paket"
+                            onClick={() => {
+                              setEditPkg(pkg);
+                              setEditPkgForm({
+                                name: pkg.name,
+                                description: pkg.description || '',
+                                duration_months: pkg.duration_months,
+                                price: pkg.price,
+                                reason: '',
+                              });
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeletePackage(pkg.id)} className="text-destructive" title="Hapus paket">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                       {pkg.description && <p className="text-sm text-muted-foreground">{pkg.description}</p>}
                       <p className="text-2xl font-bold text-primary">{formatPrice(pkg.price)}</p>
@@ -404,6 +487,46 @@ export default function AdminPOSPage() {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="package-history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Riwayat Paket dan Harga</CardTitle>
+              <CardDescription>Snapshot perubahan paket untuk menjaga transparansi harga dan audit admin.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Waktu</TableHead>
+                      <TableHead>Paket</TableHead>
+                      <TableHead>Harga</TableHead>
+                      <TableHead>Durasi</TableHead>
+                      <TableHead>Perubahan</TableHead>
+                      <TableHead>Alasan</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {packageHistory.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{new Date(entry.created_at).toLocaleString('id-ID')}</TableCell>
+                        <TableCell className="font-medium">{entry.package_name}</TableCell>
+                        <TableCell>{formatPrice(entry.price)}</TableCell>
+                        <TableCell>{entry.duration_months} bulan</TableCell>
+                        <TableCell><Badge variant={entry.change_type === 'INITIAL' ? 'secondary' : 'info'}>{entry.change_type === 'INITIAL' ? 'Awal' : 'Diperbarui'}</Badge></TableCell>
+                        <TableCell className="max-w-xs truncate">{entry.change_reason || (entry.change_type === 'INITIAL' ? 'Snapshot awal' : '-')}</TableCell>
+                      </TableRow>
+                    ))}
+                    {packageHistory.length === 0 && (
+                      <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Belum ada riwayat paket.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
@@ -513,6 +636,40 @@ export default function AdminPOSPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPkgOpen(false)}>Batal</Button>
             <Button onClick={handleAddPackage} disabled={!newPkg.name}>Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editPkg} onOpenChange={(open) => !open && setEditPkg(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit Paket POS</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nama Paket</Label>
+              <Input value={editPkgForm.name} onChange={(e) => setEditPkgForm((p) => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Deskripsi</Label>
+              <Input value={editPkgForm.description} onChange={(e) => setEditPkgForm((p) => ({ ...p, description: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Durasi (bulan)</Label>
+                <Input type="number" min={1} value={editPkgForm.duration_months} onChange={(e) => setEditPkgForm((p) => ({ ...p, duration_months: Math.max(1, parseInt(e.target.value, 10) || 1) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Harga (Rp)</Label>
+                <Input type="number" min={0} value={editPkgForm.price} onChange={(e) => setEditPkgForm((p) => ({ ...p, price: Math.max(0, parseInt(e.target.value, 10) || 0) }))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Alasan perubahan</Label>
+              <Textarea value={editPkgForm.reason} onChange={(e) => setEditPkgForm((p) => ({ ...p, reason: e.target.value }))} placeholder="Contoh: Penyesuaian harga uji paket Starter" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPkg(null)}>Batal</Button>
+            <Button onClick={handleUpdatePackage} disabled={!editPkgForm.name.trim() || !editPkgForm.reason.trim()}>Simpan Perubahan</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

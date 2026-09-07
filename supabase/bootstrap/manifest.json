@@ -339,6 +339,14 @@
       ],
       "sha256": "pending",
       "bytes": 0
+    },
+    {
+      "file": "20_20260907060000_pos_subscription_history_export_audit.sql",
+      "source_files": [
+        "20_20260907060000_pos_subscription_history_export_audit.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
     }
   ]
 }
