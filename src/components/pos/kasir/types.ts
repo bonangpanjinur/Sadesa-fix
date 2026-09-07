@@ -151,13 +151,18 @@ export interface Product {
   is_active: boolean;
   pos_categories?: { name: string } | null;
   pos_stock?: { quantity: number; outlet_id?: string }[];
+  variants?: Variant[];
   category_id?: string | null;
 }
 
 export interface Variant {
   id: string;
+  product_id?: string;
   name: string;
   price: number | null;
   cost_price: number | null;
+  sku?: string | null;
+  barcode?: string | null;
+  stock_qty?: number;
   is_active: boolean;
 }

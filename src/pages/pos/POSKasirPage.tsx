@@ -24,6 +24,7 @@ import { usePOSCart } from '@/hooks/usePOSCart';
 import { usePOSPayment } from '@/hooks/usePOSPayment';
 import { usePOSHeldBills } from '@/hooks/usePOSHeldBills';
 import { usePOSReceipt } from '@/hooks/usePOSReceipt';
+import { clearCheckoutCheckpoint, saveCheckoutCheckpoint, type PendingSale } from '@/lib/posOfflineDB';
 import type {
   CartItem, HeldBill, Customer, LastSale, ReceiptStore, LoyaltyProgram,
   Promotion, Voucher, Product, Variant,
@@ -160,12 +161,20 @@ export default function POSKasirPage() {
   const fetchProducts = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     const { data, error } = await supabase.from('pos_products' as never)
-      .select('*, pos_categories(name), pos_stock(quantity, outlet_id)')
+      .select('*, pos_categories(name), pos_stock(quantity, outlet_id), pos_product_variants(id, product_id, name, sku, barcode, price, cost_price, is_active, pos_stock(quantity, outlet_id))')
       .eq('tenant_id', tenant.id).eq('is_active', true).order('name');
     if (!error && data) {
       const outletProducts = (data as unknown as Product[]).map((product) => ({
         ...product,
         pos_stock: (product.pos_stock || []).filter((stock) => !stock.outlet_id || stock.outlet_id === activeOutlet.id),
+        variants: (product as Product & { pos_product_variants?: Variant[] }).pos_product_variants
+          ?.filter((variant) => variant.is_active)
+          .map((variant) => ({
+            ...variant,
+            stock_qty: (variant as Variant & { pos_stock?: { quantity: number; outlet_id?: string }[] }).pos_stock
+              ?.filter((stock) => !stock.outlet_id || stock.outlet_id === activeOutlet.id)
+              .reduce((total, stock) => total + stock.quantity, 0),
+          })),
       }));
       setProducts(outletProducts);
     } else if (cachedProducts.length > 0) {
@@ -174,7 +183,8 @@ export default function POSKasirPage() {
         category_id: null,
         pos_categories: product.category_name ? { name: product.category_name } : null,
         pos_stock: product.stock_qty === undefined ? [] : [{ quantity: product.stock_qty }],
-        has_variants: false,
+        has_variants: product.has_variants ?? Boolean(product.variants?.length),
+        variants: product.variants,
         barcode: product.barcode,
       })) as Product[]);
     }
@@ -270,8 +280,13 @@ export default function POSKasirPage() {
   // ── Cart actions ─────────────────────────────────────────
   const addToCart = useCallback(async (product: Product, variantId?: string, variantName?: string, variantPrice?: number) => {
     if (product.has_variants && !variantId) {
-      const { data } = await supabase.from('pos_product_variants' as never).select('*').eq('product_id', product.id).eq('is_active', true);
-      setVariants((data || []) as unknown as Variant[]); setSelectedProduct(product); setVariantDialog(true); return;
+      if (product.variants?.length) {
+        setVariants(product.variants);
+      } else {
+        const { data } = await supabase.from('pos_product_variants' as never).select('*, pos_stock(quantity, outlet_id)').eq('product_id', product.id).eq('is_active', true);
+        setVariants((data || []) as unknown as Variant[]);
+      }
+      setSelectedProduct(product); setVariantDialog(true); return;
     }
     const price = variantPrice ?? product.price;
     addCartItem({
@@ -355,8 +370,57 @@ export default function POSKasirPage() {
       splitAmount1: Number(splitAmount1),
       splitAmount2: Number(splitAmount2),
     });
+    const offlineSale: Omit<PendingSale, 'synced'> = {
+      id: requestKey,
+      sale_number: `OFF-${requestKey.slice(0, 8).toUpperCase()}`,
+      outlet_id: activeOutlet.id,
+      tenant_id: tenant.id,
+      cashier_id: user.id,
+      items: cart.map(item => ({
+        product_id: item.productId,
+        variant_id: item.variantId || null,
+        name: item.name,
+        variant_name: item.variantName || null,
+        qty: item.qty,
+        price: item.price,
+        cost_price: item.costPrice,
+        discount: item.discount,
+        tax_rate: item.taxRate,
+      })),
+      subtotal,
+      discount_amount: discount + calculatedPromoDiscount + calculatedVoucherDiscount + pointsDiscount,
+      tax_amount: taxAmount,
+      total,
+      payment_method: storedPaymentMethod,
+      payment_amount: paymentAmountValue,
+      change_amount: effectiveMethod === 'cash' && !effectiveIsSplitPayment
+        ? Math.max(0, paymentAmountValue - total)
+        : 0,
+      promotion_id: appliedPromo?.id || null,
+      promotion_discount: calculatedPromoDiscount,
+      voucher_id: appliedVoucher?.id || null,
+      voucher_code: appliedVoucher?.code || null,
+      voucher_discount: calculatedVoucherDiscount,
+      loyalty_points_earned: pointsEarned,
+      loyalty_points_redeemed: usePoints && selectedCustomer ? pointsToRedeem : 0,
+      loyalty_discount: pointsDiscount,
+      customer_segment: selectedCustomer?.is_member ? 'member' : 'retail',
+      customer_id: selectedCustomer?.id || null,
+      customer_name: selectedCustomer?.name || customerName || null,
+      notes: notes || undefined,
+      created_at: createdAt,
+    };
 
     try {
+      // Durable before the RPC: a refresh, tab close, or power loss can
+      // recover this exact request key without creating a second sale.
+      await saveCheckoutCheckpoint({
+        id: requestKey,
+        tenant_id: tenant.id,
+        outlet_id: activeOutlet.id,
+        created_at: createdAt,
+        sale: offlineSale,
+      });
       const result = await processAtomicPOSSale(
         requestKey,
         tenant.id,
@@ -429,6 +493,9 @@ export default function POSKasirPage() {
         newPointsBalance: selectedCustomer ? Math.max(0, customerPoints - (usePoints ? pointsToRedeem : 0) + pointsEarned) : null,
       });
 
+      void clearCheckoutCheckpoint(requestKey).catch((checkpointError) => {
+        console.warn('[pos-offline] failed to clear completed checkout checkpoint:', checkpointError);
+      });
       paymentRequestKeyRef.current = null;
       clearCart(); setNotes(''); setSelectedCustomer(null); setCustomerName('');
       resetPayment(); setSuccessDialog(true); fetchProducts();
@@ -438,45 +505,10 @@ export default function POSKasirPage() {
       const browserOffline = typeof navigator !== 'undefined' && !navigator.onLine;
       if ((browserOffline || !isOnline) && storedPaymentMethod === 'cash') {
         try {
-          const offlineSaleNumber = `OFF-${requestKey.slice(0, 8).toUpperCase()}`;
-          await saveOfflineSale({
-            id: requestKey,
-            sale_number: offlineSaleNumber,
-            outlet_id: activeOutlet.id,
-            tenant_id: tenant.id,
-            cashier_id: user.id,
-            items: cart.map(item => ({
-              product_id: item.productId,
-              variant_id: item.variantId || null,
-              name: item.name,
-              variant_name: item.variantName || null,
-              qty: item.qty,
-              price: item.price,
-              cost_price: item.costPrice,
-              discount: item.discount,
-              tax_rate: item.taxRate,
-            })),
-            subtotal,
-            discount_amount: discount + calculatedPromoDiscount + calculatedVoucherDiscount + pointsDiscount,
-            tax_amount: taxAmount,
-            total,
-            payment_method: 'cash',
-            payment_amount: paymentAmountValue,
-            change_amount: Math.max(0, paymentAmountValue - total),
-            promotion_id: appliedPromo?.id || null,
-            promotion_discount: calculatedPromoDiscount,
-            voucher_id: appliedVoucher?.id || null,
-            voucher_code: appliedVoucher?.code || null,
-            voucher_discount: calculatedVoucherDiscount,
-            loyalty_points_earned: pointsEarned,
-            loyalty_points_redeemed: usePoints && selectedCustomer ? pointsToRedeem : 0,
-            loyalty_discount: pointsDiscount,
-            customer_segment: selectedCustomer?.is_member ? 'member' : 'retail',
-            customer_id: selectedCustomer?.id || null,
-            customer_name: selectedCustomer?.name || customerName || null,
-            notes: notes || undefined,
-            created_at: new Date().toISOString(),
-          });
+          const queuedSale = { ...offlineSale, payment_method: 'cash' };
+          await saveOfflineSale(queuedSale);
+          await clearCheckoutCheckpoint(requestKey);
+          const offlineSaleNumber = queuedSale.sale_number || `OFF-${requestKey.slice(0, 8).toUpperCase()}`;
           setLastSale({
             saleId: requestKey,
             saleNumber: offlineSaleNumber,

@@ -6,8 +6,10 @@
  * tenant's cached catalogue or pending sales.
  */
 
+import { getCheckoutRecoveryAction } from './posOfflineRecovery';
+
 const DB_NAME = 'desamart_pos_offline';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const MAX_SYNC_ATTEMPTS = 8;
 const CLAIM_LEASE_MS = 5 * 60_000;
 export const PRODUCT_CACHE_MAX_AGE_MS = 30 * 60_000;
@@ -15,6 +17,7 @@ const STORES = {
   PRODUCTS: 'pos_products',
   PENDING_SALES: 'pending_sales',
   SYNC_LOG: 'sync_log',
+  CHECKOUT_CHECKPOINTS: 'checkout_checkpoints',
 } as const;
 
 export interface OfflineProduct {
@@ -32,9 +35,23 @@ export interface OfflineProduct {
   is_stock_tracked: boolean;
   image_url: string | null;
   is_active: boolean;
+  has_variants?: boolean;
+  variants?: OfflineVariant[];
   category_name?: string;
   stock_qty?: number;
   cached_at: number;
+}
+
+export interface OfflineVariant {
+  id: string;
+  product_id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  price: number | null;
+  cost_price: number | null;
+  is_active: boolean;
+  stock_qty?: number;
 }
 
 export type PendingSaleStatus = 'queued' | 'syncing' | 'failed' | 'conflict' | 'synced';
@@ -84,6 +101,14 @@ export interface PendingSale {
   sync_error?: string;
   conflict_code?: string;
   conflict_message?: string;
+}
+
+export interface CheckoutCheckpoint {
+  id: string;
+  tenant_id: string;
+  outlet_id: string;
+  created_at: string;
+  sale: Omit<PendingSale, 'synced'>;
 }
 
 export interface SyncResult {
@@ -140,6 +165,17 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORES.SYNC_LOG)) {
         db.createObjectStore(STORES.SYNC_LOG, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains(STORES.CHECKOUT_CHECKPOINTS)) {
+        const checkpointStore = db.createObjectStore(STORES.CHECKOUT_CHECKPOINTS, { keyPath: 'id' });
+        checkpointStore.createIndex('scope', ['tenant_id', 'outlet_id'], { unique: false });
+        checkpointStore.createIndex('created_at', 'created_at', { unique: false });
+      } else if (oldVersion < 3) {
+        const upgradeTransaction = (event.target as IDBOpenDBRequest).transaction;
+        if (!upgradeTransaction) throw new Error('IndexedDB upgrade transaction unavailable');
+        const checkpointStore = upgradeTransaction.objectStore(STORES.CHECKOUT_CHECKPOINTS);
+        if (!checkpointStore.indexNames.contains('scope')) checkpointStore.createIndex('scope', ['tenant_id', 'outlet_id'], { unique: false });
+        if (!checkpointStore.indexNames.contains('created_at')) checkpointStore.createIndex('created_at', 'created_at', { unique: false });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -254,6 +290,58 @@ export async function savePendingSale(sale: Omit<PendingSale, 'synced'>): Promis
   const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
   tx.objectStore(STORES.PENDING_SALES).put(normaliseSale(sale));
   await waitForTransaction(tx);
+}
+
+/**
+ * Saves the checkout payload before the network RPC. If the browser is
+ * refreshed, closed, or loses power after the server commits but before the
+ * response reaches the browser, the same request key can safely be replayed.
+ */
+export async function saveCheckoutCheckpoint(checkpoint: CheckoutCheckpoint): Promise<void> {
+  if (!checkpoint.id || !checkpoint.tenant_id || !checkpoint.outlet_id) {
+    throw new Error('Checkout checkpoint requires id, tenant, and outlet scope');
+  }
+  if (checkpoint.sale.id !== checkpoint.id || checkpoint.sale.tenant_id !== checkpoint.tenant_id || checkpoint.sale.outlet_id !== checkpoint.outlet_id) {
+    throw new Error('Checkout checkpoint scope does not match its sale');
+  }
+  const db = await openDB();
+  const tx = db.transaction(STORES.CHECKOUT_CHECKPOINTS, 'readwrite');
+  tx.objectStore(STORES.CHECKOUT_CHECKPOINTS).put(checkpoint);
+  await waitForTransaction(tx);
+}
+
+export async function getCheckoutCheckpoints(tenantId: string, outletId: string): Promise<CheckoutCheckpoint[]> {
+  if (!tenantId || !outletId) throw new Error('Checkout checkpoint scope is required');
+  const db = await openDB();
+  const tx = db.transaction(STORES.CHECKOUT_CHECKPOINTS, 'readonly');
+  const request = tx.objectStore(STORES.CHECKOUT_CHECKPOINTS)
+    .index('scope')
+    .getAll(IDBKeyRange.only([tenantId, outletId]));
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve((request.result || []) as CheckoutCheckpoint[]);
+    request.onerror = () => reject(request.error || new Error('Failed to read checkout checkpoints'));
+  });
+}
+
+export async function clearCheckoutCheckpoint(id: string): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction(STORES.CHECKOUT_CHECKPOINTS, 'readwrite');
+  tx.objectStore(STORES.CHECKOUT_CHECKPOINTS).delete(id);
+  await waitForTransaction(tx);
+}
+
+/** Converts every durable pre-RPC checkpoint into the normal idempotent queue. */
+export async function recoverCheckoutCheckpoints(tenantId: string, outletId: string): Promise<number> {
+  const checkpoints = await getCheckoutCheckpoints(tenantId, outletId);
+  let recovered = 0;
+  for (const checkpoint of checkpoints) {
+    const action = getCheckoutRecoveryAction(checkpoint.sale);
+    if (action === 'ignore_synced' || action === 'manual_conflict') continue;
+    await savePendingSale(checkpoint.sale);
+    await clearCheckoutCheckpoint(checkpoint.id);
+    recovered++;
+  }
+  return recovered;
 }
 
 export async function getPendingSales(tenantId: string, outletId: string): Promise<PendingSale[]> {

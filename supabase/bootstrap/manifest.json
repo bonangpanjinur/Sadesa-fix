@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 198,
-  "bundle_count": 17,
+  "bundle_count": 23,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -360,6 +360,14 @@
       "file": "22_20260907080000_pos_catalog_identity_stale_projection.sql",
       "source_files": [
         "22_20260907080000_pos_catalog_identity_stale_projection.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
+    },
+    {
+      "file": "23_20260907100000_pos_variant_outlet_stock_contract.sql",
+      "source_files": [
+        "23_20260907100000_pos_variant_outlet_stock_contract.sql"
       ],
       "sha256": "pending",
       "bytes": 0

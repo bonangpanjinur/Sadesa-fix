@@ -3,10 +3,12 @@ import {
   replaceCachedProducts,
   getCachedProducts,
   savePendingSale,
+  recoverCheckoutCheckpoints,
   syncPendingSales,
   getOfflineQueueSummary,
   PRODUCT_CACHE_MAX_AGE_MS,
   type OfflineProduct,
+  type OfflineVariant,
   type PendingSale,
 } from '@/lib/posOfflineDB';
 import { processAtomicPOSSale } from '@/lib/posCheckout';
@@ -24,8 +26,20 @@ interface OfflineProductApiRow {
   is_stock_tracked: boolean | null;
   image_url: string | null;
   is_active: boolean | null;
+  has_variants: boolean | null;
   pos_categories?: { name: string } | null;
   pos_stock?: Array<{ quantity: number; outlet_id?: string | null }>;
+  pos_product_variants?: Array<{
+    id: string;
+    product_id: string;
+    name: string;
+    sku: string | null;
+    barcode: string | null;
+    price: number | null;
+    cost_price: number | null;
+    is_active: boolean;
+    pos_stock?: Array<{ quantity: number; outlet_id?: string | null }>;
+  }>;
 }
 
 interface UsePOSOfflineSyncOptions {
@@ -46,6 +60,8 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
   const [cachedProducts, setCachedProducts] = useState<OfflineProduct[]>([]);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [clock, setClock] = useState(() => Date.now());
+  const [recoveredCheckpointCount, setRecoveredCheckpointCount] = useState(0);
+  const [recoveryReady, setRecoveryReady] = useState(false);
   const syncInProgress = useRef(false);
 
   const loadCachedProducts = useCallback(async () => {
@@ -81,6 +97,31 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
   }, [loadCachedProducts, refreshQueueSummary]);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!tenantId || !outletId) {
+      setRecoveryReady(true);
+      setRecoveredCheckpointCount(0);
+      return () => { cancelled = true; };
+    }
+
+    setRecoveryReady(false);
+    void recoverCheckoutCheckpoints(tenantId, outletId)
+      .then((count) => {
+        if (!cancelled) {
+          setRecoveredCheckpointCount(count);
+          setRecoveryReady(true);
+          void refreshQueueSummary();
+        }
+      })
+      .catch((error) => {
+        console.warn('[pos-offline] failed to recover checkout checkpoint:', error);
+        if (!cancelled) setRecoveryReady(true);
+      });
+
+    return () => { cancelled = true; };
+  }, [tenantId, outletId, refreshQueueSummary]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => setClock(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
@@ -93,7 +134,7 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
       // POS catalogue does, and keep the result in IndexedDB for offline use.
       const { data, error } = await supabase
         .from('pos_products' as never)
-        .select('*, pos_categories(name), pos_stock(quantity, outlet_id)')
+        .select('*, pos_categories(name), pos_stock(quantity, outlet_id), pos_product_variants(id, product_id, name, sku, barcode, price, cost_price, is_active, pos_stock(quantity, outlet_id))')
         .eq('tenant_id', tenantId)
         .eq('is_active', true)
         .order('name');
@@ -119,6 +160,22 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
         is_stock_tracked: product.is_stock_tracked ?? false,
         image_url: product.image_url,
         is_active: product.is_active ?? true,
+        has_variants: product.has_variants ?? false,
+        variants: (product.pos_product_variants || [])
+          .filter((variant) => variant.is_active)
+          .map((variant): OfflineVariant => ({
+            id: variant.id,
+            product_id: variant.product_id,
+            name: variant.name,
+            sku: variant.sku,
+            barcode: variant.barcode,
+            price: variant.price,
+            cost_price: variant.cost_price,
+            is_active: variant.is_active,
+            stock_qty: variant.pos_stock
+              ?.filter((stock) => !stock.outlet_id || stock.outlet_id === outletId)
+              .reduce((total, stock) => total + stock.quantity, 0),
+          })),
         category_name: product.pos_categories?.name,
         stock_qty: product.pos_stock?.[0]?.quantity,
         cached_at: Date.now(),
@@ -178,7 +235,7 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
   }, [tenantId, outletId, refreshQueueSummary]);
 
   const triggerSync = useCallback(async () => {
-    if (!tenantId || !outletId || !isOnline || syncInProgress.current) return { synced: 0, failed: 0 };
+    if (!tenantId || !outletId || !isOnline || !recoveryReady || syncInProgress.current) return { synced: 0, failed: 0 };
     syncInProgress.current = true;
     setIsSyncing(true);
     try {
@@ -247,7 +304,7 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
       setIsSyncing(false);
       syncInProgress.current = false;
     }
-  }, [tenantId, outletId, isOnline, refreshQueueSummary]);
+  }, [tenantId, outletId, isOnline, recoveryReady, refreshQueueSummary]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -265,8 +322,8 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
   // The online event fires before React commits isOnline=true. Retrying from
   // this effect avoids calling a callback that still captured the offline state.
   useEffect(() => {
-    if (autoSyncOnReconnect && isOnline && tenantId && outletId) void triggerSync();
-  }, [autoSyncOnReconnect, isOnline, tenantId, outletId, triggerSync]);
+    if (autoSyncOnReconnect && isOnline && recoveryReady && tenantId && outletId) void triggerSync();
+  }, [autoSyncOnReconnect, isOnline, recoveryReady, tenantId, outletId, triggerSync]);
 
   useEffect(() => {
     if (!autoSyncOnReconnect || !isOnline || !tenantId || !outletId) return;
@@ -288,6 +345,7 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     cacheUpdatedAt: cacheUpdatedAt ? new Date(cacheUpdatedAt) : null,
     cacheAgeMs,
     isCacheStale,
+    recoveredCheckpointCount,
     refreshProductCache,
     saveOfflineSale,
     triggerSync,
