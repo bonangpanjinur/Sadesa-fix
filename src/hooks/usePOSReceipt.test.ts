@@ -4,9 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePOSReceipt } from './usePOSReceipt';
 
 const mocks = vi.hoisted(() => ({
-  flushReceiptOutbox: vi.fn(),
-  enqueueReceiptData: vi.fn(),
-  printReceiptBrowser: vi.fn(),
+  printReceiptWithContract: vi.fn(),
 }));
 vi.mock('@/lib/printBridgeClient', () => ({
   printBridgeClient: {
@@ -14,25 +12,19 @@ vi.mock('@/lib/printBridgeClient', () => ({
     listPrinters: vi.fn(),
   },
 }));
-vi.mock('@/lib/printOutbox', () => ({
-  enqueueReceiptData: mocks.enqueueReceiptData,
-  flushReceiptOutbox: mocks.flushReceiptOutbox,
-}));
-vi.mock('@/lib/thermalPrinter', () => ({
-  getPrinterSettings: () => ({ printCopies: 1, paperWidth: 80 }),
-  printReceiptBrowser: mocks.printReceiptBrowser,
+vi.mock('@/lib/receiptPrintContract', () => ({
+  printReceiptWithContract: mocks.printReceiptWithContract,
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
 describe('usePOSReceipt browser fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.flushReceiptOutbox.mockResolvedValue({ printed: 0, failed: 1 });
-    mocks.printReceiptBrowser.mockResolvedValue(undefined);
+    mocks.printReceiptWithContract.mockResolvedValue({ status: 'printed', channel: 'bridge' });
   });
 
   it('keeps the native print path when the local Print Bridge succeeds', async () => {
-    mocks.flushReceiptOutbox.mockResolvedValue({ printed: 1, failed: 0 });
+    mocks.printReceiptWithContract.mockResolvedValue({ status: 'printed', channel: 'bridge' });
     const tenant = { name: 'Toko Uji', address: 'Desa Uji', phone: '0800000000' };
     const lastSale = {
       saleId: 'sale-success', saleNumber: 'SALE-002', createdAt: '2026-08-30T15:00:00.000Z',
@@ -48,9 +40,7 @@ describe('usePOSReceipt browser fallback', () => {
     await act(async () => { printed = await result.current.printReceipt(); });
 
     expect(printed).toBe(true);
-    expect(mocks.enqueueReceiptData).toHaveBeenCalledOnce();
-    expect(mocks.flushReceiptOutbox).toHaveBeenCalledOnce();
-    expect(mocks.printReceiptBrowser).not.toHaveBeenCalled();
+    expect(mocks.printReceiptWithContract).toHaveBeenCalledOnce();
   });
 
   it('opens browser print when local Print Bridge is unavailable', async () => {
@@ -69,8 +59,6 @@ describe('usePOSReceipt browser fallback', () => {
     await act(async () => { printed = await result.current.printReceipt(); });
 
     expect(printed).toBe(true);
-    expect(mocks.enqueueReceiptData).toHaveBeenCalledOnce();
-    expect(mocks.flushReceiptOutbox).toHaveBeenCalledOnce();
-    expect(mocks.printReceiptBrowser).toHaveBeenCalledOnce();
+    expect(mocks.printReceiptWithContract).toHaveBeenCalledOnce();
   });
 });

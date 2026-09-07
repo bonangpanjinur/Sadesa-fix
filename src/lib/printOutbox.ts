@@ -74,3 +74,17 @@ export async function flushReceiptOutbox(filter?: (job: PrintJobEnvelope) => boo
 export function getPendingReceiptCount(): number {
   return readJobs().filter(job => job.status !== 'printed').length;
 }
+
+export function getReceiptJobStatus(jobId: string): StoredJob['status'] | null {
+  return readJobs().find(job => job.jobId === jobId)?.status || null;
+}
+
+export function markReceiptJobPrinted(jobId: string): boolean {
+  const jobs = readJobs();
+  const job = jobs.find(candidate => candidate.jobId === jobId);
+  if (!job) return false;
+  job.status = 'printed';
+  job.lastError = undefined;
+  writeJobs(jobs);
+  return true;
+}

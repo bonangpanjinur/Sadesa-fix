@@ -1,9 +1,8 @@
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import { printBridgeClient } from '@/lib/printBridgeClient';
-import { enqueueReceiptData, flushReceiptOutbox } from '@/lib/printOutbox';
 import { createPrintJob } from '@/lib/receiptDomain';
-import { getPrinterSettings, printReceiptBrowser } from '@/lib/thermalPrinter';
+import { printReceiptWithContract } from '@/lib/receiptPrintContract';
 import type { ReceiptStore, LastSale } from '@/components/pos/kasir/types';
 
 interface UsePOSReceiptArgs {
@@ -38,37 +37,16 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
   const printReceipt = useCallback(async () => {
     if (!lastSale || !tenant || !outletReady) return false;
     const receiptJob = createPrintJob({ store: tenant, sale: lastSale }, userEmail);
-    enqueueReceiptData(receiptJob.receipt);
-    try {
-      const result = await flushReceiptOutbox();
-      if (result.failed > 0) {
-        setThermalConnected(false);
-        if (getPrinterSettings().connectionType === 'usb') {
-          toast.error('Printer USB belum mencetak. Hubungkan printer dari Pengaturan Printer, lalu coba ulang antrean.');
-          return false;
-        }
-        await printReceiptBrowser(receiptJob.receipt);
-        toast.info('Print Bridge tidak tersedia. Struk dibuka melalui dialog print browser.');
-        return true;
-      }
-      setThermalConnected(true);
-      toast.success('Struk berhasil dikirim ke printer');
-      return true;
-    } catch (error: unknown) {
+    const result = await printReceiptWithContract(receiptJob.receipt);
+    if (result.status === 'queued') {
       setThermalConnected(false);
-      if (getPrinterSettings().connectionType === 'usb') {
-        toast.error(`Printer USB belum mencetak: ${error instanceof Error ? error.message : 'Hubungkan printer USB dari Pengaturan Printer.'}`);
-        return false;
-      }
-      try {
-        await printReceiptBrowser(receiptJob.receipt);
-        toast.info('Print Bridge tidak tersedia. Struk dibuka melalui dialog print browser.');
-        return true;
-      } catch (fallbackError: unknown) {
-        toast.error(`Struk disimpan, tetapi belum tercetak: ${fallbackError instanceof Error ? fallbackError.message : 'Aktifkan popup untuk mencetak'}`);
-        return false;
-      }
+      toast.error(result.error || 'Struk disimpan di antrean; printer belum siap.');
+      return false;
     }
+    setThermalConnected(result.channel !== 'browser');
+    if (result.channel === 'browser') toast.info('Printer lokal tidak tersedia. Struk dibuka melalui dialog print browser.');
+    else toast.success('Struk berhasil dikirim ke printer');
+    return true;
   }, [lastSale, tenant, outletReady, userEmail]);
 
   return { thermalConnected, thermalConnecting, connectThermalPrinter, printReceipt };

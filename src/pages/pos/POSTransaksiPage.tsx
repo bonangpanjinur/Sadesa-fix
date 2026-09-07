@@ -13,8 +13,8 @@ import { Search, Receipt, Eye, Download, Calendar, CreditCard, Banknote, QrCode,
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { enqueueReceiptData, flushReceiptOutbox } from '@/lib/printOutbox';
 import type { ReceiptData } from '@/lib/thermalPrinter';
+import { printReceiptWithContract } from '@/lib/receiptPrintContract';
 
 interface Sale {
   id: string;
@@ -158,9 +158,10 @@ export default function POSTransaksiPage() {
       changeAmount: selected.change_amount,
       paymentMethod: paymentLabel[selected.payment_method] || selected.payment_method,
     };
-    enqueueReceiptData(receipt);
-    const result = await flushReceiptOutbox();
-    if (result.failed > 0) throw new Error('Print Bridge atau printer belum siap; job disimpan di antrean.');
+    const result = await printReceiptWithContract(receipt);
+    if (result.status === 'queued') {
+      throw new Error(result.error || 'Printer belum siap; job disimpan di antrean.');
+    }
   };
 
   const filtered = sales.filter(s =>

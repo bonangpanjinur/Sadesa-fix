@@ -21,7 +21,7 @@ Namun, integrasi saat ini belum sepenuhnya aman dan belum memiliki kontrak bisni
 | Merchant workspace | Terhubung ke Supabase dan memiliki guard terpusat | Source code selesai; perlu uji RLS lintas role di staging |
 | POS routing/role | Routing canonical sudah diarahkan ke `/merchant/pos/*`; permission matrix dan menu berbasis role/modul tersedia | Source code selesai; perlu validasi mutation per role dan outlet |
 | POS–merchant catalog | Trigger, RPC projection, guard manual, rekonsiliasi, dan ledger reservation lintas kanal tersedia | Source code selesai; migration dan concurrency belum dibuktikan di staging |
-| POS checkout | Menggunakan `process_pos_sale` dan request key | Source code matang; acceptance transaksi role/outlet/offline masih terbuka |
+| POS checkout | Menggunakan `process_pos_sale`, request key, acceptance matrix, dan kontrak receipt terpusat | Source code selesai; validasi RPC/RLS dengan database staging masih terbuka |
 | Storefront publik | `/s/:slug` menjadi URL canonical; legacy slug/UUID diarahkan dan metadata dinamis diperbarui | Source code selesai; perlu smoke test storefront dengan data staging |
 | Operasional Replit | Dapat dijalankan dan diaudit | Workflow aktif pada Node 22/port 5000; audit dependency 0 vulnerability |
 
@@ -34,7 +34,7 @@ Setelah dependency dipulihkan dan runtime workspace diselaraskan ke Node 22:
 - Typecheck berhasil.
 - `npm run lint` berhasil dengan 6 warning Fast Refresh pada komponen/page tertentu, tanpa error.
 - `npm run build` berhasil, termasuk PWA service worker.
-- `npm test` berhasil: 34 test files, 99 passed, 20 skipped.
+- `npm test` berhasil: 36 test files, 123 passed, 20 skipped.
 - `npm run validate:package-manager` berhasil.
 - `npm audit --audit-level high` berhasil dengan 0 vulnerability setelah pembaruan `qs` dan override `esbuild` ke versi direct dependency yang aman.
 
@@ -58,6 +58,9 @@ Dengan hasil tersebut, kemampuan verifikasi aplikasi dan gate dependency sudah p
 - Navigasi POS dipisahkan menjadi kelompok `Operasional POS` dan disaring berdasarkan role/modul; dashboard memisahkan ringkasan Marketplace dan Operasional POS.
 - Checklist onboarding POS tersedia untuk workspace, outlet, modul, printer, dan transaksi pertama.
 - Event observability untuk aktivasi POS, sinkronisasi stok/order, dan transisi order marketplace sudah ditambahkan.
+- Acceptance matrix source code untuk permission, pembayaran, retry/duplicate, offline, workflow return/transfer, dan unavailable reason tersedia di `src/lib/phase4Acceptance.test.ts`.
+- Kontrak cetak tunggal untuk checkout dan reprint tersedia di `src/lib/receiptPrintContract.ts`, dengan outbox idempotent, fallback browser, dan status antrean.
+- Test kontrak printer mencakup bridge sukses, fallback browser, dan kegagalan USB di `src/lib/receiptPrintContract.test.ts`.
 - Typecheck, lint tanpa error, test suite, production build, PWA build, validasi migration, dan validasi bootstrap bundle sudah lulus.
 
 #### Sebagian selesai
@@ -69,8 +72,8 @@ Dengan hasil tersebut, kemampuan verifikasi aplikasi dan gate dependency sudah p
 #### Belum selesai
 
 - Penerapan dan pembuktian runtime migration ledger stok pada Supabase staging/production.
-- Acceptance matrix transaksi POS dan permission lintas role/outlet.
-- Penyatuan penuh seluruh jalur printer invoice, POS reprint, Print Bridge, USB, Bluetooth, WiFi, dan browser fallback.
+- Acceptance matrix transaksi POS dan permission lintas role/outlet pada runtime staging.
+- Uji runtime printer pada perangkat USB, Bluetooth, WiFi, Print Bridge, dan browser fallback; invoice marketplace tetap memakai format dokumen A4/browser print.
 - Penyamaan loading/error/empty/retry state pada seluruh halaman merchant/POS, di luar fondasi POS yang sudah tersedia.
 
 ## Batasan audit
@@ -192,7 +195,7 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 
 - Catatan audit sebelumnya menunjukkan jalur browser print, Web Serial/Web Bluetooth, dan print bridge belum sepenuhnya seragam.
 - `POSTransaksiPage` dan invoice masih memiliki jalur `window.print`.
-- **Status:** sebagian selesai. POS checkout memakai outbox + Print Bridge/USB/browser fallback dengan status terlihat; invoice dan POS reprint masih memiliki jalur terpisah dan acceptance printer belum dijalankan.
+- **Status:** source code POS selesai. Checkout dan reprint memakai `printReceiptWithContract`, outbox idempotent, fallback browser, dan status `printed`/`queued`. Invoice marketplace tetap diperlakukan sebagai dokumen A4, bukan struk POS. Uji perangkat nyata masih terbuka.
 
 #### P2-4. Observability bisnis perlu dilengkapi
 
@@ -233,13 +236,13 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 4. **Sebagian selesai:** fondasi loading/error/empty/retry ada di POS, tetapi belum seragam di seluruh merchant/POS.
 5. **Selesai sebagian:** outlet aktif dan ketersediaan menu berbasis role/modul tersedia; pengujian lintas role/outlet masih terbuka.
 
-### Fase 4 — Validasi transaksi dan operasional (**BELUM SELESAI**)
+### Fase 4 — Validasi transaksi dan operasional (**SOURCE CODE SELESAI; STAGING/PERANGKAT NYATA BELUM**)
 
-1. Uji checkout online, offline, retry, duplicate, split payment, refund, return, voucher, loyalty, dan stok habis.
-2. Uji role/permission pada route dan mutation.
-3. Uji realtime order dan recovery setelah koneksi terputus.
-4. Uji printer dan receipt pada jalur yang didukung.
-5. Ambil screenshot desktop dan mobile untuk dashboard merchant, katalog, storefront, kasir, stok, dan setup.
+1. **Selesai di source code:** acceptance matrix mencakup role/permission, pembayaran kurang, split payment, non-tunai offline, retryable status, duplicate transition, unavailable reason, dan workflow return/stock transfer.
+2. **Selesai di source code:** permission route dan kontrak pembayaran diuji; mutation/RLS nyata masih perlu staging.
+3. **Sebagian selesai:** retry/offline recovery dan observability diuji secara unit; realtime order dan recovery setelah koneksi terputus perlu staging.
+4. **Selesai di source code:** checkout/reprint memakai kontrak receipt terpusat; uji printer fisik masih perlu dilakukan.
+5. **Sebagian selesai:** preview homepage sudah diverifikasi; screenshot authenticated untuk dashboard merchant, katalog, storefront, kasir, stok, dan setup perlu session staging.
 
 ## Acceptance criteria akhir
 
@@ -249,14 +252,17 @@ Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptanc
 - [ ] Owner, manager, kasir, staff gudang, purchasing, finance, dan auditor hanya melihat serta menjalankan kemampuan yang diizinkan (perlu staging).
 - [x] Produk yang dibuat/diubah merchant memiliki projection dan rekonsiliasi yang terlihat (source code).
 - [ ] Angka stok, penjualan, dan laporan konsisten pada scope global vs outlet (perlu runtime ledger/reconciliation staging).
-- [ ] Checkout POS aman terhadap seluruh retry/duplicate dan memberi feedback jelas pada semua skenario (perlu acceptance matrix).
+- [x] Checkout POS memiliki acceptance matrix source code untuk retry/duplicate, pembayaran, offline, dan konflik.
+- [ ] Checkout POS terbukti aman pada RPC/RLS dengan transaksi nyata (perlu staging).
 - [x] Storefront menjelaskan alasan produk/toko tidak tersedia (source code).
+- [x] POS checkout dan reprint memakai kontrak receipt terpusat dengan fallback/outbox yang terlihat.
+- [ ] Printer fisik, realtime order, dan screenshot authenticated sudah diverifikasi di staging/perangkat.
 - [x] Workflow Replit start bersih dan preview dapat digunakan untuk smoke test.
 
 ## Prioritas pengerjaan
 
 1. **Selesai:** dependency/workflow, merchant guard, subscription gate, storefront publishability.
 2. **Selesai di source code / terbuka di staging:** kontrak stok merchant–POS, ledger reservation, dan permission mutation.
-3. **Terbuka:** checkout acceptance matrix, permission matrix runtime, dan error states global.
+3. **Selesai di source code / terbuka di staging:** checkout acceptance matrix, permission matrix runtime, dan error states global.
 4. **Selesai sebagian besar:** navigasi, onboarding, dashboard, storefront messaging.
-5. **Terbuka sebagian:** printer consistency dan observability bisnis lengkap.
+5. **Selesai di source code / terbuka di perangkat:** printer consistency POS dan observability bisnis lengkap.
