@@ -16,6 +16,7 @@ import {
   getRecommendedPOSModules,
   type POSBusinessType,
 } from '@/lib/posModuleRecommendations';
+import { reportObservability } from '@/lib/observability';
 
 type DatabaseError = {
   code?: string;
@@ -77,6 +78,11 @@ export default function POSSetupPage() {
     if (!outletData.name.trim()) { toast.error('Nama outlet wajib diisi'); return; }
 
     setLoading(true);
+    const startedAt = Date.now();
+    reportObservability('navigation', 'pos_activation_started', 'info', {
+      businessType,
+      moduleCount: selectedModules.length,
+    });
     try {
       const { error } = await supabase.rpc('activate_merchant_pos_workspace' as never, {
         p_name: tenantData.name,
@@ -92,11 +98,20 @@ export default function POSSetupPage() {
       } as never);
       if (error) throw error;
 
+      reportObservability('navigation', 'pos_activation_succeeded', 'info', {
+        businessType,
+        moduleCount: selectedModules.length,
+      }, undefined, { durationMs: Date.now() - startedAt });
       toast.success('Kasir berhasil diaktifkan di workspace merchant Anda.');
       navigate('/merchant', { replace: true });
       window.location.reload();
     } catch (err: unknown) {
       const message = getDatabaseErrorMessage(err);
+      reportObservability('navigation', 'pos_activation_failed', 'error', {
+        businessType,
+        moduleCount: selectedModules.length,
+        errorCode: (err as DatabaseError)?.code || null,
+      }, err, { durationMs: Date.now() - startedAt });
       if (message.includes('active POS trial or subscription')) {
         toast.error('POS belum bisa diaktifkan. Ajukan trial atau langganan terlebih dahulu, lalu tunggu entitlement aktif.');
       } else if (message.includes('approved and active merchant profile')) {

@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 198,
-  "bundle_count": 13,
+  "bundle_count": 17,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -291,6 +291,38 @@
       ],
       "sha256": "pending",
       "bytes": 0
+    },
+    {
+      "file": "14_20260907000000_pos_activation_entitlement_gate.sql",
+      "source_files": [
+        "14_20260907000000_pos_activation_entitlement_gate.sql"
+      ],
+      "sha256": "fe8630e5d2a71fb69b7eeff14de5b97d03977f6a9bc1b9dc5919858bd9bdaa9b",
+      "bytes": 4117
+    },
+    {
+      "file": "15_20260907010000_pos_marketplace_stock_projection.sql",
+      "source_files": [
+        "15_20260907010000_pos_marketplace_stock_projection.sql"
+      ],
+      "sha256": "8ac760ab66a60398712b351bff723234bb02b3a73cf7408b52669cb3dcfc200e",
+      "bytes": 5367
+    },
+    {
+      "file": "16_20260907020000_pos_marketplace_stock_guard.sql",
+      "source_files": [
+        "16_20260907020000_pos_marketplace_stock_guard.sql"
+      ],
+      "sha256": "0fb6a1443e643fa95eb948f681e9df51d500c4af81ccacce893e2ed53f7b00cc",
+      "bytes": 1274
+    },
+    {
+      "file": "17_20260907030000_marketplace_pos_stock_ledger.sql",
+      "source_files": [
+        "17_20260907030000_marketplace_pos_stock_ledger.sql"
+      ],
+      "sha256": "f08b66f41932f0b086620f1ebf3712dba0df57bd89b044f089f065eb36647d23",
+      "bytes": 13413
     }
   ]
 }

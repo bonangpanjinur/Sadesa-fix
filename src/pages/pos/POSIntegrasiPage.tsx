@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { reportObservability } from '@/lib/observability';
 
 interface IntegrationSettings {
   id: string;
@@ -231,6 +232,11 @@ export default function POSIntegrasiPage() {
     if (!tenant) return;
     setSyncing(true);
     toast.info(`Memulai ${SYNC_TYPES[type] || type}...`);
+    const startedAt = Date.now();
+    reportObservability('inventory', 'pos_sync_started', 'info', {
+      tenantId: tenant.id,
+      syncType: type,
+    });
 
     // Catat log sinkronisasi
     const startTime = new Date().toISOString();
@@ -299,7 +305,18 @@ export default function POSIntegrasiPage() {
       });
 
       toast.success(`${SYNC_TYPES[type] || type} selesai: ${success} berhasil, ${failed} gagal`);
+      reportObservability('inventory', 'pos_sync_succeeded', failed > 0 ? 'warn' : 'info', {
+        tenantId: tenant.id,
+        syncType: type,
+        processed,
+        success,
+        failed,
+      }, undefined, { durationMs: Date.now() - startedAt });
     } catch (error) {
+      reportObservability('inventory', 'pos_sync_failed', 'error', {
+        tenantId: tenant.id,
+        syncType: type,
+      }, error, { durationMs: Date.now() - startedAt });
       toast.error(error instanceof Error ? error.message : `Gagal menjalankan ${SYNC_TYPES[type] || type}`);
     } finally {
       setSyncing(false);
@@ -327,9 +344,25 @@ export default function POSIntegrasiPage() {
   };
 
   const processOrder = async (order: MarketplaceOrder) => {
-    await supabase.from('pos_marketplace_orders' as never)
+    const { error } = await supabase.from('pos_marketplace_orders' as never)
       .update({ status: 'processed', processed_at: new Date().toISOString() })
       .eq('id', order.id);
+    if (error) {
+      reportObservability('inventory', 'marketplace_order_transition_failed', 'error', {
+        tenantId: tenant?.id || null,
+        orderId: order.id,
+        fromStatus: order.status,
+        toStatus: 'processed',
+      }, error);
+      toast.error('Order belum dapat ditandai diproses');
+      return;
+    }
+    reportObservability('inventory', 'marketplace_order_transition_succeeded', 'info', {
+      tenantId: tenant?.id || null,
+      orderId: order.id,
+      fromStatus: order.status,
+      toStatus: 'processed',
+    });
     toast.success('Order ditandai diproses');
     fetchAll();
   };

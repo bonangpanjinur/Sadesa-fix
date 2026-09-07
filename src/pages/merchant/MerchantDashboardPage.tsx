@@ -44,6 +44,7 @@ import { toast } from 'sonner';
 import { cn, formatPrice } from '@/lib/utils';
 import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
 import { usePOS } from '@/contexts/POSContext';
+import { POSOnboardingChecklist } from '@/components/pos/POSOnboardingChecklist';
 
 interface MerchantData {
   id: string;
@@ -67,7 +68,7 @@ interface OrderData {
 export default function MerchantDashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { posEnabled, loading: posLoading } = usePOS();
+  const { posEnabled, loading: posLoading, tenant, outlets, activeOutlet } = usePOS();
   const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -284,6 +285,69 @@ export default function MerchantDashboardPage() {
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Button>
           </section>
+        )}
+
+        {!posLoading && posEnabled && tenant && (
+          <>
+          <section className="grid gap-4 lg:grid-cols-2" data-testid="merchant-workspace-summary">
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Store className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Marketplace</p>
+                    <h3 className="mt-1 text-base font-semibold">Toko online</h3>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate('/merchant/products')}>
+                  Kelola katalog <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                Atur produk, pesanan online, kuota, dan visibilitas storefront dari workspace merchant.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-muted px-3 py-1.5">Pesanan pending: {pendingOrders.length}</span>
+                <span className="rounded-full bg-muted px-3 py-1.5">Stok kritis tersedia di menu katalog</span>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm sm:p-6 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-300">
+                    <Receipt className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-300/80">Operasional POS</p>
+                    <h3 className="mt-1 text-base font-semibold">{tenant.name}</h3>
+                  </div>
+                </div>
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('/merchant/pos/kasir')}>
+                  Buka kasir <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                Outlet aktif <span className="font-medium text-foreground">{activeOutlet?.name || 'belum dipilih'}</span>. Gunakan POS untuk penjualan fisik dan stok outlet.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-background/70 px-3 py-1.5">{outlets.length} outlet aktif</span>
+                <span className="rounded-full bg-background/70 px-3 py-1.5">Modul {tenant.enabled_modules.length} aktif</span>
+                <Button variant="link" size="sm" className="h-auto p-0 text-xs text-emerald-700 dark:text-emerald-300" onClick={() => navigate('/merchant/pos/integrasi')}>
+                  Rekonsiliasi stok
+                </Button>
+              </div>
+            </div>
+          </section>
+          <POSOnboardingChecklist
+            tenantId={tenant.id}
+            tenantName={tenant.name}
+            outletCount={outlets.length}
+            activeOutletName={activeOutlet?.name}
+            enabledModuleCount={tenant.enabled_modules.length}
+          />
+          </>
         )}
 
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">

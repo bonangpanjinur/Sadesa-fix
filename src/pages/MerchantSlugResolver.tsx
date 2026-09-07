@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import MerchantProfilePage from './MerchantProfilePage';
 import { ArrowLeft, StoreIcon } from 'lucide-react';
@@ -10,6 +10,8 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 export default function MerchantSlugResolver() {
   const { slugOrId, slug } = useParams();
   const param = slugOrId || slug;
+  const location = useLocation();
+  const navigate = useNavigate();
   const [merchantId, setMerchantId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -24,7 +26,7 @@ export default function MerchantSlugResolver() {
 
         const query = supabase
           .from('merchants')
-          .select('id, status, registration_status');
+          .select('id, slug, status, registration_status');
         const { data, error } = isUuid
           ? await query.eq('id', param).maybeSingle()
           : await query.eq('slug', param.toLowerCase()).maybeSingle();
@@ -34,6 +36,11 @@ export default function MerchantSlugResolver() {
         if (data) {
           setMerchantId(data.id);
           setMerchantStatus({ status: data.status, registration_status: data.registration_status });
+          // `/s/:slug` is the single public storefront URL. Keep old slug/UUID
+          // links readable, but never let them become a second canonical page.
+          if (location.pathname.startsWith('/merchant/')) {
+            navigate(`/s/${encodeURIComponent(data.slug || data.id)}`, { replace: true });
+          }
         } else {
           setNotFound(true);
         }
@@ -46,7 +53,7 @@ export default function MerchantSlugResolver() {
     }
 
     resolve();
-  }, [param]);
+  }, [location.pathname, navigate, param]);
 
   if (loading) {
     return (

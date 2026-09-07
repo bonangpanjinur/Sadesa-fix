@@ -121,11 +121,42 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
             villages(name)
           `)
           .eq('id', id)
+           .eq('registration_status', 'APPROVED')
+           .eq('status', 'ACTIVE')
           .maybeSingle();
 
         if (merchantError) throw merchantError;
         if (!merchantData) { navigate('/shops'); return; }
         setMerchant(merchantData);
+
+         const canonicalPath = `/s/${encodeURIComponent(merchantData.slug || merchantData.id)}`;
+         const canonicalUrl = `${window.location.origin}${canonicalPath}`;
+         document.title = `${merchantData.name} · SaDesa`;
+         const updateMeta = (name: string, content: string, property = false) => {
+           const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
+           let element = document.head.querySelector<HTMLMetaElement>(selector);
+           if (!element) {
+             element = document.createElement('meta');
+             element.setAttribute(property ? 'property' : 'name', name);
+             document.head.appendChild(element);
+           }
+           element.content = content;
+         };
+         const description = merchantData.business_description
+           || `Lihat produk dan informasi ${merchantData.name} di SaDesa.`;
+         updateMeta('description', description);
+         updateMeta('og:title', merchantData.name, true);
+         updateMeta('og:description', description, true);
+         updateMeta('og:url', canonicalUrl, true);
+         updateMeta('twitter:title', merchantData.name);
+         updateMeta('twitter:description', description);
+         let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+         if (!canonical) {
+           canonical = document.createElement('link');
+           canonical.rel = 'canonical';
+           document.head.appendChild(canonical);
+         }
+         canonical.href = canonicalUrl;
 
         trackPageView({ merchantId: id, pageType: 'store' });
 

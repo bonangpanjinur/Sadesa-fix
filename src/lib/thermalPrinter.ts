@@ -468,13 +468,19 @@ export async function printReceiptBrowser(receipt: ReceiptData): Promise<void> {
   lines.push(c(receipt.receiptFooter || "Terima kasih sudah berbelanja!"));
 
   const content = lines.join("\n");
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
   const win = window.open("", "_blank", "width=400,height=600");
   if (!win) { alert("Aktifkan popup untuk mencetak struk."); return; }
   win.document.write(`<html><head><title>Struk</title>
     <style>body{font-family:'Courier New',monospace;font-size:12px;margin:0;padding:8px}
     pre{white-space:pre-wrap;word-wrap:break-word}
     @media print{@page{margin:2mm;size:80mm auto}}</style></head>
-    <body><pre>${content}</pre>
+    <body><pre>${escapeHtml(content)}</pre>
     <script>window.onload=()=>{window.print();window.close();}${'<'}/script></body></html>`);
   win.document.close();
 }

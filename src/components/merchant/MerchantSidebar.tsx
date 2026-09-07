@@ -203,26 +203,10 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       && isPOSModuleEnabled(tenant?.enabled_modules, item.moduleId)),
   })).filter((category) => posEnabled && category.items.length > 0), [posEnabled, roles, posRole, tenant?.enabled_modules]);
 
-  const integratedGroups = useMemo(() => {
-    const additions = new Map<string, SidebarItem[]>();
-    for (const category of visiblePOSCategories) {
-      const groupId = POS_GROUP_BY_CATEGORY[category.id];
-      if (!groupId) continue;
-      const items = additions.get(groupId) || [];
-      items.push(...category.items.map((item) => ({ label: item.label, href: item.href, icon: item.icon })));
-      additions.set(groupId, items);
-    }
-
-    return groups.map((group) => ({
-      ...group,
-      items: [...group.items, ...(additions.get(group.id) || [])],
-    }));
-  }, [groups, visiblePOSCategories]);
-
-  const activeMerchantGroupId = integratedGroups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
+  const activeMerchantGroupId = groups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const showDashboard = !normalizedSearch || 'dashboard'.includes(normalizedSearch);
-  const visibleGroups = integratedGroups
+  const visibleGroups = groups
     .map((group) => ({
       ...group,
       items: normalizedSearch
@@ -230,7 +214,15 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         : group.items,
     }))
     .filter((group) => group.items.length > 0);
-  const hasVisibleMenu = showDashboard || visibleGroups.length > 0;
+  const visiblePOSCategoriesForSearch = visiblePOSCategories
+    .map((category) => ({
+      ...category,
+      items: normalizedSearch
+        ? category.items.filter((item) => item.label.toLowerCase().includes(normalizedSearch))
+        : category.items,
+    }))
+    .filter((category) => category.items.length > 0);
+  const hasVisibleMenu = showDashboard || visibleGroups.length > 0 || visiblePOSCategoriesForSearch.length > 0;
 
   useEffect(() => {
     if (activeMerchantGroupId) {
@@ -370,6 +362,37 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
               </section>
             );
           })}
+          {visiblePOSCategoriesForSearch.length > 0 && (
+            <div className="mt-5 border-t border-sidebar-border pt-4">
+              <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Operasional POS</p>
+              {visiblePOSCategoriesForSearch.map((category) => {
+                const groupId = `pos:${category.id}`;
+                const open = normalizedSearch.length > 0 || openGroupId === groupId;
+                const active = category.items.some((item) => isItemActive(location.pathname, item.href));
+                return (
+                  <section key={category.id} aria-label={category.label}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      aria-expanded={open}
+                      onClick={() => toggleMerchantGroup(groupId)}
+                      className={cn(
+                        'h-10 w-full justify-between rounded-none border-l-2 px-4 font-body text-sm',
+                        active ? 'border-sidebar-primary text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
+                      )}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className={cn('shrink-0 text-muted-foreground', active && 'text-sidebar-primary')}>{category.icon}</span>
+                        <span className="truncate">{category.label}</span>
+                      </span>
+                      <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
+                    </Button>
+                    {open && <div className="pb-1">{category.items.map((item) => renderItem({ label: item.label, href: item.href, icon: item.icon, badge: item.badge }, true))}</div>}
+                  </section>
+                );
+              })}
+            </div>
+          )}
           {!hasVisibleMenu && (
              <p className="px-5 py-8 text-center text-xs text-muted-foreground">Menu tidak ditemukan.</p>
           )}
