@@ -18,6 +18,7 @@ import { Plus, Search, Pencil, Package, X, Download, Printer } from 'lucide-reac
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { POSErrorState } from '@/components/pos/POSPageStates';
+import { findCatalogIdentityConflicts, formatCatalogIdentityConflict } from '@/lib/posCatalogIdentity';
 
 interface ProductPayload { name: string; sku: string | null; barcode: string | null; category_id: string | null; brand_id: string | null; unit: string; price: number; cost_price: number; tax_rate: number; description: string | null; is_stock_tracked: boolean; has_variants: boolean; is_active: boolean; tenant_id: string; }
 interface VariantRow { id: string; name: string; sku: string | null; barcode: string | null; price: number | null; cost_price: number | null; is_active: boolean; }
@@ -140,10 +141,47 @@ export default function POSProdukPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!tenant) return;
+      const identityProducts = products.map((product) => ({
+        id: product.id,
+        sku: product.sku,
+        barcode: product.barcode,
+      }));
+      const { data: existingVariants, error: variantsError } = await supabase
+        .from('pos_product_variants' as never)
+        .select('id, product_id, sku, barcode')
+        .eq('tenant_id', tenant.id);
+      if (variantsError) throw variantsError;
+
+      const identityConflicts = findCatalogIdentityConflicts({
+        product: {
+          id: editing?.id,
+          sku: form.sku,
+          barcode: form.barcode,
+        },
+        variants: form.has_variants
+          ? variants.map((variant) => ({
+            id: variant.id,
+            product_id: editing?.id,
+            sku: variant.sku,
+            barcode: variant.barcode,
+          }))
+          : [],
+        existingProducts: identityProducts,
+        existingVariants: (existingVariants || []) as unknown as Array<{
+          id: string;
+          product_id: string;
+          sku: string | null;
+          barcode: string | null;
+        }>,
+      });
+      if (identityConflicts.length > 0) {
+        throw new Error(formatCatalogIdentityConflict(identityConflicts[0]));
+      }
+
       const payload: ProductPayload = {
         name: form.name.trim(),
-        sku: form.sku || null,
-        barcode: form.barcode || null,
+         sku: form.sku.trim() || null,
+         barcode: form.barcode.trim() || null,
         category_id: form.category_id || null,
         brand_id: form.brand_id || null,
         unit: form.unit,
@@ -200,8 +238,8 @@ export default function POSProdukPage() {
         for (const v of variants) {
           if (!v.name.trim()) continue;
           const vPayload = {
-            product_id: productId, tenant_id: tenant.id, name: v.name,
-            sku: v.sku || null, barcode: v.barcode || null,
+            product_id: productId, tenant_id: tenant.id, name: v.name.trim(),
+            sku: v.sku.trim() || null, barcode: v.barcode.trim() || null,
             price: v.price !== '' ? Number(v.price) : null,
             cost_price: v.cost_price !== '' ? Number(v.cost_price) : null,
             is_active: v.is_active,
@@ -304,6 +342,18 @@ export default function POSProdukPage() {
   const handleSave = () => {
     if (!form.name.trim()) { toast.error('Nama produk wajib diisi'); return; }
     if (!form.price || isNaN(Number(form.price))) { toast.error('Harga jual wajib diisi'); return; }
+    const identityFields = [
+      { label: 'SKU', value: form.sku },
+      { label: 'barcode', value: form.barcode },
+      ...variants.flatMap((variant, index) => [
+        { label: `SKU varian ${index + 1}`, value: variant.sku },
+        { label: `barcode varian ${index + 1}`, value: variant.barcode },
+      ]),
+    ];
+    if (identityFields.some(({ value }) => value.length > 100)) {
+      toast.error('SKU dan barcode maksimal 100 karakter');
+      return;
+    }
     saveMutation.mutate();
   };
 
