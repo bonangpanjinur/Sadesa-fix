@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchPOSCanonicalReport } from '@/lib/posCanonicalReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,9 +19,8 @@ import {
   DollarSign, ShoppingCart, Package, AlertCircle, RefreshCw, FileDown
 } from 'lucide-react';
 import {
-  format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek,
-  startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval,
-  parseISO, eachMonthOfInterval
+  format, startOfDay, endOfDay, startOfWeek, endOfWeek,
+  startOfMonth, endOfMonth, startOfYear, endOfYear, parseISO
 } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -38,12 +37,6 @@ interface PLData {
   topProducts: { name: string; qty: number; revenue: number; hpp: number; profit: number }[];
   biayaRincian: { category: string; amount: number }[];
 }
-
-interface PLSaleItem { product_name?: string | null; qty: number; price: number; subtotal: number; cost_price: number; }
-interface PLSale { id: string; total: number; discount_amount: number | null; created_at: string; pos_sale_items?: PLSaleItem[]; }
-interface PLReturn { total_refund: number; }
-interface PLMutation { type: string; category: string | null; amount: number; }
-interface PLProductAggregate { name: string; qty: number; revenue: number; hpp: number; }
 
 const PERIOD_OPTIONS = [
   { value: 'today', label: 'Hari Ini' },
@@ -89,95 +82,43 @@ export default function POSLaporanLabaRugiPage() {
     const { start, end } = getRange();
 
     try {
-      const [salesRes, returRes, mutRes] = await Promise.all([
-        supabase.from('pos_sales' as never)
-          .select('id, total, discount_amount, created_at, pos_sale_items(qty, price, subtotal, cost_price)')
-          .eq('tenant_id', tenant.id)
-          .eq('outlet_id', activeOutlet.id)
-          .eq('status', 'completed')
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString())
-          .order('created_at'),
-        supabase.from('pos_sale_returns' as never)
-          .select('total_refund')
-          .eq('tenant_id', tenant.id)
-          .eq('outlet_id', activeOutlet.id)
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString()),
-        supabase.from('pos_cash_mutations' as never)
-          .select('type, category, amount')
-          .eq('tenant_id', tenant.id)
-          .eq('outlet_id', activeOutlet.id)
-          .eq('type', 'out')
-          .gte('created_at', start.toISOString())
-          .lte('created_at', end.toISOString()),
-      ]);
-
-      const sales = (salesRes.data || []) as unknown as PLSale[];
-      const returns = (returRes.data || []) as unknown as PLReturn[];
-      const mutations = (mutRes.data || []) as unknown as PLMutation[];
-
-      const omzet = sales.reduce((s: number, r) => s + Number(r.total), 0);
-      const totalDiskon = sales.reduce((s: number, r) => s + Number(r.discount_amount || 0), 0);
-      const totalRetur = returns.reduce((s: number, r) => s + Number(r.total_refund), 0);
-
-      let hpp = 0;
-      const productMap: Record<string, PLProductAggregate> = {};
-      sales.forEach((sale) => {
-        (sale.pos_sale_items || []).forEach((item) => {
-          const cp = Number(item.cost_price || 0);
-          const qty = Number(item.qty || 0);
-          const subtotal = Number(item.subtotal || 0);
-          hpp += cp * qty;
-
-          const key = item.product_name || 'Produk Tidak Diketahui';
-          if (!productMap[key]) productMap[key] = { name: key, qty: 0, revenue: 0, hpp: 0 };
-          productMap[key].qty += qty;
-          productMap[key].revenue += subtotal;
-          productMap[key].hpp += cp * qty;
-        });
+      const report = await fetchPOSCanonicalReport({
+        tenantId: tenant.id,
+        outletId: activeOutlet.id,
+        from: start,
+        to: end,
       });
-
+      const omzet = report.sales.net_revenue;
+      const totalDiskon = report.sales.discounts;
+      const totalRetur = report.returns.total_refund;
+      const hpp = report.costs.cogs;
+      const expenseCategories = report.cash_mutations.by_category.filter(
+        (mutation) => mutation.type === 'out' && !['purchase', 'hutang_bayar'].includes(mutation.category),
+      );
+      const bebanOperasional = expenseCategories.reduce((sum, mutation) => sum + mutation.amount, 0);
       const labaKotor = omzet - hpp - totalRetur;
-      const bebanOperasional = mutations.reduce((s: number, m) => s + Number(m.amount), 0);
       const labaBersih = labaKotor - bebanOperasional;
 
       const biayaMap: Record<string, number> = {};
-      mutations.forEach((m) => {
-        const cat = m.category || 'other';
-        biayaMap[cat] = (biayaMap[cat] || 0) + Number(m.amount);
+      expenseCategories.forEach((mutation) => {
+        biayaMap[mutation.category] = (biayaMap[mutation.category] || 0) + mutation.amount;
       });
       const biayaRincian = Object.entries(biayaMap).map(([category, amount]) => ({ category, amount }));
 
-      const topProducts = Object.values(productMap)
-        .map((p) => ({ ...p, profit: p.revenue - p.hpp }))
+      const topProducts = report.top_products
+        .map((product) => ({ name: product.name, qty: product.qty, revenue: product.revenue, hpp: product.cogs, profit: product.profit }))
         .sort((a, b) => b.profit - a.profit)
         .slice(0, 10);
 
       const isYear = period === 'year';
-      const chartDays = isYear
-        ? eachMonthOfInterval({ start, end })
-        : eachDayOfInterval({ start, end }).filter((_, i, arr) => arr.length <= 31 || i % Math.ceil(arr.length / 30) === 0);
+      const chartData = report.daily.map((day) => ({
+        label: isYear ? format(parseISO(day.period), 'MMM', { locale: idLocale }) : format(parseISO(day.period), 'dd/MM'),
+        omzet: day.revenue,
+        hpp: day.cogs,
+        laba: day.revenue - day.cogs,
+      }));
 
-      const chartData = chartDays.map(day => {
-        const dayStart = isYear ? startOfMonth(day) : startOfDay(day);
-        const dayEnd = isYear ? endOfMonth(day) : endOfDay(day);
-        const daySales = sales.filter((s) => {
-          const d = new Date(s.created_at);
-          return d >= dayStart && d <= dayEnd;
-        });
-        const dayOmzet = daySales.reduce((s: number, r) => s + Number(r.total), 0);
-        const dayHpp = daySales.reduce((s: number, r) =>
-          s + (r.pos_sale_items || []).reduce((ss: number, i) => ss + Number(i.cost_price || 0) * Number(i.qty || 0), 0), 0);
-        return {
-          label: isYear ? format(day, 'MMM', { locale: idLocale }) : format(day, 'dd/MM'),
-          omzet: dayOmzet,
-          hpp: dayHpp,
-          laba: dayOmzet - dayHpp,
-        };
-      });
-
-      setData({ omzet, hpp, labaKotor, bebanOperasional, labaBersih, totalDiskon, totalRetur, jumlahTransaksi: sales.length, chartData, topProducts, biayaRincian });
+      setData({ omzet, hpp, labaKotor, bebanOperasional, labaBersih, totalDiskon, totalRetur, jumlahTransaksi: report.sales.transactions, chartData, topProducts, biayaRincian });
     } catch (err) {
       console.error('Error fetching P&L:', err);
     } finally {
@@ -363,6 +304,13 @@ export default function POSLaporanLabaRugiPage() {
               <Printer className="h-4 w-4 mr-1" /> Cetak
             </Button>
           </div>
+        </div>
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Angka memakai dataset laporan canonical tenant/outlet. Pajak dan laba rugi ini adalah estimasi operasional,
+            bukan laporan pajak resmi, sampai rekonsiliasi dan validasi produksi selesai.
+          </p>
         </div>
 
         {/* Period Selector */}

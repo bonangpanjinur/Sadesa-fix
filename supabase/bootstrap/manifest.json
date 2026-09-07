@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 208,
-  "bundle_count": 23,
+  "bundle_count": 24,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -371,6 +371,14 @@
       ],
       "sha256": "6c86b6b0600b3ebc80952240cc80c4b57277c2eb02ac4de0cc7747c3efe102ca",
       "bytes": 26766
+    },
+    {
+      "file": "24_20260907110000_phase4_canonical_reporting.sql",
+      "source_files": [
+        "24_20260907110000_phase4_canonical_reporting.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
     }
   ]
 }

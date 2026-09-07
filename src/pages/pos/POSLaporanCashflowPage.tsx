@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchPOSCanonicalReport } from '@/lib/posCanonicalReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ import {
 import {
   format, startOfDay, endOfDay, startOfWeek, endOfWeek,
   startOfMonth, endOfMonth, startOfYear, endOfYear,
-  eachDayOfInterval, eachMonthOfInterval, parseISO, subMonths
+  parseISO, subMonths
 } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -60,9 +60,6 @@ const EXPENSE_LABELS: Record<string, string> = {
   lain_keluar: 'Pengeluaran Lain-lain',
 };
 
-interface CashflowSale { total: number; payment_method: string | null; created_at: string; }
-interface CashMutation { type: string; category: string | null; amount: number; description: string | null; created_at: string; }
-interface PurchaseRow { total_amount: number; status: string; created_at: string; }
 interface ChartTooltipPayload { name: string; color?: string; value: number; }
 interface CustomTooltipProps { active?: boolean; payload?: ChartTooltipPayload[]; label?: string; formatCurrency: (value: number) => string; }
 
@@ -111,66 +108,36 @@ export default function POSLaporanCashflowPage() {
     const { start, end } = getRange();
 
     try {
-      // Fetch sales (cash inflow by payment method)
-      const { data: sales } = await supabase
-        .from('pos_sales' as never)
-        .select('total, payment_method, created_at')
-        .eq('tenant_id', tenant.id)
-        .eq('outlet_id', activeOutlet.id)
-        .eq('status', 'completed')
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-        .order('created_at');
-
-      // Fetch cash mutations (all in/out)
-      const { data: mutations } = await supabase
-        .from('pos_cash_mutations' as never)
-        .select('type, category, amount, description, created_at')
-        .eq('tenant_id', tenant.id)
-        .eq('outlet_id', activeOutlet.id)
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-        .order('created_at');
-
-      // Fetch purchases (cash outflow)
-      const { data: purchases } = await supabase
-        .from('pos_purchase_orders' as never)
-        .select('total_amount, status, created_at')
-        .eq('tenant_id', tenant.id)
-        .eq('outlet_id', activeOutlet.id)
-        .in('status', ['received', 'completed'])
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-        .order('created_at');
-
-      const salesArr = (sales || []) as unknown as CashflowSale[];
-      const mutArr = (mutations || []) as unknown as CashMutation[];
-      const purchArr = (purchases || []) as unknown as PurchaseRow[];
+      const report = await fetchPOSCanonicalReport({
+        tenantId: tenant.id,
+        outletId: activeOutlet.id,
+        from: start,
+        to: end,
+      });
 
       // Build income breakdown by payment method
       const incomeByCat: Record<string, number> = {};
-      salesArr.forEach((s) => {
-        const key = `sales_${s.payment_method}`;
-        incomeByCat[key] = (incomeByCat[key] || 0) + Number(s.total);
+      Object.entries({
+        sales_cash: report.sales.cash,
+        sales_qris: report.sales.qris,
+        sales_transfer: report.sales.transfer,
+        sales_debit: report.sales.debit,
+        sales_credit: report.sales.credit,
+        sales_split: report.sales.split,
+      }).forEach(([key, amount]) => {
+        if (amount > 0) incomeByCat[key] = amount;
       });
-      // Add cash mutations type=in
-      mutArr.filter(m => m.type === 'in').forEach((m) => {
-        const key = m.category || 'lain_masuk';
-        // skip sales_cash from mutations (already counted from sales)
-        if (key !== 'sales_cash') {
-          incomeByCat[key] = (incomeByCat[key] || 0) + Number(m.amount);
-        }
+      report.cash_mutations.by_category.filter((m) => m.type === 'in').forEach((mutation) => {
+        incomeByCat[mutation.category] = (incomeByCat[mutation.category] || 0) + mutation.amount;
       });
 
       // Build expense breakdown
       const expenseByCat: Record<string, number> = {};
-      mutArr.filter(m => m.type === 'out').forEach((m) => {
-        const key = m.category || 'lain_keluar';
-        expenseByCat[key] = (expenseByCat[key] || 0) + Number(m.amount);
+      report.cash_mutations.by_category.filter((m) => m.type === 'out').forEach((mutation) => {
+        expenseByCat[mutation.category] = (expenseByCat[mutation.category] || 0) + mutation.amount;
       });
-      purchArr.forEach((p) => {
-        expenseByCat['purchase'] = (expenseByCat['purchase'] || 0) + Number(p.total_amount);
-      });
+      if (report.purchases.cash_paid > 0) expenseByCat.purchase = report.purchases.cash_paid;
+      if (report.returns.cash_refund > 0) expenseByCat.refund = report.returns.cash_refund;
 
       const totalMasuk = Object.values(incomeByCat).reduce((s, v) => s + v, 0);
       const totalKeluar = Object.values(expenseByCat).reduce((s, v) => s + v, 0);
@@ -188,44 +155,15 @@ export default function POSLaporanCashflowPage() {
         amount: amt,
       })).sort((a, b) => b.amount - a.amount);
 
-      // Build chart data per day (if <=31 days) or per month
       const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24));
-      let chartData: CashflowData['chartData'] = [];
-
-      if (diffDays <= 31) {
-        const days = eachDayOfInterval({ start, end });
-        chartData = days.map(day => {
-          const dayStr = format(day, 'yyyy-MM-dd');
-          const dayLabel = format(day, 'dd/MM', { locale: idLocale });
-          const masuk = salesArr
-            .filter((s) => format(new Date(s.created_at), 'yyyy-MM-dd') === dayStr)
-            .reduce((sum: number, s) => sum + Number(s.total), 0)
-            + mutArr.filter((m) => m.type === 'in' && m.category !== 'sales_cash' && format(new Date(m.created_at), 'yyyy-MM-dd') === dayStr)
-              .reduce((sum: number, m) => sum + Number(m.amount), 0);
-          const keluar = mutArr.filter((m) => m.type === 'out' && format(new Date(m.created_at), 'yyyy-MM-dd') === dayStr)
-            .reduce((sum: number, m) => sum + Number(m.amount), 0)
-            + purchArr.filter((p) => format(new Date(p.created_at), 'yyyy-MM-dd') === dayStr)
-              .reduce((sum: number, p) => sum + Number(p.total_amount), 0);
-          return { label: dayLabel, masuk, keluar, net: masuk - keluar };
-        });
-      } else {
-        const months = eachMonthOfInterval({ start, end });
-        chartData = months.map(month => {
-          const mStart = startOfMonth(month);
-          const mEnd = endOfMonth(month);
-          const label = format(month, 'MMM yy', { locale: idLocale });
-          const masuk = salesArr
-            .filter((s) => { const d = new Date(s.created_at); return d >= mStart && d <= mEnd; })
-            .reduce((sum: number, s) => sum + Number(s.total), 0)
-            + mutArr.filter((m) => { const d = new Date(m.created_at); return m.type === 'in' && m.category !== 'sales_cash' && d >= mStart && d <= mEnd; })
-              .reduce((sum: number, m) => sum + Number(m.amount), 0);
-          const keluar = mutArr.filter((m) => { const d = new Date(m.created_at); return m.type === 'out' && d >= mStart && d <= mEnd; })
-            .reduce((sum: number, m) => sum + Number(m.amount), 0)
-            + purchArr.filter((p) => { const d = new Date(p.created_at); return d >= mStart && d <= mEnd; })
-              .reduce((sum: number, p) => sum + Number(p.total_amount), 0);
-          return { label, masuk, keluar, net: masuk - keluar };
-        });
-      }
+      const chartData = report.daily.map((day) => ({
+        label: diffDays > 31
+          ? format(parseISO(day.period), 'MMM yy', { locale: idLocale })
+          : format(parseISO(day.period), 'dd/MM', { locale: idLocale }),
+        masuk: day.revenue + day.cash_in,
+        keluar: day.cash_out + day.purchase_cash,
+        net: day.revenue + day.cash_in - day.cash_out - day.purchase_cash,
+      }));
 
       setData({
         totalMasuk, totalKeluar, netCashflow,
@@ -384,6 +322,13 @@ export default function POSLaporanCashflowPage() {
       }
     >
       <div className="space-y-5">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            Cashflow dihitung dari penjualan selesai, payment ledger, mutasi kas non-penjualan, pembayaran pembelian,
+            dan retur tunai. Saldo awal masih ditampilkan sebagai estimasi sampai rekonsiliasi harian aktif.
+          </p>
+        </div>
         {/* Period filter */}
         <div className="flex items-end gap-3 flex-wrap">
           <div>
