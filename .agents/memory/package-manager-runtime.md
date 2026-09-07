@@ -20,3 +20,9 @@ Vercel's pnpm build uses strict dependency resolution, so packages imported dire
 **Why:** The deployment build resolved the main app but failed while bundling `src/sw.ts` because Workbox packages were only transitive dependencies.
 
 **How to apply:** When adding imports to service-worker or build-plugin code, add the package to `package.json` and keep both lockfiles synchronized before deploying.
+
+The project engine requirement is Node 22.13+; the imported Replit runtime initially exposed Node 20, so the workspace module must use nodejs-22 for reliable install/build parity.
+
+**Why:** npm install emitted engine warnings under Node 20 and the repository explicitly constrains Node to `>=22.13.0 <25`.
+
+**How to apply:** Keep `.replit` on Node 22 when running this project, and re-check `node --version` before diagnosing dependency or build failures.

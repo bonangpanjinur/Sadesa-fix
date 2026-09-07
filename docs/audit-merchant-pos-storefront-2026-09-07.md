@@ -21,17 +21,32 @@ Namun, integrasi saat ini belum sepenuhnya aman dan belum memiliki kontrak bisni
 | POS–merchant catalog | Trigger dan RPC projection tersedia | Sinkronisasi metadata ada, tetapi stok online/POS belum didefinisikan secara tunggal |
 | POS checkout | Menggunakan `process_pos_sale` dan request key | Jalur transaksi relatif matang, perlu pengujian role/outlet/offline |
 | Storefront publik | Slug dan URL `/s/:slug` tersedia; status buka dan kuota ditampilkan | Ada bypass status pada akses UUID langsung dan aturan publik perlu diperketat |
-| Operasional Replit | Belum dapat dijalankan | Workflow gagal karena `node_modules` belum terpasang; env Supabase belum tersedia |
+| Operasional Replit | Sudah dapat dijalankan | Workflow aktif pada Node 22 dan port 5000; gate audit dependency masih merah |
+
+### Pembaruan verifikasi Fase 0
+
+Setelah dependency dipulihkan dan runtime workspace diselaraskan ke Node 22:
+
+- Workflow `Start application` aktif pada port 5000.
+- Preview homepage berhasil tampil dan browser console tidak melaporkan error aplikasi.
+- Typecheck berhasil.
+- `npm run lint` berhasil dengan 6 warning Fast Refresh pada komponen/page tertentu, tanpa error.
+- `npm run build` berhasil, termasuk PWA service worker.
+- `npm test -- --run` berhasil: 33 test files, 94 passed, 20 skipped.
+- `npm run validate:package-manager` berhasil.
+- `npm audit --audit-level high` masih gagal karena 18 vulnerability dependency (10 high, 4 moderate, 4 low); perbaikannya sengaja dipisahkan dari pemulihan workflow agar tidak melakukan upgrade paksa tanpa regression check.
+
+Dengan hasil tersebut, kemampuan verifikasi aplikasi sudah pulih. Gate keamanan dependency tetap terbuka dan harus dibereskan sebelum release production.
 
 ## Batasan audit
 
-Audit ini dilakukan melalui pembacaan source code, route, query Supabase, migration/bootstrap SQL, dan log workflow. Belum dilakukan:
+Audit ini dilakukan melalui pembacaan source code, route, query Supabase, migration/bootstrap SQL, log workflow, dan preview homepage. Belum dilakukan:
 
 - login dengan akun buyer, merchant owner, kasir, manager, finance, atau staff;
 - query ke database Supabase yang sedang terhubung;
 - uji RLS dengan beberapa identitas;
 - uji transaksi POS nyata, offline sync, realtime, printer, upload, dan pembayaran;
-- screenshot interaktif karena workflow berhenti pada `vite: not found`.
+- screenshot interaktif untuk halaman yang membutuhkan login merchant/POS.
 
 Karena itu, temuan bertanda **perlu verifikasi staging** harus menjadi acceptance test sebelum dianggap selesai.
 
