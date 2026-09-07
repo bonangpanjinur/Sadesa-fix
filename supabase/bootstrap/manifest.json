@@ -355,6 +355,14 @@
       ],
       "sha256": "pending",
       "bytes": 0
+    },
+    {
+      "file": "22_20260907080000_pos_catalog_identity_stale_projection.sql",
+      "source_files": [
+        "22_20260907080000_pos_catalog_identity_stale_projection.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
     }
   ]
 }

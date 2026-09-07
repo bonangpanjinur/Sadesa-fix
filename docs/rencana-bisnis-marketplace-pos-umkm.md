@@ -1,6 +1,21 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 7 September 2026:** Fase 1 **selesai secara teknis di repository**. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, dan alert kegagalan projection sudah tersedia; definisi stok varian/multi-outlet serta pengujian offline masih terbuka. Migration baru belum diterapkan ke staging/production.
+> **Status implementasi — 7 September 2026:** Fase 1 **selesai secara teknis di repository**. Fase 2 **sebagian selesai**: mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, dan identitas SKU/barcode tenant-scoped sudah tersedia; validasi di staging/production, pengujian konflik, dan pemetaan stok marketplace untuk varian masih terbuka. Migration baru belum diterapkan ke staging/production.
+
+## 0. Analisis kesiapan saat ini
+
+| Area | Status | Catatan |
+|---|---|---|
+| Fondasi aplikasi | **Siap untuk development** | SPA Vite/React/TypeScript, halaman merchant dan POS, serta bootstrap Supabase sudah tersedia. |
+| Entitlement POS | **Siap diuji di staging** | Guard server-side, lifecycle trial/paid/grace/suspended/cancelled, audit, export, dan reaktivasi sudah ada di repository. |
+| Katalog dan stok non-varian | **Siap diuji di staging** | POS outlet stock menjadi sumber operasional, marketplace menjadi projection, reservation ledger dan rekonsiliasi sudah tersedia. |
+| Identitas katalog | **Siap setelah migration diterapkan** | SKU/barcode unik per tenant dan validasi konsistensi produk–varian–outlet ditambahkan pada pekerjaan ini. |
+| Projection stale | **Siap setelah migration diterapkan** | Alert warning berbasis umur sinkronisasi dipindai saat halaman Integrasi POS dibuka dan tampil bersama alert error. |
+| POS offline | **Belum siap dipasarkan** | Queue dan retry/conflict center sudah ada, tetapi skenario perangkat ditutup, refresh, listrik mati, dan konflik stok belum teruji menyeluruh. |
+| Laporan resmi | **Belum siap dipasarkan sebagai laporan resmi** | Rekonsiliasi shift, payment ledger, jurnal canonical, dan audit harian masih menjadi Fase 4. |
+| Produksi | **Belum siap** | Migration harus diterapkan dan diuji di staging; variabel Supabase publik, Edge Functions, Auth redirect, dan pilot merchant masih perlu dikonfigurasi. |
+
+**Prioritas kerja:** selesaikan hardening Fase 2 dan validasi staging terlebih dahulu, lalu tutup Fase 3 dengan uji offline/conflict sebelum membuka POS secara luas. Jangan menandai fase sebagai siap produksi hanya karena halaman atau RPC sudah ada di repository.
 
 ## 1. Ringkasan keputusan
 
@@ -431,12 +446,12 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] gunakan reservation ledger untuk order online;
 - [x] buat rekonsiliasi manual dan otomatis;
 - [x] tambahkan alert jika projection gagal;
-- [ ] tambahkan alert jika projection terlalu lama/stale;
+- [x] tambahkan alert jika projection terlalu lama/stale;
 - [ ] selesaikan definisi stok varian dan multi-outlet.
 
-**Status saat ini:** **Sebagian selesai.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok yang digunakan halaman Integrasi POS. Definisi stok varian/multi-outlet dan deteksi projection stale berbasis umur masih terbuka.
+**Status saat ini:** **Sebagian selesai.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Pekerjaan fase berikutnya menambahkan migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` untuk keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur; halaman Integrasi POS sekarang memindai dan menampilkan alert stale. Definisi projection stok varian marketplace dan pengujian multi-outlet/conflict masih terbuka.
 
-**Kriteria selesai:** sebagian tercapai untuk stok produk non-varian yang terhubung. Penjualan POS dan order marketplace sudah memakai guard/reservation/ledger, tetapi fase belum ditutup sampai cakupan varian, multi-outlet, stale projection, dan pengujian konflik diverifikasi.
+**Kriteria selesai:** sebagian tercapai untuk stok produk non-varian yang terhubung. Penjualan POS dan order marketplace sudah memakai guard/reservation/ledger, dan stale projection kini dapat ditandai. Fase belum ditutup sampai cakupan varian, multi-outlet, dan pengujian konflik diverifikasi.
 
 ### Fase 3 — POS online/offline yang aman
 

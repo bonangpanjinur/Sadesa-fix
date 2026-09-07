@@ -150,6 +150,12 @@ export default function POSIntegrasiPage() {
     setError(null);
 
     try {
+      const { error: staleError } = await supabase.rpc('detect_pos_stock_sync_stale' as never, {
+        p_tenant_id: tenant.id,
+        p_stale_after_minutes: 120,
+      } as never);
+      if (staleError) throw staleError;
+
       const [settingsRes, productsRes, ordersRes, logsRes, merchantsRes, posProductsRes, alertsRes] = await Promise.all([
         supabase.from('pos_integration_settings' as never).select('*').eq('tenant_id', tenant.id).maybeSingle(),
         supabase.from('pos_marketplace_sync' as never).select('*, pos_products(name, sku, price)').eq('tenant_id', tenant.id).order('created_at', { ascending: false }),
@@ -592,10 +598,10 @@ export default function POSIntegrasiPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {syncAlerts.map((alert) => (
-                  <div key={alert.id} className="rounded-md border border-red-100 bg-red-50 p-3">
+                   <div key={alert.id} className={`rounded-md border p-3 ${alert.severity === 'warning' ? 'border-amber-100 bg-amber-50' : 'border-red-100 bg-red-50'}`}>
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium text-red-800">{alert.message}</p>
-                      <span className="text-xs text-red-600 whitespace-nowrap">
+                       <p className={`text-sm font-medium ${alert.severity === 'warning' ? 'text-amber-800' : 'text-red-800'}`}>{alert.message}</p>
+                       <span className={`text-xs whitespace-nowrap ${alert.severity === 'warning' ? 'text-amber-700' : 'text-red-600'}`}>
                         {format(parseISO(alert.last_seen_at), 'dd MMM HH:mm', { locale: idLocale })}
                       </span>
                     </div>

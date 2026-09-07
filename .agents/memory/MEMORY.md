@@ -3,3 +3,4 @@
 - [PWA service worker](pwa-service-worker.md) — PWA uses an injected Workbox service worker so precaching and push notifications share one registration.
 - [Replit runtime config](replit-runtime-config.md) — `.replit` is schema-validated through a temp-file replacement flow; direct edits can be rejected.
 - [POS receipt print contract](pos-receipt-print-contract.md) — POS receipts share an idempotent print contract; marketplace invoices remain separate A4 documents.
+- [Bootstrap manual bundles](bootstrap-manual-bundles.md) — recent POS hardening bundles are canonical bootstrap additions beyond the archived migration source set.
