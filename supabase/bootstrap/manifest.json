@@ -323,6 +323,14 @@
       ],
       "sha256": "f08b66f41932f0b086620f1ebf3712dba0df57bd89b044f089f065eb36647d23",
       "bytes": 13413
+    },
+    {
+      "file": "18_20260907040000_live_chat_realtime.sql",
+      "source_files": [
+        "18_20260907040000_live_chat_realtime.sql"
+      ],
+      "sha256": "pending",
+      "bytes": 0
     }
   ]
 }

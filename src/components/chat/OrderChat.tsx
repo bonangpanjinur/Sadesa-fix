@@ -9,6 +9,14 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { formatPrice } from '@/lib/utils';
+import {
+  getOrCreateConversation,
+  listConversationMessages,
+  markConversationRead,
+  sendConversationMessage,
+  subscribeToConversation,
+} from '@/lib/chat/repository';
+import type { ChatContextType } from '@/lib/chat/types';
 
 export type ChatType = 'buyer_merchant' | 'buyer_courier' | 'merchant_courier';
 
@@ -22,14 +30,18 @@ const getJoinedUserId = (relation: JoinedUserRelation): string | null => Array.i
 
 interface ChatMessage {
   id: string;
+  conversation_id?: string | null;
   sender_id: string;
-  receiver_id: string;
+  receiver_id: string | null;
   message: string;
+  body?: string | null;
   is_read: boolean;
   created_at: string;
   auto_delete_at: string | null;
   chat_type: string | null;
   image_url: string | null;
+  client_message_id?: string | null;
+  deleted_at?: string | null;
 }
 
 interface OrderInfo {
@@ -40,6 +52,8 @@ interface OrderInfo {
 
 interface OrderChatProps {
   orderId: string;
+  contextType?: ChatContextType;
+  rideRequestId?: string;
   otherUserId: string;
   otherUserName: string;
   isOpen: boolean;
@@ -54,7 +68,7 @@ const QUICK_REPLIES: Record<string, string[]> = {
   buyer_merchant: ['Apakah stok masih ada?', 'Kapan pesanan saya dikirim?', 'Terima kasih!'],
 };
 
-export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {
+export function OrderChat({ orderId, contextType = 'order', rideRequestId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {
   const { user } = useAuth();
   const { playNotificationSound, isEnabled: isSoundEnabled, setIsEnabled: setIsSoundEnabled } = useChatNotification();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -69,6 +83,8 @@ export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose
     courierId: string | null;
     courierUserId: string | null;
   } | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch order info (items + products)
@@ -191,62 +207,105 @@ export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose
   useEffect(() => {
     if (!isOpen || !orderId || !user) return;
 
-    const fetchMessages = async () => {
+    let active = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const appendMessage = (incoming: ChatMessage) => {
+      if (!active || (chatType && incoming.chat_type !== chatType)) return;
+      setMessages((previous) => {
+        if (previous.some((message) => message.id === incoming.id)) return previous;
+        return [...previous, incoming].sort((a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
+      });
+      if (incoming.receiver_id === user.id) {
+        if (incoming.conversation_id) {
+          void markConversationRead(incoming.conversation_id, incoming.id);
+        }
+        playNotificationSound();
+      }
+    };
+
+    const loadCanonicalConversation = async () => {
+      const { conversationId, error } = await getOrCreateConversation({
+        contextType,
+        orderId: contextType === 'order' ? orderId : undefined,
+        rideRequestId: contextType === 'ride' ? (rideRequestId || orderId) : undefined,
+        conversationType: contextType === 'ride' ? 'passenger_courier' : chatType,
+      });
+
+      if (!active) return;
+
+      if (!error && conversationId) {
+        setConversationId(conversationId);
+        const history = await listConversationMessages(conversationId);
+        if (!active) return;
+        if (!history.error) {
+          const canonicalMessages = history.messages as ChatMessage[];
+          setMessages(canonicalMessages);
+          const withDelete = canonicalMessages.find((message) => message.auto_delete_at);
+          if (withDelete) setAutoDeleteInfo(withDelete.auto_delete_at);
+          const lastIncoming = [...canonicalMessages]
+            .reverse()
+            .find((message) => message.sender_id !== user.id);
+          if (lastIncoming) await markConversationRead(conversationId, lastIncoming.id);
+        }
+
+        setConnectionStatus('reconnecting');
+        channel = subscribeToConversation(
+          conversationId,
+          (message) => {
+            appendMessage(message as ChatMessage);
+            setConnectionStatus('connected');
+          },
+          (status) => {
+            if (!active) return;
+            setConnectionStatus(status === 'SUBSCRIBED' ? 'connected' : 'reconnecting');
+          },
+        );
+        return;
+      }
+
+      // During the additive rollout, old environments still use the legacy
+      // order-scoped subscription until the new SQL bundle is applied.
+      setConversationId(null);
       const { data } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('order_id', orderId)
         .order('created_at', { ascending: true });
-
-      if (data) {
-        // Filter by chat type if needed, or show all for this order
-        const filtered = chatType ? data.filter(m => m.chat_type === chatType) : data;
-        setMessages(filtered as ChatMessage[]);
-        
-        const withDelete = data.find(m => m.auto_delete_at);
-        if (withDelete) setAutoDeleteInfo(withDelete.auto_delete_at);
-        
-        const unread = data.filter(m => m.receiver_id === user.id && !m.is_read);
-        if (unread.length > 0) {
-          await supabase
-            .from('chat_messages')
-            .update({ is_read: true })
-            .in('id', unread.map(m => m.id));
-        }
+      if (!active) return;
+      const filtered = (data || []).filter((message) => !chatType || message.chat_type === chatType) as ChatMessage[];
+      setMessages(filtered);
+      const withDelete = filtered.find((message) => message.auto_delete_at);
+      if (withDelete) setAutoDeleteInfo(withDelete.auto_delete_at);
+      const unread = filtered.filter((message) => message.receiver_id === user.id && !message.is_read);
+      if (unread.length > 0) {
+        await supabase.from('chat_messages').update({ is_read: true }).in('id', unread.map((message) => message.id));
       }
+      setConnectionStatus('reconnecting');
+      channel = supabase
+        .channel(`chat-${orderId}-${chatType}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `order_id=eq.${orderId}` },
+          (payload) => {
+            appendMessage(payload.new as ChatMessage);
+            setConnectionStatus('connected');
+          },
+        )
+        .subscribe((status) => {
+          if (active) setConnectionStatus(status === 'SUBSCRIBED' ? 'connected' : 'reconnecting');
+        });
     };
 
-    fetchMessages();
-
-    const channel = supabase
-      .channel(`chat-${orderId}-${chatType}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `order_id=eq.${orderId}` },
-        (payload) => {
-          const newMsg = payload.new as ChatMessage;
-          if (!chatType || newMsg.chat_type === chatType) {
-            setMessages(prev => [...prev, newMsg]);
-            if (newMsg.receiver_id === user.id) {
-              supabase.from('chat_messages').update({ is_read: true }).eq('id', newMsg.id);
-              // Play notification sound when receiving a message
-              playNotificationSound();
-            }
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'chat_messages', filter: `order_id=eq.${orderId}` },
-        () => {
-          setMessages([]);
-          setAutoDeleteInfo(null);
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [isOpen, orderId, user, chatType, playNotificationSound]);
+    void loadCanonicalConversation();
+    return () => {
+      active = false;
+      if (channel) void supabase.removeChannel(channel);
+      setConversationId(null);
+    };
+  }, [contextType, isOpen, orderId, rideRequestId, user, chatType, playNotificationSound]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -258,13 +317,30 @@ export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose
 
     setSending(true);
     try {
-      await supabase.from('chat_messages').insert({
-        order_id: orderId,
-        sender_id: user.id,
-        receiver_id: otherUserId,
-        message: text,
-        chat_type: chatType,
-      });
+      const clientMessageId = crypto.randomUUID();
+      if (conversationId) {
+        const { error } = await sendConversationMessage({
+          contextType,
+          orderId: contextType === 'order' ? orderId : undefined,
+          rideRequestId: contextType === 'ride' ? (rideRequestId || orderId) : undefined,
+          conversationType: contextType === 'ride' ? 'passenger_courier' : chatType,
+          conversationId,
+          senderId: user.id,
+          receiverId: otherUserId,
+          text,
+          clientMessageId,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('chat_messages').insert({
+          order_id: orderId,
+          sender_id: user.id,
+          receiver_id: otherUserId,
+          message: text,
+          chat_type: chatType,
+        });
+        if (error) throw error;
+      }
       if (!messageText) setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -314,8 +390,9 @@ export function OrderChat({ orderId, otherUserId, otherUserName, isOpen, onClose
             </div>
             <div>
               <h3 className="font-semibold text-sm">{otherUserName}</h3>
-              <p className="text-[10px] text-muted-foreground">
-                Order #{orderInfo?.shortId || '...'}
+          <p className="text-[10px] text-muted-foreground">
+            {contextType === 'ride' ? 'Perjalanan ojek' : `Order #${orderInfo?.shortId || '...'}`}
+            {connectionStatus !== 'connected' && ' · Menghubungkan ulang...'}
               </p>
             </div>
           </div>

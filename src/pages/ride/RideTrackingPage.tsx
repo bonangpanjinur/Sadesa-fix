@@ -532,6 +532,8 @@ export default function RideTrackingPage() {
       {chatOpen && driverUserId && ride && id && (
         <OrderChat
           orderId={id}
+          contextType="ride"
+          rideRequestId={id}
           otherUserId={driverUserId}
           otherUserName={driver?.name || 'Driver'}
           chatType="buyer_courier"
