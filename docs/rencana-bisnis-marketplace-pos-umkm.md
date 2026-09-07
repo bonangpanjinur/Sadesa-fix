@@ -1,5 +1,7 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
+> **Status implementasi — 7 September 2026:** Fase 1 **sebagian selesai**. Entitlement POS sekarang sudah memiliki pemeriksaan server-side yang memperhitungkan masa aktif dan masa tenggang, tanpa menonaktifkan marketplace merchant. Detail item yang sudah selesai dan yang masih terbuka dicatat pada bagian fase terkait.
+
 ## 1. Ringkasan keputusan
 
 Model yang paling sehat untuk platform ini adalah **freemium berbasis dua produk yang saling menguatkan**:
@@ -396,16 +398,24 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 
 **Tujuan:** akses berbayar tidak hanya dikontrol oleh frontend.
 
-- jadikan subscription/entitlement sebagai sumber izin server-side;
-- pisahkan status merchant marketplace dari status POS;
-- dukung trial, paid, grace, suspended, cancelled;
-- simpan riwayat perubahan harga/paket;
-- pastikan suspend tidak menghapus data;
-- sediakan export data dan reaktivasi idempotent;
-- batasi modul berdasarkan entitlement dan role;
-- tambahkan audit untuk override admin.
+- [x] jadikan subscription/entitlement sebagai sumber izin server-side;
+- [x] pisahkan status merchant marketplace dari status POS;
+- [x] dukung trial, paid, grace, suspended, cancelled pada model entitlement POS;
+- [ ] simpan riwayat perubahan harga/paket;
+- [x] pastikan suspend tidak menghapus data POS maupun marketplace;
+- [ ] sediakan export data subscription dan reaktivasi idempotent yang lengkap;
+- [x] batasi operasi POS berdasarkan entitlement dan role;
+- [ ] tambahkan audit untuk override admin.
 
-**Kriteria selesai:** merchant yang POS-nya suspended tidak dapat membuat transaksi POS baru, tetapi tetap dapat melihat/export data dan memakai marketplace sesuai aturan.
+**Status saat ini:** **Sebagian selesai.** Perubahan yang sudah diterapkan:
+
+- migration `19_20260907050000_pos_entitlement_lifecycle.sql` menambahkan `grace_ends_at`, status `grace`, resolver entitlement, dan validasi subscription pada `is_pos_tenant_active`;
+- jalur mutasi POS yang memakai guard tenant, termasuk checkout atomic, tidak lagi hanya mempercayai status tenant dari browser;
+- approval/reactivation/extension admin mengatur kembali status tenant dan membersihkan masa tenggang;
+- UI langganan menampilkan status masa tenggang dan tanggal akhirnya;
+- marketplace tetap terpisah dari status operasional POS ketika POS suspended/cancelled.
+
+**Kriteria selesai fase:** belum tercapai penuh. Merchant yang POS-nya suspended sudah tidak dapat membuat transaksi POS baru dan data tidak dihapus, tetapi histori perubahan harga/paket, audit override, serta export subscription masih perlu diselesaikan sebelum fase ini ditutup.
 
 ### Fase 2 — Katalog terpadu dan sinkronisasi stok
 
