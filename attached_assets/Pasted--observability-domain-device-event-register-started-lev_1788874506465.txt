@@ -1,0 +1,87 @@
+[observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:26:27.680Z","traceId":"device-b7652680-870b-4425-99d0-d2b7f2582422","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"offline_sync","event":"capability_registration_failed","level":"warn","at":"2026-09-08T13:26:27.718Z","traceId":"offline_sync-19fd0e0a-9a02-4c1f-b290-4c966e591e7e","context":{},"error":{"name":"NotAllowedError","message":"Permission denied."}}
+C @ index-CiVgXWrp.js:2
+/merchant:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:26:28.124Z","traceId":"device-b7652680-870b-4425-99d0-d2b7f2582422","durationMs":444,"context":{"deviceType":"browser","hasTenant":false}}
+blob:https://www.sadesa.id/24308fc2-12ab-4584-9143-779148c494b4:1 Manifest: property 'start_url' ignored, URL is invalid.
+blob:https://www.sadesa.id/24308fc2-12ab-4584-9143-779148c494b4:1 Manifest: property 'scope' ignored, URL is invalid.
+blob:https://www.sadesa.id/24308fc2-12ab-4584-9143-779148c494b4:1 Manifest: property 'src' ignored, URL is invalid.
+blob:https://www.sadesa.id/24308fc2-12ab-4584-9143-779148c494b4:1 Manifest: property 'src' ignored, URL is invalid.
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:28:24.179Z","traceId":"device-554d3fa4-9a79-4729-a09a-78e42f76fe5e","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:28:24.505Z","traceId":"device-554d3fa4-9a79-4729-a09a-78e42f76fe5e","durationMs":326,"context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/merchants?id=eq.eac4a04b-dd04-44a3-a460-3450416f1f9c:1  Failed to load resource: the server responded with a status of 400 ()
+index-CiVgXWrp.js:2 [observability] {"domain":"data","event":"mutation_failed","level":"error","at":"2026-09-08T13:29:02.581Z","traceId":"data-14b22d3d-9bcb-4a3d-943d-c280892ad0ba","context":{"mutationKey":"[]","source":"react-query"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-CiVgXWrp.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/merchants?id=eq.eac4a04b-dd04-44a3-a460-3450416f1f9c:1  Failed to load resource: the server responded with a status of 400 ()
+index-CiVgXWrp.js:2 [observability] {"domain":"data","event":"mutation_failed","level":"error","at":"2026-09-08T13:29:06.987Z","traceId":"data-78300f6f-418c-4e8a-8990-1d1d48106543","context":{"mutationKey":"[]","source":"react-query"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-CiVgXWrp.js:2
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:29:19.713Z","traceId":"device-addfce1a-a25f-474f-8c1f-311020639237","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:29:20.246Z","traceId":"device-addfce1a-a25f-474f-8c1f-311020639237","durationMs":533,"context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:29:23.746Z","traceId":"device-be839270-40ab-4fe2-aafa-3f1f437c733d","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:29:23.969Z","traceId":"device-be839270-40ab-4fe2-aafa-3f1f437c733d","durationMs":223,"context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:32:03.946Z","traceId":"device-e97f9ade-7019-4daf-8ca4-3d0967a07e36","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:32:04.244Z","traceId":"device-e97f9ade-7019-4daf-8ca4-3d0967a07e36","durationMs":298,"context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:06.273Z","traceId":"realtime-02023e26-ef2e-4802-9456-f6252515f466","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-1y0fhuy66e9","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-1y0fhuy66e9 -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:06.286Z","traceId":"realtime-9048bfd8-a8bd-4780-a53b-1cc12be99f7f","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-135jodwmctjn","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-135jodwmctjn -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:07.674Z","traceId":"realtime-3657d2d5-2834-43a9-ae56-8ed260fda116","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-1y0fhuy66e9","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-1y0fhuy66e9 -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:07.674Z","traceId":"realtime-1df0f5dc-5326-47ca-a256-8618b17e8ba1","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-1y0fhuy66e9","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-1y0fhuy66e9 -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:07.675Z","traceId":"realtime-cc31050e-8869-4197-b804-b6b6bfc8be7d","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-135jodwmctjn","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-135jodwmctjn -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:07.675Z","traceId":"realtime-90702805-95be-4876-91ba-78f6081a9e02","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-135jodwmctjn","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-135jodwmctjn -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:07.711Z","traceId":"realtime-866273cf-77b7-443d-8d02-31f5aab71410","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zcjxrdqg1y","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zcjxrdqg1y -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:07.714Z","traceId":"realtime-2f2510eb-62a4-4ba9-af8b-9384eab64ed0","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-6v48caxqhpt","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-6v48caxqhpt -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:14.545Z","traceId":"realtime-9d19e0a9-6d26-486b-8674-1addcadb7968","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zcjxrdqg1y","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zcjxrdqg1y -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:14.545Z","traceId":"realtime-cb3efd20-9b01-45f1-9ecd-489ae279929a","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zcjxrdqg1y","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-zcjxrdqg1y -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:14.546Z","traceId":"realtime-e9ec201e-a3d8-4a3a-8acd-d373cb9136d1","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-6v48caxqhpt","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-6v48caxqhpt -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:14.546Z","traceId":"realtime-ff9a6221-1fdb-4e78-b0eb-9c46c9521438","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-6v48caxqhpt","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-6v48caxqhpt -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:14.593Z","traceId":"realtime-a56b8cc1-caf1-44a6-8288-fad502fa7212","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wqt8mw3qzbp","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wqt8mw3qzbp -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:14.594Z","traceId":"realtime-705720d1-d8dc-4c52-9b5a-2cf3c8bd92e1","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-7org2k3sjc2","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-7org2k3sjc2 -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:17.678Z","traceId":"realtime-0ef90d43-88be-4f47-abce-187df95a7e46","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wqt8mw3qzbp","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wqt8mw3qzbp -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:17.678Z","traceId":"realtime-b2c84ac7-64d0-40ea-815e-9feaaac265d7","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wqt8mw3qzbp","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-wqt8mw3qzbp -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:17.679Z","traceId":"realtime-0656d686-e9ac-4fd3-b48c-f582b75e1873","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-7org2k3sjc2","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-7org2k3sjc2 -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:32:17.679Z","traceId":"realtime-fee6f3c4-f090-4e3e-9b6a-9f633344deaa","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-7org2k3sjc2","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-7org2k3sjc2 -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:17.714Z","traceId":"realtime-f06bb352-e8c0-415b-861c-f620e5ff9896","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-yz2hi6irl2o","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-yz2hi6irl2o -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:32:17.717Z","traceId":"realtime-450d5248-6d77-41f9-93b8-8a55fb5c8b47","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-3ohs0z2xeaq","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-3ohs0z2xeaq -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:32:53.488Z","traceId":"device-e233b45d-35aa-4abf-9167-59c78aa962dc","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:32:53.677Z","traceId":"device-e233b45d-35aa-4abf-9167-59c78aa962dc","durationMs":189,"context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:33:42.158Z","traceId":"device-e7735513-3bbb-4032-a725-8c90b6060f11","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:33:42.703Z","traceId":"device-e7735513-3bbb-4032-a725-8c90b6060f11","durationMs":545,"context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:33:46.606Z","traceId":"realtime-51bc48e3-e1b6-45bc-9794-d4448d94f33c","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-yz2hi6irl2o","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-yz2hi6irl2o -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:33:46.606Z","traceId":"realtime-ab0720e3-e7b6-4318-b06e-0dadaa596de6","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-yz2hi6irl2o","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-yz2hi6irl2o -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:33:46.607Z","traceId":"realtime-4db99a73-8dc1-480e-917b-b0e143b66fd1","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-3ohs0z2xeaq","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-3ohs0z2xeaq -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_closed","level":"info","at":"2026-09-08T13:33:46.607Z","traceId":"realtime-dc986b9a-87d4-480e-b88e-6f52550f2e86","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-3ohs0z2xeaq","status":"CLOSED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-3ohs0z2xeaq -> CLOSED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:33:46.641Z","traceId":"realtime-8810c1a0-512d-4922-b68c-4202f3b1f5dd","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-dhw89ckoanh","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-dhw89ckoanh -> SUBSCRIBED
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:33:46.932Z","traceId":"realtime-e4f5d302-fc9c-47ec-9ec1-1974e187e9cd","context":{"channel":"chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-sebavtowp1m","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-unread-2bcc2013-bbb8-4cc9-820e-02d80550b11e-sebavtowp1m -> SUBSCRIBED
+200x200?text=Foto:1  Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID
+index-CiVgXWrp.js:2 [observability] {"domain":"realtime","event":"channel_subscribed","level":"info","at":"2026-09-08T13:33:53.683Z","traceId":"realtime-2e3cf7b5-08b0-41de-8d8e-98e8d0306e80","context":{"channel":"chat-notification-2bcc2013-bbb8-4cc9-820e-02d80550b11e-cmo8m08ejdg","status":"SUBSCRIBED"}}
+repository-D-Qf0c0H.js:1 [realtime] chat-notification-2bcc2013-bbb8-4cc9-820e-02d80550b11e-cmo8m08ejdg -> SUBSCRIBED
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/chat_messages?select=id%2Cconversation_id%2Csender_id%2Creceiver_id%2Cmessage%2Cbody%2Cis_read%2Ccreated_at%2Cauto_delete_at%2Cchat_type%2Cimage_url%2Cclient_message_id%2Cdeleted_at:1  Failed to load resource: the server responded with a status of 400 ()
+OrderChat-DDeTzfwK.js:9 Error sending message: Object
+z @ OrderChat-DDeTzfwK.js:9
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T13:34:40.196Z","traceId":"device-d529d3fe-f532-4426-8528-fb849913d110","context":{"deviceType":"browser","hasTenant":false}}
+index-CiVgXWrp.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-08T13:34:40.594Z","traceId":"device-d529d3fe-f532-4426-8528-fb849913d110","durationMs":398,"context":{"deviceType":"browser","hasTenant":false}}

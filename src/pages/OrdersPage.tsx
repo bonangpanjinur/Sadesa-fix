@@ -10,7 +10,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import {
   Package, Clock, Truck, CheckCircle, XCircle, ShoppingBag,
   Store, LogIn, MapPin, Star, RefreshCw, ChevronRight, CalendarDays,
-  MessageCircle, X, RotateCcw, AlertCircle, FileText,
+  MessageCircle, X, RotateCcw, AlertCircle, FileText, Bike,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +53,23 @@ interface BuyerOrder {
   courier_rated?: boolean;
 }
 
+interface RideOrder {
+  id: string;
+  status: string;
+  pickup_address: string;
+  destination_address: string;
+  distance_km: number;
+  estimated_fare: number;
+  final_fare: number | null;
+  rating: number | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+type HistoryItem =
+  | { kind: "marketplace"; item: BuyerOrder }
+  | { kind: "ride"; item: RideOrder };
+
 // Database-aligned status config
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   NEW: { label: "Pesanan Baru", icon: Clock, color: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -77,6 +94,17 @@ const PROCESSING_STATUSES = ["CONFIRMED", "PROCESSED", "ASSIGNED", "PICKED_UP"];
 const SHIPPING_STATUSES = ["SENT", "DELIVERING", "DELIVERED"];
 const DONE_STATUSES = ["DONE"];
 const CANCELLED_STATUSES = ["CANCELLED", "CANCELED"];
+const RIDE_ACTIVE_STATUSES = ["SEARCHING", "ACCEPTED", "PICKED_UP", "IN_TRANSIT"];
+const RIDE_CANCELLED_STATUSES = ["CANCELLED", "CANCELED"];
+const RIDE_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  SEARCHING: { label: "Mencari Driver", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  ACCEPTED: { label: "Driver Ditemukan", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  PICKED_UP: { label: "Dalam Perjalanan", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  IN_TRANSIT: { label: "Menuju Tujuan", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  COMPLETED: { label: "Selesai", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  CANCELLED: { label: "Dibatalkan", color: "bg-red-50 text-red-700 border-red-200" },
+  CANCELED: { label: "Dibatalkan", color: "bg-red-50 text-red-700 border-red-200" },
+};
 
 const TAB_FILTERS = [
   { value: "all", label: "Semua", icon: ShoppingBag },
@@ -96,6 +124,18 @@ const getStatusGroup = (status: string): string => {
   return "all";
 };
 
+const getRideStatusGroup = (status: string): string => {
+  if (status === "SEARCHING") return "pending";
+  if (status === "ACCEPTED") return "processing";
+  if (["PICKED_UP", "IN_TRANSIT"].includes(status)) return "shipped";
+  if (status === "COMPLETED") return "completed";
+  if (RIDE_CANCELLED_STATUSES.includes(status)) return "cancelled";
+  return "all";
+};
+
+const getHistoryStatusGroup = (item: HistoryItem): string =>
+  item.kind === "ride" ? getRideStatusGroup(item.item.status) : getStatusGroup(item.item.status);
+
 function getOrderProgress(status: string): number {
   if (CANCELLED_STATUSES.includes(status)) return 0;
   const idx = ORDER_STEPS.indexOf(status);
@@ -105,6 +145,13 @@ function getOrderProgress(status: string): number {
     return 0;
   }
   return ((idx + 1) / ORDER_STEPS.length) * 100;
+}
+
+function getRideProgress(status: string): number {
+  if (RIDE_CANCELLED_STATUSES.includes(status)) return 0;
+  const steps = ["SEARCHING", "ACCEPTED", "PICKED_UP", "IN_TRANSIT", "COMPLETED"];
+  const idx = steps.indexOf(status);
+  return idx === -1 ? 0 : ((idx + 1) / steps.length) * 100;
 }
 
 async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
@@ -238,9 +285,30 @@ const OrdersPage = () => {
     staleTime: 30_000,
   });
 
+  const {
+    data: rides = [],
+    isLoading: ridesLoading,
+    isFetching: ridesRefreshing,
+    refetch: refetchRides,
+  } = useQuery<RideOrder[]>({
+    queryKey: ['passenger-rides', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ride_requests')
+        .select('id, status, pickup_address, destination_address, distance_km, estimated_fare, final_fare, rating, created_at, completed_at')
+        .eq('passenger_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data || []) as unknown as RideOrder[];
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+
   const fetchOrders = useCallback(async (isRefresh = false) => {
-    if (isRefresh) await refetch();
-  }, [refetch]);
+    if (isRefresh) await Promise.all([refetch(), refetchRides()]);
+  }, [refetch, refetchRides]);
 
   // Realtime subscription for order status updates — updates React Query cache directly
   useEffect(() => {
@@ -269,23 +337,46 @@ const OrdersPage = () => {
     return () => { supabase.removeChannel(channel); };
   }, [user, queryClient]);
 
+  // Keep ride entries in the combined order history fresh while a ride is active.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('buyer-rides-in-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ride_requests', filter: `passenger_id=eq.${user.id}` },
+        () => { void refetchRides(); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, refetchRides]);
+
   // Reorder handler - delegated to shared hook (validates stock, merchant status, etc.)
   const handleReorder = useCallback(
     (order: BuyerOrder) => reorder(order.order_items || []),
     [reorder],
   );
 
-  const filteredOrders = orders.filter((order) => {
+  const historyItems: HistoryItem[] = [
+    ...orders.map((order) => ({ kind: "marketplace" as const, item: order })),
+    ...rides.map((ride) => ({ kind: "ride" as const, item: ride })),
+  ].sort((a, b) => new Date(b.item.created_at).getTime() - new Date(a.item.created_at).getTime());
+
+  const filteredHistory = historyItems.filter((item) => {
     if (activeTab === "all") return true;
-    return getStatusGroup(order.status) === activeTab;
+    return getHistoryStatusGroup(item) === activeTab;
   });
 
   const getTabCount = (tabValue: string) => {
-    if (tabValue === "all") return orders.length;
-    return orders.filter((order) => getStatusGroup(order.status) === tabValue).length;
+    if (tabValue === "all") return historyItems.length;
+    return historyItems.filter((item) => getHistoryStatusGroup(item) === tabValue).length;
   };
 
-  const activeOrderCount = orders.filter(o => !["DONE", "CANCELLED", "CANCELED"].includes(o.status)).length;
+  const activeOrderCount = historyItems.filter((item) =>
+    item.kind === "ride"
+      ? RIDE_ACTIVE_STATUSES.includes(item.item.status)
+      : !["DONE", "CANCELLED", "CANCELED"].includes(item.item.status),
+  ).length;
 
   const handleContactSeller = async (e: React.MouseEvent, order: BuyerOrder) => {
     e.stopPropagation();
@@ -357,10 +448,10 @@ const OrdersPage = () => {
           </div>
           <button
             onClick={() => fetchOrders(true)}
-            disabled={refreshing}
+            disabled={refreshing || ridesRefreshing}
             className="p-2 rounded-full hover:bg-secondary transition-colors"
           >
-            <RefreshCw className={`w-5 h-5 text-muted-foreground ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-5 h-5 text-muted-foreground ${refreshing || ridesRefreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
@@ -392,7 +483,7 @@ const OrdersPage = () => {
 
           {/* Orders list */}
           <div className="space-y-3 min-h-[50vh]">
-            {loading ? (
+            {loading || ridesLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i} className="overflow-hidden border-0 shadow-sm">
                   <CardContent className="p-0">
@@ -427,8 +518,93 @@ const OrdersPage = () => {
                   <RefreshCw className="w-4 h-4 mr-2" /> Coba Lagi
                 </Button>
               </div>
-            ) : filteredOrders.length > 0 ? (
-              filteredOrders.map((order) => {
+            ) : filteredHistory.length > 0 ? (
+              filteredHistory.map((historyItem) => {
+                if (historyItem.kind === "ride") {
+                  const ride = historyItem.item;
+                  const statusConf = RIDE_STATUS_CONFIG[ride.status] || RIDE_STATUS_CONFIG.SEARCHING;
+                  const relativeTime = formatDistanceToNow(new Date(ride.created_at), { addSuffix: true, locale: idLocale });
+                  const isActive = RIDE_ACTIVE_STATUSES.includes(ride.status);
+                  const fare = ride.final_fare ?? ride.estimated_fare;
+
+                  return (
+                    <Card
+                      key={`ride-${ride.id}`}
+                      className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.99]"
+                      onClick={() => navigate(`/ride/${ride.id}`)}
+                    >
+                      <CardContent className="p-0">
+                        <div className="px-4 py-3 border-b border-border/50 flex justify-between items-center">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5">
+                              <CalendarDays className="w-3 h-3" />
+                              <span>{relativeTime}</span>
+                              <span className="text-border">•</span>
+                              <span className="font-mono">#{ride.id.substring(0, 8).toUpperCase()}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-sm">
+                              <Bike className="w-3.5 h-3.5 text-primary" />
+                              <span className="font-medium">Ojek & Kurir</span>
+                            </div>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`${statusConf.color} border px-2.5 py-1 text-[11px] font-medium flex-shrink-0`}
+                          >
+                            {statusConf.label}
+                          </Badge>
+                        </div>
+
+                        {isActive && (
+                          <div className="px-4 pt-3">
+                            <Progress value={getRideProgress(ride.status)} className="h-1.5" />
+                          </div>
+                        )}
+
+                        <div className="p-4 flex gap-4">
+                          <div className="w-20 h-20 bg-primary/10 rounded-lg flex-shrink-0 flex items-center justify-center">
+                            <Bike className="w-10 h-10 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                                <span className="truncate">{ride.pickup_address}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />
+                                <span className="truncate">{ride.destination_address}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-end justify-between mt-2">
+                              <div>
+                                <p className="text-[11px] text-muted-foreground">
+                                  {Number(ride.distance_km || 0).toFixed(1)} km
+                                </p>
+                                <p className="text-sm font-bold text-primary">{formatPrice(fare)}</p>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="px-4 py-3 border-t border-border/50 bg-muted/30 flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-8 rounded-full px-4"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/ride/${ride.id}`); }}
+                          >
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {isActive ? "Lacak Perjalanan" : "Lihat Detail"}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                const order = historyItem.item;
                 const firstItem = order.order_items?.[0];
                 // Support both image_url from DB and image from mapped Product interface
                 const imageUrl = firstItem?.products?.image_url;

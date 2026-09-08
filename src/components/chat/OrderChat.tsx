@@ -59,7 +59,7 @@ interface OrderChatProps {
   isOpen: boolean;
   onClose: () => void;
   chatType?: ChatType;
-  senderRole?: string;
+  senderRole?: 'driver' | 'passenger';
 }
 
 const QUICK_REPLIES: Record<string, string[]> = {
@@ -90,6 +90,10 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
   // Fetch order info (items + products)
   useEffect(() => {
     if (!isOpen || !orderId) return;
+    if (contextType === 'ride') {
+      setOrderInfo(null);
+      return;
+    }
 
     const fetchOrderInfo = async () => {
       // Fetch order with joined merchant and courier user_ids
@@ -148,7 +152,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
     };
 
     fetchOrderInfo();
-  }, [isOpen, orderId]);
+  }, [contextType, isOpen, orderId]);
 
   // Memoize unique sender IDs to avoid re-fetching on every render
   const senderIdsKey = useMemo(() => {
@@ -268,6 +272,10 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
 
       // During the additive rollout, old environments still use the legacy
       // order-scoped subscription until the new SQL bundle is applied.
+      if (contextType === 'ride') {
+        setConnectionStatus('offline');
+        return;
+      }
       setConversationId(null);
       const { data } = await supabase
         .from('chat_messages')
@@ -350,6 +358,13 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
   };
 
   const getRoleInfo = (senderId: string) => {
+    if (contextType === 'ride') {
+      const isCurrentUser = senderId === user?.id;
+      const role = isCurrentUser ? senderRole : (senderRole === 'driver' ? 'passenger' : 'driver');
+      return role === 'driver'
+        ? { label: 'Driver', color: 'bg-blue-100 text-blue-700', icon: <User className="h-2 w-2 mr-0.5" /> }
+        : { label: 'Penumpang', color: 'bg-green-100 text-green-700', icon: <Truck className="h-2 w-2 mr-0.5" /> };
+    }
     if (!orderInfo) return { label: '', color: 'bg-muted', icon: null };
     
     // Determine sender's role based on order data (matching against user_id)

@@ -537,6 +537,7 @@ export default function RideTrackingPage() {
           otherUserId={driverUserId}
           otherUserName={driver?.name || 'Driver'}
           chatType="buyer_courier"
+          senderRole="passenger"
           isOpen={chatOpen}
           onClose={() => setChatOpen(false)}
         />

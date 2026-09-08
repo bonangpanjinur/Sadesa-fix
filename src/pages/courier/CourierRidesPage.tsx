@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, Volume2 } from 'lucide-react';
+import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, Volume2, MessageCircle } from 'lucide-react';
 import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { OrderChat } from '@/components/chat/OrderChat';
 
 const pickupIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -69,6 +70,7 @@ export default function CourierRidesPage() {
   const [courierLng, setCourierLng] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [expandedMap, setExpandedMap] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const prevRideCount = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -107,14 +109,19 @@ export default function CourierRidesPage() {
       ]);
 
       const rides = (available || []) as unknown as RideRequest[];
-      const passengerIds = [...new Set(rides.map(r => r.passenger_id))];
+      const passengerIds = [...new Set([
+        ...rides.map(r => r.passenger_id),
+        ...((active?.[0] as { passenger_id?: string } | undefined)?.passenger_id
+          ? [(active[0] as { passenger_id: string }).passenger_id]
+          : []),
+      ])];
       const passengerNames: Record<string, string> = {};
 
       if (passengerIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', passengerIds);
+        const { data: profiles } = await supabase.from('profiles').select('user_id, full_name').in('user_id', passengerIds);
         if (profiles) {
-          profiles.forEach((p: { id: string; full_name: string | null }) => {
-            if (p.full_name) passengerNames[p.id] = p.full_name;
+          profiles.forEach((p: { user_id: string; full_name: string | null }) => {
+            if (p.full_name) passengerNames[p.user_id] = p.full_name;
           });
         }
       }
@@ -133,6 +140,10 @@ export default function CourierRidesPage() {
   const activeRide = ridesData?.activeRide ?? null;
   const passengerNames = ridesData?.passengerNames ?? {};
   const loading = courierLoading || ridesLoading;
+
+  useEffect(() => {
+    if (!activeRide) setChatOpen(false);
+  }, [activeRide]);
 
   // Realtime subscriptions — only invalidate for searchable or owned rides.
   useEffect(() => {
@@ -306,6 +317,11 @@ export default function CourierRidesPage() {
                 <span className="font-bold text-primary text-lg">{formatPrice(activeRide.estimated_fare)}</span>
               </div>
               <div className="flex gap-2">
+                {['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'].includes(activeRide.status) && (
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setChatOpen(true)}>
+                    <MessageCircle className="h-4 w-4 mr-1" /> Chat Penumpang
+                  </Button>
+                )}
                 {activeRide.status === 'ACCEPTED' && (
                   <Button variant="outline" size="sm" className="flex-1" onClick={() => openNavigation(activeRide.pickup_lat, activeRide.pickup_lng)}>
                     <Navigation className="h-4 w-4 mr-1" /> Navigasi Jemput
@@ -427,6 +443,19 @@ export default function CourierRidesPage() {
           )}
         </div>
       </div>
+      {chatOpen && activeRide && (
+        <OrderChat
+          orderId={activeRide.id}
+          contextType="ride"
+          rideRequestId={activeRide.id}
+          otherUserId={activeRide.passenger_id}
+          otherUserName={passengerNames[activeRide.passenger_id] || 'Penumpang'}
+          chatType="buyer_courier"
+          senderRole="driver"
+          isOpen={chatOpen}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
     </CourierLayout>
   );
 }
