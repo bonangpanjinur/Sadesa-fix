@@ -1852,7 +1852,6 @@ export type Database = {
           approved_by: string | null
           created_at: string
           expired_at: string | null
-          grace_ends_at: string | null
           id: string
           is_trial: boolean
           merchant_id: string
@@ -1870,7 +1869,6 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           expired_at?: string | null
-          grace_ends_at?: string | null
           id?: string
           is_trial?: boolean
           merchant_id: string
@@ -1888,7 +1886,6 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           expired_at?: string | null
-          grace_ends_at?: string | null
           id?: string
           is_trial?: boolean
           merchant_id?: string
@@ -1930,14 +1927,11 @@ export type Database = {
           address: string | null
           created_at: string
           currency: string
-          enabled_modules: Json
           id: string
           is_active: boolean
           logo_url: string | null
-          merchant_id: string | null
           name: string
           phone: string | null
-          status: string
           store_name: string | null
           timezone: string
           updated_at: string
@@ -1947,14 +1941,11 @@ export type Database = {
           address?: string | null
           created_at?: string
           currency?: string
-          enabled_modules?: Json
           id?: string
           is_active?: boolean
           logo_url?: string | null
-          merchant_id?: string | null
           name: string
           phone?: string | null
-          status?: string
           store_name?: string | null
           timezone?: string
           updated_at?: string
@@ -1964,14 +1955,11 @@ export type Database = {
           address?: string | null
           created_at?: string
           currency?: string
-          enabled_modules?: Json
           id?: string
           is_active?: boolean
           logo_url?: string | null
-          merchant_id?: string | null
           name?: string
           phone?: string | null
-          status?: string
           store_name?: string | null
           timezone?: string
           updated_at?: string
