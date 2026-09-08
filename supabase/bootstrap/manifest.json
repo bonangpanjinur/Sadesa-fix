@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 210,
-  "bundle_count": 30,
+  "bundle_count": 31,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -427,6 +427,14 @@
       ],
       "sha256": "b5a9edd2b6a06fe2f146ba46590d22fa195b8e4b38563584238e22404fa7f99f",
       "bytes": 1923
+    },
+    {
+      "file": "31_20260908180000_ride_status_transition.sql",
+      "source_files": [
+        "31_20260908180000_ride_status_transition.sql"
+      ],
+      "sha256": "48a254e050e0af0953e7f461c961335f8630fcdd43cd87a15bad5c19d918cf4d",
+      "bytes": 1561
     }
   ]
 }

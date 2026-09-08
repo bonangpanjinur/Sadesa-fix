@@ -21,6 +21,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
 import { reverseGeocode, formatAddressSummary } from '@/hooks/useGeocoding';
 import { calculateETA, formatETA } from '@/lib/etaCalculation';
+import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -109,6 +110,8 @@ export default function RideBookingPage() {
   const [geocoding, setGeocoding] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
   const geocodeAbort = useRef<AbortController | null>(null);
 
   const fetchDrivers = useCallback(async () => {
@@ -241,23 +244,49 @@ export default function RideBookingPage() {
     }
   }, [mode]);
 
-  const distanceKm = pickupLocation && destLocation
+  const straightLineDistanceKm = pickupLocation && destLocation
     ? haversineDistance(pickupLocation.lat, pickupLocation.lng, destLocation.lat, destLocation.lng) : 0;
+  const distanceKm = roadRoute?.distanceKm ?? straightLineDistanceKm;
 
   const estimatedFare = Math.min(
     fareSettings.max_fare,
     Math.max(fareSettings.min_fare, Math.round(fareSettings.base_fare + distanceKm * fareSettings.per_km_fare))
   );
 
-  const etaMinutes = pickupLocation && destLocation
+  const etaMinutes = roadRoute?.durationMinutes ?? (pickupLocation && destLocation
     ? calculateETA({ lat: pickupLocation.lat, lng: pickupLocation.lng }, { lat: destLocation.lat, lng: destLocation.lng }, 'motor')
-    : 0;
+    : 0);
 
   const fitPoints = useMemo(() => {
+    if (roadRoute?.geometry.length) return roadRoute.geometry;
     const pts: [number, number][] = [];
     if (pickupLocation) pts.push([pickupLocation.lat, pickupLocation.lng]);
     if (destLocation) pts.push([destLocation.lat, destLocation.lng]);
     return pts;
+  }, [pickupLocation, destLocation, roadRoute]);
+
+  useEffect(() => {
+    if (!pickupLocation || !destLocation) {
+      setRoadRoute(null);
+      setRouteLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setRouteLoading(true);
+    getRoadRoute(pickupLocation, destLocation, controller.signal)
+      .then((route) => setRoadRoute(route))
+      .catch((error: unknown) => {
+        if ((error as { name?: string })?.name !== 'AbortError') {
+          console.warn('Gagal mengambil rute jalan, menggunakan jarak langsung:', error);
+          setRoadRoute(null);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRouteLoading(false);
+      });
+
+    return () => controller.abort();
   }, [pickupLocation, destLocation]);
 
   const handleSubmit = async () => {
@@ -347,10 +376,17 @@ export default function RideBookingPage() {
           {pickupLocation && <Marker position={[pickupLocation.lat, pickupLocation.lng]} icon={pickupIcon} />}
           {destLocation && <Marker position={[destLocation.lat, destLocation.lng]} icon={destIcon} />}
           {pickupLocation && destLocation && (
-            <Polyline
-              positions={[[pickupLocation.lat, pickupLocation.lng], [destLocation.lat, destLocation.lng]]}
-              pathOptions={{ color: 'hsl(160,84%,39%)', weight: 3, dashArray: '10, 8', opacity: 0.7 }}
-            />
+            roadRoute?.geometry.length ? (
+              <Polyline
+                positions={roadRoute.geometry}
+                pathOptions={{ color: 'hsl(160,84%,39%)', weight: 3, opacity: 0.85 }}
+              />
+            ) : (
+              <Polyline
+                positions={[[pickupLocation.lat, pickupLocation.lng], [destLocation.lat, destLocation.lng]]}
+                pathOptions={{ color: 'hsl(160,84%,39%)', weight: 3, dashArray: '10, 8', opacity: 0.7 }}
+              />
+            )
           )}
           {drivers.map(d => (
             <Marker key={d.id} position={[d.lat, d.lng]} icon={driverIcon} />
@@ -433,7 +469,7 @@ export default function RideBookingPage() {
               <div className="flex items-center justify-between text-sm bg-muted/50 rounded-xl px-4 py-3">
                 <div className="space-y-0.5">
                   <p className="text-muted-foreground text-xs">Jarak</p>
-                  <p className="font-semibold">{distanceKm.toFixed(1)} km</p>
+                  <p className="font-semibold">{routeLoading ? 'Menghitung…' : `${distanceKm.toFixed(1)} km via jalan`}</p>
                 </div>
                 <div className="h-8 w-px bg-border" />
                 <div className="space-y-0.5 text-center">
@@ -486,7 +522,7 @@ export default function RideBookingPage() {
                   </div>
                 </div>
                 <div className="flex justify-between text-sm bg-muted rounded-lg px-3 py-2">
-                  <span>Jarak: <strong>{distanceKm.toFixed(1)} km</strong></span>
+                  <span>Jarak: <strong>{distanceKm.toFixed(1)} km via jalan</strong></span>
                   <span>~<strong>{formatETA(etaMinutes)}</strong></span>
                 </div>
                 <div className="text-center">

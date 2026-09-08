@@ -62,7 +62,12 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setCurrentLocation({ lat: latitude, lng: longitude });
+        const location = { lat: latitude, lng: longitude };
+        setCurrentLocation(location);
+        // Keep the first fix available to the checkpoint timer as well.
+        // Without this, a browser that does not emit a second watch event
+        // never writes the driver's initial location to the database.
+        locationRef.current = location;
         updateLocationToServer(latitude, longitude);
         setLoading(false);
         setIsTracking(true);

@@ -206,18 +206,50 @@ export default function CourierRidesPage() {
     mutationFn: async (newStatus: string) => {
       if (!activeRide || !courierId) return;
       setUpdatingStatus(true);
-      const { error } = await supabase.rpc('transition_ride_status', {
+      const { error: rpcError } = await supabase.rpc('transition_ride_status', {
         p_ride_id: activeRide.id,
         p_to_status: newStatus,
       });
-      if (error) throw error;
+
+      if (!rpcError) return newStatus;
+
+      // Older Supabase projects imported before the transition RPC was added
+      // return PGRST202/42883 here. Keep the UI usable while the idempotent
+      // migration is being applied, but still scope the fallback to this
+      // driver's current ride and current status.
+      const functionMissing = ['PGRST202', '42883'].includes(rpcError.code ?? '')
+        || /transition_ride_status|function .*does not exist/i.test(rpcError.message ?? '');
+
+      if (!functionMissing) throw rpcError;
+
+      const timestamps: Record<string, string> = {};
+      if (newStatus === 'PICKED_UP') timestamps.picked_up_at = new Date().toISOString();
+      if (newStatus === 'COMPLETED') timestamps.completed_at = new Date().toISOString();
+
+      const { data: updatedRide, error: updateError } = await supabase
+        .from('ride_requests')
+        .update({ status: newStatus, ...timestamps })
+        .eq('id', activeRide.id)
+        .eq('driver_id', courierId)
+        .eq('status', activeRide.status)
+        .select('id')
+        .maybeSingle();
+
+      if (updateError) throw updateError;
+      if (!updatedRide) {
+        throw new Error('Ride sudah berubah atau tidak lagi ditugaskan kepada Anda');
+      }
       return newStatus;
     },
     onSuccess: (newStatus) => {
       toast({ title: newStatus === 'COMPLETED' ? '✅ Perjalanan selesai!' : 'Status diperbarui' });
       queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
     },
-    onError: () => toast({ title: 'Gagal memperbarui status', variant: 'destructive' }),
+    onError: (error) => toast({
+      title: 'Gagal memperbarui status',
+      description: error instanceof Error ? error.message : 'Silakan coba lagi.',
+      variant: 'destructive',
+    }),
     onSettled: () => setUpdatingStatus(false),
   });
 

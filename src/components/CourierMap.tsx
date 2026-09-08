@@ -237,8 +237,13 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
       )
       .subscribe();
 
+    // Broadcasts are ephemeral. Poll as a fallback so a passenger who opens
+    // the tracking page after the last broadcast still sees movement.
+    const refreshInterval = setInterval(fetchCouriers, 10000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(refreshInterval);
     };
   }, [courierId, showAllCouriers, selfDeliveryOrderId, hasDestination, selfDeliveryLabel, fetchCouriers]);
 
