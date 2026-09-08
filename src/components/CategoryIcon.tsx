@@ -3,7 +3,7 @@ import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench
 import { getHomepageCategoryHref } from '@/lib/homeCategories';
 import { cn } from '@/lib/utils';
 
-function MotorbikeIcon({ className }: { className?: string }) {
+function HelmetIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -14,14 +14,12 @@ function MotorbikeIcon({ className }: { className?: string }) {
       className={className}
       aria-hidden="true"
     >
-      <circle cx="6" cy="17.5" r="2.5" />
-      <circle cx="18" cy="17.5" r="2.5" />
-      <path d="M8.5 17.5h3l2-4h3l1.5 4" />
-      <path d="M11.5 17.5 10 13h3l1.5-2.5h2.25l1.5 2" />
-      <path d="M14.25 10.5 13 8.25" />
-      <circle cx="12.25" cy="6.25" r="1.5" />
-      <path d="m12.25 7.75 2 1.5" />
-      <path d="M16.5 10.5h1.75" />
+      <path d="M4 15.25v-2.5a8 8 0 0 1 16 0v2.5" />
+      <path d="M4 15.25h14.5a1.5 1.5 0 0 0 1.5-1.5" />
+      <path d="M4 15.25v.75a2.75 2.75 0 0 0 2.75 2.75h10.5a2.75 2.75 0 0 0 2.75-2.75v-.75" />
+      <path d="M12.5 9.75h4.75A1.75 1.75 0 0 1 19 11.5v3.25h-6.5V9.75Z" />
+      <path d="M15 9.75v5" />
+      <circle cx="8" cy="13.25" r="1" />
     </svg>
   );
 }
@@ -35,7 +33,7 @@ const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   wrench: Wrench,
   sprout: Sprout,
   'heart-pulse': HeartPulse,
-  motorcycle: MotorbikeIcon,
+  helmet: HelmetIcon,
   smartphone: Smartphone,
   car: Car,
   house: House,
