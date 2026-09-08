@@ -1,0 +1,281 @@
+Berikut rencana fitur **2 jasa transportasi untuk pembeli**:
+
+# Konsep utama
+
+Di halaman Beranda, kategori **“Ojek & Kurir”** sebaiknya tidak langsung membuka satu halaman campuran. Saat dipilih, tampilkan pilihan layanan:
+
+1. **Ojek Penumpang**
+   - Mengantar pembeli dari lokasi jemput ke tujuan.
+2. **Kurir Barang**
+   - Mengantar barang atau mengambil barang dari satu lokasi ke lokasi lain.
+
+Agar kategori Beranda tidak terlalu penuh, sebaiknya dibuat section khusus **“Layanan Antar”** dengan dua kartu layanan, bukan menambah terlalu banyak ikon di grid kategori.
+
+## 1. UX Ojek Penumpang
+
+Alur pembeli:
+
+1. Pilih **Ojek Penumpang**
+2. Tentukan:
+   - Lokasi jemput
+   - Lokasi tujuan
+   - Jemput sekarang atau jadwalkan
+   - Jumlah penumpang
+   - Catatan untuk pengemudi
+3. Tampilkan:
+   - Estimasi jarak
+   - Estimasi waktu
+   - Estimasi tarif
+4. Pembeli konfirmasi pesanan
+5. Sistem mencari mitra pengemudi
+6. Pembeli melihat:
+   - Profil pengemudi
+   - Kendaraan dan plat nomor
+   - Lokasi real-time
+   - Status perjalanan
+7. Verifikasi penjemputan menggunakan PIN/OTP
+8. Perjalanan selesai
+9. Pembayaran, rating, dan laporan masalah
+
+Status utama:
+
+```text
+DRAFT
+SEARCHING_DRIVER
+DRIVER_ASSIGNED
+DRIVER_ON_THE_WAY
+DRIVER_ARRIVED
+TRIP_STARTED
+COMPLETED
+CANCELLED
+```
+
+## 2. UX Kurir Barang
+
+Alur pembeli:
+
+1. Pilih **Kurir Barang**
+2. Pilih jenis layanan:
+   - **Kirim barang**
+   - **Ambil barang**
+3. Isi:
+   - Lokasi pengambilan
+   - Lokasi tujuan
+   - Nama dan nomor penerima
+   - Jenis barang
+   - Ukuran atau berat barang
+   - Foto barang jika diperlukan
+   - Catatan untuk kurir
+   - Opsi COD bila diizinkan
+4. Tampilkan estimasi:
+   - Jarak
+   - Biaya layanan
+   - Biaya tambahan ukuran/berat
+5. Pembeli konfirmasi pesanan
+6. Sistem mencari mitra kurir
+7. Pembeli memantau:
+   - Kurir menuju lokasi pickup
+   - Barang diambil
+   - Barang dalam perjalanan
+   - Barang tiba
+8. Kurir mengunggah bukti:
+   - Foto pickup
+   - Foto pengantaran
+   - PIN/OTP penerima
+   - Tanda tangan digital bila diperlukan
+9. Pembeli memberi rating
+
+Status utama:
+
+```text
+DRAFT
+SEARCHING_COURIER
+COURIER_ASSIGNED
+GOING_TO_PICKUP
+PICKED_UP
+IN_TRANSIT
+DELIVERED
+CANCELLED
+```
+
+# Struktur tampilan yang disarankan
+
+## Beranda
+
+Pertahankan gaya desain yang sekarang:
+
+```text
+Kategori Utama
+[ Kuliner ] [ Sembako ] [ Produk Desa ] [ Wisata ]
+[ Jasa    ] [ Pertanian ] [ Kesehatan ] [ ... ]
+
+Layanan Antar
+[ Ojek Penumpang ]
+Antar Anda dengan aman
+
+[ Kurir Barang ]
+Kirim atau ambil barang
+```
+
+Kedua kartu layanan menggunakan ikon dan warna berbeda:
+
+- Ojek Penumpang: warna hijau/teal
+- Kurir Barang: warna biru atau amber
+
+## Halaman pilihan layanan
+
+Gunakan bottom sheet atau halaman pemilihan sederhana:
+
+```text
+Pilih layanan Anda
+
+[ Ojek Penumpang ]
+Berangkat dari satu lokasi ke lokasi lain
+
+[ Kurir Barang ]
+Kirim atau ambil barang dengan mudah
+```
+
+Jangan langsung menampilkan form panjang. Pembeli harus memilih jenis layanan dulu agar form berikutnya lebih sederhana.
+
+## Halaman order aktif
+
+Buat satu halaman status bersama, tetapi isi tampilannya menyesuaikan jenis layanan:
+
+- Ojek: peta, pengemudi, kendaraan, estimasi tiba
+- Kurir: peta, status paket, bukti pickup, bukti delivery
+
+# Rencana teknis
+
+## Tahap 1 — Audit dan desain UX
+
+- Audit halaman ride dan courier yang sudah ada.
+- Cek apakah `RideBookingPage`, `RideTrackingPage`, dan halaman courier dapat digunakan kembali.
+- Pisahkan alur penumpang dan barang tanpa menggandakan komponen yang sama.
+- Buat state kosong, loading, error, pembatalan, dan order selesai.
+- Pastikan seluruh halaman tetap mengikuti gaya Beranda.
+
+## Tahap 2 — Model data
+
+Gunakan satu entitas order layanan dengan tipe:
+
+```text
+service_type:
+- passenger_ride
+- goods_delivery
+```
+
+Data umum:
+
+- buyer
+- pickup address dan koordinat
+- destination address dan koordinat
+- scheduled time
+- distance
+- estimated fare
+- final fare
+- assigned driver
+- status
+- payment status
+- cancellation reason
+
+Detail khusus:
+
+### Ride detail
+
+- jumlah penumpang
+- tipe kendaraan
+- nomor kendaraan
+- PIN penjemputan
+
+### Delivery detail
+
+- nama penerima
+- nomor penerima
+- jenis barang
+- berat/dimensi
+- foto barang
+- instruksi pickup
+- instruksi delivery
+- bukti pickup
+- bukti delivery
+- PIN penerima
+
+## Tahap 3 — Kapabilitas mitra
+
+Tambahkan kemampuan layanan pada mitra:
+
+```text
+can_accept_passenger_ride
+can_accept_goods_delivery
+```
+
+Dengan begitu:
+
+- Pengemudi yang hanya melayani penumpang tidak mendapat order barang.
+- Kurir barang tidak otomatis mendapat order penumpang.
+- Satu mitra boleh mengaktifkan dua layanan jika memang mampu.
+
+## Tahap 4 — Harga dan dispatch
+
+- Buat kalkulasi tarif berdasarkan jarak.
+- Tambahkan biaya minimum.
+- Tambahkan biaya tunggu untuk ojek.
+- Tambahkan biaya berat/ukuran untuk barang.
+- Sediakan biaya tambahan untuk jadwal tertentu bila dibutuhkan.
+- Sistem mengirim order hanya ke mitra yang sesuai jenis jasanya.
+- Gunakan timeout pencarian dan fallback bila tidak ada mitra.
+
+## Tahap 5 — Keamanan dan bukti layanan
+
+Untuk ojek:
+
+- PIN penjemputan
+- Konfirmasi kendaraan
+- Tombol darurat atau bantuan
+- Riwayat lokasi
+- Rating pengemudi
+
+Untuk barang:
+
+- Foto barang saat pickup
+- Foto barang saat tiba
+- PIN penerima
+- Nama penerima
+- Riwayat status
+- Mekanisme laporan barang rusak/tidak diterima
+
+Semua perubahan status dan uang harus melalui validasi server-side, bukan update langsung dari browser.
+
+## Tahap 6 — Notifikasi
+
+Notifikasi pembeli:
+
+- Mitra ditemukan
+- Mitra menuju lokasi
+- Mitra tiba
+- Pesanan dimulai
+- Barang sudah diambil
+- Pesanan selesai
+- Pesanan dibatalkan
+
+Notifikasi mitra:
+
+- Order baru
+- Order hampir timeout
+- Pembeli membatalkan
+- Perubahan lokasi atau instruksi
+
+# Urutan pengerjaan MVP
+
+1. Pisahkan UI menjadi **Ojek Penumpang** dan **Kurir Barang**.
+2. Buat form pemesanan untuk kedua layanan.
+3. Tambahkan estimasi tarif dan jarak.
+4. Hubungkan ke sistem pencarian mitra yang sudah ada.
+5. Buat tracking status.
+6. Tambahkan bukti pickup/delivery untuk kurir.
+7. Tambahkan rating dan pembatalan.
+8. Tambahkan notifikasi dan edge case.
+9. Uji dengan data staging sebelum digunakan di produksi.
+
+Rencana ini belum mengubah kode. Satu keputusan yang perlu ditetapkan sebelum implementasi adalah: **apakah satu mitra boleh menerima kedua jenis order, atau pengemudi ojek dan kurir barang harus dipisahkan?**

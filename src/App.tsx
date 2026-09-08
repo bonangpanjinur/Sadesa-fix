@@ -121,6 +121,8 @@ const CourierSlipPage = lazy(() => import("./pages/courier/CourierSlipPage"));
 const RideBookingPage = lazy(() => import("./pages/ride/RideBookingPage"));
 const RideTrackingPage = lazy(() => import("./pages/ride/RideTrackingPage"));
 const RideHistoryPage = lazy(() => import("./pages/ride/RideHistoryPage"));
+const TransportServicesPage = lazy(() => import("./pages/transport/TransportServicesPage"));
+const CourierBookingPage = lazy(() => import("./pages/transport/CourierBookingPage"));
 
 // Verifikator Pages
 const VerifikatorDashboardPage = lazy(() => import("./pages/verifikator/VerifikatorDashboardPage"));
@@ -516,7 +518,17 @@ const App = () => (
               {/* Ride routes */}
               <Route path="/ride" element={
                 <ProtectedRoute>
+                  <TransportServicesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ride/passenger" element={
+                <ProtectedRoute>
                   <RideBookingPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/ride/courier" element={
+                <ProtectedRoute>
+                  <CourierBookingPage />
                 </ProtectedRoute>
               } />
               <Route path="/ride/history" element={
