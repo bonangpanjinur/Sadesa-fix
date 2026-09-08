@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 8 September 2026:** Fase 0, Fase 1, dan Fase 4 **selesai secara teknis di repository**. Dashboard admin sekarang menghitung KPI pertumbuhan POS: attach rate, trial-to-paid, MRR, churn 30 hari, dan kesehatan sinkronisasi. Fase 2 **sebagian selesai secara teknis di repository** untuk mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, identitas SKU/barcode tenant-scoped, dan stok varian/outlet; inbox pesanan marketplace yang mandiri dari POS serta QR menu/order meja masih menjadi pekerjaan terbuka. Validasi staging/production dan pengujian konflik juga masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**; uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Fase 5 **selesai secara teknis di repository** untuk entitlement komersial, promo partner, dan SLA support. Migration baru belum diterapkan ke staging/production.
+> **Status implementasi — 8 September 2026:** Fase 0, Fase 1, dan Fase 4 **tersedia secara teknis di repository**. Dashboard admin sekarang menghitung KPI pertumbuhan POS: attach rate, trial-to-paid, MRR, churn 30 hari, dan kesehatan sinkronisasi. Fase 2 **sebagian tersedia secara teknis di repository** untuk mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, identitas SKU/barcode tenant-scoped, dan stok varian/outlet. UI inbox marketplace dan UI manajemen QR/meja sudah ada, tetapi kesiapan end-to-end belum terbukti; khusus menu/order QR, `posBridgeFetch` saat ini sengaja selalu gagal karena service bridge belum aktif. Validasi staging/production dan pengujian konflik masih terbuka. Fase 3 **tersedia secara teknis di repository untuk alur offline dasar**; uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Fase 5 **sebagian tersedia secara teknis di repository** untuk entitlement komersial, promo partner, dan SLA support. Migration baru belum diterapkan ke staging/production.
 
 > **Catatan audit dokumen:** status “selesai secara teknis di repository” hanya berarti kontrak, kode, atau migration tersedia di source control. Status tersebut **bukan** bukti bahwa alur sudah terpasang di Supabase, aman di staging, diterima merchant, atau boleh dijual di produksi. Gunakan matriks tugas dan gate di bagian 9 sebagai acuan eksekusi.
 
@@ -60,6 +60,121 @@ Sebelum ada transaksi uang nyata atau data pilot, pemilik bisnis harus menandata
 | Produksi | **Belum siap** | Migration harus diterapkan dan diuji di staging; variabel Supabase publik, Edge Functions, Auth redirect, dan pilot merchant masih perlu dikonfigurasi. |
 
 **Prioritas kerja:** terapkan migration Fase 2–5 ke staging, validasi konflik dan perangkat Fase 2–3, lalu jalankan pilot merchant sebelum membuka POS secara luas. Jangan menandai fase sebagai siap produksi hanya karena halaman, KPI, atau RPC sudah ada di repository.
+
+## 0.4 Audit silang repository: SQL, UI, dan layanan runtime
+
+Audit ini dilakukan pada source code yang tersedia di repository pada 8 September 2026. Audit ini **bukan** pemeriksaan langsung terhadap project Supabase staging/production karena belum ada bukti bahwa bundle telah diterapkan di sana. Karena itu, “ada di repository” tidak boleh dibaca sebagai “siap dijual”.
+
+Gunakan empat tingkat bukti berikut:
+
+- **Ada di repository:** file, halaman, test, RPC, atau migration dapat ditemukan;
+- **Berfungsi secara lokal:** alur tidak langsung diblokir oleh stub atau service yang sengaja tidak tersedia;
+- **Siap diuji di staging:** bundle, environment, fixture, dan test matrix dapat dijalankan;
+- **Siap pilot/produksi:** ada sign-off, monitoring, rollback, support, dan bukti operasional.
+
+### Ringkasan status audit
+
+| Domain | Bukti repository | Status paling jujur | Hambatan utama |
+|---|---|---|---|
+| Marketplace gratis — katalog | `/merchant/products`, detail produk, form CRUD `products`, kategori, gambar, varian | **Ada di repository; belum lulus staging** | Perlu uji RLS, quota, moderasi, storage, dan merchant marketplace-only |
+| Marketplace gratis — inbox order | `/merchant/orders`, `/merchant/fulfillment`, realtime order hook, invoice marketplace | **Ada di repository; independensi dari POS belum terbukti** | E2E tanpa `pos_tenant`/entitlement POS harus diuji dengan fixture |
+| POS entitlement | `/merchant/pos/subscribe`, `/merchant/pos/*`, `POSAccessRoute`, bundle 12–14 dan 19–20 | **Kontrak kuat di repository; belum terbukti di environment** | Migration, payment, webhook, expiry, grace, suspend, reaktivasi, dan audit |
+| Katalog POS dan stok | Merchant catalog, POS projection, outlet/varian stock, reservation/ledger pada bundle 10–17 dan 21–23 | **Sebagian siap diuji** | Concurrency, multi-outlet, varian, stale projection, dan reconcile nyata |
+| Laporan canonical | Halaman laba-rugi, cashflow, akuntansi, hutang/piutang, kas; bundle 24–25 | **Ada di repository; belum boleh dianggap laporan resmi** | Bundle belum diterapkan, golden dataset dan rekonsiliasi staging belum ditandatangani |
+| Offline POS | Queue, lease, retry, conflict center, recovery test, receipt contract | **Ada untuk alur dasar; belum siap pilot** | Device/PWA nyata, storage lokal, konflik lintas kanal, printer, dan recovery operasional |
+| QR/meja/menu publik | `/merchant/pos/meja`, `/merchant/pos/menu-qr`, `/menu/:tenantId/:tableId`, `MenuPublicPage` | **UI ada; runtime tidak siap** | `posBridgeFetch` selalu gagal; endpoint menu/order/QR lama belum tersedia |
+| Pricing dan POS subscription | `/pricing`, POS subscribe, admin POS, promo partner, priority support; bundle 26–27 | **UI/schema sebagian ada; billing belum production-grade** | Payment provider, add-on, fee ledger, refund, payout, dan rekonsiliasi |
+| Multi-vertikal | Tourism, ride, desa, kategori produk dan halaman operasional | **Vertikal terpisah ada; platform template belum ada** | Belum ada category builder, kontrak listing versioned, state machine booking/rental/service |
+| Admin control tower | Admin POS, dashboard KPI, approval, dispute, refund, support, audit, backup | **Banyak layar ada; control tower terpadu belum ada** | Queue lintas domain, owner/SLA, maker-checker, dan approval matrix |
+
+### Temuan SQL dan migration
+
+1. **Bootstrap adalah artefak release database.** `supabase/bootstrap/manifest.json` menyatakan 27 bundle yang bersumber dari 210 migration arsip. Bundle 10–27 berisi kontrak tambahan POS, stok, lifecycle, reporting, komersial, partner, dan support.
+2. **Manifest belum memiliki integritas lengkap.** Bundle 11, 12, 13, 18, 19, 20, 21, 22, 24, 25, 26, dan 27 masih memiliki `sha256: "pending"` serta `bytes: 0`. Ini tidak membuktikan SQL-nya salah, tetapi checksum dan verifikasi release belum dapat dipercaya.
+3. **Belum ada bukti penerapan environment.** Repository memiliki SQL, namun belum ada apply log, checksum yang cocok dengan staging, `supabase db diff`, backup point, atau rehearsal rollback yang membuktikan staging/production sama dengan bundle.
+4. **Entitlement POS sudah memiliki arah server-side yang benar.** Bundle 14, 19, dan 20 menyediakan activation gate, resolver entitlement berbasis waktu, grace, suspend/cancel, history, export, audit, dan reaktivasi. Statusnya tetap “siap diuji”, bukan “siap dijual”, sampai diuji dengan auth role, expiry, duplicate event, dan payment failure.
+5. **Kontrak stok lebih kuat daripada bukti UI marketplace-nya.** Bundle 15–17 dan 21–23 memisahkan POS outlet stock, marketplace projection, reservation, allocation varian/outlet, stale alert, dan reconciliation. Merchant tetap perlu melihat error/mapping yang dapat ditindaklanjuti, dan database perlu diuji pada transaksi bersamaan lintas outlet.
+6. **Reporting canonical tersedia tetapi belum menjadi bukti laporan resmi.** Bundle 24–25 memusatkan report, debt payment, journal, cash mutation, dan daily reconciliation pada server. Semua perbedaan angka harus diuji memakai golden dataset sebelum angka dipakai untuk keputusan keuangan atau pajak.
+7. **Fase 5 belum merupakan fee engine marketplace.** Bundle 26–27 terutama menambah limit entitlement POS, add-on kapasitas, promo onboarding, partner, dan SLA support. Belum ditemukan implementasi server-side untuk komisi dinamis lintas kategori, effective-date fee rule, fee snapshot per order/payout, usage-fee provider, wallet fee, atau payout hold.
+
+### Temuan UI dan layanan runtime
+
+1. **Marketplace dan POS dipisahkan pada routing.** Rute `/merchant/products`, `/merchant/orders`, dan `/merchant/fulfillment` hanya memakai `ProtectedRoute`, sedangkan `/merchant/pos/*` memakai `POSAccessRoute`. Ini mendukung prinsip marketplace independen, tetapi tetap harus dibuktikan dengan merchant tanpa tenant POS.
+2. **Katalog Merchant sudah menjadi entry point bersama.** `MerchantProductsPage` mengelola `products`; URL POS lama `/merchant/pos/produk` diarahkan kembali ke katalog Merchant. UI mencegah perubahan stok produk yang tertaut POS. Guard browser bukan pengganti guard database; keduanya harus diuji.
+3. **Inbox marketplace tersedia, tetapi kontrak marketplace-only belum selesai.** `MerchantOrdersPage` membaca `orders`, `order_items`, realtime, fulfillment, payment proof, dan invoice. Yang masih harus dibuktikan adalah pembuatan order, reservation, payout, refund, dispute, dan akses merchant tanpa `pos_tenant`.
+4. **Ada dua domain subscription yang tidak boleh disamakan.** `/merchant/subscription` mengelola paket/quota lama melalui `merchant_subscriptions` dan `transaction_packages`; `/merchant/pos/subscribe` mengelola `pos_subscriptions` dan `pos_packages`. Copy, navigasi, analytics, dan support harus menyebut domain yang benar.
+5. **UI QR/meja tersedia, tetapi customer flow belum runnable.** `POSMenuQRPage` menghasilkan link `/menu/{tenant}/{table}` dan `MenuPublicPage` memanggil `/api/menu/...` melalui `posBridgeFetch`. `src/lib/posBridge.ts` secara eksplisit selalu melempar `PosBridgeUnavailableError` karena service lama tidak dijalankan dan tabel bridge belum tersedia. Status QR saat ini adalah **UI/prototype contract**, bukan fitur aktif.
+6. **Laporan memiliki banyak halaman, tetapi angka wajib berasal dari RPC canonical.** Keberadaan halaman tidak membuktikan query yang dipakai konsisten. Setiap halaman dan export harus dicocokkan dengan function/report contract bundle 24–25, timezone, status transaksi, outlet scope, retur, pembayaran aktual, dan jurnal posted.
+7. **Admin memiliki banyak layar operasional, bukan satu control tower.** Admin POS, approval, dispute, refund, support, backup, audit, dan dashboard sudah menjadi fondasi. Namun antrean lintas domain, owner, SLA, risk flag, payout aging, stale stock, incident, dan maker-checker belum terbukti menjadi satu alur keputusan.
+
+### 0.5 Matriks readiness sebelum menyebut “siap”
+
+| Capability | Bukti SQL minimum | Bukti UI minimum | Bukti runtime/staging | Status 8 Sep 2026 |
+|---|---|---|---|---|
+| Merchant marketplace-only | RLS/RPC order tidak mensyaratkan `pos_tenant`; reservation/fulfillment/payout terisolasi | Produk → order → fulfillment → refund/dispute tanpa menu POS | Fixture merchant tanpa tenant POS, order sukses, tidak ada error entitlement | **Terbuka — P0 untuk janji marketplace gratis** |
+| Aktivasi POS | Entitlement aktif, approval, expiry, grace, suspend/cancel, audit | Subscribe, status, trial, promo, warning, blocked state, export | Transisi dan duplicate/retry payment | **Kontrak ada; uji terbuka** |
+| Satu katalog dua kanal | Mapping product/variant, constraint SKU/barcode tenant, source stok, mutation guard | Linked/synced/error, edit produk, mapping failure, retry/reconcile | Multi-outlet, varian, konkurensi | **Sebagian ada; uji terbuka** |
+| POS online/offline | Atomic checkout, idempotency, reservation/ledger, server revalidation | Kasir, pending/synced/conflict, retry/dead-letter, conflict center | Crash, refresh, listrik mati, pergantian device, reconnect | **Alur dasar ada; pilot terbuka** |
+| QR order meja | Token scoped outlet/table, expiry/revoke, server verification, order source `table_qr` | Generate, revoke/rotate, preview, customer menu, order status | Tamper ID, expired/revoked, duplicate order, suspend POS | **Belum tersedia runtime** |
+| Laporan dan kas | Canonical report, payment/cash ledger, posted journal, reconciliation | Screen dan export dengan definisi/periode sama | Golden dataset dan daily reconciliation | **Siap diuji; belum resmi** |
+| Monetisasi marketplace/provider | Fee rule effective date, snapshot, adjustment, payout, dispute, wallet | Simulasi tarif, disclosure, fee detail, payout hold, appeal | Order lama vs tarif baru, refund, batch, waiver, fraud | **Belum dibangun** |
+| Control tower | Action RPC, approval/audit, queue state, SLA, idempotency | Satu antrean owner/status/next action | Escalation, incident, maker-checker, rollback | **Fondasi ada; belum terpadu** |
+
+### 0.6 Kontrak status UI yang harus diseragamkan
+
+Setiap halaman harus membedakan status berikut, bukan hanya menampilkan toast “berhasil”:
+
+- **Draft/configured:** konfigurasi tersimpan tetapi belum aktif;
+- **Active:** entitlement atau operasi aktif dan dapat dipakai;
+- **Pending:** menunggu pembayaran, sinkronisasi, approval, atau validasi server;
+- **Stale:** data ada tetapi umur projection/cache melewati ambang;
+- **Conflict:** transaksi tidak dapat diterapkan otomatis dan membutuhkan keputusan;
+- **Blocked:** ditolak oleh entitlement, role, policy, atau validasi;
+- **Failed/dead-letter:** gagal setelah retry dan harus diberi tindakan;
+- **Final/posted:** sudah masuk ledger canonical dan tidak boleh diubah dengan update biasa.
+
+UI harus menampilkan alasan, timestamp, scope merchant/outlet, request atau idempotency key bila relevan, tindakan berikutnya, dan jalur support. Jangan menampilkan status “sukses” ketika yang terjadi baru queue lokal atau request diterima browser.
+
+### 0.7 Urutan penutupan gap
+
+| Prioritas | Pekerjaan | Alasan urutan | Exit evidence |
+|---|---|---|---|
+| P0 | Lengkapi hash/bytes manifest, tetapkan bundle release, apply ke Supabase staging, backup, diff, dan rollback rehearsal | Tanpa database yang diketahui versinya, audit UI/SQL tidak dapat dipercaya | Manifest lengkap, apply log, checksum, backup/restore, diff kosong |
+| P0 | Selesaikan kontrak marketplace-only | Ini janji inti marketplace gratis dan belum terbukti independen dari POS | E2E tanpa tenant POS sampai fulfillment/payout/refund/dispute |
+| P0 | Ganti stub `posBridgeFetch` dengan service/Edge Function resmi atau hapus feature gate QR dari UI | QR terlihat tersedia tetapi pasti gagal saat digunakan | Menu publik, order meja, KDS/status, stock reservation, revoke/expiry lulus |
+| P0 | Uji entitlement dan payment lifecycle | POS berbayar tidak boleh bergantung pada state browser/admin manual | Webhook idempotent, retry, signature, expiry, grace, suspend, reaktivasi, rekonsiliasi |
+| P1 | Uji stok concurrency dan offline device nyata | Risiko terbesar adalah overselling, transaksi ganda, atau data lokal bocor | Conflict matrix, device matrix, recovery evidence, support runbook |
+| P1 | Rekonsiliasi report/cash/journal dan batasi label laporan | Kesalahan angka merusak keputusan merchant dan kewajiban keuangan | Golden dataset, daily reconciliation, export parity, disclaimer sign-off |
+| P1 | Bangun category builder, fee engine, payout/dispute, dan provider ledger | Multi-vertikal dan monetisasi belum punya kontrak data yang dapat dieksekusi | Versioned config, fee snapshot, adjustment, payout aging, dispute evidence |
+| P2 | Gabungkan admin control tower dan maker-checker | Mengurangi operasi manual tersebar setelah transaksi stabil | Queue lintas domain, owner/SLA, dual approval, audit sample |
+| P2 | Pilot cohort dan ukur unit economics | Validasi bisnis baru berarti setelah alur teknis dan support aman | 10–20 merchant, baseline, guardrail, 30/60/90-day decision |
+
+### 0.8 Pertanyaan wajib setiap release
+
+1. Bundle database apa yang diterapkan, checksum berapa, dan pada environment mana?
+2. Apakah merchant tanpa POS dapat membuat produk dan menerima order sampai fulfillment tanpa error entitlement?
+3. Apakah perubahan stok pada produk tertaut hanya boleh lewat POS outlet stock, termasuk varian dan multi-outlet?
+4. Apakah subscription, payment, webhook, promo, add-on, grace, suspend, dan reaktivasi konsisten jika request dikirim dua kali?
+5. Apakah QR/menu/order meja benar-benar memanggil layanan aktif, bukan stub atau endpoint lama?
+6. Apakah transaksi offline dapat dipulihkan tanpa duplikasi dan tanpa membuka data tenant/outlet lain?
+7. Apakah angka layar, export, jurnal, cash, hutang/piutang, dan rekonsiliasi berasal dari definisi yang sama?
+8. Apakah fee, payout, refund, dispute, dan adjustment memiliki ledger, approval, snapshot aturan, dan audit?
+9. Siapa owner setiap alert, apa SLA-nya, dan apa tindakan rollback/kill switch?
+10. Apa bukti merchant pilot memahami batas fitur gratis, batas POS, data yang diproses, dan jalur support?
+
+### 0.9 Kesimpulan audit per 8 September 2026
+
+Repository sudah memiliki fondasi teknis yang luas: routing terpisah, katalog Merchant, POS projection, stock ledger, entitlement server-side, offline queue, laporan canonical, admin approval, promo partner, dan support SLA. Namun fondasi tersebut belum sama dengan produk siap dijual.
+
+Keputusan operasional yang berlaku:
+
+- **Marketplace gratis:** boleh dilanjutkan sebagai target produk, tetapi klaim “mandiri dari POS” harus ditutup dengan E2E staging merchant tanpa tenant POS.
+- **POS berbayar:** belum boleh dibuka luas; entitlement dan UI tersedia, tetapi migration, payment lifecycle, staging, dan pilot belum menjadi bukti produksi.
+- **QR/menu meja:** jangan dipasarkan sebagai fitur aktif sampai `posBridgeFetch` diganti service resmi yang dapat diverifikasi, diaudit, dan diuji dengan token/expiry/revoke.
+- **Laporan:** boleh dipakai sebagai kandidat laporan operasional setelah golden dataset dan rekonsiliasi staging; jangan disebut laporan pajak/keuangan resmi tanpa approval.
+- **Marketplace multi-vertikal dan monetisasi provider:** masih tahap desain/kontrak; UI atau tabel yang sudah ada tidak cukup untuk mengaktifkan komisi, booking fee, usage fee, payout, atau risk blocking.
+
+Dengan penilaian ini, status keseluruhan produk adalah **siap dilanjutkan ke hardening staging, belum siap pilot transaksi uang nyata, dan belum siap produksi**.
 
 ## 1. Ringkasan keputusan
 
