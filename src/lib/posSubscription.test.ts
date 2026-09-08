@@ -18,4 +18,20 @@ describe('POS subscription lifecycle', () => {
     expect(getPOSSubscriptionState({ status: 'ACTIVE', expired_at: '2026-08-27T23:59:59.000Z' }, now)).toBe('EXPIRED');
     expect(isPOSSubscriptionActive({ status: 'PENDING', expired_at: '2026-09-30T00:00:00.000Z' }, now)).toBe(false);
   });
+
+  it('accepts database status casing and explicit grace status', () => {
+    expect(getPOSSubscriptionState({
+      status: 'active',
+      expired_at: '2026-09-30T00:00:00.000Z',
+    }, now)).toBe('ACTIVE');
+    expect(getPOSSubscriptionState({
+      status: 'GRACE',
+      expired_at: '2026-08-27T23:59:59.000Z',
+      grace_ends_at: '2026-09-02T00:00:00.000Z',
+    }, now)).toBe('GRACE_PERIOD');
+    expect(getPOSSubscriptionState({
+      status: 'cancelled',
+      expired_at: '2026-09-30T00:00:00.000Z',
+    }, now)).toBe('EXPIRED');
+  });
 });

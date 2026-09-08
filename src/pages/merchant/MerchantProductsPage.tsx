@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+import { getCategoryTemplate } from '@/lib/categoryContracts';
 
 interface ProductRow {
   id: string;
@@ -301,6 +302,7 @@ export default function MerchantProductsPage() {
   ];
 
   const filters = [{ key: 'category', label: 'Kategori', options: categories.map(cat => ({ value: cat.slug, label: cat.name })) }];
+  const selectedCategoryTemplate = getCategoryTemplate(form.category);
 
   return (
     <MerchantLayout title="Katalog Produk" subtitle="Sumber katalog untuk marketplace dan POS">
@@ -348,6 +350,9 @@ export default function MerchantProductsPage() {
                     {categories.map(cat => <SelectItem key={cat.id} value={cat.slug}>{cat.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Template {selectedCategoryTemplate.label} · alur {selectedCategoryTemplate.workflow.replace('_', ' ')} · atribut: {selectedCategoryTemplate.listingFields.join(', ')}.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

@@ -10,12 +10,24 @@ export interface POSSubscriptionRecord {
 
 export type POSSubscriptionState = 'NO_SUBSCRIPTION' | 'PENDING_REVIEW' | 'ACTIVE' | 'EXPIRING_SOON' | 'GRACE_PERIOD' | 'EXPIRED' | 'REJECTED' | 'SUSPENDED';
 
+function normalizeSubscriptionStatus(status: string | null | undefined): string {
+  return (status || '').trim().toUpperCase();
+}
+
 export function getPOSSubscriptionState(subscription: POSSubscriptionRecord | null, now = new Date()): POSSubscriptionState {
   if (!subscription) return 'NO_SUBSCRIPTION';
-  if (subscription.status === 'PENDING') return 'PENDING_REVIEW';
-  if (subscription.status === 'REJECTED') return 'REJECTED';
-  if (subscription.status === 'SUSPENDED') return 'SUSPENDED';
-  if (subscription.status !== 'ACTIVE' || !subscription.expired_at) return 'EXPIRED';
+  const status = normalizeSubscriptionStatus(subscription.status);
+  if (status === 'PENDING') return 'PENDING_REVIEW';
+  if (status === 'REJECTED') return 'REJECTED';
+  if (status === 'SUSPENDED') return 'SUSPENDED';
+  if (status === 'CANCELLED') return 'EXPIRED';
+  if (!['ACTIVE', 'TRIAL', 'GRACE'].includes(status) || !subscription.expired_at) return 'EXPIRED';
+
+  if (status === 'GRACE') {
+    const graceEnds = subscription.grace_ends_at ? new Date(subscription.grace_ends_at) : null;
+    return graceEnds && !Number.isNaN(graceEnds.getTime()) && graceEnds > now ? 'GRACE_PERIOD' : 'EXPIRED';
+  }
+
   const expiry = new Date(subscription.expired_at);
   if (Number.isNaN(expiry.getTime())) return 'EXPIRED';
   if (expiry <= now) {
