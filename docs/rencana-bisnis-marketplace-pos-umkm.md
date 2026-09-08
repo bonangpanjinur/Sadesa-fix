@@ -1088,6 +1088,9 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 - [x] dukungan prioritas — tiket merchant paket prioritas mendapat target SLA 4 jam, tiket standar 24 jam, dan admin dapat melihat status SLA/overdue.
 - [ ] category builder untuk template listing, atribut, fulfillment, SLA, dan kebijakan pembatalan;
 - [~] kontrak fee engine untuk komisi, biaya tetap, booking fee, featured listing, dan siapa yang menanggung biaya sudah ada; integrasi production belum;
+- [x] laporan finance admin memakai fee engine terpusat untuk ringkasan, PDF, dan CSV; regression test tersedia;
+- [x] audit static RLS, validasi migration/bootstrap, test suite, dan production build dijalankan dari repository;
+- [x] dependency security hardening diterapkan melalui workspace overrides dan lockfile; audit ulang tidak lagi melaporkan advisory high/critical;
 - [x] simulasi dampak tarif sebelum publish serta snapshot fee pada setiap order/payout;
 - [ ] usage fee ojek dengan batch order, invoice fee, grace period, dan perpanjangan entitlement;
 - [ ] identity link dan risk scoring untuk mencegah akun provider ganda serta order fiktif;
@@ -1102,9 +1105,9 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 
 **Kriteria selesai sementara:** paket dapat menjelaskan kapasitas outlet/pengguna dan harga add-on, operasi create outlet/user menolak limit melalui RPC, promo partner memiliki redemption serta audit end-to-end, dan SLA support tersimpan pada tiket. Fase belum dinyatakan siap produksi sampai bundle diterapkan di staging dan alur pembayaran/add-on/support diuji.
 
-### Fase 6 — Validasi staging dan pilot merchant — **BELUM DIMULAI**
+### Fase 6 — Validasi staging dan pilot merchant — **BELUM DIMULAI DI STAGING**
 
-**Status saat ini:** Belum dimulai; ini menjadi gate sebelum fitur pertumbuhan dipasarkan.
+**Status saat ini:** Validasi repository sudah dilakukan, tetapi staging dan pilot belum dimulai; fase ini tetap menjadi gate sebelum fitur pertumbuhan dipasarkan. Test API security belum dapat dijalankan di checkout ini karena `SUPABASE_TEST_URL` belum tersedia, dan environment production belum dimuat.
 
 - [ ] terapkan bundle Fase 2–5 ke project Supabase staging;
 - [ ] uji upgrade/downgrade paket, limit outlet/pengguna, add-on, dan promo expired;
@@ -1349,7 +1352,7 @@ Review dilakukan terhadap status fase di dokumen, artefak `src/`, bundle Supabas
 | Partner, dashboard, dan support | **Sebagian tersedia di repository** | Boleh disiapkan untuk pilot, tetapi rollout tetap dikunci oleh hasil Fase 6. |
 | Staging dan pilot 10–20 merchant | **Belum dimulai** | Jadikan ini satu-satunya gate berikutnya; tidak ada klaim keberhasilan bisnis sebelum evidence pilot tersedia. |
 
-Evidence teknis yang berhasil diverifikasi pada review ini: validasi migration melaporkan **28 SQL deployment files** dalam urutan yang benar dan validasi bootstrap melaporkan **213 migrations dalam 28 ordered bundles**. Test aplikasi belum dapat dijadikan evidence karena `node_modules` belum tersedia di checkout ini (`vitest: not found`); instalasi dependency dan eksekusi test harus menjadi bagian dari checklist staging, bukan dianggap lulus secara implisit.
+Evidence teknis yang berhasil diverifikasi pada review ini: **161 test lulus dan 20 skipped**, production build lulus, lint lulus tanpa error, validasi migration melaporkan **28 SQL deployment files** dalam urutan yang benar, validasi bootstrap melaporkan **213 migrations dalam 28 ordered bundles**, static RLS audit lulus, dan dependency audit tidak lagi melaporkan advisory high/critical. Dua advisory transitive masih tersisa pada `esbuild` (low) dan `@humanfs/node` (moderate), sehingga dependency audit belum boleh disebut bersih total. Test API security belum dapat dijadikan evidence karena `SUPABASE_TEST_URL` belum tersedia; instalasi dependency, API smoke test, dan verifikasi environment tetap menjadi bagian dari checklist staging.
 
 **Keputusan yang diambil sekarang:**
 
