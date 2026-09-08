@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useChatNotification } from '@/hooks/useChatNotification';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageCircle, X, Clock, ShoppingBag, User, Store, Truck, Volume2, VolumeX } from 'lucide-react';
+import { Send, MessageCircle, X, Clock, ShoppingBag, User, Store, Truck, Volume2, VolumeX, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -85,6 +85,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
   } | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch order info (items + products)
@@ -213,6 +214,10 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
 
     let active = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    setMessages([]);
+    setAutoDeleteInfo(null);
+    setSendError(null);
+    setConnectionStatus('reconnecting');
 
     const appendMessage = (incoming: ChatMessage) => {
       if (!active || (chatType && incoming.chat_type !== chatType)) return;
@@ -253,6 +258,9 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
             .reverse()
             .find((message) => message.sender_id !== user.id);
           if (lastIncoming) await markConversationRead(conversationId, lastIncoming.id);
+        } else {
+          setConnectionStatus('offline');
+          setSendError('Riwayat chat belum dapat dimuat. Anda masih bisa mencoba mengirim pesan.');
         }
 
         setConnectionStatus('reconnecting');
@@ -324,10 +332,11 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
     if (!text || !user || sending) return;
 
     setSending(true);
+    setSendError(null);
     try {
       const clientMessageId = crypto.randomUUID();
       if (conversationId) {
-        const { error } = await sendConversationMessage({
+        const { message, error } = await sendConversationMessage({
           contextType,
           orderId: contextType === 'order' ? orderId : undefined,
           rideRequestId: contextType === 'ride' ? (rideRequestId || orderId) : undefined,
@@ -339,19 +348,39 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
           clientMessageId,
         });
         if (error) throw error;
+        if (message) {
+          setMessages((previous) => previous.some((item) => item.id === message.id)
+            ? previous
+            : [...previous, message as ChatMessage].sort((a, b) =>
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+            ));
+        }
       } else {
-        const { error } = await supabase.from('chat_messages').insert({
+        const { data, error } = await supabase.from('chat_messages').insert({
           order_id: orderId,
           sender_id: user.id,
           receiver_id: otherUserId,
           message: text,
           chat_type: chatType,
-        });
+        }).select('*').single();
         if (error) throw error;
+        if (data) {
+          setMessages((previous) => previous.some((item) => item.id === data.id)
+            ? previous
+            : [...previous, data as ChatMessage].sort((a, b) =>
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+            ));
+        }
       }
       if (!messageText) setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
+      const message = error instanceof Error ? error.message : '';
+      setSendError(
+        /FULL JOIN|0A000/i.test(message)
+          ? 'Server chat belum selesai diperbarui. Minta admin menjalankan patch database chat, lalu coba lagi.'
+          : 'Pesan belum terkirim. Periksa koneksi lalu coba lagi.',
+      );
     } finally {
       setSending(false);
     }
@@ -522,6 +551,12 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
 
         {/* Footer */}
         <div className="p-4 border-t border-border bg-background rounded-b-2xl">
+          {sendError && (
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>{sendError}</span>
+            </div>
+          )}
           {quickReplies.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar">
               {quickReplies.map((reply) => (
