@@ -1,5 +1,8 @@
 -- Validate driver ride transitions on the server.
 -- This is intentionally idempotent so it can be replayed with the bootstrap set.
+-- PostgreSQL cannot replace an existing function when its return type differs.
+DROP FUNCTION IF EXISTS public.transition_ride_status(uuid, text);
+
 CREATE OR REPLACE FUNCTION public.transition_ride_status(
   p_ride_id uuid,
   p_to_status text
