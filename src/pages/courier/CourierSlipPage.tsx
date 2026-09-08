@@ -29,6 +29,7 @@ interface EarningRecord {
   type: string;
   status: string;
   order_id: string | null;
+  ride_request_id: string | null;
   created_at: string;
   paid_at: string | null;
 }

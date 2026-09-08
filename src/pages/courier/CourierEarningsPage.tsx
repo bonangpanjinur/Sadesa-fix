@@ -23,6 +23,7 @@ interface EarningRecord {
   type: string;
   status: string;
   order_id: string | null;
+  ride_request_id: string | null;
   created_at: string;
   paid_at: string | null;
 }
@@ -265,7 +266,7 @@ function EarningCard({ earning }: { earning: EarningRecord }) {
     <div className="bg-card rounded-xl p-4 border border-border">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <p className="font-mono text-sm font-medium">#{(earning.order_id || earning.id).slice(0, 8).toUpperCase()}</p>
+           <p className="font-mono text-sm font-medium">#{(earning.order_id || earning.ride_request_id || earning.id).slice(0, 8).toUpperCase()}</p>
           <p className="text-xs text-muted-foreground">
             {new Date(earning.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </p>

@@ -415,6 +415,7 @@ export type Database = {
           id: string
           order_id: string | null
           paid_at: string | null
+          ride_request_id: string | null
           status: string
           type: string
         }
@@ -425,6 +426,7 @@ export type Database = {
           id?: string
           order_id?: string | null
           paid_at?: string | null
+          ride_request_id?: string | null
           status?: string
           type?: string
         }
@@ -435,6 +437,7 @@ export type Database = {
           id?: string
           order_id?: string | null
           paid_at?: string | null
+          ride_request_id?: string | null
           status?: string
           type?: string
         }
@@ -458,6 +461,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_earnings_ride_request_id_fkey"
+            columns: ["ride_request_id"]
+            isOneToOne: false
+            referencedRelation: "ride_requests"
             referencedColumns: ["id"]
           },
         ]
