@@ -41,7 +41,7 @@ export default function RegisterPage() {
               Bergabung Bersama Kami
             </h1>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-              Daftarkan desa wisata, usaha UMKM, atau jadi kurir desa
+               Daftarkan desa, usaha lokal, jasa, hasil tani, atau jadi kurir desa
             </p>
           </motion.div>
 
@@ -100,11 +100,11 @@ export default function RegisterPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h2 className="font-bold text-lg text-foreground">Pedagang UMKM</h2>
+                       <h2 className="font-bold text-lg text-foreground">Pelaku Usaha Desa</h2>
                       <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all" />
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 mb-3">
-                      Jual produk lokal Anda kepada wisatawan
+                       Daftarkan kuliner, sembako, produk desa, jasa, petani, dan usaha lokal lainnya
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <span className="inline-flex items-center gap-1 text-xs bg-accent/20 text-accent-foreground px-2 py-1 rounded-full">

@@ -24,9 +24,12 @@ interface ProductCardProps {
 
 const categoryLabels: Record<string, { label: string; className: string }> = {
   kuliner: { label: 'Kuliner', className: 'bg-warning/10 text-warning dark:bg-warning/20' },
-  fashion: { label: 'Fashion', className: 'bg-primary/10 text-primary dark:bg-primary/20' },
-  kriya: { label: 'Kriya', className: 'bg-info/10 text-info dark:bg-info/20' },
+  sembako: { label: 'Sembako', className: 'bg-warning/10 text-warning dark:bg-warning/20' },
+  kriya: { label: 'Produk Desa', className: 'bg-info/10 text-info dark:bg-info/20' },
   wisata: { label: 'Wisata', className: 'bg-success/10 text-success dark:bg-success/20' },
+  jasa: { label: 'Jasa', className: 'bg-primary/10 text-primary dark:bg-primary/20' },
+  pertanian: { label: 'Pertanian', className: 'bg-success/10 text-success dark:bg-success/20' },
+  peternakan: { label: 'Peternakan', className: 'bg-success/10 text-success dark:bg-success/20' },
 };
 
 const defaultCategoryStyle = { className: 'bg-muted text-muted-foreground' };

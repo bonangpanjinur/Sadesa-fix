@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Store, Eye, Check, X, MoreHorizontal, Plus, Trash2, User } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
 import { DataTable } from '@/components/admin/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -242,10 +243,7 @@ export default function AdminMerchantsPage() {
       key: 'business_category',
       label: 'Kategori',
       options: [
-        { value: 'kuliner', label: 'Kuliner' },
-        { value: 'fashion', label: 'Fashion' },
-        { value: 'kriya', label: 'Kriya' },
-        { value: 'jasa', label: 'Jasa' },
+        ...BUSINESS_CATEGORY_OPTIONS.map(({ value, label }) => ({ value, label })),
       ],
     },
   ];

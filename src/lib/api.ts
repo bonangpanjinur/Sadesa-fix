@@ -523,7 +523,10 @@ export async function fetchTourismById(id: string): Promise<Tourism | null> {
 // Keeping static fallback for backward compatibility
 export const categories = [
   { id: 'kuliner', name: 'Kuliner', icon: 'utensils', colorClass: 'category-kuliner' },
-  { id: 'fashion', name: 'Fashion', icon: 'shirt', colorClass: 'category-fashion' },
-  { id: 'kriya', name: 'Kriya', icon: 'shapes', colorClass: 'category-kriya' },
+  { id: 'sembako', name: 'Sembako', icon: 'shopping-basket', colorClass: 'category-kuliner' },
+  { id: 'kriya', name: 'Produk Desa', icon: 'shapes', colorClass: 'category-kriya' },
   { id: 'wisata', name: 'Wisata', icon: 'map-location-dot', colorClass: 'category-wisata' },
+  { id: 'jasa', name: 'Jasa', icon: 'wrench', colorClass: 'category-wisata' },
+  { id: 'pertanian', name: 'Pertanian', icon: 'sprout', colorClass: 'category-wisata' },
+  { id: 'peternakan', name: 'Peternakan & Perikanan', icon: 'wheat', colorClass: 'category-wisata' },
 ] as const;

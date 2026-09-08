@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,7 +50,7 @@ const EMPTY_FORM = {
   commission_percent: '5', min_amount: '0', max_commission: '', is_active: true,
 };
 
-const CATEGORIES = ['kuliner', 'fashion', 'kriya', 'wisata', 'kerajinan', 'pertanian', 'minuman'];
+const CATEGORIES = BUSINESS_CATEGORY_VALUES;
 
 export default function AdminKomisiPage() {
   const [rules, setRules] = useState<CommissionRule[]>([]);

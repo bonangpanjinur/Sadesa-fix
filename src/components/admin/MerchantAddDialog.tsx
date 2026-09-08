@@ -30,6 +30,7 @@ import {
 } from '@/lib/addressApi';
 import { AdminLocationPicker } from './AdminLocationPicker';
 import { getAvailableMerchantUsers, type MerchantUser } from '@/lib/adminApi';
+import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
 
 interface MerchantAddDialogProps {
   open: boolean;
@@ -44,15 +45,6 @@ interface VillageData {
   regency: string;
   subdistrict: string | null;
 }
-
-const BUSINESS_CATEGORIES = [
-  { value: 'kuliner', label: 'Kuliner' },
-  { value: 'fashion', label: 'Fashion' },
-  { value: 'kriya', label: 'Kriya & Kerajinan' },
-  { value: 'jasa', label: 'Jasa' },
-  { value: 'pertanian', label: 'Pertanian' },
-  { value: 'lainnya', label: 'Lainnya' },
-];
 
 export function MerchantAddDialog({
   open,
@@ -589,7 +581,7 @@ export function MerchantAddDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {BUSINESS_CATEGORIES.map((cat) => (
+                    {BUSINESS_CATEGORY_OPTIONS.map((cat) => (
                       <SelectItem key={cat.value} value={cat.value}>
                         {cat.label}
                       </SelectItem>

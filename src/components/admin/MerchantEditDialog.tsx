@@ -30,6 +30,7 @@ import {
   fetchVillages as fetchVillagesList,
   Region,
 } from '@/lib/addressApi';
+import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
 
 interface MerchantEditDialogProps {
   open: boolean;
@@ -80,15 +81,6 @@ interface AvailableUser {
   full_name: string | null;
   phone: string | null;
 }
-
-const BUSINESS_CATEGORIES = [
-  { value: 'kuliner', label: 'Kuliner' },
-  { value: 'fashion', label: 'Fashion' },
-  { value: 'kriya', label: 'Kriya & Kerajinan' },
-  { value: 'jasa', label: 'Jasa' },
-  { value: 'pertanian', label: 'Pertanian' },
-  { value: 'lainnya', label: 'Lainnya' },
-];
 
 const BADGES = [
   { value: 'none', label: 'Tanpa Badge' },
@@ -594,7 +586,7 @@ export function MerchantEditDialog({
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {BUSINESS_CATEGORIES.map((cat) => (
+                    {BUSINESS_CATEGORY_OPTIONS.map((cat) => (
                       <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
                     ))}
                   </SelectContent>

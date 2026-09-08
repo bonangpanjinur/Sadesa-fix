@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, HeartPulse, Bike, Smartphone, Car, House, Calendar, Briefcase } from 'lucide-react';
+import { UtensilsCrossed, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, Bike, Wheat } from 'lucide-react';
 import { getHomepageCategoryHref } from '@/lib/homeCategories';
 import { cn } from '@/lib/utils';
 
@@ -27,19 +27,13 @@ function MotorcycleIcon({ className }: { className?: string }) {
 
 const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   utensils: UtensilsCrossed,
-  shirt: Shirt,
   shapes: Shapes,
   'map-location-dot': MapPin,
   'shopping-basket': ShoppingBasket,
   wrench: Wrench,
   sprout: Sprout,
-  'heart-pulse': HeartPulse,
+  wheat: Wheat,
   bike: Bike,
-  smartphone: Smartphone,
-  car: Car,
-  house: House,
-  calendar: Calendar,
-  briefcase: Briefcase,
 };
 
 interface CategoryIconProps {

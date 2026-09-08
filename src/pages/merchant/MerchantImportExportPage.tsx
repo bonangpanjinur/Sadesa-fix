@@ -4,6 +4,7 @@ import {
   Package, RefreshCw, Eye, Trash2, Plus, Info
 } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
+import { BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,13 +47,13 @@ interface ImportRow {
   valid: boolean;
 }
 
-const VALID_CATEGORIES = ['kuliner', 'fashion', 'kriya', 'wisata', 'kerajinan', 'pertanian', 'minuman', 'jasa', 'lainnya'];
+const VALID_CATEGORIES = BUSINESS_CATEGORY_VALUES;
 
 const CSV_TEMPLATE_HEADER = 'nama_produk,deskripsi,harga,stok,kategori,aktif,promo';
 const CSV_TEMPLATE_ROWS = [
   'Contoh Produk A,Deskripsi produk A yang menarik,25000,50,kuliner,ya,tidak',
-  'Contoh Produk B,Produk kerajinan tangan,75000,10,kerajinan,ya,ya',
-  'Contoh Produk C,,15000,100,minuman,ya,tidak',
+  'Contoh Produk B,Produk kerajinan tangan,75000,10,kriya,ya,ya',
+  'Contoh Produk C,,15000,100,sembako,ya,tidak',
 ];
 
 function downloadCSV(filename: string, content: string) {

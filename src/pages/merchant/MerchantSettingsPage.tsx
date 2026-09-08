@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
 
 interface MerchantData {
   id: string;
@@ -41,15 +42,6 @@ interface MerchantData {
   verifikator_code: string | null;
   slug: string | null;
 }
-
-const BUSINESS_CATEGORIES = [
-  { value: 'kuliner', label: 'Kuliner' },
-  { value: 'fashion', label: 'Fashion & Pakaian' },
-  { value: 'kriya', label: 'Kriya & Kerajinan' },
-  { value: 'pertanian', label: 'Pertanian & Perkebunan' },
-  { value: 'jasa', label: 'Jasa' },
-  { value: 'lainnya', label: 'Lainnya' },
-];
 
 const PRICE_CLASSIFICATIONS = [
   { value: 'UNDER_5K', label: 'Sangat Murah (< Rp 5.000)' },
@@ -202,7 +194,7 @@ export default function MerchantSettingsPage() {
                 <Select value={formData.business_category} onValueChange={v => setFormData(p => ({ ...p, business_category: v }))}>
                   <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
                   <SelectContent>
-                    {BUSINESS_CATEGORIES.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                  {BUSINESS_CATEGORY_OPTIONS.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

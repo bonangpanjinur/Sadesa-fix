@@ -35,6 +35,7 @@ import type { Village } from '../types';
 import { MerchantLocationPicker } from '../components/merchant/MerchantLocationPicker';
 import { AddressDropdowns } from '../components/admin/AddressDropdowns';
 import { HalalRegistrationInfo } from '../components/merchant/HalalRegistrationInfo';
+import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
 
 export const merchantSchema = z.object({
   referralCode: z.string().max(50).optional(),
@@ -59,12 +60,6 @@ const timeOptions = [
   '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
   '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00',
   '21:00', '22:00', '23:00', '00:00'
-];
-
-const businessCategories = [
-  { value: 'kuliner', label: 'Kuliner & Makanan', icon: '🍜' },
-  { value: 'fashion', label: 'Fashion & Pakaian', icon: '👕' },
-  { value: 'kriya', label: 'Kerajinan Tangan', icon: '🎨' },
 ];
 
 interface ReferralInfo {
@@ -434,7 +429,7 @@ export default function RegisterMerchantPage() {
           <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-primary mb-1">Informasi Pendaftaran</p>
-            <p className="text-muted-foreground">Lengkapi data usaha Anda dengan benar untuk mempercepat proses verifikasi oleh tim kami.</p>
+            <p className="text-muted-foreground">Pilih jenis usaha yang paling sesuai. Formulir ini juga dipakai untuk tukang/jasa, petani, peternak, dan penjual produk desa.</p>
           </div>
         </div>
 
@@ -500,7 +495,7 @@ export default function RegisterMerchantPage() {
                   <SelectValue placeholder="Pilih kategori" />
                 </SelectTrigger>
                 <SelectContent>
-                  {businessCategories.map((cat) => (
+                  {BUSINESS_CATEGORY_OPTIONS.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
                       <div className="flex items-center gap-2">
                         <span>{cat.icon}</span>
