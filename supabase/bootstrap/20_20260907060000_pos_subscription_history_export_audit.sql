@@ -271,7 +271,7 @@ CREATE OR REPLACE FUNCTION public.admin_manage_pos_subscription(
   p_action text,
   p_extension_months integer DEFAULT 1,
   p_rejection_reason text DEFAULT NULL,
-  p_reason text
+  p_reason text DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql
