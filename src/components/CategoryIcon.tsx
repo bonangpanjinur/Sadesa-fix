@@ -1,7 +1,30 @@
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, HeartPulse, Bike, Smartphone, Car, House, Calendar, Briefcase } from 'lucide-react';
+import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, HeartPulse, Smartphone, Car, House, Calendar, Briefcase } from 'lucide-react';
 import { getHomepageCategoryHref } from '@/lib/homeCategories';
 import { cn } from '@/lib/utils';
+
+function MotorbikeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="6" cy="17.5" r="2.5" />
+      <circle cx="18" cy="17.5" r="2.5" />
+      <path d="M8.5 17.5h3l2-4h3l1.5 4" />
+      <path d="M11.5 17.5 10 13h3l1.5-2.5h2.25l1.5 2" />
+      <path d="M14.25 10.5 13 8.25" />
+      <circle cx="12.25" cy="6.25" r="1.5" />
+      <path d="m12.25 7.75 2 1.5" />
+      <path d="M16.5 10.5h1.75" />
+    </svg>
+  );
+}
 
 const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   utensils: UtensilsCrossed,
@@ -12,7 +35,7 @@ const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   wrench: Wrench,
   sprout: Sprout,
   'heart-pulse': HeartPulse,
-  bike: Bike,
+  motorcycle: MotorbikeIcon,
   smartphone: Smartphone,
   car: Car,
   house: House,
