@@ -192,9 +192,9 @@ export default function ExplorePage() {
       
       <div className="flex-1 overflow-y-auto pb-24">
         {/* Search & Filter Section */}
-        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/30">
+        <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/40">
           {/* Search + Filter + Sort in one row */}
-          <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+          <div className="px-5 pt-5 pb-3 flex items-center gap-2">
             <SearchBarAdvanced 
               placeholder="Cari desa, wisata, atau produk..." 
               value={searchQuery}
@@ -210,7 +210,7 @@ export default function ExplorePage() {
           </div>
           
           {/* Category Tabs - Below */}
-          <div className="px-4 pb-2">
+          <div className="px-5 pb-3">
             <CategoryTabs 
               activeCategory={activeCategory} 
               onCategoryChange={setActiveCategory} 

@@ -227,6 +227,16 @@
     position: relative;
     overflow: hidden;
   }
+
+  /* Keep buyer-facing screens visually anchored to the home experience:
+     quiet canvas, consistent surfaces, and room for the floating nav. */
+  .mobile-shell > .flex-1 {
+    min-width: 0;
+  }
+
+  .mobile-shell input::placeholder {
+    color: hsl(var(--muted-foreground) / 0.8);
+  }
   
   @media (min-width: 768px) {
     .mobile-shell {

@@ -119,7 +119,7 @@ export function SearchBarAdvanced({
     <div ref={containerRef} className="relative flex-1">
       <div className={cn(
         "relative group flex items-center",
-        isFocused && "ring-2 ring-primary/50 rounded-xl"
+        isFocused && "ring-2 ring-primary/20 rounded-2xl"
       )}>
         <Search className="absolute left-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition pointer-events-none" />
         <input
@@ -131,7 +131,8 @@ export function SearchBarAdvanced({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={() => setIsFocused(false)}
-          className="w-full bg-secondary border border-border rounded-xl pl-9 pr-8 py-2.5 text-xs focus:outline-none focus:border-primary transition placeholder:text-muted-foreground"
+          aria-label={placeholder}
+          className="h-12 w-full bg-secondary border border-transparent rounded-2xl pl-11 pr-9 text-sm focus:outline-none focus:border-primary/30 focus:bg-card transition placeholder:text-muted-foreground"
         />
         {value && (
           <button

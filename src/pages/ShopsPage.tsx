@@ -168,7 +168,7 @@ export default function ShopsPage() {
       <Header />
 
       {/* Search & Filter Bar */}
-      <div className="px-4 py-3 bg-card border-b border-border space-y-3">
+      <div className="px-5 py-5 bg-background border-b border-border/40 space-y-3">
         <div className="flex gap-2">
           <div className="relative flex-1">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -176,7 +176,8 @@ export default function ShopsPage() {
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Cari nama toko, lokasi..."
-              className="pl-10"
+              aria-label="Cari nama toko atau lokasi"
+              className="h-12 rounded-2xl border-transparent bg-secondary pl-11 text-sm focus-visible:ring-primary/20 focus-visible:bg-card"
             />
           </div>
           <ShopFilterSheet
@@ -219,7 +220,7 @@ export default function ShopsPage() {
       </div>
 
       {/* Results Count with Location Indicator */}
-      <div className="px-4 py-2 text-sm text-muted-foreground flex items-center justify-between">
+      <div className="px-5 py-4 text-sm text-muted-foreground flex items-center justify-between">
         <div className="flex items-center gap-2">
           <StoreIcon className="h-4 w-4" />
           <span>
@@ -239,7 +240,7 @@ export default function ShopsPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="px-4 space-y-3"
+          className="px-5 space-y-3"
         >
           {loading ? (
             <div className="space-y-3">
