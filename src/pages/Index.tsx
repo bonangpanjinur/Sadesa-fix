@@ -163,19 +163,26 @@ const Index = () => {
       case 'categories':
         if (layoutLoading && visibleCategories.length === 0) return <CategoriesSkeleton />;
         return (
-          <section className="mt-4 px-5">
+          <section className="mt-7 px-5">
             {layoutLoading && visibleCategories.length === 0 ? <CategoriesSkeleton /> : (
               <>
-                <div className="grid grid-cols-4 gap-x-3 gap-y-4">
+                <div className="mb-4 flex items-end justify-between">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase text-primary">Jelajahi</p>
+                    <h2 className="font-heading text-base font-bold text-foreground">Kategori Utama</h2>
+                  </div>
+                  <button type="button" onClick={() => setCategoriesSheetOpen(true)} className="text-[10px] font-bold text-primary">Lihat Semua</button>
+                </div>
+                <div className="grid grid-cols-4 gap-x-3 gap-y-5 rounded-lg border border-border/60 bg-card p-4 shadow-sm">
                   {visibleCategories.map((cat) => <CategoryIcon key={cat.id} {...cat} />)}
                   <button
                     type="button"
                     onClick={() => setCategoriesSheetOpen(true)}
-                    className="flex min-w-0 flex-col items-center gap-1.5 cursor-pointer group"
+                    className="group flex min-w-0 flex-col items-center gap-2"
                     aria-label="Buka kategori lainnya"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-100 text-slate-700 shadow-sm transition group-hover:scale-105 group-active:scale-95">
-                      <MoreHorizontal className="h-5 w-5" />
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-secondary text-muted-foreground shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md group-active:scale-95">
+                      <MoreHorizontal className="h-6 w-6" />
                     </div>
                     <span className="text-[10px] font-medium text-muted-foreground">Lainnya</span>
                   </button>
@@ -201,14 +208,14 @@ const Index = () => {
             />
           );
         return popularTourism.length > 0 ? (
-          <section className="mt-6 px-5">
+          <section className="mt-8 px-5">
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center shadow-sm">
-                  <Flame className="h-3.5 w-3.5 text-primary-foreground" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-foreground">
+                  <Flame className="h-4 w-4" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-sm text-foreground">Wisata Terdekat</h2>
+                  <h2 className="font-heading text-sm font-bold text-foreground">Wisata Terdekat</h2>
                   <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-2.5 w-2.5" />
                     {userLocation?.source === 'gps' ? 'Berdasarkan lokasi Anda' : 'Sekitar Anda'}
@@ -238,13 +245,13 @@ const Index = () => {
             />
           );
         return promoProducts.length > 0 ? (
-          <section className="mt-6 px-5">
+          <section className="mt-8 px-5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 bg-gradient-to-br from-rose-400 to-pink-500 rounded-lg flex items-center justify-center shadow-sm">
-                <Sparkles className="h-3.5 w-3.5 text-primary-foreground" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-foreground">
+                <Sparkles className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="font-bold text-sm text-foreground">Promo Spesial</h2>
+                <h2 className="font-heading text-sm font-bold text-foreground">Promo Spesial</h2>
                 <p className="text-[9px] text-muted-foreground">Hemat lebih banyak hari ini</p>
               </div>
             </div>
@@ -269,13 +276,13 @@ const Index = () => {
             />
           );
         return sortedProducts.length > 0 ? (
-          <section className="mt-6 px-5">
-            <div className="flex items-center gap-2 mb-4 sticky top-0 z-20 bg-background/95 backdrop-blur py-3 -mx-5 px-5 border-b border-border">
-              <div className="w-7 h-7 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-lg flex items-center justify-center shadow-sm">
-                <TrendingUp className="h-3.5 w-3.5 text-primary-foreground" />
+          <section className="mt-8 px-5">
+            <div className="sticky top-[116px] z-20 -mx-5 mb-4 flex items-center gap-2 border-y border-border/60 bg-background/95 px-5 py-3 backdrop-blur">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <TrendingUp className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="font-bold text-sm text-foreground">Produk Terdekat</h2>
+                <h2 className="font-heading text-sm font-bold text-foreground">Produk Unggulan</h2>
                 <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                   <MapPin className="h-2.5 w-2.5" />
                   {userLocation?.source === 'gps' ? 'Berdasarkan lokasi Anda' : 'Sekitar Anda'}
@@ -326,14 +333,14 @@ const Index = () => {
             />
           );
         return sortedVillages.length > 0 ? (
-          <section className="mt-4 px-5 pb-6">
+          <section className="mt-8 px-5 pb-8">
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-gradient-to-br from-sky-400 to-blue-500 rounded-lg flex items-center justify-center shadow-sm">
-                  <span className="text-sm">🏘️</span>
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary">
+                  <MapPin className="h-4 w-4" />
                 </div>
                 <div>
-                  <h2 className="font-bold text-sm text-foreground">Desa Terdekat</h2>
+                  <h2 className="font-heading text-sm font-bold text-foreground">Desa Terdekat</h2>
                   <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                     <MapPin className="h-2.5 w-2.5" />
                     {userLocation?.source === 'gps' ? 'Berdasarkan lokasi Anda' : 'Sekitar Anda'}
@@ -362,11 +369,11 @@ const Index = () => {
   };
 
   return (
-    <div className="mobile-shell bg-background flex flex-col min-h-screen">
+    <div className="mobile-shell flex min-h-screen flex-col bg-background font-body">
       <Header />
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto pb-24">
+      <main className="flex-1 overflow-y-auto pb-28">
         <>
           {enabledSections.map((section) => (
             <div key={section.id}>
@@ -394,7 +401,7 @@ const Index = () => {
             </div>
           )}
         </>
-      </div>
+      </main>
 
 
       <FloatingCartButton />

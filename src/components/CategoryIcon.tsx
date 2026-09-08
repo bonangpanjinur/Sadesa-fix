@@ -34,18 +34,18 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
   return (
     <Link
       to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
-      className="flex flex-col items-center gap-1.5 min-w-[60px] cursor-pointer group"
+      className="group flex min-w-0 flex-col items-center gap-2"
     >
       <div 
         className={cn(
-          'w-12 h-12 rounded-2xl flex items-center justify-center border transition shadow-sm',
-          'group-hover:scale-105 group-active:scale-95',
+          'flex h-14 w-14 items-center justify-center rounded-lg border transition duration-200 shadow-sm',
+          'group-hover:-translate-y-0.5 group-hover:shadow-md group-active:scale-95',
           colorClass
         )}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-6 w-6" />
       </div>
-      <span className="text-[10px] font-medium text-muted-foreground">{name}</span>
+      <span className="line-clamp-1 w-full text-center text-[10px] font-semibold text-muted-foreground">{name}</span>
     </Link>
   );
 }
