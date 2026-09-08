@@ -950,15 +950,16 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 - [x] pasang dependency, gunakan Node.js 22, jalankan gate bundle/migration/RLS, typecheck, lint, unit test, integration test, dan build;
 - [x] perbaiki script simulasi staging agar memakai npm lockfile; simulasi lulus dan workflow aplikasi hidup di port 5000;
 - [x] partner program, promo onboarding, SLA support, dan sebagian dashboard KPI sudah tersedia di repository;
+- [~] koneksi Supabase staging sudah terhubung dan smoke test read-only menjangkau tabel inti, tetapi schema API belum menampilkan `pos_transaction_migration_map`, `pos_unified_transaction_history`, dan `marketplace_stock_allocations`;
 - [~] siapkan staging parity: Auth, Edge Functions, webhook, Storage, Realtime, secrets/config, backup, monitoring, dan rollback;
-- [~] terapkan bundle Fase 1–3 serta lakukan rehearsal restore/rollback setelah project staging dan akses database tersedia;
+- [~] terapkan bundle Fase 1–3 serta lakukan rehearsal restore/rollback setelah akses SQL staging tersedia; konektor REST tidak menyediakan eksekusi SQL/migration;
 - [~] jalankan test matrix lokal dan static checks; permission runtime, concurrency database, payment, payout, QR, dan recovery staging masih terbuka;
 - [ ] pilot 10–20 merchant dari kategori barang, makanan/minuman, jasa, sewa/wisata, dan transportasi;
 - [ ] uji marketplace-only, transisi ke POS, suspend POS, QR revoke, offline recovery, promo, refund, dispute, fee, payout, dan maker-checker;
 - [ ] ukur activation, transaksi pertama, sync success, konflik, support, churn awal, unit economics, dan guardrail;
 - [ ] rollout bertahap berdasarkan cohort yang lulus, dengan incident response dan review 30/60/90 hari.
 
-**Status: SEBAGIAN SELESAI.** Gate lokal sudah lulus: 28 bundle/213 migration tervalidasi, audit RLS lulus, 45 file test dengan 158 test lulus, 4 integration test lulus, build produksi lulus, dan workflow preview hidup. Simulasi berhenti dengan `SIMULATION_ONLY` karena Supabase CLI/project staging belum terhubung; penerapan database, test runtime staging, pilot, dan rollout masih terbuka.
+**Status: SEBAGIAN SELESAI.** Gate lokal sudah lulus: 28 bundle/213 migration tervalidasi, audit RLS lulus, 45 file test dengan 158 test lulus, 4 integration test lulus, build produksi lulus, dan workflow preview hidup. Koneksi Supabase sudah aktif dan smoke test read-only berjalan, tetapi schema API belum menampilkan tiga objek kritis (`pos_transaction_migration_map`, `pos_unified_transaction_history`, `marketplace_stock_allocations`), serta masih ada tenant POS aktif tanpa `merchant_id`. Simulasi tetap berhenti dengan `SIMULATION_ONLY` karena konektor REST tidak bisa menjalankan bundle SQL; penerapan database, replay/idempotensi, test runtime staging, pilot, dan rollout masih terbuka.
 
 **Gate:** tidak ada pilot transaksi uang nyata sebelum environment, backup/restore, monitoring, support escalation, privacy/terms, dan rollback disetujui.
 

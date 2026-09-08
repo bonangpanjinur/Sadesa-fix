@@ -6,3 +6,4 @@
 - [Bootstrap manual bundles](bootstrap-manual-bundles.md) — recent POS hardening bundles are canonical bootstrap additions beyond the archived migration source set.
 - [Offline reconnect timing](offline-reconnect-timing.md) — trigger POS queue sync from committed online state, not directly inside the browser online event.
 - [Public QR menu contract](public-qr-menu-contract.md) — anonymous menu/order/status flow uses scoped RPCs and a dedicated stock reservation lifecycle, not the retired POS bridge.
+- [Supabase staging SQL boundary](supabase-staging-sql-boundary.md) — the connected Supabase PostgREST path can smoke-test tables but cannot apply or replay bootstrap SQL bundles.
