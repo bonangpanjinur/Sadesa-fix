@@ -1095,7 +1095,7 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 - [ ] usage fee ojek dengan batch order, invoice fee, grace period, dan perpanjangan entitlement;
 - [ ] identity link dan risk scoring untuk mencegah akun provider ganda serta order fiktif;
 - [ ] provider wallet/fee ledger yang memisahkan pendapatan perjalanan dari kewajiban fee platform;
-- [ ] checklist onboarding merchant sampai produk pertama dan order pertama;
+- [~] kontrak readiness onboarding merchant sampai profil, listing pertama, order, dan fulfillment pertama sudah tersedia di `src/lib/pilotReadiness.ts` dan diuji; integrasi data nyata ke control tower/admin dan pilot masih terbuka;
 - [ ] control tower admin untuk antrean merchant, katalog, order, payout, dispute, entitlement, dan QR meja;
 - [ ] maker-checker untuk refund besar, koreksi saldo, perubahan payout, penghapusan merchant, dan override entitlement;
 - [ ] aturan payout berdasarkan fulfillment dan periode risiko yang dapat dikonfigurasi;
