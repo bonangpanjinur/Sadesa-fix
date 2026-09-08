@@ -183,13 +183,17 @@ const Index = () => {
           <section className="mt-7 px-5">
              {categoriesLoading && visibleCategories.length === 0 ? <CategoriesSkeleton /> : (
               <>
-                   <div className="mb-4">
-                  <div>
-                    <p className="text-[9px] font-bold uppercase text-primary">Jelajahi</p>
-                       <h2 className="font-heading text-base font-bold text-foreground">Kategori Desa</h2>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-x-3 gap-y-5 rounded-lg border border-border/60 bg-card p-4 shadow-sm">
+                 <div className="mb-4 flex items-end justify-between">
+                   <div>
+                     <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">Jelajahi</p>
+                     <h2 className="font-heading text-base font-bold text-foreground">Kategori utama</h2>
+                     <p className="mt-0.5 text-[11px] text-muted-foreground">Pilihan cepat untuk mulai menjelajah</p>
+                   </div>
+                 </div>
+                 <div
+                   className="grid grid-cols-4 gap-2 rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+                   aria-label="Kategori utama"
+                 >
                   {visibleCategories.map((cat) => <CategoryIcon key={cat.id} {...cat} />)}
                 </div>
               </>

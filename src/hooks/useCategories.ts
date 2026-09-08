@@ -94,13 +94,19 @@ export function useCategories() {
 
   // Get categories formatted for homepage display
   const getHomepageCategories = (): HomepageCategoryItem[] => {
-    const adminCategories = categories.map((cat, index) => ({
+    // Keep the homepage focused on the four primary journeys. Other categories
+    // remain available in admin and product browsing, but should not compete
+    // with the first actions users see on the home screen.
+    const primaryCategoryIds = new Set(PRIMARY_HOME_CATEGORIES.map((category) => category.id));
+    const adminCategories = categories
+      .filter((cat) => primaryCategoryIds.has(cat.slug))
+      .map((cat, index) => ({
       id: cat.slug,
       name: cat.name,
       icon: (cat.icon ? iconMap[cat.icon] : null) || categoryStyles[cat.slug]?.icon || getDefaultIcon(index),
       colorClass: categoryStyles[cat.slug]?.colorClass || colorClasses[index % colorClasses.length],
       route: categoryStyles[cat.slug]?.route,
-    }));
+      }));
 
     // Menu utama desa tetap tersedia meskipun admin belum membuat baris
     // kategori yang sesuai. Kategori aktif admin ditambahkan tanpa duplikasi.

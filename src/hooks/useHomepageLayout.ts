@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: HomepageLayoutSettings = {
     { id: 'recommendations', name: 'Rekomendasi Pilihan', enabled: true, order: 4 },
     { id: 'villages', name: 'Jelajahi Desa', enabled: true, order: 5 },
   ],
-  visible_categories: ['kuliner', 'fashion', 'kriya', 'wisata'],
+  visible_categories: ['kuliner', 'kriya', 'wisata', 'jasa'],
 };
 
 export function useHomepageLayout() {
