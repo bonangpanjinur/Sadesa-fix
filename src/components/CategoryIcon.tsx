@@ -3,7 +3,7 @@ import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench
 import { getHomepageCategoryHref } from '@/lib/homeCategories';
 import { cn } from '@/lib/utils';
 
-function MotorbikeIcon({ className }: { className?: string }) {
+function MotorcycleIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -14,14 +14,13 @@ function MotorbikeIcon({ className }: { className?: string }) {
       className={className}
       aria-hidden="true"
     >
-      <circle cx="6" cy="17.5" r="2.5" />
-      <circle cx="18" cy="17.5" r="2.5" />
-      <path d="M8.5 17.5h3l2-4h3l1.5 4" />
-      <path d="M11.5 17.5 10 13h3l1.5-2.5h2.25l1.5 2" />
-      <path d="M14.25 10.5 13 8.25" />
-      <circle cx="12.25" cy="6.25" r="1.5" />
-      <path d="m12.25 7.75 2 1.5" />
-      <path d="M16.5 10.5h1.75" />
+      <circle cx="5.5" cy="17.5" r="2.5" />
+      <circle cx="18.5" cy="17.5" r="2.5" />
+      <path d="M8 17.5h3.5l2-4h3l2 4h.5" />
+      <path d="M10.5 13.5h4l1.5 2.5h-5.5l-1.5-2.5Z" />
+      <path d="M13 13.5 11.5 11h3l2 2.5" />
+      <path d="M16.5 13.5h2l1-2h1" />
+      <path d="M11.5 11H9.75" />
     </svg>
   );
 }
@@ -35,7 +34,7 @@ const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   wrench: Wrench,
   sprout: Sprout,
   'heart-pulse': HeartPulse,
-  motorcycle: MotorbikeIcon,
+  motorcycle: MotorcycleIcon,
   smartphone: Smartphone,
   car: Car,
   house: House,
