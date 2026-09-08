@@ -90,7 +90,7 @@ Gunakan empat tingkat bukti berikut:
 ### Temuan SQL dan migration
 
 1. **Bootstrap adalah artefak release database.** `supabase/bootstrap/manifest.json` menyatakan 28 bundle yang bersumber dari 210 migration arsip plus bundle kontrak QR/menu/meja. Bundle 10–28 berisi kontrak tambahan POS, stok, lifecycle, reporting, komersial, partner, support, dan order publik.
-2. **Manifest belum memiliki integritas lengkap.** Bundle 11, 12, 13, 18, 19, 20, 21, 22, 24, 25, 26, dan 27 masih memiliki `sha256: "pending"` serta `bytes: 0`. Ini tidak membuktikan SQL-nya salah, tetapi checksum dan verifikasi release belum dapat dipercaya.
+2. **Integritas manifest bundle sudah dilengkapi di repository.** Semua bundle bootstrap sekarang mencatat SHA-256 dan ukuran byte aktual; validasi lokal memastikan 213 migration tersusun dalam 28 bundle. Ini tetap bukan bukti bahwa bundle sudah diterapkan atau lulus di staging.
 3. **Belum ada bukti penerapan environment.** Repository memiliki SQL, namun belum ada apply log, checksum yang cocok dengan staging, `supabase db diff`, backup point, atau rehearsal rollback yang membuktikan staging/production sama dengan bundle.
 4. **Entitlement POS sudah memiliki arah server-side yang benar.** Bundle 14, 19, dan 20 menyediakan activation gate, resolver entitlement berbasis waktu, grace, suspend/cancel, history, export, audit, dan reaktivasi. Statusnya tetap “siap diuji”, bukan “siap dijual”, sampai diuji dengan auth role, expiry, duplicate event, dan payment failure.
 5. **Kontrak stok lebih kuat daripada bukti UI marketplace-nya.** Bundle 15–17 dan 21–23 memisahkan POS outlet stock, marketplace projection, reservation, allocation varian/outlet, stale alert, dan reconciliation. Merchant tetap perlu melihat error/mapping yang dapat ditindaklanjuti, dan database perlu diuji pada transaksi bersamaan lintas outlet.
@@ -139,7 +139,7 @@ UI harus menampilkan alasan, timestamp, scope merchant/outlet, request atau idem
 
 | Prioritas | Pekerjaan | Alasan urutan | Exit evidence |
 |---|---|---|---|
-| P0 | Lengkapi hash/bytes manifest, tetapkan bundle release, apply ke Supabase staging, backup, diff, dan rollback rehearsal | Tanpa database yang diketahui versinya, audit UI/SQL tidak dapat dipercaya | Manifest lengkap, apply log, checksum, backup/restore, diff kosong |
+| P0 | Tetapkan bundle release, apply ke Supabase staging, backup, diff, dan rollback rehearsal | Tanpa database yang diketahui versinya, audit UI/SQL tidak dapat dipercaya | Manifest lengkap, apply log, checksum, backup/restore, diff kosong |
 | P0 | Validasi kontrak marketplace-only di staging | Implementasi repository sudah memisahkan marketplace dari POS; bukti environment masih belum ada | E2E tanpa tenant POS sampai fulfillment/payout/refund/dispute |
 | P0 | Terapkan dan validasi RPC QR/menu/meja | Customer flow sudah tidak bergantung pada bridge lama; migration dan evidence staging masih terbuka | Menu publik, order meja, KDS/status, reservation stock, revoke/nonaktif lulus |
 | P0 | Uji entitlement dan payment lifecycle | POS berbayar tidak boleh bergantung pada state browser/admin manual | Webhook idempotent, retry, signature, expiry, grace, suspend, reaktivasi, rekonsiliasi |

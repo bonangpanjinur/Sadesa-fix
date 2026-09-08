@@ -273,24 +273,24 @@
       "source_files": [
         "20260906000000_merchant_pos_control_plane.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "0ee786186adbc2ea47aa0b6b57f14f046f40a99b637774b72d26b73d89733322",
+      "bytes": 6987
     },
     {
       "file": "12_20260906010000_pos_feature_gate.sql",
       "source_files": [
         "12_20260906010000_pos_feature_gate.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "6b99d4dea8466f11c5e2a7a4d5aec7a1fcb0bde3d6b38331113d32a0c3dd0707",
+      "bytes": 6236
     },
     {
       "file": "13_20260906020000_pos_subscription_admin_actions.sql",
       "source_files": [
         "13_20260906020000_pos_subscription_admin_actions.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "97f3463689944afc7b62ed1b0f1a318fbd388fb756e844e8988531f72e4b9095",
+      "bytes": 4001
     },
     {
       "file": "14_20260907000000_pos_activation_entitlement_gate.sql",
@@ -329,40 +329,40 @@
       "source_files": [
         "18_20260907040000_live_chat_realtime.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "fec0833d2ebaa39749fe5784bf9ad5211836bcee0332e82b3f8fa61ff49e4e09",
+      "bytes": 19497
     },
     {
       "file": "19_20260907050000_pos_entitlement_lifecycle.sql",
       "source_files": [
         "19_20260907050000_pos_entitlement_lifecycle.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "181bb0f5feeccf4a93810ae08ce33fb418e1318f5bd18067bcbbf5fbbcade70c",
+      "bytes": 7920
     },
     {
       "file": "20_20260907060000_pos_subscription_history_export_audit.sql",
       "source_files": [
         "20_20260907060000_pos_subscription_history_export_audit.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "386b7725743f3af3c416a048bd484b6c93518ea253573747515241a674bf96e2",
+      "bytes": 13346
     },
     {
       "file": "21_20260907070000_pos_stock_reconciliation_alerts.sql",
       "source_files": [
         "21_20260907070000_pos_stock_reconciliation_alerts.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "1ef8b424b48f0f814de46d6383ffdbfecd6f7af93d59171677477b743f5f917a",
+      "bytes": 8650
     },
     {
       "file": "22_20260907080000_pos_catalog_identity_stale_projection.sql",
       "source_files": [
         "22_20260907080000_pos_catalog_identity_stale_projection.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "41d7c95525baf757397dd92ec1de1583efd6ead536e440d20fb210228c90030a",
+      "bytes": 9347
     },
     {
       "file": "23_20260907100000_pos_variant_outlet_stock_contract.sql",
@@ -377,32 +377,32 @@
       "source_files": [
         "24_20260907110000_phase4_canonical_reporting.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "163c7345b98fce1aeefc0030d663356f42980261e6e261d8ae13d5420a3f694f",
+      "bytes": 10524
     },
     {
       "file": "25_20260907130000_phase4_debt_reconciliation.sql",
       "source_files": [
         "25_20260907130000_phase4_debt_reconciliation.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "d1d391957fff25c1509767b1592ad6aa1ab550604d0e496262338e18cc2af155",
+      "bytes": 16580
     },
     {
       "file": "26_20260908100000_phase5_commercial_entitlements.sql",
       "source_files": [
         "26_20260908100000_phase5_commercial_entitlements.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "75bef719fe1a6990d5ed05e680ac165181de58cf0f01d4350abd9e2925f86309",
+      "bytes": 13066
     },
     {
       "file": "27_20260908120000_partner_promotions_priority_support.sql",
       "source_files": [
         "27_20260908120000_partner_promotions_priority_support.sql"
       ],
-      "sha256": "pending",
-      "bytes": 0
+      "sha256": "eebe172014fe127a053ec5eccc3f17e228b2dde65b6ed953ff14d36335074fa6",
+      "bytes": 11459
     },
     {
       "file": "28_20260908140000_public_qr_menu_table_order.sql",
