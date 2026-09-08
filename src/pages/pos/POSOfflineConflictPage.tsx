@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, RefreshCw, RotateCcw, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw, RotateCcw, WifiOff, ShieldCheck, Trash2 } from 'lucide-react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { POSEmptyState, POSErrorState, POSLoadingState } from '@/components/pos/POSPageStates';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePOS } from '@/contexts/POSContext';
-import { getPendingSales, retryPendingSale, type PendingSale } from '@/lib/posOfflineDB';
+import { clearOfflinePOSData, getPendingSales, retryPendingSale, type PendingSale } from '@/lib/posOfflineDB';
+import { getCurrentOfflineDevicePolicy } from '@/lib/posDevicePolicy';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -16,6 +17,7 @@ export default function POSOfflineConflictPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const load = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
@@ -45,6 +47,21 @@ export default function POSOfflineConflictPage() {
     }
   };
 
+  const resetDeviceData = async () => {
+    if (!tenant || !activeOutlet) return;
+    if (!window.confirm('Hapus cache katalog, antrean transaksi, dan checkpoint outlet ini dari perangkat? Transaksi yang belum tersinkronisasi akan hilang dari perangkat dan perlu dipulihkan manual.')) return;
+    setResetting(true);
+    try {
+      await clearOfflinePOSData(tenant.id, activeOutlet.id);
+      toast.success('Data offline outlet ini dihapus dari perangkat');
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal menghapus data offline');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   if (!tenant || !activeOutlet) {
     return <POSLayout title="Offline Conflict Center"><POSEmptyState title="Outlet belum dipilih" description="Pilih outlet aktif untuk melihat antrean offline." /></POSLayout>;
   }
@@ -56,6 +73,7 @@ export default function POSOfflineConflictPage() {
   const syncing = sales.filter((sale) => sale.status === 'syncing').length;
   const failed = sales.filter((sale) => sale.status === 'failed').length;
   const conflictCount = sales.filter((sale) => sale.status === 'conflict').length;
+  const devicePolicy = getCurrentOfflineDevicePolicy();
   return (
     <POSLayout title="Offline Conflict Center" subtitle="Tinjau transaksi yang belum tersinkronisasi">
       <div className="space-y-5">
@@ -63,6 +81,30 @@ export default function POSOfflineConflictPage() {
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3"><WifiOff className="mt-0.5 h-5 w-5 text-amber-700" aria-hidden="true" /><div><p className="font-semibold text-amber-900">Antrean offline: {sales.length}</p><p className="text-sm text-amber-800">Transaksi tetap tersimpan di perangkat sampai server mengonfirmasi hasilnya.</p></div></div>
             <Button variant="outline" size="sm" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
+          </CardContent>
+        </Card>
+        <Card className={devicePolicy.canUseOfflineCashier ? 'border-emerald-200 bg-emerald-50/60' : 'border-red-200 bg-red-50/60'}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              {devicePolicy.canUseOfflineCashier ? <ShieldCheck className="h-4 w-4 text-emerald-700" /> : <AlertTriangle className="h-4 w-4 text-red-700" />}
+              {devicePolicy.canUseOfflineCashier ? 'Perangkat mendukung kasir offline' : 'Perangkat belum mendukung kasir offline'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="grid gap-2 sm:grid-cols-3">
+              {devicePolicy.checks.map((check) => (
+                <div key={check.capability} className="rounded-lg border bg-background/70 p-2">
+                  <p className="font-medium">{check.available ? '✓' : '×'} {check.label}</p>
+                  <p className="text-xs text-muted-foreground">{check.reason}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Offline: {devicePolicy.supportedOperations.join(', ')}. Online wajib: {devicePolicy.onlineOnlyOperations.join(', ')}.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => void resetDeviceData()} disabled={resetting}>
+              <Trash2 className="mr-2 h-4 w-4" />{resetting ? 'Menghapus...' : 'Reset data outlet di perangkat'}
+            </Button>
           </CardContent>
         </Card>
         <div className="grid gap-3 sm:grid-cols-4">

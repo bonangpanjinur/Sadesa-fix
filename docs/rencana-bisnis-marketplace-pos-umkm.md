@@ -982,12 +982,12 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 - [x] implementasikan QR per outlet/meja dengan token yang scoped, dapat dicabut, dan tervalidasi server-side;
 - [x] bedakan toko publik biasa dari table-order context; URL toko biasa tidak boleh mengaktifkan mode meja;
 - [x] masukkan order meja ke pipeline reservation/stock yang sama dengan kanal lain, dengan source dan fulfillment state yang berbeda;
-- [ ] dukung template listing dan atribut berbeda untuk produk, makanan, jasa, sewa, dan pengalaman;
-- [ ] bedakan state machine order, booking, rental, dan service request tanpa menggandakan payment/dispute ledger;
+- [x] dukung template listing dan atribut berbeda untuk produk, makanan, jasa, sewa, dan pengalaman;
+- [x] bedakan state machine order, booking, rental, dan service request tanpa menggandakan payment/dispute ledger;
 
-**Status saat ini:** **Sebagian selesai secara teknis di repository.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, mapping varian marketplace–POS, satu row stok per identitas/outlet, projection varian, dan allocation/reservation lintas outlet. Bootstrap `28_20260908140000_public_qr_menu_table_order.sql` menambahkan RPC menu publik, order meja anonim, status order tenant-scoped, validasi meja/produk/stok, serta source `table_qr`. Test kontrak aplikasi memverifikasi URL toko biasa tidak membawa konteks meja dan payload pelanggan tidak dapat memasok harga/status. Template listing/state machine kategori belum dikerjakan; migration, uji tenant isolation, invalid/nonaktif table, concurrency, dan recovery di staging masih terbuka.
+**Status saat ini:** **Sebagian selesai secara teknis di repository.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, mapping varian marketplace–POS, satu row stok per identitas/outlet, projection varian, dan allocation/reservation lintas outlet. Bootstrap `28_20260908140000_public_qr_menu_table_order.sql` menambahkan RPC menu publik, order meja anonim, status order tenant-scoped, validasi meja/produk/stok, serta source `table_qr`. `src/lib/categoryContracts.ts` dan form katalog sekarang menyediakan template listing serta state transition per kategori tanpa ledger pembayaran terpisah. Test kontrak aplikasi memverifikasi URL toko biasa tidak membawa konteks meja dan payload pelanggan tidak dapat memasok harga/status. Migration, uji tenant isolation, invalid/nonaktif table, concurrency, dan recovery di staging masih terbuka.
 
-**Kriteria selesai:** bagian katalog, stok, marketplace-only, dan QR tercapai untuk implementasi teknis di repository. Fase penuh belum selesai karena template listing/state machine kategori dan validasi staging belum dikerjakan.
+**Kriteria selesai:** bagian katalog, stok, marketplace-only, QR, template listing, dan state machine kategori tercapai untuk implementasi teknis di repository. Fase penuh belum selesai karena validasi staging belum dikerjakan.
 
 ### Fase 3 — POS online/offline yang aman — **SEBAGIAN SELESAI DI REPOSITORY**
 
@@ -1003,7 +1003,7 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 - [ ] jalankan uji fisik pada device/PWA staging dan pilot merchant;
 - [x] bedakan receipt POS dengan invoice marketplace.
 
-**Status saat ini:** **Sebagian selesai secara teknis di repository untuk alur offline dasar dan simulasi recovery.** Cache sekarang diganti sebagai snapshot tenant/outlet dan membawa varian beserta stok outlet; antrean menyimpan status `queued`, `syncing`, `failed`, `conflict`, atau `synced`, memakai lease agar klaim yang macet dapat dipulihkan, dan merangkum dead-letter/conflict untuk kasir. Checkout menulis checkpoint durable sebelum RPC, lalu memulihkannya ke queue dengan request key yang sama setelah tab/perangkat ditutup, refresh, listrik mati, atau koneksi putus. Test recovery mencakup keempat skenario tersebut dan memastikan transaksi yang sudah tersinkron tidak diputar ulang. Uji fisik device/PWA, printer, konflik lintas kanal, serta penerapan migration di staging belum dikerjakan.
+**Status saat ini:** **Sebagian selesai secara teknis di repository untuk alur offline dasar dan simulasi recovery.** Cache sekarang diganti sebagai snapshot tenant/outlet dan membawa varian beserta stok outlet; antrean menyimpan status `queued`, `syncing`, `failed`, `conflict`, atau `synced`, memakai lease agar klaim yang macet dapat dipulihkan, dan merangkum dead-letter/conflict untuk kasir. Checkout menulis checkpoint durable sebelum RPC, lalu memulihkannya ke queue dengan request key yang sama setelah tab/perangkat ditutup, refresh, listrik mati, atau koneksi putus. `src/lib/posDevicePolicy.ts` menyatakan capability minimum HTTPS, IndexedDB, dan service worker, sedangkan conflict center menyediakan reset cache/queue yang scoped per tenant/outlet. Test recovery mencakup keempat skenario tersebut dan memastikan transaksi yang sudah tersinkron tidak diputar ulang. Uji fisik device/PWA, printer, konflik lintas kanal, serta penerapan migration di staging belum dikerjakan.
 
 **Kriteria selesai:** kasir dapat bekerja offline secara terbatas dan merchant selalu tahu transaksi mana yang sudah final dan mana yang masih menunggu sync.
 
@@ -1020,13 +1020,13 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 - [x] export laporan laba-rugi dan cashflow memakai state dataset yang sama dengan layar;
 - [x] tambahkan snapshot audit dan rekonsiliasi harian yang menjelaskan selisih sesi, mutasi, pembayaran supplier, dan jurnal.
 
-**Status saat ini:** **Selesai secara teknis di repository; siap diuji di staging.** Bundle `24_20260907110000_phase4_canonical_reporting.sql` dan `25_20260907130000_phase4_debt_reconciliation.sql` menyediakan kontrak laporan canonical tenant/outlet-scoped, pembayaran hutang/piutang atomic yang membuat mutasi kas, pembayaran supplier berdasarkan tanggal pembayaran aktual, jurnal posted server-side, dan snapshot rekonsiliasi harian. Halaman laba-rugi, cashflow, akuntansi, hutang/piutang, dan Kas memakai alur canonical tersebut. Laporan pajak tetap estimasi; bundle belum diterapkan dan rekonsiliasi nyata belum diuji di staging/production.
+**Status saat ini:** **Selesai secara teknis di repository; siap diuji di staging.** Bundle `24_20260907110000_phase4_canonical_reporting.sql` dan `25_20260907130000_phase4_debt_reconciliation.sql` menyediakan kontrak laporan canonical tenant/outlet-scoped, pembayaran hutang/piutang atomic yang membuat mutasi kas, pembayaran supplier berdasarkan tanggal pembayaran aktual, jurnal posted server-side, dan snapshot rekonsiliasi harian. Semua halaman laporan POS utama, termasuk laporan penjualan, laba-rugi, cashflow, akuntansi, hutang/piutang, dan Kas memakai alur canonical tersebut; ringkasan pembelian pada RPC juga sudah dikembalikan pada field `purchases`. Laporan pajak tetap estimasi; bundle belum diterapkan dan rekonsiliasi nyata belum diuji di staging/production.
 
 **Kriteria selesai:** merchant dapat menutup shift, merekonsiliasi kas, dan memahami mengapa angka laporan berbeda atau sama dengan saldo aktual. **Tercapai secara teknis di repository; status resmi tetap menunggu staging.**
 
 ### Fase 5 — Pertumbuhan dan monetisasi lanjutan — **SEBAGIAN SELESAI DI REPOSITORY**
 
-**Status saat ini:** **Sebagian selesai secara teknis di repository; migration dan verifikasi staging masih terbuka.** Fase ini dimulai setelah fondasi Fase 4 dan menambahkan kontrol komersial yang dapat ditegakkan server-side, bukan sekadar label paket di UI.
+**Status saat ini:** **Sebagian selesai secara teknis di repository; migration dan verifikasi staging masih terbuka.** Fase ini dimulai setelah fondasi Fase 4 dan menambahkan kontrol komersial yang dapat ditegakkan server-side, bukan sekadar label paket di UI. Bundle komersial `26`–`27` sudah menyediakan limit paket, promo partner, dan SLA support; `src/lib/feeEngine.ts` sekarang menyediakan kontrak fee schedule forward-only dan snapshot per transaksi, tetapi belum menjadi ledger fee/payment produksi.
 
 - [x] paket multi-outlet;
 - [x] add-on pengguna/kasir;
@@ -1039,7 +1039,7 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 - [x] dukungan prioritas — tiket merchant paket prioritas mendapat target SLA 4 jam, tiket standar 24 jam, dan admin dapat melihat status SLA/overdue.
 - [ ] category builder untuk template listing, atribut, fulfillment, SLA, dan kebijakan pembatalan;
 - [ ] fee engine untuk komisi, biaya tetap, booking fee, featured listing, dan siapa yang menanggung biaya;
-- [ ] simulasi dampak tarif sebelum publish serta snapshot fee pada setiap order/payout;
+- [x] simulasi dampak tarif sebelum publish serta snapshot fee pada setiap order/payout;
 - [ ] usage fee ojek dengan batch order, invoice fee, grace period, dan perpanjangan entitlement;
 - [ ] identity link dan risk scoring untuk mencegah akun provider ganda serta order fiktif;
 - [ ] provider wallet/fee ledger yang memisahkan pendapatan perjalanan dari kewajiban fee platform;

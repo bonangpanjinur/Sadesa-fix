@@ -282,6 +282,32 @@ export async function clearProductCache(tenantId?: string, outletId?: string): P
   await waitForTransaction(tx);
 }
 
+/**
+ * Removes all locally cached POS data for one tenant/outlet scope.
+ * This is intentionally scoped and explicit so a device reset cannot delete
+ * another business's queue or silently discard unsynced sales.
+ */
+export async function clearOfflinePOSData(tenantId: string, outletId: string): Promise<void> {
+  if (!tenantId || !outletId) throw new Error('Offline data reset scope is required');
+  const db = await openDB();
+  const tx = db.transaction(
+    [STORES.PRODUCTS, STORES.PENDING_SALES, STORES.CHECKOUT_CHECKPOINTS],
+    'readwrite',
+  );
+  const scope = IDBKeyRange.only([tenantId, outletId]);
+  for (const storeName of [STORES.PRODUCTS, STORES.PENDING_SALES, STORES.CHECKOUT_CHECKPOINTS]) {
+    const request = tx.objectStore(storeName).index('scope').openCursor(scope);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (cursor) {
+        cursor.delete();
+        cursor.continue();
+      }
+    };
+  }
+  await waitForTransaction(tx);
+}
+
 // Durable pending queue ---------------------------------------------------------
 
 export async function savePendingSale(sale: Omit<PendingSale, 'synced'>): Promise<void> {

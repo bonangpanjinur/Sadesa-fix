@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchPOSCanonicalReport } from '@/lib/posCanonicalReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-import { Download, TrendingUp, ShoppingCart, Package, CreditCard, Banknote, QrCode, FileText, FileSpreadsheet } from 'lucide-react';
+import { TrendingUp, ShoppingCart, Package, CreditCard, FileText, FileSpreadsheet } from 'lucide-react';
 import { exportPOSSales, exportToPDF } from '@/lib/exportReport';
-import { format, startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval, eachWeekOfInterval } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -17,23 +17,6 @@ const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'
 interface ChartPoint { label: string; total: number; count: number; }
 interface TopProduct { name: string; qty: number; total: number; }
 interface PaymentMethod { name: string; value: number; }
-interface SaleItem { product_name: string; qty: number; subtotal: number; }
-interface SaleRow { total: number; discount_amount: number; payment_method: string; created_at: string; items: unknown; }
-
-function normaliseSaleItems(value: unknown): SaleItem[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
-    const raw = item as Record<string, unknown>;
-    const qty = Number(raw.qty ?? raw.quantity ?? 0);
-    const subtotal = Number(raw.subtotal ?? raw.total_price ?? 0);
-    return [{
-      product_name: String(raw.product_name ?? raw.productName ?? raw.name ?? 'Produk'),
-      qty: Number.isFinite(qty) ? qty : 0,
-      subtotal: Number.isFinite(subtotal) ? subtotal : 0,
-    }];
-  });
-}
 
 export default function POSLaporanPage() {
   const { tenant, activeOutlet, formatCurrency } = usePOS();
@@ -64,65 +47,41 @@ export default function POSLaporanPage() {
     const { start, end } = getRange();
 
     try {
-      const { data: salesData } = await supabase
-        .from('pos_unified_transaction_history' as never)
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .eq('outlet_id', activeOutlet.id)
-        .eq('status', 'completed')
-        .gte('created_at', start.toISOString())
-        .lte('created_at', end.toISOString())
-        .order('created_at');
-
-      const sales = (salesData || []) as unknown as SaleRow[];
-      const totalOmzet = sales.reduce((s, r) => s + Number(r.total), 0);
-      const totalTransactions = sales.length;
-      const totalDiscount = sales.reduce((s, r) => s + Number(r.discount_amount), 0);
+      const report = await fetchPOSCanonicalReport({
+        tenantId: tenant.id,
+        outletId: activeOutlet.id,
+        from: start,
+        to: end,
+      });
+      const totalOmzet = report.sales.net_revenue;
+      const totalTransactions = report.sales.transactions;
+      const totalDiscount = report.sales.discounts;
       const avgBasket = totalTransactions > 0 ? totalOmzet / totalTransactions : 0;
 
       // Payment methods breakdown
-      const paymentMap: Record<string, number> = {};
-      sales.forEach(s => { paymentMap[s.payment_method] = (paymentMap[s.payment_method] || 0) + Number(s.total); });
       const paymentLabels: Record<string, string> = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer', debit: 'Debit', credit: 'Kredit', split: 'Split' };
-      const paymentMethods = Object.entries(paymentMap).map(([key, val]) => ({ name: paymentLabels[key] || key, value: val }));
+      const paymentMethods = Object.entries({
+        cash: report.sales.cash,
+        qris: report.sales.qris,
+        transfer: report.sales.transfer,
+        debit: report.sales.debit,
+        credit: report.sales.credit,
+        split: report.sales.split,
+      }).filter(([, value]) => value > 0).map(([key, value]) => ({ name: paymentLabels[key] || key, value }));
 
       // Sales chart
-      let salesChart: ChartPoint[] = [];
-      if (period === 'today') {
-        for (let h = 0; h < 24; h++) {
-          const hourSales = sales.filter(s => new Date(s.created_at).getHours() === h);
-          salesChart.push({ label: `${h}:00`, total: hourSales.reduce((sum, s) => sum + Number(s.total), 0), count: hourSales.length });
-        }
-      } else if (period === 'week') {
-        for (let i = 0; i < 7; i++) {
-          const day = addDays(start, i);
-          const daySales = sales.filter(s => format(new Date(s.created_at), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
-          salesChart.push({ label: format(day, 'EEE', { locale: idLocale }), total: daySales.reduce((sum, s) => sum + Number(s.total), 0), count: daySales.length });
-        }
-      } else if (period === 'month') {
-        const days = eachDayOfInterval({ start, end });
-        salesChart = days.map(day => {
-          const daySales = sales.filter(s => format(new Date(s.created_at), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd'));
-          return { label: format(day, 'd', { locale: idLocale }), total: daySales.reduce((sum, s) => sum + Number(s.total), 0), count: daySales.length };
-        });
-      } else {
-        for (let m = 0; m < 12; m++) {
-          const monthSales = sales.filter(s => new Date(s.created_at).getMonth() === m);
-          salesChart.push({ label: format(new Date(2024, m, 1), 'MMM', { locale: idLocale }), total: monthSales.reduce((sum, s) => sum + Number(s.total), 0), count: monthSales.length });
-        }
-      }
+      const salesChart: ChartPoint[] = report.daily.map((day) => ({
+        label: period === 'year' ? format(new Date(`${day.period}T00:00:00`), 'MMM', { locale: idLocale }) : format(new Date(`${day.period}T00:00:00`), period === 'today' ? 'HH:mm' : 'd', { locale: idLocale }),
+        total: day.revenue,
+        count: day.transactions,
+      }));
 
       // Top products from sale items
-      const productMap: Record<string, { name: string; qty: number; total: number }> = {};
-      sales.forEach(s => {
-        normaliseSaleItems(s.items).forEach((item: SaleItem) => {
-          const key = item.product_name;
-          if (!productMap[key]) productMap[key] = { name: key, qty: 0, total: 0 };
-          productMap[key].qty += Number(item.qty);
-          productMap[key].total += Number(item.subtotal);
-        });
-      });
-      const topProducts = Object.values(productMap).sort((a, b) => b.total - a.total).slice(0, 10);
+      const topProducts = report.top_products.map((product) => ({
+        name: product.name,
+        qty: product.qty,
+        total: product.revenue,
+      }));
 
       const periodLabels: Record<string, string> = { today: 'Hari Ini', week: 'Minggu Ini', month: 'Bulan Ini', year: 'Tahun Ini' };
       setStats({ totalOmzet, totalTransactions, avgBasket, totalDiscount, salesChart, topProducts, paymentMethods, periodLabel: periodLabels[period] });
@@ -136,12 +95,6 @@ export default function POSLaporanPage() {
   useEffect(() => {
     if (tenant && activeOutlet) void fetchReport();
   }, [tenant, activeOutlet, fetchReport]);
-
-  function addDays(date: Date, days: number) {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-  }
 
   const exportCSV = () => {
     const topProductRows = stats.topProducts.map(p => ({

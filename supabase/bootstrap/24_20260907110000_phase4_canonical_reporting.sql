@@ -114,7 +114,7 @@ BEGIN
     'count', COUNT(*)::integer,
     'by_status', COALESCE(jsonb_agg(jsonb_build_object('status', status, 'amount_paid', amount_paid)), '[]'::jsonb)
   )
-  INTO v_journal_summary
+  INTO v_purchases
   FROM public.pos_purchase_orders
   WHERE tenant_id = p_tenant_id
     AND outlet_id = p_outlet_id
