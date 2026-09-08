@@ -397,6 +397,87 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - perubahan rekening payout;
 - pembatalan atau koreksi transaksi.
 
+### Panel admin yang disarankan
+
+Dashboard admin sebaiknya menjadi **control tower operasional**, bukan hanya halaman KPI. Admin perlu dapat melihat antrean yang membutuhkan tindakan, dampak bisnisnya, dan siapa yang bertanggung jawab:
+
+1. **Lifecycle merchant**
+   - antrean pendaftaran, verifikasi identitas/usaha, aktivasi, merchant yang belum memasang produk, dan merchant yang belum menerima order pertama;
+   - checklist onboarding dan alasan merchant berhenti di setiap tahap;
+   - kemampuan meminta perbaikan data tanpa menghapus draft merchant.
+2. **Moderasi katalog dan toko**
+   - review foto, kategori, harga tidak wajar, produk terlarang, duplikasi, dan konten spam;
+   - status `draft`, `pending_review`, `published`, `rejected`, `suspended` dengan alasan yang dapat dipahami merchant;
+   - bulk action harus memiliki preview, batas scope, dan audit.
+3. **Order control tower**
+   - order baru yang belum diterima, terlambat diproses, dibatalkan, direfund, atau berpotensi sengketa;
+   - filter berdasarkan kanal marketplace, POS, dan QR meja;
+   - admin membantu perubahan status melalui action resmi, bukan mengedit histori transaksi langsung.
+4. **Entitlement dan billing POS**
+   - trial yang akan berakhir, pembayaran tertunda, grace period, suspend, reaktivasi, limit outlet/pengguna, dan add-on;
+   - setiap override wajib memiliki alasan, tanggal mulai, tanggal berakhir, dan actor.
+5. **Operasional outlet dan QR meja**
+   - daftar tenant, outlet, meja, QR aktif, QR dicabut, dan order meja yang belum ditangani;
+   - kemampuan menonaktifkan QR tertentu tanpa menutup toko publik atau menghapus histori.
+6. **Payout, refund, dan dispute**
+   - saldo tertahan, payout gagal, refund yang menunggu persetujuan, sengketa pembeli, dan aging penyelesaian;
+   - aturan agar payout tidak dilepas sebelum order memenuhi status fulfillment dan periode risiko yang ditetapkan.
+7. **Trust, abuse, dan keamanan**
+   - lonjakan order palsu, refund berulang, akun merchant ganda, penggunaan promo yang tidak wajar, QR yang dipindai terlalu sering, dan login/perangkat mencurigakan;
+   - flag risiko harus dapat ditinjau tanpa langsung menghapus data atau memblokir merchant secara permanen.
+8. **Support dan insiden**
+   - tiket dengan SLA, sinkronisasi gagal, stale projection, konflik POS offline, dan insiden pembayaran;
+   - incident timeline, owner, status, komunikasi ke merchant, dan postmortem untuk masalah berulang.
+
+### Pemisahan peran admin
+
+Minimal gunakan pemisahan berikut:
+
+- **Admin operasional:** onboarding, moderasi, order, support, dan monitoring sinkronisasi;
+- **Admin keuangan:** payout, refund, kompensasi, dan rekonsiliasi saldo;
+- **Admin produk/POS:** paket, modul, limit, trial, promo, dan QR/table-order policy;
+- **Super admin:** akses lintas area, approval tindakan berisiko, konfigurasi global, dan audit.
+
+Refund besar, koreksi saldo, perubahan payout, penghapusan merchant, dan override entitlement sebaiknya memakai **maker-checker**: satu admin mengajukan, admin lain yang berwenang menyetujui. Ini mengurangi risiko kesalahan tunggal tanpa memperlambat tindakan rutin.
+
+### Alur merchant dan order yang disarankan
+
+#### A. Onboarding marketplace gratis
+
+1. Merchant mendaftar dan melengkapi profil usaha.
+2. Merchant dapat membuat draft produk dan memperbaiki data sebelum publikasi.
+3. Sistem memeriksa kualitas minimum dan aturan konten.
+4. Produk yang lolos tampil di toko publik; merchant memperoleh checklist menuju order pertama.
+5. Order masuk ke inbox marketplace merchant tanpa memerlukan tenant atau subscription POS.
+6. Merchant menerima, menyiapkan, menyerahkan/mengirim, dan menyelesaikan order.
+7. Setelah order selesai, sistem mengatur payout, ulasan, dan metrik merchant.
+
+#### B. Konversi ke POS
+
+1. Merchant menerima edukasi berbasis masalah, misalnya stok outlet, kasir, barcode, atau laporan; bukan dipaksa membayar untuk menerima order marketplace.
+2. Merchant memilih trial atau paket POS.
+3. Sistem memproyeksikan katalog Merchant ke POS tanpa membuat produk kedua.
+4. Merchant menyelesaikan setup outlet, kasir, stok awal, dan bila perlu meja.
+5. Aktivasi POS dihitung setelah setup selesai dan transaksi pertama berhasil, bukan hanya setelah subscription dibuat.
+
+#### C. QR meja
+
+1. Merchant POS membuat outlet, meja, dan QR yang aktif.
+2. Pelanggan memindai QR; server membuat sesi konteks meja yang memiliki expiry.
+3. Pelanggan memilih menu dari katalog Merchant yang sama.
+4. Order diberi source `table_qr`, outlet, meja, dan status fulfillment yang jelas.
+5. Outlet menerima dan memproses order; perubahan status terlihat oleh pelanggan bila fitur tersebut diaktifkan.
+6. Sesi meja ditutup setelah order selesai, dibatalkan, atau melewati expiry; order lama tetap tersimpan.
+
+#### D. POS berhenti berlangganan
+
+1. Sistem mengirim peringatan sebelum trial atau grace berakhir.
+2. Saat suspend, POS sale dan QR/table-order baru dihentikan sesuai kebijakan.
+3. Marketplace tetap aktif: produk, toko, inbox order, fulfillment, dan histori tidak dihapus.
+4. Merchant dapat membaca/mengekspor data dan mengaktifkan kembali POS tanpa duplikasi tenant, outlet, produk, atau order.
+
+Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertama, sementara POS memiliki momen upgrade yang jelas ketika merchant sudah merasakan kebutuhan operasional.
+
 ---
 
 ## 8. KPI bisnis yang harus diukur
@@ -409,7 +490,11 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - GMV marketplace;
 - conversion rate halaman produk ke checkout;
 - merchant activation rate;
+- waktu dari pendaftaran ke produk pertama terbit;
 - merchant yang menerima order pertama;
+- acceptance rate dan fulfillment-on-time rate;
+- cancellation, refund, dispute, dan repeat-order rate;
+- umur payout tertunda dan payout failure rate;
 - merchant yang tetap aktif setelah 30/90 hari.
 
 ### POS
@@ -423,6 +508,8 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - jumlah outlet dan kasir aktif;
 - attach rate: merchant marketplace yang membeli POS;
 - penggunaan modul berbayar;
+- QR scan-to-order conversion dan table-order completion rate;
+- persentase merchant POS yang memakai lebih dari satu modul;
 - waktu dari signup sampai transaksi pertama.
 
 ### Kesehatan operasional
@@ -435,8 +522,14 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - selisih kas saat tutup shift;
 - refund/retur rate;
 - laporan yang gagal generate/export.
+- waktu antrean approval merchant dan moderasi katalog;
+- waktu penyelesaian dispute dan tiket berdasarkan SLA;
+- jumlah QR/table order invalid atau berulang;
+- jumlah merchant marketplace yang terdampak insiden POS.
 
 **North Star metric yang disarankan:** merchant aktif yang berhasil mencatat transaksi valid pada bulan berjalan, dengan kanal marketplace atau POS. Jumlah signup saja tidak cukup.
+
+**Guardrail metric yang wajib dipantau:** cancellation rate, refund/dispute rate, payout aging, fulfillment terlambat, stock mismatch, dan merchant yang kehilangan akses marketplace karena kesalahan status POS.
 
 ---
 
@@ -557,6 +650,11 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [x] program partner desa/koperasi;
 - [x] promo onboarding dengan expiry — admin dapat membuat kode partner berkuota, merchant dapat preview dan redeem satu kali, dan kode ditolak setelah expiry;
 - [x] dukungan prioritas — tiket merchant paket prioritas mendapat target SLA 4 jam, tiket standar 24 jam, dan admin dapat melihat status SLA/overdue.
+- [ ] checklist onboarding merchant sampai produk pertama dan order pertama;
+- [ ] control tower admin untuk antrean merchant, katalog, order, payout, dispute, entitlement, dan QR meja;
+- [ ] maker-checker untuk refund besar, koreksi saldo, perubahan payout, penghapusan merchant, dan override entitlement;
+- [ ] aturan payout berdasarkan fulfillment dan periode risiko yang dapat dikonfigurasi;
+- [ ] flag abuse untuk order palsu, refund berulang, promo tidak wajar, dan QR yang disalahgunakan.
 
 **Perubahan teknis yang sudah tersedia:** bundle `26_20260908100000_phase5_commercial_entitlements.sql` menambahkan limit `max_outlets` dan `max_users`, harga add-on pengguna, flag dukungan prioritas, konfigurasi diskon onboarding ber-expiry, tabel promosi onboarding, entitlement summary, serta RPC guard untuk membuat outlet dan pengguna. Bundle `27_20260908120000_partner_promotions_priority_support.sql` menambahkan preview dan redemption promo yang atomic/idempotent, pencatatan nominal asli dan diskon pada subscription, program partner desa/koperasi di admin, serta schema dan RPC SLA support. Form admin menampilkan paket dan promo partner; halaman langganan merchant menghitung harga setelah promo; tiket baru otomatis mendapat prioritas dan due time berdasarkan paket.
 
@@ -570,6 +668,11 @@ Setiap perubahan berikut wajib memiliki actor, alasan, waktu, nilai sebelum, nil
 - [ ] uji upgrade/downgrade paket, limit outlet/pengguna, add-on, dan promo expired;
 - [ ] uji loyalty, analitik, printer, dan ekspor akuntansi pada merchant dengan data nyata sintetis;
 - [ ] uji konflik lintas outlet dan pemulihan POS offline pada perangkat fisik;
+- [ ] uji merchant marketplace-only: upload produk, order masuk, fulfillment, payout, refund, dan dispute tanpa tenant POS;
+- [ ] uji transisi marketplace-only ke POS tanpa produk, tenant, outlet, atau histori order duplikat;
+- [ ] uji suspend POS: marketplace tetap menerima order, sedangkan transaksi POS dan QR meja mengikuti kebijakan suspend;
+- [ ] uji QR meja lintas outlet, QR dicabut, sesi expired, scan berulang, dan order yang sudah berjalan;
+- [ ] uji approval maker-checker serta audit untuk refund, payout, moderasi, dan entitlement;
 - [ ] jalankan pilot 10–20 merchant dan catat activation, transaksi pertama, sync success, konflik, serta churn awal;
 - [ ] dokumentasikan rollback dan prosedur support.
 
@@ -617,6 +720,22 @@ Offline adalah fitur keandalan, bukan izin untuk melewati aturan server. Semua t
 
 Toko yang dibuka dari marketplace tetap harus menjadi toko publik biasa. Konteks meja hanya boleh dibuat dari QR POS yang valid, scoped ke outlet/meja, dan diverifikasi server.
 
+### Jangan membayar payout sebelum order cukup aman
+
+Payout terlalu cepat meningkatkan risiko fraud, refund, dan sengketa. Tetapkan status fulfillment, periode penahanan, rule pengecualian, dan jalur dispute sebelum saldo dianggap tersedia.
+
+### Jangan membuat admin sebagai database editor
+
+Admin harus bekerja melalui action bisnis yang terkontrol—approve, reject, refund, suspend, reaktivasi, rekonsiliasi—bukan mengubah row transaksi secara langsung. Koreksi harus menghasilkan adjustment dan audit trail.
+
+### Jangan mengoptimalkan signup saja
+
+Signup yang tidak menghasilkan produk terbit, order pertama, fulfillment, atau transaksi POS tidak menciptakan bisnis yang sehat. Funnel harus diukur sampai nilai nyata diterima merchant dan pelanggan.
+
+### Jangan menambah fitur paid sebelum fondasi operasional siap
+
+Paket tambahan tidak akan memperbaiki marketplace yang order-nya terlambat, payout tidak jelas, atau stok tidak dipercaya. Prioritaskan inbox order, fulfillment, payout, support, dan rekonsiliasi sebelum ekspansi modul.
+
 ---
 
 ## 11. Rekomendasi keputusan sekarang
@@ -634,6 +753,11 @@ Toko yang dibuka dari marketplace tetap harus menjadi toko publik biasa. Konteks
 11. **Pertahankan inbox pesanan marketplace sebagai fitur gratis:** POS hanya menambah kanal kasir, stok outlet, dan automasi operasional.
 12. **Bangun QR meja sebagai mode order terpisah:** gunakan katalog dan stok bersama, tetapi simpan source, konteks meja, dan fulfillment state secara eksplisit.
 13. **Jadikan QR dapat dicabut dan diaudit:** merchant harus dapat menonaktifkan meja/outlet atau mengganti QR tanpa memutus toko publik.
+14. **Bangun onboarding sampai nilai pertama:** ukur produk pertama terbit, order pertama, fulfillment pertama, dan transaksi POS pertama.
+15. **Jadikan admin control tower:** tampilkan antrean tindakan, SLA, risiko, payout, dispute, dan dampak status POS terhadap marketplace.
+16. **Pisahkan kewenangan admin:** gunakan role operasional, keuangan, produk/POS, dan super admin dengan maker-checker untuk tindakan berisiko.
+17. **Tahan payout secara terukur:** lepaskan dana berdasarkan status fulfillment dan aturan risiko, bukan hanya karena order dibuat.
+18. **Jadikan kualitas dan keamanan sebagai fitur bisnis:** moderasi katalog, deteksi abuse, QR yang dapat dicabut, audit, dan pemulihan harus masuk prioritas produk.
 
 ## Kesimpulan
 
