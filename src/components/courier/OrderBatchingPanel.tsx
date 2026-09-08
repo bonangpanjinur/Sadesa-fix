@@ -1,6 +1,7 @@
 /**
  * Multi-order batching — gabung 2–3 order dalam 1 kurir
- * Menggunakan server API /api/courier/batch-accept dan /api/courier/available-orders
+ * Menggunakan Supabase Edge Function agar identitas kurir dan klaim order
+ * divalidasi di server, bukan dari browser.
  */
 import { useState, useEffect } from 'react';
 import { Package, MapPin, Clock, ChevronDown, ChevronUp, Layers, CheckCircle2, RefreshCw } from 'lucide-react';
@@ -10,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AvailableOrder {
   id: string;
@@ -23,24 +25,26 @@ interface AvailableOrder {
 }
 
 interface OrderBatchingPanelProps {
-  courierId: string;
   activeOrders: { id: string }[];
   onRefresh: () => void;
 }
 
-async function apiFetch(path: string, options?: RequestInit) {
-  const token = localStorage.getItem('session_token');
-  return fetch(path, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers as Record<string, string> || {}),
-    },
-  });
+interface BatchResponse {
+  orders?: AvailableOrder[];
+  can_accept?: number;
+  message?: string;
 }
 
-export function OrderBatchingPanel({ courierId, activeOrders, onRefresh }: OrderBatchingPanelProps) {
+function getFunctionErrorMessage(error: { message?: string } | null, fallback: string) {
+  const message = error?.message?.trim();
+  if (!message) return fallback;
+  if (/failed to send a request|function.*not found|404/i.test(message)) {
+    return 'Layanan batching belum tersedia di server. Hubungi administrator.';
+  }
+  return message;
+}
+
+export function OrderBatchingPanel({ activeOrders, onRefresh }: OrderBatchingPanelProps) {
   const [availableOrders, setAvailableOrders] = useState<AvailableOrder[]>([]);
   const [canAccept, setCanAccept] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -55,11 +59,12 @@ export function OrderBatchingPanel({ courierId, activeOrders, onRefresh }: Order
   const fetchAvailableOrders = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/courier/available-orders?limit=12');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Gagal memuat pesanan');
-      setAvailableOrders(json.orders || []);
-      setCanAccept(json.can_accept ?? 0);
+      const { data, error } = await supabase.functions.invoke<BatchResponse>('courier-batch-orders', {
+        body: { action: 'available', limit: 12 },
+      });
+      if (error) throw new Error(getFunctionErrorMessage(error, 'Gagal memuat daftar pesanan'));
+      setAvailableOrders(data?.orders || []);
+      setCanAccept(data?.can_accept ?? 0);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Gagal memuat daftar pesanan');
     } finally {
@@ -86,14 +91,12 @@ export function OrderBatchingPanel({ courierId, activeOrders, onRefresh }: Order
     }
     setAccepting(true);
     try {
-      const res = await apiFetch('/api/courier/batch-accept', {
-        method: 'POST',
-        body: JSON.stringify({ order_ids: Array.from(selected) }),
+      const { data, error } = await supabase.functions.invoke<BatchResponse>('courier-batch-orders', {
+        body: { action: 'accept', order_ids: Array.from(selected) },
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Gagal menerima batch');
+      if (error) throw new Error(getFunctionErrorMessage(error, 'Gagal menerima batch'));
 
-      toast.success(json.message || `${selected.size} pesanan berhasil di-batch!`);
+      toast.success(data?.message || `${selected.size} pesanan berhasil di-batch!`);
       setSelected(new Set());
       setExpanded(false);
       onRefresh();

@@ -544,7 +544,6 @@ export default function CourierDashboardPage() {
             transition={{ delay: 0.19 }}
           >
             <OrderBatchingPanel
-              courierId={courier.id}
               activeOrders={orders.map(o => ({
                 id: o.id,
                 order_number: o.id.slice(0, 8).toUpperCase(),
