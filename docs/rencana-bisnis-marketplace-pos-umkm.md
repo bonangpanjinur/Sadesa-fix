@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 8 September 2026:** Pekerjaan marketplace-only **selesai dikerjakan di repository**: checkout tidak lagi bergantung pada quota marketplace, tenant POS, atau subscription POS; kontrak payload dan test sudah lulus. Fase QR/menu/meja menjadi fase aktif berikutnya: RPC publik scoped tenant–outlet–meja dan halaman pelanggan sudah diimplementasikan di repository, sedangkan penerapan migration, staging, dan uji konflik masih terbuka. Fase 0, Fase 1, dan Fase 4 tersedia secara teknis di repository. Fase 2 tetap sebagian tersedia untuk mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, identitas SKU/barcode tenant-scoped, stok varian/outlet, dan alur QR/menu/meja. Fase 3 tersedia secara teknis untuk alur offline dasar; Fase 5 sebagian tersedia untuk entitlement komersial, promo partner, dan SLA support. Migration baru belum diterapkan ke staging/production.
+> **Status implementasi — 8 September 2026:** Pekerjaan yang sudah **selesai dikerjakan di repository** adalah Fase 0 (aturan produk), Fase 1 (kontrak entitlement), Fase 2 (katalog, stok, marketplace-only, QR, template kategori), dan Fase 4 (laporan canonical). Fase 3 baru **sebagian selesai** karena uji device/PWA/printer nyata belum dilakukan. Fase 5 juga **sebagian selesai**: entitlement komersial, promo partner, SLA support, serta kontrak fee schedule/snapshot tersedia, tetapi fee ledger production, payout, risk, dan control tower belum dibangun. Fase 6 **belum dimulai**, sedangkan Fase 7 baru sebagian tersedia untuk partner/support dan belum rollout. Seluruh validasi migration, staging, pilot, dan produksi yang dicantumkan di bawah tetap wajib dikerjakan sebelum klaim siap produksi.
 
 > **Catatan audit dokumen:** status “selesai secara teknis di repository” hanya berarti kontrak, kode, atau migration tersedia di source control. Status tersebut **bukan** bukti bahwa alur sudah terpasang di Supabase, aman di staging, diterima merchant, atau boleh dijual di produksi. Gunakan matriks tugas dan gate di bagian 9 sebagai acuan eksekusi.
 
@@ -95,7 +95,7 @@ Gunakan empat tingkat bukti berikut:
 4. **Entitlement POS sudah memiliki arah server-side yang benar.** Bundle 14, 19, dan 20 menyediakan activation gate, resolver entitlement berbasis waktu, grace, suspend/cancel, history, export, audit, dan reaktivasi. Statusnya tetap “siap diuji”, bukan “siap dijual”, sampai diuji dengan auth role, expiry, duplicate event, dan payment failure.
 5. **Kontrak stok lebih kuat daripada bukti UI marketplace-nya.** Bundle 15–17 dan 21–23 memisahkan POS outlet stock, marketplace projection, reservation, allocation varian/outlet, stale alert, dan reconciliation. Merchant tetap perlu melihat error/mapping yang dapat ditindaklanjuti, dan database perlu diuji pada transaksi bersamaan lintas outlet.
 6. **Reporting canonical tersedia tetapi belum menjadi bukti laporan resmi.** Bundle 24–25 memusatkan report, debt payment, journal, cash mutation, dan daily reconciliation pada server. Semua perbedaan angka harus diuji memakai golden dataset sebelum angka dipakai untuk keputusan keuangan atau pajak.
-7. **Fase 5 belum merupakan fee engine marketplace.** Bundle 26–27 terutama menambah limit entitlement POS, add-on kapasitas, promo onboarding, partner, dan SLA support. Belum ditemukan implementasi server-side untuk komisi dinamis lintas kategori, effective-date fee rule, fee snapshot per order/payout, usage-fee provider, wallet fee, atau payout hold.
+7. **Fase 5 baru memiliki kontrak fee engine, belum fee ledger marketplace production.** Bundle 26–27 menambah limit entitlement POS, add-on kapasitas, promo onboarding, partner, dan SLA support. `src/lib/feeEngine.ts` sudah menyediakan effective-date fee rule dan snapshot per order secara lokal; integrasi checkout/payout, usage-fee provider, wallet fee, payout hold, adjustment, dan dispute masih belum dibangun.
 
 ### Temuan UI dan layanan runtime
 
@@ -874,25 +874,38 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 
 ### 9.0 Urutan fase dan status pekerjaan
 
-Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah berarti implementasi atau keputusan sudah tersedia di repository; status tersebut **belum berarti lulus staging, siap pilot, atau siap produksi**.
+Gunakan urutan ini sebagai sumber kebenaran kerja. **Selesai di repository** berarti implementasi atau keputusan sudah tersedia dan telah diverifikasi oleh test/build lokal. **Belum lulus staging** berarti migration, environment, test matrix, sign-off, atau bukti operasional masih harus dikerjakan. **Sebagian selesai** berarti sebagian kontrak sudah ada, tetapi ada capability utama yang belum dibangun.
 
-1. **Fase 0 — Keputusan produk dan aturan komersial — SELESAI DI REPOSITORY**
+| Fase | Status saat ini | Yang sudah selesai | Yang masih wajib dikerjakan |
+|---|---|---|---|
+| Fase 0 — Keputusan produk dan aturan komersial | **SELESAI DI REPOSITORY; SIGN-OFF BELUM** | Policy marketplace/POS, harga uji, lifecycle, KPI, pricing, FAQ, dan aturan fee | Sign-off bisnis/legal/finance, privacy/terms, dan validasi keputusan di staging |
+| Fase 1 — Entitlement dan billing | **SELESAI DI REPOSITORY; BELUM LULUS STAGING** | Guard server-side, lifecycle entitlement, audit, export, reaktivasi, pemisahan marketplace/POS | Migration, payment provider, webhook, expiry/retry, dan rekonsiliasi staging |
+| Fase 2 — Katalog, stok, inbox marketplace-only, dan QR meja | **SELESAI DI REPOSITORY; BELUM LULUS STAGING** | Mapping katalog, reservation/projection, marketplace-only, QR scoped, template listing, dan state machine kategori | Tenant isolation, concurrency/overselling, QR invalid/revoke, recovery, dan test staging |
+| Fase 3 — POS online/offline | **SEBAGIAN SELESAI; UJI NYATA BELUM** | Queue, checkpoint, idempotency, retry/dead-letter, conflict center, policy device, dan simulasi recovery | Uji device/PWA/printer, crash/listrik mati, konflik lintas kanal, serta pilot recovery |
+| Fase 4 — Laporan dan rekonsiliasi | **SELESAI DI REPOSITORY; BELUM LULUS STAGING** | Canonical report, ledger, journal, cash, export parity, dan daily reconciliation | Migration, golden dataset, rekonsiliasi staging, dan sign-off finance |
+| Fase 5 — Pertumbuhan dan monetisasi lanjutan | **SEBAGIAN SELESAI; LEDGER PRODUCTION BELUM** | Limit/add-on, promo partner, SLA support, fee schedule, simulasi, dan fee snapshot lokal | Fee ledger checkout/payout, usage fee, wallet, risk, payout hold, maker-checker, control tower |
+| Fase 6 — Validasi staging dan pilot merchant | **BELUM DIMULAI** | Belum ada deliverable yang dapat ditutup | Staging parity, apply migration, test matrix, pilot, guardrail, dan go/no-go |
+| Fase 7 — Partner, dukungan, dan rollout | **SEBAGIAN SELESAI; ROLLOUT BELUM** | Partner program, promo redemption, SLA support, dan dashboard KPI | Rollout bertahap, incident response, rekonsiliasi dashboard, dan review 30/60/90 hari |
+
+Ringkasnya, fase yang **sudah selesai dikerjakan di repository** adalah **Fase 0, 1, 2, dan 4**. Fase yang **belum selesai dan masih harus dikerjakan** adalah **Fase 3, 5, 6, dan 7**, dengan rincian pekerjaan terbuka pada tabel dan checklist di bawah. Tidak ada fase yang boleh disebut siap produksi sebelum gate staging/pilot terpenuhi.
+
+1. **Fase 0 — Keputusan produk dan aturan komersial — SELESAI DI REPOSITORY; SIGN-OFF BELUM**
    - [x] aturan marketplace gratis, trial, POS berbayar, grace, suspend, refund, upgrade, dan downgrade;
    - [x] batas katalog bersama, quota marketplace, QR meja, multi-vertikal, pricing, FAQ, dan KPI;
-   - [ ] sign-off bisnis/legal/finance dan validasi keputusan pada environment staging.
+   - [~] sign-off bisnis/legal/finance dan validasi keputusan pada environment staging.
 
-2. **Fase 1 — Entitlement dan billing — SELESAI DI REPOSITORY**
+2. **Fase 1 — Entitlement dan billing — SELESAI DI REPOSITORY; BELUM LULUS STAGING**
    - [x] entitlement server-side, lifecycle trial/paid/grace/suspended/cancelled, role, audit, export, dan reaktivasi;
    - [x] marketplace tetap terpisah dari subscription POS;
-   - [ ] penerapan migration, payment provider, webhook, expiry, retry, dan rekonsiliasi di staging.
+   - [~] penerapan migration, payment provider, webhook, expiry, retry, dan rekonsiliasi di staging.
 
-3. **Fase 2 — Katalog, stok, inbox marketplace-only, dan QR meja — SEBAGIAN SELESAI DI REPOSITORY**
+3. **Fase 2 — Katalog, stok, inbox marketplace-only, dan QR meja — SELESAI DI REPOSITORY; BELUM LULUS STAGING**
    - [x] mapping katalog, SKU/barcode tenant-scoped, stok outlet/varian, projection, reservation, rekonsiliasi, dan stale alert;
    - [x] marketplace-only tidak mensyaratkan `pos_tenant` atau subscription POS;
    - [x] menu publik, konteks meja, order QR, status order, source `table_qr`, dan reservation stock lifecycle;
-   - [ ] template listing/state machine kategori, validasi concurrency, tenant isolation, meja invalid/nonaktif, revoke, dan recovery di staging.
+   - [~] template listing/state machine kategori, validasi concurrency, tenant isolation, meja invalid/nonaktif, revoke, dan recovery di staging.
 
-4. **Fase 3 — POS online/offline — SEBAGIAN SELESAI DI REPOSITORY**
+4. **Fase 3 — POS online/offline — SEBAGIAN SELESAI; UJI NYATA BELUM**
    - [x] cache tenant/outlet, queue, idempotency, retry, dead-letter, conflict center, checkpoint durable, dan simulasi recovery;
    - [x] kontrak receipt POS dipisahkan dari invoice marketplace;
    - [ ] uji device/PWA/printer nyata, konflik lintas kanal, dan recovery di staging/pilot.
@@ -900,24 +913,25 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 5. **Fase 4 — Laporan dan rekonsiliasi — SELESAI DI REPOSITORY, BELUM LULUS STAGING**
    - [x] canonical report, payment/cash ledger, hutang/piutang atomic, posted journal, export, dan daily reconciliation;
    - [x] laporan pajak diberi label estimasi;
-   - [ ] golden dataset, rekonsiliasi staging, dan sign-off finance.
+   - [~] golden dataset, rekonsiliasi staging, dan sign-off finance.
 
-6. **Fase 5 — Pertumbuhan dan monetisasi lanjutan — SEBAGIAN SELESAI DI REPOSITORY**
+6. **Fase 5 — Pertumbuhan dan monetisasi lanjutan — SEBAGIAN SELESAI; LEDGER PRODUCTION BELUM**
    - [x] limit outlet/pengguna, add-on, loyalty, analitik, printer, akuntansi, partner, promo onboarding, dan SLA support;
-   - [ ] category builder, fee engine, fee snapshot, usage fee provider/ojek, wallet, risk scoring, payout hold, maker-checker, abuse flag, dan control tower.
+   - [ ] category builder, usage fee provider/ojek, wallet, risk scoring, payout hold, maker-checker, abuse flag, dan control tower;
+   - [~] integrasi fee engine dan fee snapshot ke checkout, payout ledger, adjustment, refund, serta dispute production.
 
 7. **Fase 6 — Validasi staging dan pilot merchant — BELUM DIMULAI**
    - [ ] siapkan staging parity, secrets/config, Auth, webhook, Storage, Realtime, backup, dan rollback;
    - [ ] terapkan bundle Fase 2–5 dan jalankan test matrix permission, concurrency, security, performance, recovery, serta QR;
    - [ ] jalankan pilot merchant, ukur guardrail/KPI, dan buat keputusan go/no-go.
 
-8. **Fase 7 — Partner, support, dan rollout — SEBAGIAN SELESAI DI REPOSITORY**
+8. **Fase 7 — Partner, support, dan rollout — SEBAGIAN SELESAI; ROLLOUT BELUM**
    - [x] partner program, redemption promo, SLA support, dan dashboard KPI;
    - [ ] rollout bertahap berdasarkan hasil pilot, incident response, rekonsiliasi dashboard, dan review 30/60/90 hari.
 
 **Urutan kerja berikutnya:** mulai dari Fase 6, bukan membuat fitur baru. Fase 6 harus menerapkan dan menguji hasil Fase 2–5 secara berurutan sebelum Fase 7 rollout.
 
-### Fase 0 — Keputusan produk dan aturan komersial — **SELESAI DI REPOSITORY**
+### Fase 0 — Keputusan produk dan aturan komersial — **SELESAI DI REPOSITORY; SIGN-OFF BELUM**
 
 **Tujuan:** semua pihak memahami perbedaan marketplace dan POS.
 
@@ -939,7 +953,7 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 
 **Status saat ini:** **Selesai secara teknis di repository.** Aturan produk dan harga uji terdokumentasi di halaman `/pricing`, FAQ menjelaskan lifecycle marketplace/POS, trial, grace, suspend, dan offline, sedangkan dashboard admin menampilkan North Star metric, activation rate, order completion, GMV periode, serta gap metrik billing yang belum memiliki agregat canonical. Harga di halaman diberi label harga uji dan belum dianggap konfigurasi produksi.
 
-### Fase 1 — Entitlement dan billing yang dapat dipercaya — **SELESAI DI REPOSITORY**
+### Fase 1 — Entitlement dan billing yang dapat dipercaya — **SELESAI DI REPOSITORY; BELUM LULUS STAGING**
 
 **Tujuan:** akses berbayar tidak hanya dikontrol oleh frontend.
 
@@ -965,7 +979,7 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 
 **Kriteria selesai fase:** tercapai untuk implementasi teknis di repository. Migration database perlu diterapkan dan diuji di staging sebelum dinyatakan siap produksi.
 
-### Fase 2 — Katalog terpadu dan sinkronisasi stok — **SEBAGIAN SELESAI DI REPOSITORY**
+### Fase 2 — Katalog terpadu dan sinkronisasi stok — **SELESAI DI REPOSITORY; BELUM LULUS STAGING**
 
 **Tujuan:** mencegah produk ganda dan overselling.
 
@@ -985,11 +999,11 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 - [x] dukung template listing dan atribut berbeda untuk produk, makanan, jasa, sewa, dan pengalaman;
 - [x] bedakan state machine order, booking, rental, dan service request tanpa menggandakan payment/dispute ledger;
 
-**Status saat ini:** **Sebagian selesai secara teknis di repository.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, mapping varian marketplace–POS, satu row stok per identitas/outlet, projection varian, dan allocation/reservation lintas outlet. Bootstrap `28_20260908140000_public_qr_menu_table_order.sql` menambahkan RPC menu publik, order meja anonim, status order tenant-scoped, validasi meja/produk/stok, serta source `table_qr`. `src/lib/categoryContracts.ts` dan form katalog sekarang menyediakan template listing serta state transition per kategori tanpa ledger pembayaran terpisah. Test kontrak aplikasi memverifikasi URL toko biasa tidak membawa konteks meja dan payload pelanggan tidak dapat memasok harga/status. Migration, uji tenant isolation, invalid/nonaktif table, concurrency, dan recovery di staging masih terbuka.
+**Status saat ini:** **Selesai secara teknis di repository; belum lulus staging.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, mapping varian marketplace–POS, satu row stok per identitas/outlet, projection varian, dan allocation/reservation lintas outlet. Bootstrap `28_20260908140000_public_qr_menu_table_order.sql` menambahkan RPC menu publik, order meja anonim, status order tenant-scoped, validasi meja/produk/stok, serta source `table_qr`. `src/lib/categoryContracts.ts` dan form katalog sekarang menyediakan template listing serta state transition per kategori tanpa ledger pembayaran terpisah. Test kontrak aplikasi memverifikasi URL toko biasa tidak membawa konteks meja dan payload pelanggan tidak dapat memasok harga/status. Migration, uji tenant isolation, invalid/nonaktif table, concurrency, dan recovery di staging masih terbuka.
 
 **Kriteria selesai:** bagian katalog, stok, marketplace-only, QR, template listing, dan state machine kategori tercapai untuk implementasi teknis di repository. Fase penuh belum selesai karena validasi staging belum dikerjakan.
 
-### Fase 3 — POS online/offline yang aman — **SEBAGIAN SELESAI DI REPOSITORY**
+### Fase 3 — POS online/offline yang aman — **SEBAGIAN SELESAI; UJI NYATA BELUM**
 
 **Tujuan:** kasir tetap dapat bekerja saat internet tidak stabil tanpa merusak ledger.
 
@@ -1024,7 +1038,7 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 
 **Kriteria selesai:** merchant dapat menutup shift, merekonsiliasi kas, dan memahami mengapa angka laporan berbeda atau sama dengan saldo aktual. **Tercapai secara teknis di repository; status resmi tetap menunggu staging.**
 
-### Fase 5 — Pertumbuhan dan monetisasi lanjutan — **SEBAGIAN SELESAI DI REPOSITORY**
+### Fase 5 — Pertumbuhan dan monetisasi lanjutan — **SEBAGIAN SELESAI; LEDGER PRODUCTION BELUM**
 
 **Status saat ini:** **Sebagian selesai secara teknis di repository; migration dan verifikasi staging masih terbuka.** Fase ini dimulai setelah fondasi Fase 4 dan menambahkan kontrol komersial yang dapat ditegakkan server-side, bukan sekadar label paket di UI. Bundle komersial `26`–`27` sudah menyediakan limit paket, promo partner, dan SLA support; `src/lib/feeEngine.ts` sekarang menyediakan kontrak fee schedule forward-only dan snapshot per transaksi, tetapi belum menjadi ledger fee/payment produksi.
 
@@ -1038,7 +1052,7 @@ Gunakan urutan ini sebagai sumber kebenaran kerja. Status **selesai** di bawah b
 - [x] promo onboarding dengan expiry — admin dapat membuat kode partner berkuota, merchant dapat preview dan redeem satu kali, dan kode ditolak setelah expiry;
 - [x] dukungan prioritas — tiket merchant paket prioritas mendapat target SLA 4 jam, tiket standar 24 jam, dan admin dapat melihat status SLA/overdue.
 - [ ] category builder untuk template listing, atribut, fulfillment, SLA, dan kebijakan pembatalan;
-- [ ] fee engine untuk komisi, biaya tetap, booking fee, featured listing, dan siapa yang menanggung biaya;
+- [~] kontrak fee engine untuk komisi, biaya tetap, booking fee, featured listing, dan siapa yang menanggung biaya sudah ada; integrasi production belum;
 - [x] simulasi dampak tarif sebelum publish serta snapshot fee pada setiap order/payout;
 - [ ] usage fee ojek dengan batch order, invoice fee, grace period, dan perpanjangan entitlement;
 - [ ] identity link dan risk scoring untuk mencegah akun provider ganda serta order fiktif;
