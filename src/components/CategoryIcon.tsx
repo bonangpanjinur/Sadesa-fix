@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, HeartPulse, Smartphone, Car, House, Calendar, Briefcase } from 'lucide-react';
+import { UtensilsCrossed, Shirt, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, HeartPulse, Bike, Smartphone, Car, House, Calendar, Briefcase } from 'lucide-react';
 import { getHomepageCategoryHref } from '@/lib/homeCategories';
 import { cn } from '@/lib/utils';
 
@@ -34,7 +34,7 @@ const icons: Record<string, React.ComponentType<{ className?: string }>> = {
   wrench: Wrench,
   sprout: Sprout,
   'heart-pulse': HeartPulse,
-  motorcycle: MotorcycleIcon,
+  bike: Bike,
   smartphone: Smartphone,
   car: Car,
   house: House,

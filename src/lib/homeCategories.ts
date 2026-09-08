@@ -14,7 +14,7 @@ export const PRIMARY_HOME_CATEGORIES: HomepageCategory[] = [
   { id: 'jasa', name: 'Jasa', icon: 'wrench', colorClass: 'bg-blue-100 text-blue-700 border-blue-200' },
   { id: 'pertanian', name: 'Pertanian', icon: 'sprout', colorClass: 'bg-green-100 text-green-700 border-green-200' },
   { id: 'kesehatan', name: 'Kesehatan', icon: 'heart-pulse', colorClass: 'bg-rose-100 text-rose-700 border-rose-200' },
-  { id: 'ojek', name: 'Ojek & Kurir', icon: 'motorcycle', colorClass: 'bg-emerald-100 text-emerald-700 border-emerald-200', route: '/ride' },
+  { id: 'ojek', name: 'Ojek & Kurir', icon: 'bike', colorClass: 'bg-emerald-100 text-emerald-700 border-emerald-200', route: '/ride' },
 ];
 
 export const SECONDARY_HOME_CATEGORIES: HomepageCategory[] = [
