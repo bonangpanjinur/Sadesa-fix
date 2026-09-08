@@ -7,3 +7,4 @@
 - [Offline reconnect timing](offline-reconnect-timing.md) — trigger POS queue sync from committed online state, not directly inside the browser online event.
 - [Public QR menu contract](public-qr-menu-contract.md) — anonymous menu/order/status flow uses scoped RPCs and a dedicated stock reservation lifecycle, not the retired POS bridge.
 - [Supabase staging SQL boundary](supabase-staging-sql-boundary.md) — the connected Supabase PostgREST path can smoke-test tables but cannot apply or replay bootstrap SQL bundles.
+- [Courier money mutation boundary](courier-money-mutation-boundary.md) — courier balances, trust fields, and status must be changed by validated server-side RPCs, not broad client row updates.
