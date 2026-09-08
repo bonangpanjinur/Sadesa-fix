@@ -41,6 +41,11 @@ Model yang paling sehat untuk platform ini adalah **freemium berbasis dua produk
    - Subscription POS hanya menambahkan kemampuan operasional toko fisik dan projection katalog ke tenant/outlet POS.
    - POS suspended atau cancelled tidak boleh menutup toko marketplace, menghapus produk, atau menghentikan penerimaan pesanan marketplace.
 
+5. **SaDesa adalah marketplace multi-vertikal**
+   - Platform harus dapat melayani barang, makanan/minuman, jasa, sewa, pengalaman wisata, dan transportasi lokal tanpa memaksa semua kategori memakai alur order yang sama.
+   - Admin mengatur kategori, template listing, atribut wajib, jenis fulfillment, aturan komisi, dan fitur yang tersedia melalui konfigurasi.
+   - Setiap kategori memakai kontrak order dan settlement yang sesuai, tetapi tetap menggunakan identitas merchant, pelanggan, pembayaran, dispute, dan audit platform yang konsisten.
+
 **Rekomendasi utama:** jangan menjual “fitur POS sebagai add-on kecil” saja. Jual POS sebagai **sistem operasional usaha** yang menghemat stok, waktu kasir, dan kesalahan pencatatan, sementara marketplace gratis menjadi jalur akuisisi merchant dan sumber nilai tambahan.
 
 **Keputusan produk:** POS offline bukan sekadar fitur tambahan. Untuk target UMKM, POS harus tetap bisa dipakai untuk transaksi kasir dasar saat koneksi terputus, lalu melakukan sinkronisasi dan rekonsiliasi ketika online kembali.
@@ -81,6 +86,31 @@ POS memiliki manfaat yang lebih terukur:
 - kontrol akses staf.
 
 Merchant yang sudah bergantung pada POS memiliki willingness-to-pay lebih tinggi daripada merchant yang baru membuat etalase online.
+
+### Cakupan usaha multi-vertikal
+
+SaDesa sebaiknya menggunakan **template kategori**, bukan satu formulir produk yang dipaksakan untuk semua usaha:
+
+| Vertikal | Contoh merchant | Model listing/order | Data penting |
+|---|---|---|---|
+| Barang retail | kaos, baju, kelontongan, oleh-oleh kering | beli produk, pickup atau kirim | varian, ukuran, warna, stok, SKU, berat, pengiriman |
+| Makanan/minuman | warung, kafe, katering, minuman | pesan sekarang, pickup, delivery, atau order meja | modifier, level/topping, waktu siapkan, jam tersedia, stok bahan |
+| Jasa terjadwal | barbershop, pijat, fotografer, photobox, servis | booking slot atau request jadwal | durasi, tenaga kerja, lokasi, jadwal, deposit, pembatalan |
+| Jasa panggilan | tukang listrik, tukang air, tukang cuci, teknisi | request pekerjaan dan penawaran | area layanan, biaya kunjungan, estimasi, bukti pekerjaan, status provider |
+| Sewa | alat, kendaraan, perlengkapan acara, studio | booking rentang waktu dengan deposit | kalender ketersediaan, durasi, deposit, denda, kondisi barang |
+| Wisata/pengalaman | paket desa, pemandu, ojek wisata, tur lokal | booking kapasitas atau rute | jadwal, titik temu, kapasitas, peserta, tarif rute, operator |
+
+Fitur bersama tetap harus tersedia untuk semua vertikal: profil merchant, katalog/listing, pencarian, checkout atau booking, notifikasi, pembayaran, status order, chat atau instruksi, ulasan, refund, dispute, payout, dan audit. Perbedaannya berada pada template listing, state machine order, fulfillment, dan settlement.
+
+### Strategi peluncuran multi-vertikal
+
+Jangan meluncurkan semua kategori sekaligus hanya karena sistem dapat menampungnya. Gunakan pendekatan bertahap:
+
+1. **Gelombang awal:** barang retail, makanan/minuman, dan jasa terjadwal karena kebutuhan lokalnya mudah dipahami dan frekuensi order dapat diukur.
+2. **Gelombang kedua:** jasa panggilan, sewa, dan photobox/fotografi setelah scheduling, area layanan, deposit, dan dispute stabil.
+3. **Gelombang ketiga:** wisata, paket pengalaman, dan ojek wisata setelah kapasitas, operator, rute, keselamatan, serta settlement partner tervalidasi.
+
+Setiap gelombang harus memiliki owner bisnis, target supply merchant, target demand pelanggan, SLA fulfillment, aturan pembatalan, dan metrik unit economics sendiri. Kategori baru tidak cukup hanya ditambahkan ke dropdown.
 
 ---
 
@@ -183,6 +213,69 @@ Harga berikut adalah **hipotesis awal untuk diuji**, bukan harga final. Admin/su
 - Harga, periode tagihan, pajak, status pembayaran, grace period, dan suspend harus terlihat di halaman langganan.
 - Perubahan harga hanya berlaku untuk periode berikutnya dan harus memberi notifikasi.
 - Berikan diskon onboarding untuk desa, koperasi, atau program pemerintah secara terukur dan memiliki tanggal berakhir.
+
+### Mesin monetisasi yang dapat dikonfigurasi admin
+
+Admin/super admin boleh mengubah status gratis, berbayar, tarif, komisi, dan eligibility tanpa perubahan kode, tetapi semua aturan harus memiliki versi, tanggal efektif, scope, dan audit. Jenis monetisasi yang dapat digunakan:
+
+| Sumber pendapatan | Cara kerja | Cocok untuk |
+|---|---|---|
+| Langganan POS | biaya bulanan berdasarkan outlet, pengguna, modul, atau kapasitas | semua merchant yang membutuhkan operasional toko |
+| Komisi order | persentase dari nilai barang/jasa setelah aturan diskon yang ditentukan | barang, makanan, jasa, wisata |
+| Biaya transaksi tetap | nominal per order atau booking | order bernilai kecil, booking jasa, tiket |
+| Biaya lead/booking | biaya saat pelanggan mengirim request atau booking terkonfirmasi | jasa panggilan, fotografer, tukang, ojek wisata |
+| Listing atau promosi | biaya untuk featured placement, kampanye, atau slot promosi | merchant yang ingin meningkatkan jangkauan |
+| Add-on operasional | outlet, pengguna, printer, analitik, loyalty, atau dukungan prioritas | merchant POS dan merchant profesional |
+| Layanan platform | biaya delivery, payment handling, escrow, atau proteksi tertentu | order yang memakai layanan tambahan platform |
+| Program partner | paket khusus desa, koperasi, sponsor, atau institusi | akuisisi merchant dan distribusi lokal |
+
+#### Dimensi aturan tarif
+
+Mesin tarif harus dapat menentukan aturan berdasarkan:
+
+- kategori atau template usaha;
+- kanal order: marketplace, POS, QR meja, booking, atau rental;
+- merchant, tier merchant, wilayah, partner, atau program subsidi;
+- nilai order, jenis pembayaran, biaya delivery, dan status fulfillment;
+- tanggal efektif, masa promosi, minimum fee, maksimum fee, dan kuota;
+- siapa yang menanggung biaya: merchant, pelanggan, partner, atau dibagi.
+
+Tarif tidak boleh dihitung ulang secara berbeda di layar, checkout, payout, dan laporan. Saat order dibuat, sistem menyimpan snapshot harga, komisi, pajak, diskon, biaya layanan, dan net payout yang berlaku pada saat itu.
+
+#### Admin boleh mengubah gratis menjadi berbayar, dengan guardrail
+
+Fleksibilitas bisnis penting, tetapi perubahan mendadak dapat merusak kepercayaan dan membuat dispute. Setiap perubahan monetisasi harus:
+
+1. dibuat sebagai aturan baru dengan tanggal efektif di masa depan;
+2. menampilkan simulasi dampak terhadap merchant, pelanggan, GMV, dan payout;
+3. tidak mengubah order, booking, sewa, atau transaksi yang sudah dibuat;
+4. memberi notifikasi dan ringkasan biaya sebelum berlaku;
+5. memiliki masa transisi atau grandfathering bila dampaknya besar;
+6. memiliki owner, alasan, approval, dan audit trail;
+7. dapat di-rollback atau diganti dengan aturan koreksi tanpa menghapus histori;
+8. menampilkan rincian fee secara jelas sebelum checkout dan pada laporan payout.
+
+Dengan aturan ini, admin dapat mengubah Marketplace dari gratis menjadi berkomisi, membuat kategori tertentu berbayar, atau menguji tarif baru kapan saja secara bisnis—tanpa merusak transaksi yang sedang berjalan.
+
+#### Rekomendasi tahap monetisasi
+
+1. Awali marketplace dengan akses gratis dan fee rendah atau nol untuk kategori prioritas agar supply tumbuh.
+2. Ukur order sukses, biaya support, fraud, payment, delivery, dan payout sebelum menetapkan take rate.
+3. Terapkan komisi atau biaya booking pada kategori yang sudah menghasilkan nilai nyata.
+4. Monetisasi POS berdasarkan penghematan operasional, bukan dengan mengunci inbox marketplace.
+5. Tambahkan featured listing dan layanan premium setelah pencarian organik serta kualitas katalog cukup sehat.
+
+### Settlement, payout, dan dispute lintas vertikal
+
+Settlement tidak boleh memakai satu aturan untuk semua kategori:
+
+- **Barang:** payout setelah fulfillment atau delivery berhasil dan periode komplain yang ditentukan.
+- **Makanan/minuman:** payout setelah order selesai; pembatalan sebelum diproses mengikuti kebijakan merchant.
+- **Jasa:** payout setelah provider menandai selesai dan pelanggan atau timer penyelesaian mengonfirmasi.
+- **Sewa:** deposit ditahan sampai aset kembali dan pemeriksaan kerusakan selesai.
+- **Wisata/ojek:** payout setelah jadwal atau perjalanan selesai, dengan aturan no-show dan pembatalan.
+
+Semua kategori tetap membutuhkan fee ledger, payout ledger, refund, dispute, adjustment, dan audit yang dapat direkonsiliasi. Platform tidak boleh menganggap order berhasil sebagai pendapatan bersih sebelum kewajiban kepada merchant, provider, pelanggan, pajak, dan partner dihitung.
 
 ### Trial dan grace period
 
@@ -416,16 +509,21 @@ Dashboard admin sebaiknya menjadi **control tower operasional**, bukan hanya hal
 4. **Entitlement dan billing POS**
    - trial yang akan berakhir, pembayaran tertunda, grace period, suspend, reaktivasi, limit outlet/pengguna, dan add-on;
    - setiap override wajib memiliki alasan, tanggal mulai, tanggal berakhir, dan actor.
-5. **Operasional outlet dan QR meja**
+5. **Category and pricing builder**
+   - admin dapat membuat/mengarsipkan kategori dan subkategori;
+   - admin memilih template listing, atribut wajib, tipe order, fulfillment, SLA, aturan pembatalan, dan status moderasi;
+   - admin mengatur paket gratis/berbayar, komisi, biaya tetap, minimum/maksimum fee, siapa yang menanggung biaya, dan tanggal efektif;
+   - setiap perubahan memiliki preview dampak, approval, versi, dan rollback.
+6. **Operasional outlet dan QR meja**
    - daftar tenant, outlet, meja, QR aktif, QR dicabut, dan order meja yang belum ditangani;
    - kemampuan menonaktifkan QR tertentu tanpa menutup toko publik atau menghapus histori.
-6. **Payout, refund, dan dispute**
+7. **Payout, refund, dan dispute**
    - saldo tertahan, payout gagal, refund yang menunggu persetujuan, sengketa pembeli, dan aging penyelesaian;
    - aturan agar payout tidak dilepas sebelum order memenuhi status fulfillment dan periode risiko yang ditetapkan.
-7. **Trust, abuse, dan keamanan**
+8. **Trust, abuse, dan keamanan**
    - lonjakan order palsu, refund berulang, akun merchant ganda, penggunaan promo yang tidak wajar, QR yang dipindai terlalu sering, dan login/perangkat mencurigakan;
    - flag risiko harus dapat ditinjau tanpa langsung menghapus data atau memblokir merchant secara permanen.
-8. **Support dan insiden**
+9. **Support dan insiden**
    - tiket dengan SLA, sinkronisasi gagal, stale projection, konflik POS offline, dan insiden pembayaran;
    - incident timeline, owner, status, komunikasi ke merchant, dan postmortem untuk masalah berulang.
 
@@ -435,10 +533,10 @@ Minimal gunakan pemisahan berikut:
 
 - **Admin operasional:** onboarding, moderasi, order, support, dan monitoring sinkronisasi;
 - **Admin keuangan:** payout, refund, kompensasi, dan rekonsiliasi saldo;
-- **Admin produk/POS:** paket, modul, limit, trial, promo, dan QR/table-order policy;
+- **Admin produk/POS:** kategori, template listing, paket, modul, limit, trial, promo, fee engine, dan QR/table-order policy;
 - **Super admin:** akses lintas area, approval tindakan berisiko, konfigurasi global, dan audit.
 
-Refund besar, koreksi saldo, perubahan payout, penghapusan merchant, dan override entitlement sebaiknya memakai **maker-checker**: satu admin mengajukan, admin lain yang berwenang menyetujui. Ini mengurangi risiko kesalahan tunggal tanpa memperlambat tindakan rutin.
+Refund besar, koreksi saldo, perubahan payout, penghapusan merchant, override entitlement, dan perubahan aturan tarif sebaiknya memakai **maker-checker**: satu admin mengajukan, admin lain yang berwenang menyetujui. Ini mengurangi risiko kesalahan tunggal tanpa memperlambat tindakan rutin.
 
 ### Alur merchant dan order yang disarankan
 
@@ -512,6 +610,18 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - persentase merchant POS yang memakai lebih dari satu modul;
 - waktu dari signup sampai transaksi pertama.
 
+### Multi-vertikal dan monetisasi
+
+- merchant aktif per kategori dan template;
+- waktu dari onboarding ke listing/order pertama per kategori;
+- GMV, jumlah order, booking, rental, dan jasa selesai per kategori;
+- gross take rate, net take rate, revenue platform, dan contribution margin per kategori;
+- biaya pembayaran, support, refund, fraud, delivery, dan payout per kategori;
+- average order value, repeat order, cancellation, no-show, dan dispute per kategori;
+- conversion dari marketplace gratis ke POS, featured listing, atau layanan berbayar;
+- fee rule yang aktif, merchant terdampak perubahan tarif, dan hasil eksperimen harga;
+- jumlah merchant yang menerima fee baru dengan sukses versus yang churn atau mengajukan dispute.
+
 ### Kesehatan operasional
 
 - persentase sync sukses;
@@ -526,6 +636,11 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - waktu penyelesaian dispute dan tiket berdasarkan SLA;
 - jumlah QR/table order invalid atau berulang;
 - jumlah merchant marketplace yang terdampak insiden POS.
+- jumlah listing pending moderasi dan umur antreannya;
+- jumlah perubahan tarif tanpa approval atau tanpa notifikasi;
+- payout tertahan berdasarkan alasan dan umur;
+- dispute terbuka berdasarkan kategori, status, dan SLA;
+- kategori dengan order tinggi tetapi margin kontribusi negatif.
 
 **North Star metric yang disarankan:** merchant aktif yang berhasil mencatat transaksi valid pada bulan berjalan, dengan kanal marketplace atau POS. Jumlah signup saja tidak cukup.
 
@@ -547,6 +662,9 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - [x] tetapkan marketplace tetap dapat upload produk dan menerima pesanan tanpa POS;
 - [x] tetapkan POS sebagai pilihan berbayar yang memproyeksikan katalog Merchant, bukan membuat katalog kedua;
 - [x] tetapkan QR meja sebagai fitur POS yang hanya aktif setelah scan dan validasi konteks meja;
+- [x] tetapkan marketplace sebagai platform multi-vertikal dengan template kategori dan order;
+- [x] tetapkan jenis monetisasi yang dapat dikonfigurasi per kategori, kanal, merchant, dan tanggal efektif;
+- [x] tetapkan bahwa perubahan tarif tidak retroaktif dan harus menyimpan snapshot fee pada order;
 - [x] buat halaman pricing dan FAQ;
 - [x] sepakati KPI dan dashboard admin.
 
@@ -597,6 +715,8 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - [ ] implementasikan QR per outlet/meja dengan token yang scoped, dapat dicabut, dan tervalidasi server-side;
 - [ ] bedakan toko publik biasa dari table-order context; URL toko biasa tidak boleh mengaktifkan mode meja;
 - [ ] masukkan order meja ke pipeline reservation/stock yang sama dengan kanal lain, dengan source dan fulfillment state yang berbeda;
+- [ ] dukung template listing dan atribut berbeda untuk produk, makanan, jasa, sewa, dan pengalaman;
+- [ ] bedakan state machine order, booking, rental, dan service request tanpa menggandakan payment/dispute ledger;
 
 **Status saat ini:** **Sebagian selesai secara teknis di repository.** Migration `21_20260907070000_pos_stock_reconciliation_alerts.sql` menambahkan alert projection durable, retry metadata, safe sync wrapper, dan RPC rekonsiliasi stok. Migration `22_20260907080000_pos_catalog_identity_stale_projection.sql` menambahkan keunikan SKU/barcode lintas produk-varian, validasi tenant/outlet/varian, dan deteksi alert stale berbasis umur. Bootstrap `23_20260907100000_pos_variant_outlet_stock_contract.sql` sekarang menetapkan identitas stok sebagai `(produk POS, varian POS opsional, outlet)`, membuat mapping varian marketplace–POS, memastikan satu row stok per identitas dan outlet, memproyeksikan stok varian ke marketplace, serta memakai allocation/reservation lintas outlet tanpa fallback ke stok parent. Test kontrak aplikasi juga memverifikasi isolasi varian, reservasi, dan alokasi deterministik. Kontrak katalog dan stok sudah tersedia, tetapi inbox marketplace yang benar-benar mandiri dari POS, QR/table-order, penerapan bundle, dan pengujian konflik nyata di staging masih terbuka.
 
@@ -650,6 +770,9 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - [x] program partner desa/koperasi;
 - [x] promo onboarding dengan expiry — admin dapat membuat kode partner berkuota, merchant dapat preview dan redeem satu kali, dan kode ditolak setelah expiry;
 - [x] dukungan prioritas — tiket merchant paket prioritas mendapat target SLA 4 jam, tiket standar 24 jam, dan admin dapat melihat status SLA/overdue.
+- [ ] category builder untuk template listing, atribut, fulfillment, SLA, dan kebijakan pembatalan;
+- [ ] fee engine untuk komisi, biaya tetap, booking fee, featured listing, dan siapa yang menanggung biaya;
+- [ ] simulasi dampak tarif sebelum publish serta snapshot fee pada setiap order/payout;
 - [ ] checklist onboarding merchant sampai produk pertama dan order pertama;
 - [ ] control tower admin untuk antrean merchant, katalog, order, payout, dispute, entitlement, dan QR meja;
 - [ ] maker-checker untuk refund besar, koreksi saldo, perubahan payout, penghapusan merchant, dan override entitlement;
@@ -668,6 +791,10 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - [ ] uji upgrade/downgrade paket, limit outlet/pengguna, add-on, dan promo expired;
 - [ ] uji loyalty, analitik, printer, dan ekspor akuntansi pada merchant dengan data nyata sintetis;
 - [ ] uji konflik lintas outlet dan pemulihan POS offline pada perangkat fisik;
+- [ ] pilot minimal satu merchant dari barang retail, makanan/minuman, jasa terjadwal, dan jasa panggilan/sewa/wisata;
+- [ ] uji template listing, booking slot, deposit sewa, no-show, pembatalan, dan settlement per kategori;
+- [ ] uji perubahan marketplace gratis menjadi berkomisi dengan aturan efektif, notifikasi, snapshot fee, rollback, dan order lama;
+- [ ] hitung unit economics per kategori sebelum memperluas gelombang peluncuran;
 - [ ] uji merchant marketplace-only: upload produk, order masuk, fulfillment, payout, refund, dan dispute tanpa tenant POS;
 - [ ] uji transisi marketplace-only ke POS tanpa produk, tenant, outlet, atau histori order duplikat;
 - [ ] uji suspend POS: marketplace tetap menerima order, sedangkan transaksi POS dan QR meja mengikuti kebijakan suspend;
@@ -736,6 +863,26 @@ Signup yang tidak menghasilkan produk terbit, order pertama, fulfillment, atau t
 
 Paket tambahan tidak akan memperbaiki marketplace yang order-nya terlambat, payout tidak jelas, atau stok tidak dipercaya. Prioritaskan inbox order, fulfillment, payout, support, dan rekonsiliasi sebelum ekspansi modul.
 
+### Jangan memakai satu alur order untuk semua kategori
+
+Barang, makanan, jasa terjadwal, jasa panggilan, sewa, dan wisata memiliki kebutuhan status, jadwal, kapasitas, deposit, pembatalan, dan bukti selesai yang berbeda. Gunakan template dan state machine per kategori, tetapi jangan menggandakan payment, fee, dispute, dan audit ledger.
+
+### Jangan mengubah tarif secara retroaktif
+
+Admin boleh mengubah marketplace gratis menjadi berkomisi atau mengubah tarif kategori, tetapi order yang sudah dibuat harus memakai snapshot aturan sebelumnya. Perubahan baru memerlukan tanggal efektif, notifikasi, preview dampak, dan audit.
+
+### Jangan memperluas kategori sebelum unit economics terlihat
+
+GMV besar tidak selalu berarti bisnis sehat. Ukur take rate bersih setelah payment, support, refund, fraud, delivery, payout, dan biaya operasional. Kategori dengan order tinggi tetapi margin kontribusi negatif harus diperbaiki atau dibatasi sebelum diperluas.
+
+### Jangan memperlakukan jasa, sewa, dan wisata seperti stok biasa
+
+Jasa membutuhkan jadwal dan kapasitas provider, sewa membutuhkan kalender dan deposit, sedangkan wisata membutuhkan kapasitas, operator, titik temu, dan kebijakan no-show. Kesalahan model dapat menyebabkan double booking, aset hilang, atau sengketa keselamatan.
+
+### Jangan mengumpulkan data kategori tanpa kebijakan privasi
+
+Jasa panggilan, pijat, wisata, transportasi, dan booking dapat memerlukan alamat, jadwal, kontak, atau data peserta. Ambil data minimum yang diperlukan, batasi akses, simpan consent, dan tetapkan retensi serta penghapusan.
+
 ---
 
 ## 11. Rekomendasi keputusan sekarang
@@ -758,14 +905,24 @@ Paket tambahan tidak akan memperbaiki marketplace yang order-nya terlambat, payo
 16. **Pisahkan kewenangan admin:** gunakan role operasional, keuangan, produk/POS, dan super admin dengan maker-checker untuk tindakan berisiko.
 17. **Tahan payout secara terukur:** lepaskan dana berdasarkan status fulfillment dan aturan risiko, bukan hanya karena order dibuat.
 18. **Jadikan kualitas dan keamanan sebagai fitur bisnis:** moderasi katalog, deteksi abuse, QR yang dapat dicabut, audit, dan pemulihan harus masuk prioritas produk.
+19. **Gunakan template kategori:** jangan memaksa kaos, makanan, jasa, sewa, dan wisata memakai form atau state machine yang sama.
+20. **Bangun fee engine sebagai konfigurasi bisnis:** admin dapat mengatur komisi, biaya booking, biaya tetap, dan siapa yang membayar tanpa deploy kode.
+21. **Mulai dari kategori dengan supply dan demand nyata:** perluas vertikal hanya setelah order, fulfillment, dispute, payout, dan margin kontribusinya terbukti.
+22. **Jaga kepercayaan saat monetisasi berubah:** tarif baru harus transparan, terjadwal, tidak retroaktif, dapat diaudit, dan tidak menghukum order yang sudah dibuat.
 
 ## Kesimpulan
 
-Strategi terbaik bukan memilih antara online atau offline. Bangun **marketplace online gratis sebagai pintu masuk** dan **POS omnichannel berbayar sebagai mesin operasional**. Keduanya memakai identitas produk dan ledger yang sama, tetapi memiliki aturan transaksi yang berbeda:
+Strategi terbaik bukan memilih antara online atau offline. Bangun **marketplace multi-vertikal sebagai pintu masuk**, **POS omnichannel berbayar sebagai mesin operasional**, dan **fee engine yang dapat dikonfigurasi sebagai mesin monetisasi**. Keduanya memakai identitas merchant, payment, fee, dispute, dan audit ledger yang konsisten, tetapi memiliki aturan transaksi yang berbeda:
 
 - marketplace mengutamakan jangkauan dan reservasi stok;
 - POS mengutamakan kecepatan kasir dan ketahanan offline;
 - QR POS menambahkan konteks order meja tanpa membuat toko kedua;
+- barang memakai stok dan fulfillment;
+- makanan memakai kesiapan produksi dan delivery/pickup;
+- jasa memakai jadwal, provider, dan bukti selesai;
+- sewa memakai kalender, deposit, dan kondisi aset;
+- wisata/ojek memakai kapasitas, rute, operator, dan no-show policy;
+- admin mengatur kategori, fee, dan monetisasi dengan tanggal efektif serta audit;
 - server menjadi sumber kebenaran;
 - admin mengendalikan entitlement, harga, dan kualitas;
 - merchant selalu dapat melihat status data dan rekonsiliasinya.
