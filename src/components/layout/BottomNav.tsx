@@ -114,7 +114,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
   };
 
   return (
-    <nav ref={ref} className="fixed bottom-3 left-3 right-3 z-30 mx-auto flex max-w-[456px] justify-around rounded-lg border border-border/70 bg-card/95 px-2 py-2 shadow-lg backdrop-blur-xl">
+    <nav ref={ref} className="fixed bottom-3 left-3 right-3 z-30 mx-auto flex max-w-[456px] justify-around rounded-[1.25rem] border border-white/80 bg-card/95 p-1.5 shadow-[0_10px_30px_-12px_hsl(var(--foreground)/0.35)] backdrop-blur-xl">
       {navItems.map(({ path, icon: Icon, label }) => {
         const isActive = location.pathname === path;
         const badgeCount = getBadgeCount(path);
@@ -124,22 +124,30 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
             key={path}
             to={path}
             className={cn(
-              'relative flex min-w-12 flex-col items-center rounded-md px-2 py-1 transition-all',
+              'group relative flex min-w-12 flex-1 flex-col items-center gap-0.5 rounded-[0.9rem] px-1 py-1.5 transition-all duration-200',
               'text-[10px] font-medium',
-              isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-primary'
+              isActive
+                ? 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/10'
+                : 'text-muted-foreground hover:bg-secondary/70 hover:text-primary'
             )}
+            aria-current={isActive ? 'page' : undefined}
           >
             <div className={cn(
-              'absolute -top-2 left-1/2 h-[3px] -translate-x-1/2 rounded-full transition-all duration-300',
-              isActive ? 'w-5 bg-primary' : 'w-0 bg-transparent'
+              'pointer-events-none absolute -top-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-primary transition-all duration-300',
+              isActive ? 'w-7 opacity-100' : 'w-0 opacity-0'
             )} />
-            <Icon className={cn(
-              "h-5 w-5 mb-0.5 transition-transform duration-200",
-              isActive && "scale-110"
-            )} />
-            <span className={cn(isActive && "font-semibold")}>{label}</span>
+            <span className={cn(
+              'flex h-7 w-11 items-center justify-center rounded-xl transition-all duration-200',
+              isActive ? 'bg-primary/10' : 'group-hover:bg-secondary'
+            )}>
+              <Icon className={cn(
+                'h-[1.3rem] w-[1.3rem] stroke-[2.15] transition-transform duration-200',
+                isActive && 'scale-110'
+              )} />
+            </span>
+            <span className={cn('leading-tight', isActive && 'font-semibold')}>{label}</span>
             {badgeCount > 0 && (
-              <span className="absolute -top-0 right-1 w-4 h-4 bg-destructive rounded-full text-[8px] flex items-center justify-center text-destructive-foreground font-bold">
+              <span className="absolute right-1 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground shadow-sm">
                 {badgeCount > 9 ? '9+' : badgeCount}
               </span>
             )}
