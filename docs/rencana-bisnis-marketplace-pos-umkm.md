@@ -876,12 +876,18 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 
 Roadmap ini sengaja diringkas menjadi **4 fase utama**. Setiap fase menggabungkan pekerjaan yang saling bergantung; checklist di dalamnya adalah workstream, bukan fase tambahan. Status “tersedia di repository” tetap berbeda dari “lulus staging” dan “siap produksi”.
 
+**Penanda checklist:**
+
+- `[x]` **Selesai:** implementasi atau keputusan sudah tersedia dan bukti lokalnya ada;
+- `[~]` **Sebagian:** sebagian implementasi sudah ada, tetapi validasi staging, sign-off, atau bagian penting lain masih terbuka;
+- `[ ]` **Belum dikerjakan:** pekerjaan belum dimulai.
+
 | Fase | Fokus | Status saat ini | Syarat pindah fase |
 |---|---|---|---|
-| **Fase 1 — Fondasi dan keputusan** | Model bisnis, policy, entitlement, billing, privacy, dan ownership | **Sebagian selesai di repository; sign-off dan staging belum** | Policy disetujui, migration dapat diterapkan ulang, lifecycle billing lulus uji dasar |
-| **Fase 2 — Produk inti omnichannel** | Marketplace-only, katalog, stok, QR meja, POS online/offline, laporan, dan rekonsiliasi | **Sebagian besar selesai di repository; validasi staging belum** | Tenant isolation, stok, recovery, perangkat, dan laporan lulus staging |
-| **Fase 3 — Komersial dan operasi** | Fee, payout, category builder, risk, support, partner, dan control tower | **Sebagian selesai; ledger production belum** | Uang, approval, risk, support, dan rollback dapat diaudit |
-| **Fase 4 — Staging, pilot, dan rollout** | Penerapan bundle, test matrix, pilot 10–20 merchant, lalu rollout bertahap | **Belum dimulai** | Go/no-go pilot disetujui berdasarkan KPI, guardrail, dan unit economics |
+| **Fase 1 — Fondasi dan keputusan** | Model bisnis, policy, entitlement, billing, privacy, dan ownership | **SEBAGIAN** — implementasi repository ada; sign-off dan staging belum | Policy disetujui, migration dapat diterapkan ulang, lifecycle billing lulus uji dasar |
+| **Fase 2 — Produk inti omnichannel** | Marketplace-only, katalog, stok, QR meja, POS online/offline, laporan, dan rekonsiliasi | **SEBAGIAN** — implementasi inti ada; validasi staging dan perangkat belum | Tenant isolation, stok, recovery, perangkat, dan laporan lulus staging |
+| **Fase 3 — Komersial dan operasi** | Fee, payout, category builder, risk, support, partner, dan control tower | **SEBAGIAN** — limit/promo/support ada; ledger production belum | Uang, approval, risk, support, dan rollback dapat diaudit |
+| **Fase 4 — Staging, pilot, dan rollout** | Penerapan bundle, test matrix, pilot 10–20 merchant, lalu rollout bertahap | **BELUM DIKERJAKAN** — validasi environment dan pilot belum dimulai | Go/no-go pilot disetujui berdasarkan KPI, guardrail, dan unit economics |
 
 Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot terpenuhi. Detail tiap fase di bawah ini memakai empat kelompok yang sama dengan tabel ringkas di atas.
 
@@ -901,9 +907,9 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 - [x] batas katalog bersama, quota marketplace, QR meja, multi-vertikal, pricing, FAQ, dan KPI;
 - [x] entitlement POS server-side, audit, export, reaktivasi, serta pemisahan marketplace dan POS;
 - [ ] sign-off bisnis, legal, finance, privacy/terms, policy payout/refund/dispute, dan metric dictionary;
-- [ ] terapkan migration/bootstrap ke staging dan uji payment provider, webhook, expiry, retry, duplicate event, serta rekonsiliasi.
+- [~] migration/bootstrap, entitlement, dan lifecycle billing sudah tersedia di repository; penerapan ke staging, payment provider, webhook, expiry, retry, duplicate event, serta rekonsiliasi masih terbuka.
 
-**Status:** kontrak produk dan entitlement tersedia di repository. Sign-off, environment, payment lifecycle, migration, dan bukti staging masih terbuka.
+**Status: SEBAGIAN SELESAI.** Kontrak produk dan entitlement tersedia di repository; sign-off, environment, payment lifecycle, migration, dan bukti staging masih terbuka.
 
 **Gate:** policy uang dan data disetujui, migration dapat diterapkan ulang, lifecycle entitlement idempotent, dan marketplace tetap berjalan tanpa subscription POS.
 
@@ -915,11 +921,11 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 - [x] inbox marketplace-only tanpa `pos_tenant` atau entitlement POS;
 - [x] QR outlet/meja dengan token scoped, revoke, validasi server-side, `table_qr`, dan status order tenant-scoped;
 - [x] template listing dan state machine untuk barang, makanan, jasa, sewa, dan pengalaman;
-- [x] queue offline, idempotency, checkpoint durable, retry, dead-letter, conflict center, dan receipt POS;
-- [x] canonical report, payment/cash ledger, posted journal, export parity, dan daily reconciliation;
+- [~] queue offline, idempotency, checkpoint durable, retry, dead-letter, conflict center, dan receipt POS sudah tersedia/simulated; uji device, PWA, printer, dan recovery nyata masih terbuka;
+- [~] canonical report, payment/cash ledger, posted journal, export parity, dan daily reconciliation sudah tersedia di repository; golden dataset, rekonsiliasi staging, dan sign-off finance masih terbuka;
 - [ ] uji tenant isolation, concurrency, QR invalid/revoke, recovery, device/PWA/printer nyata, konflik lintas kanal, golden dataset, dan sign-off finance.
 
-**Status:** implementasi teknis katalog, QR, offline dasar, recovery simulation, dan laporan sudah tersedia. Validasi nyata dan staging belum cukup untuk menyebutnya siap pilot.
+**Status: SEBAGIAN SELESAI.** Implementasi teknis katalog, QR, offline dasar, recovery simulation, dan laporan sudah tersedia. Validasi nyata dan staging belum cukup untuk menyebutnya siap pilot.
 
 **Gate:** permission, tenant isolation, concurrency, recovery, dan rekonsiliasi lulus di staging; operasi offline yang belum terbukti tidak boleh dijanjikan sebagai fitur produksi.
 
@@ -928,12 +934,12 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 **Tujuan:** menambah monetisasi dan kontrol operasi tanpa mengaktifkan fitur berbayar yang belum memiliki ledger, approval, risk review, support, dan rollback.
 
 - [x] limit outlet/pengguna, add-on, loyalty, analitik, printer, integrasi akuntansi, partner, promo onboarding, dan SLA support;
-- [x] kontrak fee schedule forward-only, simulasi dampak tarif, dan snapshot fee lokal;
+- [~] kontrak fee schedule forward-only, simulasi dampak tarif, dan snapshot fee lokal sudah tersedia; integrasi production belum;
 - [ ] category builder untuk template listing, atribut, fulfillment, SLA, dan cancellation;
 - [ ] fee ledger checkout/payout, usage fee provider, batch invoice, wallet, grace, waiver, refund, adjustment, dan dispute;
 - [ ] identity link, risk scoring, abuse flag, payout hold, provider ledger, maker-checker, onboarding checklist, dan control tower.
 
-**Status:** bundle komersial `26`–`27` menyediakan limit, promo partner, dan SLA support. Fee ledger production, payout, risk, dan control tower belum tersedia.
+**Status: SEBAGIAN SELESAI.** Bundle komersial `26`–`27` menyediakan limit, promo partner, dan SLA support. Fee ledger production, payout, risk, dan control tower belum tersedia.
 
 **Gate:** monetisasi lanjutan hanya aktif setelah ledger, approval, risk review, SLA support, monitoring, dan rollback tersedia serta diuji.
 
@@ -941,6 +947,7 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 
 **Tujuan:** membuktikan sistem pada environment yang dapat dipulihkan sebelum transaksi uang nyata dan rollout bertahap.
 
+- [x] partner program, promo onboarding, SLA support, dan sebagian dashboard KPI sudah tersedia di repository;
 - [ ] siapkan staging parity: Auth, Edge Functions, webhook, Storage, Realtime, secrets/config, backup, monitoring, dan rollback;
 - [ ] terapkan bundle Fase 1–3 serta lakukan rehearsal restore/rollback;
 - [ ] jalankan test matrix permission, concurrency, security, performance, recovery, QR, payment, payout, report, dan multi-vertikal;
@@ -949,7 +956,7 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 - [ ] ukur activation, transaksi pertama, sync success, konflik, support, churn awal, unit economics, dan guardrail;
 - [ ] rollout bertahap berdasarkan cohort yang lulus, dengan incident response dan review 30/60/90 hari.
 
-**Status:** belum dimulai sebagai rangkaian validasi environment dan pilot. Partner program, promo, SLA support, dan dashboard sudah tersedia sebagian di repository.
+**Status: BELUM DIKERJAKAN untuk validasi.** Partner program, promo, SLA support, dan sebagian dashboard sudah tersedia di repository, tetapi rangkaian staging, test matrix, pilot, dan rollout belum dimulai.
 
 **Gate:** tidak ada pilot transaksi uang nyata sebelum environment, backup/restore, monitoring, support escalation, privacy/terms, dan rollback disetujui.
 
