@@ -114,7 +114,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
   };
 
   return (
-    <nav ref={ref} className="glass border-t border-border flex justify-around py-2 pb-3 z-30 fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto">
+    <nav ref={ref} className="fixed bottom-3 left-3 right-3 z-30 mx-auto flex max-w-[456px] justify-around rounded-lg border border-border/70 bg-card/95 px-2 py-2 shadow-lg backdrop-blur-xl">
       {navItems.map(({ path, icon: Icon, label }) => {
         const isActive = location.pathname === path;
         const badgeCount = getBadgeCount(path);
@@ -124,14 +124,14 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
             key={path}
             to={path}
             className={cn(
-              'flex flex-col items-center transition-all relative pt-1',
+              'relative flex min-w-12 flex-col items-center rounded-md px-2 py-1 transition-all',
               'text-[10px] font-medium',
-              isActive ? 'text-primary' : 'text-muted-foreground hover:text-primary'
+              isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-primary'
             )}
           >
             <div className={cn(
-              'absolute -top-0 left-1/2 -translate-x-1/2 h-[3px] rounded-full transition-all duration-300',
-              isActive ? 'w-6 bg-primary' : 'w-0 bg-transparent'
+              'absolute -top-2 left-1/2 h-[3px] -translate-x-1/2 rounded-full transition-all duration-300',
+              isActive ? 'w-5 bg-primary' : 'w-0 bg-transparent'
             )} />
             <Icon className={cn(
               "h-5 w-5 mb-0.5 transition-transform duration-200",

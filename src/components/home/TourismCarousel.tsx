@@ -4,6 +4,7 @@ import { MapPin, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Tourism } from '@/types';
+import { Button } from '@/components/ui/button';
 
 interface TourismCarouselProps {
   tourismSpots: Tourism[];
@@ -63,7 +64,7 @@ export function TourismCarousel({
   };
 
   return (
-    <div className="relative h-32 rounded-2xl overflow-hidden bg-muted shadow-md">
+    <div className="relative h-40 overflow-hidden rounded-lg bg-muted shadow-md">
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentIndex}
@@ -84,15 +85,15 @@ export function TourismCarousel({
               alt={currentSpot.name}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/40 to-transparent flex items-center">
-              <div className="px-4 max-w-[70%]">
+            <div className="absolute inset-0 flex items-end bg-gradient-to-r from-foreground/90 via-foreground/45 to-transparent">
+              <div className="max-w-[76%] px-4 pb-5">
                 {currentSpot.viewCount && (
                   <span className="inline-flex items-center gap-1 bg-card/20 backdrop-blur text-primary-foreground text-[9px] px-2 py-0.5 rounded-full mb-1.5">
                     <Eye className="h-2.5 w-2.5" />
                     {currentSpot.viewCount.toLocaleString('id-ID')} views
                   </span>
                 )}
-                <h3 className="text-primary-foreground font-bold text-sm leading-tight line-clamp-1">
+                <h3 className="font-heading text-base font-bold leading-tight text-primary-foreground line-clamp-1">
                   {currentSpot.name}
                 </h3>
                 <div className="flex items-center gap-1 text-primary-foreground/70 text-[10px] mt-0.5">
@@ -108,20 +109,26 @@ export function TourismCarousel({
       {/* Navigation Arrows */}
       {slideCount > 1 && (
         <>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={(e) => { e.preventDefault(); prevSlide(); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-background/30 backdrop-blur-sm flex items-center justify-center text-primary-foreground hover:bg-background/50 transition z-10"
+            className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-lg bg-background/30 text-primary-foreground backdrop-blur-sm hover:bg-background/50"
             aria-label="Previous"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={(e) => { e.preventDefault(); nextSlide(); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-background/30 backdrop-blur-sm flex items-center justify-center text-primary-foreground hover:bg-background/50 transition z-10"
+            className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-lg bg-background/30 text-primary-foreground backdrop-blur-sm hover:bg-background/50"
             aria-label="Next"
           >
             <ChevronRight className="h-3.5 w-3.5" />
-          </button>
+          </Button>
         </>
       )}
 
@@ -149,7 +156,7 @@ export function TourismCarousel({
 
       {/* "Iklan" badge */}
       <div className="absolute top-2 right-2 z-10">
-        <span className="bg-accent text-accent-foreground text-[8px] font-medium px-1.5 py-0.5 rounded">
+        <span className="rounded-md bg-accent px-2 py-1 text-[8px] font-bold uppercase text-accent-foreground">
           Promo
         </span>
       </div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 // Import fallback images
 import heroVillage from '@/assets/hero-village.jpg';
@@ -55,7 +56,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   if (slides.length === 0) {
     return (
-      <section className="relative h-44 bg-muted flex items-center justify-center">
+      <section className="mx-5 mt-5 flex h-48 items-center justify-center rounded-lg bg-muted">
         <p className="text-muted-foreground text-sm">No banners available</p>
       </section>
     );
@@ -81,21 +82,21 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   const slideContent = (
     <>
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className="bg-primary/20 text-primary-foreground text-[9px] font-medium px-2 py-0.5 rounded-full backdrop-blur-sm">
-          🌾 Produk Desa Asli
+      <div className="mb-2 flex items-center gap-1.5">
+        <span className="rounded-md bg-accent px-2.5 py-1 text-[9px] font-bold uppercase text-accent-foreground shadow-sm">
+          Produk Desa Asli
         </span>
       </div>
-      <h2 className="text-primary-foreground font-bold text-xl leading-tight max-w-[220px]">
+      <h2 className="max-w-[260px] font-heading text-xl font-bold leading-tight text-primary-foreground">
         {currentSlide.title}
       </h2>
       {currentSlide.subtitle && (
-        <p className="text-primary-foreground/80 text-xs mt-1.5 max-w-[200px]">
+        <p className="mt-1.5 max-w-[240px] text-xs leading-relaxed text-primary-foreground/80">
           {currentSlide.subtitle}
         </p>
       )}
       {currentSlide.linkUrl && (
-        <span className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-bold px-4 py-2 rounded-xl mt-3 hover:bg-brand-dark transition shadow-brand">
+        <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-card px-4 py-2 text-xs font-bold text-primary shadow-md transition hover:bg-secondary">
           Lihat Sekarang
           <ChevronRight className="h-3.5 w-3.5" />
         </span>
@@ -104,7 +105,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
   );
 
   return (
-    <section className="relative h-44 overflow-hidden bg-muted">
+    <section className="relative mx-5 mt-5 h-48 overflow-hidden rounded-lg bg-muted shadow-md">
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentIndex}
@@ -124,8 +125,8 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
             alt={currentSlide.title}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-foreground/80 via-foreground/50 to-transparent flex items-center">
-            <div className="px-5">
+          <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/55 to-transparent">
+            <div className="px-5 py-4">
               {currentSlide.linkUrl ? (
                 <Link to={currentSlide.linkUrl} className="block">
                   {slideContent}
@@ -141,20 +142,26 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
       {/* Navigation Arrows */}
       {slideCount > 1 && (
         <>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={prevSlide}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-background/30 backdrop-blur-sm flex items-center justify-center text-primary-foreground hover:bg-background/50 transition z-10"
+            className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-lg bg-background/35 text-primary-foreground backdrop-blur-sm hover:bg-background/55"
             aria-label="Previous slide"
           >
             <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={nextSlide}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-background/30 backdrop-blur-sm flex items-center justify-center text-primary-foreground hover:bg-background/50 transition z-10"
+            className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-lg bg-background/35 text-primary-foreground backdrop-blur-sm hover:bg-background/55"
             aria-label="Next slide"
           >
             <ChevronRight className="h-4 w-4" />
-          </button>
+          </Button>
         </>
       )}
 

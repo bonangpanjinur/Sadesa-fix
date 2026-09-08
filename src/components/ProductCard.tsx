@@ -10,6 +10,7 @@ import { useProductFlashSale } from '@/hooks/useFlashSales';
 import { FlashSaleBadge } from '@/components/FlashSaleTimer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { getProductUnavailableReason } from '@/lib/productAvailability';
+import { Button } from '@/components/ui/button';
 
 interface ProductWithSales extends Product {
   sold_count?: number;
@@ -65,8 +66,8 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
   const CardContent = (
     <div
       className={cn(
-        "bg-card rounded-xl border border-border shadow-sm overflow-hidden relative group",
-        "cursor-pointer card-hover"
+        "group relative overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm",
+        "cursor-pointer transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
       )}
     >
       {/* Unavailable Overlay */}
@@ -114,7 +115,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
       )}
       
       <div className={cn(
-        "h-32 bg-muted overflow-hidden relative",
+        "relative aspect-[4/3] overflow-hidden bg-muted",
         !isAvailable && "grayscale"
       )}>
         <OptimizedImage 
@@ -129,13 +130,13 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
         />
       </div>
       
-      <div className={cn("p-2.5", !isAvailable && "opacity-60")}>
+      <div className={cn("p-3", !isAvailable && "opacity-60")}>
         <div
           className="text-[9px] text-muted-foreground mb-0.5 truncate flex items-center gap-1"
         >
           {product.merchantName}
         </div>
-        <h3 className="font-bold text-xs text-card-foreground line-clamp-2 min-h-[2.5em]">
+        <h3 className="min-h-[2.5em] font-heading text-xs font-semibold leading-snug text-card-foreground line-clamp-2">
           {product.name}
         </h3>
         <div className="flex justify-between items-center mt-1.5">
@@ -158,12 +159,16 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
               )}
             </div>
           {isAvailable && (
-            <button
+            <Button
+              type="button"
+              variant="default"
+              size="icon"
               onClick={handleAddToCart}
-              className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition"
+              className="h-7 w-7 rounded-lg shadow-sm"
+              aria-label={`Tambahkan ${product.name} ke keranjang`}
             >
               <Plus className="h-3 w-3" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
