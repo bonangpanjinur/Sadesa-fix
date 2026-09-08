@@ -182,10 +182,10 @@ const Index = () => {
                     className="group flex min-w-0 flex-col items-center gap-2"
                     aria-label="Buka kategori lainnya"
                   >
-                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-secondary text-muted-foreground shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md group-active:scale-95">
-                      <MoreHorizontal className="h-6 w-6" />
+                    <div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[1.25rem] border-2 border-white/70 bg-secondary text-muted-foreground shadow-[0_6px_16px_-8px_hsl(var(--foreground)/0.35)] transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-[0_12px_20px_-10px_hsl(var(--foreground)/0.45)] group-active:scale-95">
+                      <MoreHorizontal className="h-7 w-7 stroke-[2.25] transition-transform duration-200 group-hover:scale-105" />
                     </div>
-                    <span className="text-[10px] font-medium text-muted-foreground">Lainnya</span>
+                    <span className="text-[11px] font-medium leading-tight text-muted-foreground">Lainnya</span>
                   </button>
                 </div>
                 <BottomSheet isOpen={categoriesSheetOpen} onClose={() => setCategoriesSheetOpen(false)} title="Kategori lainnya" snapPoints={[0.72, 0.92]}>

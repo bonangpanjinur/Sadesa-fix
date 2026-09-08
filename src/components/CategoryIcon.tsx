@@ -38,14 +38,14 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
     >
       <div 
         className={cn(
-          'flex h-14 w-14 items-center justify-center rounded-lg border transition duration-200 shadow-sm',
-          'group-hover:-translate-y-0.5 group-hover:shadow-md group-active:scale-95',
+          'relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[1.25rem] border-2 border-white/70 shadow-[0_6px_16px_-8px_hsl(var(--foreground)/0.35)] transition-all duration-200',
+          'before:pointer-events-none before:absolute before:inset-0 before:bg-white/20 before:opacity-0 before:transition-opacity group-hover:-translate-y-1 group-hover:shadow-[0_12px_20px_-10px_hsl(var(--foreground)/0.45)] group-hover:before:opacity-100 group-active:scale-95',
           colorClass
         )}
       >
-        <Icon className="h-6 w-6" />
+        <Icon className="relative h-7 w-7 stroke-[2.25] transition-transform duration-200 group-hover:scale-105" />
       </div>
-      <span className="line-clamp-1 w-full text-center text-[10px] font-semibold text-muted-foreground">{name}</span>
+      <span className="line-clamp-1 w-full text-center text-[11px] font-medium leading-tight text-muted-foreground">{name}</span>
     </Link>
   );
 }
