@@ -25,7 +25,6 @@ import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
 import type { Product, Village, Tourism } from '@/types';
-import { TransportServiceCards } from '@/components/transport/TransportServiceCards';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -196,18 +195,6 @@ const Index = () => {
                 </BottomSheet>
               </>
             )}
-          </section>
-          <section className="mt-8 px-5">
-            <div className="mb-3 flex items-end justify-between">
-              <div>
-                <p className="text-[9px] font-bold uppercase text-primary">Praktis di sekitar Anda</p>
-                <h2 className="font-heading text-base font-bold text-foreground">Layanan Antar</h2>
-              </div>
-              <Link to="/ride" className="flex items-center gap-0.5 text-[10px] font-bold text-primary">
-                Lihat semua <ChevronRight className="h-3 w-3" />
-              </Link>
-            </div>
-            <TransportServiceCards compact />
           </section>
           </>
         );
