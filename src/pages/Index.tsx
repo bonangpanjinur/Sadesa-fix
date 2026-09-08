@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, Map } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, Map, MoreHorizontal } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -23,6 +23,13 @@ import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
 import { useCategories } from '@/hooks/useCategories';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import type { Product, Village, Tourism } from '@/types';
 
 const Index = () => {
@@ -38,8 +45,10 @@ const Index = () => {
     loading: categoriesLoading,
     error: categoriesError,
     getHomepageCategories,
+    getOtherCategories,
     refetch: refetchCategories,
   } = useCategories();
+  const [moreCategoriesOpen, setMoreCategoriesOpen] = useState(false);
 
   const { location: userLocation } = useUserLocation();
 
@@ -145,6 +154,7 @@ const Index = () => {
   
   // Admin-managed active categories are the single source of truth for this menu.
   const visibleCategories = getHomepageCategories();
+  const otherCategories = getOtherCategories();
 
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
@@ -190,15 +200,43 @@ const Index = () => {
                      <p className="mt-0.5 text-[11px] text-muted-foreground">Pilihan cepat untuk mulai menjelajah</p>
                    </div>
                  </div>
-                 <div
-                   className="grid grid-cols-4 gap-2 rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+                  <div
+                    className="grid grid-cols-5 gap-1.5 rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
                    aria-label="Kategori utama"
                  >
                   {visibleCategories.map((cat) => <CategoryIcon key={cat.id} {...cat} />)}
+                   {otherCategories.length > 0 && (
+                     <button
+                       type="button"
+                       onClick={() => setMoreCategoriesOpen(true)}
+                       className="group flex min-w-0 flex-col items-center gap-2"
+                       aria-label="Lihat kategori lainnya"
+                     >
+                       <span className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[1.25rem] border-2 border-white/70 bg-slate-100 text-slate-600 shadow-[0_6px_16px_-8px_hsl(var(--foreground)/0.35)] transition-all group-hover:-translate-y-1 group-hover:bg-slate-200 group-active:scale-95">
+                         <MoreHorizontal className="h-7 w-7 stroke-[2.25]" />
+                       </span>
+                       <span className="line-clamp-1 w-full text-center text-[11px] font-medium leading-tight text-muted-foreground">Lainnya</span>
+                     </button>
+                   )}
                 </div>
               </>
             )}
           </section>
+           <Drawer open={moreCategoriesOpen} onOpenChange={setMoreCategoriesOpen}>
+             <DrawerContent className="mx-auto max-w-[480px]">
+               <DrawerHeader className="px-5 pb-3 text-left">
+                 <DrawerTitle className="font-heading text-lg">Kategori lainnya</DrawerTitle>
+                 <DrawerDescription>Pilih kategori untuk melihat produk yang sesuai.</DrawerDescription>
+               </DrawerHeader>
+               <div className="max-h-[55vh] overflow-y-auto px-5 pb-8">
+                 <div className="grid grid-cols-4 gap-x-3 gap-y-5 rounded-2xl border border-border/60 bg-card p-4">
+                   {otherCategories.map((category) => (
+                     <CategoryIcon key={category.id} {...category} />
+                   ))}
+                 </div>
+               </div>
+             </DrawerContent>
+           </Drawer>
           </>
         );
       

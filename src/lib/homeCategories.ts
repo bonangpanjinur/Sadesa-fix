@@ -8,9 +8,9 @@ export interface HomepageCategory {
 
 export const PRIMARY_HOME_CATEGORIES: HomepageCategory[] = [
   { id: 'kuliner', name: 'Kuliner', icon: 'utensils', colorClass: 'bg-orange-100 text-orange-700 border-orange-200' },
-  { id: 'kriya', name: 'Produk Desa', icon: 'shapes', colorClass: 'bg-teal-100 text-teal-700 border-teal-200' },
+  { id: 'ojek', name: 'Ojek & Kurir', icon: 'bike', colorClass: 'bg-emerald-100 text-emerald-700 border-emerald-200', route: '/ride' },
   { id: 'wisata', name: 'Wisata', icon: 'map-location-dot', colorClass: 'bg-cyan-100 text-cyan-700 border-cyan-200', route: '/tourism' },
-  { id: 'jasa', name: 'Jasa', icon: 'wrench', colorClass: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { id: 'kriya', name: 'Produk Desa', icon: 'shapes', colorClass: 'bg-teal-100 text-teal-700 border-teal-200' },
 ];
 
 export const ALL_HOME_CATEGORIES = PRIMARY_HOME_CATEGORIES;

@@ -99,24 +99,38 @@ export function useCategories() {
     // with the first actions users see on the home screen.
     const primaryCategoryIds = new Set(PRIMARY_HOME_CATEGORIES.map((category) => category.id));
     const adminCategories = categories
-      .filter((cat) => primaryCategoryIds.has(cat.slug))
       .map((cat, index) => ({
-      id: cat.slug,
-      name: cat.name,
-      icon: (cat.icon ? iconMap[cat.icon] : null) || categoryStyles[cat.slug]?.icon || getDefaultIcon(index),
-      colorClass: categoryStyles[cat.slug]?.colorClass || colorClasses[index % colorClasses.length],
-      route: categoryStyles[cat.slug]?.route,
+        id: cat.slug,
+        name: cat.name,
+        icon: (cat.icon ? iconMap[cat.icon] : null) || categoryStyles[cat.slug]?.icon || getDefaultIcon(index),
+        colorClass: categoryStyles[cat.slug]?.colorClass || colorClasses[index % colorClasses.length],
+        route: categoryStyles[cat.slug]?.route,
       }));
+    const primaryAdminCategories = adminCategories.filter((category) => primaryCategoryIds.has(category.id));
 
     // Menu utama desa tetap tersedia meskipun admin belum membuat baris
     // kategori yang sesuai. Kategori aktif admin ditambahkan tanpa duplikasi.
-    const adminSlugs = new Set(adminCategories.map((category) => category.id));
+    const adminSlugs = new Set(primaryAdminCategories.map((category) => category.id));
     const coreCategories = PRIMARY_HOME_CATEGORIES.filter((category) => !adminSlugs.has(category.id));
 
-    return [...coreCategories, ...adminCategories];
+    return [...coreCategories, ...primaryAdminCategories];
   };
 
-  return { categories, loading, error, getHomepageCategories, refetch: fetchCategories };
+  const getOtherCategories = (): HomepageCategoryItem[] => {
+    const primaryCategoryIds = new Set(PRIMARY_HOME_CATEGORIES.map((category) => category.id));
+
+    return categories
+      .filter((category) => !primaryCategoryIds.has(category.slug))
+      .map((category, index) => ({
+        id: category.slug,
+        name: category.name,
+        icon: (category.icon ? iconMap[category.icon] : null) || categoryStyles[category.slug]?.icon || getDefaultIcon(index),
+        colorClass: categoryStyles[category.slug]?.colorClass || colorClasses[index % colorClasses.length],
+        route: categoryStyles[category.slug]?.route,
+      }));
+  };
+
+  return { categories, loading, error, getHomepageCategories, getOtherCategories, refetch: fetchCategories };
 }
 
 function getDefaultIcon(index: number): string {
