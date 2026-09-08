@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Box, CalendarDays, Check, ContactRound, Info, Loader2, MapPin, Navigation, PackageCheck, UserRound } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Box, CalendarDays, Check, ContactRound, Info, LocateFixed, Loader2, MapPin, Navigation, PackageCheck, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { formatAddressSummary, reverseGeocode } from '@/hooks/useGeocoding';
+import { supabase } from '@/integrations/supabase/client';
 
 type CourierMode = 'send' | 'pickup';
 type DistanceBand = 'near' | 'medium' | 'far';
@@ -25,6 +26,7 @@ type ContactPickerNavigator = Navigator & {
     select: (properties: Array<'name' | 'tel'>, options?: { multiple?: boolean }) => Promise<DeviceContact[]>;
   };
 };
+type AvailableDriver = { id: string; name: string; lat: number; lng: number };
 
 const distanceOptions: Array<{ value: DistanceBand; label: string; price: number }> = [
   { value: 'near', label: '0–3 km', price: 8000 },
@@ -50,6 +52,13 @@ const destinationIcon = new L.Icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
+});
+
+const driverIcon = new L.Icon({
+  iconUrl: '/motor-icon.png',
+  iconSize: [34, 34],
+  iconAnchor: [17, 34],
+  popupAnchor: [0, -34],
 });
 
 function haversineDistance(first: RoutePoint, second: RoutePoint) {
@@ -92,6 +101,17 @@ function FitRouteBounds({ points }: { points: RoutePoint[] }) {
   return null;
 }
 
+function FocusMapPoint({ point }: { point: RoutePoint | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!point) return;
+    map.setView([point.lat, point.lng], Math.max(map.getZoom(), 15), { animate: true });
+  }, [map, point]);
+
+  return null;
+}
+
 export default function CourierBookingPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<CourierMode>('send');
@@ -110,6 +130,10 @@ export default function CourierBookingPage() {
   const [notes, setNotes] = useState('');
   const [cod, setCod] = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
+  const [gettingGps, setGettingGps] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [drivers, setDrivers] = useState<AvailableDriver[]>([]);
+  const [driversLoading, setDriversLoading] = useState(true);
 
   const distanceKm = pickupLocation && destinationLocation
     ? haversineDistance(pickupLocation, destinationLocation)
@@ -119,6 +143,130 @@ export default function CourierBookingPage() {
     () => [pickupLocation, destinationLocation].filter((point): point is RoutePoint => point !== null),
     [destinationLocation, pickupLocation],
   );
+
+  const fetchDrivers = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('couriers')
+      .select('id, name, current_lat, current_lng')
+      .eq('is_available', true)
+      .eq('status', 'ACTIVE')
+      .not('current_lat', 'is', null)
+      .not('current_lng', 'is', null);
+
+    if (error) {
+      console.error('Gagal mengambil lokasi driver:', error);
+      setDriversLoading(false);
+      return;
+    }
+
+    const availableDrivers = (data ?? []).flatMap((driver) => {
+      if (driver.current_lat == null || driver.current_lng == null) return [];
+      return [{
+        id: driver.id,
+        name: driver.name,
+        lat: Number(driver.current_lat),
+        lng: Number(driver.current_lng),
+      }];
+    });
+    setDrivers(availableDrivers);
+    setDriversLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchDrivers();
+
+    const channel = supabase
+      .channel('courier-availability-map')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'couriers' }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          setDrivers((current) => current.filter((driver) => driver.id !== payload.old.id));
+          return;
+        }
+
+        const updated = payload.new as {
+          id: string;
+          name: string;
+          current_lat: number | null;
+          current_lng: number | null;
+          is_available: boolean;
+          status: string;
+        };
+        const isAvailable = updated.is_available
+          && updated.status === 'ACTIVE'
+          && updated.current_lat != null
+          && updated.current_lng != null;
+
+        setDrivers((current) => {
+          const withoutUpdated = current.filter((driver) => driver.id !== updated.id);
+          if (!isAvailable) return withoutUpdated;
+          return [
+            ...withoutUpdated,
+            {
+              id: updated.id,
+              name: updated.name || 'Driver',
+              lat: Number(updated.current_lat),
+              lng: Number(updated.current_lng),
+            },
+          ];
+        });
+      })
+      .subscribe();
+
+    const refreshInterval = window.setInterval(fetchDrivers, 15000);
+    return () => {
+      window.clearInterval(refreshInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [fetchDrivers]);
+
+  const nearbyDrivers = useMemo(() => {
+    if (!pickupLocation) return drivers;
+    return drivers.filter((driver) => haversineDistance(pickupLocation, driver) <= 10);
+  }, [drivers, pickupLocation]);
+
+  const handleGps = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast({
+        title: 'GPS tidak tersedia',
+        description: 'Perangkat atau browser ini tidak menyediakan akses lokasi.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setGettingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setPickupLocation(location);
+        setPickupAddress('Memuat alamat...');
+        setMapMode('destination');
+        setGpsAccuracy(Math.round(position.coords.accuracy));
+        setGettingGps(false);
+        setGeocoding('pickup');
+
+        try {
+          const result = await reverseGeocode(location.lat, location.lng);
+          setPickupAddress(result ? formatAddressSummary(result) : 'Lokasi saya saat ini');
+        } catch {
+          setPickupAddress('Lokasi saya saat ini');
+        } finally {
+          setGeocoding(null);
+        }
+      },
+      (error) => {
+        setGettingGps(false);
+        const description = error.code === error.PERMISSION_DENIED
+          ? 'Izinkan akses lokasi pada browser untuk menggunakan GPS.'
+          : 'Lokasi belum berhasil ditemukan. Coba lagi di area dengan sinyal GPS lebih baik.';
+        toast({ title: 'Lokasi GPS belum tersedia', description, variant: 'destructive' });
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  }, []);
 
   const handleMapSelect = async (point: RoutePoint) => {
     const selectedMode = mapMode;
@@ -262,8 +410,12 @@ export default function CourierBookingPage() {
                   />
                   <MapClickHandler onSelect={handleMapSelect} />
                   <FitRouteBounds points={routePoints} />
+                  <FocusMapPoint point={pickupLocation} />
                   {pickupLocation && <Marker position={[pickupLocation.lat, pickupLocation.lng]} icon={pickupIcon} />}
                   {destinationLocation && <Marker position={[destinationLocation.lat, destinationLocation.lng]} icon={destinationIcon} />}
+                  {nearbyDrivers.map((driver) => (
+                    <Marker key={driver.id} position={[driver.lat, driver.lng]} icon={driverIcon} title={driver.name} />
+                  ))}
                   {pickupLocation && destinationLocation && (
                     <Polyline
                       positions={[
@@ -277,12 +429,35 @@ export default function CourierBookingPage() {
                 <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold shadow-sm backdrop-blur">
                   Tap peta untuk {mapMode === 'pickup' ? 'pilih pickup' : 'pilih tujuan'}
                 </div>
+                <div className="absolute right-3 top-3 z-[400] flex flex-col items-end gap-2">
+                  <div className="rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold shadow-sm backdrop-blur">
+                    {driversLoading ? 'Mencari driver...' : `${nearbyDrivers.length} driver tersedia`}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 rounded-full border border-border/60 bg-background/95 px-3 text-[10px] font-semibold shadow-sm hover:bg-background"
+                    onClick={handleGps}
+                    disabled={gettingGps}
+                  >
+                    {gettingGps ? <Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> : <LocateFixed className="mr-1.5 h-3 w-3 text-primary" />}
+                    {gettingGps ? 'Mencari lokasi...' : 'Gunakan GPS'}
+                  </Button>
+                </div>
                 {geocoding && (
                   <div className="absolute bottom-3 left-3 z-[400] flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-[10px] shadow-sm">
                     <Loader2 className="h-3 w-3 animate-spin text-primary" />
                     Mengambil alamat...
                   </div>
                 )}
+              </div>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-primary/5 px-3 py-2 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Navigation className="h-3.5 w-3.5 text-primary" />
+                  {pickupLocation ? `${nearbyDrivers.length} driver dalam radius 10 km dari pickup` : 'Pilih pickup untuk melihat driver terdekat'}
+                </span>
+                {gpsAccuracy != null && <strong className="shrink-0 text-primary">Akurasi GPS ±{gpsAccuracy} m</strong>}
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-border/70 bg-card p-2">
                 <button
