@@ -229,6 +229,47 @@ Admin/super admin boleh mengubah status gratis, berbayar, tarif, komisi, dan eli
 | Layanan platform | biaya delivery, payment handling, escrow, atau proteksi tertentu | order yang memakai layanan tambahan platform |
 | Program partner | paket khusus desa, koperasi, sponsor, atau institusi | akuisisi merchant dan distribusi lokal |
 
+#### Model ojek: daftar dan ambil order gratis, bayar fee per batch
+
+Ojek dapat bergabung dan menerima order tanpa subscription atau deposit di muka. Platform memperoleh pendapatan dari fee penggunaan yang hanya terbentuk setelah order selesai:
+
+1. Admin membuat aturan aktif, misalnya `fee_rate = 5%`, `batch_size = 5 order`, dan masa akses setelah batch dibayar.
+2. Ojek mendaftar gratis, menyelesaikan verifikasi provider, lalu dapat menerima order sesuai area dan kapasitasnya.
+3. Setiap order yang berstatus selesai mencatat fee pada **usage fee ledger**. Order yang dibatalkan sebelum selesai tidak dihitung sebagai order berbayar.
+4. Setelah lima order selesai, sistem menutup satu batch dan menerbitkan tagihan/ringkasan yang dapat dibayar oleh ojek.
+5. Pembayaran batch memperpanjang entitlement menggunakan platform atau membuka batch berikutnya sesuai aturan admin.
+6. Sebelum jatuh tempo, ojek tetap melihat order, pendapatan, fee, dan sisa kuota batch secara transparan. Setelah grace period berakhir, order baru dapat dihentikan sementara tanpa menghapus histori atau saldo yang sah.
+
+**Contoh perhitungan:**
+
+| Komponen | Nilai |
+|---|---:|
+| Order selesai | 5 |
+| Nilai per order | Rp50.000 |
+| Total nilai order | Rp250.000 |
+| Fee platform | 5% per order |
+| Fee per order | Rp2.500 |
+| Total fee batch | **Rp12.500** |
+| Pendapatan kotor ojek setelah fee platform | Rp237.500 |
+
+Fee dihitung per order lalu dijumlahkan pada batch, bukan diperkirakan dari total secara tidak transparan. Jika tarif, ukuran batch, minimum fee, atau masa akses berubah, aturan baru hanya berlaku untuk order berikutnya/batch berikutnya. Refund, koreksi, atau sengketa membuat adjustment ledger yang dapat diaudit; sistem tidak boleh menagih fee dua kali.
+
+Model ini menjaga hambatan masuk tetap rendah bagi ojek, tetapi mencegah akses gratis tanpa batas. Ojek membayar setelah memperoleh pendapatan, sedangkan platform mendapat pendapatan berulang dari aktivitas nyata. Pola yang sama dapat digunakan untuk jasa panggilan atau provider lain yang lebih cocok membayar berdasarkan order selesai daripada subscription bulanan.
+
+#### Pengaman anti-akun ganda dan order fiktif
+
+Gratis di muka tidak boleh berarti bebas membuat akun tanpa batas. Pengaman harus berlapis dan tetap menyediakan jalur banding:
+
+- verifikasi identitas provider, nomor telepon, email, dan untuk ojek data kendaraan/izin yang relevan;
+- satu identitas terverifikasi hanya memiliki satu provider aktif, kecuali akun fleet atau akun perusahaan yang disetujui;
+- instrumen payout, nomor kendaraan, dan identifier penting ditandai sebagai sudah terhubung; data sensitif disimpan terbatas/terlindungi, bukan ditampilkan ke admin umum;
+- sinyal perangkat, lokasi, jaringan, dan pola pendaftaran boleh dipakai sebagai sinyal risiko, tetapi tidak boleh menjadi satu-satunya alasan pemblokiran;
+- deteksi self-order, buyer dan provider yang berulang dalam pola tidak wajar, rute/impossible travel, penyelesaian terlalu cepat, pembatalan terkoordinasi, order berputar, dan eksploitasi promo;
+- fee batch hanya dihitung dari order yang lolos aturan validasi dan fulfillment; order berisiko dapat ditahan untuk review sebelum masuk batch final;
+- akun yang ditutup tidak boleh langsung membuat akun baru untuk mengulang masa gratis; identity link, cooldown, dan proses banding harus dicatat;
+- admin dapat menggabungkan akun duplikat, menahan batch, menonaktifkan provider, atau memulihkan akses melalui action resmi dengan alasan dan audit;
+- model risiko harus memiliki false-positive review, notifikasi yang tidak membocorkan rule sensitif, dan jalur banding agar provider sah tidak kehilangan penghasilan tanpa pemeriksaan.
+
 #### Dimensi aturan tarif
 
 Mesin tarif harus dapat menentukan aturan berdasarkan:
@@ -237,7 +278,7 @@ Mesin tarif harus dapat menentukan aturan berdasarkan:
 - kanal order: marketplace, POS, QR meja, booking, atau rental;
 - merchant, tier merchant, wilayah, partner, atau program subsidi;
 - nilai order, jenis pembayaran, biaya delivery, dan status fulfillment;
-- tanggal efektif, masa promosi, minimum fee, maksimum fee, dan kuota;
+- tanggal efektif, masa promosi, minimum fee, maksimum fee, ukuran batch, masa akses, grace period, dan kuota;
 - siapa yang menanggung biaya: merchant, pelanggan, partner, atau dibagi.
 
 Tarif tidak boleh dihitung ulang secara berbeda di layar, checkout, payout, dan laporan. Saat order dibuat, sistem menyimpan snapshot harga, komisi, pajak, diskon, biaya layanan, dan net payout yang berlaku pada saat itu.
@@ -273,9 +314,23 @@ Settlement tidak boleh memakai satu aturan untuk semua kategori:
 - **Makanan/minuman:** payout setelah order selesai; pembatalan sebelum diproses mengikuti kebijakan merchant.
 - **Jasa:** payout setelah provider menandai selesai dan pelanggan atau timer penyelesaian mengonfirmasi.
 - **Sewa:** deposit ditahan sampai aset kembali dan pemeriksaan kerusakan selesai.
-- **Wisata/ojek:** payout setelah jadwal atau perjalanan selesai, dengan aturan no-show dan pembatalan.
+- **Ojek:** payout pendapatan order dicatat setelah perjalanan selesai; fee platform dicatat per order dan ditagihkan saat batch mencapai ukuran yang ditentukan.
+- **Wisata:** payout setelah jadwal atau perjalanan selesai, dengan aturan no-show dan pembatalan.
 
 Semua kategori tetap membutuhkan fee ledger, payout ledger, refund, dispute, adjustment, dan audit yang dapat direkonsiliasi. Platform tidak boleh menganggap order berhasil sebagai pendapatan bersih sebelum kewajiban kepada merchant, provider, pelanggan, pajak, dan partner dihitung.
+
+### Kontrak usage fee ojek
+
+Usage fee ojek harus dipisahkan dari pendapatan perjalanan:
+
+- `gross_fare`: nilai perjalanan yang dibayar pelanggan;
+- `provider_earnings`: pendapatan kotor provider sebelum fee platform;
+- `platform_fee`: persentase atau nominal yang diambil platform;
+- `batch_id`: kelompok order yang ditagihkan bersama;
+- `fee_status`: `accrued`, `invoiced`, `paid`, `grace`, `disputed`, atau `waived`;
+- `access_status`: `active`, `grace`, `restricted`, `suspended`, atau `under_review`.
+
+Order selesai hanya boleh menghasilkan satu fee melalui idempotency key. Pembayaran batch tidak boleh mengubah nilai perjalanan lama; pembayaran hanya menyelesaikan kewajiban fee dan memperbarui entitlement provider. Admin perlu dapat memberi waiver atau koreksi terbatas dengan approval, alasan, dan audit.
 
 ### Trial dan grace period
 
@@ -509,21 +564,25 @@ Dashboard admin sebaiknya menjadi **control tower operasional**, bukan hanya hal
 4. **Entitlement dan billing POS**
    - trial yang akan berakhir, pembayaran tertunda, grace period, suspend, reaktivasi, limit outlet/pengguna, dan add-on;
    - setiap override wajib memiliki alasan, tanggal mulai, tanggal berakhir, dan actor.
-5. **Category and pricing builder**
+5. **Usage fee provider dan akses platform**
+   - jumlah order selesai, batch berjalan, fee terakumulasi, tagihan, grace period, pembayaran, dan akses provider;
+   - admin dapat mengatur fee per kategori, ukuran batch, minimum/maksimum fee, masa akses, waiver, dan status review;
+   - sistem menampilkan simulasi dampak sebelum aturan diterbitkan dan tidak boleh menagih fee dua kali.
+6. **Category and pricing builder**
    - admin dapat membuat/mengarsipkan kategori dan subkategori;
    - admin memilih template listing, atribut wajib, tipe order, fulfillment, SLA, aturan pembatalan, dan status moderasi;
    - admin mengatur paket gratis/berbayar, komisi, biaya tetap, minimum/maksimum fee, siapa yang menanggung biaya, dan tanggal efektif;
    - setiap perubahan memiliki preview dampak, approval, versi, dan rollback.
-6. **Operasional outlet dan QR meja**
+7. **Operasional outlet dan QR meja**
    - daftar tenant, outlet, meja, QR aktif, QR dicabut, dan order meja yang belum ditangani;
    - kemampuan menonaktifkan QR tertentu tanpa menutup toko publik atau menghapus histori.
-7. **Payout, refund, dan dispute**
+8. **Payout, refund, dan dispute**
    - saldo tertahan, payout gagal, refund yang menunggu persetujuan, sengketa pembeli, dan aging penyelesaian;
    - aturan agar payout tidak dilepas sebelum order memenuhi status fulfillment dan periode risiko yang ditetapkan.
-8. **Trust, abuse, dan keamanan**
+9. **Trust, abuse, dan keamanan**
    - lonjakan order palsu, refund berulang, akun merchant ganda, penggunaan promo yang tidak wajar, QR yang dipindai terlalu sering, dan login/perangkat mencurigakan;
    - flag risiko harus dapat ditinjau tanpa langsung menghapus data atau memblokir merchant secara permanen.
-9. **Support dan insiden**
+10. **Support dan insiden**
    - tiket dengan SLA, sinkronisasi gagal, stale projection, konflik POS offline, dan insiden pembayaran;
    - incident timeline, owner, status, komunikasi ke merchant, dan postmortem untuk masalah berulang.
 
@@ -618,6 +677,10 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - gross take rate, net take rate, revenue platform, dan contribution margin per kategori;
 - biaya pembayaran, support, refund, fraud, delivery, dan payout per kategori;
 - average order value, repeat order, cancellation, no-show, dan dispute per kategori;
+- provider ojek terverifikasi, aktif, menyelesaikan order pertama, dan menyelesaikan batch;
+- total fee ojek terakumulasi, fee tertagih, fee tertunda, batch gagal bayar, dan collection rate;
+- provider yang masuk grace/restricted/under review serta waktu pemulihan akses;
+- duplicate-account rate, self-order rate, false-positive rate, dan kerugian fraud;
 - conversion dari marketplace gratis ke POS, featured listing, atau layanan berbayar;
 - fee rule yang aktif, merchant terdampak perubahan tarif, dan hasil eksperimen harga;
 - jumlah merchant yang menerima fee baru dengan sukses versus yang churn atau mengajukan dispute.
@@ -773,6 +836,9 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - [ ] category builder untuk template listing, atribut, fulfillment, SLA, dan kebijakan pembatalan;
 - [ ] fee engine untuk komisi, biaya tetap, booking fee, featured listing, dan siapa yang menanggung biaya;
 - [ ] simulasi dampak tarif sebelum publish serta snapshot fee pada setiap order/payout;
+- [ ] usage fee ojek dengan batch order, invoice fee, grace period, dan perpanjangan entitlement;
+- [ ] identity link dan risk scoring untuk mencegah akun provider ganda serta order fiktif;
+- [ ] provider wallet/fee ledger yang memisahkan pendapatan perjalanan dari kewajiban fee platform;
 - [ ] checklist onboarding merchant sampai produk pertama dan order pertama;
 - [ ] control tower admin untuk antrean merchant, katalog, order, payout, dispute, entitlement, dan QR meja;
 - [ ] maker-checker untuk refund besar, koreksi saldo, perubahan payout, penghapusan merchant, dan override entitlement;
@@ -794,6 +860,10 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - [ ] pilot minimal satu merchant dari barang retail, makanan/minuman, jasa terjadwal, dan jasa panggilan/sewa/wisata;
 - [ ] uji template listing, booking slot, deposit sewa, no-show, pembatalan, dan settlement per kategori;
 - [ ] uji perubahan marketplace gratis menjadi berkomisi dengan aturan efektif, notifikasi, snapshot fee, rollback, dan order lama;
+- [ ] uji contoh ojek: 5 order selesai senilai Rp50.000/order, fee dinamis 5%, batch fee Rp12.500, dan akses batch berikutnya;
+- [ ] uji refund, order dibatalkan, fee adjustment, pembayaran batch, grace period, dan pembatasan order baru;
+- [ ] uji provider dengan identitas, kendaraan, payout account, perangkat, dan pola order yang terhubung;
+- [ ] uji false positive, banding provider, waiver fee, merge akun, dan audit tindakan admin;
 - [ ] hitung unit economics per kategori sebelum memperluas gelombang peluncuran;
 - [ ] uji merchant marketplace-only: upload produk, order masuk, fulfillment, payout, refund, dan dispute tanpa tenant POS;
 - [ ] uji transisi marketplace-only ke POS tanpa produk, tenant, outlet, atau histori order duplikat;
@@ -883,6 +953,18 @@ Jasa membutuhkan jadwal dan kapasitas provider, sewa membutuhkan kalender dan de
 
 Jasa panggilan, pijat, wisata, transportasi, dan booking dapat memerlukan alamat, jadwal, kontak, atau data peserta. Ambil data minimum yang diperlukan, batasi akses, simpan consent, dan tetapkan retensi serta penghapusan.
 
+### Jangan membuat provider membayar sebelum memperoleh nilai
+
+Untuk ojek dan provider jasa tertentu, model batch setelah order selesai lebih sehat daripada biaya daftar atau subscription wajib di muka. Provider harus dapat melihat gross fare, fee per order, total batch, jatuh tempo, grace period, dan dampak pembayaran terhadap akses platform.
+
+### Jangan menghitung fee dari order yang belum sah
+
+Order yang dibatalkan, self-order, fraud, atau belum selesai tidak boleh langsung masuk tagihan fee provider. Gunakan status validasi dan adjustment ledger agar platform tidak terlihat mengambil biaya dari order fiktif atau gagal.
+
+### Jangan mengandalkan satu sinyal untuk memblokir akun
+
+Nomor telepon, perangkat, lokasi, kendaraan, atau payout account masing-masing dapat memiliki false positive. Gabungkan beberapa sinyal, gunakan review manusia dan jalur banding, serta audit alasan pembatasan akses.
+
 ---
 
 ## 11. Rekomendasi keputusan sekarang
@@ -909,6 +991,9 @@ Jasa panggilan, pijat, wisata, transportasi, dan booking dapat memerlukan alamat
 20. **Bangun fee engine sebagai konfigurasi bisnis:** admin dapat mengatur komisi, biaya booking, biaya tetap, dan siapa yang membayar tanpa deploy kode.
 21. **Mulai dari kategori dengan supply dan demand nyata:** perluas vertikal hanya setelah order, fulfillment, dispute, payout, dan margin kontribusinya terbukti.
 22. **Jaga kepercayaan saat monetisasi berubah:** tarif baru harus transparan, terjadwal, tidak retroaktif, dapat diaudit, dan tidak menghukum order yang sudah dibuat.
+23. **Gunakan usage fee untuk ojek/provider yang sensitif terhadap biaya di muka:** daftar dan order gratis, fee muncul setelah order selesai, lalu ditagihkan per batch.
+24. **Pisahkan pendapatan perjalanan dari fee platform:** provider harus dapat melihat perhitungan gross fare, fee per order, batch, saldo, dan akses secara jelas.
+25. **Jadikan anti-abuse bagian dari onboarding:** identity link, verifikasi provider, risk scoring, batch hold, review, banding, dan audit harus dirancang sejak awal.
 
 ## Kesimpulan
 
