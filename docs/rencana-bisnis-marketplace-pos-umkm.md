@@ -2,7 +2,51 @@
 
 > **Status implementasi — 8 September 2026:** Fase 0, Fase 1, dan Fase 4 **selesai secara teknis di repository**. Dashboard admin sekarang menghitung KPI pertumbuhan POS: attach rate, trial-to-paid, MRR, churn 30 hari, dan kesehatan sinkronisasi. Fase 2 **sebagian selesai secara teknis di repository** untuk mapping katalog, projection stok, reservation ledger, rekonsiliasi server-side, alert kegagalan/stale projection, identitas SKU/barcode tenant-scoped, dan stok varian/outlet; inbox pesanan marketplace yang mandiri dari POS serta QR menu/order meja masih menjadi pekerjaan terbuka. Validasi staging/production dan pengujian konflik juga masih terbuka. Fase 3 **selesai secara teknis di repository untuk alur offline dasar**; uji perangkat nyata, konflik lintas kanal, dan validasi staging/production masih terbuka. Fase 5 **selesai secara teknis di repository** untuk entitlement komersial, promo partner, dan SLA support. Migration baru belum diterapkan ke staging/production.
 
+> **Catatan audit dokumen:** status “selesai secara teknis di repository” hanya berarti kontrak, kode, atau migration tersedia di source control. Status tersebut **bukan** bukti bahwa alur sudah terpasang di Supabase, aman di staging, diterima merchant, atau boleh dijual di produksi. Gunakan matriks tugas dan gate di bagian 9 sebagai acuan eksekusi.
+
 ## 0. Analisis kesiapan saat ini
+
+### 0.1 Kesimpulan audit dan kekurangan yang harus ditutup
+
+Dokumen sudah mencakup model bisnis, pemisahan marketplace–POS, katalog/stok, offline, laporan, monetisasi, KPI, risiko, dan roadmap. Kekurangan utamanya bukan lagi daftar fitur, melainkan **bukti kesiapan, kepemilikan keputusan, dan kontrol operasi**. Pekerjaan berikut wajib ditambahkan ke rencana sebelum pilot:
+
+| Kekurangan | Risiko bila dibiarkan | Tugas penutupan | Gate |
+|---|---|---|---|
+| Status repository, staging, pilot, dan produksi belum memakai definisi yang seragam | Fitur dianggap siap hanya karena halaman/RPC/migration sudah ada | Terapkan definisi status dan evidence wajib pada bagian 0.2; setiap fase memiliki checklist evidence | Sebelum Fase 6 |
+| Source of truth migration dan prosedur penerapan belum menjadi deliverable tersendiri | Staging/production dapat berbeda dari source code; rollback sulit | Tetapkan bundle release, checksum/versi, urutan penerapan, backup, dry-run, rollback, dan hasil validasi | Sebelum migration staging |
+| Environment readiness belum memiliki checklist owner | Auth, Edge Function, webhook payment, storage, realtime, dan redirect dapat gagal saat pilot | Buat matriks environment dev/staging/production, secrets, URL, role, webhook, backup, dan akses operator | Sebelum Fase 6 |
+| Kesiapan pembayaran, payout, pajak, KYC/provider, refund, dan dispute belum memiliki keputusan operasional final | Saldo tertahan, payout salah, sengketa, atau pelanggaran kewajiban lokal | Tetapkan policy owner, ledger yang menjadi sumber kebenaran, approval, rekonsiliasi, dan prosedur manual darurat | Sebelum transaksi berbayar |
+| Tugas belum konsisten memiliki owner, output, dependensi, dan kriteria go/no-go | Pekerjaan terlihat selesai tetapi tidak ada pihak yang menerima hasilnya | Gunakan matriks eksekusi fase di bagian 9.1–9.8 dan tunjuk satu accountable owner per tugas | Mulai Fase 0 |
+| SLO, backup/restore, incident response, dan RTO/RPO belum menjadi gate | Gangguan realtime, payment, atau offline dapat membesar tanpa pemulihan terukur | Tetapkan SLO pilot, RTO/RPO, backup restore drill, alert, on-call, status page, dan runbook | Sebelum pilot |
+| Data analytics belum dikunci sebagai kontrak event dan definisi metrik | Attach rate, MRR, churn, GMV, dan activation dapat berbeda antar layar/laporan | Buat metric dictionary, event schema, timezone, deduplication, periode, dan reconciliation report | Sebelum dashboard dipakai untuk keputusan |
+| Legal, privasi, consent, retensi, penghapusan data, dan terms per vertikal belum menjadi output fase | Data booking, alamat, peserta, provider, dan pembayaran dapat diproses tanpa batas yang jelas | Review kebijakan privasi, terms, refund, payout, consent, retensi, dan data subject request bersama owner yang berwenang | Sebelum pilot publik |
+| Pilot belum memiliki desain eksperimen dan kriteria berhenti | Tim dapat memperluas rollout berdasarkan anekdot atau jumlah signup | Tetapkan cohort, baseline, target, guardrail, feedback protocol, kill switch, dan keputusan 30/60/90 hari | Sebelum memilih merchant pilot |
+
+### 0.2 Definisi status dan evidence wajib
+
+Gunakan status berikut secara konsisten di seluruh dokumen. Satu fitur dapat memiliki beberapa status berbeda; jangan menaikkan status hanya karena status sebelumnya sudah tercapai.
+
+| Status | Arti | Evidence minimum |
+|---|---|---|
+| **Tersedia di repository** | Kode, konfigurasi, test, atau migration ada di branch yang akan dirilis | Link/path perubahan, hasil build/lint/test yang relevan |
+| **Siap diuji di staging** | Dependensi environment tersedia dan data uji dapat dibuat ulang | Migration/bootstrap berhasil, smoke test, fixture, log tanpa error kritis |
+| **Lulus staging** | Skenario sukses, gagal, permission, idempotensi, dan rollback telah dijalankan | Test report bertanggal, bukti rekonsiliasi, defect P0/P1 tertutup |
+| **Siap pilot** | Lulus staging dan dapat dipakai oleh cohort terbatas dengan support/runbook | Sign-off product, engineering, operations, finance bila terkait uang, dan privacy/security bila terkait data |
+| **Siap produksi** | Pilot memenuhi target dan guardrail; rollback serta monitoring sudah aktif | Go/no-go record, SLO dashboard, incident/runbook, backup restore drill, approval release |
+
+**Aturan evidence:** setiap item `[x]` di roadmap harus menunjuk pada evidence yang dapat ditemukan, bukan hanya pada keberadaan file. Jika evidence belum ada, gunakan `[~]` untuk “implementasi ada tetapi validasi belum selesai”, dan `[ ]` untuk pekerjaan yang belum dimulai.
+
+### 0.3 Keputusan lintas fungsi yang belum boleh diasumsikan
+
+Sebelum ada transaksi uang nyata atau data pilot, pemilik bisnis harus menandatangani keputusan berikut:
+
+- siapa yang menjadi merchant of record, pihak penerima pembayaran, dan pihak yang bertanggung jawab atas refund/payout;
+- metode payment dan payout yang benar-benar tersedia untuk tiap kategori, termasuk webhook, retry, idempotensi, settlement, dan rekonsiliasi manual;
+- status pajak yang boleh ditampilkan, siapa yang menghitung/menyetorkan, dan batas bahwa laporan pajak masih estimasi;
+- verifikasi merchant/provider, data minimum yang dikumpulkan, akses admin, retensi, penghapusan, dan jalur permintaan subjek data;
+- policy pembatalan/no-show/deposit/kerusakan untuk jasa, sewa, wisata, makanan, dan transportasi;
+- owner operasional untuk support, dispute, fraud, payment failure, stale projection, offline conflict, serta insiden keamanan;
+- batas pilot, kill switch, komunikasi insiden, serta kondisi otomatis untuk menghentikan rollout.
 
 | Area | Status | Catatan |
 |---|---|---|
@@ -884,6 +928,118 @@ Alur ini membuat marketplace menjadi pintu masuk yang bernilai sejak hari pertam
 - [ ] rollout bertahap berdasarkan hasil pilot, bukan hanya halaman yang sudah tersedia.
 
 Dashboard Fase 7 menggunakan subscription berstatus `PAID`, tenant POS yang memiliki `merchant_id`, dan RPC kesehatan integrasi sebagai sumber metrik. MRR dan churn tetap merupakan metrik operasional sampai migration diterapkan dan angka direkonsiliasi dengan pembayaran nyata di staging.
+
+### 9.1 Matriks eksekusi Fase 0 — keputusan produk dan komersial
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F0.1 | Kunci gelombang vertikal pertama dan batas MVP tiap kategori | Decision register berisi kategori, persona, alur order, fulfillment, dan fitur yang ditunda | Product | — | Tidak ada fitur baru di sprint pilot yang belum masuk register |
+| F0.2 | Validasi paket, harga uji, diskon, trial, grace, suspend, dan aturan downgrade | Price card, asumsi unit economics, simulasi skenario merchant kecil/multi-outlet | Product + Finance | F0.1 | Harga diberi label hipotesis dan dapat diubah tanpa deploy kode |
+| F0.3 | Tetapkan policy payout, refund, dispute, cancellation, no-show, deposit, dan pajak estimasi | Policy matrix per kategori dengan escalation path dan owner | Operations + Finance | F0.1 | Tidak ada status order tanpa policy penyelesaian |
+| F0.4 | Tetapkan privacy, consent, KYC/provider verification, retensi, penghapusan, dan akses admin | Data inventory, retention schedule, terms/privacy checklist | Privacy/Legal owner | F0.1 | Data yang dikumpulkan memiliki tujuan dan masa simpan |
+| F0.5 | Kunci metric dictionary dan event contract | Definisi North Star, guardrail, funnel, timezone, dedupe key, source of truth | Product/Data | F0.1–F0.3 | Angka yang sama dapat direkonsiliasi antar dashboard dan export |
+| F0.6 | Rilis pricing, FAQ, dan runbook komunikasi perubahan tarif | Halaman publik, FAQ, template notifikasi, approval record | Product + Operations | F0.2–F0.4 | Merchant dapat memahami biaya dan perubahan sebelum berlaku |
+
+**Go/no-go Fase 0:** scope, policy uang, policy data, metric dictionary, owner, dan kriteria pilot telah disetujui. Tanpa keputusan ini, pekerjaan teknis hanya boleh berupa spike non-produksi.
+
+### 9.2 Matriks eksekusi Fase 1 — entitlement dan billing
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F1.1 | Susun release bundle migration/ bootstrap beserta urutan dan checksum | Release manifest, dry-run log, backup point, rollback note | Backend/DBA | F0 selesai | Bundle dapat diterapkan ulang pada staging kosong dan staging berisi data |
+| F1.2 | Uji state machine trial → paid → grace → suspended/cancelled | Skenario transisi, expiry, retry, reaktivasi, dan idempotensi | Backend + QA | F1.1 | Tidak ada akses POS tanpa entitlement valid |
+| F1.3 | Verifikasi payment provider, webhook, signature, retry, duplicate event, dan rekonsiliasi | Webhook test report dan payment reconciliation report | Finance/Payments | F0.3, F1.1 | Status pembayaran server-side konsisten dengan ledger |
+| F1.4 | Uji pemisahan marketplace dan POS saat suspend/cancel | E2E evidence: marketplace tetap aktif, POS dibatasi sesuai policy | QA + Product | F1.2 | Tidak ada produk/order marketplace yang terhapus atau tertutup |
+| F1.5 | Uji audit, export, override, approval, dan reaktivasi admin | Audit sample, export fixture, approval record | Operations + Security | F1.2 | Tindakan berisiko dapat ditelusuri dan tidak menggandakan data |
+
+**Go/no-go Fase 1:** staging menolak akses POS yang tidak sah, menerima lifecycle yang sah, mencatat setiap perubahan uang/entitlement, dan membuktikan marketplace tidak ikut terkunci.
+
+### 9.3 Matriks eksekusi Fase 2 — katalog, stok, dan kanal order
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F2.1 | Seed dan validasi mapping produk, varian, SKU/barcode, outlet, dan source of truth | Fixture multi-tenant/multi-outlet serta mapping report | Backend/DBA | F1.1 | Tidak ada identitas produk ganda atau scope tenant bocor |
+| F2.2 | Uji reservation, projection, expiry, retry, stale alert, dan rekonsiliasi | Conflict matrix dan hasil before/after reconciliation | Backend + QA | F2.1 | Tidak ada overselling pada skenario konkurensi yang disepakati |
+| F2.3 | Selesaikan inbox marketplace-only tanpa `pos_tenant`/entitlement POS | E2E merchant marketplace-only dari upload hingga fulfillment/payout/dispute | Marketplace owner | F0.1, F1.4 | POS tidak menjadi syarat order marketplace |
+| F2.4 | Implementasikan QR outlet/meja dan konteks table-order yang dapat dicabut | Token scope test, expiry/revoke test, audit, source `table_qr` | POS owner + Security | F2.1–F2.2 | URL toko biasa tidak dapat mengaktifkan mode meja |
+| F2.5 | Implementasikan template listing dan state machine kategori prioritas | Contract per kategori untuk listing, order/booking, fulfillment, cancel, settlement | Product + Backend | F0.1, F0.3 | Kategori tidak dipaksa memakai state machine yang salah |
+| F2.6 | Tampilkan error mapping/sync kepada merchant dan admin | UI evidence, alert ownership, retry/reconcile runbook | Operations + Frontend | F2.2 | Kegagalan tidak hilang atau hanya tercatat di log |
+
+**Go/no-go Fase 2:** mapping, reservation, projection, inbox marketplace-only, QR, dan kategori prioritas lulus test tenant isolation, concurrency, permission, dan recovery di staging.
+
+### 9.4 Matriks eksekusi Fase 3 — POS online/offline
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F3.1 | Tetapkan matriks device/browser/PWA/printer dan batas operasi offline | Compatibility matrix, supported/unsupported list, merchant notice | POS owner | F2.1 | Pilot hanya memakai kombinasi device yang didukung |
+| F3.2 | Uji queue, idempotency, lease, retry, dead-letter, dan conflict center | Test report untuk retry/duplicate/timeout/refresh | Backend + QA | F2.2 | Tidak ada transaksi ganda atau queue tenant lain terbaca |
+| F3.3 | Uji device crash, tab close, refresh, listrik mati, logout, dan pergantian outlet | Recovery evidence dengan request key dan status final | QA + POS owner | F3.2 | Kasir dapat membedakan final, pending, failed, dan conflict |
+| F3.4 | Uji konflik lintas kanal dan aturan stok negatif | Scenario report: reservation vs online POS vs offline sale | Backend + Operations | F2.2, F3.2 | Konflik masuk ke jalur keputusan merchant, bukan hilang |
+| F3.5 | Verifikasi receipt offline/pending dan kontrak print bridge | Receipt samples, reprint/idempotency evidence, failure runbook | POS owner | F3.1 | Receipt tidak mengklaim payment/settlement yang belum final |
+| F3.6 | Lindungi cache lokal dan tetapkan kebijakan penghapusan perangkat | Threat review, logout/device reset test, retention decision | Security + Privacy | F0.4, F3.2 | Data tenant/outlet lain tidak dapat dipulihkan dari device |
+
+**Go/no-go Fase 3:** pilot hanya boleh memakai operasi offline yang sudah dilabeli, dapat dipulihkan, dan memiliki support path. Payment online, order marketplace, settlement, serta laporan final tetap memerlukan online.
+
+### 9.5 Matriks eksekusi Fase 4 — laporan dan rekonsiliasi
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F4.1 | Kunci fixture transaksi canonical untuk omzet, diskon, pajak, retur, HPP, beban, dan settlement | Golden dataset dengan expected totals | Finance + Backend | F0.3, F1.1 | Semua layar/export memakai definisi yang sama |
+| F4.2 | Uji posted journal, debit=kredit, cash/payment ledger, hutang/piutang | Journal and ledger reconciliation report | Finance/Accounting | F4.1 | Selisih punya alasan dan adjustment audit |
+| F4.3 | Uji tutup shift dan rekonsiliasi kas per outlet | Shift-close scenarios termasuk selisih, pending, dan approval | POS + Finance | F3.2, F4.1 | Merchant dapat menjelaskan saldo aktual versus sistem |
+| F4.4 | Uji export laporan dan akuntansi dengan timezone/periode yang sama | Export samples dan import/validation result | Finance + QA | F4.1–F4.2 | Export tidak menggandakan transaksi atau mengubah histori |
+| F4.5 | Label dan review laporan pajak/keuangan yang belum resmi | Copy review, disclaimer, sign-off policy | Finance/Legal | F0.4 | Tidak ada klaim “laporan resmi” tanpa dasar dan approval |
+
+**Go/no-go Fase 4:** laporan boleh dipakai untuk keputusan operasional setelah fixture dan rekonsiliasi staging lulus; laporan resmi/pajak tetap menunggu approval yang sesuai.
+
+### 9.6 Matriks eksekusi Fase 5 — pertumbuhan dan monetisasi lanjutan
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F5.1 | Bangun category builder dan kontrak template prioritas | Versioned category/template config dengan approval dan rollback | Product + Backend | F2.5, F4.1 | Kategori baru tidak membutuhkan deploy untuk aturan dasar |
+| F5.2 | Bangun fee engine dengan effective date dan fee snapshot | Simulasi dampak, order/payout snapshot, adjustment ledger | Finance + Backend | F0.2–F0.3, F4.1 | Tarif baru tidak retroaktif dan konsisten di checkout/payout/report |
+| F5.3 | Implementasikan usage fee provider/ojek dan wallet ledger | Batch invoice, grace, waiver, dispute, access state, idempotency report | Payments + Operations | F5.2, F0.4 | Pendapatan provider terpisah dari fee platform |
+| F5.4 | Implementasikan identity link, risk review, false-positive appeal, dan abuse flags | Risk policy, review queue, appeal evidence, audit sample | Trust/Safety + Privacy | F0.4, F5.3 | Tidak ada pemblokiran otomatis dari satu sinyal |
+| F5.5 | Lengkapi payout hold, maker-checker, refund besar, dan koreksi saldo | Approval matrix, dual-control test, payout aging report | Finance + Operations | F0.3, F4.2 | Tidak ada koreksi saldo langsung tanpa adjustment/audit |
+| F5.6 | Bangun control tower, onboarding checklist, SLA, dan incident queue | Queue dashboard, owner/SLA, escalation and postmortem template | Operations | F0.5, F1.5 | Setiap alert bisnis punya owner dan target penyelesaian |
+
+**Go/no-go Fase 5:** monetisasi lanjutan hanya boleh diaktifkan setelah ledger, approval, risk review, support SLA, dan rollback tersedia. Fitur yang hanya memiliki UI tidak dihitung selesai.
+
+### 9.7 Matriks eksekusi Fase 6 — staging dan pilot
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F6.1 | Siapkan staging parity dan akses operator | Environment matrix, secrets/config checklist, Auth redirect, Edge Function, webhook, Storage, Realtime | Platform/DevOps | F1.1, F5.6 | Staging dapat menjalankan smoke test end-to-end |
+| F6.2 | Terapkan bundle Fase 2–5 dan lakukan rehearsal rollback | Apply log, checksum, backup, rollback/restore evidence | DBA/DevOps | F6.1 | Tidak ada migration drift atau data loss pada rehearsal |
+| F6.3 | Jalankan test matrix fungsional, permission, concurrency, security, performance, dan recovery | Signed test report, defect severity, retest result | QA + Security | F6.2 | P0/P1 tertutup; risiko residual disetujui owner |
+| F6.4 | Bentuk cohort pilot 10–20 merchant dan baseline per kategori | Merchant consent, cohort list, baseline metrics, support channel | Operations + Product | F0.1, F6.3 | Merchant memahami batas pilot dan jalur bantuan |
+| F6.5 | Jalankan pilot dengan kill switch dan incident protocol | Daily/weekly pilot report: activation, first value, sync, conflict, payment, support | Pilot lead | F6.4 | Guardrail tidak melewati ambang berhenti |
+| F6.6 | Ambil keputusan go/no-go setelah pilot | 30-day decision record, rollback/iterate/expand recommendation | Steering owner | F6.5 | Keputusan berbasis target, guardrail, feedback, dan unit economics |
+
+**Gate wajib Fase 6:** tidak ada pilot transaksi uang nyata sebelum environment, backup/restore, monitoring, support escalation, privacy/terms, dan rollback disetujui.
+
+### 9.8 Matriks eksekusi Fase 7 — partner, support, dan rollout
+
+| ID | Tugas | Output/evidence | Owner accountable | Dependensi | Gate |
+|---|---|---|---|---|---|
+| F7.1 | Rollout bertahap berdasarkan cohort dan kategori yang lulus | Wave plan, eligibility, capacity limit, release notes | Product + Operations | F6.6 | Wave baru tidak dibuka saat guardrail wave sebelumnya gagal |
+| F7.2 | Operasikan partner program dan promo dengan audit | Partner roster, redemption/reconciliation, expiry report | Partnerships + Finance | F5.2, F6.6 | Promo tidak dapat dipakai lintas merchant atau setelah expiry |
+| F7.3 | Jalankan support SLA, incident response, dan postmortem | SLA report, escalation log, recurring-issue backlog | Support/Operations | F5.6, F6.5 | Overdue dan insiden memiliki owner serta tindakan |
+| F7.4 | Rekonsiliasi dashboard dengan payment, order, dan support source of truth | Monthly metric reconciliation pack | Data + Finance | F0.5, F6.5 | MRR/churn/GMV tidak dipakai sebelum selisih dijelaskan |
+| F7.5 | Tinjau 30/60/90 hari dan putuskan perluasan, perbaikan, atau penghentian | Review record dengan economics, quality, risk, dan merchant feedback | Steering owner | F7.1–F7.4 | Ekspansi hanya jika economics dan guardrail sehat |
+
+### 9.9 Aturan ownership dan format laporan fase
+
+Setiap tugas di atas harus memiliki satu **owner accountable** meskipun dikerjakan oleh beberapa tim. Sebelum fase ditutup, owner mengarsipkan satu paket evidence yang minimal berisi:
+
+1. tujuan dan scope yang diuji;
+2. environment, versi release/bundle, fixture, dan tanggal pengujian;
+3. hasil sukses, hasil gagal yang diharapkan, permission, idempotensi, dan rollback;
+4. defect residual, severity, workaround, dan owner;
+5. dampak pada KPI, biaya, merchant, pelanggan, provider, dan data pribadi;
+6. keputusan **go**, **go terbatas**, **hold**, atau **rollback**, beserta approver.
+
+Status fase harus diturunkan kembali bila migration berubah, kontrak ledger berubah, payment provider berubah, ada incident P0/P1, atau evidence kedaluwarsa karena perubahan environment.
 
 ---
 
