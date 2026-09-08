@@ -276,11 +276,11 @@ export default function POSKDSPage() {
           </div>
 
           {/* QR orders badge */}
-          {orders.some(o => o.source === 'qr_menu') && (
+          {orders.some(o => o.source === 'table_qr') && (
             <div className="flex items-center gap-1.5 bg-emerald-900/40 border border-emerald-700 rounded-lg px-2.5 py-1.5">
               <QrCode className="h-3.5 w-3.5 text-emerald-400" />
               <span className="text-xs text-emerald-300 font-semibold">
-                {orders.filter(o => o.source === 'qr_menu' && o.status === 'pending').length} QR baru
+                {orders.filter(o => o.source === 'table_qr' && o.status === 'pending').length} QR baru
               </span>
             </div>
           )}
@@ -345,7 +345,7 @@ export default function POSKDSPage() {
                     const timerSince = col.key === 'cooking' && order.cooking_started_at
                       ? order.cooking_started_at
                       : order.created_at;
-                    const isQR = order.source === 'qr_menu';
+                    const isQR = order.source === 'table_qr';
 
                     return (
                       <div

@@ -15,6 +15,12 @@ When using the managed Node package installer, verify `package.json` and `packag
 
 **How to apply:** Review `git diff` after managed installs and restore unrelated lockfile changes before delivering code.
 
+Managed npm installation can resolve a newer peer-compatible package than the repository's existing lockfile and emit engine warnings under the available Node runtime.
+
+**Why:** Installing missing dependencies selected a barcode library version that conflicted with the browser package and required a newer Node engine, so the dependency had to be restored and the lockfile reviewed.
+
+**How to apply:** Prefer the repository lockfile and compatible pinned versions when restoring dependencies; after managed installation, verify peer versions, engine requirements, and unrelated manifest/lockfile changes.
+
 Vercel's pnpm build uses strict dependency resolution, so packages imported directly by a custom VitePWA service worker must be declared directly even when npm's hoisted local install makes them available transitively.
 
 **Why:** The deployment build resolved the main app but failed while bundling `src/sw.ts` because Workbox packages were only transitive dependencies.

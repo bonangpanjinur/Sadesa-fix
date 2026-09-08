@@ -9,7 +9,8 @@ import { CheckCircle2, ChefHat, Clock, Utensils, Star, RefreshCw, ArrowLeft, Tab
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { posBridgeFetch } from '@/lib/posBridge';
+import { supabase } from '@/integrations/supabase/client';
+import { buildPublicOrderStatusRpcArgs } from '@/lib/publicPosContract';
 
 type OrderStatus = 'pending' | 'cooking' | 'ready' | 'served' | 'paid' | 'cancelled';
 
@@ -20,6 +21,7 @@ interface OrderData {
   items: Array<{ name?: string; product_name?: string; qty: number; notes?: string | null }>;
   notes: string | null;
   customer_name: string | null;
+  table_id: string | null;
   table_name: string | null;
   source: string | null;
   cooking_started_at: string | null;
@@ -100,10 +102,13 @@ export default function OrderStatusPage() {
   const fetchStatus = useCallback(async () => {
     if (!tenantId || !orderId) return;
     try {
-      const res = await posBridgeFetch(`/api/menu/${tenantId}/order/${orderId}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Pesanan tidak ditemukan');
-      setOrder(data.order);
+      const { data, error: rpcError } = await supabase.rpc(
+        'get_public_pos_table_order' as never,
+        buildPublicOrderStatusRpcArgs(tenantId, orderId) as never,
+      );
+      if (rpcError) throw rpcError;
+      if (!data) throw new Error('Pesanan tidak ditemukan');
+      setOrder(data);
       setLastPolled(new Date());
       setError('');
     } catch (err: unknown) {
@@ -321,7 +326,7 @@ export default function OrderStatusPage() {
         {/* Order More button */}
         {tenantId && (
           <div className="mx-4 mt-4">
-            <Link to={`/menu/${tenantId}`}>
+            <Link to={order.table_id ? `/menu/${tenantId}/${order.table_id}` : `/menu/${tenantId}`}>
               <Button
                 variant="outline"
                 className="w-full h-11 border-emerald-300 text-emerald-700 hover:bg-emerald-50"

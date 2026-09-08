@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 210,
-  "bundle_count": 27,
+  "bundle_count": 28,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -403,6 +403,14 @@
       ],
       "sha256": "pending",
       "bytes": 0
+    },
+    {
+      "file": "28_20260908140000_public_qr_menu_table_order.sql",
+      "source_files": [
+        "28_20260908140000_public_qr_menu_table_order.sql"
+      ],
+      "sha256": "749bee7de1e3413da41c9f5f7dc41658d47795840bb2c2b79ce3988ef82524de",
+      "bytes": 15282
     }
   ]
 }

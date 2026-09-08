@@ -7,7 +7,8 @@ import {
   ShoppingCart, Plus, Minus, Trash2, ChefHat, Send,
   CheckCircle2, Store, Clock, RefreshCw, Eye
 } from 'lucide-react';
-import { posBridgeFetch } from '@/lib/posBridge';
+import { supabase } from '@/integrations/supabase/client';
+import { buildPublicMenuRpcArgs, buildPublicTableOrderRpcArgs } from '@/lib/publicPosContract';
 
 interface Tenant {
   id: string;
@@ -78,24 +79,16 @@ export default function MenuPublicPage() {
     if (!tenantId) return;
     setPageState('loading');
     try {
-      const [menuRes, tableRes] = await Promise.all([
-        posBridgeFetch(`/api/menu/${tenantId}`),
-        tableId ? posBridgeFetch(`/api/menu/${tenantId}/table/${tableId}`) : Promise.resolve(null),
-      ]);
-
-      if (!menuRes.ok) {
-        const err = await menuRes.json();
-        throw new Error(err.error || 'Restoran tidak ditemukan');
-      }
-      const menuData = await menuRes.json();
+      const { data: menuData, error } = await supabase.rpc(
+        'get_public_pos_menu' as never,
+        buildPublicMenuRpcArgs(tenantId, tableId) as never,
+      );
+      if (error) throw error;
+      if (!menuData) throw new Error('Restoran tidak ditemukan');
       setTenant(menuData.tenant);
       setCategories(menuData.categories || []);
       setProducts(menuData.products || []);
-
-      if (tableRes && tableRes.ok) {
-        const td = await tableRes.json();
-        setTableName(td.table?.name || '');
-      }
+      setTableName(menuData.table?.name || '');
 
       setPageState('menu');
     } catch (err: unknown) {
@@ -155,23 +148,16 @@ export default function MenuPublicPage() {
     }
     setPageState('ordering');
     try {
-      const res = await posBridgeFetch(`/api/menu/${tenantId}/order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table_id: tableId,
-          table_name: tableName,
-          customer_name: customerName || 'Tamu',
-          notes: orderNotes || null,
-          items: cart.map(ci => ({
-            product_id: ci.product.id,
-            qty: ci.qty,
-            notes: ci.notes || null,
-          })),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal mengirim pesanan');
+      const { data, error } = await supabase.rpc(
+        'create_public_pos_table_order' as never,
+        buildPublicTableOrderRpcArgs(tenantId, tableId, customerName, orderNotes, cart.map(ci => ({
+          product_id: ci.product.id,
+          qty: ci.qty,
+          notes: ci.notes || null,
+        }))) as never,
+      );
+      if (error) throw error;
+      if (!data) throw new Error('Gagal mengirim pesanan');
       setOrderId(data.order_id);
       setOrderNumber(data.order_number);
       setCart([]);
