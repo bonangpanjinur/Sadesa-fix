@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { PRIMARY_HOME_CATEGORIES } from '@/lib/homeCategories';
 
 export interface CategoryItem {
   id: string;
@@ -93,13 +94,20 @@ export function useCategories() {
 
   // Get categories formatted for homepage display
   const getHomepageCategories = (): HomepageCategoryItem[] => {
-    return categories.map((cat, index) => ({
+    const adminCategories = categories.map((cat, index) => ({
       id: cat.slug,
       name: cat.name,
       icon: (cat.icon ? iconMap[cat.icon] : null) || categoryStyles[cat.slug]?.icon || getDefaultIcon(index),
       colorClass: categoryStyles[cat.slug]?.colorClass || colorClasses[index % colorClasses.length],
       route: categoryStyles[cat.slug]?.route,
     }));
+
+    // Menu utama desa tetap tersedia meskipun admin belum membuat baris
+    // kategori yang sesuai. Kategori aktif admin ditambahkan tanpa duplikasi.
+    const adminSlugs = new Set(adminCategories.map((category) => category.id));
+    const coreCategories = PRIMARY_HOME_CATEGORIES.filter((category) => !adminSlugs.has(category.id));
+
+    return [...coreCategories, ...adminCategories];
   };
 
   return { categories, loading, error, getHomepageCategories, refetch: fetchCategories };
