@@ -61,7 +61,7 @@ if [[ "$TARGET_LABEL" != "staging" && "${ALLOW_NON_STAGING_VALIDATION:-false}" !
   exit 1
 fi
 
-for command in python3 pnpm flock; do
+for command in python3 npm flock; do
   command -v "$command" >/dev/null 2>&1 || { echo "Missing required command: $command" >&2; exit 1; }
 done
 if [[ "$DRY_RUN" != "true" ]] && ! command -v psql >/dev/null 2>&1; then
@@ -81,7 +81,7 @@ run_psql() {
 
 validate_repo() {
   echo "[preflight] Validating canonical migration files and bootstrap manifest"
-  pnpm run validate:db-bootstrap
+  npm run validate:db-bootstrap
   bash scripts/validate-migrations.sh
 }
 

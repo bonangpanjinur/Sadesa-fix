@@ -1,6 +1,6 @@
 # Rencana Bisnis Marketplace Gratis + POS Berbayar
 
-> **Status implementasi — 8 September 2026:** Roadmap diringkas menjadi 4 fase. Fase 1 (fondasi produk, aturan komersial, entitlement, dan billing) sudah tersedia di repository, tetapi sign-off dan staging belum selesai. Fase 2 (katalog, stok, marketplace-only, QR, POS offline, dan laporan) sebagian besar tersedia di repository, tetapi validasi staging dan uji perangkat nyata masih terbuka. Fase 3 (monetisasi lanjutan dan operasi) masih sebagian selesai; fee ledger production, payout, risk, dan control tower belum dibangun. Fase 4 (staging, pilot, dan rollout) belum dimulai. Seluruh validasi migration, staging, pilot, dan produksi tetap wajib dikerjakan sebelum klaim siap produksi.
+> **Status implementasi — 8 September 2026:** Roadmap diringkas menjadi 4 fase. Fase 1 (fondasi produk, aturan komersial, entitlement, dan billing) sudah tersedia di repository, tetapi sign-off dan staging belum selesai. Fase 2 (katalog, stok, marketplace-only, QR, POS offline, dan laporan) sebagian besar tersedia di repository, tetapi validasi staging dan uji perangkat nyata masih terbuka. Fase 3 (monetisasi lanjutan dan operasi) masih sebagian selesai; fee ledger production, payout, risk, dan control tower belum dibangun. Fase 4 (staging, pilot, dan rollout) **sebagian selesai**: gate lokal, simulasi staging, test, build, dan workflow aplikasi sudah lulus, tetapi penerapan ke Supabase staging, pilot merchant, dan rollout belum dilakukan. Seluruh validasi migration, staging, pilot, dan produksi tetap wajib dikerjakan sebelum klaim siap produksi.
 
 > **Catatan audit dokumen:** status “selesai secara teknis di repository” hanya berarti kontrak, kode, atau migration tersedia di source control. Status tersebut **bukan** bukti bahwa alur sudah terpasang di Supabase, aman di staging, diterima merchant, atau boleh dijual di produksi. Gunakan matriks tugas dan gate di bagian 9 sebagai acuan eksekusi.
 
@@ -887,7 +887,7 @@ Roadmap ini sengaja diringkas menjadi **4 fase utama**. Setiap fase menggabungka
 | **Fase 1 — Fondasi dan keputusan** | Model bisnis, policy, entitlement, billing, privacy, dan ownership | **SEBAGIAN** — implementasi repository ada; sign-off dan staging belum | Policy disetujui, migration dapat diterapkan ulang, lifecycle billing lulus uji dasar |
 | **Fase 2 — Produk inti omnichannel** | Marketplace-only, katalog, stok, QR meja, POS online/offline, laporan, dan rekonsiliasi | **SEBAGIAN** — implementasi inti ada; validasi staging dan perangkat belum | Tenant isolation, stok, recovery, perangkat, dan laporan lulus staging |
 | **Fase 3 — Komersial dan operasi** | Fee, payout, category builder, risk, support, partner, dan control tower | **SEBAGIAN** — limit/promo/support ada; ledger production belum | Uang, approval, risk, support, dan rollback dapat diaudit |
-| **Fase 4 — Staging, pilot, dan rollout** | Penerapan bundle, test matrix, pilot 10–20 merchant, lalu rollout bertahap | **BELUM DIKERJAKAN** — validasi environment dan pilot belum dimulai | Go/no-go pilot disetujui berdasarkan KPI, guardrail, dan unit economics |
+| **Fase 4 — Staging, pilot, dan rollout** | Penerapan bundle, test matrix, pilot 10–20 merchant, lalu rollout bertahap | **SEBAGIAN** — gate lokal lulus; staging Supabase dan pilot belum dimulai | Go/no-go pilot disetujui berdasarkan KPI, guardrail, dan unit economics |
 
 Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot terpenuhi. Detail tiap fase di bawah ini memakai empat kelompok yang sama dengan tabel ringkas di atas.
 
@@ -947,16 +947,18 @@ Tidak ada fase yang boleh disebut siap produksi sebelum gate staging dan pilot t
 
 **Tujuan:** membuktikan sistem pada environment yang dapat dipulihkan sebelum transaksi uang nyata dan rollout bertahap.
 
+- [x] pasang dependency, gunakan Node.js 22, jalankan gate bundle/migration/RLS, typecheck, lint, unit test, integration test, dan build;
+- [x] perbaiki script simulasi staging agar memakai npm lockfile; simulasi lulus dan workflow aplikasi hidup di port 5000;
 - [x] partner program, promo onboarding, SLA support, dan sebagian dashboard KPI sudah tersedia di repository;
-- [ ] siapkan staging parity: Auth, Edge Functions, webhook, Storage, Realtime, secrets/config, backup, monitoring, dan rollback;
-- [ ] terapkan bundle Fase 1–3 serta lakukan rehearsal restore/rollback;
-- [ ] jalankan test matrix permission, concurrency, security, performance, recovery, QR, payment, payout, report, dan multi-vertikal;
+- [~] siapkan staging parity: Auth, Edge Functions, webhook, Storage, Realtime, secrets/config, backup, monitoring, dan rollback;
+- [~] terapkan bundle Fase 1–3 serta lakukan rehearsal restore/rollback setelah project staging dan akses database tersedia;
+- [~] jalankan test matrix lokal dan static checks; permission runtime, concurrency database, payment, payout, QR, dan recovery staging masih terbuka;
 - [ ] pilot 10–20 merchant dari kategori barang, makanan/minuman, jasa, sewa/wisata, dan transportasi;
 - [ ] uji marketplace-only, transisi ke POS, suspend POS, QR revoke, offline recovery, promo, refund, dispute, fee, payout, dan maker-checker;
 - [ ] ukur activation, transaksi pertama, sync success, konflik, support, churn awal, unit economics, dan guardrail;
 - [ ] rollout bertahap berdasarkan cohort yang lulus, dengan incident response dan review 30/60/90 hari.
 
-**Status: BELUM DIKERJAKAN untuk validasi.** Partner program, promo, SLA support, dan sebagian dashboard sudah tersedia di repository, tetapi rangkaian staging, test matrix, pilot, dan rollout belum dimulai.
+**Status: SEBAGIAN SELESAI.** Gate lokal sudah lulus: 28 bundle/213 migration tervalidasi, audit RLS lulus, 45 file test dengan 158 test lulus, 4 integration test lulus, build produksi lulus, dan workflow preview hidup. Simulasi berhenti dengan `SIMULATION_ONLY` karena Supabase CLI/project staging belum terhubung; penerapan database, test runtime staging, pilot, dan rollout masih terbuka.
 
 **Gate:** tidak ada pilot transaksi uang nyata sebelum environment, backup/restore, monitoring, support escalation, privacy/terms, dan rollback disetujui.
 
