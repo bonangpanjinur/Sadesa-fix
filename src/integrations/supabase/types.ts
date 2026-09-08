@@ -2527,48 +2527,63 @@ export type Database = {
           admin_notes: string | null
           amount: number
           buyer_id: string
+          category: string
           created_at: string
+          dispute_status: string
           evidence_urls: string[] | null
           id: string
           merchant_id: string | null
+          merchant_responded_at: string | null
+          merchant_response: string | null
           order_id: string
           processed_at: string | null
           processed_by: string | null
           reason: string
           refund_type: string | null
           status: string
+          title: string
           updated_at: string
         }
         Insert: {
           admin_notes?: string | null
           amount: number
           buyer_id: string
+          category?: string
           created_at?: string
+          dispute_status?: string
           evidence_urls?: string[] | null
           id?: string
           merchant_id?: string | null
+          merchant_responded_at?: string | null
+          merchant_response?: string | null
           order_id: string
           processed_at?: string | null
           processed_by?: string | null
           reason: string
           refund_type?: string | null
           status?: string
+          title?: string
           updated_at?: string
         }
         Update: {
           admin_notes?: string | null
           amount?: number
           buyer_id?: string
+          category?: string
           created_at?: string
+          dispute_status?: string
           evidence_urls?: string[] | null
           id?: string
           merchant_id?: string | null
+          merchant_responded_at?: string | null
+          merchant_response?: string | null
           order_id?: string
           processed_at?: string | null
           processed_by?: string | null
           reason?: string
           refund_type?: string | null
           status?: string
+          title?: string
           updated_at?: string
         }
         Relationships: [

@@ -1,0 +1,306 @@
+[observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:00:48.565Z","traceId":"device-fdab7ff2-1de5-4d36-9c3d-2ad87e2a10c1","context":{"deviceType":"browser","hasTenant":false}}
+index-Bsnw8wp9.js:2 [observability] {"domain":"offline_sync","event":"capability_registration_failed","level":"warn","at":"2026-09-08T09:00:48.572Z","traceId":"offline_sync-5d1e0abe-1824-4218-a7e3-948583e1e855","context":{},"error":{"name":"NotAllowedError","message":"Permission denied."}}
+C @ index-Bsnw8wp9.js:2
+/admin:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+blob:https://www.sadesa.id/9be0e45e-b1fd-488e-b377-8a8a98cb35e2:1 Manifest: property 'start_url' ignored, URL is invalid.
+blob:https://www.sadesa.id/9be0e45e-b1fd-488e-b377-8a8a98cb35e2:1 Manifest: property 'scope' ignored, URL is invalid.
+blob:https://www.sadesa.id/9be0e45e-b1fd-488e-b377-8a8a98cb35e2:1 Manifest: property 'src' ignored, URL is invalid.
+blob:https://www.sadesa.id/9be0e45e-b1fd-488e-b377-8a8a98cb35e2:1 Manifest: property 'src' ignored, URL is invalid.
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:00:48.739Z","traceId":"device-fdab7ff2-1de5-4d36-9c3d-2ad87e2a10c1","durationMs":174,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:00:48.740Z","traceId":"device-bf8fdf69-a510-43ea-b5f3-ec87a75ab62a","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/admin_manage_pos_subscription:1  Failed to load resource: the server responded with a status of 404 ()
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:01:57.897Z","traceId":"device-2de23ccd-9276-4ffa-ba6b-4d588c8dbdba","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:02:18.779Z","traceId":"device-39258b1a-0342-4f49-b732-191a577297b2","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:02:18.878Z","traceId":"device-39258b1a-0342-4f49-b732-191a577297b2","durationMs":99,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:02:18.878Z","traceId":"device-fe2d6cf4-2606-451b-b4c7-391ad3d04b4a","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:02:30.512Z","traceId":"device-02180286-b878-476d-b722-be663d40fcdb","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:02:30.589Z","traceId":"device-02180286-b878-476d-b722-be663d40fcdb","durationMs":77,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:02:30.589Z","traceId":"device-4292e7f6-d900-4acd-b5eb-58dfa5fd6c23","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+ui-vendor-CvwQSM2-.js:45 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ ui-vendor-CvwQSM2-.js:45
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/admin_manage_pos_subscription:1  Failed to load resource: the server responded with a status of 404 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:02:42.821Z","traceId":"device-4a8adf8b-4429-4eaf-8e03-0ef8b57ef375","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:02:42.918Z","traceId":"device-4a8adf8b-4429-4eaf-8e03-0ef8b57ef375","durationMs":97,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:02:42.918Z","traceId":"device-5ab650e9-03bd-4e2e-84e3-9c7eda1fee95","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:02:47.313Z","traceId":"device-356ebc51-729b-4f80-b96a-ff139627e3d2","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:02:47.418Z","traceId":"device-356ebc51-729b-4f80-b96a-ff139627e3d2","durationMs":105,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:02:47.418Z","traceId":"device-fc051463-064b-46e6-9e9c-4057cd2652aa","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:02:48.847Z","traceId":"device-bcca17ea-cb73-4a8f-8fdd-95745b3323d7","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:02:52.889Z","traceId":"device-02a73d52-ba4a-4df4-b12b-b14bcf0ec086","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:02:53.026Z","traceId":"device-02a73d52-ba4a-4df4-b12b-b14bcf0ec086","durationMs":137,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:02:53.026Z","traceId":"device-0a380857-56a5-4582-9c5b-8b7a2c7565ce","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:02:53.346Z","traceId":"device-c23a322a-f767-4e14-9da2-c19e613656f6","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:02:53.445Z","traceId":"device-c23a322a-f767-4e14-9da2-c19e613656f6","durationMs":99,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:02:53.445Z","traceId":"device-cce152de-734e-42a4-aa12-e604e5a1ee13","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:03:48.949Z","traceId":"device-4d095889-d889-44bf-8207-1ce95b5add2d","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:04:48.894Z","traceId":"device-86349232-6bf5-4f38-83fc-8547d6bb6005","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions:1  Failed to load resource: the server responded with a status of 404 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:05:07.130Z","traceId":"device-1f4e31c3-b9b6-4645-9869-965d43e84fba","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:05:07.210Z","traceId":"device-1f4e31c3-b9b6-4645-9869-965d43e84fba","durationMs":80,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:05:07.210Z","traceId":"device-2b72d165-d7d7-4504-8ca5-ccbdb516a3d0","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:05:18.133Z","traceId":"device-bdf91c26-6e65-47e6-aaa6-0203d8a09205","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:05:18.268Z","traceId":"device-bdf91c26-6e65-47e6-aaa6-0203d8a09205","durationMs":135,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:05:18.268Z","traceId":"device-b6839bdf-cdb2-4005-a823-384e89c85b44","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:05:32.498Z","traceId":"device-069071db-37fd-4cee-9838-50a0be9711cd","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:05:32.567Z","traceId":"device-069071db-37fd-4cee-9838-50a0be9711cd","durationMs":69,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:05:32.567Z","traceId":"device-858d8bb6-1c16-4236-9343-b60126149124","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/pos_onboarding_promotions?select=*&order=created_at.desc:1  Failed to load resource: the server responded with a status of 404 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/get_pos_package_history:1  Failed to load resource: the server responded with a status of 404 ()
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:05:48.827Z","traceId":"device-e5fdbc57-80da-4fc5-991e-35ecbac152b7","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:06:48.962Z","traceId":"device-e415f4d4-51d4-4fba-a02e-f1032aec2862","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+ui-vendor-CvwQSM2-.js:45 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ ui-vendor-CvwQSM2-.js:45
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:07:48.818Z","traceId":"device-7ffa2be3-f2fa-40ce-bf01-25aff433c06b","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:08:49.258Z","traceId":"device-db8d561a-11a1-403b-b8f0-e37a321aa28b","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+merchants:1 WebSocket connection to 'wss://xqdbnlcvboelvkdotilj.supabase.co/realtime/v1/websocket?apikey=sb_publishable_GGm4KeLx3PfUM2JYXldI1Q_lE4noIGz&vsn=2.0.0' failed: Page entered Back-Forward Cache.
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:10:06.325Z","traceId":"device-a06281ed-000c-40d7-b1a3-5536f2960f90","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:11:07.291Z","traceId":"device-3b15e35d-99ee-48a1-a51c-4bc2d395e7ff","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:11:09.628Z","traceId":"device-5ae312dd-25ae-46c3-a82e-65940e11397e","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:11:09.838Z","traceId":"device-5ae312dd-25ae-46c3-a82e-65940e11397e","durationMs":210,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:11:09.838Z","traceId":"device-b9f71f64-a65d-469a-a44f-f39aba6b4563","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:11:34.827Z","traceId":"device-2e6e6bec-5173-49a0-b8a6-0e657eb53173","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:11:34.907Z","traceId":"device-2e6e6bec-5173-49a0-b8a6-0e657eb53173","durationMs":80,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:11:34.907Z","traceId":"device-d44c283d-0e83-42bc-b710-e1fca41ab82a","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:11:45.241Z","traceId":"device-1fb9b19e-f958-4b2b-8837-ddb35c6dbd9e","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:11:45.317Z","traceId":"device-1fb9b19e-f958-4b2b-8837-ddb35c6dbd9e","durationMs":76,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:11:45.317Z","traceId":"device-f080de83-3a1e-4888-98b0-90f94ef52593","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:11:48.799Z","traceId":"device-5f3031b7-5cde-46fb-88b4-9c497d1de950","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:12:00.204Z","traceId":"device-c921079c-22c1-4afd-99c6-81d0ae7cd13f","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:12:00.305Z","traceId":"device-c921079c-22c1-4afd-99c6-81d0ae7cd13f","durationMs":101,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:12:00.305Z","traceId":"device-11fc34f5-8616-4ce6-8418-262de304f171","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:12:02.003Z","traceId":"device-b68146a7-1213-4908-a361-a2fd1d150dcc","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:12:02.083Z","traceId":"device-b68146a7-1213-4908-a361-a2fd1d150dcc","durationMs":80,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:12:02.084Z","traceId":"device-b35780ee-b1ef-4f78-a39c-4fc28d86ca2b","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:12:49.377Z","traceId":"device-b2b4fc47-00ce-4122-8dfe-43f69293fdbc","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:13:01.846Z","traceId":"device-1f631b3b-bfe5-4761-b7b1-c42c65aae5a7","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:13:02.045Z","traceId":"device-1f631b3b-bfe5-4761-b7b1-c42c65aae5a7","durationMs":199,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:13:02.045Z","traceId":"device-9f9f3517-f464-4449-9067-4a05859fd18b","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:13:28.937Z","traceId":"device-c1160660-f719-4bb1-b98c-2b123491380b","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:13:29.145Z","traceId":"device-c1160660-f719-4bb1-b98c-2b123491380b","durationMs":208,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:13:29.145Z","traceId":"device-ce2d94c2-238e-4eb7-91be-f8db7fdb42bc","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:13:30.374Z","traceId":"device-2449df6e-883a-47cd-9dce-01b2f059b713","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:13:30.439Z","traceId":"device-2449df6e-883a-47cd-9dce-01b2f059b713","durationMs":65,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:13:30.440Z","traceId":"device-93e39d9f-2946-408d-aeba-7fba28bac5d1","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:13:49.263Z","traceId":"device-e247cfa6-b6c8-4bec-abb3-f89d130b18c4","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:13:53.893Z","traceId":"device-9900bc29-9843-40a8-9913-18c13a9764e5","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:13:53.955Z","traceId":"device-9900bc29-9843-40a8-9913-18c13a9764e5","durationMs":62,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:13:53.955Z","traceId":"device-c8bd82e8-8902-47dd-af9a-f9653466843d","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:14:20.307Z","traceId":"device-38656d40-63ab-458e-981a-b6f1a62bebca","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:14:20.371Z","traceId":"device-38656d40-63ab-458e-981a-b6f1a62bebca","durationMs":64,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:14:20.372Z","traceId":"device-3e3c9bda-a2f5-4ea8-8179-f2f342671ce2","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:14:49.271Z","traceId":"device-cb5d2b6c-70fe-4f7f-b07d-7f89330160a7","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:15:50.392Z","traceId":"device-b2ab1419-7955-4c58-93ed-13f9a9cf9e9f","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:16:47.492Z","traceId":"device-14eb5e5b-bf8b-48e6-bc96-21fb5cb41130","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:16:47.618Z","traceId":"device-14eb5e5b-bf8b-48e6-bc96-21fb5cb41130","durationMs":126,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:16:47.618Z","traceId":"device-9f400ffb-2055-4143-87a3-74a2c81f8dfe","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:16:48.870Z","traceId":"device-93dcdfa6-76be-420c-8af1-a2ff36d8d27d","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:17:33.818Z","traceId":"device-da501668-f3d6-45be-8e80-6a3d135fc4ff","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:17:33.932Z","traceId":"device-da501668-f3d6-45be-8e80-6a3d135fc4ff","durationMs":114,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:17:33.932Z","traceId":"device-69f5dd24-bc84-479f-b03e-b4b5cd66e4f3","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:17:49.280Z","traceId":"device-7229ca9b-40aa-4984-991d-6c9a521ea98b","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:18:05.619Z","traceId":"device-702e1481-6cdc-4a8a-ac93-a3d29e74afd9","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:18:06.341Z","traceId":"device-702e1481-6cdc-4a8a-ac93-a3d29e74afd9","durationMs":722,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:18:06.341Z","traceId":"device-071b50d9-283e-4d7c-b2dd-a4a35b2197b7","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:18:16.821Z","traceId":"device-58cf95ef-10a8-41c6-b818-97107b4dd516","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:18:16.886Z","traceId":"device-58cf95ef-10a8-41c6-b818-97107b4dd516","durationMs":65,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:18:16.886Z","traceId":"device-beeb84ad-2ad1-40fd-896a-aaf110f939dd","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:18:18.320Z","traceId":"device-3207a29f-c2ba-4dcd-ac90-2f36739be137","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:18:18.373Z","traceId":"device-3207a29f-c2ba-4dcd-ac90-2f36739be137","durationMs":53,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:18:18.374Z","traceId":"device-14f77912-e0e1-4881-bb50-c9214394fe02","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/refund_requests?select=id%2Corder_id%2Ctitle%2Ccategory%2Creason%2Camount%2Cstatus%2Cdispute_status%2Cmerchant_response%2Cadmin_notes%2Cevidence_urls%2Ccreated_at&order=created_at.desc&limit=100:1  Failed to load resource: the server responded with a status of 400 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:18:41.837Z","traceId":"device-f519f9d8-8d3b-4aab-9c9d-80c0a477f488","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:18:41.904Z","traceId":"device-f519f9d8-8d3b-4aab-9c9d-80c0a477f488","durationMs":67,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:18:41.904Z","traceId":"device-419cec10-0edb-4938-8d68-b65cb9a78e1f","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:18:49.267Z","traceId":"device-23a9e2ea-0bd1-4c50-b8a9-ff2b0424e155","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:19:50.483Z","traceId":"device-def583bb-2b2c-4b3a-9d23-2a0bfc17a688","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:20:27.695Z","traceId":"device-4ecacabb-6af7-4cab-aa9f-a85c82215b84","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:20:28.069Z","traceId":"device-4ecacabb-6af7-4cab-aa9f-a85c82215b84","durationMs":374,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:20:28.069Z","traceId":"device-117396ab-c6b9-46c4-a5dd-0408aa36fc54","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:20:36.487Z","traceId":"device-be51afda-dcd0-4011-9e69-39241dceabfc","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:20:36.604Z","traceId":"device-be51afda-dcd0-4011-9e69-39241dceabfc","durationMs":117,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:20:36.604Z","traceId":"device-652eafba-c83d-4122-b498-3fe63f3af024","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:20:48.817Z","traceId":"device-b9a39553-5ca8-47a4-8042-7fc8fdeb3f91","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:21:49.344Z","traceId":"device-74312591-9e73-48f7-b1e0-cd2ed04e551a","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:22:50.333Z","traceId":"device-9490524a-55f3-4564-991c-b4b38f8844b7","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+codes:1 WebSocket connection to 'wss://xqdbnlcvboelvkdotilj.supabase.co/realtime/v1/websocket?apikey=sb_publishable_GGm4KeLx3PfUM2JYXldI1Q_lE4noIGz&vsn=2.0.0' failed: Page entered Back-Forward Cache.
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:23:37.958Z","traceId":"device-c8f5f27d-6c1b-405c-a68c-1af9a655e569","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:23:38.380Z","traceId":"device-c8f5f27d-6c1b-405c-a68c-1af9a655e569","durationMs":422,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:23:38.380Z","traceId":"device-8067a564-828d-4b7e-bf3b-b0b91f5ea8c6","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:23:48.948Z","traceId":"device-dd22e71a-6109-4714-ac03-236e783aaecb","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/refund_requests?select=id%2Corder_id%2Ctitle%2Ccategory%2Creason%2Camount%2Cstatus%2Cdispute_status%2Cmerchant_response%2Cadmin_notes%2Cevidence_urls%2Ccreated_at&order=created_at.desc&limit=100:1  Failed to load resource: the server responded with a status of 400 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-08T09:24:40.898Z","traceId":"device-455da5e5-0810-4f74-8da9-b03a6a0cfa72","context":{"deviceType":"browser","hasTenant":false}}
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/register_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"error","at":"2026-09-08T09:24:41.041Z","traceId":"device-455da5e5-0810-4f74-8da9-b03a6a0cfa72","durationMs":143,"context":{"deviceType":"browser","hasTenant":false,"errorCode":"54000"},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"register_failed","level":"warn","at":"2026-09-08T09:24:41.041Z","traceId":"device-71d3c692-5c35-4f02-a0b3-5dc6d071be11","context":{"hasTenant":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/refund_requests?select=id%2Corder_id%2Ctitle%2Ccategory%2Creason%2Camount%2Cstatus%2Cdispute_status%2Cmerchant_response%2Cadmin_notes%2Cevidence_urls%2Ccreated_at&order=created_at.desc&limit=100:1  Failed to load resource: the server responded with a status of 400 ()
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device:1  Failed to load resource: the server responded with a status of 500 ()
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:24:48.818Z","traceId":"device-34482403-33cf-4aec-a626-d9888bebcedc","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+supabase-vendor-CIS1ha1V.js:44  POST https://xqdbnlcvboelvkdotilj.supabase.co/rest/v1/rpc/heartbeat_pwa_device 500 (Internal Server Error)
+(anonymous) @ supabase-vendor-CIS1ha1V.js:44
+(anonymous) @ supabase-vendor-CIS1ha1V.js:44
+await in (anonymous)
+(anonymous) @ supabase-vendor-CIS1ha1V.js:1
+then @ supabase-vendor-CIS1ha1V.js:1
+index-Bsnw8wp9.js:2 [observability] {"domain":"device","event":"heartbeat_failed","level":"warn","at":"2026-09-08T09:25:48.981Z","traceId":"device-f1ca3f5b-a312-4278-a677-84fb43e58b25","context":{"hasSyncAt":false},"error":{"name":"UnknownError","message":"[object Object]"}}
+C @ index-Bsnw8wp9.js:2
+Hr @ index-Bsnw8wp9.js:2
+await in Hr
+(anonymous) @ index-Bsnw8wp9.js:2
+await in (anonymous)
+(anonymous) @ index-Bsnw8wp9.js:2
