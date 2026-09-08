@@ -1336,6 +1336,31 @@ Nomor telepon, perangkat, lokasi, kendaraan, atau payout account masing-masing d
 
 ## 11. Rekomendasi keputusan sekarang
 
+### 11.1 Hasil review repositori — 8 September 2026
+
+Review dilakukan terhadap status fase di dokumen, artefak `src/`, bundle Supabase, script validasi, serta status Git. Kesimpulannya adalah **fondasi produk sudah cukup untuk masuk validasi staging, tetapi belum cukup untuk rollout produksi atau pemasaran berbayar**.
+
+| Area | Status yang dapat dibuktikan | Keputusan |
+|---|---|---|
+| Model bisnis, batas marketplace/POS, katalog lintas kanal, dan template kategori | **Selesai sebagai keputusan produk dan kontrak repository** | Pertahankan marketplace gratis dan POS berbayar dengan trial terbatas; jangan menambah variasi paket sebelum pilot. |
+| Entitlement, billing dasar, katalog/stok terpadu, QR meja, laporan canonical, dan rekonsiliasi | **Selesai secara teknis di repository; belum lulus staging** | Jangan menyebutnya production-ready; validasikan bundle, tenant isolation, ledger, dan rekonsiliasi pada staging. |
+| POS offline, conflict recovery, printer, dan pemulihan perangkat | **Sebagian selesai; uji nyata belum dilakukan** | Perlakukan offline sebagai beta internal sampai uji perangkat fisik, printer, konflik lintas kanal, dan recovery selesai. |
+| Fee engine, promo partner, add-on, SLA support, dan kontrol komersial | **Sebagian selesai; ledger fee/payment produksi belum ada** | Tunda monetisasi berbasis fee/provider dan perluasan promo sampai ledger, payout, abuse control, dan simulasi dampak tervalidasi. |
+| Partner, dashboard, dan support | **Sebagian tersedia di repository** | Boleh disiapkan untuk pilot, tetapi rollout tetap dikunci oleh hasil Fase 6. |
+| Staging dan pilot 10–20 merchant | **Belum dimulai** | Jadikan ini satu-satunya gate berikutnya; tidak ada klaim keberhasilan bisnis sebelum evidence pilot tersedia. |
+
+Evidence teknis yang berhasil diverifikasi pada review ini: validasi migration melaporkan **28 SQL deployment files** dalam urutan yang benar dan validasi bootstrap melaporkan **213 migrations dalam 28 ordered bundles**. Test aplikasi belum dapat dijadikan evidence karena `node_modules` belum tersedia di checkout ini (`vitest: not found`); instalasi dependency dan eksekusi test harus menjadi bagian dari checklist staging, bukan dianggap lulus secara implisit.
+
+**Keputusan yang diambil sekarang:**
+
+1. **Tahan production rollout, iklan berbayar, dan perluasan kategori** sampai Fase 6 selesai dan ditandatangani berdasarkan evidence staging/pilot.
+2. **Tetapkan Fase 6 sebagai prioritas tunggal berikutnya.** Urutannya: pasang bundle Fase 2–5 ke staging, instal dependency, jalankan test/build/security/RLS, lakukan synthetic-data drill, lalu pilot 10–20 merchant.
+3. **Batasi pilot pada gelombang awal**: barang retail, makanan/minuman, dan jasa terjadwal. Jasa panggilan, sewa, wisata, dan ojek tetap berada di belakang feature flag sampai kontrak booking, kapasitas, dispute, dan settlement terbukti.
+4. **Jangan mengaktifkan fee provider, payout otomatis, atau klaim laporan resmi** sebelum ledger, rekonsiliasi, approval, dan audit end-to-end lulus staging.
+5. **Tetapkan kriteria keluar Fase 6**: tidak ada transaksi offline yang terduplikasi, stok dan saldo dapat direkonsiliasi, marketplace-only tetap berjalan tanpa POS, suspend POS tidak menutup marketplace, QR meja tenant/outlet-scoped, refund/payout memakai approval dan audit, serta pilot menghasilkan metrik activation, transaksi pertama, sync success, konflik, dan churn awal.
+
+Keputusan ini **mengubah prioritas, bukan arah strategi**: repository sudah masuk tahap validasi operasional; pekerjaan berikutnya bukan menambah halaman atau paket baru, melainkan membuktikan bahwa kontrak yang ada aman dipakai pada data dan perangkat nyata.
+
 1. **Setujui model bisnis:** marketplace gratis, POS berbayar, POS memiliki trial terbatas.
 2. **Gunakan satu katalog lintas kanal:** jangan membuat produk baru saat merchant mengaktifkan POS jika produk lama dapat di-link.
 3. **Tetapkan POS stock sebagai sumber stok merchant POS:** `products.stock` hanya projection marketplace.

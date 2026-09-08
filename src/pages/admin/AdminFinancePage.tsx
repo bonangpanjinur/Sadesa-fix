@@ -22,6 +22,7 @@ import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
+import { calculateAdminFinancials, calculateOrderPlatformFee } from '@/lib/adminFinance';
 import { SalesAreaChart } from '@/components/admin/SalesChart';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -121,24 +122,7 @@ export default function AdminFinancePage() {
   });
 
   const financials = useMemo<FinancialData>(() => {
-    const completed = orders.filter(o => o.status === 'DONE' || o.status === 'DELIVERED');
-    
-    const totalRevenue = completed.reduce((sum, o) => sum + o.total, 0);
-    const totalSubtotal = completed.reduce((sum, o) => sum + o.subtotal, 0);
-    const shippingCollected = completed.reduce((sum, o) => sum + o.shipping_cost, 0);
-    
-    const platformFees = Math.round(totalSubtotal * (platformFeePercent / 100));
-    const courierFees = Math.round(shippingCollected * (courierFeePercent / 100));
-    const merchantRevenue = totalSubtotal - platformFees;
-
-    return {
-      totalRevenue,
-      platformFees,
-      courierFees,
-      merchantRevenue,
-      shippingCollected,
-      completedOrders: completed.length,
-    };
+    return calculateAdminFinancials(orders, platformFeePercent, courierFeePercent);
   }, [orders, platformFeePercent, courierFeePercent]);
 
   const chartData = useMemo(() => {
@@ -200,7 +184,7 @@ export default function AdminFinancePage() {
         o.merchant_name,
         formatPrice(o.total),
         formatPrice(o.shipping_cost),
-        formatPrice(Math.round(o.subtotal * (platformFeePercent / 100))),
+        formatPrice(calculateOrderPlatformFee(o.subtotal, platformFeePercent)),
         format(new Date(o.created_at), 'dd/MM/yy'),
       ]),
     });
@@ -216,7 +200,7 @@ export default function AdminFinancePage() {
       o.total,
       o.subtotal,
       o.shipping_cost,
-      Math.round(o.subtotal * (platformFeePercent / 100)),
+      calculateOrderPlatformFee(o.subtotal, platformFeePercent),
       o.status,
       format(new Date(o.created_at), 'dd/MM/yyyy HH:mm'),
     ]);

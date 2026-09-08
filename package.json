@@ -7,9 +7,6 @@
     "node": ">=22.13.0 <25"
   },
   "type": "module",
-  "overrides": {
-    "esbuild": "$esbuild"
-  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
