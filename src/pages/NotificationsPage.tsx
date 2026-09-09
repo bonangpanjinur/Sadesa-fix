@@ -24,6 +24,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { resolveNotificationLink } from '@/lib/notificationRouting';
 
 interface Notification {
   id: string;
@@ -33,6 +34,7 @@ interface Notification {
   link: string | null;
   is_read: boolean;
   created_at: string;
+  data?: unknown;
 }
 
 type NotifTab = 'all' | 'order' | 'system';
@@ -45,7 +47,7 @@ const TABS: { id: NotifTab; label: string }[] = [
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
 
@@ -199,8 +201,8 @@ export default function NotificationsPage() {
                     if (!notification.is_read) {
                       markAsRead(notification.id);
                     }
-                    if (notification.link) {
-                      navigate(notification.link);
+                    if (notification.link || notification.type === 'chat' || notification.data) {
+                      navigate(resolveNotificationLink(notification, roles));
                     }
                   }}
                 >

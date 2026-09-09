@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { resolveNotificationLink } from '@/lib/notificationRouting';
 
 interface Notification {
   id: string;
@@ -24,6 +25,7 @@ interface Notification {
   link: string | null;
   is_read: boolean;
   created_at: string;
+  data?: unknown;
 }
 
 export function NotificationDropdown() {
@@ -101,39 +103,11 @@ export function NotificationDropdown() {
     }
   };
 
-  const generateDynamicLink = (link: string, type: string): string => {
-    const orderIdMatch = link.match(/orderId[=:]([\w-]+)/) || link.match(/\/orders?\/([\w-]+)/);
-    const orderId = orderIdMatch?.[1] || '';
-
-    const isMerchant = roles.includes('merchant');
-    const isCourier = roles.includes('courier');
-    const isAdmin = roles.includes('admin');
-    const isAdminDesa = roles.includes('admin_desa');
-    const isVerifikator = roles.includes('verifikator');
-
-    if (type === 'order' && orderId) {
-      if (isMerchant) return `/merchant/orders?orderId=${orderId}`;
-      if (isCourier) return `/courier?orderId=${orderId}`;
-      if (isAdmin) return `/admin/orders?orderId=${orderId}`;
-      if (isAdminDesa) return `/desa?orderId=${orderId}`;
-      if (isVerifikator) return `/verifikator?orderId=${orderId}`;
-      return `/orders?orderId=${orderId}`;
-    }
-
-    if (type === 'chat') {
-      if (link.startsWith('/merchant/chat')) return link;
-      if (link.startsWith('/buyer/chat')) return link;
-      return isMerchant ? '/merchant/chat' : '/buyer/chat';
-    }
-
-    return link || '/';
-  };
-
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.is_read) markAsRead(notification.id);
-    if (notification.link) {
+    if (notification.link || notification.type === 'chat' || notification.data) {
       setOpen(false);
-      const dynamicLink = generateDynamicLink(notification.link, notification.type);
+      const dynamicLink = resolveNotificationLink(notification, roles);
       navigate(dynamicLink);
     }
   };

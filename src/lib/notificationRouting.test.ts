@@ -1,0 +1,34 @@
+import { describe, expect, it } from 'vitest';
+import { resolveNotificationLink } from './notificationRouting';
+
+describe('resolveNotificationLink', () => {
+  it('keeps an explicit merchant chat context for a merchant+buyer account', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/merchant/chat?conversationId=c1' }, ['merchant', 'buyer']))
+      .toBe('/merchant/chat?conversationId=c1');
+  });
+
+  it('keeps an explicit courier chat context for a courier+buyer account', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/courier/chat?orderId=o1' }, ['courier', 'buyer']))
+      .toBe('/courier/chat?orderId=o1');
+  });
+
+  it('routes a generic chat link to the role dashboard when no scoped link exists', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/chat', data: { conversation_id: 'c2' } }, ['merchant', 'buyer']))
+      .toBe('/merchant/chat?conversationId=c2');
+  });
+
+  it('uses the explicit admin/desa link instead of multi-role heuristics', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/desa?conversationId=c3' }, ['admin', 'admin_desa', 'buyer']))
+      .toBe('/desa?conversationId=c3');
+  });
+
+  it('preserves conversation identifiers from JSON notification data', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/buyer/chat', data: JSON.stringify({ conversation_id: 'c4', order_id: 'o4' }) }, ['buyer']))
+      .toBe('/buyer/chat?conversationId=c4&orderId=o4');
+  });
+
+  it('keeps role-specific order routing for legacy order links', () => {
+    expect(resolveNotificationLink({ type: 'order', link: '/orders', data: { order_id: 'o5' } }, ['merchant', 'buyer']))
+      .toBe('/merchant/orders?orderId=o5');
+  });
+});

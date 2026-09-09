@@ -196,8 +196,11 @@ export default function BuyerChatPage() {
 
   useEffect(() => {
     const conversationId = searchParams.get('conversationId');
-    if (!conversationId || selectedThread || threads.length === 0) return;
-    const match = threads.find((thread) => thread.conversationId === conversationId);
+    const orderId = searchParams.get('orderId');
+    if ((!conversationId && !orderId) || selectedThread || threads.length === 0) return;
+    const match = threads.find((thread) => conversationId
+      ? thread.conversationId === conversationId
+      : thread.orderId === orderId);
     if (match) setSelectedThread(match);
   }, [searchParams, selectedThread, threads]);
 

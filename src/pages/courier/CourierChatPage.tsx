@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageCircle, User, Store, ShoppingBag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { useSearchParams } from 'react-router-dom';
 
 interface ChatThread {
   orderId: string;
@@ -24,6 +25,7 @@ interface ChatThread {
 
 export default function CourierChatPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'buyer_courier' | 'merchant_courier'>('all');
@@ -125,6 +127,13 @@ export default function CourierChatPage() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user, fetchThreads]);
+
+  useEffect(() => {
+    const orderId = searchParams.get('orderId');
+    if (!orderId || selectedThread || threads.length === 0) return;
+    const match = threads.find((thread) => thread.orderId === orderId);
+    if (match) setSelectedThread(match);
+  }, [searchParams, selectedThread, threads]);
 
   const filteredThreads = activeTab === 'all' ? threads : threads.filter(t => t.chatType === activeTab);
 
