@@ -7,7 +7,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils';
-import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle } from 'lucide-react';
+import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle, Package } from 'lucide-react';
 import { useState } from 'react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -168,7 +168,8 @@ export function OrderDetailsDialog({
       setIsProcessing(true);
       
       const isPickup = order.delivery_type === 'PICKUP';
-      const isSelfDelivery = !isPickup && deliveryType === "self";
+      const isExpedition = order.delivery_type === 'EXPEDITION';
+      const isSelfDelivery = !isPickup && !isExpedition && deliveryType === "self";
       const newStatus = isSelfDelivery ? "DELIVERING" : "PROCESSED";
 
       const { error } = await supabase.rpc('merchant_transition_order' as never, {
@@ -181,6 +182,8 @@ export function OrderDetailsDialog({
       
       if (isPickup) {
         toast.success('Pesanan diproses (Pembeli akan ambil sendiri).');
+      } else if (isExpedition) {
+        toast.success('Pesanan diproses untuk diserahkan ke ekspedisi.');
       } else {
         toast.success(isSelfDelivery ? 'Pesanan diproses, silakan antar pesanan!' : 'Pesanan diproses. Silakan pilih Kurir Desa.');
       }
@@ -190,7 +193,7 @@ export function OrderDetailsDialog({
       onOpenChange(false);
 
       // Jika menggunakan kurir desa, otomatis buka modal tugaskan kurir untuk pengalaman seperti di dashboard admin
-      if (!isPickup && !isSelfDelivery && onOpenAssignCourier) {
+      if (!isPickup && !isExpedition && !isSelfDelivery && onOpenAssignCourier) {
         setTimeout(() => {
           onOpenAssignCourier({ ...order, status: newStatus, is_self_delivery: false });
         }, 300);
@@ -284,7 +287,9 @@ export function OrderDetailsDialog({
               </div>
             )}
             <Badge variant="outline" className="mt-2">
-              {order.delivery_type === 'PICKUP' ? 'Ambil Sendiri' : 'Diantar Kurir'}
+              {order.delivery_type === 'PICKUP'
+                ? 'Ambil Sendiri'
+                : order.delivery_type === 'EXPEDITION' ? 'Ekspedisi' : 'Diantar Kurir'}
             </Badge>
           </div>
 
@@ -356,7 +361,7 @@ export function OrderDetailsDialog({
           <div className="flex flex-col gap-2 pt-2">
             {order.status === 'NEW' && (
               <div className="space-y-3">
-                {order.delivery_type !== 'PICKUP' && (
+                {order.delivery_type === 'INTERNAL' && (
                   <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <Label className="text-sm font-semibold mb-3 block">Metode Pengiriman:</Label>
                     <RadioGroup 
@@ -389,9 +394,12 @@ export function OrderDetailsDialog({
                     disabled={isProcessing}
                   >
                     <Check className="h-4 w-4 mr-2" />
-                    {isProcessing ? "Memproses..." : 
-                      (order.delivery_type === 'PICKUP' ? "Terima Pesanan" : 
-                      (deliveryType === "self" ? "Proses & Kirim Sendiri" : "Proses & Pilih Kurir Desa"))}
+                    {isProcessing ? "Memproses..." :
+                      (order.delivery_type === 'PICKUP'
+                        ? "Terima Pesanan"
+                        : order.delivery_type === 'EXPEDITION'
+                          ? "Proses untuk Ekspedisi"
+                          : (deliveryType === "self" ? "Proses & Kirim Sendiri" : "Proses & Pilih Kurir Desa"))}
                   </Button>
                   <Button 
                     variant="destructive"
@@ -418,7 +426,7 @@ export function OrderDetailsDialog({
             )}
 
             {/* Opsi standar jika bukan kirim mandiri */}
-            {order.status === 'PROCESSED' && !order.is_self_delivery && (
+            {order.status === 'PROCESSED' && !order.is_self_delivery && order.delivery_type !== 'EXPEDITION' && (
               <Button 
                 className="w-full"
                 onClick={() => onUpdateStatus(order.id, 'SENT')}
@@ -427,8 +435,18 @@ export function OrderDetailsDialog({
                 Kirim
               </Button>
             )}
+
+            {order.status === 'PROCESSED' && order.delivery_type === 'EXPEDITION' && (
+              <Button
+                className="w-full"
+                onClick={() => onUpdateStatus(order.id, 'SENT')}
+              >
+                <Package className="h-4 w-4 mr-2" />
+                Tandai Diserahkan ke Ekspedisi
+              </Button>
+            )}
             
-            {order.status === 'SENT' && !order.is_self_delivery && (
+            {order.status === 'SENT' && !order.is_self_delivery && order.delivery_type !== 'EXPEDITION' && (
               <Button 
                 className="w-full"
                 onClick={() => onUpdateStatus(order.id, 'DONE')}

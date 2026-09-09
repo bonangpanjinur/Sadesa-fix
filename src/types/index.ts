@@ -141,6 +141,6 @@ export type ProductCategory = string;
 
 export type OrderStatus = 'NEW' | 'PROCESSED' | 'SENT' | 'DONE' | 'CANCELED';
 
-export type DeliveryType = 'PICKUP' | 'INTERNAL';
+export type DeliveryType = 'PICKUP' | 'INTERNAL' | 'EXPEDITION';
 
 export type UserRole = 'ADMIN' | 'ADMIN_DESA' | 'MERCHANT' | 'BUYER' | 'VERIFIER' | 'COURIER';

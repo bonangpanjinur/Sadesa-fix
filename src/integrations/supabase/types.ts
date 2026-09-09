@@ -1416,6 +1416,12 @@ export type Database = {
           delivery_address: string | null
           delivery_lat: number | null
           delivery_lng: number | null
+          delivery_province_id: string | null
+          delivery_province_name: string | null
+          delivery_city_id: string | null
+          delivery_city_name: string | null
+          delivery_district_id: string | null
+          delivery_district_name: string | null
           delivery_name: string | null
           delivery_phone: string | null
           delivery_type: string
@@ -1466,6 +1472,12 @@ export type Database = {
           delivery_address?: string | null
           delivery_lat?: number | null
           delivery_lng?: number | null
+          delivery_province_id?: string | null
+          delivery_province_name?: string | null
+          delivery_city_id?: string | null
+          delivery_city_name?: string | null
+          delivery_district_id?: string | null
+          delivery_district_name?: string | null
           delivery_name?: string | null
           delivery_phone?: string | null
           delivery_type?: string
@@ -1516,6 +1528,12 @@ export type Database = {
           delivery_address?: string | null
           delivery_lat?: number | null
           delivery_lng?: number | null
+          delivery_province_id?: string | null
+          delivery_province_name?: string | null
+          delivery_city_id?: string | null
+          delivery_city_name?: string | null
+          delivery_district_id?: string | null
+          delivery_district_name?: string | null
           delivery_name?: string | null
           delivery_phone?: string | null
           delivery_type?: string

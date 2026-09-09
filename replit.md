@@ -52,3 +52,12 @@ The bootstrap manifest records the SHA-256 and byte size of each release
 bundle. A passing local validation does not prove that the bundle has been
 applied to Supabase staging or production; those environments require the
 staging deployment and evidence workflow described in the business plan.
+
+## Local delivery rule
+
+Marketplace checkout uses `INTERNAL` for local ojek/kurir delivery and
+`EXPEDITION` when the destination is more than 10 km away, in a different
+kecamatan, or in a different kabupaten/kota from the merchant. The checkout
+automatically selects and locks the expedition option when a restriction
+applies. The database bootstrap includes the same validation so direct order
+inserts cannot bypass the rule.

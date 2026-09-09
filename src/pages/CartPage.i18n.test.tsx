@@ -40,8 +40,12 @@ const cartItem = {
 vi.mock('@/contexts/CartContext', () => ({
   useCart: () => ({
     items: [cartItem],
+    selectedItems: [cartItem],
+    selectedItemIds: ['p1'],
     updateQuantity: vi.fn(),
     removeFromCart: vi.fn(),
+    toggleItemSelection: vi.fn(),
+    selectAllItems: vi.fn(),
     getCartTotal: () => 30000,
     clearCart: vi.fn(),
   }),

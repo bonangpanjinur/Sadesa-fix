@@ -302,8 +302,11 @@ export default function MerchantOrdersPage() {
       header: 'Pengiriman',
       render: (item: OrderRow) => (
         <Badge variant="outline">
-          {item.delivery_type === 'PICKUP' ? 'Ambil Sendiri' : 
-           item.is_self_delivery ? 'Antar Sendiri' : 'Diantar'}
+          {item.delivery_type === 'PICKUP'
+            ? 'Ambil Sendiri'
+            : item.delivery_type === 'EXPEDITION'
+              ? 'Ekspedisi'
+              : item.is_self_delivery ? 'Antar Sendiri' : 'Diantar'}
         </Badge>
       ),
     },
@@ -583,8 +586,11 @@ export default function MerchantOrdersPage() {
                   </div>
                 )}
                 <Badge variant="outline" className="mt-2">
-                  {selectedOrder.delivery_type === 'PICKUP' ? 'Ambil Sendiri' : 
-                   selectedOrder.is_self_delivery ? 'Antar Sendiri' : 'Diantar Kurir'}
+                  {selectedOrder.delivery_type === 'PICKUP'
+                    ? 'Ambil Sendiri'
+                    : selectedOrder.delivery_type === 'EXPEDITION'
+                      ? 'Ekspedisi'
+                      : selectedOrder.is_self_delivery ? 'Antar Sendiri' : 'Diantar Kurir'}
                 </Badge>
               </div>
 
@@ -738,7 +744,7 @@ export default function MerchantOrdersPage() {
                   </Button>
                 </div>
               )}
-              {/* PROCESSED: show delivery choice for INTERNAL, or ready for PICKUP */}
+              {/* PROCESSED: show delivery choice for INTERNAL, or handoff for EXPEDITION/PICKUP */}
               {selectedOrder.status === 'PROCESSED' && (
                 selectedOrder.delivery_type === 'PICKUP' ? (
                   <Button 
@@ -747,6 +753,14 @@ export default function MerchantOrdersPage() {
                   >
                     <Package className="h-4 w-4 mr-2" />
                     Siap Diambil
+                  </Button>
+                ) : selectedOrder.delivery_type === 'EXPEDITION' ? (
+                  <Button
+                    className="w-full"
+                    onClick={() => handleUpdateStatus(selectedOrder.id, 'SENT')}
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Tandai Diserahkan ke Ekspedisi
                   </Button>
                 ) : (
                   <div className="space-y-3">

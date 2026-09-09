@@ -85,11 +85,13 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
           <p className="font-bold">Pelanggan:</p>
           <p>{order.delivery_name || '-'}</p>
           <p className="text-xs">{order.delivery_phone || '-'}</p>
-          {order.delivery_type === 'INTERNAL' && order.delivery_address && (
+          {order.delivery_type !== 'PICKUP' && order.delivery_address && (
             <p className="text-xs mt-1">{order.delivery_address}</p>
           )}
           <p className="text-xs mt-1">
-            {order.delivery_type === 'PICKUP' ? '📦 Ambil Sendiri' : '🛵 Diantar'}
+            {order.delivery_type === 'PICKUP'
+              ? '📦 Ambil Sendiri'
+              : order.delivery_type === 'EXPEDITION' ? '📦 Ekspedisi' : '🛵 Diantar'}
           </p>
         </div>
 

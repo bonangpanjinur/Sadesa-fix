@@ -22,6 +22,7 @@ import { fetchCODSettings, quickCODCheck, getBuyerCODStatus } from '@/lib/codSec
 import { validatePhone, isWhatsAppFormat } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
 import { buildMarketplaceOrderPayload } from '@/lib/marketplaceOrderContract';
+import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 
 type PaymentMethod = 'COD' | 'TRANSFER' | 'ONLINE';
 
@@ -52,7 +53,7 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
-  const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL'>('INTERNAL');
+  const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [notes, setNotes] = useState('');
@@ -103,6 +104,10 @@ export default function CheckoutPage() {
 
   // Get merchant location state (will be loaded after merchantIds are computed)
   const [merchantLocation, setMerchantLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [merchantRegion, setMerchantRegion] = useState<{
+    cityName: string | null;
+    districtName: string | null;
+  }>({ cityName: null, districtName: null });
 
   const subtotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   
@@ -131,6 +136,21 @@ export default function CheckoutPage() {
   
   const voucherDiscount = appliedVoucher?.discount || 0;
   const total = subtotal + shippingCost + codServiceFee - voucherDiscount;
+
+  const deliveryRestriction = useMemo(
+    () => getDeliveryRestriction(
+      distanceKm,
+      addressData.address,
+      merchantRegion,
+    ),
+    [distanceKm, addressData.address, merchantRegion],
+  );
+
+  useEffect(() => {
+    if (deliveryRestriction.requiresExpedition && deliveryType === 'INTERNAL') {
+      setDeliveryType('EXPEDITION');
+    }
+  }, [deliveryRestriction.requiresExpedition, deliveryType]);
 
   // Check COD eligibility when amount or distance changes
   useEffect(() => {
@@ -219,7 +239,7 @@ export default function CheckoutPage() {
       // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
       const { data } = await supabase
         .from('merchants')
-        .select('location_lat, location_lng, payment_cod_enabled, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
+        .select('location_lat, location_lng, province, city, district, payment_cod_enabled, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
         .eq('id', firstMerchantId)
         .maybeSingle();
       
@@ -230,6 +250,10 @@ export default function CheckoutPage() {
             lng: Number(data.location_lng),
           });
         }
+        setMerchantRegion({
+          cityName: data.city ?? null,
+          districtName: data.district ?? null,
+        });
         
         // If merchant has no bank info, load admin defaults
         let bankName = data.bank_name;
@@ -373,10 +397,13 @@ export default function CheckoutPage() {
     }
 
     // Only require map location for delivery, not pickup
-    if (deliveryType === 'INTERNAL' && !addressData.location) {
+    if (deliveryType !== 'PICKUP' && !addressData.location) {
       newErrors.location = 'Tentukan titik lokasi pengiriman di peta';
     }
-    // Skip location validation entirely for PICKUP
+
+    if (deliveryType === 'INTERNAL' && deliveryRestriction.requiresExpedition) {
+      newErrors.delivery = 'Alamat ini wajib menggunakan ekspedisi.';
+    }
     
     if (Object.keys(newErrors).length > 0) {
       console.warn('Validation failed:', newErrors);
@@ -479,7 +506,7 @@ export default function CheckoutPage() {
           (sum, item) => sum + item.product.price * item.quantity, 
           0
         );
-        const merchantShipping = deliveryType === 'INTERNAL' ? shippingCost : 0;
+        const merchantShipping = deliveryType !== 'PICKUP' ? shippingCost : 0;
         const merchantCodFee = paymentMethod === 'COD' ? codServiceFee : 0;
         // Apply voucher discount proportionally per merchant
         const merchantVoucherDiscount = Object.keys(itemsByMerchant).length === 1 
@@ -512,12 +539,18 @@ export default function CheckoutPage() {
             buyerId: user.id,
             merchantId,
             status: getOrderStatus(),
-            deliveryType,
+             deliveryType,
             deliveryName: addressData.name,
             deliveryPhone: addressData.phone,
             deliveryAddress: fullAddress,
             deliveryLat: addressData.location?.lat || null,
             deliveryLng: addressData.location?.lng || null,
+            deliveryProvinceId: addressData.address.province || null,
+            deliveryProvinceName: addressData.address.provinceName || null,
+            deliveryCityId: addressData.address.city || null,
+            deliveryCityName: addressData.address.cityName || null,
+            deliveryDistrictId: addressData.address.district || null,
+            deliveryDistrictName: addressData.address.districtName || null,
             shippingCost: merchantShipping,
             subtotal: merchantSubtotal,
             total: merchantTotal,
@@ -856,7 +889,7 @@ export default function CheckoutPage() {
         </motion.div>
 
         {/* Distance & ETA Info */}
-        {distanceKm !== null && deliveryType === 'INTERNAL' && (
+        {distanceKm !== null && deliveryType !== 'PICKUP' && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -887,6 +920,28 @@ export default function CheckoutPage() {
           </motion.div>
         )}
 
+        {deliveryType !== 'PICKUP' && deliveryRestriction.requiresExpedition && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4"
+            role="status"
+          >
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-semibold text-amber-900">Alamat ini wajib menggunakan ekspedisi</p>
+                <p className="text-xs text-amber-800 mt-1">
+                  Ojek/kurir lokal hanya tersedia sampai {MAX_LOCAL_DELIVERY_DISTANCE_KM} km dan dalam kecamatan serta kabupaten/kota yang sama.
+                </p>
+                <p className="text-xs text-amber-800 mt-1">
+                  Alasan: {deliveryRestriction.reasons.join(' dan ')}.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Delivery Method */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -901,16 +956,33 @@ export default function CheckoutPage() {
           
           <RadioGroup 
             value={deliveryType} 
-            onValueChange={(value) => setDeliveryType(value as 'PICKUP' | 'INTERNAL')}
+            onValueChange={(value) => setDeliveryType(value as 'PICKUP' | 'INTERNAL' | 'EXPEDITION')}
             className="space-y-2"
           >
             <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
               deliveryType === 'INTERNAL' ? 'border-primary bg-primary/5' : 'border-border'
-            }`}>
-              <RadioGroupItem value="INTERNAL" id="internal" />
+            } ${deliveryRestriction.requiresExpedition ? 'opacity-60 cursor-not-allowed' : ''}`}>
+              <RadioGroupItem value="INTERNAL" id="internal" disabled={deliveryRestriction.requiresExpedition} />
               <div className="flex-1">
                 <p className="font-bold text-sm">{t('shipping.delivery')}</p>
-                <p className="text-xs text-muted-foreground">{t('shipping.deliveryDesc')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {deliveryRestriction.requiresExpedition
+                    ? 'Tidak tersedia untuk alamat di luar jangkauan kurir lokal'
+                    : t('shipping.deliveryDesc')}
+                </p>
+              </div>
+              <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
+            </label>
+
+            <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
+              deliveryType === 'EXPEDITION' ? 'border-primary bg-primary/5' : 'border-border'
+            }`}>
+              <RadioGroupItem value="EXPEDITION" id="expedition" />
+              <div className="flex-1">
+                <p className="font-bold text-sm">Ekspedisi</p>
+                <p className="text-xs text-muted-foreground">
+                  Untuk jarak lebih dari {MAX_LOCAL_DELIVERY_DISTANCE_KM} km atau beda kecamatan/kabupaten
+                </p>
               </div>
               <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
             </label>
@@ -926,6 +998,9 @@ export default function CheckoutPage() {
               <span className="text-sm font-bold text-primary">{t('shipping.freeLabel')}</span>
             </label>
           </RadioGroup>
+          {errors.delivery && (
+            <p className="text-xs text-destructive mt-2" role="alert">{errors.delivery}</p>
+          )}
         </motion.div>
 
         {/* Payment Method */}
@@ -1090,7 +1165,7 @@ export default function CheckoutPage() {
       {/* Checkout Summary */}
       <div className="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-card border-t border-border p-5 shadow-lg">
         {/* Free shipping badge */}
-        {shippingSettings && subtotal >= shippingSettings.free_shipping_min_order && deliveryType === 'INTERNAL' && (
+        {shippingSettings && subtotal >= shippingSettings.free_shipping_min_order && deliveryType !== 'PICKUP' && (
           <div className="flex items-center gap-1.5 mb-2 text-xs text-emerald-600 font-medium">
             <CheckCircle className="h-3.5 w-3.5" />
             <span>{t('shipping.freeMinOrder', { min: formatCurrency(shippingSettings.free_shipping_min_order) })}</span>
