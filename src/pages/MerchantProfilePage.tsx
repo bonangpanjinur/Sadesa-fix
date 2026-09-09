@@ -270,6 +270,13 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
       return;
     }
     if (!merchant) return;
+    if (merchant.user_id === user.id) {
+      toast({
+        title: 'Ini toko Anda',
+        description: 'Buka menu Chat untuk membalas pesan dari pembeli.',
+      });
+      return;
+    }
     
     const { data: orders } = await supabase
       .from('orders')
@@ -689,11 +696,12 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
       <div className="absolute bottom-0 w-full bg-card border-t border-border p-3 px-4 shadow-lg z-20">
         <Button
           onClick={handleChatClick}
+          disabled={Boolean(user?.id && merchant.user_id === user.id)}
           className="w-full bg-primary text-primary-foreground shadow-brand font-bold"
           size="sm"
         >
           <MessageCircle className="h-4 w-4 mr-2" />
-          Chat Penjual
+          {user?.id && merchant.user_id === user.id ? 'Toko Anda' : 'Chat Penjual'}
         </Button>
       </div>
 

@@ -109,7 +109,11 @@ export default function BuyerChatPage() {
         const merchant = [...(merchantsByUser || []), ...(merchantsById || [])]
           .find(m => m.user_id === thread.otherUserId || m.id === thread.merchantId);
         const courier = (couriers || []).find(c => c.user_id === thread.otherUserId);
-        thread.otherUserName = profile?.full_name?.trim() || merchant?.name?.trim() || courier?.name?.trim() || (thread.chatType === 'buyer_courier' ? 'Kurir' : 'Penjual');
+        // Buyer-facing chat identifies a merchant by the store name, never by
+        // the owner's profile/account name.
+        thread.otherUserName = thread.chatType === 'buyer_merchant'
+          ? merchant?.name?.trim() || profile?.full_name?.trim() || 'Penjual'
+          : profile?.full_name?.trim() || courier?.name?.trim() || 'Kurir';
       }
 
       // Fetch order items for product info
