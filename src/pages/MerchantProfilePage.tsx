@@ -283,14 +283,13 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
     if (orders && orders.length > 0) {
       setChatOrderId(orders[0].id);
       setChatOpen(true);
-    } else if (merchant.phone) {
-      const phone = merchant.phone.replace(/\D/g, '');
-      const formattedPhone = phone.startsWith('0') ? '62' + phone.slice(1) : phone;
-      window.open(`https://wa.me/${formattedPhone}`, '_blank');
+    } else if (merchant.user_id) {
+      setChatOrderId(null);
+      setChatOpen(true);
     } else {
       toast({
         title: 'Belum bisa chat',
-        description: 'Buat pesanan terlebih dahulu untuk chat dengan penjual',
+        description: 'Penjual belum memiliki akun chat di SaDesa',
       });
     }
   };
@@ -699,9 +698,11 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
       </div>
 
       {/* Chat Modal */}
-      {chatOrderId && merchant.user_id && (
+      {merchant.user_id && (
         <OrderChat
-          orderId={chatOrderId}
+          orderId={chatOrderId || undefined}
+          contextType={chatOrderId ? 'order' : 'direct'}
+          merchantId={merchant.id}
           otherUserId={merchant.user_id as string}
           otherUserName={merchant.name}
           isOpen={chatOpen}

@@ -49,6 +49,17 @@ export async function getOrCreateConversation(
   return { conversationId: typeof data === 'string' ? data : null, error: null };
 }
 
+export async function getOrCreateDirectConversation(
+  merchantId: string,
+): Promise<{ conversationId: string | null; error: Error | null }> {
+  const { data, error } = await supabase.rpc('get_or_create_direct_chat' as never, {
+    p_merchant_id: merchantId,
+  } as never);
+
+  if (error) return { conversationId: null, error };
+  return { conversationId: typeof data === 'string' ? data : null, error: null };
+}
+
 export async function listConversationMessages(
   conversationId: string,
   limit = 50,

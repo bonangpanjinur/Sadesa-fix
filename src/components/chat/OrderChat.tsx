@@ -11,6 +11,7 @@ import { id as idLocale } from 'date-fns/locale';
 import { formatPrice } from '@/lib/utils';
 import {
   getOrCreateConversation,
+  getOrCreateDirectConversation,
   listConversationMessages,
   markConversationRead,
   sendConversationMessage,
@@ -51,9 +52,10 @@ interface OrderInfo {
 }
 
 interface OrderChatProps {
-  orderId: string;
+  orderId?: string;
   contextType?: ChatContextType;
   rideRequestId?: string;
+  merchantId?: string;
   otherUserId: string;
   otherUserName: string;
   isOpen: boolean;
@@ -68,7 +70,7 @@ const QUICK_REPLIES: Record<string, string[]> = {
   buyer_merchant: ['Apakah stok masih ada?', 'Kapan pesanan saya dikirim?', 'Terima kasih!'],
 };
 
-export function OrderChat({ orderId, contextType = 'order', rideRequestId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {
+export function OrderChat({ orderId, contextType = 'order', rideRequestId, merchantId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {
   const { user } = useAuth();
   const { playNotificationSound, isEnabled: isSoundEnabled, setIsEnabled: setIsSoundEnabled } = useChatNotification();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -90,8 +92,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
 
   // Fetch order info (items + products)
   useEffect(() => {
-    if (!isOpen || !orderId) return;
-    if (contextType === 'ride') {
+    if (!isOpen || !orderId || contextType !== 'order') {
       setOrderInfo(null);
       return;
     }
@@ -210,7 +211,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
   }, [isOpen, senderIdsKey, senderNames]);
 
   useEffect(() => {
-    if (!isOpen || !orderId || !user) return;
+    if (!isOpen || !user) return;
 
     let active = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -236,12 +237,15 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
     };
 
     const loadCanonicalConversation = async () => {
-      const { conversationId, error } = await getOrCreateConversation({
-        contextType,
-        orderId: contextType === 'order' ? orderId : undefined,
-        rideRequestId: contextType === 'ride' ? (rideRequestId || orderId) : undefined,
-        conversationType: contextType === 'ride' ? 'passenger_courier' : chatType,
-      });
+      const result = contextType === 'direct' && merchantId
+        ? await getOrCreateDirectConversation(merchantId)
+        : await getOrCreateConversation({
+            contextType,
+            orderId: contextType === 'order' ? orderId : undefined,
+            rideRequestId: contextType === 'ride' ? (rideRequestId || orderId) : undefined,
+            conversationType: contextType === 'ride' ? 'passenger_courier' : chatType,
+          });
+      const { conversationId, error } = result;
 
       if (!active) return;
 
@@ -280,8 +284,9 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
 
       // During the additive rollout, old environments still use the legacy
       // order-scoped subscription until the new SQL bundle is applied.
-      if (contextType === 'ride') {
+      if (contextType === 'ride' || contextType === 'direct' || !orderId) {
         setConnectionStatus('offline');
+        setSendError('Chat belum tersedia. Periksa koneksi atau minta admin menerapkan pembaruan database chat.');
         return;
       }
       setConversationId(null);
@@ -321,7 +326,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
       if (channel) void supabase.removeChannel(channel);
       setConversationId(null);
     };
-  }, [contextType, isOpen, orderId, rideRequestId, user, chatType, playNotificationSound]);
+  }, [contextType, isOpen, orderId, rideRequestId, merchantId, user, chatType, playNotificationSound]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -355,7 +360,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
               new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
             ));
         }
-      } else {
+      } else if (contextType === 'order' && orderId) {
         const { data, error } = await supabase.from('chat_messages').insert({
           order_id: orderId,
           sender_id: user.id,
@@ -435,7 +440,11 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
             <div>
               <h3 className="font-semibold text-sm">{otherUserName}</h3>
           <p className="text-[10px] text-muted-foreground">
-            {contextType === 'ride' ? 'Perjalanan ojek' : `Order #${orderInfo?.shortId || '...'}`}
+             {contextType === 'ride'
+               ? 'Perjalanan ojek'
+               : contextType === 'direct'
+                 ? 'Chat langsung di SaDesa'
+                 : `Order #${orderInfo?.shortId || '...'}`}
             {connectionStatus !== 'connected' && ' · Menghubungkan ulang...'}
               </p>
             </div>
@@ -528,7 +537,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, other
                       "max-w-[85%] px-3 py-2 rounded-2xl text-sm shadow-sm",
                       isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted rounded-tl-none"
                     )}>
-                      {msg.message}
+                       {msg.body || msg.message}
                       <div className={cn(
                         "text-[9px] mt-1 flex items-center justify-end gap-1 opacity-70",
                         isMe ? "text-primary-foreground" : "text-muted-foreground"

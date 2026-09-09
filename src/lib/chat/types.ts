@@ -1,4 +1,4 @@
-export type ChatContextType = 'order' | 'ride';
+export type ChatContextType = 'order' | 'ride' | 'direct';
 
 export type ConversationType =
   | 'buyer_merchant'
@@ -11,6 +11,7 @@ export interface ChatConversation {
   context_type: ChatContextType;
   order_id: string | null;
   ride_request_id: string | null;
+  merchant_id: string | null;
   conversation_type: ConversationType;
   status: 'active' | 'closed' | 'archived';
   last_message_id: string | null;

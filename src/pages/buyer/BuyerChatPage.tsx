@@ -15,7 +15,9 @@ import { safeGoBack } from '@/lib/utils';
 import { logRealtimeStatus, isRealtimeFailure, type RealtimeStatus } from '@/lib/realtimeTelemetry';
 
 interface ChatThread {
-  orderId: string;
+  orderId: string | null;
+  merchantId: string | null;
+  conversationId: string | null;
   otherUserId: string;
   otherUserName: string;
   lastMessage: string;
@@ -49,11 +51,13 @@ export default function BuyerChatPage() {
 
       const threadMap = new Map<string, ChatThread>();
       for (const msg of messages) {
-        const key = `${msg.order_id}-${msg.chat_type}`;
+        const key = msg.conversation_id || `${msg.order_id}-${msg.chat_type}`;
         if (!threadMap.has(key)) {
           const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
           threadMap.set(key, {
             orderId: msg.order_id,
+            merchantId: null,
+            conversationId: msg.conversation_id,
             otherUserId,
             otherUserName: '',
             lastMessage: msg.message,
@@ -64,6 +68,24 @@ export default function BuyerChatPage() {
         }
         if (msg.receiver_id === user.id && !msg.is_read) {
           threadMap.get(key)!.unreadCount++;
+        }
+      }
+
+      const directConversationIds = [...threadMap.values()]
+        .map((thread) => thread.conversationId)
+        .filter((conversationId): conversationId is string => Boolean(conversationId));
+      if (directConversationIds.length > 0) {
+        const { data: conversations } = await supabase
+          .from('chat_conversations')
+          .select('id, merchant_id')
+          .in('id', directConversationIds);
+        const merchantByConversation = new Map(
+          (conversations || []).map((conversation) => [conversation.id, conversation.merchant_id]),
+        );
+        for (const thread of threadMap.values()) {
+          if (thread.conversationId) {
+            thread.merchantId = merchantByConversation.get(thread.conversationId) || null;
+          }
         }
       }
 
@@ -83,7 +105,7 @@ export default function BuyerChatPage() {
       }
 
       // Fetch order items for product info
-      const orderIds = [...new Set([...threadMap.values()].map(t => t.orderId))];
+      const orderIds = [...new Set([...threadMap.values()].map(t => t.orderId).filter(Boolean))] as string[];
       if (orderIds.length > 0) {
         const { data: orderItems } = await supabase
           .from('order_items')
@@ -204,7 +226,7 @@ export default function BuyerChatPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map(thread => (
-              <Card key={`${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => setSelectedThread(thread)}>
+               <Card key={thread.conversationId || `${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => setSelectedThread(thread)}>
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                     {thread.productImage ? (
@@ -240,6 +262,8 @@ export default function BuyerChatPage() {
       {selectedThread && (
         <OrderChat
           orderId={selectedThread.orderId}
+          contextType={selectedThread.orderId ? 'order' : 'direct'}
+          merchantId={selectedThread.merchantId || undefined}
           otherUserId={selectedThread.otherUserId}
           otherUserName={selectedThread.otherUserName}
           chatType={selectedThread.chatType}
