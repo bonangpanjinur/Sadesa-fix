@@ -10,6 +10,7 @@ const abuse = read('supabase/bootstrap/36_20260909130000_chat_rls_rpc_abuse_cont
 const retention = read('supabase/bootstrap/37_20260909140000_chat_retention_operations.sql');
 const notification = read('supabase/bootstrap/38_20260909150000_chat_notification_observability.sql');
 const roleAwareNotification = read('supabase/bootstrap/41_20260909152000_role_aware_chat_notifications.sql');
+const finalNotificationRepair = read('supabase/bootstrap/42_20260909170000_chat_notification_final_repair.sql');
 const repository = read('src/lib/chat/repository.ts');
 const realtime = read('src/lib/chat/realtime.ts');
 const rollout = read('src/lib/chat/rollout.ts');
@@ -55,6 +56,10 @@ describe('chat phase 8 acceptance matrix contract', () => {
     expect(roleAwareNotification).not.toMatch(/FULL\s+JOIN/i);
     expect(roleAwareNotification).toContain('send_chat_notification');
     expect(roleAwareNotification).toContain('RAISE WARNING');
+    expect(finalNotificationRepair).toContain('CREATE TRIGGER chat_messages_notify_recipient');
+    expect(finalNotificationRepair).toContain('notifications_chat_idempotency_uidx');
+    expect(finalNotificationRepair).toContain('ON CONFLICT (user_id, idempotency_key)');
+    expect(finalNotificationRepair).toContain('TO service_role');
   });
 
   it('keeps production disabled by default and gates pilot by role/domain/user', () => {
