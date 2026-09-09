@@ -36,6 +36,28 @@ export function NotificationDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
 
+  const refreshNotifications = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) {
+      console.error('[notifications] refresh failed', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        userId: user.id,
+      });
+      return;
+    }
+    setNotifications(data || []);
+    setUnreadCount((data || []).filter(n => !n.is_read).length);
+  };
+
   useEffect(() => {
     if (!user) return;
 
@@ -66,8 +88,9 @@ export function NotificationDropdown() {
 
     fetchNotifications();
 
+    const channelName = `notifications-${user.id}`;
     const channel = supabase
-      .channel('notifications')
+      .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const n = payload.new as Notification;
@@ -89,7 +112,17 @@ export function NotificationDropdown() {
           });
         }
       )
-      .subscribe();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => {
+        // Chat realtime is already active for this user. Refresh notifications
+        // immediately in case the notifications channel misses its INSERT.
+        void refreshNotifications();
+      });
+
+    channel.subscribe((status, error) => {
+      if (status !== 'SUBSCRIBED') {
+        console.warn('[notifications] realtime status', { channelName, status, error: error?.message });
+      }
+    });
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
@@ -99,22 +132,8 @@ export function NotificationDropdown() {
   // missed INSERT event cannot hide a new chat notification.
   useEffect(() => {
     if (!user || !open) return;
-    const refresh = async () => {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (error) {
-        console.error('[notifications] refresh failed', { code: error.code, message: error.message, userId: user.id });
-        return;
-      }
-      setNotifications(data || []);
-      setUnreadCount((data || []).filter(n => !n.is_read).length);
-    };
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 15000);
+    void refreshNotifications();
+    const timer = window.setInterval(() => void refreshNotifications(), 15000);
     return () => window.clearInterval(timer);
   }, [open, user]);
 

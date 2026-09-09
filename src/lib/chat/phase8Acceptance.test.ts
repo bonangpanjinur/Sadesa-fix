@@ -62,7 +62,7 @@ describe('chat phase 8 acceptance matrix contract', () => {
     expect(finalNotificationRepair).toContain('ON CONFLICT (user_id, idempotency_key)');
     expect(finalNotificationRepair).toContain('TO service_role');
     expect(notificationDropdown).toContain("[notifications] refresh failed");
-    expect(notificationDropdown).toContain('setInterval(() => void refresh(), 15000)');
+    expect(notificationDropdown).toContain('setInterval(() => void refreshNotifications(), 15000)');
     expect(notificationDropdown).toContain('prev.some(item => item.id === n.id)');
   });
 
