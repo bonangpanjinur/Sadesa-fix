@@ -1,179 +1,59 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type {
-  ChatContextType,
-  ChatConversation,
-  ConversationMessage,
-  ConversationType,
-} from './types';
-
-type ChatQueryError = { code?: string; message?: string } | null;
-
-const isSchemaCompatibilityError = (error: ChatQueryError) => {
-  if (!error) return false;
-  return ['42703', '42P01', 'PGRST204', 'PGRST205'].includes(error.code || '')
-    || /column .* does not exist|schema cache|relation .* does not exist/i.test(error.message || '');
-};
+import type { ChatContextType, ChatConversation, ChatCursor, ChatInboxItem, ChatPage, ConversationMessage, ConversationType } from './types';
+import { toChatError } from './errors';
 
 const normalizeMessage = (message: Record<string, unknown>): ConversationMessage => ({
   ...message,
   body: typeof message.body === 'string' ? message.body : (message.message as string),
+  deliveryStatus: 'sent',
 } as ConversationMessage);
 
-interface ConversationRequest {
-  contextType: ChatContextType;
-  orderId?: string;
-  rideRequestId?: string;
-  conversationType: ConversationType;
+export interface ConversationRequest { contextType: ChatContextType; orderId?: string; rideRequestId?: string; conversationType: ConversationType; }
+export interface SendMessageRequest extends ConversationRequest { conversationId: string; senderId: string; receiverId: string; text: string; clientMessageId: string; }
+
+export async function getOrCreateConversation(request: ConversationRequest) {
+  const { data, error } = await supabase.rpc('get_or_create_chat_conversation', { p_context_type: request.contextType, p_order_id: request.orderId ?? null, p_ride_request_id: request.rideRequestId ?? null, p_conversation_type: request.conversationType });
+  return { conversationId: typeof data === 'string' ? data : null, error: error ? toChatError(error) : null };
 }
 
-interface SendMessageRequest extends ConversationRequest {
-  conversationId: string;
-  senderId: string;
-  receiverId: string;
-  text: string;
-  clientMessageId: string;
+export async function getOrCreateDirectConversation(merchantId: string) {
+  const { data, error } = await supabase.rpc('get_or_create_direct_chat' as never, { p_merchant_id: merchantId } as never);
+  return { conversationId: typeof data === 'string' ? data : null, error: error ? toChatError(error) : null };
 }
 
-export async function getOrCreateConversation(
-  request: ConversationRequest,
-): Promise<{ conversationId: string | null; error: Error | null }> {
-  const { data, error } = await supabase.rpc('get_or_create_chat_conversation', {
-    p_context_type: request.contextType,
-    p_order_id: request.orderId ?? null,
-    p_ride_request_id: request.rideRequestId ?? null,
-    p_conversation_type: request.conversationType,
-  });
-
-  if (error) return { conversationId: null, error };
-  return { conversationId: typeof data === 'string' ? data : null, error: null };
+export async function listConversationMessages(conversationId: string, limit = 50, cursor?: ChatCursor): Promise<{ messages: ConversationMessage[]; error: Error | null }> {
+  let query = supabase.from('chat_messages').select('*').eq('conversation_id', conversationId).is('deleted_at', null).order('created_at', { ascending: true }).order('id', { ascending: true }).limit(limit);
+  if (cursor) query = query.or(`created_at.gt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.gt.${cursor.id})`);
+  const { data, error } = await query;
+  return { messages: (data || []).map((row) => normalizeMessage(row as Record<string, unknown>)), error: error ? toChatError(error) : null };
 }
 
-export async function getOrCreateDirectConversation(
-  merchantId: string,
-): Promise<{ conversationId: string | null; error: Error | null }> {
-  const { data, error } = await supabase.rpc('get_or_create_direct_chat' as never, {
-    p_merchant_id: merchantId,
-  } as never);
-
-  if (error) return { conversationId: null, error };
-  return { conversationId: typeof data === 'string' ? data : null, error: null };
+export async function listConversationPage(conversationId: string, limit = 50, cursor?: ChatCursor): Promise<{ page: ChatPage; error: Error | null }> {
+  const result = await listConversationMessages(conversationId, limit + 1, cursor);
+  const messages = result.messages.slice(0, limit);
+  const last = messages.at(-1);
+  return { page: { messages, nextCursor: result.messages.length > limit && last ? { createdAt: last.created_at, id: last.id } : null }, error: result.error };
 }
 
-export async function listConversationMessages(
-  conversationId: string,
-  limit = 50,
-): Promise<{ messages: ConversationMessage[]; error: Error | null }> {
-  const canonical = await supabase
-    .from('chat_messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(limit);
-  let data = canonical.data;
-  let error = canonical.error;
-
-  if (error && isSchemaCompatibilityError(error)) {
-    const compatible = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
-      .order('id', { ascending: true })
-      .limit(limit);
-    data = compatible.data;
-    error = compatible.error;
-  }
-
-  return {
-    messages: (data || []).map((message) => normalizeMessage(message as Record<string, unknown>)),
-    error,
-  };
+export async function listChatInbox(): Promise<{ items: ChatInboxItem[]; error: Error | null }> {
+  const { data, error } = await supabase.from('chat_conversations').select('*').order('last_message_at', { ascending: false, nullsFirst: false });
+  return { items: (data || []).map((row) => ({ ...row, other_user_id: null, other_user_name: 'Pengguna', last_message_preview: row.last_message_body || 'Belum ada pesan' })) as ChatInboxItem[], error: error ? toChatError(error) : null };
 }
 
-export async function sendConversationMessage(
-  request: SendMessageRequest,
-): Promise<{ message: ConversationMessage | null; error: Error | null }> {
-  const { data, error } = await supabase.rpc('send_chat_message' as never, {
-    p_conversation_id: request.conversationId,
-    p_receiver_id: request.receiverId,
-    p_body: request.text,
-    p_client_message_id: request.clientMessageId,
-  } as never);
-
-  if (!error && data) {
-    return {
-      message: normalizeMessage(data as Record<string, unknown>),
-      error: null,
-    };
-  }
-
-  // A timeout can happen after PostgreSQL committed the insert. The unique
-  // client id makes retry safe and lets us recover the committed row.
-  if (request.clientMessageId) {
-    const retry = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('sender_id', request.senderId)
-      .eq('client_message_id', request.clientMessageId)
-      .maybeSingle();
-    if (retry.data) return { message: normalizeMessage(retry.data as Record<string, unknown>), error: null };
-  }
-
-  return { message: null, error };
+export async function sendConversationMessage(request: SendMessageRequest) {
+  const { data, error } = await supabase.rpc('send_chat_message' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: request.text, p_client_message_id: request.clientMessageId } as never);
+  if (!error && data) return { message: normalizeMessage(data as Record<string, unknown>), error: null };
+  const retry = await supabase.from('chat_messages').select('*').eq('sender_id', request.senderId).eq('client_message_id', request.clientMessageId).maybeSingle();
+  if (retry.data) return { message: normalizeMessage(retry.data as Record<string, unknown>), error: null };
+  return { message: null, error: error ? toChatError(error) : toChatError(new Error('Pesan belum terkirim')) };
 }
 
-export async function markConversationRead(
-  conversationId: string,
-  messageId?: string,
-): Promise<Error | null> {
-  const { error } = await supabase.rpc('mark_chat_conversation_read', {
-    p_conversation_id: conversationId,
-    p_message_id: messageId ?? null,
-  });
-  return error;
-}
+export async function markConversationRead(conversationId: string, messageId?: string) { const { error } = await supabase.rpc('mark_chat_conversation_read', { p_conversation_id: conversationId, p_message_id: messageId ?? null }); return error ? toChatError(error) : null; }
+export async function getConversationUnreadCount() { const { data, error } = await supabase.rpc('get_chat_unread_count'); return { count: typeof data === 'number' ? data : Number(data || 0), error: error ? toChatError(error) : null }; }
 
-export async function getConversationUnreadCount(): Promise<{
-  count: number;
-  error: Error | null;
-}> {
-  const { data, error } = await supabase.rpc('get_chat_unread_count');
-  return { count: typeof data === 'number' ? data : Number(data || 0), error };
-}
-
-export function subscribeToConversation(
-  conversationId: string,
-  onInsert: (message: ConversationMessage) => void,
-  onStatus: (status: string, error?: unknown) => void,
-  onUpdate?: (message: ConversationMessage) => void,
-): RealtimeChannel {
-  const channelName = `chat-conversation-${conversationId}`;
-  const channel = supabase
-    .channel(channelName)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => onInsert(payload.new as ConversationMessage),
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'chat_messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
-      (payload) => onUpdate?.(payload.new as ConversationMessage),
-    );
-
+export function subscribeToConversation(conversationId: string, onInsert: (message: ConversationMessage) => void, onStatus: (status: string, error?: unknown) => void, onUpdate?: (message: ConversationMessage) => void): RealtimeChannel {
+  const channel = supabase.channel(`chat-conversation-${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => onInsert(normalizeMessage(payload.new as Record<string, unknown>))).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => onUpdate?.(normalizeMessage(payload.new as Record<string, unknown>)));
   channel.subscribe((status, error) => onStatus(status, error));
   return channel;
 }
