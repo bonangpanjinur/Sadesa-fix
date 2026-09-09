@@ -49,6 +49,8 @@ interface MerchantData {
   name: string;
   address: string | null;
   google_maps_url: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   phone: string | null;
   image_url: string | null;
   is_open: boolean;
@@ -337,15 +339,19 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
 
   // Gallery images for lightbox
   const galleryUrls = gallery.map(g => g.image_url);
+  const mapUrl = merchant.google_maps_url
+    || (typeof merchant.location_lat === 'number' && typeof merchant.location_lng === 'number'
+      ? `https://www.google.com/maps?q=${merchant.location_lat},${merchant.location_lng}`
+      : null);
 
   return (
     <div className="mobile-shell bg-background flex flex-col min-h-screen relative">
       <div className="flex-1 overflow-y-auto pb-20">
         {/* Hero Image */}
         <div className="relative h-40 bg-gradient-to-br from-primary/20 to-primary/5">
-          {merchant.image_url ? (
+          {merchant.cover_image_url || merchant.image_url ? (
             <img 
-              src={merchant.image_url} 
+              src={merchant.cover_image_url || merchant.image_url || undefined} 
               alt={merchant.name}
               className="w-full h-full object-cover"
             />
@@ -615,15 +621,15 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   {merchant.address && (
                     <p className="text-xs text-muted-foreground mb-1">{merchant.address}</p>
                   )}
-                  {merchant.google_maps_url && (
+                  {mapUrl && (
                     <a
-                      href={merchant.google_maps_url}
+                      href={mapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      Buka lokasi di Google Maps
+                      Buka lokasi di peta
                     </a>
                   )}
                   {(merchant.subdistrict || merchant.district || merchant.city) && (

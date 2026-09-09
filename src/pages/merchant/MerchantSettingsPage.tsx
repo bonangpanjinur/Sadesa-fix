@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Save, Store, Clock, MapPin, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Save, Store, Clock, MapPin, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff, Navigation } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,12 +16,21 @@ import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BUSINESS_CATEGORY_OPTIONS, BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
 import { merchantSettingsSchema } from '@/lib/validationSchemas';
+import { AddressDropdowns } from '@/components/admin/AddressDropdowns';
+import { MerchantLocationPicker } from '@/components/merchant/MerchantLocationPicker';
+import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages } from '@/lib/addressApi';
 
 interface MerchantData {
   id: string;
   name: string;
   phone: string | null;
   address: string | null;
+  province: string | null;
+  city: string | null;
+  district: string | null;
+  subdistrict: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   google_maps_url: string | null;
   business_category: string | null;
   business_description: string | null;
@@ -29,6 +38,7 @@ interface MerchantData {
   close_time: string | null;
   is_open: boolean;
   image_url: string | null;
+  cover_image_url: string | null;
   order_mode: string;
   classification_price: string | null;
   bank_name: string | null;
@@ -58,7 +68,10 @@ export default function MerchantSettingsPage() {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
-    name: '', phone: '', address: '', google_maps_url: '', business_category: '',
+    name: '', phone: '', address: '', province: '', city: '', district: '', subdistrict: '',
+    province_code: '', city_code: '', district_code: '', subdistrict_code: '',
+    location_lat: null as number | null, location_lng: null as number | null,
+    google_maps_url: '', business_category: '',
     business_description: '', open_time: '08:00', close_time: '17:00',
     is_open: false, classification_price: '', order_mode: 'ADMIN_ASSISTED',
     bank_name: '', bank_account_number: '', bank_account_name: '',
@@ -66,6 +79,7 @@ export default function MerchantSettingsPage() {
     notification_sound_enabled: true, verifikator_code: '', slug: '',
   });
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
 
   const { data: merchant, isLoading: fetchLoading } = useQuery<MerchantData | null>({
@@ -74,7 +88,7 @@ export default function MerchantSettingsPage() {
       if (!guardMerchantId) return null;
       const { data, error } = await supabase
         .from('merchants')
-        .select('id, name, phone, address, google_maps_url, business_category, business_description, open_time, close_time, is_open, image_url, order_mode, classification_price, bank_name, bank_account_number, bank_account_name, qris_image_url, payment_cod_enabled, payment_transfer_enabled, notification_sound_enabled, halal_status, halal_certificate_url, ktp_url, verifikator_code, slug')
+        .select('id, name, phone, address, province, city, district, subdistrict, location_lat, location_lng, google_maps_url, business_category, business_description, open_time, close_time, is_open, image_url, cover_image_url, order_mode, classification_price, bank_name, bank_account_number, bank_account_name, qris_image_url, payment_cod_enabled, payment_transfer_enabled, notification_sound_enabled, halal_status, halal_certificate_url, ktp_url, verifikator_code, slug')
         .eq('id', guardMerchantId)
         .maybeSingle();
       if (error) throw error;
@@ -91,6 +105,16 @@ export default function MerchantSettingsPage() {
       name: merchant.name || '',
       phone: merchant.phone || '',
       address: merchant.address || '',
+      province: merchant.province || '',
+      city: merchant.city || '',
+      district: merchant.district || '',
+      subdistrict: merchant.subdistrict || '',
+      province_code: '',
+      city_code: '',
+      district_code: '',
+      subdistrict_code: '',
+      location_lat: merchant.location_lat === null || merchant.location_lat === undefined ? null : Number(merchant.location_lat),
+      location_lng: merchant.location_lng === null || merchant.location_lng === undefined ? null : Number(merchant.location_lng),
       google_maps_url: merchant.google_maps_url || '',
       business_category: merchant.business_category || '',
       business_description: merchant.business_description || '',
@@ -109,7 +133,38 @@ export default function MerchantSettingsPage() {
       slug: merchant.slug || '',
     });
     setImageUrl(merchant.image_url);
+    setCoverImageUrl(merchant.cover_image_url);
     setQrisImageUrl(merchant.qris_image_url);
+
+    let active = true;
+    const resolveAddressCodes = async () => {
+      try {
+        const provinces = await fetchProvinces();
+        const province = provinces.find(item => item.name.trim().toLowerCase() === (merchant.province || '').trim().toLowerCase());
+        if (!province) return;
+        const cities = await fetchRegencies(province.code);
+        const city = cities.find(item => item.name.trim().toLowerCase() === (merchant.city || '').trim().toLowerCase());
+        if (!city) return;
+        const districts = await fetchDistricts(city.code);
+        const district = districts.find(item => item.name.trim().toLowerCase() === (merchant.district || '').trim().toLowerCase());
+        if (!district) return;
+        const subdistricts = await fetchVillages(district.code);
+        const subdistrict = subdistricts.find(item => item.name.trim().toLowerCase() === (merchant.subdistrict || '').trim().toLowerCase());
+        if (active) {
+          setFormData(prev => ({
+            ...prev,
+            province_code: province.code,
+            city_code: city.code,
+            district_code: district.code,
+            subdistrict_code: subdistrict?.code || '',
+          }));
+        }
+      } catch (error) {
+        console.warn('Gagal memuat kode wilayah toko:', error);
+      }
+    };
+    void resolveAddressCodes();
+    return () => { active = false; };
   }, [merchant]);
 
   const saveMutation = useMutation({
@@ -124,6 +179,12 @@ export default function MerchantSettingsPage() {
         name: settings.name,
         phone: settings.phone || null,
         address: settings.address || null,
+        province: settings.province || null,
+        city: settings.city || null,
+        district: settings.district || null,
+        subdistrict: settings.subdistrict || null,
+        location_lat: settings.location_lat,
+        location_lng: settings.location_lng,
         google_maps_url: settings.google_maps_url || null,
         business_category: settings.business_category || null,
         business_description: settings.business_description || null,
@@ -133,6 +194,7 @@ export default function MerchantSettingsPage() {
         classification_price: settings.classification_price || null,
         order_mode: settings.order_mode,
         image_url: imageUrl || null,
+        cover_image_url: coverImageUrl || null,
         bank_name: settings.bank_name || null,
         bank_account_number: settings.bank_account_number || null,
         bank_account_name: settings.bank_account_name || null,
@@ -169,6 +231,10 @@ export default function MerchantSettingsPage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleLocationChange = useCallback((location: { lat: number; lng: number }) => {
+    setFormData(prev => ({ ...prev, location_lat: location.lat, location_lng: location.lng }));
+  }, []);
+
   const loading = guardLoading || fetchLoading;
 
   if (loading) {
@@ -197,8 +263,17 @@ export default function MerchantSettingsPage() {
             <CardTitle className="text-base flex items-center gap-2"><Store className="h-5 w-5" />Foto Toko</CardTitle>
             <CardDescription>Foto utama yang ditampilkan di halaman toko</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ImageUpload value={imageUrl} onChange={setImageUrl} bucket="merchant-images" path={`store/${merchant.id}`} aspectRatio="wide" stableFileName />
+          <CardContent className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Foto Profil</Label>
+              <ImageUpload value={imageUrl} onChange={setImageUrl} bucket="merchant-images" path={`store/${merchant.id}/profile`} aspectRatio="square" stableFileName placeholder="Upload foto profil toko" />
+              <p className="text-xs text-muted-foreground">Foto yang mewakili toko di kartu dan daftar merchant.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Foto Sampul</Label>
+              <ImageUpload value={coverImageUrl} onChange={setCoverImageUrl} bucket="merchant-images" path={`store/${merchant.id}/cover`} aspectRatio="wide" stableFileName placeholder="Upload foto sampul toko" />
+              <p className="text-xs text-muted-foreground">Banner yang tampil di bagian atas profil publik toko.</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -269,26 +344,68 @@ export default function MerchantSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><MapPin className="h-5 w-5" />Lokasi</CardTitle>
+              <CardDescription>Lengkapi alamat agar pelanggan dan kurir dapat menemukan toko dengan tepat.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="address">Alamat Lengkap</Label>
-              <Textarea id="address" name="address" value={formData.address} onChange={handleChange} maxLength={500} rows={2} placeholder="Jalan, RT/RW, Desa..." />
-            </div>
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="google_maps_url">Link Google Maps</Label>
-              <Input
-                id="google_maps_url"
-                name="google_maps_url"
-                type="url"
-                value={formData.google_maps_url}
-                onChange={handleChange}
-                maxLength={2048}
-                placeholder="https://maps.google.com/?q=..."
+            <CardContent className="space-y-5">
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">Alamat pengantaran</p>
+                <p className="mt-1 text-xs">Isi detail jalan/nomor rumah, lalu pilih wilayah administratif. Data ini dipakai di profil toko dan membantu penentuan pengiriman.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Alamat Jalan & Detail <span className="text-destructive">*</span></Label>
+                <Textarea id="address" name="address" value={formData.address} onChange={handleChange} maxLength={500} rows={3} required placeholder="Contoh: Jl. Siliwangi No. 12, RT 02/RW 04, dekat Pasar..." />
+                <p className="text-xs text-muted-foreground">{formData.address.length}/500 karakter · Minimal 10 karakter</p>
+              </div>
+              <AddressDropdowns
+                provinceCode={formData.province_code}
+                provinceName={formData.province}
+                regencyCode={formData.city_code}
+                regencyName={formData.city}
+                districtCode={formData.district_code}
+                districtName={formData.district}
+                villageCode={formData.subdistrict_code}
+                villageName={formData.subdistrict}
+                onChange={(data) => setFormData(prev => ({
+                  ...prev,
+                  province_code: data.provinceCode,
+                  province: data.provinceName,
+                  city_code: data.regencyCode,
+                  city: data.regencyName,
+                  district_code: data.districtCode,
+                  district: data.districtName,
+                  subdistrict_code: data.villageCode,
+                  subdistrict: data.villageName,
+                }))}
               />
-              <p className="text-xs text-muted-foreground">Tempel link lokasi dari Google Maps. Link ini akan tampil di profil toko sebagai tombol menuju peta.</p>
-            </div>
-          </CardContent>
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <Navigation className="h-4 w-4 text-primary" />
+                  <div>
+                    <Label>Titik Lokasi Toko</Label>
+                    <p className="text-xs text-muted-foreground">Klik peta atau gunakan lokasi perangkat. Opsional, tetapi disarankan.</p>
+                  </div>
+                </div>
+                <MerchantLocationPicker
+                  value={formData.location_lat !== null && formData.location_lng !== null
+                    ? { lat: formData.location_lat, lng: formData.location_lng }
+                    : null}
+                  onChange={handleLocationChange}
+                />
+              </div>
+              <div className="space-y-2 border-t pt-4">
+                <Label htmlFor="google_maps_url">Link Google Maps <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+                <Input
+                  id="google_maps_url"
+                  name="google_maps_url"
+                  type="url"
+                  value={formData.google_maps_url}
+                  onChange={handleChange}
+                  maxLength={2048}
+                  placeholder="https://maps.google.com/?q=..."
+                />
+                <p className="text-xs text-muted-foreground">Gunakan tombol Share di Google Maps lalu tempel link-nya. Link ini tampil sebagai tombol peta di profil toko.</p>
+              </div>
+            </CardContent>
         </Card>
 
         {formData.business_category === 'kuliner' && (
