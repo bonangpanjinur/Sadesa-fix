@@ -5,6 +5,7 @@ const validSettings = {
   name: 'Warung Maju',
   phone: '081234567890',
   address: 'Jalan Mawar nomor 10 dekat pasar',
+  google_maps_url: 'https://maps.google.com/?q=Warung+Maju',
   business_category: 'kuliner',
   business_description: 'Menyediakan makanan rumahan.',
   open_time: '08:00',
@@ -52,5 +53,13 @@ describe('merchantSettingsSchema', () => {
     if (!result.success) {
       expect(result.error.issues.some((issue) => issue.path[0] === 'payment_transfer_enabled')).toBe(true);
     }
+  });
+
+  it('accepts a Google Maps URL and rejects non-URL values', () => {
+    expect(merchantSettingsSchema.safeParse(validSettings).success).toBe(true);
+    expect(merchantSettingsSchema.safeParse({
+      ...validSettings,
+      google_maps_url: 'lokasi toko',
+    }).success).toBe(false);
   });
 });

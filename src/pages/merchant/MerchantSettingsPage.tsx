@@ -22,6 +22,7 @@ interface MerchantData {
   name: string;
   phone: string | null;
   address: string | null;
+  google_maps_url: string | null;
   business_category: string | null;
   business_description: string | null;
   open_time: string | null;
@@ -57,7 +58,7 @@ export default function MerchantSettingsPage() {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
-    name: '', phone: '', address: '', business_category: '',
+    name: '', phone: '', address: '', google_maps_url: '', business_category: '',
     business_description: '', open_time: '08:00', close_time: '17:00',
     is_open: false, classification_price: '', order_mode: 'ADMIN_ASSISTED',
     bank_name: '', bank_account_number: '', bank_account_name: '',
@@ -73,7 +74,7 @@ export default function MerchantSettingsPage() {
       if (!guardMerchantId) return null;
       const { data, error } = await supabase
         .from('merchants')
-        .select('id, name, phone, address, business_category, business_description, open_time, close_time, is_open, image_url, order_mode, classification_price, bank_name, bank_account_number, bank_account_name, qris_image_url, payment_cod_enabled, payment_transfer_enabled, notification_sound_enabled, halal_status, halal_certificate_url, ktp_url, verifikator_code, slug')
+        .select('id, name, phone, address, google_maps_url, business_category, business_description, open_time, close_time, is_open, image_url, order_mode, classification_price, bank_name, bank_account_number, bank_account_name, qris_image_url, payment_cod_enabled, payment_transfer_enabled, notification_sound_enabled, halal_status, halal_certificate_url, ktp_url, verifikator_code, slug')
         .eq('id', guardMerchantId)
         .maybeSingle();
       if (error) throw error;
@@ -90,10 +91,11 @@ export default function MerchantSettingsPage() {
       name: merchant.name || '',
       phone: merchant.phone || '',
       address: merchant.address || '',
+      google_maps_url: merchant.google_maps_url || '',
       business_category: merchant.business_category || '',
       business_description: merchant.business_description || '',
-      open_time: merchant.open_time || '08:00',
-      close_time: merchant.close_time || '17:00',
+      open_time: merchant.open_time?.slice(0, 5) || '08:00',
+      close_time: merchant.close_time?.slice(0, 5) || '17:00',
       is_open: merchant.is_open,
       classification_price: merchant.classification_price || '',
       order_mode: merchant.order_mode === 'SELF_MANAGED' ? 'SELF' : (merchant.order_mode || 'ADMIN_ASSISTED'),
@@ -122,6 +124,7 @@ export default function MerchantSettingsPage() {
         name: settings.name,
         phone: settings.phone || null,
         address: settings.address || null,
+        google_maps_url: settings.google_maps_url || null,
         business_category: settings.business_category || null,
         business_description: settings.business_description || null,
         open_time: settings.open_time || null,
@@ -151,7 +154,7 @@ export default function MerchantSettingsPage() {
       if (code === '23505') {
         toast.error('Slug toko sudah digunakan. Silakan pilih slug lain.');
       } else if (code === '23514') {
-        toast.error('Nilai pengaturan toko tidak valid. Periksa mode pesanan.');
+        toast.error('Nilai pengaturan toko tidak valid. Periksa jam, pembayaran, dan mode pesanan.');
       } else {
         const fields = error as { message?: string; details?: string; hint?: string };
         const message = error instanceof Error
@@ -271,6 +274,19 @@ export default function MerchantSettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="address">Alamat Lengkap</Label>
               <Textarea id="address" name="address" value={formData.address} onChange={handleChange} maxLength={500} rows={2} placeholder="Jalan, RT/RW, Desa..." />
+            </div>
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="google_maps_url">Link Google Maps</Label>
+              <Input
+                id="google_maps_url"
+                name="google_maps_url"
+                type="url"
+                value={formData.google_maps_url}
+                onChange={handleChange}
+                maxLength={2048}
+                placeholder="https://maps.google.com/?q=..."
+              />
+              <p className="text-xs text-muted-foreground">Tempel link lokasi dari Google Maps. Link ini akan tampil di profil toko sebagai tombol menuju peta.</p>
             </div>
           </CardContent>
         </Card>

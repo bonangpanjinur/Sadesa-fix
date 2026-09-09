@@ -9,3 +9,4 @@
 - [Supabase staging SQL boundary](supabase-staging-sql-boundary.md) — the connected Supabase PostgREST path can smoke-test tables but cannot apply or replay bootstrap SQL bundles.
 - [Courier money mutation boundary](courier-money-mutation-boundary.md) — courier balances, trust fields, and status must be changed by validated server-side RPCs, not broad client row updates.
 - [Admin category source](category-admin-source.md) — the public category menu must consume active admin-managed category rows, not a second hard-coded list.
+- [Merchant time inputs](merchant-time-inputs.md) — PostgreSQL TIME values may include seconds; normalize them to HH:MM before browser-form validation.

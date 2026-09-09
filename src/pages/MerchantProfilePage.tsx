@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
   MapPin, 
+  ExternalLink,
   Star, 
   Clock, 
   Store,
@@ -47,6 +48,7 @@ interface MerchantData {
   id: string;
   name: string;
   address: string | null;
+  google_maps_url: string | null;
   phone: string | null;
   image_url: string | null;
   is_open: boolean;
@@ -612,6 +614,17 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   <h3 className="font-semibold text-foreground text-sm mb-1.5">Alamat</h3>
                   {merchant.address && (
                     <p className="text-xs text-muted-foreground mb-1">{merchant.address}</p>
+                  )}
+                  {merchant.google_maps_url && (
+                    <a
+                      href={merchant.google_maps_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Buka lokasi di Google Maps
+                    </a>
                   )}
                   {(merchant.subdistrict || merchant.district || merchant.city) && (
                     <p className="text-xs text-muted-foreground">

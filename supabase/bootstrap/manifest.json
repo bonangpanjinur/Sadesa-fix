@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 211,
-  "bundle_count": 40,
+  "bundle_count": 41,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -507,6 +507,14 @@
       ],
       "sha256": "b341115254374c85dabe3381b1a5b7cf1105574a7a4a5c54f0266411eec81720",
       "bytes": 5422
+    },
+    {
+      "file": "50_20260910000000_merchant_google_maps_url.sql",
+      "source_files": [
+        "50_20260910000000_merchant_google_maps_url.sql"
+      ],
+      "sha256": "929628437b3b3ed396ee0a407140b356cc9533e2673346da0542585b77616ef2",
+      "bytes": 310
     }
   ]
 }

@@ -1114,6 +1114,7 @@ export type Database = {
       merchants: {
         Row: {
           address: string | null
+          google_maps_url: string | null
           approved_at: string | null
           approved_by: string | null
           available_balance: number | null
@@ -1172,6 +1173,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          google_maps_url?: string | null
           approved_at?: string | null
           approved_by?: string | null
           available_balance?: number | null
@@ -1230,6 +1232,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          google_maps_url?: string | null
           approved_at?: string | null
           approved_by?: string | null
           available_balance?: number | null

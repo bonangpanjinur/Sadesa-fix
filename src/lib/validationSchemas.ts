@@ -56,6 +56,13 @@ const optionalTimeSchema = z
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Format jam harus HH:MM')
   .or(z.literal(''));
 
+const optionalGoogleMapsUrlSchema = z
+  .string()
+  .trim()
+  .max(2048, 'Link Google Maps maksimal 2.048 karakter')
+  .refine((value) => value === '' || /^https?:\/\//i.test(value), 'Link Google Maps harus diawali http:// atau https://')
+  .refine((value) => value === '' || z.string().url().safeParse(value).success, 'Link Google Maps tidak valid');
+
 const optionalSlugSchema = z
   .string()
   .trim()
@@ -76,6 +83,7 @@ export const merchantSettingsSchema = z.object({
   business_description: z.string().trim().max(2000, 'Deskripsi maksimal 2.000 karakter'),
   open_time: optionalTimeSchema,
   close_time: optionalTimeSchema,
+  google_maps_url: optionalGoogleMapsUrlSchema,
   is_open: z.boolean(),
   classification_price: z.enum(['UNDER_5K', 'FROM_5K_TO_10K', 'FROM_10K_TO_20K', 'ABOVE_20K']).or(z.literal('')),
   order_mode: z.enum(['SELF', 'ADMIN_ASSISTED']),
