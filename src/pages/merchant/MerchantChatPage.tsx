@@ -46,8 +46,11 @@ export default function MerchantChatPage() {
   // Auto-open chat from orderId query param (notification quick action)
   useEffect(() => {
     const orderId = searchParams.get('orderId');
-    if (orderId && threads.length > 0 && !selectedThread) {
-      const match = threads.find(t => t.orderId === orderId);
+    const conversationId = searchParams.get('conversationId');
+    if ((orderId || conversationId) && threads.length > 0 && !selectedThread) {
+      const match = threads.find(t => conversationId
+        ? t.conversationId === conversationId
+        : t.orderId === orderId);
       if (match) {
         setSelectedThread(match);
       }

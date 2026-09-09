@@ -121,8 +121,8 @@ export function NotificationDropdown() {
     }
 
     if (type === 'chat') {
-      if (link.startsWith('/merchant/chat')) return '/merchant/chat';
-      if (link.startsWith('/buyer/chat')) return '/buyer/chat';
+      if (link.startsWith('/merchant/chat')) return link;
+      if (link.startsWith('/buyer/chat')) return link;
       return isMerchant ? '/merchant/chat' : '/buyer/chat';
     }
 

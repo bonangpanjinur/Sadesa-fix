@@ -10,7 +10,7 @@ import { MessageCircle, Store, Truck, ArrowLeft, ShoppingBag, WifiOff } from 'lu
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { logRealtimeStatus, isRealtimeFailure, type RealtimeStatus } from '@/lib/realtimeTelemetry';
 
@@ -31,6 +31,7 @@ interface ChatThread {
 export default function BuyerChatPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'all' | 'buyer_merchant' | 'buyer_courier'>('all');
@@ -192,6 +193,13 @@ export default function BuyerChatPage() {
       supabase.removeChannel(channel);
     };
   }, [user, fetchThreads]);
+
+  useEffect(() => {
+    const conversationId = searchParams.get('conversationId');
+    if (!conversationId || selectedThread || threads.length === 0) return;
+    const match = threads.find((thread) => thread.conversationId === conversationId);
+    if (match) setSelectedThread(match);
+  }, [searchParams, selectedThread, threads]);
 
   const filtered = activeTab === 'all' ? threads : threads.filter(t => t.chatType === activeTab);
 

@@ -69,8 +69,8 @@ BEGIN
       AND (p.muted_until IS NULL OR p.muted_until <= now())
   LOOP
     notification_link := CASE
-      WHEN recipient.role = 'merchant' THEN '/merchant/chat'
-      ELSE '/buyer/chat'
+      WHEN recipient.role = 'merchant' THEN '/merchant/chat?conversationId=' || NEW.conversation_id::text
+      ELSE '/buyer/chat?conversationId=' || NEW.conversation_id::text
     END;
 
     PERFORM public.send_notification(
