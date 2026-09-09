@@ -96,51 +96,19 @@ export async function listConversationMessages(
 export async function sendConversationMessage(
   request: SendMessageRequest,
 ): Promise<{ message: ConversationMessage | null; error: Error | null }> {
-  const payload = {
-    conversation_id: request.conversationId,
-    order_id: request.orderId ?? null,
-    sender_id: request.senderId,
-    receiver_id: request.receiverId,
-    message: request.text,
-    body: request.text,
-    message_type: 'text',
-    client_message_id: request.clientMessageId,
-    chat_type: request.conversationType === 'passenger_courier'
-      ? 'buyer_courier'
-      : request.conversationType,
-  };
+  const { data, error } = await supabase.rpc('send_chat_message' as never, {
+    p_conversation_id: request.conversationId,
+    p_receiver_id: request.receiverId,
+    p_body: request.text,
+    p_client_message_id: request.clientMessageId,
+  } as never);
 
-  const canonicalInsert = await supabase
-    .from('chat_messages')
-    .insert(payload)
-    .select('*')
-    .single();
-  let data = canonicalInsert.data;
-  let error = canonicalInsert.error;
-
-  // Older/partially migrated databases may have conversation_id but not the
-  // newer body/message_type/client_message_id columns. Keep ride chat usable
-  // while the additive schema bundle is being applied.
-  if (error && isSchemaCompatibilityError(error)) {
-    const legacyCompatibleInsert = await supabase
-      .from('chat_messages')
-      .insert({
-        conversation_id: request.conversationId,
-        order_id: request.orderId ?? null,
-        sender_id: request.senderId,
-        receiver_id: request.receiverId,
-        message: request.text,
-        chat_type: request.conversationType === 'passenger_courier'
-          ? 'buyer_courier'
-          : request.conversationType,
-      })
-      .select('*')
-      .single();
-    data = legacyCompatibleInsert.data;
-    error = legacyCompatibleInsert.error;
+  if (!error && data) {
+    return {
+      message: normalizeMessage(data as Record<string, unknown>),
+      error: null,
+    };
   }
-
-  if (!error) return { message: normalizeMessage(data as Record<string, unknown>), error: null };
 
   // A timeout can happen after PostgreSQL committed the insert. The unique
   // client id makes retry safe and lets us recover the committed row.

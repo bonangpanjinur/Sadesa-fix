@@ -286,43 +286,8 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
         return;
       }
 
-      // During the additive rollout, old environments still use the legacy
-      // order-scoped subscription until the new SQL bundle is applied.
-      if (contextType === 'ride' || contextType === 'direct' || !orderId) {
-        setConnectionStatus('offline');
-        setSendError('Chat belum tersedia. Periksa koneksi atau minta admin menerapkan pembaruan database chat.');
-        return;
-      }
-      setConversationId(null);
-      const { data } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('order_id', orderId)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: true });
-      if (!active) return;
-      const filtered = (data || []).filter((message) => !chatType || message.chat_type === chatType) as ChatMessage[];
-      setMessages(filtered);
-      const withDelete = filtered.find((message) => message.auto_delete_at);
-      if (withDelete) setAutoDeleteInfo(withDelete.auto_delete_at);
-      const unread = filtered.filter((message) => message.receiver_id === user.id && !message.is_read && !message.deleted_at);
-      if (unread.length > 0) {
-        await supabase.from('chat_messages').update({ is_read: true }).in('id', unread.map((message) => message.id));
-      }
-      setConnectionStatus('reconnecting');
-      channel = supabase
-        .channel(`chat-${orderId}-${chatType}`)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `order_id=eq.${orderId}` },
-          (payload) => {
-            appendMessage(payload.new as ChatMessage);
-            setConnectionStatus('connected');
-          },
-        )
-        .subscribe((status) => {
-          if (active) setConnectionStatus(status === 'SUBSCRIBED' ? 'connected' : 'reconnecting');
-        });
+      setConnectionStatus('offline');
+      setSendError(error?.message || 'Chat belum tersedia. Minta admin menerapkan pembaruan database chat.');
     };
 
     void loadCanonicalConversation();
@@ -365,22 +330,8 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
               new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
             ));
         }
-      } else if (contextType === 'order' && orderId) {
-        const { data, error } = await supabase.from('chat_messages').insert({
-          order_id: orderId,
-          sender_id: user.id,
-          receiver_id: otherUserId,
-          message: text,
-          chat_type: chatType,
-        }).select('*').single();
-        if (error) throw error;
-        if (data) {
-          setMessages((previous) => previous.some((item) => item.id === data.id)
-            ? previous
-            : [...previous, data as ChatMessage].sort((a, b) =>
-              new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-            ));
-        }
+      } else {
+        throw new Error('Chat conversation is not available');
       }
       if (!messageText) setNewMessage('');
     } catch (error) {

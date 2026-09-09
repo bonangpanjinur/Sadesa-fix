@@ -8,6 +8,7 @@ bundle_dir = Path('supabase/bootstrap')
 migration_names = [
     '34_20260909110000_chat_security_pair_isolation.sql',
     '35_20260909120000_chat_message_retention.sql',
+    '36_20260909130000_chat_rls_rpc_abuse_control.sql',
 ]
 manifest_path = bundle_dir / 'manifest.json'
 manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
