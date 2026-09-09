@@ -62,10 +62,13 @@ export default function MerchantChatPage() {
       // visible to the merchant before the merchant sends a reply.
       const { data: memberships } = await supabase
         .from('chat_participants')
-        .select('conversation_id')
+        .select('conversation_id, last_read_at')
         .eq('user_id', user.id)
         .is('left_at', null);
       const conversationIds = [...new Set((memberships || []).map((row) => row.conversation_id))];
+      const lastReadAtByConversation = new Map(
+        (memberships || []).map((row) => [row.conversation_id, row.last_read_at ? new Date(row.last_read_at).getTime() : 0]),
+      );
       if (conversationIds.length === 0) { setThreads([]); setLoading(false); return; }
 
       const { data: messages } = await supabase
@@ -96,7 +99,8 @@ export default function MerchantChatPage() {
             autoDeleteAt: msg.auto_delete_at,
           });
         }
-        if (msg.receiver_id === user!.id && !msg.is_read) {
+        const lastReadAt = msg.conversation_id ? lastReadAtByConversation.get(msg.conversation_id) || 0 : 0;
+        if (msg.sender_id !== user!.id && new Date(msg.created_at).getTime() > lastReadAt) {
           threadMap.get(key)!.unreadCount++;
         }
       }
@@ -259,7 +263,10 @@ export default function MerchantChatPage() {
       ) : (
         <div className="space-y-2">
            {filtered.map(thread => (
-             <Card key={thread.conversationId || `${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => setSelectedThread(thread)}>
+              <Card key={thread.conversationId || `${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => {
+                setSelectedThread(thread);
+                setThreads((current) => current.map((item) => item.conversationId === thread.conversationId ? { ...item, unreadCount: 0 } : item));
+              }}>
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                   {thread.productImage ? (
