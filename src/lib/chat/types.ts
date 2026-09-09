@@ -12,6 +12,7 @@ export interface ChatConversation {
   order_id: string | null;
   ride_request_id: string | null;
   merchant_id: string | null;
+  buyer_user_id: string | null;
   conversation_type: ConversationType;
   status: 'active' | 'closed' | 'archived';
   last_message_id: string | null;
