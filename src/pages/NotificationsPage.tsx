@@ -56,12 +56,22 @@ export default function NotificationsPage() {
     queryKey: ['notifications', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100);
+      if (error) {
+        console.error('[notifications-page] fetch failed', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId: user.id,
+        });
+        throw error;
+      }
       return (data || []) as Notification[];
     },
     enabled: !!user,

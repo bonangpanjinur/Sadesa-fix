@@ -40,12 +40,23 @@ export function NotificationDropdown() {
     if (!user) return;
 
     const fetchNotifications = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);
+
+      if (error) {
+        console.error('[notifications] fetch failed', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          userId: user.id,
+        });
+        return;
+      }
 
       if (data) {
         setNotifications(data);
@@ -60,8 +71,12 @@ export function NotificationDropdown() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload) => {
           const n = payload.new as Notification;
-          setNotifications(prev => [n, ...prev].slice(0, 20));
-          setUnreadCount(prev => prev + 1);
+          setNotifications(prev => {
+            if (prev.some(item => item.id === n.id)) return prev;
+            const next = [n, ...prev].slice(0, 20);
+            setUnreadCount(next.filter(item => !item.is_read).length);
+            return next;
+          });
         }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
@@ -78,6 +93,30 @@ export function NotificationDropdown() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  // Realtime can be delayed or unavailable on some browsers/proxies. Refresh
+  // when the dropdown opens and periodically while the user is signed in so a
+  // missed INSERT event cannot hide a new chat notification.
+  useEffect(() => {
+    if (!user || !open) return;
+    const refresh = async () => {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) {
+        console.error('[notifications] refresh failed', { code: error.code, message: error.message, userId: user.id });
+        return;
+      }
+      setNotifications(data || []);
+      setUnreadCount((data || []).filter(n => !n.is_read).length);
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 15000);
+    return () => window.clearInterval(timer);
+  }, [open, user]);
 
   const markAsRead = async (notifId: string) => {
     await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notifId);

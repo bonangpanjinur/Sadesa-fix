@@ -11,6 +11,7 @@ const retention = read('supabase/bootstrap/37_20260909140000_chat_retention_oper
 const notification = read('supabase/bootstrap/38_20260909150000_chat_notification_observability.sql');
 const roleAwareNotification = read('supabase/bootstrap/41_20260909152000_role_aware_chat_notifications.sql');
 const finalNotificationRepair = read('supabase/bootstrap/42_20260909170000_chat_notification_final_repair.sql');
+const notificationDropdown = read('src/components/notifications/NotificationDropdown.tsx');
 const repository = read('src/lib/chat/repository.ts');
 const realtime = read('src/lib/chat/realtime.ts');
 const rollout = read('src/lib/chat/rollout.ts');
@@ -60,6 +61,9 @@ describe('chat phase 8 acceptance matrix contract', () => {
     expect(finalNotificationRepair).toContain('notifications_chat_idempotency_uidx');
     expect(finalNotificationRepair).toContain('ON CONFLICT (user_id, idempotency_key)');
     expect(finalNotificationRepair).toContain('TO service_role');
+    expect(notificationDropdown).toContain("[notifications] refresh failed");
+    expect(notificationDropdown).toContain('setInterval(() => void refresh(), 15000)');
+    expect(notificationDropdown).toContain('prev.some(item => item.id === n.id)');
   });
 
   it('keeps production disabled by default and gates pilot by role/domain/user', () => {
