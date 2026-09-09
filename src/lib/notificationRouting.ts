@@ -64,6 +64,8 @@ export function resolveNotificationLink(input: NotificationRouteInput, roles: No
     // inbox; canonical role-scoped links remain untouched below.
     if (link.startsWith('/buyer/chat') && roles.includes('merchant')) {
       link = link.replace(/^\/buyer\/chat/, '/merchant/chat');
+    } else if (link.startsWith('/buyer/chat') && roles.includes('courier')) {
+      link = link.replace(/^\/buyer\/chat/, '/courier/chat');
     }
     if (/^\/chat(?:\/|\?|$)/.test(link)) {
       link = roles.includes('merchant') ? `/merchant${link}`

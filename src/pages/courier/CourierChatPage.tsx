@@ -13,6 +13,7 @@ import { useSearchParams } from 'react-router-dom';
 
 interface ChatThread {
   orderId: string;
+  conversationId: string | null;
   otherUserId: string;
   otherUserName: string;
   lastMessage: string;
@@ -47,11 +48,12 @@ export default function CourierChatPage() {
 
       const threadMap = new Map<string, ChatThread>();
       for (const msg of messages) {
-        const key = `${msg.order_id}-${msg.chat_type}`;
+        const key = msg.conversation_id || `${msg.order_id}-${msg.chat_type}`;
         if (!threadMap.has(key)) {
           const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
           threadMap.set(key, {
             orderId: msg.order_id,
+            conversationId: msg.conversation_id || null,
             otherUserId,
             otherUserName: '',
             lastMessage: msg.message,
@@ -129,9 +131,12 @@ export default function CourierChatPage() {
   }, [user, fetchThreads]);
 
   useEffect(() => {
+    const conversationId = searchParams.get('conversationId');
     const orderId = searchParams.get('orderId');
-    if (!orderId || selectedThread || threads.length === 0) return;
-    const match = threads.find((thread) => thread.orderId === orderId);
+    if ((!conversationId && !orderId) || selectedThread || threads.length === 0) return;
+    const match = threads.find((thread) => conversationId
+      ? thread.conversationId === conversationId
+      : thread.orderId === orderId);
     if (match) setSelectedThread(match);
   }, [searchParams, selectedThread, threads]);
 
@@ -206,6 +211,7 @@ export default function CourierChatPage() {
       {selectedThread && (
         <OrderChat
           orderId={selectedThread.orderId}
+          conversationId={selectedThread.conversationId || undefined}
           otherUserId={selectedThread.otherUserId}
           otherUserName={selectedThread.otherUserName}
           chatType={selectedThread.chatType}

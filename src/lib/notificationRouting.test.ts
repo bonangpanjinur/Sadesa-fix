@@ -17,6 +17,11 @@ describe('resolveNotificationLink', () => {
       .toBe('/courier/chat?orderId=o1');
   });
 
+  it('repairs legacy buyer links for courier+buyer accounts', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/buyer/chat?conversationId=courier-1' }, ['courier', 'buyer']))
+      .toBe('/courier/chat?conversationId=courier-1');
+  });
+
   it('routes a generic chat link to the role dashboard when no scoped link exists', () => {
     expect(resolveNotificationLink({ type: 'chat', link: '/chat', data: { conversation_id: 'c2' } }, ['merchant', 'buyer']))
       .toBe('/merchant/chat?conversationId=c2');
