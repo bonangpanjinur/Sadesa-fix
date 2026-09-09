@@ -31,6 +31,8 @@ import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { MerchantDeliveryTracker } from '@/components/merchant/MerchantDeliveryTracker';
 import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
+import { OrderChat } from '@/components/chat/OrderChat';
+import { orderStatusLabel } from '@/lib/orderStatus';
 
 interface OrderItem {
   id: string;
@@ -58,6 +60,7 @@ export default function MerchantOrdersPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+  const [chatOrder, setChatOrder] = useState<OrderRow | null>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -238,7 +241,12 @@ export default function MerchantOrdersPage() {
       'NEW': { label: 'Baru', variant: 'info' },
       'PENDING_PAYMENT': { label: 'Menunggu Bayar', variant: 'warning' },
       'PENDING_CONFIRMATION': { label: 'Menunggu', variant: 'warning' },
-      'PROCESSED': { label: 'Diproses', variant: 'pending' },
+      'PROCESSED': { label: 'Sedang Disiapkan', variant: 'pending' },
+      'READY': { label: 'Siap Dikirim/Diambil', variant: 'info' },
+      'ASSIGNED': { label: 'Menunggu Kurir', variant: 'warning' },
+      'COURIER_ASSIGNED': { label: 'Kurir Dipilih', variant: 'warning' },
+      'COURIER_ACCEPTED': { label: 'Kurir Menuju Toko', variant: 'info' },
+      'PICKED_UP': { label: 'Sudah Diambil', variant: 'info' },
       'DELIVERING': { label: 'Diantar Sendiri', variant: 'info' },
       'SENT': { label: 'Dikirim', variant: 'info' },
       'DELIVERED': { label: 'Sampai', variant: 'warning' },
@@ -246,7 +254,7 @@ export default function MerchantOrdersPage() {
       'CANCELED': { label: 'Dibatalkan', variant: 'destructive' },
     };
     
-    const config = statusMap[status] || { label: status, variant: 'outline' as const };
+    const config = statusMap[status] || { label: orderStatusLabel(status), variant: 'outline' as const };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -608,6 +616,26 @@ export default function MerchantOrdersPage() {
                   <p>{selectedOrder.notes}</p>
                 </div>
               )}
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                disabled={!selectedOrder.buyer_id}
+                onClick={() => selectedOrder.buyer_id && setChatOrder(selectedOrder)}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Buka pesan pesanan
+                <span className="ml-auto text-xs text-muted-foreground">#{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                disabled={!selectedOrder.buyer_id}
+                onClick={() => selectedOrder.buyer_id && setChatOrder(selectedOrder)}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Buka pesan pesanan
+                <span className="ml-auto text-xs text-muted-foreground">#{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
+              </Button>
 
               {/* Payment Proof */}
               {selectedOrder.payment_proof_url && (
@@ -784,6 +812,17 @@ export default function MerchantOrdersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {chatOrder && chatOrder.buyer_id && (
+        <OrderChat
+          orderId={chatOrder.id}
+          otherUserId={chatOrder.buyer_id}
+          otherUserName={chatOrder.delivery_name || 'Pembeli'}
+          chatType="buyer_merchant"
+          isOpen={!!chatOrder}
+          onClose={() => setChatOrder(null)}
+        />
+      )}
 
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>

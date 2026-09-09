@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChatNotification } from '@/hooks/useChatNotification';
@@ -74,6 +75,7 @@ const QUICK_REPLIES: Record<string, string[]> = {
 };
 
 export function OrderChat({ orderId, contextType = 'order', conversationId: existingConversationId, rideRequestId, merchantId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { playNotificationSound, isEnabled: isSoundEnabled, setIsEnabled: setIsSoundEnabled } = useChatNotification();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -454,13 +456,18 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0">
+            <button
+              type="button"
+              className="flex-1 min-w-0 text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+              onClick={() => orderId && navigate(`/orders/${orderId}`)}
+              aria-label="Buka pesanan terkait"
+            >
               <p className="text-[11px] font-medium truncate">
                 {firstItem?.productName}
                 {otherItemsCount > 0 && ` +${otherItemsCount} produk lainnya`}
               </p>
               <p className="text-[10px] text-primary font-semibold">{formatPrice(orderInfo.total)}</p>
-            </div>
+            </button>
           </div>
         )}
 

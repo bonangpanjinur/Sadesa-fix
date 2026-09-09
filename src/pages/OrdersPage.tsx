@@ -48,6 +48,7 @@ interface BuyerOrder {
   is_self_delivery?: boolean;
   has_review?: boolean;
   payment_method?: string | null;
+  payment_status?: string | null;
   courier_id?: string | null;
   courier_name?: string | null;
   courier_rated?: boolean;
@@ -163,7 +164,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
   // Level 1: Full query with all relations including nested products
   const r1 = await supabase
     .from("orders")
-    .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, payment_method, merchants(name, phone, user_id), order_items(id, quantity, product_name, product_price, product_id, products(name, image_url))")
+    .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone, user_id), order_items(id, quantity, product_name, product_price, product_id, products(name, image_url))")
     .eq("buyer_id", userId)
     .order("created_at", { ascending: false });
 
@@ -173,7 +174,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
     console.warn("L1 failed:", r1.error.message);
     const r2 = await supabase
       .from("orders")
-      .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
+      .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
       .eq("buyer_id", userId)
       .order("created_at", { ascending: false });
     if (!r2.error) {
@@ -182,7 +183,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
       console.warn("L2 failed:", r2.error.message);
       const r3 = await supabase
         .from("orders")
-        .select("id, status, total, created_at, merchant_id, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
+        .select("id, status, total, created_at, merchant_id, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
         .eq("buyer_id", userId)
         .order("created_at", { ascending: false });
       if (!r3.error) {
@@ -191,7 +192,7 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
         console.warn("L3 failed:", r3.error.message);
         const r4 = await supabase
           .from("orders")
-          .select("id, status, total, created_at, merchant_id, order_items(id, quantity, product_name, product_price, product_id)")
+          .select("id, status, total, created_at, merchant_id, payment_method, payment_status, order_items(id, quantity, product_name, product_price, product_id)")
           .eq("buyer_id", userId)
           .order("created_at", { ascending: false });
         if (!r4.error) {
@@ -319,7 +320,7 @@ const OrdersPage = () => {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `buyer_id=eq.${user.id}` },
         (payload) => {
-          const newOrder = payload.new as { id: string; status: string };
+          const newOrder = payload.new as { id: string; status: string; payment_status?: string | null };
           const newStatus = newOrder.status;
           queryClient.setQueryData<BuyerOrder[]>(['buyer-orders', user.id], (prev = []) => {
             const oldOrder = prev.find(o => o.id === newOrder.id);
@@ -328,7 +329,7 @@ const OrdersPage = () => {
               toast({ title: `Pesanan #${newOrder.id.substring(0, 8).toUpperCase()}`, description: `Status berubah: ${statusLabel}` });
             }
             return prev.map(order =>
-              order.id === newOrder.id ? { ...order, status: newStatus } : order
+              order.id === newOrder.id ? { ...order, status: newStatus, payment_status: newOrder.payment_status ?? order.payment_status } : order
             );
           });
         }
@@ -709,13 +710,22 @@ const OrdersPage = () => {
                               >
                                 <X className="w-3 h-3 mr-1" /> Batalkan
                               </Button>
-                              {['NEW', 'PENDING_PAYMENT'].includes(order.status) && order.payment_method !== 'COD' ? (
+                              {['NEW', 'PENDING_PAYMENT'].includes(order.status) && order.payment_method !== 'COD' && order.payment_status !== 'PAID' ? (
                                 <Button
                                   size="sm"
                                   className="text-xs h-8 rounded-full px-4"
                                   onClick={(e) => { e.stopPropagation(); navigate(`/payment/${order.id}`); }}
                                 >
                                   Bayar Sekarang
+                                </Button>
+                              ) : order.payment_method !== 'COD' && order.payment_status === 'PAID' ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-8 rounded-full px-4"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}
+                                >
+                                  <CheckCircle className="w-3 h-3 mr-1" /> Cek Status Pembayaran
                                 </Button>
                               ) : (
                                 <Badge variant="outline" className="text-xs h-8 rounded-full px-3 bg-orange-50 text-orange-700 border-orange-200">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +36,7 @@ export default function MerchantChatPage() {
   const [loading, setLoading] = useState(true);
   const [selectedThread, setSelectedThread] = useState<ChatThread | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'buyer_merchant' | 'merchant_courier'>('all');
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (guardMerchantId) {
@@ -293,7 +294,17 @@ export default function MerchantChatPage() {
                     )}
                   </div>
                   {thread.productName && (
-                    <p className="text-[11px] text-primary/80 truncate">{thread.productName}</p>
+                    <button
+                      type="button"
+                      className="block max-w-full text-left text-[11px] text-primary/80 truncate hover:underline"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (thread.orderId) navigate(`/merchant/orders?orderId=${thread.orderId}`);
+                      }}
+                      disabled={!thread.orderId}
+                    >
+                      {thread.productName}
+                    </button>
                   )}
                   <p className="text-xs text-muted-foreground truncate">{thread.lastMessage}</p>
                 </div>

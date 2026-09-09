@@ -285,7 +285,17 @@ export default function BuyerChatPage() {
                       )}
                     </div>
                     {thread.productName && (
-                      <p className="text-[11px] text-primary/80 truncate">{thread.productName}</p>
+                      <button
+                        type="button"
+                        className="block max-w-full text-left text-[11px] text-primary/80 truncate hover:underline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (thread.orderId) navigate(`/orders/${thread.orderId}`);
+                        }}
+                        disabled={!thread.orderId}
+                      >
+                        {thread.productName}
+                      </button>
                     )}
                     <p className="text-xs text-muted-foreground truncate">{thread.lastMessage}</p>
                   </div>
