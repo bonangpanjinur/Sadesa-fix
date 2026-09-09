@@ -30,8 +30,11 @@ export interface ConversationMessage {
   is_read: boolean;
   created_at: string;
   auto_delete_at: string | null;
+  soft_delete_at: string | null;
+  hard_delete_at: string | null;
   chat_type: string | null;
   image_url: string | null;
   client_message_id: string | null;
   deleted_at: string | null;
+  deleted_reason: string | null;
 }

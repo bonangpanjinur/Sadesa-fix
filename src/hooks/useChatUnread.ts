@@ -28,6 +28,7 @@ export function useChatUnread() {
         .from('chat_messages')
         .select('*', { count: 'exact', head: true })
         .eq('receiver_id', userId)
+        .is('deleted_at', null)
         .eq('is_read', false);
       if (!active) return;
       setUnreadCount(count || 0);

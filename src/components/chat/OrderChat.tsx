@@ -278,6 +278,10 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
             if (!active) return;
             setConnectionStatus(status === 'SUBSCRIBED' ? 'connected' : 'reconnecting');
           },
+          (message) => {
+            if (!active || !message.deleted_at) return;
+            setMessages((previous) => previous.filter((item) => item.id !== message.id));
+          },
         );
         return;
       }
@@ -294,13 +298,14 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
         .from('chat_messages')
         .select('*')
         .eq('order_id', orderId)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true });
       if (!active) return;
       const filtered = (data || []).filter((message) => !chatType || message.chat_type === chatType) as ChatMessage[];
       setMessages(filtered);
       const withDelete = filtered.find((message) => message.auto_delete_at);
       if (withDelete) setAutoDeleteInfo(withDelete.auto_delete_at);
-      const unread = filtered.filter((message) => message.receiver_id === user.id && !message.is_read);
+      const unread = filtered.filter((message) => message.receiver_id === user.id && !message.is_read && !message.deleted_at);
       if (unread.length > 0) {
         await supabase.from('chat_messages').update({ is_read: true }).in('id', unread.map((message) => message.id));
       }

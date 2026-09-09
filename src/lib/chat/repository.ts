@@ -180,6 +180,7 @@ export function subscribeToConversation(
   conversationId: string,
   onInsert: (message: ConversationMessage) => void,
   onStatus: (status: string, error?: unknown) => void,
+  onUpdate?: (message: ConversationMessage) => void,
 ): RealtimeChannel {
   const channelName = `chat-conversation-${conversationId}`;
   const channel = supabase
@@ -193,6 +194,16 @@ export function subscribeToConversation(
         filter: `conversation_id=eq.${conversationId}`,
       },
       (payload) => onInsert(payload.new as ConversationMessage),
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => onUpdate?.(payload.new as ConversationMessage),
     );
 
   channel.subscribe((status, error) => onStatus(status, error));

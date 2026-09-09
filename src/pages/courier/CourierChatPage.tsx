@@ -36,6 +36,7 @@ export default function CourierChatPage() {
         .from('chat_messages')
         .select('*')
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .is('deleted_at', null)
         .not('order_id', 'is', null)
         .in('chat_type', ['buyer_courier', 'merchant_courier'])
         .order('created_at', { ascending: false });

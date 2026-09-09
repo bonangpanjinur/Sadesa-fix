@@ -62,6 +62,7 @@ export default function MerchantChatPage() {
         .from('chat_messages')
         .select('*')
         .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .is('deleted_at', null)
         .in('chat_type', ['buyer_merchant', 'merchant_courier'])
         .order('created_at', { ascending: false });
 
