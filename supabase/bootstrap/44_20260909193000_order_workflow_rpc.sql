@@ -108,7 +108,7 @@ DECLARE v_order public.orders%ROWTYPE; v_assignment public.delivery_assignments%
 BEGIN
  SELECT * INTO v_order FROM public.orders WHERE id=p_order_id FOR UPDATE;
  IF NOT FOUND OR NOT public.is_order_merchant(p_order_id) THEN RAISE EXCEPTION 'Order access denied' USING ERRCODE='42501'; END IF;
- IF v_order.status NOT IN ('READY','ASSIGNED') OR v_order.is_self_delivery THEN RAISE EXCEPTION 'Order is not ready for courier assignment' USING ERRCODE='22023'; END IF;
+ IF v_order.status NOT IN ('PROCESSED','READY','ASSIGNED') OR v_order.is_self_delivery THEN RAISE EXCEPTION 'Order is not ready for courier assignment' USING ERRCODE='22023'; END IF;
  IF EXISTS(SELECT 1 FROM public.delivery_assignments WHERE order_id=p_order_id AND courier_id=p_courier_id AND status IN ('REJECTED','EXPIRED')) THEN RAISE EXCEPTION 'Courier already declined this order' USING ERRCODE='22023'; END IF;
  INSERT INTO public.delivery_assignments(order_id,courier_id) VALUES(p_order_id,p_courier_id) RETURNING * INTO v_assignment;
  UPDATE public.orders SET status='ASSIGNED', status_updated_at=now(), updated_at=now() WHERE id=p_order_id;

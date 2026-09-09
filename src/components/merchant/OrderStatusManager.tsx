@@ -51,6 +51,15 @@ interface CourierOption {
   phone: string;
   vehicle_type: string;
   is_available: boolean;
+  distance_km?: number;
+}
+
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const r = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 interface OrderStatusManagerProps {
@@ -170,19 +179,29 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
       if (merchantData?.village_id) {
         const { data: couriers } = await supabase
           .from('couriers')
-          .select('id, name, phone, vehicle_type, is_available')
+          .select('id, name, phone, vehicle_type, is_available, current_lat, current_lng, last_location_update')
           .eq('village_id', merchantData.village_id)
           .eq('status', 'ACTIVE')
-          .eq('registration_status', 'APPROVED');
+          .eq('registration_status', 'APPROVED')
+          .eq('is_available', true);
 
-        setAvailableCouriers(couriers || []);
+        const { data: merchantLocation } = await supabase.from('merchants').select('location_lat, location_lng').eq('id', merchantId).maybeSingle();
+        const lat = Number(merchantLocation?.location_lat);
+        const lng = Number(merchantLocation?.location_lng);
+        setAvailableCouriers((couriers || []).map(courier => ({
+          ...courier,
+          distance_km: Number.isFinite(lat) && Number.isFinite(lng) && courier.current_lat && courier.current_lng
+            ? distanceKm(lat, lng, Number(courier.current_lat), Number(courier.current_lng))
+            : undefined,
+        })).sort((a, b) => (a.distance_km ?? Number.MAX_SAFE_INTEGER) - (b.distance_km ?? Number.MAX_SAFE_INTEGER)));
       } else {
         // No village, fetch all active couriers
         const { data: couriers } = await supabase
           .from('couriers')
-          .select('id, name, phone, vehicle_type, is_available')
+          .select('id, name, phone, vehicle_type, is_available, current_lat, current_lng, last_location_update')
           .eq('status', 'ACTIVE')
-          .eq('registration_status', 'APPROVED');
+          .eq('registration_status', 'APPROVED')
+          .eq('is_available', true);
 
         setAvailableCouriers(couriers || []);
       }
@@ -203,7 +222,6 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
           p_order_id: courierOrderId,
           p_to_status: 'DELIVERING',
           p_reason: 'Merchant memilih antar sendiri',
-          p_is_self_delivery: true,
         } as never);
 
         if (error) throw error;
@@ -219,7 +237,7 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
     } else if (deliveryMethod === 'village' && selectedCourierId) {
       setUpdating(true);
       try {
-        const { error } = await supabase.rpc('merchant_offer_order_to_courier' as never, {
+        const { error } = await supabase.rpc('create_delivery_offer' as never, {
           p_order_id: courierOrderId,
           p_courier_id: selectedCourierId,
         } as never);
@@ -657,11 +675,8 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
                           <div className="flex items-center gap-2">
                             <span>{courier.name}</span>
                             <span className="text-xs text-muted-foreground">({courier.vehicle_type})</span>
-                            {courier.is_available ? (
-                              <span className="text-xs text-success">● Online</span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">● Offline</span>
-                            )}
+                            <span className="text-xs text-success">● Online</span>
+                            {courier.distance_km !== undefined && <span className="text-xs text-primary">{courier.distance_km.toFixed(1)} km</span>}
                           </div>
                         </SelectItem>
                       ))}

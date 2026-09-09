@@ -132,7 +132,7 @@ export default function CourierRidesPage() {
 
   const respondToOffer = async (offerId: string, accept: boolean) => {
     setAccepting(offerId);
-    const { error } = await supabase.rpc('courier_respond_to_order_offer' as never, {
+    const { error } = await supabase.rpc('respond_delivery_offer' as never, {
       p_assignment_id: offerId,
       p_accept: accept,
       p_reason: accept ? null : 'Kurir menolak tawaran',
