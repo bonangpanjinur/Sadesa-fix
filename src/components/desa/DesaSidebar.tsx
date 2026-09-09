@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Mountain, ChevronLeft, Home,
   TrendingUp, Calendar, Award, Megaphone, Map, BarChart3,
-  ShieldCheck, Building2, Package, User, DollarSign, Heart, Search
+  ShieldCheck, Building2, Package, User, DollarSign, Heart, Search, MessageCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,6 +56,7 @@ export function DesaSidebar() {
 
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard',           href: '/desa',                     icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: 'Chat',                href: '/desa/chat',                icon: <MessageCircle className="h-4 w-4" /> },
     { label: 'Profil Desa',         href: '/desa/profil',              icon: <Building2 className="h-4 w-4" /> },
     { label: 'Destinasi Wisata',    href: '/desa/tourism',             icon: <Mountain className="h-4 w-4" /> },
     { label: 'Paket Wisata',        href: '/desa/paket-wisata',        icon: <Package className="h-4 w-4" /> },

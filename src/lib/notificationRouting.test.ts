@@ -22,6 +22,11 @@ describe('resolveNotificationLink', () => {
       .toBe('/courier/chat?conversationId=courier-1');
   });
 
+  it('repairs legacy buyer links for admin-desa+buyer accounts', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/buyer/chat?conversationId=desa-1' }, ['admin_desa', 'buyer']))
+      .toBe('/desa/chat?conversationId=desa-1');
+  });
+
   it('routes a generic chat link to the role dashboard when no scoped link exists', () => {
     expect(resolveNotificationLink({ type: 'chat', link: '/chat', data: { conversation_id: 'c2' } }, ['merchant', 'buyer']))
       .toBe('/merchant/chat?conversationId=c2');

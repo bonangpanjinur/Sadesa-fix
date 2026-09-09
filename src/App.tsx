@@ -230,6 +230,7 @@ function LegacyPOSRedirect() {
 
 // Desa Pages
 const DesaDashboardPage = lazy(() => import("./pages/desa/DesaDashboardPage"));
+const DesaChatPage = lazy(() => import("./pages/desa/DesaChatPage"));
 const DesaMerchantPage = lazy(() => import("./pages/desa/DesaMerchantPage"));
 const DesaTourismPage = lazy(() => import("./pages/desa/DesaTourismPage"));
 const DesaEkonomiPage = lazy(() => import("./pages/desa/DesaEkonomiPage"));
@@ -1005,6 +1006,11 @@ const App = () => (
               <Route path="/desa" element={
                 <ProtectedRoute allowedRoles={['admin_desa', 'admin']}>
                   <DesaDashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/desa/chat" element={
+                <ProtectedRoute allowedRoles={['admin_desa', 'admin']}>
+                  <DesaChatPage />
                 </ProtectedRoute>
               } />
               <Route path="/desa/tourism" element={

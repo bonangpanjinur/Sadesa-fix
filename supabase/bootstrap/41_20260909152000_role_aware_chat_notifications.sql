@@ -71,6 +71,7 @@ BEGIN
     notification_link := CASE
       WHEN recipient.role = 'merchant' THEN '/merchant/chat?conversationId=' || NEW.conversation_id::text
       WHEN recipient.role = 'courier' THEN '/courier/chat?conversationId=' || NEW.conversation_id::text
+      WHEN recipient.role = 'admin_desa' THEN '/desa/chat?conversationId=' || NEW.conversation_id::text
       ELSE '/buyer/chat?conversationId=' || NEW.conversation_id::text
     END;
 
