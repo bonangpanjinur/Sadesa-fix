@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -259,6 +259,7 @@ const OrdersPage = () => {
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [ratingOrder, setRatingOrder] = useState<{ id: string; orderNumber: string; courierId: string; courierName: string } | null>(null);
   const navigate = useNavigate();
+  const { orderId: orderIdFromPath } = useParams<{ orderId: string }>();
   const reorder = useReorder();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -266,14 +267,16 @@ const OrdersPage = () => {
 
   // Handle orderId query parameter from notification click
   useEffect(() => {
-    const orderIdFromUrl = searchParams.get('orderId');
+    const orderIdFromUrl = orderIdFromPath || searchParams.get('orderId');
     if (orderIdFromUrl) {
       setSelectedOrderId(orderIdFromUrl);
       setIsDetailSheetOpen(true);
-      searchParams.delete('orderId');
-      setSearchParams(searchParams, { replace: true });
+      if (!orderIdFromPath && searchParams.has('orderId')) {
+        searchParams.delete('orderId');
+        setSearchParams(searchParams, { replace: true });
+      }
     }
-  }, [searchParams, setSearchParams]);
+  }, [orderIdFromPath, searchParams, setSearchParams]);
 
   // React Query: orders data with caching (P3-01)
   const {

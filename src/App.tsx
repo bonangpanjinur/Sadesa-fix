@@ -448,6 +448,11 @@ const App = () => (
                   <OrdersPage />
                 </ProtectedRoute>
               } />
+              <Route path="/orders/:orderId" element={
+                <ProtectedRoute>
+                  <OrdersPage />
+                </ProtectedRoute>
+              } />
               <Route path="/orders/:orderId/tracking" element={
                 <ProtectedRoute>
                   <OrderTrackingPage />
