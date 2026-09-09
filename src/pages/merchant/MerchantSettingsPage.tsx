@@ -90,7 +90,7 @@ export default function MerchantSettingsPage() {
       open_time: merchant.open_time || '08:00',
       close_time: merchant.close_time || '17:00',
       classification_price: merchant.classification_price || '',
-      order_mode: merchant.order_mode || 'ADMIN_ASSISTED',
+      order_mode: merchant.order_mode === 'SELF_MANAGED' ? 'SELF' : (merchant.order_mode || 'ADMIN_ASSISTED'),
       bank_name: merchant.bank_name || '',
       bank_account_number: merchant.bank_account_number || '',
       bank_account_name: merchant.bank_account_name || '',
@@ -135,7 +135,17 @@ export default function MerchantSettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['merchant-settings', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['merchant-profile', user?.id] });
     },
-    onError: () => toast.error('Gagal menyimpan pengaturan'),
+    onError: (error: unknown) => {
+      const code = (error as { code?: string })?.code;
+      if (code === '23505') {
+        toast.error('Slug toko sudah digunakan. Silakan pilih slug lain.');
+      } else if (code === '23514') {
+        toast.error('Nilai pengaturan toko tidak valid. Periksa mode pesanan.');
+      } else {
+        const message = error instanceof Error ? error.message : 'Periksa kembali data pengaturan toko.';
+        toast.error(`Gagal menyimpan pengaturan: ${message}`);
+      }
+    },
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -396,7 +406,7 @@ export default function MerchantSettingsPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ADMIN_ASSISTED">Dibantu Admin</SelectItem>
-                  <SelectItem value="SELF_MANAGED">Kelola Sendiri</SelectItem>
+                  <SelectItem value="SELF">Kelola Sendiri</SelectItem>
                 </SelectContent>
               </Select>
             </div>
