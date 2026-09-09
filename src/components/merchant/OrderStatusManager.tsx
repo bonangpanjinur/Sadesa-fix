@@ -121,30 +121,11 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
   const updateOrderStatus = async (orderId: string, newStatus: string, courierId?: string | null) => {
     setUpdating(true);
     try {
-      const updateData: {
-        status: string;
-        updated_at: string;
-        confirmed_at?: string;
-        courier_id?: string;
-        assigned_at?: string;
-      } = { 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      if (newStatus === 'PROCESSED') {
-        updateData.confirmed_at = new Date().toISOString();
-      }
-
-      if (newStatus === 'SENT' && courierId) {
-        updateData.courier_id = courierId;
-        updateData.assigned_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: orderId,
+        p_to_status: newStatus,
+        p_reason: courierId ? `Kurir ditugaskan: ${courierId}` : null,
+      } as never);
 
       if (error) throw error;
 
@@ -282,13 +263,11 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
     setUpdating(true);
 
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'CANCELED',
-          notes: rejectReason ? `Dibatalkan pedagang: ${rejectReason}` : 'Dibatalkan oleh pedagang'
-        })
-        .eq('id', selectedOrder.id);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: selectedOrder.id,
+        p_to_status: 'CANCELED',
+        p_reason: rejectReason ? `Dibatalkan pedagang: ${rejectReason}` : 'Dibatalkan oleh pedagang',
+      } as never);
 
       if (error) throw error;
 

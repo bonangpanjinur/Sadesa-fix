@@ -126,7 +126,7 @@ export default function CourierDashboardPage() {
         .from('orders')
         .select('*')
         .eq('courier_id', courier.id)
-        .in('status', ['ASSIGNED', 'PICKED_UP', 'SENT', 'DELIVERING'])
+        .in('status', ['COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'DELIVERING'])
         .order('created_at', { ascending: false });
       return (data || []) as AssignedOrder[];
     },
@@ -155,12 +155,20 @@ export default function CourierDashboardPage() {
     const channel = supabase
       .channel('courier-new-orders')
       .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'delivery_assignments',
+        filter: `courier_id=eq.${courier.id}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier.id] });
+      })
+      .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'orders',
         filter: `courier_id=eq.${courier.id}`,
       }, (payload) => {
-        if (payload.new && (payload.new as { status: string }).status === 'ASSIGNED') {
+        if (payload.new && (payload.new as { status: string }).status === 'COURIER_ACCEPTED') {
           try {
             const ctx = new AudioContext();
             const osc = ctx.createOscillator();
@@ -227,18 +235,10 @@ export default function CourierDashboardPage() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      const updateData: Record<string, unknown> = { status: newStatus };
-      
-      if (newStatus === 'PICKED_UP') {
-        updateData.picked_up_at = new Date().toISOString();
-      } else if (newStatus === 'DELIVERED') {
-        updateData.delivered_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('courier_transition_order' as never, {
+        p_order_id: orderId,
+        p_to_status: newStatus,
+      } as never);
 
       if (error) throw error;
 
@@ -259,6 +259,8 @@ export default function CourierDashboardPage() {
     switch (status) {
       case 'ASSIGNED':
         return <Badge variant="secondary">Ditugaskan</Badge>;
+      case 'COURIER_ACCEPTED':
+        return <Badge variant="info">Menuju Toko</Badge>;
       case 'PICKED_UP':
         return <Badge variant="warning">Diambil</Badge>;
       case 'SENT':
@@ -270,7 +272,7 @@ export default function CourierDashboardPage() {
 
   const getNextAction = (order: AssignedOrder) => {
     switch (order.status) {
-      case 'ASSIGNED':
+      case 'COURIER_ACCEPTED':
         return { label: 'Ambil Pesanan', nextStatus: 'PICKED_UP', needsPOD: false };
       case 'PICKED_UP':
         return { label: 'Mulai Antar', nextStatus: 'SENT', needsPOD: false };

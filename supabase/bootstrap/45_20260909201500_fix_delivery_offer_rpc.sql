@@ -92,3 +92,40 @@ END; $$;
 GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid, boolean, text) TO authenticated;
 NOTIFY pgrst, 'reload schema';
+
+-- Couriers must advance their assigned orders through a server-side transition.
+CREATE OR REPLACE FUNCTION public.courier_transition_order(p_order_id uuid, p_to_status text)
+RETURNS public.orders
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_order public.orders%ROWTYPE;
+  v_courier_id uuid;
+  v_allowed boolean := false;
+  v_from_status text;
+BEGIN
+  SELECT c.id INTO v_courier_id FROM public.couriers c WHERE c.user_id = auth.uid();
+  SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
+  IF NOT FOUND OR v_order.courier_id IS DISTINCT FROM v_courier_id THEN
+    RAISE EXCEPTION 'Order access denied' USING ERRCODE = '42501';
+  END IF;
+  v_allowed := (v_order.status = 'COURIER_ACCEPTED' AND p_to_status = 'PICKED_UP')
+    OR (v_order.status = 'PICKED_UP' AND p_to_status = 'SENT')
+    OR (v_order.status IN ('SENT', 'DELIVERING') AND p_to_status = 'DELIVERED');
+  IF NOT v_allowed THEN
+    RAISE EXCEPTION 'Invalid courier transition: % -> %', v_order.status, p_to_status USING ERRCODE = '22023';
+  END IF;
+  v_from_status := v_order.status;
+  UPDATE public.orders SET
+    status = p_to_status,
+    picked_up_at = CASE WHEN p_to_status = 'PICKED_UP' THEN now() ELSE picked_up_at END,
+    delivered_at = CASE WHEN p_to_status = 'DELIVERED' THEN now() ELSE delivered_at END,
+    status_updated_at = now(),
+    updated_at = now()
+  WHERE id = p_order_id
+  RETURNING * INTO v_order;
+  INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason)
+  VALUES (p_order_id, v_from_status, p_to_status, auth.uid(), 'Pembaruan status oleh kurir');
+  RETURN v_order;
+END; $$;
+GRANT EXECUTE ON FUNCTION public.courier_transition_order(uuid, text) TO authenticated;
+NOTIFY pgrst, 'reload schema';
