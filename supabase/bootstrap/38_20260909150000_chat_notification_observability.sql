@@ -75,10 +75,10 @@ GRANT EXECUTE ON FUNCTION public.record_chat_observability(text, numeric, jsonb,
 CREATE OR REPLACE FUNCTION public.chat_notification_deep_link(p_user_id uuid, p_conversation_id uuid)
 RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT CASE COALESCE((SELECT role FROM public.chat_participants WHERE conversation_id = p_conversation_id AND user_id = p_user_id AND left_at IS NULL LIMIT 1), '')
-    WHEN 'merchant' THEN '/merchant/chat?conversation=' || p_conversation_id::text
-    WHEN 'courier' THEN '/courier/chat?conversation=' || p_conversation_id::text
-    WHEN 'passenger' THEN '/ride/tracking?conversation=' || p_conversation_id::text
-    ELSE '/buyer/chat?conversation=' || p_conversation_id::text
+    WHEN 'merchant' THEN '/merchant/chat?conversationId=' || p_conversation_id::text
+    WHEN 'courier' THEN '/courier/chat?conversationId=' || p_conversation_id::text
+    WHEN 'passenger' THEN '/ride/tracking?conversationId=' || p_conversation_id::text
+    ELSE '/buyer/chat?conversationId=' || p_conversation_id::text
   END;
 $$;
 

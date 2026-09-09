@@ -34,26 +34,30 @@ DECLARE
   recipient record;
   sender_name text;
   preview text;
-  notification_link text;
 BEGIN
   IF NEW.conversation_id IS NULL THEN
     RETURN NEW;
   END IF;
 
+  -- Resolve display names with independent lookups. PostgreSQL rejects
+  -- disjunctive outer-join plans in this trigger path (SQLSTATE 0A000),
+  -- which rolls back the message INSERT and surfaces as an RPC 400.
   SELECT COALESCE(
-    NULLIF(p.full_name, ''),
-    NULLIF(m.name, ''),
-    NULLIF(c.name, ''),
+    (SELECT NULLIF(p.full_name, '')
+     FROM public.profiles p
+     WHERE p.user_id = NEW.sender_id
+     LIMIT 1),
+    (SELECT NULLIF(m.name, '')
+     FROM public.merchants m
+     WHERE m.user_id = NEW.sender_id
+     LIMIT 1),
+    (SELECT NULLIF(c.name, '')
+     FROM public.couriers c
+     WHERE c.user_id = NEW.sender_id
+     LIMIT 1),
     'Pengguna'
   )
-  INTO sender_name
-  FROM public.profiles p
-  FULL JOIN public.merchants m ON m.user_id = NEW.sender_id
-  FULL JOIN public.couriers c ON c.user_id = NEW.sender_id
-  WHERE p.user_id = NEW.sender_id
-     OR m.user_id = NEW.sender_id
-     OR c.user_id = NEW.sender_id
-  LIMIT 1;
+  INTO sender_name;
 
   preview := left(
     regexp_replace(trim(COALESCE(NEW.body, NEW.message)), E'[\\n\\r]+', ' ', 'g'),
@@ -68,19 +72,12 @@ BEGIN
       AND p.left_at IS NULL
       AND (p.muted_until IS NULL OR p.muted_until <= now())
   LOOP
-    notification_link := CASE
-      WHEN recipient.role = 'merchant' THEN '/merchant/chat?conversationId=' || NEW.conversation_id::text
-      WHEN recipient.role = 'courier' THEN '/courier/chat?conversationId=' || NEW.conversation_id::text
-      WHEN recipient.role = 'admin_desa' THEN '/desa/chat?conversationId=' || NEW.conversation_id::text
-      ELSE '/buyer/chat?conversationId=' || NEW.conversation_id::text
-    END;
-
-    PERFORM public.send_notification(
+    PERFORM public.send_chat_notification(
       recipient.user_id,
+      NEW.conversation_id,
+      NEW.id,
       COALESCE(sender_name, 'Pesan baru'),
-      preview,
-      'chat',
-      notification_link
+      preview
     );
   END LOOP;
 

@@ -9,6 +9,7 @@ const security = read('supabase/bootstrap/34_20260909110000_chat_security_pair_i
 const abuse = read('supabase/bootstrap/36_20260909130000_chat_rls_rpc_abuse_control.sql');
 const retention = read('supabase/bootstrap/37_20260909140000_chat_retention_operations.sql');
 const notification = read('supabase/bootstrap/38_20260909150000_chat_notification_observability.sql');
+const roleAwareNotification = read('supabase/bootstrap/41_20260909152000_role_aware_chat_notifications.sql');
 const repository = read('src/lib/chat/repository.ts');
 const realtime = read('src/lib/chat/realtime.ts');
 const rollout = read('src/lib/chat/rollout.ts');
@@ -51,6 +52,8 @@ describe('chat phase 8 acceptance matrix contract', () => {
     expect(notification).toContain('chat_observability_events');
     expect(notification).toContain('record_chat_observability');
     expect(notification).toContain('deep_link');
+    expect(roleAwareNotification).not.toMatch(/FULL\s+JOIN/i);
+    expect(roleAwareNotification).toContain('send_chat_notification');
   });
 
   it('keeps production disabled by default and gates pilot by role/domain/user', () => {

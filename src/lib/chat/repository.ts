@@ -70,10 +70,27 @@ export async function listChatInbox(): Promise<{ items: ChatInboxItem[]; error: 
 }
 
 export async function sendConversationMessage(request: SendMessageRequest) {
-  const { data, error } = await supabase.rpc('send_chat_message' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: request.text, p_client_message_id: request.clientMessageId } as never);
+  const text = request.text.trim();
+  if (!request.conversationId || !request.senderId || !request.receiverId || request.senderId === request.receiverId) {
+    return { message: null, error: toChatError({ code: '22023', message: 'Peserta percakapan tidak valid' }) };
+  }
+  if (!text || text.length > 4000) {
+    return { message: null, error: toChatError({ code: '22023', message: 'Pesan harus berisi 1 sampai 4000 karakter' }) };
+  }
+
+  const { data, error } = await supabase.rpc('send_chat_message' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: text, p_client_message_id: request.clientMessageId } as never);
   if (!error && data) return { message: normalizeMessage(data as Record<string, unknown>), error: null };
   const retry = await supabase.from('chat_messages').select('*').eq('sender_id', request.senderId).eq('client_message_id', request.clientMessageId).maybeSingle();
   if (retry.data) { recordChatMetric('duplicate_retry_recovered'); return { message: normalizeMessage(retry.data as Record<string, unknown>), error: null }; }
+  if (error) {
+    console.error('[chat] send_chat_message failed', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      conversationId: request.conversationId,
+    });
+  }
   return { message: null, error: error ? toChatError(error) : toChatError(new Error('Pesan belum terkirim')) };
 }
 
