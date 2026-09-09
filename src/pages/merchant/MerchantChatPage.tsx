@@ -58,10 +58,20 @@ export default function MerchantChatPage() {
     if (!merchantId || !user) return;
 
     try {
+      // Start from memberships so buyer-created frontend conversations are
+      // visible to the merchant before the merchant sends a reply.
+      const { data: memberships } = await supabase
+        .from('chat_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id)
+        .is('left_at', null);
+      const conversationIds = [...new Set((memberships || []).map((row) => row.conversation_id))];
+      if (conversationIds.length === 0) { setThreads([]); setLoading(false); return; }
+
       const { data: messages } = await supabase
         .from('chat_messages')
         .select('*')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .in('conversation_id', conversationIds)
         .is('deleted_at', null)
         .in('chat_type', ['buyer_merchant', 'merchant_courier'])
         .order('created_at', { ascending: false });
@@ -111,6 +121,23 @@ export default function MerchantChatPage() {
             }
           }
         }
+      }
+
+      const conversationIdsWithThreads = [...threadMap.values()]
+        .map((thread) => thread.conversationId)
+        .filter((conversationId): conversationId is string => Boolean(conversationId));
+      const { data: conversationParticipants } = await supabase
+        .from('chat_participants')
+        .select('conversation_id, user_id')
+        .in('conversation_id', conversationIdsWithThreads)
+        .neq('user_id', user.id)
+        .is('left_at', null);
+      const participantByConversation = new Map(
+        (conversationParticipants || []).map((participant) => [participant.conversation_id, participant.user_id]),
+      );
+      for (const thread of threadMap.values()) {
+        const participantId = thread.conversationId ? participantByConversation.get(thread.conversationId) : null;
+        if (participantId) thread.otherUserId = participantId;
       }
 
       const userIds = [...new Set([...threadMap.values()].map(t => t.otherUserId))];
