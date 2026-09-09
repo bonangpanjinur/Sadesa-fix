@@ -153,11 +153,12 @@ export default function MerchantChatPage() {
 
       for (const thread of threadMap.values()) {
         const profile = (profiles || []).find(p => p.user_id === thread.otherUserId);
+        const merchant = (merchants || []).find(m => m.user_id === thread.otherUserId);
         const courier = (couriers || []).find(c => c.user_id === thread.otherUserId);
         if (thread.chatType === 'buyer_merchant') {
-          thread.otherUserName = profile?.full_name || 'Pembeli';
+          thread.otherUserName = profile?.full_name?.trim() || merchant?.name?.trim() || 'Pembeli';
         } else {
-          thread.otherUserName = courier?.name || 'Kurir';
+          thread.otherUserName = courier?.name?.trim() || merchant?.name?.trim() || 'Kurir';
         }
       }
 
