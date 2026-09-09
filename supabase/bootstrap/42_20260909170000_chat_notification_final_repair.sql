@@ -145,7 +145,20 @@ BEGIN
         message_preview
       );
     EXCEPTION WHEN OTHERS THEN
-      RAISE WARNING 'chat notification failed for message %: % (%)', NEW.id, SQLERRM, SQLSTATE;
+      -- Keep compatibility with databases where one of the newer chat
+      -- notification columns/functions was not deployed yet. The legacy
+      -- function writes the core notification columns used by the UI.
+      BEGIN
+        PERFORM public.send_notification(
+          recipient.user_id,
+          coalesce(sender_name, 'Pesan baru'),
+          coalesce(message_preview, 'Pesan baru'),
+          'chat',
+          public.chat_notification_deep_link(recipient.user_id, NEW.conversation_id)
+        );
+      EXCEPTION WHEN OTHERS THEN
+        RAISE WARNING 'chat notification failed for message %: % (%)', NEW.id, SQLERRM, SQLSTATE;
+      END;
     END;
   END LOOP;
 
@@ -161,3 +174,44 @@ EXECUTE FUNCTION public.notify_chat_message();
 
 COMMENT ON FUNCTION public.notify_chat_message() IS
   'Creates one idempotent in-app notification per active chat recipient without rolling back the message.';
+
+-- Backfill recent messages created while the notification trigger was broken.
+-- This is intentionally limited to one day and is idempotent for canonical
+-- notifications; legacy fallback rows are guarded by a message preview check.
+DO $$
+DECLARE
+  message_row record;
+  sender_name text;
+  message_preview text;
+BEGIN
+  FOR message_row IN
+    SELECT m.id, m.conversation_id, m.sender_id, m.receiver_id, m.body, m.message
+    FROM public.chat_messages m
+    WHERE m.conversation_id IS NOT NULL
+      AND m.created_at > now() - interval '1 day'
+      AND NOT EXISTS (
+        SELECT 1 FROM public.notifications n
+        WHERE n.message_id = m.id
+      )
+  LOOP
+    SELECT COALESCE(
+      (SELECT NULLIF(p.full_name, '') FROM public.profiles p WHERE p.user_id = message_row.sender_id LIMIT 1),
+      (SELECT NULLIF(mm.name, '') FROM public.merchants mm WHERE mm.user_id = message_row.sender_id LIMIT 1),
+      (SELECT NULLIF(c.name, '') FROM public.couriers c WHERE c.user_id = message_row.sender_id LIMIT 1),
+      'Pengguna'
+    ) INTO sender_name;
+    message_preview := left(regexp_replace(trim(coalesce(message_row.body, message_row.message)), E'[\\n\\r]+', ' ', 'g'), 120);
+    BEGIN
+      PERFORM public.send_chat_notification(message_row.receiver_id, message_row.conversation_id, message_row.id, sender_name, message_preview);
+    EXCEPTION WHEN OTHERS THEN
+      PERFORM public.send_notification(
+        message_row.receiver_id,
+        coalesce(sender_name, 'Pesan baru'),
+        coalesce(message_preview, 'Pesan baru'),
+        'chat',
+        public.chat_notification_deep_link(message_row.receiver_id, message_row.conversation_id)
+      );
+    END;
+  END LOOP;
+END;
+$$;

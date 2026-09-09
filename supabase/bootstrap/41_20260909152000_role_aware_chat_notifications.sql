@@ -81,10 +81,18 @@ BEGIN
         preview
       );
     EXCEPTION WHEN OTHERS THEN
-      -- A notification provider/schema issue must never roll back the chat
-      -- message itself. Keep the failure visible in database logs and allow
-      -- the realtime message delivery to complete.
-      RAISE WARNING 'chat notification failed for message %: % (%)', NEW.id, SQLERRM, SQLSTATE;
+      BEGIN
+        PERFORM public.send_notification(
+          recipient.user_id,
+          COALESCE(sender_name, 'Pesan baru'),
+          COALESCE(preview, 'Pesan baru'),
+          'chat',
+          '/buyer/chat?conversationId=' || NEW.conversation_id::text
+        );
+      EXCEPTION WHEN OTHERS THEN
+        -- Notification failures must never roll back the chat message.
+        RAISE WARNING 'chat notification failed for message %: % (%)', NEW.id, SQLERRM, SQLSTATE;
+      END;
     END;
   END LOOP;
 
