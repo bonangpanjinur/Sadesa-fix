@@ -40,6 +40,14 @@ export default function BuyerChatPage() {
   const fetchThreads = useCallback(async () => {
     if (!user) return;
     try {
+      const { data: memberships } = await supabase
+        .from('chat_participants')
+        .select('conversation_id, last_read_at')
+        .eq('user_id', user.id)
+        .is('left_at', null);
+      const lastReadAtByConversation = new Map(
+        (memberships || []).map((row) => [row.conversation_id, row.last_read_at ? new Date(row.last_read_at).getTime() : 0]),
+      );
       const { data: messages } = await supabase
         .from('chat_messages')
         .select('*')
@@ -67,7 +75,10 @@ export default function BuyerChatPage() {
             chatType: (msg.chat_type || 'buyer_merchant') as ChatType,
           });
         }
-        if (msg.receiver_id === user.id && !msg.is_read) {
+        const lastReadAt = msg.conversation_id ? lastReadAtByConversation.get(msg.conversation_id) || 0 : 0;
+        if (msg.receiver_id === user.id && (
+          msg.conversation_id ? new Date(msg.created_at).getTime() > lastReadAt : !msg.is_read
+        )) {
           threadMap.get(key)!.unreadCount++;
         }
       }
@@ -238,7 +249,10 @@ export default function BuyerChatPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map(thread => (
-               <Card key={thread.conversationId || `${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => setSelectedThread(thread)}>
+               <Card key={thread.conversationId || `${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => {
+                 setSelectedThread(thread);
+                 setThreads((current) => current.map((item) => item.conversationId === thread.conversationId ? { ...item, unreadCount: 0 } : item));
+               }}>
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                     {thread.productImage ? (
