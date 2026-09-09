@@ -2,6 +2,7 @@ export type NotificationRole = 'admin' | 'admin_desa' | 'merchant' | 'courier' |
 
 export interface NotificationRouteInput {
   link?: string | null;
+  deep_link?: string | null;
   type?: string | null;
   data?: unknown;
 }
@@ -25,7 +26,7 @@ function firstString(...values: unknown[]): string | null {
 function withChatContext(path: string, input: NotificationRouteInput): string {
   const params = new URLSearchParams(path.split('?')[1] || '');
   const data = asRecord(input.data);
-  const conversationId = firstString(params.get('conversationId'), data.conversation_id, data.conversationId);
+  const conversationId = firstString(params.get('conversationId'), params.get('conversation'), data.conversation_id, data.conversationId);
   const orderId = firstString(params.get('orderId'), data.order_id, data.orderId);
   const rideRequestId = firstString(params.get('rideRequestId'), data.ride_request_id, data.rideRequestId);
   if (conversationId) params.set('conversationId', conversationId);
@@ -40,7 +41,7 @@ function withChatContext(path: string, input: NotificationRouteInput): string {
  * switch context. Producers should include an explicit role-scoped link.
  */
 export function resolveNotificationLink(input: NotificationRouteInput, roles: NotificationRole[] = []): string {
-  const rawLink = firstString(input.link) || '';
+  const rawLink = firstString(input.deep_link, input.link) || '';
   const data = asRecord(input.data);
   const explicitTarget = firstString(data.target_path, data.targetPath, data.route);
   let link = explicitTarget || rawLink;
@@ -58,6 +59,12 @@ export function resolveNotificationLink(input: NotificationRouteInput, roles: No
   }
 
   if (input.type === 'chat' || /(^|\/)chat(\/|\?|$)/.test(link)) {
+    // Older database triggers stored every chat notification as /buyer/chat.
+    // For a merchant+buyer account that legacy target must open the merchant
+    // inbox; canonical role-scoped links remain untouched below.
+    if (link.startsWith('/buyer/chat') && roles.includes('merchant')) {
+      link = link.replace(/^\/buyer\/chat/, '/merchant/chat');
+    }
     if (/^\/chat(?:\/|\?|$)/.test(link)) {
       link = roles.includes('merchant') ? `/merchant${link}`
         : roles.includes('courier') ? `/courier${link}`

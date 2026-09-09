@@ -7,6 +7,11 @@ describe('resolveNotificationLink', () => {
       .toBe('/merchant/chat?conversationId=c1');
   });
 
+  it('repairs legacy buyer links for merchant+buyer accounts', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/buyer/chat?conversationId=c0' }, ['merchant', 'buyer']))
+      .toBe('/merchant/chat?conversationId=c0');
+  });
+
   it('keeps an explicit courier chat context for a courier+buyer account', () => {
     expect(resolveNotificationLink({ type: 'chat', link: '/courier/chat?orderId=o1' }, ['courier', 'buyer']))
       .toBe('/courier/chat?orderId=o1');

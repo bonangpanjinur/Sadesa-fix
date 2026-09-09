@@ -32,6 +32,7 @@ interface Notification {
   message: string;
   type: string;
   link: string | null;
+  deep_link?: string | null;
   is_read: boolean;
   created_at: string;
   data?: unknown;
@@ -201,7 +202,7 @@ export default function NotificationsPage() {
                     if (!notification.is_read) {
                       markAsRead(notification.id);
                     }
-                    if (notification.link || notification.type === 'chat' || notification.data) {
+                    if (notification.link || notification.deep_link || notification.type === 'chat' || notification.data) {
                       navigate(resolveNotificationLink(notification, roles));
                     }
                   }}
