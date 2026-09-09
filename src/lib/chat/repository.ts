@@ -1,6 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { ChatContextType, ChatConversation, ChatCursor, ChatInboxItem, ChatPage, ConversationMessage, ConversationType } from './types';
+import type { ChatContextType, ChatCursor, ChatInboxItem, ChatPage, ConversationMessage, ConversationType } from './types';
 import { toChatError } from './errors';
 
 const normalizeMessage = (message: Record<string, unknown>): ConversationMessage => ({
@@ -23,7 +23,7 @@ export async function getOrCreateDirectConversation(merchantId: string) {
 }
 
 export async function listConversationMessages(conversationId: string, limit = 50, cursor?: ChatCursor): Promise<{ messages: ConversationMessage[]; error: Error | null }> {
-  let query = supabase.from('chat_messages').select('*').eq('conversation_id', conversationId).is('deleted_at', null).order('created_at', { ascending: true }).order('id', { ascending: true }).limit(limit);
+  let query = supabase.from('chat_messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: true }).order('id', { ascending: true }).limit(limit);
   if (cursor) query = query.or(`created_at.gt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.gt.${cursor.id})`);
   const { data, error } = await query;
   return { messages: (data || []).map((row) => normalizeMessage(row as Record<string, unknown>)), error: error ? toChatError(error) : null };
@@ -37,8 +37,29 @@ export async function listConversationPage(conversationId: string, limit = 50, c
 }
 
 export async function listChatInbox(): Promise<{ items: ChatInboxItem[]; error: Error | null }> {
-  const { data, error } = await supabase.from('chat_conversations').select('*').order('last_message_at', { ascending: false, nullsFirst: false });
-  return { items: (data || []).map((row) => ({ ...row, other_user_id: null, other_user_name: 'Pengguna', last_message_preview: row.last_message_body || 'Belum ada pesan' })) as ChatInboxItem[], error: error ? toChatError(error) : null };
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { items: [], error: toChatError(new Error('Unauthorized')) };
+  const { data: memberships, error: membershipError } = await supabase.from('chat_participants').select('conversation_id, last_read_message_id').eq('user_id', auth.user.id).is('left_at', null);
+  if (membershipError) return { items: [], error: toChatError(membershipError) };
+  const ids = (memberships || []).map((row) => row.conversation_id);
+  if (!ids.length) return { items: [], error: null };
+  const { data: conversations, error } = await supabase.from('chat_conversations').select('*').in('id', ids).order('last_message_at', { ascending: false, nullsFirst: false });
+  if (error) return { items: [], error: toChatError(error) };
+  const { data: participants } = await supabase.from('chat_participants').select('conversation_id, user_id').in('conversation_id', ids).neq('user_id', auth.user.id).is('left_at', null);
+  const otherUserIds = [...new Set((participants || []).map((row) => row.user_id))];
+  const [{ data: profiles }, { data: merchants }, { data: couriers }] = await Promise.all([
+    otherUserIds.length ? supabase.from('profiles').select('user_id, full_name').in('user_id', otherUserIds) : Promise.resolve({ data: [] }),
+    otherUserIds.length ? supabase.from('merchants').select('user_id, name').in('user_id', otherUserIds) : Promise.resolve({ data: [] }),
+    otherUserIds.length ? supabase.from('couriers').select('user_id, name').in('user_id', otherUserIds) : Promise.resolve({ data: [] }),
+  ]);
+  const items = (conversations || []).map((row) => {
+    const participant = (participants || []).find((item) => item.conversation_id === row.id);
+    const profile = profiles?.find((item) => item.user_id === participant?.user_id);
+    const merchant = merchants?.find((item) => item.user_id === participant?.user_id);
+    const courier = couriers?.find((item) => item.user_id === participant?.user_id);
+    return { ...row, other_user_id: participant?.user_id || null, other_user_name: merchant?.name || courier?.name || profile?.full_name || 'Pengguna', last_message_preview: row.last_message_body || (row.last_message_id ? 'Pesan terbaru' : 'Belum ada pesan') } as ChatInboxItem;
+  });
+  return { items, error: null };
 }
 
 export async function sendConversationMessage(request: SendMessageRequest) {
