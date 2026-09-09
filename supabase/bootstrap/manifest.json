@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 210,
-  "bundle_count": 37,
+  "bundle_count": 39,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -483,6 +483,22 @@
       ],
       "sha256": "546d9e996a3e275437a1463f812091bba455504f7161cdddd932ea4346603429",
       "bytes": 6174
+    },
+    {
+      "file": "47_20260909210000_delivery_method_restrictions.sql",
+      "source_files": [
+        "47_20260909210000_delivery_method_restrictions.sql"
+      ],
+      "sha256": "6c77aac845de80dd12623b1c5a31ab88fa670bf934a3c7243eedeeffe79554fb",
+      "bytes": 3104
+    },
+    {
+      "file": "48_20260909230000_merchant_settings_schema_repair.sql",
+      "source_files": [
+        "48_20260909230000_merchant_settings_schema_repair.sql"
+      ],
+      "sha256": "fcb1a60981d841122b97a6affda06a9a315ad4ee4e58a1a25d4941c6f3196fe2",
+      "bytes": 757
     }
   ]
 }

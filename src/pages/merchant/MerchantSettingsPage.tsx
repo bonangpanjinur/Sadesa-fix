@@ -111,17 +111,17 @@ export default function MerchantSettingsPage() {
         name: formData.name,
         phone: formData.phone,
         address: formData.address,
-        business_category: formData.business_category,
-        business_description: formData.business_description,
-        open_time: formData.open_time,
-        close_time: formData.close_time,
-        classification_price: formData.classification_price,
+        business_category: formData.business_category || null,
+        business_description: formData.business_description || null,
+        open_time: formData.open_time || null,
+        close_time: formData.close_time || null,
+        classification_price: formData.classification_price || null,
         order_mode: formData.order_mode,
-        image_url: imageUrl,
+        image_url: imageUrl || null,
         bank_name: formData.bank_name || null,
         bank_account_number: formData.bank_account_number || null,
         bank_account_name: formData.bank_account_name || null,
-        qris_image_url: qrisImageUrl,
+        qris_image_url: qrisImageUrl || null,
         payment_cod_enabled: formData.payment_cod_enabled,
         payment_transfer_enabled: formData.payment_transfer_enabled,
         notification_sound_enabled: formData.notification_sound_enabled,
@@ -142,7 +142,10 @@ export default function MerchantSettingsPage() {
       } else if (code === '23514') {
         toast.error('Nilai pengaturan toko tidak valid. Periksa mode pesanan.');
       } else {
-        const message = error instanceof Error ? error.message : 'Periksa kembali data pengaturan toko.';
+        const fields = error as { message?: string; details?: string; hint?: string };
+        const message = error instanceof Error
+          ? error.message
+          : fields?.message || fields?.details || fields?.hint || 'Periksa kembali data pengaturan toko.';
         toast.error(`Gagal menyimpan pengaturan: ${message}`);
       }
     },

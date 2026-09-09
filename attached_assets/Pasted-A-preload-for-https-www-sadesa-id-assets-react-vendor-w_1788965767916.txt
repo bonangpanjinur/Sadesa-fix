@@ -1,0 +1,61 @@
+A preload for 'https://www.sadesa.id/assets/react-vendor-wVUb6l2p.js' is found, but is not used because it is a cross-world service worker resource mismatch.
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:11:53.777Z","traceId":"device-a359baa9-4f4b-4143-98dd-5a19393517d6","context":{"deviceType":"browser","hasTenant":false}}
+index-igKAAjFg.js:2 [observability] {"domain":"offline_sync","event":"capability_registration_failed","level":"warn","at":"2026-09-09T14:11:54.009Z","traceId":"offline_sync-45a18b67-8ac2-42fc-8dc6-b3c38f6c403b","context":{},"error":{"name":"NotAllowedError","message":"Permission denied."}}
+N @ index-igKAAjFg.js:2
+settings:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:11:55.425Z","traceId":"device-a359baa9-4f4b-4143-98dd-5a19393517d6","durationMs":1648,"context":{"deviceType":"browser","hasTenant":false}}
+blob:https://www.sadesa.id/37cef1c7-26b1-4717-8596-1ba30be5bd11:1 Manifest: property 'start_url' ignored, URL is invalid.
+blob:https://www.sadesa.id/37cef1c7-26b1-4717-8596-1ba30be5bd11:1 Manifest: property 'scope' ignored, URL is invalid.
+blob:https://www.sadesa.id/37cef1c7-26b1-4717-8596-1ba30be5bd11:1 Manifest: property 'src' ignored, URL is invalid.
+blob:https://www.sadesa.id/37cef1c7-26b1-4717-8596-1ba30be5bd11:1 Manifest: property 'src' ignored, URL is invalid.
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+54The resource <URL> was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:36:54.840Z","traceId":"device-97a2823c-0c2b-4d03-aa44-c80568d857cb","context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:36:55.202Z","traceId":"device-97a2823c-0c2b-4d03-aa44-c80568d857cb","durationMs":362,"context":{"deviceType":"browser","hasTenant":false}}
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:44:50.380Z","traceId":"device-348d6a1d-7e9a-4d8a-b22b-0e70eb482e38","context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:44:50.897Z","traceId":"device-348d6a1d-7e9a-4d8a-b22b-0e70eb482e38","durationMs":516,"context":{"deviceType":"browser","hasTenant":false}}
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:47:56.964Z","traceId":"device-87cd4981-aab2-4735-bbfb-95d4281dcdcb","context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:47:57.292Z","traceId":"device-87cd4981-aab2-4735-bbfb-95d4281dcdcb","durationMs":328,"context":{"deviceType":"browser","hasTenant":false}}
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:55:02.152Z","traceId":"device-2843ea13-6f4a-409e-9aec-d9caf23c9704","context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:55:02.837Z","traceId":"device-2843ea13-6f4a-409e-9aec-d9caf23c9704","durationMs":685,"context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:55:05.059Z","traceId":"device-ede348ea-30d7-44cf-83e3-46f43da8b1ed","context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:55:06.521Z","traceId":"device-ede348ea-30d7-44cf-83e3-46f43da8b1ed","durationMs":1462,"context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:55:08.835Z","traceId":"device-e14f3463-f8de-45f9-a772-5d367270c0b4","context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:55:10.569Z","traceId":"device-e14f3463-f8de-45f9-a772-5d367270c0b4","durationMs":1734,"context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+xqdbnlcvboelvkdotilj.supabase.co/rest/v1/merchants?id=eq.eac4a04b-dd04-44a3-a460-3450416f1f9c:1  Failed to load resource: the server responded with a status of 400 ()
+index-igKAAjFg.js:2 [observability] {"domain":"data","event":"mutation_failed","level":"error","at":"2026-09-09T14:55:27.274Z","traceId":"data-18b96c75-d4cc-44fa-8823-7f73699d3dd3","context":{"mutationKey":"[]","source":"react-query"},"error":{"name":"UnknownError","message":"[object Object]"}}
+N @ index-igKAAjFg.js:2
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_started","level":"info","at":"2026-09-09T14:55:39.929Z","traceId":"device-04c9e3ce-c4c3-4d11-bd77-c1b55b26fee2","context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+index-igKAAjFg.js:2 [observability] {"domain":"device","event":"register_succeeded","level":"info","at":"2026-09-09T14:55:40.429Z","traceId":"device-04c9e3ce-c4c3-4d11-bd77-c1b55b26fee2","durationMs":500,"context":{"deviceType":"browser","hasTenant":false}}
+NotificationDropdown-DpS9XvRj.js:1 [notifications] realtime status Object
+(anonymous) @ NotificationDropdown-DpS9XvRj.js:1
+settings:1  Failed to load resource: the server responded with a status of 404 ()
