@@ -459,7 +459,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
             <button
               type="button"
               className="flex-1 min-w-0 text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-              onClick={() => orderId && navigate(`/orders/${orderId}`)}
+              onClick={() => orderId && navigate(`/orders?orderId=${orderId}`)}
               aria-label="Buka pesanan terkait"
             >
               <p className="text-[11px] font-medium truncate">

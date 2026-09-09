@@ -726,7 +726,7 @@ const OrdersPage = () => {
                                   size="sm"
                                   variant="outline"
                                   className="text-xs h-8 rounded-full px-4"
-                                  onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/orders?orderId=${order.id}`); }}
                                 >
                                   <CheckCircle className="w-3 h-3 mr-1" /> Cek Status Pembayaran
                                 </Button>
@@ -745,7 +745,7 @@ const OrdersPage = () => {
                               size="sm"
                               variant="outline"
                               className="text-xs h-8 rounded-full px-4 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                              onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}
+                              onClick={(e) => { e.stopPropagation(); navigate(`/orders?orderId=${order.id}`); }}
                             >
                               <CheckCircle className="w-3 h-3 mr-1" /> Cek Status Pesanan
                             </Button>

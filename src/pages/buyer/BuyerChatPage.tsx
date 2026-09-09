@@ -290,7 +290,7 @@ export default function BuyerChatPage() {
                         className="block max-w-full text-left text-[11px] text-primary/80 truncate hover:underline"
                         onClick={(event) => {
                           event.stopPropagation();
-                          if (thread.orderId) navigate(`/orders/${thread.orderId}`);
+                          if (thread.orderId) navigate(`/orders?orderId=${thread.orderId}`);
                         }}
                         disabled={!thread.orderId}
                       >

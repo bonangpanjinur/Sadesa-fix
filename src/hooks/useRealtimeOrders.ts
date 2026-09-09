@@ -155,7 +155,7 @@ export function useRealtimeOrders({
               user_id: order.buyer_id,
               title: 'Status Pesanan Diperbarui',
               body: `Pesanan #${orderId.slice(0, 8)} sekarang: ${newStatus}`,
-              url: `/orders/${orderId}`,
+              url: `/orders?orderId=${orderId}`,
             },
           })
           .catch(() => { /* push gagal tidak memblokir UX */ });
