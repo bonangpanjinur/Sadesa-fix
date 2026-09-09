@@ -157,14 +157,11 @@ export default function MerchantOrdersPage() {
 
   const handleSelfDelivery = async (orderId: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          is_self_delivery: true,
-          status: 'DELIVERING',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: orderId,
+        p_to_status: 'DELIVERING',
+        p_reason: 'Merchant memilih antar sendiri',
+      } as never);
 
       if (error) {
         console.error('Self delivery update error:', error);
@@ -183,18 +180,11 @@ export default function MerchantOrdersPage() {
 
   const handleSelfDeliveryStatusUpdate = async (orderId: string, newStatus: string) => {
     try {
-      const updateData: Record<string, unknown> = { 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-      if (newStatus === 'DELIVERED') {
-        updateData.delivered_at = new Date().toISOString();
-      }
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: orderId,
+        p_to_status: newStatus,
+        p_reason: 'Pembaruan pengiriman oleh merchant',
+      } as never);
 
       if (error) throw error;
       
@@ -332,6 +322,10 @@ export default function MerchantOrdersPage() {
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => viewOrderDetail(item)}>
               Lihat Detail
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setChatOrder(item)}>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Pesan sesuai pesanan
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openPrintDialog(item)}>
               <Printer className="h-4 w-4 mr-2" />

@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
 import { NavigationButton } from '@/components/courier/NavigationButton';
 import { ProofOfDelivery } from '@/components/courier/ProofOfDelivery';
@@ -61,6 +62,13 @@ interface AssignedOrder {
   total: number;
   created_at: string;
   notes: string | null;
+}
+
+interface DeliveryOffer {
+  id: string;
+  order_id: string;
+  expires_at: string;
+  orders?: { delivery_address: string | null; total: number; delivery_name: string | null } | null;
 }
 
 export default function CourierDashboardPage() {
@@ -126,6 +134,21 @@ export default function CourierDashboardPage() {
     staleTime: 30_000,
   });
 
+  const { data: deliveryOffers = [] } = useQuery<DeliveryOffer[]>({
+    queryKey: ['courier-delivery-offers', courier?.id],
+    queryFn: async () => {
+      if (!courier) return [];
+      const { data, error } = await supabase.from('delivery_assignments')
+        .select('id, order_id, expires_at, orders(delivery_address, total, delivery_name)')
+        .eq('courier_id', courier.id).eq('status', 'OFFERED')
+        .gt('expires_at', new Date().toISOString()).order('offered_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as DeliveryOffer[];
+    },
+    enabled: !!courier,
+    refetchInterval: 15_000,
+  });
+
   // Real-time notification for new assigned orders
   useEffect(() => {
     if (!courier?.id) return;
@@ -183,6 +206,22 @@ export default function CourierDashboardPage() {
       });
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const respondToDeliveryOffer = async (assignmentId: string, accept: boolean) => {
+    try {
+      const { error } = await supabase.rpc('respond_delivery_offer' as never, {
+        p_assignment_id: assignmentId,
+        p_accept: accept,
+        p_reason: accept ? null : 'Kurir menolak tawaran',
+      } as never);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier?.id] });
+      queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier?.id] });
+      toast({ title: accept ? 'Pesanan diambil' : 'Tawaran ditolak', description: accept ? 'Arahkan ke toko untuk mengambil pesanan.' : undefined });
+    } catch {
+      toast({ title: 'Gagal memproses tawaran', variant: 'destructive' });
     }
   };
 
@@ -433,6 +472,35 @@ export default function CourierDashboardPage() {
               }}
             />
           </motion.div>
+        )}
+
+        {deliveryOffers.length > 0 && (
+          <Card className="border-primary/40 shadow-sm">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">Tawaran pesanan baru</p>
+                  <p className="text-xs text-muted-foreground">Ambil atau tolak sebelum waktu habis</p>
+                </div>
+                <Badge>{deliveryOffers.length}</Badge>
+              </div>
+              {deliveryOffers.map((offer) => (
+                <div key={offer.id} className="rounded-xl border p-3 space-y-2">
+                  <div className="flex justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-sm">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-xs text-muted-foreground">{offer.orders?.delivery_name || 'Pembeli'} · {offer.orders?.delivery_address || 'Alamat tersedia di detail'}</p>
+                    </div>
+                    <p className="font-semibold text-sm">{formatPrice(offer.orders?.total || 0)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button className="flex-1" size="sm" onClick={() => void respondToDeliveryOffer(offer.id, true)}>Ambil Pesanan</Button>
+                    <Button className="flex-1" size="sm" variant="outline" onClick={() => void respondToDeliveryOffer(offer.id, false)}>Tolak</Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         )}
 
         {/* Ojek Desa Card */}

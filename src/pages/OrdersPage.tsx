@@ -78,7 +78,10 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; co
   PENDING_CONFIRMATION: { label: "Menunggu Konfirmasi", icon: Clock, color: "bg-orange-50 text-orange-700 border-orange-200" },
   CONFIRMED: { label: "Dikonfirmasi", icon: CheckCircle, color: "bg-sky-50 text-sky-700 border-sky-200" },
   PROCESSED: { label: "Sedang Diproses", icon: Package, color: "bg-blue-50 text-blue-700 border-blue-200" },
+  READY: { label: "Siap Dikirim/Diambil", icon: Package, color: "bg-sky-50 text-sky-700 border-sky-200" },
   ASSIGNED: { label: "Kurir Ditugaskan", icon: Truck, color: "bg-teal-50 text-teal-700 border-teal-200" },
+  COURIER_ASSIGNED: { label: "Menunggu Kurir", icon: Truck, color: "bg-teal-50 text-teal-700 border-teal-200" },
+  COURIER_ACCEPTED: { label: "Kurir Menuju Toko", icon: Truck, color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   PICKED_UP: { label: "Pesanan Diambil Kurir", icon: Truck, color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   DELIVERING: { label: "Diantar Penjual", icon: Truck, color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   SENT: { label: "Dalam Pengiriman", icon: Truck, color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
@@ -91,7 +94,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; co
 const ORDER_STEPS = ["NEW", "CONFIRMED", "PROCESSED", "ASSIGNED", "PICKED_UP", "SENT", "DELIVERED", "DONE"];
 
 const PENDING_STATUSES = ["NEW", "PENDING_PAYMENT", "PENDING_CONFIRMATION"];
-const PROCESSING_STATUSES = ["CONFIRMED", "PROCESSED", "ASSIGNED", "PICKED_UP"];
+const PROCESSING_STATUSES = ["CONFIRMED", "PROCESSED", "READY", "ASSIGNED", "COURIER_ASSIGNED", "COURIER_ACCEPTED", "PICKED_UP"];
 const SHIPPING_STATUSES = ["SENT", "DELIVERING", "DELIVERED"];
 const DONE_STATUSES = ["DONE"];
 const CANCELLED_STATUSES = ["CANCELLED", "CANCELED"];

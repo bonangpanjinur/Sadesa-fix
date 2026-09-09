@@ -171,13 +171,11 @@ export function OrderDetailsDialog({
       const isSelfDelivery = !isPickup && deliveryType === "self";
       const newStatus = isSelfDelivery ? "DELIVERING" : "PROCESSED";
 
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: newStatus,
-          is_self_delivery: isSelfDelivery
-        })
-        .eq('id', order.id);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: order.id,
+        p_to_status: newStatus,
+        p_reason: isSelfDelivery ? 'Merchant memilih antar sendiri' : 'Merchant menerima pesanan',
+      } as never);
 
       if (error) throw error;
       
@@ -209,10 +207,11 @@ export function OrderDetailsDialog({
   const handleCompleteSelfDelivery = async () => {
     try {
       setIsProcessing(true);
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'DONE' }) // Menggunakan DONE karena format sebelumnya pakai ini
-        .eq('id', order.id);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: order.id,
+        p_to_status: 'DONE',
+        p_reason: 'Pengiriman mandiri selesai',
+      } as never);
 
       if (error) throw error;
       

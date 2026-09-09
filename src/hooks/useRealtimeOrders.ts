@@ -133,15 +133,11 @@ export function useRealtimeOrders({
 
   const updateOrderStatus = async (orderId: string, newStatus: string, reason?: string) => {
     try {
-      const updateData: Record<string, unknown> = { status: newStatus };
-      if (reason) {
-        updateData.rejection_reason = reason;
-      }
-      
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: orderId,
+        p_to_status: newStatus,
+        p_reason: reason ?? null,
+      } as never);
 
       if (error) throw error;
       
