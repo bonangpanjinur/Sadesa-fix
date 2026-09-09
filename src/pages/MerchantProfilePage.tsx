@@ -400,12 +400,12 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="bg-card rounded-xl p-3 shadow-sm border border-border mb-3">
+            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border/80 mb-3">
               {/* Row 1: Name + badges + status */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h1 className="text-lg font-bold text-foreground truncate">{merchant.name}</h1>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <h1 className="text-xl leading-tight font-bold tracking-tight text-foreground truncate">{merchant.name}</h1>
                     {merchant.badge === 'VERIFIED' && <VerifiedBadge type="verified" size="sm" />}
                     {merchant.badge === 'POPULAR' && <VerifiedBadge type="popular" size="sm" />}
                     {merchant.badge === 'NEW' && <VerifiedBadge type="new" size="sm" />}
@@ -420,17 +420,16 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   </div>
 
                   {/* Row 2: Rating + location */}
-                  <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground flex-wrap">
-                    <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-x-2.5 gap-y-1.5 mt-2 text-sm text-muted-foreground flex-wrap">
+                    <div className="inline-flex items-center gap-1">
                       <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium text-foreground">{merchant.rating_avg?.toFixed(1) || '0.0'}</span>
+                      <span className="font-semibold text-foreground">{merchant.rating_avg?.toFixed(1) || '0.0'}</span>
+                      <span className="text-xs">({merchant.rating_count || 0} ulasan)</span>
                     </div>
-                    <span className="text-muted-foreground/50">·</span>
-                    <span className="text-xs">({merchant.rating_count || 0} ulasan)</span>
-                    <span className="text-muted-foreground/50">·</span>
-                    <div className="flex items-center gap-0.5">
+                    <span className="h-1 w-1 rounded-full bg-border" />
+                    <div className="inline-flex items-center gap-1 min-w-0">
                       <MapPin className="h-3 w-3" />
-                      <span className="text-xs truncate max-w-[120px]">
+                      <span className="text-xs truncate max-w-[150px]">
                         {merchant.villages?.name || merchant.subdistrict || merchant.district || merchant.city}
                       </span>
                     </div>
@@ -438,21 +437,10 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
 
                   {/* Row 3: Operating hours */}
                   {merchant.open_time && merchant.close_time && (
-                    <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                    <div className="inline-flex items-center gap-1.5 mt-2 rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       <span>{formatTime(merchant.open_time)} - {formatTime(merchant.close_time)}</span>
                     </div>
-                  )}
-                  {mapUrl && (
-                    <a
-                      href={mapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Lihat di Maps
-                    </a>
                   )}
                 </div>
 
@@ -464,24 +452,37 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   size="md"
                 />
               </div>
+              {mapUrl && (
+                <div className="mt-3 border-t border-border/70 pt-3">
+                  <a
+                    href={mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Lihat lokasi di Maps
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Tabs - 4 tabs now */}
             <Tabs defaultValue="products" className="w-full">
-              <TabsList className="w-full grid grid-cols-4 mb-3">
-                <TabsTrigger value="products" className="text-xs gap-1">
+              <TabsList className="w-full grid grid-cols-4 gap-1 rounded-xl bg-muted/70 p-1 mb-3 h-auto">
+                <TabsTrigger value="products" className="rounded-lg py-2 text-xs gap-1.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
                   <ShoppingBag className="h-3.5 w-3.5" />
                   Produk
                 </TabsTrigger>
-                <TabsTrigger value="about" className="text-xs gap-1">
+                <TabsTrigger value="about" className="rounded-lg py-2 text-xs gap-1.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
                   <Heart className="h-3.5 w-3.5" />
                   Tentang
                 </TabsTrigger>
-                <TabsTrigger value="info" className="text-xs gap-1">
+                <TabsTrigger value="info" className="rounded-lg py-2 text-xs gap-1.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
                   <Info className="h-3.5 w-3.5" />
                   Info
                 </TabsTrigger>
-                <TabsTrigger value="reviews" className="text-xs gap-1">
+                <TabsTrigger value="reviews" className="rounded-lg py-2 text-xs gap-1.5 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm">
                   <Star className="h-3.5 w-3.5" />
                   Ulasan
                 </TabsTrigger>
