@@ -443,6 +443,17 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                       <span>{formatTime(merchant.open_time)} - {formatTime(merchant.close_time)}</span>
                     </div>
                   )}
+                  {mapUrl && (
+                    <a
+                      href={mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs font-medium text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Lihat di Maps
+                    </a>
+                  )}
                 </div>
 
                 <MerchantStatusBadge
@@ -620,17 +631,6 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   <h3 className="font-semibold text-foreground text-sm mb-1.5">Alamat</h3>
                   {merchant.address && (
                     <p className="text-xs text-muted-foreground mb-1">{merchant.address}</p>
-                  )}
-                  {mapUrl && (
-                    <a
-                      href={mapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      Buka lokasi di peta
-                    </a>
                   )}
                   {(merchant.subdistrict || merchant.district || merchant.city) && (
                     <p className="text-xs text-muted-foreground">
