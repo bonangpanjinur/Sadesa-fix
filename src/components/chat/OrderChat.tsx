@@ -18,6 +18,8 @@ import {
   subscribeToConversation,
 } from '@/lib/chat/repository';
 import type { ChatContextType } from '@/lib/chat/types';
+import { useChatPresence } from '@/hooks/chat/useChatPresence';
+import { useTypingIndicator } from '@/hooks/chat/useTypingIndicator';
 
 export type ChatType = 'buyer_merchant' | 'buyer_courier' | 'merchant_courier';
 
@@ -88,6 +90,8 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
   const [sendError, setSendError] = useState<string | null>(null);
+  const presence = useChatPresence(conversationId);
+  const typing = useTypingIndicator(conversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch order info (items + products)
@@ -305,6 +309,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
   const handleSend = async (messageText?: string) => {
     const text = (messageText || newMessage).trim();
     if (!text || !user || sending) return;
+    typing.setIsTyping(false);
 
     setSending(true);
     setSendError(null);
@@ -395,12 +400,16 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
             </div>
             <div>
               <h3 className="font-semibold text-sm">{otherUserName}</h3>
-          <p className="text-[10px] text-muted-foreground">
-             {contextType === 'ride'
-               ? 'Perjalanan ojek'
-               : contextType === 'direct'
-                 ? 'Chat langsung di SaDesa'
-                 : `Order #${orderInfo?.shortId || '...'}`}
+              <p className="text-[10px] text-muted-foreground">
+             {typing.typing
+               ? 'Sedang mengetik…'
+               : presence.online
+                 ? 'Online sekarang'
+                 : contextType === 'ride'
+                   ? 'Perjalanan ojek'
+                   : contextType === 'direct'
+                     ? 'Chat langsung di SaDesa'
+                     : `Order #${orderInfo?.shortId || '...'}`}
             {connectionStatus !== 'connected' && ' · Menghubungkan ulang...'}
               </p>
             </div>
@@ -541,7 +550,10 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
             <Input
               placeholder="Ketik pesan..."
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                typing.setIsTyping(Boolean(e.target.value.trim()));
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               className="flex-1 h-10 rounded-full bg-muted border-none focus-visible:ring-primary"
             />
