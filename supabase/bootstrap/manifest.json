@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 210,
-  "bundle_count": 36,
+  "bundle_count": 37,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -475,6 +475,14 @@
       ],
       "sha256": "655779fe5d60c2df4f7b3b3c45552463af643c49181498305780e25c91f3115d",
       "bytes": 15305
+    },
+    {
+      "file": "37_20260909140000_chat_retention_operations.sql",
+      "source_files": [
+        "37_20260909140000_chat_retention_operations.sql"
+      ],
+      "sha256": "546d9e996a3e275437a1463f812091bba455504f7161cdddd932ea4346603429",
+      "bytes": 6174
     }
   ]
 }

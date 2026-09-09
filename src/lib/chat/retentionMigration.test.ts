@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'supabase/bootstrap/35_20260909120000_chat_message_retention.sql'),
   'utf8',
 );
+const operationsMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/bootstrap/37_20260909140000_chat_retention_operations.sql'),
+  'utf8',
+);
 const worker = readFileSync(
   resolve(process.cwd(), 'supabase/functions/process-chat-retention/index.ts'),
   'utf8',
@@ -32,5 +36,23 @@ describe('chat retention implementation contract', () => {
     expect(worker).toContain('x-worker-secret');
     expect(worker).toContain('storage.from("chat-images").remove(paths)');
     expect(worker).toContain('hard_delete_chat_messages');
+  });
+
+  it('redacts soft-deleted bodies, claims hard-delete batches, and records metrics', () => {
+    expect(operationsMigration).toContain("body = '[Pesan dihapus otomatis]'");
+    expect(operationsMigration).toContain("message = '[Pesan dihapus otomatis]'");
+    expect(operationsMigration).toContain('chat_retention_claims');
+    expect(operationsMigration).toContain('FOR UPDATE OF m SKIP LOCKED');
+    expect(operationsMigration).toContain('chat_retention_runs');
+    expect(operationsMigration).toContain('record_chat_retention_run');
+    expect(operationsMigration).toContain('legacy three-hour auto_delete_at policy is intentionally disabled');
+  });
+
+  it('validates attachment paths and never logs message content', () => {
+    expect(worker).toContain('safeAttachmentPath');
+    expect(worker).toContain('!path.includes("..")');
+    expect(worker).toContain('RETENTION_WORKER_FAILED');
+    expect(worker).not.toContain('message.body');
+    expect(worker).not.toContain('message.message');
   });
 });
