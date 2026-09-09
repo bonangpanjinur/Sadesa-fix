@@ -120,6 +120,12 @@ export function NotificationDropdown() {
       return `/orders?orderId=${orderId}`;
     }
 
+    if (type === 'chat') {
+      if (link.startsWith('/merchant/chat')) return '/merchant/chat';
+      if (link.startsWith('/buyer/chat')) return '/buyer/chat';
+      return isMerchant ? '/merchant/chat' : '/buyer/chat';
+    }
+
     return link || '/';
   };
 

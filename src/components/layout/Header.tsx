@@ -29,6 +29,10 @@ export function Header() {
     }
   };
 
+  const handleChatNavigation = () => {
+    navigate(location.pathname.startsWith('/merchant/') ? '/merchant/chat' : '/buyer/chat');
+  };
+
   return (
     <header className="sticky top-0 z-40 space-y-4 border-b border-border/60 bg-card/95 px-5 pb-5 pt-4 backdrop-blur-xl">
       <div className="flex items-center justify-between">
@@ -59,7 +63,7 @@ export function Header() {
          <div className="flex items-center gap-1">
           <InstallButton />
           <button
-            onClick={() => navigate('/buyer/chat')}
+            onClick={handleChatNavigation}
              className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-primary"
             aria-label="Chat"
           >
