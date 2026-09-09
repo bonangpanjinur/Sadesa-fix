@@ -75,6 +75,7 @@ export default function BuyerChatPage() {
       const directConversationIds = [...threadMap.values()]
         .map((thread) => thread.conversationId)
         .filter((conversationId): conversationId is string => Boolean(conversationId));
+      const merchantIds = new Set<string>();
       if (directConversationIds.length > 0) {
         const { data: conversations } = await supabase
           .from('chat_conversations')
@@ -85,24 +86,30 @@ export default function BuyerChatPage() {
         );
         for (const thread of threadMap.values()) {
           if (thread.conversationId) {
-            thread.merchantId = merchantByConversation.get(thread.conversationId) || null;
+            const merchantId = merchantByConversation.get(thread.conversationId) || null;
+            thread.merchantId = merchantId;
+            if (merchantId) merchantIds.add(merchantId);
           }
         }
       }
 
       // Fetch names
       const userIds = [...new Set([...threadMap.values()].map(t => t.otherUserId))];
-      const [{ data: profiles }, { data: merchants }, { data: couriers }] = await Promise.all([
+      const [{ data: profiles }, { data: merchantsByUser }, { data: merchantsById }, { data: couriers }] = await Promise.all([
         supabase.from('profiles').select('user_id, full_name').in('user_id', userIds),
-        supabase.from('merchants').select('user_id, name').in('user_id', userIds),
+        supabase.from('merchants').select('id, user_id, name').in('user_id', userIds),
+        merchantIds.size > 0
+          ? supabase.from('merchants').select('id, user_id, name').in('id', [...merchantIds])
+          : Promise.resolve({ data: [] }),
         supabase.from('couriers').select('user_id, name').in('user_id', userIds),
       ]);
 
       for (const thread of threadMap.values()) {
         const profile = (profiles || []).find(p => p.user_id === thread.otherUserId);
-        const merchant = (merchants || []).find(m => m.user_id === thread.otherUserId);
+        const merchant = [...(merchantsByUser || []), ...(merchantsById || [])]
+          .find(m => m.user_id === thread.otherUserId || m.id === thread.merchantId);
         const courier = (couriers || []).find(c => c.user_id === thread.otherUserId);
-        thread.otherUserName = profile?.full_name || merchant?.name || courier?.name || (thread.chatType === 'buyer_courier' ? 'Kurir' : 'Penjual');
+        thread.otherUserName = profile?.full_name?.trim() || merchant?.name?.trim() || courier?.name?.trim() || (thread.chatType === 'buyer_courier' ? 'Kurir' : 'Penjual');
       }
 
       // Fetch order items for product info
