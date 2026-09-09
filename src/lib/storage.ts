@@ -7,6 +7,8 @@ interface UploadOptions {
   bucket: StorageBucket;
   path: string;
   file: File;
+  fileName?: string;
+  upsert?: boolean;
   onProgress?: (progress: number) => void;
 }
 
@@ -18,19 +20,23 @@ interface UploadResult {
 /**
  * Upload a file to Supabase Storage
  */
-export async function uploadFile({ bucket, path, file }: UploadOptions): Promise<UploadResult> {
+export async function uploadFile({ bucket, path, file, fileName, upsert = false }: UploadOptions): Promise<UploadResult> {
   const context = { bucket, fileType: file.type || 'unknown', sizeBytes: file.size };
   try {
     return await observe('upload', 'file_upload', async () => {
-    // Generate unique filename
+    // Settings images use a stable name so repeated saves replace the same
+    // object instead of accumulating orphaned files. Other callers retain the
+    // existing unique-file behavior.
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const fileName = `${path}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const objectName = fileName
+      ? `${path}/${fileName}`
+      : `${path}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)
-      .upload(fileName, file, {
+      .upload(objectName, file, {
         cacheControl: '3600',
-        upsert: false,
+        upsert,
       });
 
     if (uploadError) throw uploadError;
@@ -38,7 +44,7 @@ export async function uploadFile({ bucket, path, file }: UploadOptions): Promise
     // Get public URL
     const { data: urlData } = supabase.storage
       .from(bucket)
-      .getPublicUrl(fileName);
+      .getPublicUrl(objectName);
 
     return { url: urlData.publicUrl, error: null };
     }, context);

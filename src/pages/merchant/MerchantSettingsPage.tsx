@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Store, Clock, MapPin, Phone, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon } from 'lucide-react';
+import { Save, Store, Clock, MapPin, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
+import { BUSINESS_CATEGORY_OPTIONS, BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
+import { merchantSettingsSchema } from '@/lib/validationSchemas';
 
 interface MerchantData {
   id: string;
@@ -58,7 +59,7 @@ export default function MerchantSettingsPage() {
   const [formData, setFormData] = useState({
     name: '', phone: '', address: '', business_category: '',
     business_description: '', open_time: '08:00', close_time: '17:00',
-    classification_price: '', order_mode: 'ADMIN_ASSISTED',
+    is_open: false, classification_price: '', order_mode: 'ADMIN_ASSISTED',
     bank_name: '', bank_account_number: '', bank_account_name: '',
     payment_cod_enabled: true, payment_transfer_enabled: true,
     notification_sound_enabled: true, verifikator_code: '', slug: '',
@@ -67,14 +68,18 @@ export default function MerchantSettingsPage() {
   const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
 
   const { data: merchant, isLoading: fetchLoading } = useQuery<MerchantData | null>({
-    queryKey: ['merchant-settings', user?.id],
+    queryKey: ['merchant-settings', guardMerchantId],
     queryFn: async () => {
+      if (!guardMerchantId) return null;
       const { data, error } = await supabase
-        .from('merchants').select('*').eq('user_id', user!.id).maybeSingle();
+        .from('merchants')
+        .select('id, name, phone, address, business_category, business_description, open_time, close_time, is_open, image_url, order_mode, classification_price, bank_name, bank_account_number, bank_account_name, qris_image_url, payment_cod_enabled, payment_transfer_enabled, notification_sound_enabled, halal_status, halal_certificate_url, ktp_url, verifikator_code, slug')
+        .eq('id', guardMerchantId)
+        .maybeSingle();
       if (error) throw error;
       return data || null;
     },
-    enabled: !!user && !guardLoading,
+    enabled: !!guardMerchantId && !guardLoading,
     staleTime: 60_000,
   });
 
@@ -89,6 +94,7 @@ export default function MerchantSettingsPage() {
       business_description: merchant.business_description || '',
       open_time: merchant.open_time || '08:00',
       close_time: merchant.close_time || '17:00',
+      is_open: merchant.is_open,
       classification_price: merchant.classification_price || '',
       order_mode: merchant.order_mode === 'SELF_MANAGED' ? 'SELF' : (merchant.order_mode || 'ADMIN_ASSISTED'),
       bank_name: merchant.bank_name || '',
@@ -107,32 +113,37 @@ export default function MerchantSettingsPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!merchant) return;
+      const parsed = merchantSettingsSchema.safeParse(formData);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message || 'Periksa kembali data pengaturan toko.');
+      }
+      const settings = parsed.data;
       const { error } = await supabase.from('merchants').update({
-        name: formData.name,
-        phone: formData.phone,
-        address: formData.address,
-        business_category: formData.business_category || null,
-        business_description: formData.business_description || null,
-        open_time: formData.open_time || null,
-        close_time: formData.close_time || null,
-        classification_price: formData.classification_price || null,
-        order_mode: formData.order_mode,
+        name: settings.name,
+        phone: settings.phone || null,
+        address: settings.address || null,
+        business_category: settings.business_category || null,
+        business_description: settings.business_description || null,
+        open_time: settings.open_time || null,
+        close_time: settings.close_time || null,
+        is_open: settings.is_open,
+        classification_price: settings.classification_price || null,
+        order_mode: settings.order_mode,
         image_url: imageUrl || null,
-        bank_name: formData.bank_name || null,
-        bank_account_number: formData.bank_account_number || null,
-        bank_account_name: formData.bank_account_name || null,
+        bank_name: settings.bank_name || null,
+        bank_account_number: settings.bank_account_number || null,
+        bank_account_name: settings.bank_account_name || null,
         qris_image_url: qrisImageUrl || null,
-        payment_cod_enabled: formData.payment_cod_enabled,
-        payment_transfer_enabled: formData.payment_transfer_enabled,
-        notification_sound_enabled: formData.notification_sound_enabled,
-        verifikator_code: formData.verifikator_code || null,
-        slug: formData.slug || null,
+        payment_cod_enabled: settings.payment_cod_enabled,
+        payment_transfer_enabled: settings.payment_transfer_enabled,
+        notification_sound_enabled: settings.notification_sound_enabled,
+        slug: settings.slug || null,
       }).eq('id', merchant.id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Pengaturan toko berhasil disimpan');
-      queryClient.invalidateQueries({ queryKey: ['merchant-settings', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-settings', guardMerchantId] });
       queryClient.invalidateQueries({ queryKey: ['merchant-profile', user?.id] });
     },
     onError: (error: unknown) => {
@@ -184,7 +195,7 @@ export default function MerchantSettingsPage() {
             <CardDescription>Foto utama yang ditampilkan di halaman toko</CardDescription>
           </CardHeader>
           <CardContent>
-            <ImageUpload value={imageUrl} onChange={setImageUrl} bucket="merchant-images" path={merchant.id} />
+            <ImageUpload value={imageUrl} onChange={setImageUrl} bucket="merchant-images" path={`store/${merchant.id}`} aspectRatio="wide" stableFileName />
           </CardContent>
         </Card>
 
@@ -195,12 +206,12 @@ export default function MerchantSettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nama Toko</Label>
-              <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+              <Input id="name" name="name" value={formData.name} onChange={handleChange} maxLength={100} required />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">No. Telepon</Label>
-                <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} />
+                <Input id="phone" name="phone" type="tel" inputMode="tel" value={formData.phone} onChange={handleChange} maxLength={30} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="business_category">Kategori Bisnis</Label>
@@ -214,15 +225,15 @@ export default function MerchantSettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="business_description">Deskripsi Toko</Label>
-              <Textarea id="business_description" name="business_description" value={formData.business_description} onChange={handleChange} rows={3} placeholder="Ceritakan tentang toko Anda..." />
+              <Textarea id="business_description" name="business_description" value={formData.business_description} onChange={handleChange} maxLength={2000} rows={3} placeholder="Ceritakan tentang toko Anda..." />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="verifikator_code">Kode Verifikator</Label>
+              <div className="space-y-2">
+                <Label htmlFor="verifikator_code">Kode Verifikator</Label>
               <div className="relative">
                 <Shield className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input id="verifikator_code" name="verifikator_code" value={formData.verifikator_code} onChange={handleChange} className="pl-9 uppercase" placeholder="Kode Verifikator" />
+                  <Input id="verifikator_code" value={formData.verifikator_code} readOnly disabled className="pl-9 uppercase" placeholder="Belum ditetapkan" />
               </div>
-              <p className="text-[10px] text-muted-foreground">Kode verifikator yang terhubung dengan akun Anda.</p>
+               <p className="text-[10px] text-muted-foreground">Kode ini ditetapkan oleh verifikator dan tidak dapat diubah dari halaman toko.</p>
             </div>
           </CardContent>
         </Card>
@@ -238,7 +249,7 @@ export default function MerchantSettingsPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground whitespace-nowrap">{window.location.origin}/s/</span>
                 <Input id="slug" name="slug" value={formData.slug}
-                  onChange={e => { const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''); setFormData(p => ({ ...p, slug: val })); }}
+                  onChange={e => { const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 80); setFormData(p => ({ ...p, slug: val })); }}
                   placeholder="nama-toko" className="font-mono" />
               </div>
               <p className="text-[10px] text-muted-foreground">Hanya huruf kecil, angka, dan strip (-). Contoh: kedai-maju</p>
@@ -259,7 +270,7 @@ export default function MerchantSettingsPage() {
           <CardContent>
             <div className="space-y-2">
               <Label htmlFor="address">Alamat Lengkap</Label>
-              <Textarea id="address" name="address" value={formData.address} onChange={handleChange} rows={2} placeholder="Jalan, RT/RW, Desa..." />
+              <Textarea id="address" name="address" value={formData.address} onChange={handleChange} maxLength={500} rows={2} placeholder="Jalan, RT/RW, Desa..." />
             </div>
           </CardContent>
         </Card>
@@ -350,16 +361,16 @@ export default function MerchantSettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Nama Bank</Label>
-                  <Input name="bank_name" value={formData.bank_name} onChange={handleChange} placeholder="Contoh: BRI, BCA, Mandiri" />
+                  <Input name="bank_name" value={formData.bank_name} onChange={handleChange} maxLength={100} placeholder="Contoh: BRI, BCA, Mandiri" />
                 </div>
                 <div className="space-y-2">
                   <Label>Nomor Rekening</Label>
-                  <Input name="bank_account_number" value={formData.bank_account_number} onChange={handleChange} placeholder="Nomor rekening" />
+                  <Input name="bank_account_number" value={formData.bank_account_number} onChange={handleChange} maxLength={50} inputMode="numeric" placeholder="Nomor rekening" />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Atas Nama</Label>
-                <Input name="bank_account_name" value={formData.bank_account_name} onChange={handleChange} placeholder="Nama pemilik rekening" />
+                <Input name="bank_account_name" value={formData.bank_account_name} onChange={handleChange} maxLength={150} placeholder="Nama pemilik rekening" />
               </div>
               {!formData.bank_name && !formData.bank_account_number && (
                 <p className="text-xs text-muted-foreground bg-muted p-2 rounded">💡 Jika tidak diisi, akan menggunakan rekening admin sebagai default</p>
@@ -367,7 +378,7 @@ export default function MerchantSettingsPage() {
             </div>
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium text-sm flex items-center gap-2"><QrCode className="h-4 w-4" />QRIS</h4>
-              <ImageUpload value={qrisImageUrl} onChange={setQrisImageUrl} bucket="merchant-images" path={`qris/${merchant.id}`} placeholder="Upload gambar QRIS" />
+              <ImageUpload value={qrisImageUrl} onChange={setQrisImageUrl} bucket="merchant-images" path={`qris/${merchant.id}`} placeholder="Upload gambar QRIS" stableFileName />
               {!qrisImageUrl && (
                 <p className="text-xs text-muted-foreground bg-muted p-2 rounded">💡 Jika tidak diisi, akan menggunakan QRIS admin sebagai default</p>
               )}
@@ -387,6 +398,25 @@ export default function MerchantSettingsPage() {
                 <p className="text-xs text-muted-foreground">Bunyikan suara saat pesanan baru masuk</p>
               </div>
               <Switch checked={formData.notification_sound_enabled} onCheckedChange={v => setFormData(p => ({ ...p, notification_sound_enabled: v }))} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2"><Store className="h-5 w-5" />Status Toko</CardTitle>
+            <CardDescription>Kontrol apakah toko tampil sebagai buka bagi pelanggan.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+              <div className="flex items-center gap-3">
+                {formData.is_open ? <Eye className="h-4 w-4 text-emerald-600" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                <div>
+                  <p className="font-medium text-sm">{formData.is_open ? 'Toko sedang buka' : 'Toko sedang tutup'}</p>
+                  <p className="text-xs text-muted-foreground">Pelanggan akan melihat status ini di halaman toko.</p>
+                </div>
+              </div>
+              <Switch checked={formData.is_open} onCheckedChange={v => setFormData(p => ({ ...p, is_open: v }))} />
             </div>
           </CardContent>
         </Card>

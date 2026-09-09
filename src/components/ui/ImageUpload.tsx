@@ -15,6 +15,7 @@ interface ImageUploadProps {
   maxSizeMB?: number;
   placeholder?: string;
   disabled?: boolean;
+  stableFileName?: boolean;
 }
 
 export function ImageUpload({
@@ -27,6 +28,7 @@ export function ImageUpload({
   maxSizeMB = 5,
   placeholder = 'Upload gambar',
   disabled = false,
+  stableFileName = false,
 }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -57,6 +59,7 @@ export function ImageUpload({
         bucket,
         path,
         file: compressedFile,
+        ...(stableFileName ? { fileName: 'image.jpg', upsert: true } : {}),
       });
 
       if (result.error) {

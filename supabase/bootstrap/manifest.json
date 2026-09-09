@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
-  "migration_count": 210,
-  "bundle_count": 39,
+  "migration_count": 211,
+  "bundle_count": 40,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -499,6 +499,14 @@
       ],
       "sha256": "fcb1a60981d841122b97a6affda06a9a315ad4ee4e58a1a25d4941c6f3196fe2",
       "bytes": 757
+    },
+    {
+      "file": "49_20260909240000_merchant_settings_hardening.sql",
+      "source_files": [
+        "49_20260909240000_merchant_settings_hardening.sql"
+      ],
+      "sha256": "b341115254374c85dabe3381b1a5b7cf1105574a7a4a5c54f0266411eec81720",
+      "bytes": 5422
     }
   ]
 }

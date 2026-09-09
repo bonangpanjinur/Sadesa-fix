@@ -1,5 +1,6 @@
 // Centralized Zod validation schemas for consistent form validation
 import { z } from 'zod';
+import { BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
 
 // Common patterns
 const phoneRegex = /^(\+62|62|0)8[1-9][0-9]{6,11}$/;
@@ -43,6 +44,69 @@ export const addressSchema = z
   .trim()
   .min(10, 'Alamat minimal 10 karakter')
   .max(500, 'Alamat maksimal 500 karakter');
+
+const optionalPhoneSchema = z
+  .string()
+  .trim()
+  .max(30, 'Nomor telepon maksimal 30 karakter')
+  .refine((value) => value === '' || phoneRegex.test(value), indonesianPhoneMessage);
+
+const optionalTimeSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Format jam harus HH:MM')
+  .or(z.literal(''));
+
+const optionalSlugSchema = z
+  .string()
+  .trim()
+  .max(80, 'Slug maksimal 80 karakter')
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug hanya boleh berisi huruf kecil, angka, dan strip')
+  .or(z.literal(''));
+
+/**
+ * Fields that a merchant is allowed to change from the store settings page.
+ * Approval, ownership, balances, and verification fields intentionally do not
+ * belong here; those are controlled by admin/verifikator workflows.
+ */
+export const merchantSettingsSchema = z.object({
+  name: nameSchema,
+  phone: optionalPhoneSchema,
+  address: z.string().trim().max(500, 'Alamat maksimal 500 karakter'),
+  business_category: z.enum(BUSINESS_CATEGORY_VALUES as [string, ...string[]]).or(z.literal('')),
+  business_description: z.string().trim().max(2000, 'Deskripsi maksimal 2.000 karakter'),
+  open_time: optionalTimeSchema,
+  close_time: optionalTimeSchema,
+  is_open: z.boolean(),
+  classification_price: z.enum(['UNDER_5K', 'FROM_5K_TO_10K', 'FROM_10K_TO_20K', 'ABOVE_20K']).or(z.literal('')),
+  order_mode: z.enum(['SELF', 'ADMIN_ASSISTED']),
+  bank_name: z.string().trim().max(100, 'Nama bank maksimal 100 karakter'),
+  bank_account_number: z.string().trim().max(50, 'Nomor rekening maksimal 50 karakter'),
+  bank_account_name: z.string().trim().max(150, 'Nama pemilik rekening maksimal 150 karakter'),
+  payment_cod_enabled: z.boolean(),
+  payment_transfer_enabled: z.boolean(),
+  notification_sound_enabled: z.boolean(),
+  slug: optionalSlugSchema,
+}).superRefine((data, context) => {
+  const bankFields = [data.bank_name, data.bank_account_number, data.bank_account_name];
+  const hasAnyBankField = bankFields.some(Boolean);
+  const hasAllBankFields = bankFields.every(Boolean);
+
+  if (hasAnyBankField && !hasAllBankFields) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['bank_account_number'],
+      message: 'Isi nama bank, nomor rekening, dan nama pemilik secara lengkap.',
+    });
+  }
+
+  if (!data.payment_cod_enabled && !data.payment_transfer_enabled) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['payment_transfer_enabled'],
+      message: 'Aktifkan minimal satu metode pembayaran.',
+    });
+  }
+});
 
 // Auth Schemas
 export const loginSchema = z.object({
