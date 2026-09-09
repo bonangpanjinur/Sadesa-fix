@@ -42,16 +42,19 @@ export default function BuyerChatPage() {
     try {
       const { data: memberships } = await supabase
         .from('chat_participants')
-        .select('conversation_id, last_read_at')
+        .select('conversation_id, last_read_at, role')
         .eq('user_id', user.id)
+        .eq('role', 'buyer')
         .is('left_at', null);
       const lastReadAtByConversation = new Map(
         (memberships || []).map((row) => [row.conversation_id, row.last_read_at ? new Date(row.last_read_at).getTime() : 0]),
       );
+      const buyerConversationIds = [...new Set((memberships || []).map((row) => row.conversation_id))];
+      if (buyerConversationIds.length === 0) { setThreads([]); setLoading(false); return; }
       const { data: messages } = await supabase
         .from('chat_messages')
         .select('*')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .in('conversation_id', buyerConversationIds)
         .is('deleted_at', null)
         .in('chat_type', ['buyer_merchant', 'buyer_courier'])
         .order('created_at', { ascending: false });

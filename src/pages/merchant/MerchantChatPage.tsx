@@ -62,8 +62,9 @@ export default function MerchantChatPage() {
       // visible to the merchant before the merchant sends a reply.
       const { data: memberships } = await supabase
         .from('chat_participants')
-        .select('conversation_id, last_read_at')
+        .select('conversation_id, last_read_at, role')
         .eq('user_id', user.id)
+        .eq('role', 'merchant')
         .is('left_at', null);
       const conversationIds = [...new Set((memberships || []).map((row) => row.conversation_id))];
       const lastReadAtByConversation = new Map(
