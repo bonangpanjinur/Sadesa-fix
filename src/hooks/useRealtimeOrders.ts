@@ -13,6 +13,8 @@ export interface OrderRow {
   delivery_name: string | null;
   delivery_phone: string | null;
   delivery_address: string | null;
+  delivery_lat?: number | null;
+  delivery_lng?: number | null;
   subtotal: number;
   shipping_cost: number;
   total: number;
@@ -20,7 +22,7 @@ export interface OrderRow {
   notes: string | null;
   created_at: string;
   courier_id: string | null;
-  merchants?: { name: string } | null;
+  merchants?: { name: string; location_lat?: number | null; location_lng?: number | null } | null;
   is_self_delivery?: boolean;
   payment_proof_url?: string | null;
 }
@@ -55,7 +57,7 @@ export function useRealtimeOrders({
       setLoading(true);
       const { data, error } = await supabase
         .from('orders')
-        .select('*, merchants(name)')
+        .select('*, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
         .order('created_at', { ascending: false });
 
@@ -132,6 +134,10 @@ export function useRealtimeOrders({
   }, [merchantId]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string, reason?: string) => {
+    const currentOrder = orders.find(order => order.id === orderId);
+    if (currentOrder?.status === newStatus) {
+      return true;
+    }
     try {
       const { error } = await supabase.rpc('merchant_transition_order' as never, {
         p_order_id: orderId,
@@ -142,7 +148,7 @@ export function useRealtimeOrders({
       if (error) throw error;
       
       // Optimistic update local state
-      setOrders(orders.map(o => 
+      setOrders(prev => prev.map(o =>
         o.id === orderId ? { ...o, status: newStatus } : o
       ));
 

@@ -32,6 +32,7 @@ import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { MerchantDeliveryTracker } from '@/components/merchant/MerchantDeliveryTracker';
 import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 import { OrderChat } from '@/components/chat/OrderChat';
+import { CourierAssignDialog } from '@/components/admin/CourierAssignDialog';
 import { orderStatusLabel } from '@/lib/orderStatus';
 
 interface OrderItem {
@@ -61,6 +62,7 @@ export default function MerchantOrdersPage() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [chatOrder, setChatOrder] = useState<OrderRow | null>(null);
+  const [courierAssignDialogOpen, setCourierAssignDialogOpen] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -81,6 +83,12 @@ export default function MerchantOrdersPage() {
     merchantId,
     onNewOrder: handleNewOrder,
   });
+
+  const openAssignDialog = (order: OrderRow) => {
+    setSelectedOrder(order);
+    setDetailDialogOpen(false);
+    setCourierAssignDialogOpen(true);
+  };
 
   // Connection status listener
   useEffect(() => {
@@ -759,14 +767,7 @@ export default function MerchantOrdersPage() {
                     <Button 
                       className="w-full justify-start gap-3 h-auto py-4"
                       variant="outline"
-                      onClick={async () => {
-                        // First set status to PROCESSED, then navigate to courier assign
-                        await handleUpdateStatus(selectedOrder.id, 'PROCESSED');
-                        setDetailDialogOpen(false);
-                        // Open courier assign via dropdown action
-                        const order = orders.find(o => o.id === selectedOrder.id);
-                        if (order) viewOrderDetail({ ...order, status: 'PROCESSED' } as OrderRow);
-                      }}
+                      onClick={() => openAssignDialog(selectedOrder)}
                     >
                       <div className="h-10 w-10 rounded-full bg-info/10 flex items-center justify-center flex-shrink-0">
                         <Truck className="h-5 w-5 text-info" />
@@ -815,6 +816,18 @@ export default function MerchantOrdersPage() {
           chatType="buyer_merchant"
           isOpen={!!chatOrder}
           onClose={() => setChatOrder(null)}
+        />
+      )}
+      {selectedOrder && (
+        <CourierAssignDialog
+          open={courierAssignDialogOpen}
+          onOpenChange={setCourierAssignDialogOpen}
+          orderId={selectedOrder.id}
+          merchantLat={selectedOrder.merchants?.location_lat ?? undefined}
+          merchantLng={selectedOrder.merchants?.location_lng ?? undefined}
+          deliveryLat={selectedOrder.delivery_lat ?? undefined}
+          deliveryLng={selectedOrder.delivery_lng ?? undefined}
+          onSuccess={refetch}
         />
       )}
 

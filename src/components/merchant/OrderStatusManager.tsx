@@ -120,6 +120,11 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
   }, [fetchOrders]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string, courierId?: string | null) => {
+    const currentOrder = orders.find(order => order.id === orderId);
+    if (currentOrder?.status === newStatus) {
+      toast.info('Pesanan sudah berada pada status tersebut');
+      return;
+    }
     setUpdating(true);
     try {
       const { error } = await supabase.rpc('merchant_transition_order' as never, {

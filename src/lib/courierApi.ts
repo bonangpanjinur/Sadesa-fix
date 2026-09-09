@@ -49,7 +49,7 @@ export async function manualAssignCourier(
   courierId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase.rpc('assign_specific_courier', {
+    const { error } = await supabase.rpc('create_delivery_offer' as never, {
       p_order_id: orderId,
       p_courier_id: courierId,
     });
