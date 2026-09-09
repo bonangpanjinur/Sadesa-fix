@@ -54,6 +54,7 @@ describe('chat phase 8 acceptance matrix contract', () => {
     expect(notification).toContain('deep_link');
     expect(roleAwareNotification).not.toMatch(/FULL\s+JOIN/i);
     expect(roleAwareNotification).toContain('send_chat_notification');
+    expect(roleAwareNotification).toContain('RAISE WARNING');
   });
 
   it('keeps production disabled by default and gates pilot by role/domain/user', () => {

@@ -72,13 +72,20 @@ BEGIN
       AND p.left_at IS NULL
       AND (p.muted_until IS NULL OR p.muted_until <= now())
   LOOP
-    PERFORM public.send_chat_notification(
-      recipient.user_id,
-      NEW.conversation_id,
-      NEW.id,
-      COALESCE(sender_name, 'Pesan baru'),
-      preview
-    );
+    BEGIN
+      PERFORM public.send_chat_notification(
+        recipient.user_id,
+        NEW.conversation_id,
+        NEW.id,
+        COALESCE(sender_name, 'Pesan baru'),
+        preview
+      );
+    EXCEPTION WHEN OTHERS THEN
+      -- A notification provider/schema issue must never roll back the chat
+      -- message itself. Keep the failure visible in database logs and allow
+      -- the realtime message delivery to complete.
+      RAISE WARNING 'chat notification failed for message %: % (%)', NEW.id, SQLERRM, SQLSTATE;
+    END;
   END LOOP;
 
   RETURN NEW;

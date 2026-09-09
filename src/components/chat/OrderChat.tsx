@@ -351,7 +351,9 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
       setSendError(
         /FULL JOIN|0A000/i.test(message)
           ? 'Server chat belum selesai diperbarui. Minta admin menjalankan patch database chat, lalu coba lagi.'
-          : 'Pesan belum terkirim. Periksa koneksi lalu coba lagi.',
+          : message && !/Operasi chat gagal|Pesan belum terkirim/i.test(message)
+            ? message
+            : 'Pesan belum terkirim. Periksa koneksi lalu coba lagi.',
       );
     } finally {
       setSending(false);
