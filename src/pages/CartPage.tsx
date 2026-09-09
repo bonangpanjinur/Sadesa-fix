@@ -32,13 +32,13 @@ interface StockProductRow {
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
+  const { items, selectedItems, selectedItemIds, toggleItemSelection, selectAllItems, updateQuantity, removeFromCart, clearCart } = useCart();
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [merchantStatuses, setMerchantStatuses] = useState<Record<string, boolean>>({});
   const [stockWarnings, setStockWarnings] = useState<Record<string, string>>({});
-  const total = getCartTotal();
+  const selectedTotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   // Fetch merchant open/close statuses
   useEffect(() => {
@@ -97,6 +97,10 @@ export default function CartPage() {
   }, [items]);
 
   const handleCheckout = () => {
+    if (selectedItems.length === 0) {
+      toast({ title: 'Pilih produk terlebih dahulu', description: 'Centang minimal satu produk untuk checkout.', variant: 'destructive' });
+      return;
+    }
     if (Object.keys(stockWarnings).length > 0) {
       toast({
         title: 'Periksa isi keranjang',
@@ -190,6 +194,9 @@ export default function CartPage() {
                     {isOpen ? 'Buka' : 'Tutup'}
                   </span>
                 )}
+                <button type="button" onClick={selectAllItems} className="ml-auto text-xs text-primary font-medium hover:underline">
+                  Pilih semua
+                </button>
               </div>
 
               {/* Closed warning */}
@@ -210,6 +217,13 @@ export default function CartPage() {
                     className={`bg-card rounded-xl p-3 border border-border shadow-sm ${isClosed ? 'opacity-60' : ''}`}
                   >
                     <div className="flex gap-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Pilih ${item.product.name}`}
+                        checked={selectedItemIds.includes(item.product.id)}
+                        onChange={() => toggleItemSelection(item.product.id)}
+                        className="mt-1 h-5 w-5 accent-primary flex-shrink-0"
+                      />
                       <img 
                         src={item.product.image}
                         alt={item.product.name}
@@ -279,8 +293,9 @@ export default function CartPage() {
         </div>
         <div className="flex justify-between items-center mb-4 pt-3 border-t border-border">
           <span className="text-lg font-bold">{t('shipping.total')}</span>
-          <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
+          <span className="text-xl font-bold text-primary">{formatCurrency(selectedTotal)}</span>
         </div>
+        <p className="text-xs text-muted-foreground mb-3">{selectedItems.length} produk dipilih dari {items.length}</p>
         <Button
           onClick={handleCheckout}
           className="w-full shadow-brand font-bold"

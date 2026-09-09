@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Camera, ShoppingBag } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { BottomNav } from '../components/layout/BottomNav';
-import { FloatingCartButton } from '../components/layout/FloatingCartButton';
 import { SearchBarAdvanced } from '../components/explore/SearchBarAdvanced';
 import { VillageCardLarge } from '../components/explore/VillageCardLarge';
 import { TourismCardCompact } from '../components/explore/TourismCardCompact';
@@ -333,7 +332,6 @@ export default function ExplorePage() {
         availableDistricts={availableDistricts}
       />
       
-      <FloatingCartButton />
       <BottomNav />
     </div>
   );

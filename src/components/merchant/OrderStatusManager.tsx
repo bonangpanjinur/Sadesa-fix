@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 interface Order {
   id: string;
@@ -69,6 +70,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 };
 
 export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -195,30 +197,40 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
     if (!courierOrderId) return;
     
     if (deliveryMethod === 'self') {
-      // Set self-delivery with DELIVERING status
       setUpdating(true);
       try {
-        const { error } = await supabase
-          .from('orders')
-          .update({ 
-            is_self_delivery: true,
-            status: 'DELIVERING',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', courierOrderId);
+        const { error } = await supabase.rpc('merchant_transition_order' as never, {
+          p_order_id: courierOrderId,
+          p_to_status: 'DELIVERING',
+          p_reason: 'Merchant memilih antar sendiri',
+          p_is_self_delivery: true,
+        } as never);
 
         if (error) throw error;
         setOrders(prev => prev.map(o => 
           o.id === courierOrderId ? { ...o, status: 'DELIVERING' } : o
         ));
-        toast.success('Pesanan akan diantar sendiri');
+        toast.success('Pesanan siap diantar sendiri');
       } catch (error) {
-        toast.error('Gagal mengubah status');
+        toast.error(error instanceof Error ? error.message : 'Gagal mengubah status pengiriman');
       } finally {
         setUpdating(false);
       }
     } else if (deliveryMethod === 'village' && selectedCourierId) {
-      await updateOrderStatus(courierOrderId, 'SENT', selectedCourierId);
+      setUpdating(true);
+      try {
+        const { error } = await supabase.rpc('merchant_offer_order_to_courier' as never, {
+          p_order_id: courierOrderId,
+          p_courier_id: selectedCourierId,
+        } as never);
+        if (error) throw error;
+        setOrders(prev => prev.map(o => o.id === courierOrderId ? { ...o, status: 'ASSIGNED' } : o));
+        toast.success('Tawaran pesanan dikirim ke kurir');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Gagal menawarkan pesanan ke kurir');
+      } finally {
+        setUpdating(false);
+      }
     }
     
     setShowCourierDialog(false);
@@ -440,6 +452,14 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
                         )}
 
                         <div className="flex items-center gap-2 pt-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate(`/merchant/chat?orderId=${order.id}`)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-1" />
+                            Pesan
+                          </Button>
                           {order.delivery_phone && (
                             <>
                               <Button

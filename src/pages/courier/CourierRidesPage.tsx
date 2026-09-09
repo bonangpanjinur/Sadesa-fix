@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, Volume2, MessageCircle } from 'lucide-react';
+import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, Volume2, MessageCircle, X, Package } from 'lucide-react';
 import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -54,6 +54,19 @@ interface CourierInfo {
   current_lng: number | null;
 }
 
+interface DeliveryOffer {
+  id: string;
+  order_id: string;
+  expires_at: string;
+  orders: {
+    id: string;
+    total: number;
+    delivery_name: string | null;
+    delivery_address: string | null;
+    merchants: { name: string } | null;
+  } | null;
+}
+
 interface RidesData {
   availableRides: RideRequest[];
   activeRide: ActiveRide | null;
@@ -98,6 +111,40 @@ export default function CourierRidesPage() {
   });
 
   const courierId = courierInfo?.id ?? null;
+
+  const { data: deliveryOffers = [], refetch: refetchOffers } = useQuery<DeliveryOffer[]>({
+    queryKey: ['courier-order-offers', courierId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('delivery_assignments')
+        .select('id, order_id, expires_at, orders(id, total, delivery_name, delivery_address, merchants(name))')
+        .eq('courier_id', courierId!)
+        .eq('status', 'OFFERED')
+        .gt('expires_at', new Date().toISOString())
+        .order('offered_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as DeliveryOffer[];
+    },
+    enabled: !!courierId,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+
+  const respondToOffer = async (offerId: string, accept: boolean) => {
+    setAccepting(offerId);
+    const { error } = await supabase.rpc('courier_respond_to_order_offer' as never, {
+      p_assignment_id: offerId,
+      p_accept: accept,
+      p_reason: accept ? null : 'Kurir menolak tawaran',
+    } as never);
+    setAccepting(null);
+    if (error) {
+      toast({ title: 'Tawaran tidak dapat diproses', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: accept ? 'Pesanan diambil' : 'Pesanan ditolak' });
+    await refetchOffers();
+  };
 
   // Fetch rides data
   const { data: ridesData, isLoading: ridesLoading, refetch: refetchRides } = useQuery<RidesData>({
@@ -287,6 +334,37 @@ export default function CourierRidesPage() {
             {soundEnabled ? 'Notifikasi On' : 'Notifikasi Off'}
           </Button>
         </div>
+
+        {deliveryOffers.length > 0 && (
+          <Card className="p-5 border-amber-300 border-2">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold flex items-center gap-2"><Package className="h-5 w-5 text-amber-600" /> Tawaran Pesanan</h3>
+              <Badge variant="outline">{deliveryOffers.length} baru</Badge>
+            </div>
+            <div className="space-y-3">
+              {deliveryOffers.map((offer) => (
+                <div key={offer.id} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-xs text-muted-foreground">{offer.orders?.merchants?.name || 'Merchant'} · {offer.orders?.delivery_name || 'Pembeli'}</p>
+                      <p className="text-xs text-muted-foreground">{offer.orders?.delivery_address || 'Alamat tujuan tersedia setelah diambil'}</p>
+                    </div>
+                    <p className="font-bold">{formatPrice(offer.orders?.total || 0)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button className="flex-1" size="sm" onClick={() => void respondToOffer(offer.id, true)} disabled={accepting === offer.id}>
+                      {accepting === offer.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />} Ambil Pesanan
+                    </Button>
+                    <Button className="flex-1" size="sm" variant="outline" onClick={() => void respondToOffer(offer.id, false)} disabled={accepting === offer.id}>
+                      <X className="h-4 w-4 mr-1" /> Tolak
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {activeRide && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

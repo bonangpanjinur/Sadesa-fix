@@ -44,7 +44,8 @@ interface MerchantPaymentSettings {
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, getCartTotal, clearCart, removeFromCart } = useCart();
+  const { selectedItems, removeFromCart } = useCart();
+  const items = selectedItems;
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
   const [loading, setLoading] = useState(false);
@@ -103,7 +104,7 @@ export default function CheckoutPage() {
   // Get merchant location state (will be loaded after merchantIds are computed)
   const [merchantLocation, setMerchantLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  const subtotal = getCartTotal();
+  const subtotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   
   // Calculate shipping based on distance
   const shippingCost = useMemo(() => {
@@ -620,8 +621,8 @@ export default function CheckoutPage() {
         }
       }
 
-      // Clear cart
-      clearCart();
+      // Remove only the products included in this checkout; keep unchecked items.
+      selectedItems.forEach(item => removeFromCart(item.product.id));
       
       // For TRANSFER payment, redirect to payment confirmation page  
       if (paymentMethod === 'TRANSFER' && lastCreatedOrderId) {

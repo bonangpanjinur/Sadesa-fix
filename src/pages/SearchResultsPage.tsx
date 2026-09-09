@@ -4,7 +4,6 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Search } from 'lucide-react';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { FloatingCartButton } from '@/components/layout/FloatingCartButton';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { ProductCard } from '@/components/ProductCard';
 import { ProductCardHorizontal } from '@/components/explore/ProductCardHorizontal';
@@ -313,7 +312,6 @@ export default function SearchResultsPage() {
         availableDistricts={availableDistricts}
       />
 
-      <FloatingCartButton />
       <BottomNav />
     </div>
   );

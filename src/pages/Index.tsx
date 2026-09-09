@@ -4,7 +4,6 @@ import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, 
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { FloatingCartButton } from '@/components/layout/FloatingCartButton';
 import { Button } from '@/components/ui/button';
 import { CategoryIcon } from '@/components/CategoryIcon';
 import { VillageCard } from '@/components/VillageCard';
@@ -447,7 +446,6 @@ const Index = () => {
       </main>
 
 
-      <FloatingCartButton />
       <BottomNav />
     </div>
   );
