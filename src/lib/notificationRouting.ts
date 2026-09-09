@@ -29,6 +29,7 @@ function withChatContext(path: string, input: NotificationRouteInput): string {
   const conversationId = firstString(params.get('conversationId'), params.get('conversation'), data.conversation_id, data.conversationId);
   const orderId = firstString(params.get('orderId'), data.order_id, data.orderId);
   const rideRequestId = firstString(params.get('rideRequestId'), data.ride_request_id, data.rideRequestId);
+  params.delete('conversation');
   if (conversationId) params.set('conversationId', conversationId);
   if (orderId) params.set('orderId', orderId);
   if (rideRequestId) params.set('rideRequestId', rideRequestId);
