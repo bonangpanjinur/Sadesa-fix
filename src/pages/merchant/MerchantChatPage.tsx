@@ -115,7 +115,7 @@ export default function MerchantChatPage() {
 
       const userIds = [...new Set([...threadMap.values()].map(t => t.otherUserId))];
       const [{ data: profiles }, { data: merchants }, { data: couriers }] = await Promise.all([
-        supabase.from('profiles').select('user_id, full_name').in('user_id', userIds),
+        supabase.rpc('get_chat_participant_profiles' as never, { p_user_ids: userIds } as never),
         supabase.from('merchants').select('user_id, name').in('user_id', userIds),
         supabase.from('couriers').select('user_id, name').in('user_id', userIds),
       ]);
