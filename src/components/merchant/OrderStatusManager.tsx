@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -550,6 +551,7 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Batalkan Pesanan</DialogTitle>
+            <DialogDescription>Pesanan akan dibatalkan dan alasan akan dicatat dalam riwayat order.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -584,6 +586,7 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
               <Truck className="h-5 w-5" />
               Pilih Metode Pengiriman
             </DialogTitle>
+            <DialogDescription>Pilih antar sendiri atau kirimkan tawaran kepada kurir desa yang tersedia.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
