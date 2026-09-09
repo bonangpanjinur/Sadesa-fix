@@ -97,14 +97,18 @@ export default function MerchantChatPage() {
       if (directConversationIds.length > 0) {
         const { data: conversations } = await supabase
           .from('chat_conversations')
-          .select('id, merchant_id')
+          .select('id, merchant_id, buyer_user_id, order_id')
           .in('id', directConversationIds);
-        const merchantByConversation = new Map(
-          (conversations || []).map((conversation) => [conversation.id, conversation.merchant_id]),
-        );
+        const conversationById = new Map((conversations || []).map((conversation) => [conversation.id, conversation]));
         for (const thread of threadMap.values()) {
           if (thread.conversationId) {
-            thread.merchantId = merchantByConversation.get(thread.conversationId) || null;
+            const conversation = conversationById.get(thread.conversationId);
+            thread.merchantId = conversation?.merchant_id || null;
+            // Direct conversations carry the canonical buyer identity. This
+            // prevents the merchant name from being shown as the chat partner.
+            if (thread.chatType === 'buyer_merchant' && conversation?.buyer_user_id) {
+              thread.otherUserId = conversation.buyer_user_id;
+            }
           }
         }
       }
@@ -273,6 +277,7 @@ export default function MerchantChatPage() {
       {selectedThread && (
         <OrderChat
           orderId={selectedThread.orderId}
+          conversationId={selectedThread.conversationId}
            contextType={selectedThread.orderId ? 'order' : 'direct'}
            merchantId={selectedThread.merchantId || undefined}
           otherUserId={selectedThread.otherUserId}

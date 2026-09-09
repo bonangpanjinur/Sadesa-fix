@@ -56,6 +56,7 @@ interface OrderInfo {
 interface OrderChatProps {
   orderId?: string;
   contextType?: ChatContextType;
+  conversationId?: string | null;
   rideRequestId?: string;
   merchantId?: string;
   otherUserId: string;
@@ -72,7 +73,7 @@ const QUICK_REPLIES: Record<string, string[]> = {
   buyer_merchant: ['Apakah stok masih ada?', 'Kapan pesanan saya dikirim?', 'Terima kasih!'],
 };
 
-export function OrderChat({ orderId, contextType = 'order', rideRequestId, merchantId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {
+export function OrderChat({ orderId, contextType = 'order', conversationId: existingConversationId, rideRequestId, merchantId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {
   const { user } = useAuth();
   const { playNotificationSound, isEnabled: isSoundEnabled, setIsEnabled: setIsSoundEnabled } = useChatNotification();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -87,7 +88,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
     courierId: string | null;
     courierUserId: string | null;
   } | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(existingConversationId ?? null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
   const [sendError, setSendError] = useState<string | null>(null);
   const presence = useChatPresence(conversationId);
@@ -241,14 +242,19 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
     };
 
     const loadCanonicalConversation = async () => {
-      const result = contextType === 'direct' && merchantId
-        ? await getOrCreateDirectConversation(merchantId)
-        : await getOrCreateConversation({
-            contextType,
-            orderId: contextType === 'order' ? orderId : undefined,
-            rideRequestId: contextType === 'ride' ? (rideRequestId || orderId) : undefined,
-            conversationType: contextType === 'ride' ? 'passenger_courier' : chatType,
-          });
+      // A thread selected from an inbox already has a canonical conversation.
+      // Recreating a direct conversation here makes merchant replies call the
+      // buyer-only direct-chat RPC and fail with 403.
+      const result = existingConversationId
+        ? { conversationId: existingConversationId, error: null }
+        : contextType === 'direct' && merchantId
+          ? await getOrCreateDirectConversation(merchantId)
+          : await getOrCreateConversation({
+              contextType,
+              orderId: contextType === 'order' ? orderId : undefined,
+              rideRequestId: contextType === 'ride' ? (rideRequestId || orderId) : undefined,
+              conversationType: contextType === 'ride' ? 'passenger_courier' : chatType,
+            });
       const { conversationId, error } = result;
 
       if (!active) return;
@@ -300,7 +306,7 @@ export function OrderChat({ orderId, contextType = 'order', rideRequestId, merch
       if (channel) void supabase.removeChannel(channel);
       setConversationId(null);
     };
-  }, [contextType, isOpen, orderId, rideRequestId, merchantId, user, chatType, playNotificationSound]);
+  }, [contextType, isOpen, orderId, existingConversationId, rideRequestId, merchantId, user, chatType, playNotificationSound]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
