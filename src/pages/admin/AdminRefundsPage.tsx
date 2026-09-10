@@ -134,43 +134,12 @@ export default function AdminRefundsPage() {
       
       const newStatus = processAction === 'approve' ? 'APPROVED' : 'REJECTED';
       
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      const { error } = await supabase
-        .from('refund_requests')
-        .update({
-          status: newStatus,
-          admin_notes: adminNotes,
-          processed_by: user?.id,
-          processed_at: new Date().toISOString(),
-        })
-        .eq('id', selectedRefund.id);
-
+      const { error } = await supabase.rpc('process_refund_decision' as never, {
+        p_refund_id: selectedRefund.id,
+        p_approve: processAction === 'approve',
+        p_notes: adminNotes,
+      } as never);
       if (error) throw error;
-
-      // If approved, update order status and deduct merchant balance
-      if (processAction === 'approve') {
-        await supabase
-          .from('orders')
-          .update({ status: 'REFUNDED' })
-          .eq('id', selectedRefund.orderId);
-
-        // Deduct refund amount from merchant's available balance
-        const { data: merchant } = await supabase
-          .from('merchants')
-          .select('available_balance')
-        .eq('id', selectedRefund.merchantId)
-        .maybeSingle();
-
-        if (merchant) {
-          await supabase
-            .from('merchants')
-            .update({
-              available_balance: Math.max(0, (merchant.available_balance || 0) - selectedRefund.amount),
-            })
-            .eq('id', selectedRefund.merchantId);
-        }
-      }
 
       await logAdminAction(
         processAction === 'approve' ? 'APPROVE_REFUND' : 'REJECT_REFUND',

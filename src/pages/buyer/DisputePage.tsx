@@ -118,6 +118,10 @@ export default function DisputePage() {
     try {
       const uploaded: string[] = [];
       for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+          toast({ title: `${file.name} bukan file gambar`, variant: 'destructive' });
+          continue;
+        }
         if (file.size > 5 * 1024 * 1024) {
           toast({ title: `${file.name} terlalu besar`, variant: 'destructive' });
           continue;
@@ -142,18 +146,15 @@ export default function DisputePage() {
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user || !orderId || !order) throw new Error('Data tidak lengkap');
-      const refundAmount = amount ? parseInt(amount.replace(/\D/g, '')) : order.total;
-      const { error } = await supabase.from('refund_requests').insert({
-        order_id: orderId,
-        buyer_id: user.id,
-        title: title.trim(),
-        category,
-        reason: reason.trim(),
-        amount: refundAmount,
-        evidence_urls: evidenceUrls,
-        status: 'PENDING',
-        dispute_status: 'OPEN',
-      });
+      const refundAmount = amount ? parseInt(amount.replace(/\D/g, ''), 10) : order.total;
+      const { error } = await supabase.rpc('create_refund_request' as never, {
+        p_order_id: orderId,
+        p_amount: refundAmount,
+        p_reason: reason.trim(),
+        p_evidence_urls: evidenceUrls,
+        p_title: title.trim(),
+        p_category: category,
+      } as never);
       if (error) throw error;
     },
     onSuccess: () => {

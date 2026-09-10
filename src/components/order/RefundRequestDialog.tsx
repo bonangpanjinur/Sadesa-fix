@@ -27,7 +27,7 @@ interface RefundRequestDialogProps {
 export function RefundRequestDialog({
   orderId,
   orderTotal,
-  merchantId,
+  merchantId: _merchantId,
   open,
   onOpenChange,
   onSuccess,
@@ -40,7 +40,14 @@ export function RefundRequestDialog({
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
+      const newFiles = Array.from(e.target.files).filter((file) => {
+        if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} harus berupa gambar maksimal 5 MB`);
+          return false;
+        }
+        return true;
+      }).slice(0, Math.max(0, 4 - images.length));
+      if (newFiles.length === 0) return;
       setImages(prev => [...prev, ...newFiles]);
       
       const newPreviews = newFiles.map(file => URL.createObjectURL(file));
@@ -64,6 +71,10 @@ export function RefundRequestDialog({
       
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
+      const refundAmount = Number.parseInt(amount.replace(/\D/g, ''), 10);
+      if (!Number.isInteger(refundAmount) || refundAmount <= 0 || refundAmount > orderTotal) {
+        throw new Error('Jumlah refund tidak valid');
+      }
 
       // Upload images if any
       const evidenceUrls: string[] = [];
@@ -85,18 +96,12 @@ export function RefundRequestDialog({
         evidenceUrls.push(publicUrl);
       }
 
-      const { error } = await supabase
-        .from('refund_requests')
-        .insert({
-          order_id: orderId,
-          buyer_id: user.id,
-          merchant_id: merchantId,
-          amount: parseInt(amount),
-          reason: reason,
-          status: 'PENDING',
-          evidence_urls: evidenceUrls,
-          refund_type: parseInt(amount) === orderTotal ? 'FULL' : 'PARTIAL'
-        });
+      const { error } = await supabase.rpc('create_refund_request' as never, {
+        p_order_id: orderId,
+        p_amount: refundAmount,
+        p_reason: reason.trim(),
+        p_evidence_urls: evidenceUrls,
+      } as never);
 
       if (error) throw error;
 

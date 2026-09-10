@@ -12,8 +12,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-interface RatingRow { rating: number }
-
 interface CourierRatingDialogProps {
   open: boolean;
   onClose: () => void;
@@ -49,34 +47,14 @@ export function CourierRatingDialog({ open, onClose, orderId, courierId, courier
 
     setSubmitting(true);
     try {
-      // Save courier rating
-      await supabase.from('reviews' as never).insert({
-        user_id: user.id,
-        target_type: 'courier',
-        target_id: courierId,
-        order_id: orderId,
-        rating,
-        comment: comment.trim() || null,
-        tags: tags.length ? tags : null,
-      });
-
-      // Update courier avg rating
-      const { data: allRatings } = await supabase
-        .from('reviews' as never)
-        .select('rating')
-        .eq('target_type', 'courier')
-        .eq('target_id', courierId);
-
-      if (allRatings && allRatings.length > 0) {
-        const avg = (allRatings as unknown as RatingRow[]).reduce((sum, row) => sum + row.rating, 0) / allRatings.length;
-        await supabase.from('couriers' as never).update({
-          rating_avg: Math.round(avg * 10) / 10,
-          rating_count: allRatings.length,
-        }).eq('id', courierId);
-      }
-
-      // Mark order as rated
-      await supabase.from('orders' as never).update({ courier_rated: true }).eq('id', orderId);
+      const { error } = await supabase.rpc('submit_courier_rating' as never, {
+        p_order_id: orderId,
+        p_courier_id: courierId,
+        p_rating: rating,
+        p_comment: comment.trim() || null,
+        p_tags: tags,
+      } as never);
+      if (error) throw error;
 
       toast.success('Rating kurir berhasil dikirim! Terima kasih');
       onClose();

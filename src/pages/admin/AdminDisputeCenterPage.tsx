@@ -32,7 +32,18 @@ export default function AdminDisputeCenterPage() {
     if (!selected || !decision) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('refund_requests').update({ dispute_status: decision, status: decision === 'RESOLVED_REFUND' ? 'APPROVED' : decision === 'RESOLVED_REJECTED' ? 'REJECTED' : 'PENDING', admin_notes: notes.trim() || null, processed_at: ['RESOLVED_REFUND', 'RESOLVED_REJECTED'].includes(decision) ? new Date().toISOString() : null }).eq('id', selected.id);
+      let error;
+      if (decision === 'RESOLVED_REFUND' || decision === 'RESOLVED_REJECTED') {
+        const result = await supabase.rpc('process_refund_decision' as never, {
+          p_refund_id: selected.id,
+          p_approve: decision === 'RESOLVED_REFUND',
+          p_notes: notes.trim() || null,
+        } as never);
+        error = result.error;
+      } else {
+        const result = await supabase.from('refund_requests').update({ dispute_status: decision, admin_notes: notes.trim() || null }).eq('id', selected.id);
+        error = result.error;
+      }
       if (error) throw error;
       toast.success('Keputusan dispute disimpan'); setSelected(null); setDecision(''); setNotes(''); await load();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Gagal menyimpan keputusan'); } finally { setSaving(false); }

@@ -116,14 +116,10 @@ export default function MerchantRefundsPage() {
 
   const respondMutation = useMutation({
     mutationFn: async ({ id, response }: { id: string; response: string }) => {
-      const { error } = await supabase
-        .from('refund_requests')
-        .update({
-          merchant_response: response,
-          merchant_responded_at: new Date().toISOString(),
-          dispute_status: 'MERCHANT_RESPONDED',
-        })
-        .eq('id', id);
+      const { error } = await supabase.rpc('respond_to_refund_request' as never, {
+        p_refund_id: id,
+        p_response: response,
+      } as never);
       if (error) throw error;
     },
     onSuccess: () => {

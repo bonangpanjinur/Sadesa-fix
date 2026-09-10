@@ -192,15 +192,16 @@ export default function ReviewsPage() {
         });
       }
 
-      const { error } = await supabase.from('reviews').insert(reviews);
-
+      const { error } = await supabase.rpc('submit_order_reviews' as never, {
+        p_order_id: order.id,
+        p_reviews: reviews.map((review) => ({
+          product_id: review.product_id,
+          rating: review.rating,
+          comment: review.comment,
+          image_urls: review.image_urls || [],
+        })),
+      } as never);
       if (error) throw error;
-
-      // Update has_review flag on the order
-      await supabase
-        .from('orders')
-        .update({ has_review: true, updated_at: new Date().toISOString() })
-        .eq('id', order.id);
 
       toast.success('Terima kasih atas ulasan Anda!');
       navigate('/orders');
