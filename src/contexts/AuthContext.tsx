@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/auth';
+import { ensureBuyerFallback, mergeMerchantRole } from '@/lib/authRoles';
 
 const AUTH_CHANNEL_NAME = 'desamart_auth';
 const AUTH_INIT_TIMEOUT_MS = 8_000;
@@ -60,21 +61,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserRoles = useCallback(async (userId: string) => {
     try {
       setRolesLoading(true);
-      const { data, error } = await withTimeout(
-        Promise.resolve(
+      const result = await withTimeout(
+        Promise.all([
           supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', userId),
-        ),
+          // Older approved merchants can exist without the role row that the
+          // approval trigger normally creates. Read the user's own merchant
+          // profile as a frontend recovery signal for that legacy state.
+          supabase
+            .from('merchants')
+            .select('id')
+            .eq('user_id', userId)
+            .limit(1)
+            .maybeSingle(),
+        ]),
         AUTH_INIT_TIMEOUT_MS,
         'Timed out while loading user roles',
       );
 
+      const [{ data, error }, { data: merchant, error: merchantError }] = result;
       if (error) throw error;
+      if (merchantError) {
+        // The role query is still authoritative. A merchant lookup failure
+        // must not prevent login or turn all other roles into a fallback.
+        console.warn('Unable to check merchant profile for role recovery:', merchantError);
+      }
 
       const userRoles = (data || []).map(r => r.role as AppRole);
-      setRoles(userRoles.length > 0 ? userRoles : ['buyer']);
+      setRoles(ensureBuyerFallback(mergeMerchantRole(userRoles, Boolean(merchant))));
     } catch (err) {
       console.error('Error fetching user roles:', err);
       setRoles(['buyer']);
