@@ -21,7 +21,6 @@ import { formatFullAddress } from '@/components/AddressSelector';
 import { fetchCODSettings, quickCODCheck, getBuyerCODStatus } from '@/lib/codSecurity';
 import { validatePhone, isWhatsAppFormat } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
-import { buildMarketplaceOrderPayload } from '@/lib/marketplaceOrderContract';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 
 type PaymentMethod = 'COD' | 'TRANSFER' | 'ONLINE';
@@ -509,178 +508,69 @@ export default function CheckoutPage() {
       }
 
       const fullAddress = formatFullAddress(addressData.address);
-      let lastCreatedOrderId: string | null = null;
-
-      // Create order for each merchant
-      for (const [merchantId, merchantData] of Object.entries(itemsByMerchant)) {
-        const merchantSubtotal = merchantData.items.reduce(
-          (sum, item) => sum + item.product.price * item.quantity, 
-          0
-        );
-        const merchantShipping = deliveryType !== 'PICKUP' ? shippingCost : 0;
-        const merchantCodFee = paymentMethod === 'COD' ? codServiceFee : 0;
-        // Apply voucher discount proportionally per merchant
-        const merchantVoucherDiscount = Object.keys(itemsByMerchant).length === 1 
-          ? voucherDiscount 
-          : Math.round(voucherDiscount * (merchantSubtotal / subtotal));
-        const merchantTotal = merchantSubtotal + merchantShipping + merchantCodFee - merchantVoucherDiscount;
-
-        // Calculate confirmation deadline for COD orders
-        const confirmationDeadline = paymentMethod === 'COD' && codSettings
-          ? new Date(Date.now() + codSettings.confirmationTimeoutMinutes * 60 * 1000).toISOString()
-          : null;
-
-        // Determine order status and payment status based on payment method
-        const getOrderStatus = () => {
-          if (paymentMethod === 'COD') return 'PENDING_CONFIRMATION';
-          if (paymentMethod === 'TRANSFER') return 'PENDING_PAYMENT';
-          return 'NEW';
-        };
-
-        const getPaymentStatus = () => {
-          if (paymentMethod === 'COD') return 'COD';
-          if (paymentMethod === 'TRANSFER') return 'PENDING_TRANSFER';
-          return 'UNPAID';
-        };
-
-        // Insert order
-        const { data: orderData, error: orderError } = await supabase
-          .from('orders')
-          .insert(buildMarketplaceOrderPayload({
-            buyerId: user.id,
-            merchantId,
-            status: getOrderStatus(),
-             deliveryType,
-            deliveryName: addressData.name,
-            deliveryPhone: addressData.phone,
-            deliveryAddress: fullAddress,
-            deliveryLat: addressData.location?.lat || null,
-            deliveryLng: addressData.location?.lng || null,
-            deliveryProvinceId: addressData.address.province || null,
-            deliveryProvinceName: addressData.address.provinceName || null,
-            deliveryCityId: addressData.address.city || null,
-            deliveryCityName: addressData.address.cityName || null,
-            deliveryDistrictId: addressData.address.district || null,
-            deliveryDistrictName: addressData.address.districtName || null,
-            shippingCost: merchantShipping,
-            subtotal: merchantSubtotal,
-            total: merchantTotal,
-            notes: appliedVoucher 
-              ? `${notes || ''}\n[Voucher: ${appliedVoucher.name}, Diskon: Rp ${merchantVoucherDiscount.toLocaleString('id-ID')}]`.trim()
-              : notes || null,
-            flashSaleDiscount: merchantVoucherDiscount > 0 ? merchantVoucherDiscount : 0,
-            paymentMethod,
-            paymentStatus: getPaymentStatus(),
-            confirmationDeadline,
-            codServiceFee: merchantCodFee,
-            buyerDistanceKm: distanceKm,
-          }))
-          .select()
-          .single();
-
-        if (orderError) {
-          console.error('Error creating order:', orderError);
-          throw orderError;
-        }
-
-        // Insert order items
-        const orderItems = merchantData.items.map(item => ({
-          order_id: orderData.id,
+      const { data: checkoutResult, error: checkoutError } = await supabase.rpc('create_marketplace_checkout' as never, {
+        p_items: items.map((item) => ({
           product_id: item.product.id,
-          product_name: item.product.name,
-          product_price: item.product.price,
-          quantity: item.quantity,
-          subtotal: item.product.price * item.quantity,
-        }));
+          quantity: Math.trunc(item.quantity),
+        })),
+        p_delivery: {
+          name: addressData.name,
+          phone: addressData.phone,
+          address: fullAddress,
+          lat: addressData.location?.lat ?? null,
+          lng: addressData.location?.lng ?? null,
+          province_id: addressData.address.province || null,
+          province_name: addressData.address.provinceName || null,
+          city_id: addressData.address.city || null,
+          city_name: addressData.address.cityName || null,
+          district_id: addressData.address.district || null,
+          district_name: addressData.address.districtName || null,
+          notes: notes || null,
+        },
+        p_delivery_type: deliveryType,
+        p_payment_method: paymentMethod,
+        p_voucher_id: appliedVoucher?.id ?? null,
+        p_distance_km: distanceKm,
+      } as never);
+      if (checkoutError) {
+        console.error('Authoritative checkout error:', checkoutError);
+        throw new Error(checkoutError.message || 'Checkout gagal divalidasi server');
+      }
 
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItems);
+      const authoritativeOrderId = (checkoutResult as { primary_order_id?: string } | null)?.primary_order_id;
+      if (!authoritativeOrderId) throw new Error('Checkout tidak menghasilkan order');
 
-        if (itemsError) {
-          console.error('Error creating order items:', itemsError);
-          throw itemsError;
-        }
-
-        // Reserve stock atomically before payment/fulfillment. The reservation owns
-        // the quantity until the order is completed, cancelled, or expires.
-        const { error: reservationError } = await supabase.rpc('reserve_marketplace_stock' as never, {
-          p_order_id: orderData.id,
-          p_items: merchantData.items.map((item) => ({
-            product_id: item.product.id,
-            variant_id: null,
-            quantity: Math.trunc(item.quantity),
-          })),
-          p_expires_at: confirmationDeadline || new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-        } as never);
-        if (reservationError) {
-          console.error('Marketplace reservation error:', reservationError);
-          throw new Error('Stok produk tidak mencukupi atau baru saja dipesan pelanggan lain');
-        }
-
-        // Send notification to merchant about new order
+      if (paymentMethod === 'ONLINE' && xenditAvailable) {
         try {
-          const { data: merchant } = await supabase
-            .from('merchants')
-            .select('user_id')
-            .eq('id', merchantId)
-            .maybeSingle();
-
-          if (merchant?.user_id) {
-            await supabase.rpc('send_notification', {
-              p_user_id: merchant.user_id,
-              p_title: 'Pesanan Baru!',
-              p_message: `Ada pesanan baru senilai ${formatPrice(merchantTotal)} dari ${addressData.name}`,
-              p_type: 'order',
-              p_link: `/merchant/orders`,
-            });
-          }
-        } catch (notifError) {
-          console.error('Error sending order notification:', notifError);
-        }
-
-        setOrderId(orderData.id);
-        lastCreatedOrderId = orderData.id;
-
-        // If online payment, create Xendit invoice
-        if (paymentMethod === 'ONLINE' && xenditAvailable) {
-          try {
-            const invoice = await createPaymentInvoice({
-              orderId: orderData.id,
-            });
-
-            setInvoiceUrl(invoice.invoice_url);
-            
-            // Redirect to payment page
-            window.location.href = invoice.invoice_url;
-            return;
-          } catch (paymentError) {
-            console.error('Payment error:', paymentError);
-            toast({
-              title: 'Pesanan dibuat, tapi pembayaran gagal',
-              description: 'Silakan bayar dari halaman pesanan Anda',
-              variant: 'destructive',
-            });
-          }
+          const invoice = await createPaymentInvoice({ orderId: authoritativeOrderId });
+          setInvoiceUrl(invoice.invoice_url);
+          window.location.href = invoice.invoice_url;
+          return;
+        } catch (paymentError) {
+          console.error('Payment error:', paymentError);
+          toast({
+            title: 'Pesanan dibuat, tapi pembayaran gagal',
+            description: 'Silakan bayar dari halaman pesanan Anda',
+            variant: 'destructive',
+          });
         }
       }
 
-      // Remove only the products included in this checkout; keep unchecked items.
       selectedItems.forEach(item => removeFromCart(item.product.id));
-      
-      // For TRANSFER payment, redirect to payment confirmation page  
-      if (paymentMethod === 'TRANSFER' && lastCreatedOrderId) {
-        navigate(`/payment/${lastCreatedOrderId}`);
+      if (paymentMethod === 'TRANSFER') {
+        navigate(`/payment/${authoritativeOrderId}`);
         return;
       }
-      
+      setOrderId(authoritativeOrderId);
       setSuccess(true);
       toast({
         title: 'Pesanan berhasil dibuat!',
-        description: paymentMethod === 'COD' 
-          ? 'Pesanan Anda menunggu konfirmasi dari penjual' 
+        description: paymentMethod === 'COD'
+          ? 'Pesanan Anda menunggu konfirmasi dari penjual'
           : 'Pesanan Anda telah masuk ke sistem',
       });
+      return;
+
       } catch (error: unknown) {
       console.error('Checkout error:', error);
       
