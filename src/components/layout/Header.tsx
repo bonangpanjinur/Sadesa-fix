@@ -34,33 +34,33 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 space-y-4 border-b border-border/60 bg-card/95 px-5 pb-5 pt-4 backdrop-blur-xl">
-      <div className="flex items-center justify-between">
-        <Link to="/" className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-40 space-y-3 border-b border-border/60 bg-card/95 px-3 pb-4 pt-3 backdrop-blur-xl sm:space-y-4 sm:px-5 sm:pb-5 sm:pt-4">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <Link to="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
           {settings.logoUrl ? (
             <img 
               src={settings.logoUrl} 
               alt={settings.siteName} 
-              className="h-11 w-11 rounded-xl object-cover shadow-sm"
+              className="h-9 w-9 rounded-xl object-cover shadow-sm sm:h-11 sm:w-11"
             />
           ) : (
             <img
               src="/branding/sadesa-logo.png"
               alt={settings.siteName}
-              className="h-11 w-11 rounded-xl object-cover shadow-sm"
+              className="h-9 w-9 rounded-xl object-cover shadow-sm sm:h-11 sm:w-11"
             />
           )}
-          <div>
-            <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-primary">
+          <div className="min-w-0">
+            <p className="mb-0.5 truncate text-[8px] font-bold uppercase tracking-wide text-primary sm:mb-1 sm:text-[9px]">
               Ekosistem UMKM
             </p>
-            <h1 className="font-heading text-lg font-bold leading-none text-foreground">
+            <h1 className="truncate font-heading text-base font-bold leading-none text-foreground sm:text-lg">
               {settings.siteName}
             </h1>
           </div>
         </Link>
         
-         <div className="flex items-center gap-1">
+         <div className="flex shrink-0 items-center gap-0 sm:gap-1">
           <InstallButton />
           <button
             onClick={handleChatNavigation}

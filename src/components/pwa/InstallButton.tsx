@@ -22,7 +22,7 @@ export function InstallButton() {
       className="h-8 gap-1.5 text-xs font-medium"
     >
       <Download className="h-3.5 w-3.5" />
-      Install
+      <span className="hidden min-[380px]:inline">Install</span>
     </Button>
   );
 }
