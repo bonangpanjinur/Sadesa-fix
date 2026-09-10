@@ -35,11 +35,17 @@ async function syncCampaignDelivery(job: NotificationJob, success: boolean, prov
     sent_at: success ? new Date().toISOString() : null,
   }).eq("id", deliveryId);
   if (campaignId) {
-    const { count } = await supabase.from("crm_campaign_deliveries")
+    const { count: openCount } = await supabase.from("crm_campaign_deliveries")
       .select("id", { count: "exact", head: true })
-      .eq("campaign_id", campaignId).in("status", ["queued", "failed"]);
-    if ((count ?? 0) === 0) {
-      await supabase.from("crm_campaigns").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", campaignId).eq("status", "sending");
+      .eq("campaign_id", campaignId).in("status", ["queued", "failed", "processing"]);
+    if ((openCount ?? 0) === 0) {
+      const { count: deadLetterCount } = await supabase.from("crm_campaign_deliveries")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", campaignId).eq("status", "dead_letter");
+      await supabase.from("crm_campaigns").update({
+        status: (deadLetterCount ?? 0) > 0 ? "failed" : "sent",
+        sent_at: new Date().toISOString(),
+      }).eq("id", campaignId).eq("status", "sending");
     }
   }
 }

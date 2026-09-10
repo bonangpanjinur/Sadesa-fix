@@ -439,6 +439,17 @@ export default function CheckoutPage() {
       return;
     }
 
+    // One Xendit invoice currently belongs to one marketplace order. Do not
+    // create the first merchant order and silently skip the remaining ones.
+    if (paymentMethod === 'ONLINE' && merchantIds.length > 1) {
+      toast({
+        title: 'Checkout online hanya untuk satu toko',
+        description: 'Pisahkan produk berdasarkan toko sebelum membayar online.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // Check if any merchant is closed
     if (!allMerchantsOpen) {
       const closedNames = closedMerchants.map(m => m.name).join(', ');

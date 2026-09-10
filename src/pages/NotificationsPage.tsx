@@ -51,9 +51,10 @@ export default function NotificationsPage() {
   const { user, roles } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<NotifTab>('all');
+  const [notificationLimit, setNotificationLimit] = useState(100);
 
   const { data: notifications = [], isLoading: loading } = useQuery<Notification[]>({
-    queryKey: ['notifications', user?.id],
+    queryKey: ['notifications', user?.id, notificationLimit],
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -61,7 +62,7 @@ export default function NotificationsPage() {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(notificationLimit);
       if (error) {
         console.error('[notifications-page] fetch failed', {
           code: error.code,
@@ -256,6 +257,15 @@ export default function NotificationsPage() {
                 </div>
               ))}
             </div>
+          )}
+          {!loading && notifications.length >= notificationLimit && (
+            <Button
+              variant="outline"
+              className="w-full mt-4"
+              onClick={() => setNotificationLimit((current) => current + 100)}
+            >
+              Muat notifikasi sebelumnya
+            </Button>
           )}
         </div>
       </div>

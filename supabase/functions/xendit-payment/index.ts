@@ -112,13 +112,31 @@ serve(async (req) => {
       if (orderError || !order) return json({ error: "Order not found" }, 404);
 
       const current = order as OrderRecord;
-      if (["CANCELLED", "DONE"].includes(current.status) || current.payment_status === "PAID") {
+      if ((["CANCELLED", "DONE"].includes(current.status) && current.payment_status !== 'EXPIRED') || current.payment_status === "PAID") {
         return json({ error: "Order cannot be paid" }, 409);
       }
       const orderTotal = Number(current.total);
       if (!Number.isSafeInteger(orderTotal) || orderTotal <= 0) return json({ error: "Invalid order total" }, 409);
 
-      // Reuse an existing invoice for retries instead of creating duplicates.
+      // Reuse an active invoice for retries instead of creating duplicates.
+      // An EXPIRED invoice must be reset so the buyer can receive a fresh URL.
+      if (current.payment_status === 'EXPIRED') {
+        await supabaseAdmin
+          .from('payment_invoice_requests')
+          .update({ status: 'failed', invoice_id: null, invoice_url: null, last_error: 'invoice:expired', updated_at: new Date().toISOString() })
+          .eq('provider', 'xendit')
+          .eq('order_id', current.id);
+        await supabaseAdmin
+          .from('orders')
+          .update({ payment_invoice_id: null, payment_invoice_url: null, payment_status: 'UNPAID', status: 'PENDING_PAYMENT' })
+          .eq('id', current.id)
+          .eq('buyer_id', user.id)
+          .eq('payment_status', 'EXPIRED');
+        current.payment_invoice_id = null;
+        current.payment_invoice_url = null;
+        current.payment_status = 'UNPAID';
+        current.status = 'PENDING_PAYMENT';
+      }
       if (current.payment_invoice_id && current.payment_invoice_url) {
         return json({
           success: true,
