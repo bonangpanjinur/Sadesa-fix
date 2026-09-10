@@ -82,7 +82,8 @@ export default function MerchantChatPage() {
         .in('conversation_id', conversationIds)
         .is('deleted_at', null)
         .in('chat_type', ['buyer_merchant', 'merchant_courier'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (!messages || messages.length === 0) { setThreads([]); setLoading(false); return; }
 

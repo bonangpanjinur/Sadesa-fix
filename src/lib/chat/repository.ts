@@ -33,6 +33,23 @@ export async function listConversationMessages(conversationId: string, limit = 5
   return { messages: (data || []).map((row) => normalizeMessage(row as Record<string, unknown>)), error: error ? toChatError(error) : null };
 }
 
+export async function listOlderConversationMessages(conversationId: string, before: ChatCursor, limit = 50): Promise<{ messages: ConversationMessage[]; error: Error | null }> {
+  const startedAt = Date.now();
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .or(`created_at.lt.${before.createdAt},and(created_at.eq.${before.createdAt},id.lt.${before.id})`)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit);
+  recordChatQueryLatency('history_older_query_latency_ms', startedAt, { has_cursor: true });
+  return {
+    messages: (data || []).map((row) => normalizeMessage(row as Record<string, unknown>)).reverse(),
+    error: error ? toChatError(error) : null,
+  };
+}
+
 export async function listConversationPage(conversationId: string, limit = 50, cursor?: ChatCursor): Promise<{ page: ChatPage; error: Error | null }> {
   const result = await listConversationMessages(conversationId, limit + 1, cursor);
   const messages = result.messages.slice(0, limit);

@@ -42,7 +42,8 @@ export default function CourierChatPage() {
         .is('deleted_at', null)
         .not('order_id', 'is', null)
         .in('chat_type', ['buyer_courier', 'merchant_courier'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (!messages || messages.length === 0) { setThreads([]); setLoading(false); return; }
 
@@ -124,7 +125,7 @@ export default function CourierChatPage() {
 
     const channel = supabase
       .channel(`courier-chats-${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, fetchThreads)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, fetchThreads)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };

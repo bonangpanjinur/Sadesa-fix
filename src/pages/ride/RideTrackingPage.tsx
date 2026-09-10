@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bike, Phone, X, CheckCircle, MapPin, Clock, Loader2, User, Navigation, Star, MessageCircle } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -76,6 +76,7 @@ const SEARCH_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function RideTrackingPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [ride, setRide] = useState<RideData | null>(null);
@@ -90,6 +91,16 @@ export default function RideTrackingPage() {
   const [searchCountdown, setSearchCountdown] = useState<number | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [driverUserId, setDriverUserId] = useState<string | null>(null);
+  const [chatConversationId, setChatConversationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const conversationId = searchParams.get('conversationId');
+    if (conversationId) setChatConversationId(conversationId);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (chatConversationId && driverUserId) setChatOpen(true);
+  }, [chatConversationId, driverUserId]);
 
   const autoCancel = useCallback(async () => {
     if (!ride || ride.status !== 'SEARCHING') return;
@@ -531,6 +542,7 @@ export default function RideTrackingPage() {
       {/* Chat with driver */}
       {chatOpen && driverUserId && ride && id && (
         <OrderChat
+          conversationId={chatConversationId}
           orderId={id}
           contextType="ride"
           rideRequestId={id}

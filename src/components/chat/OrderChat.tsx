@@ -14,15 +14,16 @@ import {
   getOrCreateConversation,
   getOrCreateDirectConversation,
   listConversationMessages,
+  listOlderConversationMessages,
   markConversationRead,
   sendConversationMessage,
   subscribeToConversation,
 } from '@/lib/chat/repository';
-import type { ChatContextType } from '@/lib/chat/types';
+import type { ChatContextType, ChatCursor } from '@/lib/chat/types';
 import { useChatPresence } from '@/hooks/chat/useChatPresence';
 import { useTypingIndicator } from '@/hooks/chat/useTypingIndicator';
 
-export type ChatType = 'buyer_merchant' | 'buyer_courier' | 'merchant_courier';
+export type ChatType = 'buyer_merchant' | 'buyer_courier' | 'merchant_courier' | 'passenger_courier';
 
 interface JoinedUser {
   user_id: string | null;
@@ -93,9 +94,13 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
   const [conversationId, setConversationId] = useState<string | null>(existingConversationId ?? null);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
   const [sendError, setSendError] = useState<string | null>(null);
+  const [oldestCursor, setOldestCursor] = useState<ChatCursor | null>(null);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const presence = useChatPresence(conversationId);
   const typing = useTypingIndicator(conversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const expectedConversationType = contextType === 'ride' ? 'passenger_courier' : chatType;
 
   // Fetch order info (items + products)
   useEffect(() => {
@@ -223,12 +228,15 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
     let active = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     setMessages([]);
+    setOldestCursor(null);
+    setHasOlderMessages(false);
+    setLoadingOlderMessages(false);
     setAutoDeleteInfo(null);
     setSendError(null);
     setConnectionStatus('reconnecting');
 
     const appendMessage = (incoming: ChatMessage) => {
-      if (!active || (chatType && incoming.chat_type !== chatType)) return;
+      if (!active || (expectedConversationType && incoming.chat_type !== expectedConversationType)) return;
       setMessages((previous) => {
         if (previous.some((message) => message.id === incoming.id)) return previous;
         return [...previous, incoming].sort((a, b) =>
@@ -268,6 +276,9 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
         if (!history.error) {
           const canonicalMessages = history.messages as ChatMessage[];
           setMessages(canonicalMessages);
+          const oldest = canonicalMessages[0];
+          setOldestCursor(oldest ? { createdAt: oldest.created_at, id: oldest.id } : null);
+          setHasOlderMessages(canonicalMessages.length >= 50);
           const withDelete = canonicalMessages.find((message) => message.auto_delete_at);
           if (withDelete) setAutoDeleteInfo(withDelete.auto_delete_at);
           const lastIncoming = [...canonicalMessages]
@@ -308,7 +319,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
       if (channel) void supabase.removeChannel(channel);
       setConversationId(null);
     };
-  }, [contextType, isOpen, orderId, existingConversationId, rideRequestId, merchantId, user, chatType, playNotificationSound]);
+  }, [contextType, isOpen, orderId, existingConversationId, rideRequestId, merchantId, user, expectedConversationType, playNotificationSound]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -391,7 +402,25 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
     return { label: 'Pengguna', color: 'bg-muted text-muted-foreground', icon: null };
   };
 
-  const quickReplies = QUICK_REPLIES[chatType] || [];
+  const loadOlderMessages = async () => {
+    if (!conversationId || !oldestCursor || loadingOlderMessages || !hasOlderMessages) return;
+    setLoadingOlderMessages(true);
+    const result = await listOlderConversationMessages(conversationId, oldestCursor);
+    if (!result.error) {
+      setMessages((current) => {
+        const existingIds = new Set(current.map((message) => message.id));
+        return [...result.messages.filter((message) => !existingIds.has(message.id)), ...current];
+      });
+      const oldest = result.messages[0];
+      if (oldest) setOldestCursor({ createdAt: oldest.created_at, id: oldest.id });
+      if (result.messages.length < 50) setHasOlderMessages(false);
+    } else {
+      setSendError(result.error.message);
+    }
+    setLoadingOlderMessages(false);
+  };
+
+  const quickReplies = QUICK_REPLIES[contextType === 'ride' ? 'buyer_courier' : chatType] || [];
 
   if (!isOpen) return null;
 
@@ -473,6 +502,13 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px]">
+          {hasOlderMessages && (
+            <div className="flex justify-center">
+              <Button type="button" variant="outline" size="sm" onClick={() => void loadOlderMessages()} disabled={loadingOlderMessages}>
+                {loadingOlderMessages ? 'Memuat pesan lama...' : 'Muat pesan sebelumnya'}
+              </Button>
+            </div>
+          )}
           {autoDeleteInfo && (
             <div className="flex items-center justify-center gap-1.5 p-2 bg-warning/10 rounded-lg border border-warning/20 mb-4">
               <Clock className="h-3 w-3 text-warning" />

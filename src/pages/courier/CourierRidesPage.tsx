@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, Volume2, MessageCircle, X, Package } from 'lucide-react';
 import { CourierLayout } from '@/components/courier/CourierLayout';
@@ -76,6 +76,7 @@ interface RidesData {
 export default function CourierRidesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [accepting, setAccepting] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -84,6 +85,7 @@ export default function CourierRidesPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [expandedMap, setExpandedMap] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatConversationId, setChatConversationId] = useState<string | null>(null);
   const prevRideCount = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -191,6 +193,14 @@ export default function CourierRidesPage() {
   useEffect(() => {
     if (!activeRide) setChatOpen(false);
   }, [activeRide]);
+
+  useEffect(() => {
+    const conversationId = searchParams.get('conversationId');
+    if (conversationId && activeRide) {
+      setChatConversationId(conversationId);
+      setChatOpen(true);
+    }
+  }, [activeRide, searchParams]);
 
   // Realtime subscriptions — only invalidate for searchable or owned rides.
   useEffect(() => {
@@ -523,6 +533,7 @@ export default function CourierRidesPage() {
       </div>
       {chatOpen && activeRide && (
         <OrderChat
+          conversationId={chatConversationId}
           orderId={activeRide.id}
           contextType="ride"
           rideRequestId={activeRide.id}

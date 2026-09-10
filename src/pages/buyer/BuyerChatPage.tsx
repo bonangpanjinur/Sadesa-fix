@@ -16,6 +16,7 @@ import { logRealtimeStatus, isRealtimeFailure, type RealtimeStatus } from '@/lib
 
 interface ChatThread {
   orderId: string | null;
+  rideRequestId: string | null;
   merchantId: string | null;
   conversationId: string | null;
   otherUserId: string;
@@ -34,7 +35,7 @@ export default function BuyerChatPage() {
   const [searchParams] = useSearchParams();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'all' | 'buyer_merchant' | 'buyer_courier'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'buyer_merchant' | 'buyer_courier' | 'passenger_courier'>('all');
   const [selectedThread, setSelectedThread] = useState<ChatThread | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
 
@@ -45,7 +46,7 @@ export default function BuyerChatPage() {
         .from('chat_participants')
         .select('conversation_id, last_read_at, role')
         .eq('user_id', user.id)
-        .eq('role', 'buyer')
+        .in('role', ['buyer', 'passenger'])
         .is('left_at', null);
       const lastReadAtByConversation = new Map(
         (memberships || []).map((row) => [row.conversation_id, row.last_read_at ? new Date(row.last_read_at).getTime() : 0]),
@@ -57,8 +58,9 @@ export default function BuyerChatPage() {
         .select('*')
         .in('conversation_id', buyerConversationIds)
         .is('deleted_at', null)
-        .in('chat_type', ['buyer_merchant', 'buyer_courier'])
-        .order('created_at', { ascending: false });
+        .in('chat_type', ['buyer_merchant', 'buyer_courier', 'passenger_courier'])
+        .order('created_at', { ascending: false })
+        .limit(500);
 
       if (!messages || messages.length === 0) { setThreads([]); setLoading(false); return; }
 
@@ -69,6 +71,7 @@ export default function BuyerChatPage() {
           const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
           threadMap.set(key, {
             orderId: msg.order_id,
+            rideRequestId: null,
             merchantId: null,
             conversationId: msg.conversation_id,
             otherUserId,
@@ -94,7 +97,7 @@ export default function BuyerChatPage() {
       if (directConversationIds.length > 0) {
         const { data: conversations } = await supabase
           .from('chat_conversations')
-          .select('id, merchant_id')
+          .select('id, merchant_id, ride_request_id')
           .in('id', directConversationIds);
         const merchantByConversation = new Map(
           (conversations || []).map((conversation) => [conversation.id, conversation.merchant_id]),
@@ -103,6 +106,8 @@ export default function BuyerChatPage() {
           if (thread.conversationId) {
             const merchantId = merchantByConversation.get(thread.conversationId) || null;
             thread.merchantId = merchantId;
+            const conversation = (conversations || []).find((item) => item.id === thread.conversationId);
+            thread.rideRequestId = conversation?.ride_request_id || null;
             if (merchantId) merchantIds.add(merchantId);
           }
         }
@@ -128,7 +133,9 @@ export default function BuyerChatPage() {
         // the owner's profile/account name.
         thread.otherUserName = thread.chatType === 'buyer_merchant'
           ? merchant?.name?.trim() || profile?.full_name?.trim() || 'Penjual'
-          : profile?.full_name?.trim() || courier?.name?.trim() || 'Kurir';
+          : thread.chatType === 'passenger_courier'
+            ? courier?.name?.trim() || profile?.full_name?.trim() || 'Driver'
+            : profile?.full_name?.trim() || courier?.name?.trim() || 'Kurir';
       }
 
       // Fetch order items for product info
@@ -178,7 +185,7 @@ export default function BuyerChatPage() {
     const channelName = `buyer-chats-${user.id}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
       .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, () => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => {
         if (active) fetchThreads();
       });
 
@@ -233,7 +240,7 @@ export default function BuyerChatPage() {
         <Tabs
           defaultValue="all"
           onValueChange={(value) => {
-            if (value === 'all' || value === 'buyer_merchant' || value === 'buyer_courier') setActiveTab(value);
+            if (value === 'all' || value === 'buyer_merchant' || value === 'buyer_courier' || value === 'passenger_courier') setActiveTab(value);
           }}
         >
           <div className="bg-card rounded-xl shadow-sm p-1.5 mb-4">
@@ -246,6 +253,9 @@ export default function BuyerChatPage() {
               </TabsTrigger>
               <TabsTrigger value="buyer_courier" className="flex-1 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Truck className="h-3 w-3 mr-1" /> Kurir
+              </TabsTrigger>
+              <TabsTrigger value="passenger_courier" className="flex-1 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                <Truck className="h-3 w-3 mr-1" /> Ojek
               </TabsTrigger>
             </TabsList>
           </div>
@@ -311,8 +321,9 @@ export default function BuyerChatPage() {
 
       {selectedThread && (
         <OrderChat
-          orderId={selectedThread.orderId}
-          contextType={selectedThread.orderId ? 'order' : 'direct'}
+          orderId={selectedThread.orderId || undefined}
+          contextType={selectedThread.rideRequestId ? 'ride' : selectedThread.orderId ? 'order' : 'direct'}
+          rideRequestId={selectedThread.rideRequestId || undefined}
           merchantId={selectedThread.merchantId || undefined}
           otherUserId={selectedThread.otherUserId}
           otherUserName={selectedThread.otherUserName}
