@@ -56,7 +56,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   if (slides.length === 0) {
     return (
-      <section className="mx-5 mt-5 flex h-48 items-center justify-center rounded-lg bg-muted">
+      <section className="mx-4 mt-5 flex h-[11.5rem] items-center justify-center rounded-2xl bg-muted sm:mx-5">
         <p className="text-muted-foreground text-sm">No banners available</p>
       </section>
     );
@@ -87,11 +87,11 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
           Produk Desa Asli
         </span>
       </div>
-      <h2 className="max-w-[260px] font-heading text-xl font-bold leading-tight text-primary-foreground">
+      <h2 className="max-w-[min(72vw,260px)] font-heading text-[1.3rem] font-bold leading-[1.12] text-primary-foreground sm:text-xl">
         {currentSlide.title}
       </h2>
       {currentSlide.subtitle && (
-        <p className="mt-1.5 max-w-[240px] text-xs leading-relaxed text-primary-foreground/80">
+        <p className="mt-1.5 max-w-[min(68vw,240px)] text-[0.7rem] leading-relaxed text-primary-foreground/80 sm:text-xs">
           {currentSlide.subtitle}
         </p>
       )}
@@ -105,7 +105,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
   );
 
   return (
-    <section className="relative mx-5 mt-5 h-48 overflow-hidden rounded-lg bg-muted shadow-md">
+    <section className="relative mx-4 mt-5 h-[12.6rem] overflow-hidden rounded-2xl bg-muted shadow-md sm:mx-5 sm:h-48">
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentIndex}
@@ -126,7 +126,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/55 to-transparent">
-            <div className="px-5 py-4">
+            <div className="px-5 py-4 sm:px-6">
               {currentSlide.linkUrl ? (
                 <Link to={currentSlide.linkUrl} className="block">
                   {slideContent}

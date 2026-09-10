@@ -117,7 +117,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
   return (
     <>
       <FloatingCartButton />
-      <nav ref={ref} className="fixed bottom-3 left-3 right-3 z-30 mx-auto flex max-w-[456px] justify-around rounded-[1.25rem] border border-white/80 bg-card/95 p-1.5 shadow-[0_10px_30px_-12px_hsl(var(--foreground)/0.35)] backdrop-blur-xl">
+      <nav ref={ref} className="safe-area-bottom fixed bottom-0 left-0 right-0 z-30 mx-auto flex max-w-[480px] justify-around rounded-t-[1.25rem] border border-b-0 border-white/80 bg-card/95 px-1.5 pt-1.5 shadow-[0_10px_30px_-12px_hsl(var(--foreground)/0.35)] backdrop-blur-xl sm:bottom-3 sm:left-3 sm:right-3 sm:rounded-[1.25rem] sm:border-b sm:pb-1.5">
         {navItems.map(({ path, icon: Icon, label }) => {
         const isActive = location.pathname === path;
         const badgeCount = getBadgeCount(path);

@@ -193,6 +193,7 @@
   
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -221,11 +222,12 @@
   /* Mobile shell container */
   .mobile-shell {
     max-width: 480px;
+    width: 100%;
     margin: 0 auto;
     min-height: 100vh;
     background: hsl(var(--background));
     position: relative;
-    overflow: hidden;
+    overflow-x: clip;
   }
 
   /* Keep buyer-facing screens visually anchored to the home experience:
@@ -236,6 +238,10 @@
 
   .mobile-shell input::placeholder {
     color: hsl(var(--muted-foreground) / 0.8);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
   
   @media (min-width: 768px) {

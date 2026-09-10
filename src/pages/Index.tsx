@@ -200,7 +200,7 @@ const Index = () => {
                    </div>
                  </div>
                   <div
-                    className="grid grid-cols-5 gap-1.5 rounded-2xl border border-border/60 bg-card p-3 shadow-sm"
+                    className="grid grid-cols-5 gap-0.5 rounded-2xl border border-border/60 bg-card p-2 shadow-sm sm:gap-1.5 sm:p-3"
                    aria-label="Kategori utama"
                  >
                   {visibleCategories.map((cat) => <CategoryIcon key={cat.id} {...cat} />)}
@@ -208,13 +208,13 @@ const Index = () => {
                      <button
                        type="button"
                        onClick={() => setMoreCategoriesOpen(true)}
-                       className="group flex min-w-0 flex-col items-center gap-2"
+                       className="group flex min-w-0 flex-col items-center gap-1 sm:gap-1.5"
                        aria-label="Lihat kategori lainnya"
                      >
-                       <span className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[1.25rem] border-2 border-white/70 bg-slate-100 text-slate-600 shadow-[0_6px_16px_-8px_hsl(var(--foreground)/0.35)] transition-all group-hover:-translate-y-1 group-hover:bg-slate-200 group-active:scale-95">
-                         <MoreHorizontal className="h-7 w-7 stroke-[2.25]" />
+                       <span className="relative flex h-[clamp(2.75rem,12vw,3.25rem)] w-[clamp(2.75rem,12vw,3.25rem)] items-center justify-center overflow-hidden rounded-[1rem] border-2 border-white/70 bg-slate-100 text-slate-600 shadow-[0_6px_16px_-8px_hsl(var(--foreground)/0.35)] transition-all group-hover:-translate-y-1 group-hover:bg-slate-200 group-active:scale-95">
+                         <MoreHorizontal className="h-5 w-5 stroke-[2.25] sm:h-6 sm:w-6" />
                        </span>
-                       <span className="line-clamp-1 w-full text-center text-[11px] font-medium leading-tight text-muted-foreground">Lainnya</span>
+                       <span className="line-clamp-1 w-full text-center text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">Lainnya</span>
                      </button>
                    )}
                 </div>

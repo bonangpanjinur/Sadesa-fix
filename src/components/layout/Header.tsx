@@ -34,7 +34,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 space-y-3 border-b border-border/60 bg-card/95 px-3 pb-4 pt-3 backdrop-blur-xl sm:space-y-4 sm:px-5 sm:pb-5 sm:pt-4">
+    <header className="sticky top-0 z-40 space-y-3 border-b border-border/60 bg-card/95 px-4 pb-4 pt-3 backdrop-blur-xl sm:space-y-4 sm:px-5 sm:pb-5 sm:pt-4">
       <div className="flex min-w-0 items-center justify-between gap-2">
         <Link to="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
           {settings.logoUrl ? (
@@ -60,11 +60,11 @@ export function Header() {
           </div>
         </Link>
         
-         <div className="flex shrink-0 items-center gap-0 sm:gap-1">
+         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <InstallButton />
           <button
             onClick={handleChatNavigation}
-             className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-primary"
+             className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-primary sm:h-10 sm:w-10"
             aria-label="Chat"
           >
             <MessageCircle className="h-[18px] w-[18px] text-muted-foreground" />
@@ -82,7 +82,7 @@ export function Header() {
           </button>
           <button
             onClick={() => navigate('/cart')}
-             className="relative flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-primary"
+             className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-primary sm:h-10 sm:w-10"
             aria-label="Keranjang"
           >
             <ShoppingCart className="h-[18px] w-[18px] text-muted-foreground" />
