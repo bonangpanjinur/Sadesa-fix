@@ -279,23 +279,11 @@ export default function AdminUsersPage() {
     try {
       setActionLoading(true);
 
-      // Remove all existing roles
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', roleUser.userId);
-
-      // Insert selected roles (except 'buyer' which is default)
-      const rolesToInsert = selectedRoles.filter(r => r !== 'buyer');
-      if (rolesToInsert.length > 0) {
-        const { error } = await supabase
-          .from('user_roles')
-          .insert(rolesToInsert.map(role => ({
-            user_id: roleUser.userId,
-            role: role as AppRole,
-          })));
-        if (error) throw error;
-      }
+      const { error: roleError } = await supabase.rpc('admin_replace_user_roles' as never, {
+        p_target_user_id: roleUser.userId,
+        p_roles: (selectedRoles.length > 0 ? selectedRoles : ['buyer']) as AppRole[],
+      } as never);
+      if (roleError) throw roleError;
 
       await logAdminAction('UPDATE_ROLES', 'user', roleUser.userId,
         { roles: roleUser.roles },

@@ -57,8 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
   const broadcastRef = useRef<BroadcastChannel | null>(null);
+  const rolesRequestRef = useRef(0);
+  const activeUserIdRef = useRef<string | null>(null);
 
   const fetchUserRoles = useCallback(async (userId: string) => {
+    const requestId = ++rolesRequestRef.current;
+    activeUserIdRef.current = userId;
     try {
       setRolesLoading(true);
       const result = await withTimeout(
@@ -90,12 +94,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const userRoles = (data || []).map(r => r.role as AppRole);
+      if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
       setRoles(ensureBuyerFallback(mergeMerchantRole(userRoles, Boolean(merchant))));
     } catch (err) {
       console.error('Error fetching user roles:', err);
+      if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
       setRoles(['buyer']);
     } finally {
-      setRolesLoading(false);
+      if (requestId === rolesRequestRef.current && activeUserIdRef.current === userId) {
+        setRolesLoading(false);
+      }
     }
   }, []);
 
@@ -110,11 +118,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (_event, session) => {
         setSession(session as AuthSession | null);
         setUser(session?.user as AuthUser | null ?? null);
+        activeUserIdRef.current = session?.user?.id ?? null;
 
         setLoading(false);
         if (session?.user) {
           void fetchUserRoles(session.user.id);
         } else {
+          ++rolesRequestRef.current;
+          activeUserIdRef.current = null;
           setRoles([]);
           setRolesLoading(false);
         }
@@ -128,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ).then(({ data: { session } }) => {
       setSession(session as AuthSession | null);
       setUser(session?.user as AuthUser | null ?? null);
+      activeUserIdRef.current = session?.user?.id ?? null;
       setLoading(false);
 
       if (session?.user) {
@@ -139,6 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error loading authentication session:', error);
       setSession(null);
       setUser(null);
+      ++rolesRequestRef.current;
+      activeUserIdRef.current = null;
       setRoles([]);
       setRolesLoading(false);
       setLoading(false);
@@ -162,6 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.signOut().catch(() => {});
         setUser(null);
         setSession(null);
+        ++rolesRequestRef.current;
+        activeUserIdRef.current = null;
         setRoles([]);
         setLoading(false);
         setRolesLoading(false);
