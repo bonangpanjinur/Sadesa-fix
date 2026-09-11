@@ -145,7 +145,10 @@ serve(async (req) => {
         });
       }
 
-      const requestKey = req.headers.get('idempotency-key')?.trim() || crypto.randomUUID();
+      // Keep retries deterministic even when the browser does not provide an
+      // idempotency key. The order-level key also lets us recover a provider
+      // invoice after a crash between provider creation and order persistence.
+      const requestKey = req.headers.get('idempotency-key')?.trim() || `sadesa-order-${current.id}`;
       if (requestKey.length < 16 || requestKey.length > 128) {
         return json({ error: 'Invalid idempotency key' }, 400);
       }
@@ -159,7 +162,7 @@ serve(async (req) => {
         return json({ error: 'Unable to initialize payment' }, 503);
       }
       const reservation = reservationData as unknown as InvoiceRequestReservation;
-      if (reservation.invoice_id && reservation.invoice_url && reservation.can_process) {
+      if (reservation.invoice_id && reservation.invoice_url) {
         const { data: repairedOrder, error: repairError } = await supabaseAdmin
           .from('orders')
           .update({ payment_invoice_id: reservation.invoice_id, payment_invoice_url: reservation.invoice_url, payment_status: 'PENDING' })
