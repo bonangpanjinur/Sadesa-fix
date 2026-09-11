@@ -6,7 +6,7 @@
 // parts of this codebase were written against an untyped proxy shim (dynamic
 // update payloads, RPC names, views not present in generated types), so the
 // client stays schema-agnostic to keep those call sites valid.
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // Vite replaces import.meta.env values at build time. Static deployments such
 // as Replit/Railway do not have browser runtime environment variables, so keep
@@ -33,12 +33,30 @@ export const SUPABASE_PUBLISHABLE_KEY = requirePublicRuntimeValue(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || DEFAULT_PUBLIC_CONFIG.publishableKey,
 );
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
+// Store the client on globalThis as well as at module scope. A module-local
+// singleton can still be duplicated when lazy chunks/HMR or a stale service
+// worker load another copy of this module. GoTrue clients sharing one
+// localStorage key can race each other and emit the duplicate-client warning.
+const GLOBAL_CLIENT_KEY = '__SADESA_SUPABASE_CLIENT__';
+type SupabaseGlobal = typeof globalThis & {
+  [GLOBAL_CLIENT_KEY]?: SupabaseClient;
+};
+
+const globalScope = globalThis as SupabaseGlobal;
+const browserStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
+
+export const supabase = globalScope[GLOBAL_CLIENT_KEY] ?? createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
+  {
+    auth: {
+      ...(browserStorage ? { storage: browserStorage } : {}),
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+    },
   },
-});
+);
+
+globalScope[GLOBAL_CLIENT_KEY] = supabase;
