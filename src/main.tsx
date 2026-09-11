@@ -1,7 +1,8 @@
 import { createRoot } from "react-dom/client";
-import { registerSW } from "virtual:pwa-register";
-import App from "./App.tsx";
-import "./index.css";
+import { registerSW } from 'virtual:pwa-register';
+import App from './App.tsx';
+import './index.css';
+import { reportObservability } from './lib/observability';
 
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   registerSW({
@@ -11,6 +12,7 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
     },
     onRegisterError: (error) => {
       console.warn("Service worker registration failed:", error);
+      reportObservability('application', 'service_worker_registration_failed', 'warn', {}, error);
     },
   });
 }

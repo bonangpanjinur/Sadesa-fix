@@ -1,4 +1,4 @@
-export type ObservabilityDomain = 'payment' | 'upload' | 'realtime' | 'webhook' | 'pos_webhook' | 'offline_sync' | 'device' | 'navigation' | 'inventory' | 'subscription' | 'data';
+export type ObservabilityDomain = 'payment' | 'upload' | 'realtime' | 'webhook' | 'pos_webhook' | 'offline_sync' | 'device' | 'navigation' | 'inventory' | 'subscription' | 'data' | 'application';
 export type ObservabilityLevel = 'info' | 'warn' | 'error';
 export type ObservabilityValue = string | number | boolean | null;
 
@@ -87,8 +87,8 @@ export function getErrorCode(error: unknown): string | null {
 }
 
 export function logUnhandledErrors(): () => void {
-  const onError = (event: ErrorEvent) => reportObservability('webhook', 'unhandled_error', 'error', { message: event.message.slice(0, 160) }, event.error);
-  const onRejection = (event: PromiseRejectionEvent) => reportObservability('webhook', 'unhandled_rejection', 'error', {}, event.reason);
+  const onError = (event: ErrorEvent) => reportObservability('application', 'unhandled_error', 'error', { message: event.message.slice(0, 160) }, event.error);
+  const onRejection = (event: PromiseRejectionEvent) => reportObservability('application', 'unhandled_rejection', 'error', {}, event.reason);
   window.addEventListener('error', onError);
   window.addEventListener('unhandledrejection', onRejection);
   return () => {

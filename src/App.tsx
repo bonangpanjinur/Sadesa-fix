@@ -276,6 +276,16 @@ function stringifyQueryKey(queryKey: readonly unknown[]) {
   }
 }
 
+function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 2) return false;
+  if (!error || typeof error !== 'object') return true;
+  const candidate = error as { status?: unknown; code?: unknown };
+  const status = typeof candidate.status === 'number' ? candidate.status : null;
+  const code = typeof candidate.code === 'string' ? candidate.code : '';
+  if ((status !== null && status >= 400 && status < 500) || code === '42501' || code === 'PGRST116') return false;
+  return true;
+}
+
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
@@ -297,7 +307,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60_000,
       gcTime: 300_000,
-      retry: 2,
+      retry: shouldRetryQuery,
       refetchOnMount: true,
       refetchOnReconnect: true,
       refetchOnWindowFocus: false,

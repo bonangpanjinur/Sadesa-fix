@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { reportObservability } from '@/lib/observability';
 
 interface Props {
   children: ReactNode;
@@ -27,6 +28,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    reportObservability('application', 'react_render_error', 'error', {
+      componentStack: errorInfo.componentStack?.slice(0, 240) || null,
+      isChunkError: /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed/i.test(error.message),
+    }, error);
     this.setState({ errorInfo });
 
     // A deploy can leave an older HTML shell pointing at a removed hashed chunk.
