@@ -151,13 +151,13 @@ export default function CourierChatPage() {
           if (value === 'all' || value === 'buyer_courier' || value === 'merchant_courier') setActiveTab(value);
         }}
       >
-        <div className="bg-card rounded-xl shadow-sm p-1.5 mb-4">
-          <TabsList className="w-full bg-transparent h-auto p-0 gap-1">
-            <TabsTrigger value="all" className="flex-1 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Semua</TabsTrigger>
-            <TabsTrigger value="buyer_courier" className="flex-1 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+        <div className="mb-4 rounded-xl bg-card p-1.5 shadow-sm">
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-transparent p-0">
+            <TabsTrigger value="all" className="min-h-11 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Semua</TabsTrigger>
+            <TabsTrigger value="buyer_courier" className="min-h-11 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <User className="h-3 w-3 mr-1" /> Pembeli
             </TabsTrigger>
-            <TabsTrigger value="merchant_courier" className="flex-1 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="merchant_courier" className="min-h-11 rounded-lg text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Store className="h-3 w-3 mr-1" /> Penjual
             </TabsTrigger>
           </TabsList>
@@ -178,7 +178,7 @@ export default function CourierChatPage() {
         <div className="space-y-2">
           {filteredThreads.map(thread => (
             <Card key={`${thread.orderId}-${thread.chatType}`} className="cursor-pointer hover:bg-accent/50 transition" onClick={() => setSelectedThread(thread)}>
-              <CardContent className="p-4 flex items-center gap-3">
+              <CardContent className="flex min-h-[76px] items-center gap-3 p-3 sm:p-4">
                 <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                   {thread.productImage ? (
                     <img src={thread.productImage} alt={thread.productName || ''} className="w-full h-full object-cover" />
@@ -200,7 +200,7 @@ export default function CourierChatPage() {
                   )}
                   <p className="text-xs text-muted-foreground truncate">{thread.lastMessage}</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground flex-shrink-0">
+                <p className="hidden shrink-0 text-[10px] text-muted-foreground sm:block">
                   {formatDistanceToNow(new Date(thread.lastMessageAt), { locale: idLocale, addSuffix: true })}
                 </p>
               </CardContent>

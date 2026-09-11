@@ -310,9 +310,9 @@ export default function CourierRidesPage() {
 
   return (
     <CourierLayout title="Ojek Desa" subtitle="Terima dan kelola perjalanan ojek">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <div className="flex justify-end">
-          <Button variant={soundEnabled ? 'default' : 'outline'} size="sm" onClick={() => setSoundEnabled(!soundEnabled)} className="text-xs">
+          <Button variant={soundEnabled ? 'default' : 'outline'} size="sm" onClick={() => setSoundEnabled(!soundEnabled)} className="min-h-11 text-xs sm:min-h-9">
             <Volume2 className="h-3.5 w-3.5 mr-1" />
             {soundEnabled ? 'Notifikasi On' : 'Notifikasi Off'}
           </Button>
@@ -351,7 +351,7 @@ export default function CourierRidesPage() {
 
         {activeRide && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="p-5 border-primary border-2">
+            <Card className="border-2 border-primary p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Bike className="h-5 w-5 text-primary" />
                 <h3 className="font-bold">Perjalanan Aktif</h3>
@@ -362,14 +362,14 @@ export default function CourierRidesPage() {
                   <div className="w-2.5 h-2.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Jemput</p>
-                    <p className="font-medium">{activeRide.pickup_address}</p>
+                    <p className="break-words font-medium">{activeRide.pickup_address}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-sm">
                   <div className="w-2.5 h-2.5 rounded-full bg-destructive mt-1.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Tujuan</p>
-                    <p className="font-medium">{activeRide.destination_address}</p>
+                    <p className="break-words font-medium">{activeRide.destination_address}</p>
                   </div>
                 </div>
               </div>
@@ -377,24 +377,24 @@ export default function CourierRidesPage() {
                 <span className="text-muted-foreground">{activeRide.distance_km} km</span>
                 <span className="font-bold text-primary text-lg">{formatPrice(activeRide.estimated_fare)}</span>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'].includes(activeRide.status) && (
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => setChatOpen(true)}>
+                  <Button variant="outline" size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => setChatOpen(true)}>
                     <MessageCircle className="h-4 w-4 mr-1" /> Chat Penumpang
                   </Button>
                 )}
                 {activeRide.status === 'ACCEPTED' && (
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openNavigation(activeRide.pickup_lat, activeRide.pickup_lng)}>
+                  <Button variant="outline" size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => openNavigation(activeRide.pickup_lat, activeRide.pickup_lng)}>
                     <Navigation className="h-4 w-4 mr-1" /> Navigasi Jemput
                   </Button>
                 )}
                 {['PICKED_UP', 'IN_TRANSIT'].includes(activeRide.status) && (
-                  <Button variant="outline" size="sm" className="flex-1" onClick={() => openNavigation(activeRide.destination_lat, activeRide.destination_lng)}>
+                  <Button variant="outline" size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => openNavigation(activeRide.destination_lat, activeRide.destination_lng)}>
                     <Navigation className="h-4 w-4 mr-1" /> Navigasi Tujuan
                   </Button>
                 )}
                 {getNextAction() && (
-                  <Button size="sm" className="flex-1" onClick={() => updateRideStatusMutation.mutate(getNextAction()!.nextStatus)} disabled={updatingStatus}>
+                  <Button size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => updateRideStatusMutation.mutate(getNextAction()!.nextStatus)} disabled={updatingStatus}>
                     {updatingStatus ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
                     {getNextAction()!.label}
                   </Button>
@@ -460,14 +460,14 @@ export default function CourierRidesPage() {
                           <span className="truncate">{ride.destination_address}</span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-primary">{formatPrice(ride.estimated_fare)}</span>
-                        <div className="flex gap-1.5">
-                          <Button size="sm" variant="outline" onClick={() => setExpandedMap(expandedMap === ride.id ? null : ride.id)}>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <span className="font-bold text-primary">{formatPrice(ride.estimated_fare)}</span>
+                            <div className="grid w-full grid-cols-2 gap-2 sm:w-auto">
+                              <Button size="sm" variant="outline" className="min-h-11 sm:min-h-9" onClick={() => setExpandedMap(expandedMap === ride.id ? null : ride.id)}>
                             <MapPin className="h-3.5 w-3.5 mr-1" />
                             {expandedMap === ride.id ? 'Tutup Peta' : 'Lihat Rute'}
                           </Button>
-                          <Button size="sm" onClick={() => acceptRideMutation.mutate(ride.id)} disabled={accepting === ride.id || !!activeRide}>
+                              <Button size="sm" className="min-h-11 sm:min-h-9" onClick={() => acceptRideMutation.mutate(ride.id)} disabled={accepting === ride.id || !!activeRide}>
                             {accepting === ride.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
                             Terima
                           </Button>

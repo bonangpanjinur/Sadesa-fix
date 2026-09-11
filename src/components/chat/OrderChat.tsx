@@ -430,15 +430,15 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col max-h-[80vh]">
+      <div className="mobile-action-safe relative flex h-[min(92dvh,720px)] w-full max-w-md flex-col rounded-t-2xl border border-border bg-card shadow-xl sm:h-auto sm:max-h-[80vh] sm:rounded-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3 sm:p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <MessageCircle className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <h3 className="font-semibold text-sm">{otherUserName}</h3>
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-semibold">{otherUserName}</h3>
               <p className="text-[10px] text-muted-foreground">
              {typing.typing
                ? 'Sedang mengetik…'
@@ -575,7 +575,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border bg-background rounded-b-2xl">
+        <div className="shrink-0 rounded-b-2xl border-t border-border bg-background p-3 sm:p-4">
           {sendError && (
             <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
