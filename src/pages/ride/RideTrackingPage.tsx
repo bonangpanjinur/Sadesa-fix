@@ -105,15 +105,10 @@ export default function RideTrackingPage() {
   const autoCancel = useCallback(async () => {
     if (!ride || ride.status !== 'SEARCHING') return;
     try {
-      await supabase
-        .from('ride_requests')
-        .update({
-          status: 'CANCELLED',
-          cancelled_at: new Date().toISOString(),
-          cancellation_reason: 'Tidak ada driver tersedia dalam waktu yang ditentukan',
-        } as Record<string, unknown>)
-        .eq('id', ride.id)
-        .eq('status', 'SEARCHING'); // Only cancel if still searching
+      await supabase.rpc('cancel_ride', {
+        p_ride_id: ride.id,
+        p_reason: 'Tidak ada driver tersedia dalam waktu yang ditentukan',
+      });
       toast({ title: '⏰ Pencarian habis waktu', description: 'Tidak ada driver tersedia. Silakan coba lagi.' });
     } catch {
       // Silent fail
@@ -219,31 +214,11 @@ export default function RideTrackingPage() {
     if (!ride) return;
     setCancelling(true);
     try {
-      const { error } = await supabase
-        .from('ride_requests')
-        .update({
-          status: 'CANCELLED',
-          cancelled_at: new Date().toISOString(),
-          cancellation_reason: 'Dibatalkan oleh penumpang',
-        } as Record<string, unknown>)
-        .eq('id', ride.id);
+      const { error } = await supabase.rpc('cancel_ride', {
+        p_ride_id: ride.id,
+        p_reason: 'Dibatalkan oleh penumpang',
+      });
       if (error) throw error;
-
-      if (ride.driver_id) {
-        const { data: courierData } = await supabase
-          .from('couriers')
-          .select('user_id')
-          .eq('id', ride.driver_id)
-          .maybeSingle();
-        if (courierData?.user_id) {
-          await supabase.from('notifications').insert({
-            user_id: courierData.user_id,
-            title: 'Perjalanan Dibatalkan',
-            message: 'Penumpang membatalkan perjalanan ojek',
-            type: 'ride',
-          });
-        }
-      }
 
       toast({ title: 'Perjalanan dibatalkan' });
       navigate('/ride/history');
@@ -259,13 +234,11 @@ export default function RideTrackingPage() {
     if (!ride) return;
     setSubmittingRating(true);
     try {
-      const { error } = await supabase
-        .from('ride_requests')
-        .update({
-          rating: ratingValue,
-          rating_comment: ratingComment || null,
-        } as Record<string, unknown>)
-        .eq('id', ride.id);
+      const { error } = await supabase.rpc('submit_ride_rating', {
+        p_ride_id: ride.id,
+        p_rating: ratingValue,
+        p_comment: ratingComment || null,
+      });
       if (error) throw error;
       setRide(prev => prev ? { ...prev, rating: ratingValue, rating_comment: ratingComment } : null);
       toast({ title: '⭐ Terima kasih atas penilaian Anda!' });

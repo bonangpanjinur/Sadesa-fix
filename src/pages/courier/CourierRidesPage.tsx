@@ -280,34 +280,7 @@ export default function CourierRidesPage() {
       });
 
       if (!rpcError) return newStatus;
-
-      // Older Supabase projects imported before the transition RPC was added
-      // return PGRST202/42883 here. Keep the UI usable while the idempotent
-      // migration is being applied, but still scope the fallback to this
-      // driver's current ride and current status.
-      const functionMissing = ['PGRST202', '42883'].includes(rpcError.code ?? '')
-        || /transition_ride_status|function .*does not exist/i.test(rpcError.message ?? '');
-
-      if (!functionMissing) throw rpcError;
-
-      const timestamps: Record<string, string> = {};
-      if (newStatus === 'PICKED_UP') timestamps.picked_up_at = new Date().toISOString();
-      if (newStatus === 'COMPLETED') timestamps.completed_at = new Date().toISOString();
-
-      const { data: updatedRide, error: updateError } = await supabase
-        .from('ride_requests')
-        .update({ status: newStatus, ...timestamps })
-        .eq('id', activeRide.id)
-        .eq('driver_id', courierId)
-        .eq('status', activeRide.status)
-        .select('id')
-        .maybeSingle();
-
-      if (updateError) throw updateError;
-      if (!updatedRide) {
-        throw new Error('Ride sudah berubah atau tidak lagi ditugaskan kepada Anda');
-      }
-      return newStatus;
+      throw rpcError;
     },
     onSuccess: (newStatus) => {
       toast({ title: newStatus === 'COMPLETED' ? '✅ Perjalanan selesai!' : 'Status diperbarui' });

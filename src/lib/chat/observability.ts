@@ -11,6 +11,7 @@ export type ChatMetricName =
   | 'duplicate_retry_recovered'
   | 'inbox_query_latency_ms'
   | 'history_query_latency_ms'
+  | 'history_older_query_latency_ms'
   | 'unread_notification_delivery'
   | 'retention_cleanup_success'
   | 'retention_cleanup_failure'
@@ -49,7 +50,7 @@ export function recordChatMetric(
   });
 }
 
-export function recordChatQueryLatency(metric: 'inbox_query_latency_ms' | 'history_query_latency_ms', startedAt: number, context?: Record<string, MetricValue>): void {
+export function recordChatQueryLatency(metric: 'inbox_query_latency_ms' | 'history_query_latency_ms' | 'history_older_query_latency_ms', startedAt: number, context?: Record<string, MetricValue>): void {
   recordChatMetric(metric, Math.max(0, Date.now() - startedAt), context);
 }
 

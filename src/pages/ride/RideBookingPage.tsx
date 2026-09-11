@@ -293,18 +293,17 @@ export default function RideBookingPage() {
     if (!user || !pickupLocation || !destLocation) return;
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.from('ride_requests').insert([{
-        passenger_id: user.id,
-        pickup_lat: pickupLocation.lat, pickup_lng: pickupLocation.lng,
-        pickup_address: pickupAddress || 'Titik jemput',
-        destination_lat: destLocation.lat, destination_lng: destLocation.lng,
-        destination_address: destAddress || 'Titik tujuan',
-        distance_km: Math.round(distanceKm * 100) / 100,
-        estimated_fare: estimatedFare, status: 'SEARCHING',
-      }]).select('id').single();
+      const { data, error } = await supabase.rpc('create_ride_request', {
+        p_pickup_lat: pickupLocation.lat,
+        p_pickup_lng: pickupLocation.lng,
+        p_pickup_address: pickupAddress || 'Titik jemput',
+        p_destination_lat: destLocation.lat,
+        p_destination_lng: destLocation.lng,
+        p_destination_address: destAddress || 'Titik tujuan',
+      });
       if (error) throw error;
       toast({ title: 'Mencari driver...', description: 'Permintaan ojek Anda sedang dicari driver terdekat' });
-      navigate(`/ride/${data.id}`);
+      navigate(`/ride/${data}`);
     } catch (err) {
       console.error(err);
       toast({ title: 'Gagal memesan ojek', variant: 'destructive' });

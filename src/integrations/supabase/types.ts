@@ -3688,6 +3688,21 @@ export type Database = {
         Args: { p_courier_id: string; p_ride_id: string }
         Returns: boolean
       }
+      cancel_ride: {
+        Args: { p_reason?: string; p_ride_id: string }
+        Returns: boolean
+      }
+      create_ride_request: {
+        Args: {
+          p_destination_address: string
+          p_destination_lat: number
+          p_destination_lng: number
+          p_pickup_address: string
+          p_pickup_lat: number
+          p_pickup_lng: number
+        }
+        Returns: string
+      }
       apply_voucher: {
         Args: {
           p_code: string
@@ -3802,6 +3817,14 @@ export type Database = {
           p_type?: string
           p_user_id: string
         }
+        Returns: string
+      }
+      submit_ride_rating: {
+        Args: { p_comment?: string; p_rating: number; p_ride_id: string }
+        Returns: Json
+      }
+      transition_ride_status: {
+        Args: { p_ride_id: string; p_to_status: string }
         Returns: string
       }
       update_cod_trust_score: {
