@@ -112,7 +112,7 @@ export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatu
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="flex items-start gap-3"
+              className="flex min-w-0 items-start gap-3"
             >
               <div className="flex flex-col items-center">
                 <div
@@ -139,7 +139,7 @@ export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatu
                 )}
               </div>
 
-              <div className="flex-1 pb-4">
+              <div className="min-w-0 flex-1 pb-4">
                 <p
                   className={cn(
                     "font-medium",

@@ -265,6 +265,8 @@ export default function CourierDashboardPage() {
         return <Badge variant="warning">Diambil</Badge>;
       case 'SENT':
         return <Badge variant="info">Dalam Perjalanan</Badge>;
+      case 'DELIVERING':
+        return <Badge variant="info">Dalam Perjalanan</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -277,6 +279,8 @@ export default function CourierDashboardPage() {
       case 'PICKED_UP':
         return { label: 'Mulai Antar', nextStatus: 'SENT', needsPOD: false };
       case 'SENT':
+        return { label: 'Selesai + Foto', nextStatus: 'DELIVERED', needsPOD: true };
+      case 'DELIVERING':
         return { label: 'Selesai + Foto', nextStatus: 'DELIVERED', needsPOD: true };
       default:
         return null;

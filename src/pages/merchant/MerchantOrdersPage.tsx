@@ -84,6 +84,15 @@ export default function MerchantOrdersPage() {
     onNewOrder: handleNewOrder,
   });
 
+  // Keep an open detail dialog aligned with courier and delivery updates.
+  // Otherwise stale status buttons remain visible until the dialog is reopened.
+  useEffect(() => {
+    setSelectedOrder((current) => {
+      if (!current) return current;
+      return orders.find((order) => order.id === current.id) ?? current;
+    });
+  }, [orders]);
+
   const openAssignDialog = (order: OrderRow) => {
     setSelectedOrder(order);
     setDetailDialogOpen(false);
@@ -201,7 +210,7 @@ export default function MerchantOrdersPage() {
       refetch();
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Gagal mengubah status');
+      toast.error(`Gagal mengubah status: ${error instanceof Error ? error.message : 'Silakan coba lagi'}`);
     }
   };
 
