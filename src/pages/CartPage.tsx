@@ -32,7 +32,7 @@ interface StockProductRow {
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, selectedItems, selectedItemIds, toggleItemSelection, selectAllItems, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { items, selectedItems, selectedItemIds, toggleItemSelection, updateQuantity, removeFromCart, clearCart } = useCart();
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -118,7 +118,7 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="mobile-shell bg-card flex flex-col min-h-screen">
+      <div className="mobile-shell flex min-h-[100dvh] flex-col bg-card">
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center gap-3">
           <button 
@@ -145,16 +145,16 @@ export default function CartPage() {
     );
   }
 
-  // Group items by merchantName
+  // Group by stable merchant ID so same-named merchants never share a checkout group.
   const grouped: Record<string, typeof items> = {};
   items.forEach(item => {
-    const key = item.product.merchantName || 'Toko';
+    const key = item.product.merchantId || `unknown:${item.product.merchantName || 'Toko'}`;
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(item);
   });
 
   return (
-    <div className="mobile-shell bg-secondary flex flex-col min-h-screen">
+    <div className="mobile-shell flex min-h-[100dvh] flex-col bg-secondary">
       {/* Header */}
       <div className="p-4 border-b border-border bg-card flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -176,13 +176,15 @@ export default function CartPage() {
       
       {/* Cart Items - Grouped by Merchant */}
       <div className="flex-1 overflow-y-auto p-4 pb-48">
-        {Object.entries(grouped).map(([merchantName, merchantItems]) => {
+        {Object.entries(grouped).map(([merchantKey, merchantItems]) => {
+          const merchantName = merchantItems[0]?.product.merchantName || 'Toko';
           const merchantId = merchantItems[0]?.product.merchantId;
           const isOpen = merchantId ? merchantStatuses[merchantId] : undefined;
           const isClosed = isOpen === false;
+          const allMerchantItemsSelected = merchantItems.every(item => selectedItemIds.includes(item.product.id));
 
           return (
-            <div key={merchantName} className="mb-4">
+            <div key={merchantKey} className="mb-4">
               {/* Merchant Header */}
               <div className="flex items-center gap-2 mb-2 px-1">
                 <Store className="h-4 w-4 text-primary" />
@@ -194,8 +196,18 @@ export default function CartPage() {
                     {isOpen ? 'Buka' : 'Tutup'}
                   </span>
                 )}
-                <button type="button" onClick={selectAllItems} className="ml-auto text-xs text-primary font-medium hover:underline">
-                  Pilih semua
+                <button
+                  type="button"
+                  onClick={() => merchantItems.forEach(item => {
+                    if (allMerchantItemsSelected) {
+                      toggleItemSelection(item.product.id);
+                    } else if (!selectedItemIds.includes(item.product.id)) {
+                      toggleItemSelection(item.product.id);
+                    }
+                  })}
+                  className="ml-auto text-xs font-medium text-primary hover:underline"
+                >
+                  {allMerchantItemsSelected ? 'Batal pilih' : 'Pilih semua'}
                 </button>
               </div>
 
@@ -286,7 +298,7 @@ export default function CartPage() {
       </div>
 
       {/* Checkout Summary */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-card border-t border-border p-5 shadow-lg">
+      <div className="mobile-action-safe fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] border-t border-border bg-card p-5 shadow-lg">
         <div className="flex justify-between items-center mb-1 text-sm">
           <span className="text-muted-foreground">{t('shipping.feeLong')}</span>
           <span className="text-xs text-muted-foreground italic">{t('shipping.calculatedAtCheckout')}</span>
