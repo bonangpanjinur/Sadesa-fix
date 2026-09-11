@@ -38,7 +38,7 @@ export function CourierSidebar() {
     : menuItems;
 
   return (
-    <div className="w-64 h-screen bg-card border-r border-border flex flex-col sticky top-0">
+    <div className="sticky top-0 flex h-[100dvh] w-64 flex-col border-r border-border bg-card">
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2">
           <Bike className="h-6 w-6 text-primary" />

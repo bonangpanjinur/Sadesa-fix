@@ -258,7 +258,7 @@ export default function RideTrackingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-[100dvh] bg-background">
         <Header />
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -269,7 +269,7 @@ export default function RideTrackingPage() {
 
   if (!ride) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-[100dvh] bg-background">
         <Header />
         <div className="text-center py-20">
           <p className="text-muted-foreground">Perjalanan tidak ditemukan</p>
@@ -285,7 +285,7 @@ export default function RideTrackingPage() {
   const canRate = ride.status === 'COMPLETED' && !ride.rating;
 
   return (
-    <div className="mobile-shell bg-background min-h-screen flex flex-col">
+    <div className="mobile-shell flex min-h-[100dvh] flex-col bg-background">
       <Header />
       <div className="flex-1 overflow-y-auto max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
         {/* Status Header */}
@@ -437,7 +437,7 @@ export default function RideTrackingPage() {
         )}
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="mobile-action-safe flex flex-wrap gap-2">
           {canCancel && (
             <Button variant="destructive" className="flex-1" onClick={handleCancelClick} disabled={cancelling}>
               {cancelling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <X className="h-4 w-4 mr-2" />}
