@@ -883,7 +883,7 @@ export default function MerchantOrdersPage() {
 
       {/* Print Invoice Dialog */}
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
-        <DialogContent className="flex w-[calc(100%-1rem)] max-w-md flex-col gap-0 overflow-hidden p-4 sm:w-full sm:p-6">
+        <DialogContent className="grid max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-4 sm:max-h-[calc(100dvh-2rem)] sm:w-full sm:p-6">
           <DialogHeader>
             <DialogTitle>Cetak Struk</DialogTitle>
           </DialogHeader>
