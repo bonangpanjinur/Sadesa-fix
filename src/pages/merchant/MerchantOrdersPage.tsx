@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Receipt, Check, X, Package, MoreHorizontal, User, MapPin, Phone, Truck, CreditCard, MessageSquare, Printer, RefreshCw, Wifi, Search, Download, TrendingUp, Clock, CheckCircle2, ImageIcon, Navigation } from 'lucide-react';
+import { Receipt, Check, X, Package, MoreHorizontal, User, MapPin, Phone, Truck, CreditCard, MessageSquare, Printer, RefreshCw, Wifi, Search, Download, TrendingUp, Clock, CheckCircle2, ImageIcon, Navigation, Eye, CalendarDays } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { DataTable } from '@/components/admin/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -63,6 +64,8 @@ export default function MerchantOrdersPage() {
   const [isConnected, setIsConnected] = useState(true);
   const [chatOrder, setChatOrder] = useState<OrderRow | null>(null);
   const [courierAssignDialogOpen, setCourierAssignDialogOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -333,12 +336,22 @@ export default function MerchantOrdersPage() {
       key: 'actions',
       header: '',
       render: (item: OrderRow) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Lihat detail pesanan ${item.id.slice(0, 8).toUpperCase()}`}
+            title="Lihat detail"
+            onClick={() => viewOrderDetail(item)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Aksi pesanan" title="Aksi pesanan">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => viewOrderDetail(item)}>
               Lihat Detail
@@ -397,7 +410,8 @@ export default function MerchantOrdersPage() {
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </div>
       ),
     },
   ];
@@ -435,6 +449,16 @@ export default function MerchantOrdersPage() {
     done: orders.filter(o => o.status === 'DONE').length,
     total_revenue: orders.filter(o => o.status === 'DONE').reduce((acc, curr) => acc + curr.subtotal, 0)
   };
+
+  const ordersInDateRange = useMemo(() => {
+    if (!dateFrom && !dateTo) return orders;
+    const start = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+    const end = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null;
+    return orders.filter((order) => {
+      const createdAt = new Date(order.created_at).getTime();
+      return (!start || createdAt >= start) && (!end || createdAt <= end);
+    });
+  }, [dateFrom, dateTo, orders]);
 
   const handleExport = (data: OrderRow[]) => {
     const headers = ['ID Pesanan', 'Pelanggan', 'Telepon', 'Total', 'Status', 'Pembayaran', 'Metode', 'Tipe Pengiriman', 'Tanggal'];
@@ -537,14 +561,43 @@ export default function MerchantOrdersPage() {
         </div>
       </div>
 
+      <div className="mb-4 rounded-xl border border-border bg-card p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Filter tanggal pesanan</p>
+            <p className="text-xs text-muted-foreground">Tampilkan pesanan berdasarkan tanggal dibuat.</p>
+          </div>
+          <div className="grid w-full grid-cols-1 gap-3 sm:w-auto sm:min-w-[360px] sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Dari tanggal</span>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.target.value)} className="pl-9" aria-label="Tanggal mulai" />
+              </div>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Sampai tanggal</span>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} className="pl-9" aria-label="Tanggal akhir" />
+              </div>
+            </label>
+          </div>
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>
+              Reset tanggal
+            </Button>
+          )}
+        </div>
+      </div>
+
       <DataTable
-        data={orders}
+        data={ordersInDateRange}
         columns={columns}
         searchKeys={['id', 'delivery_name', 'delivery_phone']}
         searchPlaceholder="Cari ID, nama, atau telepon..."
         filters={filters}
         loading={loading}
-        onRowClick={viewOrderDetail}
         onExport={handleExport}
         emptyMessage="Belum ada pesanan"
       />
@@ -643,17 +696,6 @@ export default function MerchantOrdersPage() {
                 Buka pesan pesanan
                 <span className="ml-auto text-xs text-muted-foreground">#{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
               </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                disabled={!selectedOrder.buyer_id}
-                onClick={() => selectedOrder.buyer_id && setChatOrder(selectedOrder)}
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Buka pesan pesanan
-                <span className="ml-auto text-xs text-muted-foreground">#{selectedOrder.id.slice(0, 8).toUpperCase()}</span>
-              </Button>
-
               {/* Payment Proof */}
               {selectedOrder.payment_proof_url && (
                 <div className="space-y-2">
