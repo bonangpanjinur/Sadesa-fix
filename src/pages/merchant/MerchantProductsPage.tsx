@@ -21,6 +21,7 @@ import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { getCategoryTemplate } from '@/lib/categoryContracts';
+import { productFormSchema } from '@/lib/commerceSchemas';
 
 interface ProductRow {
   id: string;
@@ -59,13 +60,6 @@ const defaultForm: ProductForm = {
   name: '', description: '', price: '', stock: '0', category: '', image_url: null, is_active: true, is_promo: false,
 };
 
-export const productFormSchema = z.object({
-  name: z.string().trim().min(2, 'Nama produk minimal 2 karakter').max(150, 'Nama produk maksimal 150 karakter'),
-  description: z.string().trim().max(2000, 'Deskripsi maksimal 2.000 karakter'),
-  price: z.coerce.number({ invalid_type_error: 'Harga wajib diisi' }).int('Harga harus berupa angka bulat').positive('Harga harus lebih dari 0').max(1_000_000_000, 'Harga terlalu besar'),
-  stock: z.coerce.number({ invalid_type_error: 'Stok wajib berupa angka' }).int('Stok harus berupa angka bulat').min(0, 'Stok tidak boleh negatif').max(1_000_000, 'Stok terlalu besar'),
-  category: z.string().min(1, 'Pilih kategori produk'),
-});
 
 export default function MerchantProductsPage() {
   const navigate = useNavigate();

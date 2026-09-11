@@ -36,21 +36,7 @@ import { MerchantLocationPicker } from '../components/merchant/MerchantLocationP
 import { AddressDropdowns } from '../components/admin/AddressDropdowns';
 import { HalalRegistrationInfo } from '../components/merchant/HalalRegistrationInfo';
 import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
-
-export const merchantSchema = z.object({
-  referralCode: z.string().max(50).optional(),
-  name: z.string().min(3, 'Nama usaha minimal 3 karakter').max(100),
-  businessCategory: z.string().min(1, 'Pilih kategori usaha'),
-  businessDescription: z.string().max(500).optional(),
-  province: z.string().min(1, 'Pilih provinsi'),
-  city: z.string().min(1, 'Pilih kabupaten/kota'),
-  district: z.string().min(1, 'Pilih kecamatan'),
-  subdistrict: z.string().min(1, 'Pilih kelurahan/desa'),
-  addressDetail: z.string().min(10, 'Alamat detail minimal 10 karakter').max(200),
-  phone: z.string().min(10, 'Nomor telepon minimal 10 digit').max(15),
-  openTime: z.string().min(1, 'Pilih jam buka'),
-  closeTime: z.string().min(1, 'Pilih jam tutup'),
-});
+import { merchantSchema } from '@/lib/commerceSchemas';
 
 type MerchantFormData = z.infer<typeof merchantSchema>;
 

@@ -22,7 +22,7 @@ import { StockAlerts } from './StockAlerts';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { productDetailSchema } from '@/lib/commerceSchemas';
 
 interface ProductData {
   id: string;
@@ -53,15 +53,6 @@ interface MerchantProductDetailEditorProps {
   onBack: () => void;
 }
 
-export const productDetailSchema = z.object({
-  name: z.string().trim().min(2, 'Nama produk minimal 2 karakter').max(150, 'Nama produk maksimal 150 karakter'),
-  description: z.string().trim().max(2000, 'Deskripsi maksimal 2.000 karakter'),
-  price: z.coerce.number({ invalid_type_error: 'Harga wajib diisi' }).int('Harga harus berupa angka bulat').positive('Harga harus lebih dari 0').max(1_000_000_000, 'Harga terlalu besar'),
-  stock: z.coerce.number({ invalid_type_error: 'Stok wajib berupa angka' }).int('Stok harus berupa angka bulat').min(0, 'Stok tidak boleh negatif').max(1_000_000, 'Stok terlalu besar'),
-  category: z.string().min(1, 'Pilih kategori produk'),
-  discount_percent: z.coerce.number({ invalid_type_error: 'Diskon wajib berupa angka' }).int('Diskon harus berupa angka bulat').min(0, 'Diskon minimal 0%').max(100, 'Diskon maksimal 100%').optional(),
-  min_stock_alert: z.coerce.number({ invalid_type_error: 'Batas stok wajib berupa angka' }).int('Batas stok harus berupa angka bulat').min(0, 'Batas stok tidak boleh negatif').max(1_000_000, 'Batas stok terlalu besar'),
-});
 
 export function MerchantProductDetailEditor({ productId, merchantId, onBack }: MerchantProductDetailEditorProps) {
   const [product, setProduct] = useState<ProductData | null>(null);

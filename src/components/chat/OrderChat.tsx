@@ -319,7 +319,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
       if (channel) void supabase.removeChannel(channel);
       setConversationId(null);
     };
-  }, [contextType, isOpen, orderId, existingConversationId, rideRequestId, merchantId, user, expectedConversationType, playNotificationSound]);
+  }, [chatType, contextType, isOpen, orderId, existingConversationId, rideRequestId, merchantId, user, expectedConversationType, playNotificationSound]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

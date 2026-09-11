@@ -38,7 +38,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { POS_MENU_CATEGORIES } from '@/components/pos/posNavigation';
-import { canAccessPOSPath } from '@/components/pos/posPermissions';
+import { canAccessPOSPath } from '@/components/pos/posPermissionConfig';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';

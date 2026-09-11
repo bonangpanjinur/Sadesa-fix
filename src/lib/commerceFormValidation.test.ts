@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { merchantSchema } from '@/pages/RegisterMerchantPage';
-import { productFormSchema } from '@/pages/merchant/MerchantProductsPage';
-import { productDetailSchema } from '@/components/merchant/MerchantProductDetailEditor';
+import { merchantSchema, productFormSchema, productDetailSchema } from '@/lib/commerceSchemas';
 
 const validMerchant = {
   referralCode: '',

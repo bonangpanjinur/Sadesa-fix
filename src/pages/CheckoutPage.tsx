@@ -530,7 +530,8 @@ export default function CheckoutPage() {
         p_delivery_type: deliveryType,
         p_payment_method: paymentMethod,
         p_voucher_id: appliedVoucher?.id ?? null,
-        p_distance_km: distanceKm,
+        // Shipping distance is recalculated from persisted coordinates by the RPC.
+        p_distance_km: null,
       } as never);
       if (checkoutError) {
         console.error('Authoritative checkout error:', checkoutError);

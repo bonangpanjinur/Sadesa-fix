@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck, Package, Wallet, ShieldCheck, Info, AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ export function NotificationDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
 
-  const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from('notifications')
@@ -56,7 +56,7 @@ export function NotificationDropdown() {
     }
     setNotifications(data || []);
     setUnreadCount((data || []).filter(n => !n.is_read).length);
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -125,7 +125,7 @@ export function NotificationDropdown() {
     });
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, refreshNotifications]);
 
   // Realtime can be delayed or unavailable on some browsers/proxies. Refresh
   // when the dropdown opens and periodically while the user is signed in so a
@@ -135,7 +135,7 @@ export function NotificationDropdown() {
     void refreshNotifications();
     const timer = window.setInterval(() => void refreshNotifications(), 15000);
     return () => window.clearInterval(timer);
-  }, [open, user]);
+  }, [open, user, refreshNotifications]);
 
   const markAsRead = async (notifId: string) => {
     await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notifId);

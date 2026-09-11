@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessPOSPath } from '@/components/pos/posPermissions';
+import { canAccessPOSPath } from '@/components/pos/posPermissionConfig';
 import { isRetryableStatus } from '@/hooks/usePOSOfflineSync';
 import { getProductUnavailableReason } from './productAvailability';
 import { validatePOSPayment, type POSPaymentValidationInput } from './posPaymentValidation';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessPOSPath } from './posPermissions';
+import { canAccessPOSPath } from './posPermissionConfig';
 
 const merchant = ['merchant'] as const;
 
