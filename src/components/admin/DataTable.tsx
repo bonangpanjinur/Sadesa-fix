@@ -115,7 +115,7 @@ export function DataTable<T extends { id: string }>({
   return (
     <div className={cn('space-y-4', className)}>
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 items-end sm:items-center">
+      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
         {searchKeys && searchKeys.length > 0 && (
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -126,7 +126,7 @@ export function DataTable<T extends { id: string }>({
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9"
+              className="h-9 pl-9"
             />
           </div>
         )}
@@ -138,7 +138,7 @@ export function DataTable<T extends { id: string }>({
               value={activeFilters[filter.key] || 'all'}
               onValueChange={(value) => handleFilterChange(filter.key, value)}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="h-9 w-[132px] px-2">
                 <Filter className="h-3.5 w-3.5 mr-2 opacity-70" />
                 <SelectValue placeholder={filter.label} />
               </SelectTrigger>
@@ -161,9 +161,9 @@ export function DataTable<T extends { id: string }>({
           )}
 
           {onExport && (
-            <Button variant="outline" size="sm" onClick={() => onExport(filteredData)} className="h-9">
-              <Download className="h-4 w-4 mr-2" />
-              Ekspor
+            <Button variant="outline" size="sm" onClick={() => onExport(filteredData)} className="h-9 px-3">
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Ekspor</span>
             </Button>
           )}
         </div>
@@ -181,7 +181,7 @@ export function DataTable<T extends { id: string }>({
                 {columns.map((col) => (
                   <th
                     key={col.key}
-                    className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                    className="text-left px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
                   >
                     {col.header}
                   </th>
@@ -191,7 +191,7 @@ export function DataTable<T extends { id: string }>({
             <tbody className="divide-y divide-border">
               {loading ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center">
+                  <td colSpan={columns.length} className="px-3 py-8 text-center">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
                       <span className="text-sm text-muted-foreground font-medium">Memuat data...</span>
@@ -200,7 +200,7 @@ export function DataTable<T extends { id: string }>({
                 </tr>
               ) : paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-4 py-12 text-center">
+                  <td colSpan={columns.length} className="px-3 py-8 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                       <Search className="h-8 w-8 opacity-20" />
                       <p className="text-sm">{emptyMessage}</p>
@@ -218,7 +218,7 @@ export function DataTable<T extends { id: string }>({
                     )}
                   >
                     {columns.map((col) => (
-                      <td key={col.key} className="px-4 py-3.5 text-sm">
+                      <td key={col.key} className="px-3 py-2.5 text-sm leading-tight">
                         {col.render
                           ? col.render(item)
                           : String((item as Record<string, unknown>)[col.key] ?? '-')}

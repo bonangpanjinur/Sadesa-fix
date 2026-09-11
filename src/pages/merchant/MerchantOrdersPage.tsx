@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Receipt, Check, X, Package, MoreHorizontal, User, MapPin, Phone, Truck, CreditCard, MessageSquare, Printer, RefreshCw, Wifi, Search, Download, TrendingUp, Clock, CheckCircle2, ImageIcon, Navigation, Eye, CalendarDays } from 'lucide-react';
+import { Receipt, Check, X, Package, MoreHorizontal, User, MapPin, Phone, Truck, CreditCard, MessageSquare, Printer, RefreshCw, Wifi, Search, Download, Clock, CheckCircle2, ImageIcon, Navigation, Eye, CalendarDays } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { DataTable } from '@/components/admin/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +65,7 @@ export default function MerchantOrdersPage() {
   const [courierAssignDialogOpen, setCourierAssignDialogOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [dateFilterOpen, setDateFilterOpen] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -488,54 +488,14 @@ export default function MerchantOrdersPage() {
 
   return (
     <MerchantLayout title="Pesanan" subtitle="Kelola pesanan masuk">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-info/5 border-info/20">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-info/10 flex items-center justify-center text-info">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Pesanan Baru</p>
-              <p className="text-2xl font-bold">{stats.new}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-warning/5 border-warning/20">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center text-warning">
-              <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Diproses</p>
-              <p className="text-2xl font-bold">{stats.processed}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-success/5 border-success/20">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Selesai</p>
-              <p className="text-2xl font-bold">{stats.done}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-              <TrendingUp className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium" title="Hanya produk, tidak termasuk ongkir & biaya lain">
-                Pendapatan Produk
-              </p>
-              <p className="text-lg font-bold">{formatPrice(stats.total_revenue)}</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Compact operational summary */}
+      <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border/70 pb-3 text-xs">
+        <div><span className="text-muted-foreground">Baru</span> <strong className="ml-1 text-info">{stats.new}</strong></div>
+        <div><span className="text-muted-foreground">Diproses</span> <strong className="ml-1 text-warning-foreground">{stats.processed}</strong></div>
+        <div><span className="text-muted-foreground">Selesai</span> <strong className="ml-1 text-success">{stats.done}</strong></div>
+        <div className="text-muted-foreground">
+          Pendapatan produk <strong className="ml-1 text-foreground">{formatPrice(stats.total_revenue)}</strong>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-2 mb-4">
@@ -561,34 +521,31 @@ export default function MerchantOrdersPage() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-xl border border-border bg-card p-3 sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold">Filter tanggal pesanan</p>
-            <p className="text-xs text-muted-foreground">Tampilkan pesanan berdasarkan tanggal dibuat.</p>
-          </div>
-          <div className="grid w-full grid-cols-1 gap-3 sm:w-auto sm:min-w-[360px] sm:grid-cols-2">
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Dari tanggal</span>
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.target.value)} className="pl-9" aria-label="Tanggal mulai" />
-              </div>
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Sampai tanggal</span>
-              <div className="relative">
-                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} className="pl-9" aria-label="Tanggal akhir" />
-              </div>
-            </label>
-          </div>
-          {(dateFrom || dateTo) && (
-            <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>
-              Reset tanggal
-            </Button>
-          )}
+      <div className="mb-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            {dateFrom || dateTo ? `Tanggal: ${dateFrom || 'awal'} – ${dateTo || 'sekarang'}` : 'Semua tanggal'}
+          </p>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => setDateFilterOpen((open) => !open)}>
+            <CalendarDays className="mr-2 h-4 w-4" />
+            {dateFilterOpen ? 'Tutup tanggal' : 'Tanggal'}
+          </Button>
         </div>
+        {dateFilterOpen && (
+          <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-card p-2">
+            <label className="space-y-1">
+              <span className="text-[11px] font-medium text-muted-foreground">Dari</span>
+              <Input type="date" value={dateFrom} max={dateTo || undefined} onChange={(event) => setDateFrom(event.target.value)} className="h-8 w-[150px]" aria-label="Tanggal mulai" />
+            </label>
+            <label className="space-y-1">
+              <span className="text-[11px] font-medium text-muted-foreground">Sampai</span>
+              <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} className="h-8 w-[150px]" aria-label="Tanggal akhir" />
+            </label>
+            {(dateFrom || dateTo) && (
+              <Button variant="ghost" size="sm" className="h-8" onClick={() => { setDateFrom(''); setDateTo(''); }}>Reset</Button>
+            )}
+          </div>
+        )}
       </div>
 
       <DataTable
