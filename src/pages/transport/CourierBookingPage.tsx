@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { formatAddressSummary, reverseGeocode } from '@/hooks/useGeocoding';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 type CourierMode = 'send' | 'pickup';
 type DistanceBand = 'near' | 'medium' | 'far';
@@ -114,6 +115,7 @@ function FocusMapPoint({ point }: { point: RoutePoint | null }) {
 
 export default function CourierBookingPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mode, setMode] = useState<CourierMode>('send');
   const [pickupAddress, setPickupAddress] = useState('');
   const [destinationAddress, setDestinationAddress] = useState('');
@@ -134,6 +136,7 @@ export default function CourierBookingPage() {
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [drivers, setDrivers] = useState<AvailableDriver[]>([]);
   const [driversLoading, setDriversLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   const distanceKm = pickupLocation && destinationLocation
     ? haversineDistance(pickupLocation, destinationLocation)
@@ -311,12 +314,52 @@ export default function CourierBookingPage() {
     && packageType.trim(),
   );
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!canContinue) {
       toast({ title: 'Lengkapi detail pengiriman', description: 'Pilih titik pickup dan tujuan di peta, lalu lengkapi alamat, penerima, dan barang.', variant: 'destructive' });
       return;
     }
-    toast({ title: 'Detail kurir tersimpan', description: 'Pencarian mitra kurir akan tersedia setelah dispatch kurir diaktifkan.' });
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { data, error } = await supabase.rpc('create_courier_order' as never, {
+        p_request: {
+          mode,
+          pickup_lat: pickupLocation!.lat,
+          pickup_lng: pickupLocation!.lng,
+          pickup_address: pickupAddress,
+          destination_lat: destinationLocation!.lat,
+          destination_lng: destinationLocation!.lng,
+          destination_address: destinationAddress,
+          recipient_name: recipientName,
+          recipient_phone: recipientPhone,
+          package_type: packageType,
+          weight_kg: Number(weight || 1),
+          cod,
+          notes,
+          scheduled,
+        },
+      } as never);
+      if (error) throw error;
+      const result = data as { order_id?: string; dispatch_status?: string } | null;
+      if (!result?.order_id) throw new Error('Order kurir tidak terbentuk');
+      toast({
+        title: 'Pesanan kurir dibuat',
+        description: result.dispatch_status === 'OFFERED' ? 'Mencari kurir terdekat.' : 'Pesanan menunggu kurir yang tersedia.',
+      });
+      navigate(`/orders/${result.order_id}/tracking`);
+    } catch (error) {
+      toast({
+        title: 'Gagal membuat pesanan kurir',
+        description: error instanceof Error ? error.message : 'Silakan coba lagi.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handlePickContact = async () => {
@@ -579,8 +622,9 @@ export default function CourierBookingPage() {
             </div>
           </div>
           <Separator className="mb-3" />
-          <Button className="h-11 w-full rounded-xl font-bold" onClick={handleContinue}>
-            Tinjau pesanan kurir
+          <Button className="h-11 w-full rounded-xl font-bold" onClick={handleContinue} disabled={submitting}>
+            {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {submitting ? 'Membuat pesanan...' : 'Buat pesanan kurir'}
           </Button>
         </div>
       </main>
