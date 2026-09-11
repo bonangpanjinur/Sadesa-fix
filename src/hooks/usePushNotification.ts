@@ -4,9 +4,9 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
 
-const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/push-subscription`;
+const API_BASE = `${SUPABASE_URL}/functions/v1/push-subscription`;
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);

@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { reportObservability } from '@/lib/observability';
 
 export interface CreatePaymentRequest {
@@ -20,7 +20,7 @@ export interface PaymentStatus {
   payment_method?: string;
 }
 
-const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/xendit-payment`;
+const API_BASE = `${SUPABASE_URL}/functions/v1/xendit-payment`;
 
 export function getPaymentIdempotencyKey(orderId: string, suppliedKey?: string): string {
   return suppliedKey?.trim() || `payment-invoice:${orderId}`;
