@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation } from '@/lib/chat/repository';
 import { validateMessageBody } from '@/lib/chat/retention';
+import { getChatReconnectDelay } from '@/lib/chat/realtime';
 import type { ChatConnectionState, ChatCursor, ConversationMessage, ConversationType } from '@/lib/chat/types';
 
 interface ConversationOptions {
@@ -26,6 +27,8 @@ export function useConversation(options: ConversationOptions) {
   const [status, setStatus] = useState<ChatConnectionState>('loading');
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptRef = useRef(0);
   const cursorRef = useRef<ChatCursor | null>(null);
   const activeRef = useRef(true);
   const catchUpRef = useRef(false);
@@ -71,19 +74,50 @@ export function useConversation(options: ConversationOptions) {
       if (history.error) { setStatus('offline'); setError(history.error.message); return; }
       setMessages(history.messages); cursorRef.current = cursorFrom(history.messages);
       const last = history.messages.at(-1); if (last) await markConversationRead(result.conversationId, last.id);
-      channelRef.current = subscribeToConversation(result.conversationId, addMessage, (next) => {
+
+      let connect: () => void = () => undefined;
+      const scheduleReconnect = () => {
+        if (!activeRef.current || reconnectTimerRef.current) return;
+        const attempt = reconnectAttemptRef.current;
+        const delay = getChatReconnectDelay(attempt);
+        reconnectAttemptRef.current = attempt + 1;
+        setStatus(attempt >= 4 ? 'offline' : 'reconnecting');
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectTimerRef.current = null;
+          connect();
+        }, delay);
+      };
+
+      connect = () => {
         if (!activeRef.current) return;
-        if (next === 'SUBSCRIBED') { setStatus('subscribed'); void catchUp(result.conversationId!); }
-        else if (next === 'CHANNEL_ERROR') { setStatus('offline'); }
-        else if (next === 'TIMED_OUT') { setStatus('reconnecting'); }
-        else if (next === 'CLOSED') { setStatus('closed'); }
-        else { setStatus('reconnecting'); }
-      }, (message) => {
-        setMessages((current) => current.map((item) => item.id === message.id ? message : item));
-      });
+        if (channelRef.current) void supabase.removeChannel(channelRef.current);
+        channelRef.current = subscribeToConversation(result.conversationId!, addMessage, (next) => {
+          if (!activeRef.current) return;
+          if (next === 'SUBSCRIBED') {
+            reconnectAttemptRef.current = 0;
+            setStatus('subscribed');
+            void catchUp(result.conversationId!);
+          } else if (next === 'CHANNEL_ERROR' || next === 'TIMED_OUT' || next === 'CLOSED') {
+            scheduleReconnect();
+          } else {
+            setStatus('reconnecting');
+          }
+        }, (message) => {
+          setMessages((current) => current.map((item) => item.id === message.id ? message : item));
+        });
+      };
+      connect();
     };
     void load();
-    return () => { activeRef.current = false; if (channelRef.current) void supabase.removeChannel(channelRef.current); channelRef.current = null; setConversationId(null); };
+    return () => {
+      activeRef.current = false;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+      reconnectAttemptRef.current = 0;
+      if (channelRef.current) void supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+      setConversationId(null);
+    };
   }, [addMessage, catchUp, key, options, user]);
 
   const send = useCallback(async (text: string) => {

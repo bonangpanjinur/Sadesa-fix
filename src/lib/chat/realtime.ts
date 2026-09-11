@@ -10,6 +10,11 @@ export function normalizeConnectionStatus(status: string): ChatConnectionState {
   return 'reconnecting';
 }
 
+export function getChatReconnectDelay(attempt: number): number {
+  const safeAttempt = Math.max(0, Math.floor(attempt));
+  return Math.min(15_000, 1_000 * (2 ** Math.min(safeAttempt, 4)));
+}
+
 export async function disposeChatChannel(channel: RealtimeChannel | null): Promise<void> {
   if (channel) await channel.unsubscribe();
 }

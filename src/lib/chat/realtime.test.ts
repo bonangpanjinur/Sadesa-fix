@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeConnectionStatus } from './realtime';
+import { getChatReconnectDelay, normalizeConnectionStatus } from './realtime';
 
 describe('chat realtime reliability', () => {
   it.each([
@@ -13,5 +13,12 @@ describe('chat realtime reliability', () => {
 
   it('treats unknown provider statuses as reconnecting', () => {
     expect(normalizeConnectionStatus('JOINING')).toBe('reconnecting');
+  });
+
+  it('uses bounded exponential backoff for reconnect attempts', () => {
+    expect(getChatReconnectDelay(0)).toBe(1000);
+    expect(getChatReconnectDelay(1)).toBe(2000);
+    expect(getChatReconnectDelay(4)).toBe(15000);
+    expect(getChatReconnectDelay(99)).toBe(15000);
   });
 });
