@@ -50,7 +50,7 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
     return (
       <div
         ref={ref}
-        className="bg-white text-black p-6 w-[300px] text-sm font-mono"
+        className="w-[min(300px,100%)] max-w-full bg-white p-4 text-sm font-mono text-black sm:p-6"
         style={{ fontFamily: 'monospace' }}
       >
         {/* Header */}
@@ -83,10 +83,10 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
         {/* Customer Info */}
         <div className="border-b border-dashed border-border pb-3 mb-3">
           <p className="font-bold">Pelanggan:</p>
-          <p>{order.delivery_name || '-'}</p>
+            <p className="break-words">{order.delivery_name || '-'}</p>
           <p className="text-xs">{order.delivery_phone || '-'}</p>
           {order.delivery_type !== 'PICKUP' && order.delivery_address && (
-            <p className="text-xs mt-1">{order.delivery_address}</p>
+            <p className="mt-1 break-words text-xs">{order.delivery_address}</p>
           )}
           <p className="text-xs mt-1">
             {order.delivery_type === 'PICKUP'
@@ -131,7 +131,7 @@ export const OrderInvoice = forwardRef<HTMLDivElement, OrderInvoiceProps>(
         {order.notes && (
           <div className="mt-3 pt-3 border-t border-dashed border-border">
             <p className="font-bold">Catatan:</p>
-            <p className="text-xs">{order.notes}</p>
+              <p className="break-words text-xs">{order.notes}</p>
           </div>
         )}
 

@@ -883,41 +883,43 @@ export default function MerchantOrdersPage() {
 
       {/* Print Invoice Dialog */}
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="flex w-[calc(100%-1rem)] max-w-md flex-col gap-0 overflow-hidden p-4 sm:w-full sm:p-6">
           <DialogHeader>
             <DialogTitle>Cetak Struk</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="min-h-0 overflow-y-auto overscroll-contain py-3 sm:py-4">
             {selectedOrder && (
-              <OrderInvoice
-                ref={invoiceRef}
-                order={{
-                  id: selectedOrder.id,
-                  delivery_name: selectedOrder.delivery_name,
-                  delivery_phone: selectedOrder.delivery_phone,
-                  delivery_address: selectedOrder.delivery_address,
-                  delivery_type: selectedOrder.delivery_type,
-                  subtotal: selectedOrder.subtotal,
-                  shipping_cost: selectedOrder.shipping_cost,
-                  total: selectedOrder.total,
-                  payment_method: selectedOrder.payment_method,
-                  created_at: selectedOrder.created_at,
-                  notes: selectedOrder.notes,
-                }}
-                items={orderItems}
-                merchant={{
-                  name: merchantName,
-                  address: null,
-                  phone: null,
-                }}
-              />
+              <div className="flex justify-center">
+                <OrderInvoice
+                  ref={invoiceRef}
+                  order={{
+                    id: selectedOrder.id,
+                    delivery_name: selectedOrder.delivery_name,
+                    delivery_phone: selectedOrder.delivery_phone,
+                    delivery_address: selectedOrder.delivery_address,
+                    delivery_type: selectedOrder.delivery_type,
+                    subtotal: selectedOrder.subtotal,
+                    shipping_cost: selectedOrder.shipping_cost,
+                    total: selectedOrder.total,
+                    payment_method: selectedOrder.payment_method,
+                    created_at: selectedOrder.created_at,
+                    notes: selectedOrder.notes,
+                  }}
+                  items={orderItems}
+                  merchant={{
+                    name: merchantName,
+                    address: null,
+                    phone: null,
+                  }}
+                />
+              </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
+          <DialogFooter className="flex-col-reverse gap-2 border-t border-border/70 pt-3 sm:flex-row sm:justify-end sm:pt-4">
+            <Button className="w-full sm:w-auto" variant="outline" onClick={() => setPrintDialogOpen(false)}>
               Tutup
             </Button>
-            <Button onClick={handlePrint}>
+            <Button className="w-full sm:w-auto" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
               Cetak
             </Button>
