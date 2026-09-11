@@ -39,8 +39,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate package manager alignment
+        run: pnpm run validate:package-manager
+
       - name: Validate migration filenames and destructive SQL
         run: pnpm validate:migrations
+
+      - name: Validate bootstrap bundle integrity
+        run: pnpm run validate:db-bootstrap
 
       - name: Audit RLS coverage
         run: pnpm audit:rls
@@ -98,7 +104,7 @@ jobs:
         run: pnpm lint
 
       - name: Unit tests
-        run: pnpm test
+        run: pnpm test -- --run
 
       - name: Production build
         run: pnpm build
