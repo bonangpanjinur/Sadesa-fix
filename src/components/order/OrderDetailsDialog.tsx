@@ -40,6 +40,8 @@ interface OrderRow {
   courier_id: string | null;
   merchants?: { name: string } | null;
   is_self_delivery?: boolean;
+  expedition_name?: string | null;
+  tracking_number?: string | null;
 }
 
 interface OrderDetailsDialogProps {
@@ -65,8 +67,38 @@ export function OrderDetailsDialog({
 }: OrderDetailsDialogProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [deliveryType, setDeliveryType] = useState<"courier" | "self">("courier");
+  const [expeditionName, setExpeditionName] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
 
   if (!order) return null;
+
+  const handleExpeditionHandoff = async () => {
+    if (!expeditionName.trim() || !trackingNumber.trim()) {
+      toast.error('Nama ekspedisi dan nomor resi wajib diisi');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: order.id,
+        p_to_status: 'SENT',
+        p_reason: JSON.stringify({
+          type: 'EXPEDITION_HANDOFF',
+          expedition_name: expeditionName.trim(),
+          tracking_number: trackingNumber.trim(),
+        }),
+      } as never);
+      if (error) throw error;
+      toast.success('Pesanan diserahkan ke ekspedisi');
+      onUpdateStatus(order.id, 'SENT');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Expedition handoff error:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal menyerahkan ke ekspedisi');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handlePrint = () => {
     const printContent = document.getElementById('order-print-content');
@@ -437,13 +469,35 @@ export function OrderDetailsDialog({
             )}
 
             {order.status === 'PROCESSED' && order.delivery_type === 'EXPEDITION' && (
-              <Button
-                className="w-full"
-                onClick={() => onUpdateStatus(order.id, 'SENT')}
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Tandai Diserahkan ke Ekspedisi
-              </Button>
+              <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                <p className="text-sm font-semibold">Data Ekspedisi</p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="expedition-name">Nama ekspedisi</Label>
+                  <input
+                    id="expedition-name"
+                    value={expeditionName}
+                    onChange={(event) => setExpeditionName(event.target.value)}
+                    placeholder="Contoh: JNE, J&T, SiCepat"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    maxLength={100}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tracking-number">Nomor resi</Label>
+                  <input
+                    id="tracking-number"
+                    value={trackingNumber}
+                    onChange={(event) => setTrackingNumber(event.target.value)}
+                    placeholder="Masukkan nomor resi"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    maxLength={120}
+                  />
+                </div>
+                <Button className="w-full" onClick={handleExpeditionHandoff} disabled={isProcessing}>
+                  <Package className="h-4 w-4 mr-2" />
+                  {isProcessing ? 'Menyimpan...' : 'Tandai Diserahkan ke Ekspedisi'}
+                </Button>
+              </div>
             )}
             
             {order.status === 'SENT' && !order.is_self_delivery && order.delivery_type !== 'EXPEDITION' && (
