@@ -177,9 +177,13 @@ export function useRealtimeOrders({
         p_order_id: orderId,
         p_to_status: newStatus,
         p_reason: reason ?? null,
+        p_is_self_delivery: null,
       } as never);
 
-      if (error) throw error;
+      if (error) {
+        console.error('merchant_transition_order failed', { orderId, newStatus, error });
+        throw new Error(error.message || 'RPC perubahan status gagal');
+      }
       
       // Reconcile from the server so timestamps, payment fields, courier fields,
       // and trigger-generated values cannot remain stale in the merchant UI.

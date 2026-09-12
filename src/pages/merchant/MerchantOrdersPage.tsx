@@ -424,7 +424,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
             )}
             {item.status === 'PROCESSED' && (
               item.delivery_type === 'PICKUP' ? (
-                <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'SENT')}>
+                <DropdownMenuItem onClick={() => handleUpdateStatus(item.id, 'READY')}>
                   <Package className="h-4 w-4 mr-2" />
                   Siap Diambil
                 </DropdownMenuItem>
