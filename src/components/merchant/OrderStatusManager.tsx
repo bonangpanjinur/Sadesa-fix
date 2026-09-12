@@ -27,6 +27,7 @@ import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { getOrderStatusGroup, ORDER_STATUS_LABELS } from '@/lib/orderStatus';
 
 interface Order {
   id: string;
@@ -68,15 +69,23 @@ interface OrderStatusManagerProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
-  'PENDING_CONFIRMATION': { label: 'Konfirmasi', color: 'bg-warning', icon: Clock },
-  'PENDING_PAYMENT': { label: 'Menunggu Bayar', color: 'bg-warning', icon: CreditCard },
-  'NEW': { label: 'Baru', color: 'bg-info', icon: Package },
-  'PROCESSED': { label: 'Diproses', color: 'bg-primary', icon: Package },
-  'SENT': { label: 'Dikirim', color: 'bg-warning', icon: Truck },
-  'DELIVERED': { label: 'Sampai', color: 'bg-info', icon: CheckCircle },
-  'DONE': { label: 'Selesai', color: 'bg-success', icon: CheckCircle },
-  'CANCELED': { label: 'Batal', color: 'bg-destructive', icon: XCircle },
-  'REJECTED_BY_BUYER': { label: 'Ditolak Pembeli', color: 'bg-destructive', icon: XCircle },
+  'PENDING_CONFIRMATION': { label: ORDER_STATUS_LABELS.PENDING_CONFIRMATION, color: 'bg-warning', icon: Clock },
+  'PENDING_PAYMENT': { label: ORDER_STATUS_LABELS.PENDING_PAYMENT, color: 'bg-warning', icon: CreditCard },
+  'NEW': { label: ORDER_STATUS_LABELS.NEW, color: 'bg-info', icon: Package },
+  'PROCESSED': { label: ORDER_STATUS_LABELS.PROCESSED, color: 'bg-primary', icon: Package },
+  'READY': { label: ORDER_STATUS_LABELS.READY, color: 'bg-primary', icon: Package },
+  'ASSIGNED': { label: ORDER_STATUS_LABELS.ASSIGNED, color: 'bg-warning', icon: Truck },
+  'COURIER_ACCEPTED': { label: ORDER_STATUS_LABELS.COURIER_ACCEPTED, color: 'bg-warning', icon: Truck },
+  'PICKED_UP': { label: ORDER_STATUS_LABELS.PICKED_UP, color: 'bg-warning', icon: Truck },
+  'DELIVERING': { label: ORDER_STATUS_LABELS.DELIVERING, color: 'bg-warning', icon: Truck },
+  'SENT': { label: ORDER_STATUS_LABELS.SENT, color: 'bg-warning', icon: Truck },
+  'DELIVERED': { label: ORDER_STATUS_LABELS.DELIVERED, color: 'bg-info', icon: CheckCircle },
+  'DONE': { label: ORDER_STATUS_LABELS.DONE, color: 'bg-success', icon: CheckCircle },
+  'CANCELED': { label: ORDER_STATUS_LABELS.CANCELED, color: 'bg-destructive', icon: XCircle },
+  'CANCELLED': { label: ORDER_STATUS_LABELS.CANCELED, color: 'bg-destructive', icon: XCircle },
+  'REJECTED': { label: ORDER_STATUS_LABELS.REJECTED, color: 'bg-destructive', icon: XCircle },
+  'REJECTED_BY_BUYER': { label: ORDER_STATUS_LABELS.REJECTED_BY_BUYER, color: 'bg-destructive', icon: XCircle },
+  'REFUNDED': { label: ORDER_STATUS_LABELS.REFUNDED, color: 'bg-destructive', icon: XCircle },
 };
 
 export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
@@ -118,6 +127,25 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    if (!merchantId || typeof supabase.channel !== 'function') return;
+    const channel = supabase
+      .channel(`merchant-dashboard-orders-${merchantId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `merchant_id=eq.${merchantId}`,
+      }, () => {
+        void fetchOrders();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [merchantId, fetchOrders]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string, courierId?: string | null) => {
     const currentOrder = orders.find(order => order.id === orderId);
@@ -300,18 +328,10 @@ export function OrderStatusManager({ merchantId }: OrderStatusManagerProps) {
   };
 
   const filterOrders = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return orders.filter(o => ['PENDING_CONFIRMATION', 'NEW', 'PENDING_PAYMENT'].includes(o.status));
-      case 'processing':
-        return orders.filter(o => o.status === 'PROCESSED');
-      case 'shipping':
-        return orders.filter(o => ['SENT', 'DELIVERED'].includes(o.status));
-      case 'completed':
-        return orders.filter(o => ['DONE', 'CANCELED', 'REJECTED_BY_BUYER'].includes(o.status));
-      default:
-        return orders;
+    if (status === 'completed') {
+      return orders.filter(o => ['completed', 'canceled'].includes(getOrderStatusGroup(o.status)));
     }
+    return status === 'all' ? orders : orders.filter(o => getOrderStatusGroup(o.status) === status);
   };
 
   const getNextStatus = (currentStatus: string): string | null => {

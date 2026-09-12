@@ -149,10 +149,9 @@ export function useRealtimeOrders({
 
       if (error) throw error;
       
-      // Optimistic update local state
-      setOrders(prev => prev.map(o =>
-        o.id === orderId ? { ...o, status: newStatus } : o
-      ));
+      // Reconcile from the server so timestamps, payment fields, courier fields,
+      // and trigger-generated values cannot remain stale in the merchant UI.
+      await fetchOrders();
 
       // Kirim push notification ke pembeli secara background (fire-and-forget)
       const order = orders.find((o) => o.id === orderId);

@@ -35,6 +35,26 @@ export const BUYER_CANCELLABLE_STATUSES = [
   'PENDING_CONFIRMATION',
 ] as const;
 
+export const ORDER_STATUS_GROUPS = {
+  pending: ['NEW', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION'],
+  processing: ['PROCESSED', 'READY', 'ASSIGNED', 'COURIER_ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP'],
+  shipping: ['SENT', 'DELIVERING', 'DELIVERED'],
+  completed: ['DONE'],
+  canceled: ['CANCELED', 'CANCELLED', 'REJECTED', 'REJECTED_BY_BUYER', 'REFUNDED'],
+} as const;
+
+export function getOrderStatusGroup(status: string | null | undefined) {
+  if (!status) return 'all' as const;
+  for (const [group, statuses] of Object.entries(ORDER_STATUS_GROUPS)) {
+    if ((statuses as readonly string[]).includes(status)) return group;
+  }
+  return 'all' as const;
+}
+
+export function isTerminalOrderStatus(status: string | null | undefined) {
+  return getOrderStatusGroup(status) === 'completed' || getOrderStatusGroup(status) === 'canceled';
+}
+
 export function canBuyerCancelOrder(status: string | null | undefined) {
   return BUYER_CANCELLABLE_STATUSES.includes(status as (typeof BUYER_CANCELLABLE_STATUSES)[number]);
 }
