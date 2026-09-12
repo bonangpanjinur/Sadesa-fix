@@ -29,6 +29,20 @@ export const ORDER_STATUS_FLOW = [
   'DONE',
 ] as const;
 
+export const BUYER_CANCELLABLE_STATUSES = [
+  'NEW',
+  'PENDING_PAYMENT',
+  'PENDING_CONFIRMATION',
+] as const;
+
+export function canBuyerCancelOrder(status: string | null | undefined) {
+  return BUYER_CANCELLABLE_STATUSES.includes(status as (typeof BUYER_CANCELLABLE_STATUSES)[number]);
+}
+
+export function canUseOnlinePaymentForMerchantCount(merchantCount: number) {
+  return Number.isInteger(merchantCount) && merchantCount === 1;
+}
+
 export function orderStatusLabel(status: string | null | undefined) {
   return ORDER_STATUS_LABELS[status || ''] || status || 'Belum diketahui';
 }

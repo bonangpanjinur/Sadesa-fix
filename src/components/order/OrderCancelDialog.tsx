@@ -57,18 +57,10 @@ export function OrderCancelDialog({
     setLoading(true);
 
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({
-          status: 'CANCELED',
-          cancelled_at: new Date().toISOString(),
-          cancelled_by: user.id,
-          cancellation_reason: finalReason,
-          cancellation_type: 'BUYER',
-        })
-        .eq('id', orderId)
-        .eq('buyer_id', user.id)
-        .in('status', ['NEW', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION']); // Only allow cancelling new/pending orders
+      const { error } = await supabase.rpc('buyer_cancel_order' as never, {
+        p_order_id: orderId,
+        p_reason: finalReason.trim(),
+      } as never);
 
       if (error) throw error;
 

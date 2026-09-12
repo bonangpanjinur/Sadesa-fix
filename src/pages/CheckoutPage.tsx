@@ -22,6 +22,7 @@ import { fetchCODSettings, quickCODCheck, getBuyerCODStatus } from '@/lib/codSec
 import { validatePhone, isWhatsAppFormat } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
+import { canUseOnlinePaymentForMerchantCount } from '@/lib/orderStatus';
 
 type PaymentMethod = 'COD' | 'TRANSFER' | 'ONLINE';
 
@@ -440,7 +441,7 @@ export default function CheckoutPage() {
 
     // One Xendit invoice currently belongs to one marketplace order. Do not
     // create the first merchant order and silently skip the remaining ones.
-    if (paymentMethod === 'ONLINE' && merchantIds.length > 1) {
+    if (paymentMethod === 'ONLINE' && !canUseOnlinePaymentForMerchantCount(merchantIds.length)) {
       toast({
         title: 'Checkout online hanya untuk satu toko',
         description: 'Pisahkan produk berdasarkan toko sebelum membayar online.',
