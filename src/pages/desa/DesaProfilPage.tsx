@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { validateUploadFile } from '@/lib/fileValidation';
+import { AddressSelector, type AddressData } from '@/components/AddressSelector';
 
 interface VillageProfile {
   id: string;
@@ -20,6 +21,11 @@ interface VillageProfile {
   district: string | null;
   regency: string | null;
   province: string | null;
+  subdistrict: string | null;
+  province_code: string | null;
+  regency_code: string | null;
+  district_code: string | null;
+  village_code: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
@@ -39,6 +45,9 @@ export default function DesaProfilPage() {
   const [uploadingImg, setUploadingImg] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [form, setForm] = useState<Partial<VillageProfile>>({});
+  const [addressData, setAddressData] = useState<AddressData>({
+    province: '', provinceName: '', city: '', cityName: '', district: '', districtName: '', village: '', villageName: '', detail: '',
+  });
   const [initDone, setInitDone] = useState(false);
 
   const { data: village, isLoading } = useQuery<VillageProfile | null>({
@@ -70,6 +79,10 @@ export default function DesaProfilPage() {
         district: village.district || '',
         regency: village.regency || '',
         province: village.province || '',
+        province_code: village.province_code || '',
+        regency_code: village.regency_code || '',
+        district_code: village.district_code || '',
+        village_code: village.village_code || '',
         contact_name: village.contact_name || '',
         contact_phone: village.contact_phone || '',
         contact_email: village.contact_email || '',
@@ -79,6 +92,12 @@ export default function DesaProfilPage() {
         social_media: village.social_media || {},
         location_lat: village.location_lat || null,
         location_lng: village.location_lng || null,
+      });
+      setAddressData({
+        province: village.province_code || '', provinceName: village.province || '',
+        city: village.regency_code || '', cityName: village.regency || '',
+        district: village.district_code || '', districtName: village.district || '',
+        village: village.village_code || '', villageName: village.subdistrict || '', detail: '',
       });
       setInitDone(true);
     }
@@ -154,6 +173,11 @@ export default function DesaProfilPage() {
         district: form.district,
         regency: form.regency,
         province: form.province,
+        province_code: addressData.province || null,
+        regency_code: addressData.city || null,
+        district_code: addressData.district || null,
+        village_code: addressData.village || null,
+        subdistrict: addressData.villageName || null,
         contact_name: form.contact_name,
         contact_phone: form.contact_phone,
         contact_email: form.contact_email,
@@ -233,17 +257,16 @@ export default function DesaProfilPage() {
               <Label>Deskripsi / Tagline Desa</Label>
               <Textarea value={form.description || ''} onChange={e => updateField('description', e.target.value)} placeholder="Ceritakan keunikan desa Anda..." rows={3} />
             </div>
-            <div className="space-y-2">
-              <Label>Kecamatan</Label>
-              <Input value={form.district || ''} onChange={e => updateField('district', e.target.value)} placeholder="Kecamatan" />
-            </div>
-            <div className="space-y-2">
-              <Label>Kabupaten/Kota</Label>
-              <Input value={form.regency || ''} onChange={e => updateField('regency', e.target.value)} placeholder="Kabupaten/Kota" />
-            </div>
-            <div className="space-y-2">
-              <Label>Provinsi</Label>
-              <Input value={form.province || ''} onChange={e => updateField('province', e.target.value)} placeholder="Provinsi" />
+            <div className="md:col-span-2 rounded-lg border bg-muted/20 p-4">
+              <Label className="mb-2 block">Wilayah Administratif</Label>
+              <AddressSelector
+                value={addressData}
+                onChange={(next) => {
+                  setAddressData(next);
+                  setForm((prev) => ({ ...prev, province: next.provinceName, regency: next.cityName, district: next.districtName }));
+                }}
+                showDetailInput={false}
+              />
             </div>
           </CardContent>
         </Card>

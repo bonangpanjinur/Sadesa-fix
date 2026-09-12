@@ -62,6 +62,9 @@ export default function DesaPemanduPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!villageId) throw new Error('Village tidak ditemukan');
+      if (form.name.trim().length < 2) throw new Error('Nama pemandu minimal 2 karakter');
+      const dailyRate = Number(form.daily_rate || 0);
+      if (!Number.isFinite(dailyRate) || dailyRate < 0) throw new Error('Tarif harian tidak valid');
       const payload = {
         village_id: villageId,
         name: form.name.trim(),
@@ -69,7 +72,7 @@ export default function DesaPemanduPage() {
         specialization: form.specialization || null,
         languages: form.languages ? form.languages.split(',').map(s => s.trim()).filter(Boolean) : [],
         photo_url: form.photo_url || null,
-        daily_rate: parseInt(form.daily_rate) || 0,
+        daily_rate: dailyRate,
         bio: form.bio || null,
         is_available: form.is_available,
       };
@@ -104,7 +107,8 @@ export default function DesaPemanduPage() {
   });
 
   const toggleAvailability = async (guide: Guide) => {
-    await supabase.from('tourism_guides').update({ is_available: !guide.is_available }).eq('id', guide.id);
+    const { error } = await supabase.from('tourism_guides').update({ is_available: !guide.is_available }).eq('id', guide.id);
+    if (error) { toast.error(error.message); return; }
     queryClient.invalidateQueries({ queryKey: ['tourism-guides', villageId] });
     toast.success(guide.is_available ? 'Pemandu ditandai tidak tersedia' : 'Pemandu tersedia kembali');
   };
@@ -213,7 +217,7 @@ export default function DesaPemanduPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditing(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="w-[calc(100%-1rem)] max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Data Pemandu' : 'Tambah Pemandu Wisata'}</DialogTitle>
           </DialogHeader>
@@ -222,7 +226,7 @@ export default function DesaPemanduPage() {
               <Label>Nama Lengkap *</Label>
               <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Nama pemandu" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>No. HP / WhatsApp</Label>
                 <Input value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="08xxxxxxxxxx" />

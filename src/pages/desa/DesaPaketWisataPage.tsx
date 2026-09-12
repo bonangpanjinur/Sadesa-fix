@@ -122,15 +122,22 @@ export default function DesaPaketWisataPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!villageId) throw new Error('Village ID tidak ditemukan');
+      const price = Number(form.price || 0);
+      const durationDays = Number(form.duration_days || 1);
+      const minPersons = Number(form.min_persons || 1);
+      const maxPersons = Number(form.max_persons || 20);
+      if (form.name.trim().length < 2) throw new Error('Nama paket minimal 2 karakter');
+      if (!Number.isFinite(price) || price < 0) throw new Error('Harga paket tidak valid');
+      if (durationDays < 1 || minPersons < 1 || maxPersons < minPersons) throw new Error('Durasi atau jumlah peserta tidak valid');
       const payload = {
         village_id: villageId,
         name: form.name.trim(),
         description: form.description || null,
         image_url: form.image_url || null,
-        price: parseInt(form.price) || 0,
-        duration_days: parseInt(form.duration_days) || 1,
-        min_persons: parseInt(form.min_persons) || 1,
-        max_persons: parseInt(form.max_persons) || 20,
+        price,
+        duration_days: durationDays,
+        min_persons: minPersons,
+        max_persons: maxPersons,
         includes: form.includes ? form.includes.split('\n').map(s => s.trim()).filter(Boolean) : [],
         is_active: form.is_active,
         guide_id: form.guide_id || null,
@@ -341,7 +348,7 @@ export default function DesaPaketWisataPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) setEditing(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100%-1rem)] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Paket Wisata' : 'Buat Paket Wisata Baru'}</DialogTitle>
           </DialogHeader>
