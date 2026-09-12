@@ -5,7 +5,7 @@ export type ExpeditionProvider = {
 };
 
 const providers: ExpeditionProvider[] = [
-  { key: 'jne', label: 'JNE', trackingUrl: (resi) => `https://cekresi.com/?noresi=${encodeURIComponent(resi)}` },
+  { key: 'jne', label: 'JNE', trackingUrl: () => 'https://jne.co.id/tracking-package' },
   { key: 'jnt', label: 'J&T Express', trackingUrl: (resi) => `https://www.jet.co.id/track?waybill=${encodeURIComponent(resi)}` },
   { key: 'sicepat', label: 'SiCepat', trackingUrl: (resi) => `https://www.sicepat.com/checkAwb?awb=${encodeURIComponent(resi)}` },
   { key: 'anteraja', label: 'AnterAja', trackingUrl: (resi) => `https://anteraja.id/tracking?awb=${encodeURIComponent(resi)}` },

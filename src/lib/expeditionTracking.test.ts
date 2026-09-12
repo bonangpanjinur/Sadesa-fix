@@ -8,7 +8,7 @@ describe('expedition tracking', () => {
   });
 
   it('builds an encoded tracking URL', () => {
-    expect(getExpeditionTrackingUrl('JNE', 'ABC 123/45')).toContain('ABC%20123%2F45');
+    expect(getExpeditionTrackingUrl('JNE', 'ABC 123/45')).toBe('https://jne.co.id/tracking-package');
   });
 
   it('does not navigate to an untrusted provider URL', () => {
