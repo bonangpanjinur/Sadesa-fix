@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Receipt, Check, X, Package, MoreHorizontal, User, MapPin, Phone, Truck, CreditCard, MessageSquare, Printer, RefreshCw, Wifi, Search, Download, Clock, CheckCircle2, ImageIcon, Navigation, Eye, CalendarDays } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
@@ -47,10 +47,19 @@ interface OrderItem {
 import type { OrderRow as HookOrderRow } from '@/hooks/useRealtimeOrders';
 type OrderRow = HookOrderRow;
 
-export default function MerchantOrdersPage() {
+interface MerchantOrdersWorkspaceProps {
+  embedded?: boolean;
+  merchantIdOverride?: string;
+}
+
+function MerchantOrdersShell({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  return embedded ? <>{children}</> : <MerchantLayout title="Pesanan" subtitle="Kelola pesanan masuk">{children}</MerchantLayout>;
+}
+
+export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }: MerchantOrdersWorkspaceProps) {
   const { user } = useAuth();
   const { merchantId: guardMerchantId, merchantName: guardMerchantName, loading: guardLoading } = useMerchantGuard();
-  const [merchantId, setMerchantId] = useState<string | null>(null);
+  const [merchantId, setMerchantId] = useState<string | null>(merchantIdOverride ?? null);
   const [merchantName, setMerchantName] = useState<string>('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
@@ -73,11 +82,14 @@ export default function MerchantOrdersPage() {
 
   // Set merchant from guard
   useEffect(() => {
+    if (merchantIdOverride) {
+      setMerchantId(merchantIdOverride);
+    }
     if (guardMerchantId) {
       setMerchantId(guardMerchantId);
       setMerchantName(guardMerchantName);
     }
-  }, [guardMerchantId, guardMerchantName]);
+  }, [guardMerchantId, guardMerchantName, merchantIdOverride]);
 
   // Real-time orders hook
   const handleNewOrder = useCallback((order: OrderRow) => {
@@ -507,7 +519,7 @@ export default function MerchantOrdersPage() {
   };
 
   return (
-    <MerchantLayout title="Pesanan" subtitle="Kelola pesanan masuk">
+    <MerchantOrdersShell embedded={embedded}>
       {/* Compact operational summary */}
       <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border/70 pb-3 text-xs">
         <div><span className="text-muted-foreground">Baru</span> <strong className="ml-1 text-info">{stats.new}</strong></div>
@@ -948,6 +960,10 @@ export default function MerchantOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </MerchantLayout>
+    </MerchantOrdersShell>
   );
+}
+
+export default function MerchantOrdersPage() {
+  return <MerchantOrdersWorkspace />;
 }

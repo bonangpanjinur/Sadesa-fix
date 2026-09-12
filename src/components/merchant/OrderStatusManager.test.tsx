@@ -24,9 +24,31 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { from: mocks.from, rpc: mocks.rpc },
+  supabase: {
+    from: mocks.from,
+    rpc: mocks.rpc,
+    storage: {
+      from: vi.fn(() => ({
+        createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: 'https://storage.example/signed-proof.jpg' }, error: null }),
+      })),
+    },
+  },
 }));
 vi.mock('sonner', () => ({ toast: mocks.toast }));
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'buyer-1' } }),
+}));
+vi.mock('@/hooks/useMerchantGuard', () => ({
+  useMerchantGuard: () => ({ merchantId: 'merchant-1', merchantName: 'Toko Uji', loading: false }),
+}));
+vi.mock('@/hooks/useRealtimeOrders', () => ({
+  useRealtimeOrders: () => ({
+    orders: [mocks.order],
+    loading: false,
+    updateOrderStatus: vi.fn(),
+    refetch: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
 
 import { OrderStatusManager } from './OrderStatusManager';
 
@@ -65,7 +87,9 @@ describe('OrderStatusManager payment and status transitions', () => {
       </MemoryRouter>,
     );
 
-    const verifyButton = await screen.findByRole('button', { name: /verifikasi bayar/i });
+    const detailButton = await screen.findByRole('button', { name: /lihat detail pesanan/i });
+    await act(async () => detailButton.click());
+    const verifyButton = await screen.findByRole('button', { name: /verifikasi pembayaran/i });
     await act(async () => verifyButton.click());
 
     await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledWith('Pembayaran berhasil diverifikasi'));
