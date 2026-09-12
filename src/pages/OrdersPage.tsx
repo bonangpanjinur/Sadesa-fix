@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -158,7 +158,9 @@ function getRideProgress(status: string): number {
   return idx === -1 ? 0 : ((idx + 1) / steps.length) * 100;
 }
 
-async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
+const BUYER_ORDER_PAGE_SIZE = 50;
+
+async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]> {
   type OrderRow = Omit<BuyerOrder, 'order_items'> & {
     order_items?: BuyerOrderItem[];
   };
@@ -169,7 +171,8 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
     .from("orders")
     .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone, user_id), order_items(id, quantity, product_name, product_price, product_id, products(name, image_url))")
     .eq("buyer_id", userId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
 
   if (!r1.error) {
     data = r1.data as unknown as OrderRow[];
@@ -179,7 +182,8 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
       .from("orders")
       .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
       .eq("buyer_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
     if (!r2.error) {
       data = r2.data as unknown as OrderRow[];
     } else {
@@ -188,7 +192,8 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
         .from("orders")
         .select("id, status, total, created_at, merchant_id, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
         .eq("buyer_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
       if (!r3.error) {
         data = r3.data as unknown as OrderRow[];
       } else {
@@ -197,7 +202,8 @@ async function loadBuyerOrders(userId: string): Promise<BuyerOrder[]> {
           .from("orders")
           .select("id, status, total, created_at, merchant_id, payment_method, payment_status, order_items(id, quantity, product_name, product_price, product_id)")
           .eq("buyer_id", userId)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
         if (!r4.error) {
           data = r4.data as unknown as OrderRow[];
         } else {
@@ -280,17 +286,24 @@ const OrdersPage = () => {
 
   // React Query: orders data with caching (P3-01)
   const {
-    data: orders = [],
+    data: orderPages,
     isLoading: loading,
     isFetching: refreshing,
     isError: fetchError,
     refetch,
-  } = useQuery<BuyerOrder[]>({
+    fetchNextPage: fetchNextOrderPage,
+    hasNextPage: hasMoreOrders,
+    isFetchingNextPage: loadingMoreOrders,
+  } = useInfiniteQuery<BuyerOrder[]>({
     queryKey: ['buyer-orders', user?.id],
-    queryFn: () => loadBuyerOrders(user!.id),
+    queryFn: ({ pageParam }) => loadBuyerOrders(user!.id, pageParam as number),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === BUYER_ORDER_PAGE_SIZE ? allPages.length * BUYER_ORDER_PAGE_SIZE : undefined,
     enabled: !!user,
     staleTime: 30_000,
   });
+  const orders = orderPages?.pages.flat() ?? [];
 
   const {
     data: rides = [],
@@ -852,6 +865,13 @@ const OrdersPage = () => {
               </div>
             )}
           </div>
+          {hasMoreOrders && activeTab === 'all' && (
+            <div className="flex justify-center py-4">
+              <Button variant="outline" className="rounded-full" onClick={() => void fetchNextOrderPage()} disabled={loadingMoreOrders}>
+                {loadingMoreOrders ? 'Memuat pesanan lama...' : 'Muat pesanan lama'}
+              </Button>
+            </div>
+          )}
         </Tabs>
       </div>
       {/* Order Detail Sheet - opened from notification */}

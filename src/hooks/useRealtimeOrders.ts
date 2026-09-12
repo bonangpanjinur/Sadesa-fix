@@ -35,6 +35,8 @@ interface UseRealtimeOrdersOptions {
   onOrderUpdate?: (order: OrderRow) => void;
 }
 
+const ORDER_PAGE_SIZE = 50;
+
 export function useRealtimeOrders({ 
   merchantId, 
   onNewOrder,
@@ -42,6 +44,8 @@ export function useRealtimeOrders({
 }: UseRealtimeOrdersOptions) {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   
   const onNewOrderRef = useRef(onNewOrder);
   const onOrderUpdateRef = useRef(onOrderUpdate);
@@ -61,10 +65,12 @@ export function useRealtimeOrders({
         .from('orders')
         .select('*, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(ORDER_PAGE_SIZE);
 
       if (error) throw error;
       setOrders(data || []);
+      setHasMore((data || []).length === ORDER_PAGE_SIZE);
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast.error('Gagal memuat pesanan');
@@ -76,6 +82,32 @@ export function useRealtimeOrders({
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  const loadMore = useCallback(async () => {
+    if (!merchantId || loadingMore || !hasMore || orders.length === 0) return;
+    const cursor = orders[orders.length - 1];
+    try {
+      setLoadingMore(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, merchants(name, location_lat, location_lng)')
+        .eq('merchant_id', merchantId)
+        .lt('created_at', cursor.created_at)
+        .order('created_at', { ascending: false })
+        .limit(ORDER_PAGE_SIZE);
+      if (error) throw error;
+      setOrders((previous) => {
+        const known = new Set(previous.map((order) => order.id));
+        return [...previous, ...(data || []).filter((order) => !known.has(order.id))];
+      });
+      setHasMore((data || []).length === ORDER_PAGE_SIZE);
+    } catch (error) {
+      console.error('Error loading older orders:', error);
+      toast.error('Gagal memuat pesanan lama');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [merchantId, loadingMore, hasMore, orders]);
 
   // Real-time subscription
   useEffect(() => {
@@ -182,6 +214,9 @@ export function useRealtimeOrders({
     loading,
     updateOrderStatus,
     refetch: fetchOrders,
+    loadMore,
+    loadingMore,
+    hasMore,
   };
 }
 

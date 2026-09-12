@@ -96,7 +96,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     setDetailDialogOpen(false);
   }, []);
 
-  const { orders, loading, updateOrderStatus, refetch } = useRealtimeOrders({
+  const { orders, loading, updateOrderStatus, refetch, loadMore, loadingMore, hasMore } = useRealtimeOrders({
     merchantId,
     onNewOrder: handleNewOrder,
   });
@@ -590,6 +590,13 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
         onExport={handleExport}
         emptyMessage="Belum ada pesanan"
       />
+      {hasMore && !dateFrom && !dateTo && (
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" onClick={() => void loadMore()} disabled={loadingMore}>
+            {loadingMore ? 'Memuat pesanan lama...' : 'Muat pesanan lama'}
+          </Button>
+        </div>
+      )}
 
       {/* Order Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
