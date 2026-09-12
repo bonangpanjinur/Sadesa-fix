@@ -1,17 +1,23 @@
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, accept, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-requested-with',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Max-Age': '86400',
-};
+const allowedOrigins = new Set(['https://sadesa.id', 'https://www.sadesa.id']);
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin');
+  return {
+    'Access-Control-Allow-Origin': origin && allowedOrigins.has(origin) ? origin : 'https://www.sadesa.id',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, accept, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-requested-with',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
+  };
+}
 
 const EMSIFA_URL = 'https://www.emsifa.com/api-wilayah-indonesia/api';
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    // 200 is accepted consistently by Supabase's gateway and older browsers.
-    return new Response('ok', { status: 200, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
   if (req.method !== 'GET') {
     return new Response(
