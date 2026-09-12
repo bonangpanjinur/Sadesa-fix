@@ -81,8 +81,7 @@ export async function getAvailableCouriers(
       .select('id, name, vehicle_type, current_lat, current_lng, last_location_update')
       .eq('status', 'ACTIVE')
       .eq('registration_status', 'APPROVED')
-      .eq('is_available', true)
-      .gte('last_location_update', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+      .eq('is_available', true);
 
     if (error || !couriers) return [];
 
