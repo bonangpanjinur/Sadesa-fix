@@ -25,6 +25,8 @@ export interface OrderRow {
   merchants?: { name: string; location_lat?: number | null; location_lng?: number | null } | null;
   is_self_delivery?: boolean;
   payment_proof_url?: string | null;
+  expedition_name?: string | null;
+  tracking_number?: string | null;
 }
 
 interface UseRealtimeOrdersOptions {

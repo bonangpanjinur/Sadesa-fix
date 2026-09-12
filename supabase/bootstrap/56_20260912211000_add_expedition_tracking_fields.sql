@@ -45,6 +45,12 @@ BEGIN
   END;
   IF NOT v_allowed THEN RAISE EXCEPTION 'Invalid order transition: % -> %', v_from, p_to_status USING ERRCODE = '55000'; END IF;
 
+  IF p_to_status = 'SENT' AND v_order.delivery_type = 'EXPEDITION'
+     AND (NULLIF(trim(v_payload->>'expedition_name'), '') IS NULL
+       OR NULLIF(trim(v_payload->>'tracking_number'), '') IS NULL) THEN
+    RAISE EXCEPTION 'Expedition name and tracking number are required' USING ERRCODE = '22023';
+  END IF;
+
   UPDATE public.orders SET
     status = p_to_status,
     is_self_delivery = COALESCE(p_is_self_delivery, is_self_delivery),

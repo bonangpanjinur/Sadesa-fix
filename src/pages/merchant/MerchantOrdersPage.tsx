@@ -56,6 +56,8 @@ export default function MerchantOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [expeditionName, setExpeditionName] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
   const [proofDisplayUrl, setProofDisplayUrl] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -118,6 +120,8 @@ export default function MerchantOrdersPage() {
 
   const viewOrderDetail = useCallback(async (order: OrderRow) => {
     setSelectedOrder(order);
+    setExpeditionName(order.expedition_name || '');
+    setTrackingNumber(order.tracking_number || '');
     setProofDisplayUrl(null);
     
     const { data: items } = await supabase
@@ -133,6 +137,22 @@ export default function MerchantOrdersPage() {
       setProofDisplayUrl(signed);
     }
   }, []);
+
+  const handleExpeditionHandoff = async () => {
+    if (!selectedOrder || !expeditionName.trim() || !trackingNumber.trim()) {
+      toast.error('Nama ekspedisi dan nomor resi wajib diisi');
+      return;
+    }
+    const { error } = await supabase.rpc('merchant_transition_order' as never, {
+      p_order_id: selectedOrder.id,
+      p_to_status: 'SENT',
+      p_reason: JSON.stringify({ type: 'EXPEDITION_HANDOFF', expedition_name: expeditionName.trim(), tracking_number: trackingNumber.trim() }),
+    } as never);
+    if (error) { toast.error(error.message || 'Gagal menyerahkan ke ekspedisi'); return; }
+    toast.success('Pesanan diserahkan ke ekspedisi');
+    setDetailDialogOpen(false);
+    await refetch();
+  };
 
   // Handle orderId query parameter from notification click
   useEffect(() => {
@@ -763,13 +783,15 @@ export default function MerchantOrdersPage() {
                     Siap Diambil
                   </Button>
                 ) : selectedOrder.delivery_type === 'EXPEDITION' ? (
-                  <Button
-                    className="w-full"
-                    onClick={() => handleUpdateStatus(selectedOrder.id, 'SENT')}
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    Tandai Diserahkan ke Ekspedisi
-                  </Button>
+                  <div className="w-full space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                    <p className="text-sm font-semibold">Data Ekspedisi</p>
+                    <Input value={expeditionName} onChange={(event) => setExpeditionName(event.target.value)} placeholder="Nama ekspedisi, contoh JNE" maxLength={100} />
+                    <Input value={trackingNumber} onChange={(event) => setTrackingNumber(event.target.value)} placeholder="Nomor resi" maxLength={120} />
+                    <Button className="w-full" onClick={handleExpeditionHandoff} disabled={!expeditionName.trim() || !trackingNumber.trim()}>
+                      <Package className="h-4 w-4 mr-2" />
+                      Tandai Diserahkan ke Ekspedisi
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-3">
                     <p className="text-sm font-semibold">Pilih Metode Pengiriman:</p>
