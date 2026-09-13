@@ -57,7 +57,7 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
         'group relative min-h-[132px] min-w-0 overflow-hidden rounded-[1.35rem] border p-4 shadow-[0_16px_34px_-22px_hsl(var(--foreground)/0.65)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_38px_-18px_hsl(var(--foreground)/0.6)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         isTransport
           ? 'border-[hsl(4_80%_34%)] bg-[linear-gradient(145deg,hsl(4_78%_50%),hsl(4_80%_31%))] text-primary-foreground'
-          : 'border-orange-200/80 bg-[linear-gradient(145deg,hsl(42_100%_98%),hsl(24_100%_91%))] text-foreground',
+          : 'border-[hsl(28_100%_40%)] bg-[linear-gradient(145deg,hsl(30_100%_53%),hsl(24_96%_45%))] text-white',
       )}
     >
       <div className={cn('pointer-events-none absolute -right-7 -top-8 h-24 w-24 rounded-full opacity-40 transition-transform duration-300 group-hover:scale-125', isTransport ? 'bg-white/10' : 'bg-orange-300/20')} />
@@ -67,18 +67,18 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
           'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition duration-200 group-hover:scale-110 group-hover:-rotate-3 group-active:scale-95',
           isTransport
             ? 'border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground'
-            : 'border-accent/30 bg-card text-accent-foreground',
+            : 'border-white/20 bg-white/15 text-white',
         )}
       >
         <Icon className="relative h-6 w-6 stroke-[2.1] transition-transform duration-200 group-hover:scale-105" />
       </div>
       <span className="relative min-w-0 flex-1 self-end pb-0.5 text-left">
         <span className="block truncate font-heading text-[15px] font-bold leading-tight">{displayName}</span>
-        <span className={cn('mt-1 block text-[10px] leading-tight', isTransport ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+        <span className="mt-1 block text-[10px] leading-tight text-white/75">
           {description}
         </span>
       </span>
-      <ArrowRight className={cn('absolute bottom-4 right-4 h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1 group-active:translate-x-0', isTransport ? 'text-primary-foreground/80' : 'text-accent-foreground')} />
+      <ArrowRight className="absolute bottom-4 right-4 h-4 w-4 shrink-0 text-white/85 transition-transform duration-200 group-hover:translate-x-1 group-active:translate-x-0" />
     </Link>
   );
 }

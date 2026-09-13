@@ -37,6 +37,7 @@ const Index = () => {
   const HIDDEN_VILLAGE_FEATURES = new Set(['popular_tourism', 'villages']);
   const navigate = useNavigate();
   const [visibleProductCount, setVisibleProductCount] = useState(12);
+  const [promoFilter, setPromoFilter] = useState<'semua' | 'makanan' | 'minuman' | 'produk'>('semua');
   
   const { getEnabledSections } = useHomepageLayout();
   const { getHomepageCategories } = useCategories();
@@ -145,6 +146,17 @@ const Index = () => {
   }, [tourismSpots, userLocation]);
 
   const promoProducts = sortedProducts.filter(p => p.isPromo);
+  const filteredPromoProducts = useMemo(() => {
+    if (promoFilter === 'semua') return promoProducts;
+    return promoProducts.filter((product) => {
+      const haystack = `${product.name} ${product.description} ${product.category}`.toLowerCase();
+      const isKuliner = product.category.toLowerCase() === 'kuliner';
+      const isDrink = /minum|kopi|teh|jus|susu|es |cokelat|cafe|cappuccino|latte/.test(haystack);
+      if (promoFilter === 'makanan') return isKuliner && !isDrink;
+      if (promoFilter === 'minuman') return isKuliner && isDrink;
+      return !isKuliner;
+    });
+  }, [promoFilter, promoProducts]);
   const nearbyFoodProducts = sortedProducts.filter((product) => product.category.toLowerCase() === 'kuliner');
   const displayedFoodProducts = nearbyFoodProducts.length > 0 ? nearbyFoodProducts : sortedProducts;
   // Sort tourism by proximity first, then by view count
@@ -270,13 +282,30 @@ const Index = () => {
                 <p className="text-[10px] text-muted-foreground">Pilihan lokal dengan harga spesial</p>
               </div>
             </div>
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {promoProducts.map((product, idx) => (
+            <div className="mb-4 flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+              {([
+                ['semua', 'Semua'],
+                ['makanan', 'Makanan'],
+                ['minuman', 'Minuman'],
+                ['produk', 'Produk'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPromoFilter(value)}
+                  className={`shrink-0 rounded-full px-3.5 py-2 text-[10px] font-bold transition active:scale-95 ${promoFilter === value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-white text-muted-foreground ring-1 ring-orange-100 hover:text-primary'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {filteredPromoProducts.length > 0 ? <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+              {filteredPromoProducts.map((product, idx) => (
                 <div key={product.id} className="min-w-[160px]">
                   <ProductCard product={product} index={idx} distanceKm={getProductDistance(product)} deliveryEta={getDeliveryEta(getProductDistance(product))} />
                 </div>
               ))}
-            </div>
+            </div> : <p className="rounded-xl bg-white/70 px-3 py-4 text-center text-[11px] text-muted-foreground">Belum ada promo di kategori ini.</p>}
           </section>
         ) : null;
       
