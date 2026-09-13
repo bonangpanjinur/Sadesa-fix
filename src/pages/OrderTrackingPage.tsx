@@ -14,10 +14,10 @@ import {
   MessageCircle,
   Store,
   ShoppingBag,
-  Clock
+  Clock,
+  Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeliveryStatusCard } from '@/components/courier/DeliveryStatusCard';
 import { PodImage } from '@/components/courier/PodImage';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,7 +29,7 @@ import { OrderChat, ChatType } from '@/components/chat/OrderChat';
 import { CourierMap } from '@/components/CourierMap';
 import { getDeliveryEstimate, type VehicleType } from '@/lib/etaCalculation';
 import { useReorder } from '@/hooks/useReorder';
-import { getExpeditionLabel, getExpeditionTrackingUrl } from '@/lib/expeditionTracking';
+import { getExpeditionLabel } from '@/lib/expeditionTracking';
 
 interface OrderDetails {
   id: string;
@@ -94,7 +94,14 @@ export default function OrderTrackingPage() {
   const orderRef = useRef<OrderDetails | null>(null);
   const fetchCourierInfoRef = useRef<((courierId: string) => Promise<void>) | null>(null);
   const [etaInfo, setEtaInfo] = useState<{ etaFormatted: string; distanceFormatted: string } | null>(null);
-  const [trackingOpen, setTrackingOpen] = useState(false);
+  const copyTrackingNumber = useCallback(async (trackingNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(trackingNumber);
+      toast.success('Nomor resi berhasil disalin');
+    } catch {
+      toast.error('Nomor resi gagal disalin');
+    }
+  }, []);
 
   // Keep ref in sync
   useEffect(() => { courierRef.current = courier; }, [courier]);
@@ -373,12 +380,11 @@ export default function OrderTrackingPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.11 }} className="bg-card rounded-2xl p-4 border border-border">
             <h3 className="font-medium text-sm text-muted-foreground mb-3">Pengiriman Ekspedisi</h3>
             <p className="font-medium">{getExpeditionLabel(order.expedition_name)}</p>
-            {getExpeditionTrackingUrl(order.expedition_name, order.tracking_number) ? (
-              <button type="button" className="mt-1 font-mono text-sm text-primary underline underline-offset-4" onClick={() => setTrackingOpen(true)}>
+            <button type="button" className="mt-1 inline-flex items-center gap-2 font-mono text-sm text-primary underline underline-offset-4" onClick={() => copyTrackingNumber(order.tracking_number)} aria-label="Salin nomor resi">
+              <Copy className="h-3.5 w-3.5" />
                 {order.tracking_number}
-              </button>
-            ) : <p className="mt-1 font-mono text-sm">{order.tracking_number}</p>}
-            <p className="mt-2 text-xs text-muted-foreground">Klik nomor resi untuk membuka halaman tracking.</p>
+            </button>
+            <p className="mt-2 text-xs text-muted-foreground">Klik nomor resi untuk mengcopy.</p>
           </motion.div>
         )}
 
@@ -644,21 +650,6 @@ export default function OrderTrackingPage() {
             onClose={() => setChatOpen(null)}
           />
         )}
-        <Dialog open={trackingOpen} onOpenChange={setTrackingOpen}>
-          <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>Tracking {getExpeditionLabel(order.expedition_name)}</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 min-h-0 overflow-hidden rounded-md border bg-muted">
-              {getExpeditionTrackingUrl(order.expedition_name, order.tracking_number) && (
-                <iframe title="Tracking ekspedisi" src={getExpeditionTrackingUrl(order.expedition_name, order.tracking_number) ?? undefined} className="h-full w-full" />
-              )}
-            </div>
-            <a className="text-sm text-primary underline" target="_blank" rel="noopener noreferrer" href={getExpeditionTrackingUrl(order.expedition_name, order.tracking_number) ?? '#'}>
-              Jika halaman tidak tampil, buka tracking di tab baru
-            </a>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
