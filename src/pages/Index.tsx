@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, UtensilsCrossed } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -17,7 +17,7 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
-import { CarouselSkeleton, ProductGridSkeleton, CategoriesSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
+import { CarouselSkeleton, ProductGridSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
@@ -38,11 +38,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [visibleProductCount, setVisibleProductCount] = useState(12);
   
-  const { 
-    isSectionEnabled, 
-    getEnabledSections, 
-    loading: layoutLoading 
-  } = useHomepageLayout();
+  const { getEnabledSections } = useHomepageLayout();
   const { getHomepageCategories } = useCategories();
 
   const { location: userLocation } = useUserLocation();
