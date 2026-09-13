@@ -145,6 +145,8 @@ const Index = () => {
   }, [tourismSpots, userLocation]);
 
   const promoProducts = sortedProducts.filter(p => p.isPromo);
+  const nearbyFoodProducts = sortedProducts.filter((product) => product.category.toLowerCase() === 'kuliner');
+  const displayedFoodProducts = nearbyFoodProducts.length > 0 ? nearbyFoodProducts : sortedProducts;
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
@@ -286,15 +288,15 @@ const Index = () => {
               onRetry={() => refetchProducts()}
             />
           );
-        return sortedProducts.length > 0 ? (
+        return displayedFoodProducts.length > 0 ? (
           <section className="mt-9 px-5">
             <div className="mb-4 flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <UtensilsCrossed className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="font-heading text-base font-bold text-foreground">Kuliner & Produk Pilihan</h2>
-                <p className="text-[9px] text-muted-foreground flex items-center gap-1">
+                <h2 className="font-heading text-base font-bold text-foreground">Kuliner di Sekitar Kamu</h2>
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <MapPin className="h-2.5 w-2.5" />
                   {userLocation?.source === 'gps' ? 'Berdasarkan lokasi Anda' : 'Sekitar Anda'}
                 </p>
@@ -308,7 +310,7 @@ const Index = () => {
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-3.5 pb-2">
-              {sortedProducts.slice(0, visibleProductCount).map((product, idx) => (
+              {displayedFoodProducts.slice(0, visibleProductCount).map((product, idx) => (
                 <ProductCard 
                   key={product.id} 
                   product={product}
@@ -319,7 +321,7 @@ const Index = () => {
                 />
               ))}
             </div>
-            {sortedProducts.length > visibleProductCount && (
+            {displayedFoodProducts.length > visibleProductCount && (
               <div className="flex justify-center pb-4">
                 <Button
                   variant="outline"
@@ -328,7 +330,7 @@ const Index = () => {
                   className="text-xs"
                 >
                   <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
-                  Lihat Lebih Banyak ({sortedProducts.length - visibleProductCount} lagi)
+                  Lihat Lebih Banyak ({displayedFoodProducts.length - visibleProductCount} lagi)
                 </Button>
               </div>
             )}

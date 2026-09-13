@@ -54,7 +54,7 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
     <Link
       to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
       className={cn(
-        'group relative min-h-[142px] min-w-0 overflow-hidden rounded-[1.35rem] border p-4 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.55)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]',
+        'group relative min-h-[122px] min-w-0 overflow-hidden rounded-[1.25rem] border p-3.5 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.55)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]',
         isTransport
           ? 'border-primary/20 bg-[linear-gradient(145deg,hsl(var(--primary)),hsl(162_70%_20%))] text-primary-foreground'
           : 'border-orange-200/80 bg-[linear-gradient(145deg,hsl(38_100%_97%),hsl(28_100%_92%))] text-foreground',
@@ -63,7 +63,7 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
       <div className={cn('pointer-events-none absolute -right-7 -top-8 h-24 w-24 rounded-full opacity-40', isTransport ? 'bg-white/10' : 'bg-orange-300/20')} />
       <div 
         className={cn(
-          'relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-200 group-hover:scale-105',
+          'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-200 group-hover:scale-105',
           isTransport
             ? 'border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground'
             : 'border-accent/30 bg-card text-accent-foreground',
@@ -71,7 +71,7 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
       >
         <Icon className="relative h-6 w-6 stroke-[2.1]" />
       </div>
-      <span className="relative min-w-0 flex-1 self-end text-left">
+      <span className="relative min-w-0 flex-1 self-end pb-0.5 text-left">
         <span className="block truncate font-heading text-[15px] font-bold leading-tight">{displayName}</span>
         <span className={cn('mt-1 block text-[10px] leading-tight', isTransport ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
           {description}

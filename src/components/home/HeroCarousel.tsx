@@ -56,7 +56,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   if (slides.length === 0) {
     return (
-      <section className="mx-5 mt-5 flex h-[11.5rem] items-center justify-center rounded-[1.5rem] bg-muted sm:mx-6">
+      <section className="mx-5 mt-5 flex h-[10.5rem] items-center justify-center rounded-[1.5rem] bg-muted sm:mx-6">
         <p className="text-muted-foreground text-sm">No banners available</p>
       </section>
     );
@@ -105,7 +105,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
   );
 
   return (
-    <section className="relative mx-5 mt-5 h-[13rem] overflow-hidden rounded-[1.5rem] bg-muted shadow-[0_16px_35px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-48">
+    <section className="relative mx-5 mt-5 h-[10.5rem] overflow-hidden rounded-[1.5rem] bg-muted shadow-[0_16px_35px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-[10.5rem]">
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentIndex}
