@@ -26,7 +26,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/40 bg-card/95 px-4 pb-2.5 pt-2.5 backdrop-blur-xl sm:px-5 sm:pb-3 sm:pt-3">
+    <header className="sticky top-0 z-40 border-b border-orange-100/80 bg-[hsl(36_45%_98%_/_0.96)] px-4 pb-3 pt-3 backdrop-blur-xl sm:px-5 sm:pb-3.5 sm:pt-3.5">
       <div className="flex min-h-9 items-center justify-between gap-3">
         <Link to="/" className="flex min-w-0 items-center gap-2">
           <img
@@ -34,7 +34,7 @@ export function Header() {
             alt={settings.siteName}
             className="h-8 w-8 rounded-lg object-cover shadow-sm"
           />
-          <h1 className="truncate font-heading text-[1.05rem] font-bold leading-none text-foreground">
+          <h1 className="truncate font-heading text-[1.05rem] font-extrabold leading-none tracking-[-0.03em] text-foreground">
             {settings.siteName}
           </h1>
         </Link>
@@ -65,7 +65,7 @@ export function Header() {
         aria-label="Pilih lokasi pengantaran"
       >
         <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-        <span className="text-[8px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Antar ke</span>
+        <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Antar ke</span>
         <span className="truncate text-[11px] font-bold leading-tight text-foreground">
           {locationLoading ? 'Mencari lokasi...' : userLocation?.district || 'Pilih lokasi pengantaran'}
         </span>
@@ -81,7 +81,7 @@ export function Header() {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari makanan, restoran, atau produk"
             aria-label="Cari makanan, restoran, atau produk"
-            className="h-10 w-full rounded-xl border border-transparent bg-[hsl(var(--brand-light))] pl-10 pr-4 text-xs outline-none transition placeholder:text-muted-foreground/75 focus:border-primary/30 focus:bg-card focus:ring-4 focus:ring-primary/10"
+            className="h-11 w-full rounded-2xl border border-orange-100 bg-white pl-10 pr-4 text-xs shadow-[0_8px_24px_-18px_hsl(4_78%_47%_/_0.6)] outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
           />
         </form>
       )}

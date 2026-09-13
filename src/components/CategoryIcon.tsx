@@ -54,10 +54,10 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
     <Link
       to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
       className={cn(
-        'group relative min-h-[122px] min-w-0 overflow-hidden rounded-[1.25rem] border p-3.5 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.55)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_35px_-16px_hsl(var(--foreground)/0.55)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        'group relative min-h-[132px] min-w-0 overflow-hidden rounded-[1.35rem] border p-4 shadow-[0_16px_34px_-22px_hsl(var(--foreground)/0.65)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_38px_-18px_hsl(var(--foreground)/0.6)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         isTransport
-          ? 'border-primary/20 bg-[linear-gradient(145deg,hsl(var(--primary)),hsl(162_70%_20%))] text-primary-foreground'
-          : 'border-orange-200/80 bg-[linear-gradient(145deg,hsl(38_100%_97%),hsl(28_100%_92%))] text-foreground',
+          ? 'border-[hsl(4_80%_34%)] bg-[linear-gradient(145deg,hsl(4_78%_50%),hsl(4_80%_31%))] text-primary-foreground'
+          : 'border-orange-200/80 bg-[linear-gradient(145deg,hsl(42_100%_98%),hsl(24_100%_91%))] text-foreground',
       )}
     >
       <div className={cn('pointer-events-none absolute -right-7 -top-8 h-24 w-24 rounded-full opacity-40 transition-transform duration-300 group-hover:scale-125', isTransport ? 'bg-white/10' : 'bg-orange-300/20')} />

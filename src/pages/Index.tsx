@@ -197,11 +197,12 @@ const Index = () => {
       
       case 'categories':
         return (
-          <section className="relative mt-5 overflow-hidden rounded-[1.5rem] bg-[linear-gradient(135deg,hsl(153_40%_96%),hsl(42_100%_97%))] px-5 py-4" aria-label="Layanan utama">
-            <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-orange-200/30" />
+          <section className="relative mx-4 mt-5 overflow-hidden rounded-[1.65rem] border border-orange-100 bg-[linear-gradient(135deg,hsl(42_100%_98%),hsl(12_100%_96%))] px-5 py-5 shadow-[0_18px_42px_-28px_hsl(4_78%_47%_/_0.55)]" aria-label="Layanan utama">
+            <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-[hsl(43_96%_55%_/_0.18)]" />
+            <div className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-[hsl(4_78%_47%_/_0.08)]" />
             <div className="relative mb-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">Layanan utama</p>
-              <h2 className="mt-1 font-heading text-base font-bold text-foreground">Mau apa hari ini?</h2>
+              <h2 className="mt-1 font-heading text-[1.08rem] font-extrabold tracking-[-0.02em] text-foreground">Mau makan apa hari ini?</h2>
             </div>
             <div className="relative grid grid-cols-2 gap-3">
               {visibleCategories.map((category) => (
@@ -259,9 +260,9 @@ const Index = () => {
             />
           );
         return promoProducts.length > 0 ? (
-          <section className="mt-8 rounded-[1.5rem] bg-[linear-gradient(135deg,hsl(42_100%_98%),hsl(28_100%_96%))] px-5 py-4">
+          <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-[linear-gradient(135deg,hsl(8_100%_98%),hsl(42_100%_97%))] px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.45)]">
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-200/60 text-orange-700">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(4_78%_47%_/_0.1)] text-primary">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div>
@@ -290,9 +291,9 @@ const Index = () => {
             />
           );
         return displayedFoodProducts.length > 0 ? (
-          <section className="mt-8 rounded-[1.5rem] bg-[linear-gradient(135deg,hsl(191_65%_97%),hsl(153_40%_97%))] px-5 py-4">
+          <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-white px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]">
             <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
                 <UtensilsCrossed className="h-4 w-4" />
               </div>
               <div>

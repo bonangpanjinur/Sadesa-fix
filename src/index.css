@@ -43,15 +43,15 @@
 
 @layer base {
   :root {
-    /* Core brand - Fresh emerald green */
-    --brand: 162 88% 26%;
-    --brand-light: 153 31% 93%;
-    --brand-dark: 162 88% 20%;
-    --brand-glow: 162 55% 42%;
+    /* Core brand - culinary red with saffron warmth */
+    --brand: 4 78% 47%;
+    --brand-light: 8 100% 96%;
+    --brand-dark: 4 80% 31%;
+    --brand-glow: 8 88% 62%;
     
     /* Background & Surface */
-    --background: 150 17% 98%;
-    --foreground: 221 39% 11%;
+    --background: 36 45% 98%;
+    --foreground: 18 28% 13%;
     
     --card: 0 0% 100%;
     --card-foreground: 215 25% 15%;
@@ -60,20 +60,20 @@
     --popover-foreground: 215 25% 15%;
     
     /* Primary = Brand */
-    --primary: 162 88% 26%;
+    --primary: 4 78% 47%;
     --primary-foreground: 0 0% 100%;
     
     /* Secondary - Soft slate */
-    --secondary: 153 31% 93%;
-    --secondary-foreground: 215 25% 25%;
+    --secondary: 36 42% 93%;
+    --secondary-foreground: 18 24% 25%;
     
     /* Muted - Subtle grays */
     --muted: 210 15% 95%;
     --muted-foreground: 215 15% 50%;
     
     /* Accent - Warm amber for highlights */
-    --accent: 36 80% 57%;
-    --accent-foreground: 30 30% 15%;
+    --accent: 43 96% 55%;
+    --accent-foreground: 24 35% 16%;
     
     /* Gold for ratings */
     --gold: 45 93% 47%;
@@ -106,7 +106,7 @@
     /* Borders & inputs */
     --border: 214 20% 90%;
     --input: 214 20% 90%;
-    --ring: 162 88% 26%;
+    --ring: 4 78% 47%;
     
     --radius: 0.75rem;
     
@@ -114,7 +114,7 @@
     --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.1);
     --shadow-lg: 0 10px 15px -3px hsl(215 25% 15% / 0.1);
-    --shadow-brand: 0 10px 25px -5px hsl(160 84% 39% / 0.25);
+    --shadow-brand: 0 12px 28px -5px hsl(4 78% 47% / 0.26);
     
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
