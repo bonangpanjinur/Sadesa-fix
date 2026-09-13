@@ -197,12 +197,13 @@ const Index = () => {
       
       case 'categories':
         return (
-          <section className="mt-7 px-5" aria-label="Layanan utama">
-            <div className="mb-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-primary">Layanan utama</p>
+          <section className="relative mt-5 overflow-hidden rounded-[1.5rem] bg-[linear-gradient(135deg,hsl(153_40%_96%),hsl(42_100%_97%))] px-5 py-4" aria-label="Layanan utama">
+            <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-orange-200/30" />
+            <div className="relative mb-3">
+              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">Layanan utama</p>
               <h2 className="mt-1 font-heading text-base font-bold text-foreground">Mau apa hari ini?</h2>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="relative grid grid-cols-2 gap-3">
               {visibleCategories.map((category) => (
                 <CategoryIcon key={category.id} {...category} />
               ))}
@@ -258,9 +259,9 @@ const Index = () => {
             />
           );
         return promoProducts.length > 0 ? (
-          <section className="mt-8 px-5">
+          <section className="mt-8 rounded-[1.5rem] bg-[linear-gradient(135deg,hsl(42_100%_98%),hsl(28_100%_96%))] px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-foreground">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-200/60 text-orange-700">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div>
@@ -289,9 +290,9 @@ const Index = () => {
             />
           );
         return displayedFoodProducts.length > 0 ? (
-          <section className="mt-9 px-5">
+          <section className="mt-8 rounded-[1.5rem] bg-[linear-gradient(135deg,hsl(191_65%_97%),hsl(153_40%_97%))] px-5 py-4">
             <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
                 <UtensilsCrossed className="h-4 w-4" />
               </div>
               <div>
