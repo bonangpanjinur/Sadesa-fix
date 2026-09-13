@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Plus, Star, Clock, CheckCircle2 } from 'lucide-react';
+import { Plus, Star, Clock, CheckCircle2, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import type { Product } from '@/types';
@@ -20,6 +20,8 @@ interface ProductCardProps {
   product: ProductWithSales;
   index?: number;
   showCategoryBadge?: boolean;
+  distanceKm?: number;
+  deliveryEta?: string;
 }
 
 const categoryLabels: Record<string, { label: string; className: string }> = {
@@ -34,7 +36,7 @@ const categoryLabels: Record<string, { label: string; className: string }> = {
 
 const defaultCategoryStyle = { className: 'bg-muted text-muted-foreground' };
 
-export function ProductCard({ product, index = 0, showCategoryBadge = false }: ProductCardProps) {
+export function ProductCard({ product, index = 0, showCategoryBadge = false, distanceKm, deliveryEta }: ProductCardProps) {
   const { addToCart } = useCart();
   const { flashSale } = useProductFlashSale(product.id);
 
@@ -134,9 +136,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
       </div>
       
       <div className={cn("p-3", !isAvailable && "opacity-60")}>
-        <div
-          className="text-[9px] text-muted-foreground mb-0.5 truncate flex items-center gap-1"
-        >
+        <div className="mb-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
           {product.merchantName}
         </div>
         <h3 className="min-h-[2.5em] font-heading text-xs font-semibold leading-snug text-card-foreground line-clamp-2">
@@ -174,6 +174,23 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false }: P
             </Button>
           )}
         </div>
+        {(distanceKm != null || deliveryEta || product.isMerchantOpen === false) && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+            {distanceKm != null && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3 w-3 text-primary" />
+                {distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`}
+              </span>
+            )}
+            {deliveryEta && product.isAvailable && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3 w-3 text-primary" />
+                {deliveryEta}
+              </span>
+            )}
+            {product.isMerchantOpen === false && <span className="font-medium text-destructive">Tutup</span>}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
-import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
+import { useUserLocation, sortByDistance, calculateDistance } from '@/hooks/useUserLocation';
 import { useCategories } from '@/hooks/useCategories';
 import {
   Drawer,
@@ -154,6 +154,29 @@ const Index = () => {
 
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
+  const sectionPriority: Record<string, number> = {
+    categories: 1,
+    hero: 2,
+    promo: 3,
+    recommendations: 4,
+    popular_tourism: 5,
+    villages: 6,
+  };
+  const orderedSections = [...enabledSections].sort(
+    (a, b) => (sectionPriority[a.id] ?? 99) - (sectionPriority[b.id] ?? 99),
+  );
+
+  const getProductDistance = (product: Product) => {
+    if (!userLocation || product.locationLat == null || product.locationLng == null) return undefined;
+    return calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng);
+  };
+
+  const getDeliveryEta = (distanceKm?: number) => {
+    if (distanceKm == null) return undefined;
+    if (distanceKm < 1) return '15–25 menit';
+    if (distanceKm < 3) return '20–30 menit';
+    return '30–45 menit';
+  };
 
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
@@ -246,7 +269,7 @@ const Index = () => {
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
               {promoProducts.map((product, idx) => (
                 <div key={product.id} className="min-w-[160px]">
-                  <ProductCard product={product} index={idx} />
+                  <ProductCard product={product} index={idx} distanceKm={getProductDistance(product)} deliveryEta={getDeliveryEta(getProductDistance(product))} />
                 </div>
               ))}
             </div>
@@ -288,9 +311,11 @@ const Index = () => {
               {sortedProducts.slice(0, visibleProductCount).map((product, idx) => (
                 <ProductCard 
                   key={product.id} 
-                  product={product} 
+                  product={product}
                   index={idx} 
                   showCategoryBadge={true}
+                  distanceKm={getProductDistance(product)}
+                  deliveryEta={getDeliveryEta(getProductDistance(product))}
                 />
               ))}
             </div>
@@ -363,7 +388,7 @@ const Index = () => {
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto pb-32">
         <>
-          {enabledSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id)).map((section) => (
+          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id)).map((section) => (
             <div key={section.id}>
               {renderSection(section.id)}
             </div>

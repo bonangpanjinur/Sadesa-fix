@@ -47,21 +47,23 @@ interface CategoryIconProps {
 export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIconProps) {
   const Icon = id === 'ojek' ? MotorcycleIcon : icons[icon] || Package;
   const isTransport = id === 'ojek';
-  const description = isTransport ? 'Jemput atau kirim barang' : 'Makanan enak di sekitar';
+  const displayName = isTransport ? 'Ojek & Kurir' : 'Pesan Makanan';
+  const description = isTransport ? 'Antar saya atau kirim barang' : 'Makanan & minuman di sekitar kamu';
   
   return (
     <Link
       to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
       className={cn(
-        'group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border p-3.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]',
+        'group relative min-h-[142px] min-w-0 overflow-hidden rounded-[1.35rem] border p-4 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.55)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]',
         isTransport
-          ? 'border-primary/20 bg-primary text-primary-foreground'
-          : 'border-accent/30 bg-accent/15 text-foreground',
+          ? 'border-primary/20 bg-[linear-gradient(145deg,hsl(var(--primary)),hsl(162_70%_20%))] text-primary-foreground'
+          : 'border-orange-200/80 bg-[linear-gradient(145deg,hsl(38_100%_97%),hsl(28_100%_92%))] text-foreground',
       )}
     >
+      <div className={cn('pointer-events-none absolute -right-7 -top-8 h-24 w-24 rounded-full opacity-40', isTransport ? 'bg-white/10' : 'bg-orange-300/20')} />
       <div 
         className={cn(
-          'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-transform duration-200 group-hover:scale-105',
+          'relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-200 group-hover:scale-105',
           isTransport
             ? 'border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground'
             : 'border-accent/30 bg-card text-accent-foreground',
@@ -69,13 +71,13 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
       >
         <Icon className="relative h-6 w-6 stroke-[2.1]" />
       </div>
-      <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate font-heading text-sm font-bold leading-tight">{name}</span>
-        <span className={cn('mt-1 block text-[9px] leading-tight', isTransport ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+      <span className="relative min-w-0 flex-1 self-end text-left">
+        <span className="block truncate font-heading text-[15px] font-bold leading-tight">{displayName}</span>
+        <span className={cn('mt-1 block text-[10px] leading-tight', isTransport ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
           {description}
         </span>
       </span>
-      <ArrowRight className={cn('h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5', isTransport ? 'text-primary-foreground/80' : 'text-accent-foreground')} />
+      <ArrowRight className={cn('absolute bottom-4 right-4 h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5', isTransport ? 'text-primary-foreground/80' : 'text-accent-foreground')} />
     </Link>
   );
 }

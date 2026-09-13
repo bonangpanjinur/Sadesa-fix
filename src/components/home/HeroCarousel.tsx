@@ -56,7 +56,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   if (slides.length === 0) {
     return (
-      <section className="mx-4 mt-5 flex h-[11.5rem] items-center justify-center rounded-2xl bg-muted sm:mx-5">
+      <section className="mx-5 mt-5 flex h-[11.5rem] items-center justify-center rounded-[1.5rem] bg-muted sm:mx-6">
         <p className="text-muted-foreground text-sm">No banners available</p>
       </section>
     );
@@ -83,8 +83,8 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
   const slideContent = (
     <>
       <div className="mb-2 flex items-center gap-1.5">
-        <span className="rounded-md bg-accent px-2.5 py-1 text-[9px] font-bold uppercase text-accent-foreground shadow-sm">
-          Produk Desa Asli
+          <span className="rounded-full bg-accent px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-accent-foreground shadow-sm">
+            Pilihan minggu ini
         </span>
       </div>
       <h2 className="max-w-[min(72vw,260px)] font-heading text-[1.3rem] font-bold leading-[1.12] text-primary-foreground sm:text-xl">
@@ -96,7 +96,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
         </p>
       )}
       {currentSlide.linkUrl && (
-        <span className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-card px-4 py-2 text-xs font-bold text-primary shadow-md transition hover:bg-secondary">
+          <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-card px-4 py-2.5 text-xs font-bold text-primary shadow-md transition hover:bg-secondary">
           Lihat Sekarang
           <ChevronRight className="h-3.5 w-3.5" />
         </span>
@@ -105,7 +105,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
   );
 
   return (
-    <section className="relative mx-4 mt-5 h-[12.6rem] overflow-hidden rounded-2xl bg-muted shadow-md sm:mx-5 sm:h-48">
+    <section className="relative mx-5 mt-5 h-[13rem] overflow-hidden rounded-[1.5rem] bg-muted shadow-[0_16px_35px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-48">
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentIndex}
@@ -125,7 +125,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
             alt={currentSlide.title}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/55 to-transparent">
+          <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/60 to-foreground/5">
             <div className="px-5 py-4 sm:px-6">
               {currentSlide.linkUrl ? (
                 <Link to={currentSlide.linkUrl} className="block">
