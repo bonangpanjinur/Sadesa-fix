@@ -54,22 +54,23 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
     <Link
       to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
       className={cn(
-        'group relative min-h-[122px] min-w-0 overflow-hidden rounded-[1.25rem] border p-3.5 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.55)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]',
+        'group relative min-h-[122px] min-w-0 overflow-hidden rounded-[1.25rem] border p-3.5 shadow-[0_10px_30px_-18px_hsl(var(--foreground)/0.55)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_35px_-16px_hsl(var(--foreground)/0.55)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         isTransport
           ? 'border-primary/20 bg-[linear-gradient(145deg,hsl(var(--primary)),hsl(162_70%_20%))] text-primary-foreground'
           : 'border-orange-200/80 bg-[linear-gradient(145deg,hsl(38_100%_97%),hsl(28_100%_92%))] text-foreground',
       )}
     >
-      <div className={cn('pointer-events-none absolute -right-7 -top-8 h-24 w-24 rounded-full opacity-40', isTransport ? 'bg-white/10' : 'bg-orange-300/20')} />
+      <div className={cn('pointer-events-none absolute -right-7 -top-8 h-24 w-24 rounded-full opacity-40 transition-transform duration-300 group-hover:scale-125', isTransport ? 'bg-white/10' : 'bg-orange-300/20')} />
+      <div className="pointer-events-none absolute -inset-y-8 -left-1/2 w-1/3 -skew-x-12 -translate-x-full bg-white/25 opacity-0 blur-md transition duration-500 group-hover:translate-x-[420%] group-hover:opacity-100" />
       <div 
         className={cn(
-          'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform duration-200 group-hover:scale-105',
+          'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition duration-200 group-hover:scale-110 group-hover:-rotate-3 group-active:scale-95',
           isTransport
             ? 'border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground'
             : 'border-accent/30 bg-card text-accent-foreground',
         )}
       >
-        <Icon className="relative h-6 w-6 stroke-[2.1]" />
+        <Icon className="relative h-6 w-6 stroke-[2.1] transition-transform duration-200 group-hover:scale-105" />
       </div>
       <span className="relative min-w-0 flex-1 self-end pb-0.5 text-left">
         <span className="block truncate font-heading text-[15px] font-bold leading-tight">{displayName}</span>
@@ -77,7 +78,7 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
           {description}
         </span>
       </span>
-      <ArrowRight className={cn('absolute bottom-4 right-4 h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5', isTransport ? 'text-primary-foreground/80' : 'text-accent-foreground')} />
+      <ArrowRight className={cn('absolute bottom-4 right-4 h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-1 group-active:translate-x-0', isTransport ? 'text-primary-foreground/80' : 'text-accent-foreground')} />
     </Link>
   );
 }
