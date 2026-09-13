@@ -8,6 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useChatUnread } from '@/hooks/useChatUnread';
 import { isRealtimeFailure } from '@/lib/realtimeTelemetry';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
+import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { settings } = useWhitelabel();
@@ -62,9 +63,11 @@ export function Header() {
         
          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <InstallButton />
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleChatNavigation}
-             className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-primary sm:h-10 sm:w-10"
+            className="relative h-9 w-9 rounded-xl text-muted-foreground sm:h-10 sm:w-10"
             aria-label="Chat"
           >
             <MessageCircle className="h-[18px] w-[18px] text-muted-foreground" />
@@ -79,10 +82,12 @@ export function Header() {
                 title={`Realtime chat terputus (${chatRealtimeStatus})`}
               />
             )}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => navigate('/cart')}
-             className="relative flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-primary sm:h-10 sm:w-10"
+            className="relative h-9 w-9 rounded-xl text-muted-foreground sm:h-10 sm:w-10"
             aria-label="Keranjang"
           >
             <ShoppingCart className="h-[18px] w-[18px] text-muted-foreground" />
@@ -91,7 +96,7 @@ export function Header() {
                 {cartCount > 9 ? '9+' : cartCount}
               </span>
             )}
-          </button>
+          </Button>
           <LanguageSwitcher />
           <NotificationDropdown />
         </div>

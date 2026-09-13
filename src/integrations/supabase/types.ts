@@ -415,7 +415,6 @@ export type Database = {
           id: string
           order_id: string | null
           paid_at: string | null
-          ride_request_id: string | null
           status: string
           type: string
         }
@@ -426,7 +425,6 @@ export type Database = {
           id?: string
           order_id?: string | null
           paid_at?: string | null
-          ride_request_id?: string | null
           status?: string
           type?: string
         }
@@ -437,7 +435,6 @@ export type Database = {
           id?: string
           order_id?: string | null
           paid_at?: string | null
-          ride_request_id?: string | null
           status?: string
           type?: string
         }
@@ -461,13 +458,6 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "courier_earnings_ride_request_id_fkey"
-            columns: ["ride_request_id"]
-            isOneToOne: false
-            referencedRelation: "ride_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -1114,7 +1104,6 @@ export type Database = {
       merchants: {
         Row: {
           address: string | null
-          google_maps_url: string | null
           approved_at: string | null
           approved_by: string | null
           available_balance: number | null
@@ -1173,7 +1162,6 @@ export type Database = {
         }
         Insert: {
           address?: string | null
-          google_maps_url?: string | null
           approved_at?: string | null
           approved_by?: string | null
           available_balance?: number | null
@@ -1232,7 +1220,6 @@ export type Database = {
         }
         Update: {
           address?: string | null
-          google_maps_url?: string | null
           approved_at?: string | null
           approved_by?: string | null
           available_balance?: number | null
@@ -1419,12 +1406,6 @@ export type Database = {
           delivery_address: string | null
           delivery_lat: number | null
           delivery_lng: number | null
-          delivery_province_id: string | null
-          delivery_province_name: string | null
-          delivery_city_id: string | null
-          delivery_city_name: string | null
-          delivery_district_id: string | null
-          delivery_district_name: string | null
           delivery_name: string | null
           delivery_phone: string | null
           delivery_type: string
@@ -1475,12 +1456,6 @@ export type Database = {
           delivery_address?: string | null
           delivery_lat?: number | null
           delivery_lng?: number | null
-          delivery_province_id?: string | null
-          delivery_province_name?: string | null
-          delivery_city_id?: string | null
-          delivery_city_name?: string | null
-          delivery_district_id?: string | null
-          delivery_district_name?: string | null
           delivery_name?: string | null
           delivery_phone?: string | null
           delivery_type?: string
@@ -1531,12 +1506,6 @@ export type Database = {
           delivery_address?: string | null
           delivery_lat?: number | null
           delivery_lng?: number | null
-          delivery_province_id?: string | null
-          delivery_province_name?: string | null
-          delivery_city_id?: string | null
-          delivery_city_name?: string | null
-          delivery_district_id?: string | null
-          delivery_district_name?: string | null
           delivery_name?: string | null
           delivery_phone?: string | null
           delivery_type?: string
@@ -2558,63 +2527,48 @@ export type Database = {
           admin_notes: string | null
           amount: number
           buyer_id: string
-          category: string
           created_at: string
-          dispute_status: string
           evidence_urls: string[] | null
           id: string
           merchant_id: string | null
-          merchant_responded_at: string | null
-          merchant_response: string | null
           order_id: string
           processed_at: string | null
           processed_by: string | null
           reason: string
           refund_type: string | null
           status: string
-          title: string
           updated_at: string
         }
         Insert: {
           admin_notes?: string | null
           amount: number
           buyer_id: string
-          category?: string
           created_at?: string
-          dispute_status?: string
           evidence_urls?: string[] | null
           id?: string
           merchant_id?: string | null
-          merchant_responded_at?: string | null
-          merchant_response?: string | null
           order_id: string
           processed_at?: string | null
           processed_by?: string | null
           reason: string
           refund_type?: string | null
           status?: string
-          title?: string
           updated_at?: string
         }
         Update: {
           admin_notes?: string | null
           amount?: number
           buyer_id?: string
-          category?: string
           created_at?: string
-          dispute_status?: string
           evidence_urls?: string[] | null
           id?: string
           merchant_id?: string | null
-          merchant_responded_at?: string | null
-          merchant_response?: string | null
           order_id?: string
           processed_at?: string | null
           processed_by?: string | null
           reason?: string
           refund_type?: string | null
           status?: string
-          title?: string
           updated_at?: string
         }
         Relationships: [
@@ -3688,21 +3642,6 @@ export type Database = {
         Args: { p_courier_id: string; p_ride_id: string }
         Returns: boolean
       }
-      cancel_ride: {
-        Args: { p_reason?: string; p_ride_id: string }
-        Returns: boolean
-      }
-      create_ride_request: {
-        Args: {
-          p_destination_address: string
-          p_destination_lat: number
-          p_destination_lng: number
-          p_pickup_address: string
-          p_pickup_lat: number
-          p_pickup_lng: number
-        }
-        Returns: string
-      }
       apply_voucher: {
         Args: {
           p_code: string
@@ -3817,14 +3756,6 @@ export type Database = {
           p_type?: string
           p_user_id: string
         }
-        Returns: string
-      }
-      submit_ride_rating: {
-        Args: { p_comment?: string; p_rating: number; p_ride_id: string }
-        Returns: Json
-      }
-      transition_ride_status: {
-        Args: { p_ride_id: string; p_to_status: string }
         Returns: string
       }
       update_cod_trust_score: {

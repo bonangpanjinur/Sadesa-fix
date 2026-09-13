@@ -1,17 +1,24 @@
 // Per-section skeleton placeholders for the Home page so the shell paints instantly.
 
 export function HeroSkeleton() {
-  return <div className="h-44 bg-muted animate-pulse rounded-b-2xl" />;
+  return <div className="mx-5 mt-5 h-64 animate-pulse rounded-3xl bg-muted" />;
 }
 
 export function CategoriesSkeleton() {
   return (
-    <section className="mt-4 px-5">
-      <div className="flex gap-2 overflow-hidden pb-2">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex flex-col items-center gap-1.5 min-w-[60px]">
-            <div className="w-12 h-12 rounded-2xl bg-muted animate-pulse" />
-            <div className="w-10 h-2 bg-muted animate-pulse rounded" />
+    <section className="mt-7 px-5">
+      <div className="mb-3 space-y-1.5">
+        <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+        <div className="h-2.5 w-44 animate-pulse rounded bg-muted" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {[1, 2].map((i) => (
+          <div key={i} className="flex h-20 items-center gap-3 rounded-2xl border border-border bg-card p-3">
+            <div className="h-12 w-12 shrink-0 animate-pulse rounded-xl bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+              <div className="h-2 w-full animate-pulse rounded bg-muted" />
+            </div>
           </div>
         ))}
       </div>
@@ -33,8 +40,8 @@ export function SectionHeaderSkeleton() {
 
 function CardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`bg-card rounded-xl border border-border overflow-hidden ${className}`}>
-      <div className="h-32 bg-muted animate-pulse" />
+    <div className={`overflow-hidden rounded-2xl border border-border bg-card p-2.5 ${className}`}>
+      <div className="aspect-square animate-pulse rounded-xl bg-muted" />
       <div className="p-2.5 space-y-2">
         <div className="h-3 w-20 bg-muted animate-pulse rounded" />
         <div className="h-4 w-full bg-muted animate-pulse rounded" />

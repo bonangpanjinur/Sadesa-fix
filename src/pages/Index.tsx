@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -17,7 +17,7 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
-import { CarouselSkeleton, ProductGridSkeleton, CategoriesSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
+import { CarouselSkeleton, ProductGridSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance } from '@/hooks/useUserLocation';
@@ -38,11 +38,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [visibleProductCount, setVisibleProductCount] = useState(12);
   
-  const { 
-    isSectionEnabled, 
-    getEnabledSections, 
-    loading: layoutLoading 
-  } = useHomepageLayout();
+  const { getEnabledSections } = useHomepageLayout();
   const { getHomepageCategories } = useCategories();
 
   const { location: userLocation } = useUserLocation();
@@ -177,7 +173,11 @@ const Index = () => {
       case 'categories':
         return (
           <section className="mt-7 px-5" aria-label="Layanan utama">
-            <div className="grid grid-cols-5 gap-0.5 rounded-2xl border border-border/60 bg-card p-2 shadow-sm sm:gap-1.5 sm:p-3">
+            <div className="mb-3">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-primary">Layanan utama</p>
+              <h2 className="mt-1 font-heading text-base font-bold text-foreground">Mau apa hari ini?</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               {visibleCategories.map((category) => (
                 <CategoryIcon key={category.id} {...category} />
               ))}
@@ -196,7 +196,7 @@ const Index = () => {
             />
           );
         return popularTourism.length > 0 ? (
-          <section className="mt-8 px-5">
+          <section className="mt-9 px-5">
             <div className="flex justify-between items-center mb-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-foreground">
@@ -239,8 +239,8 @@ const Index = () => {
                 <Sparkles className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="font-heading text-sm font-bold text-foreground">Promo Spesial</h2>
-                <p className="text-[9px] text-muted-foreground">Hemat lebih banyak hari ini</p>
+                <h2 className="font-heading text-base font-bold text-foreground">Promo Kuliner & Produk</h2>
+                <p className="text-[10px] text-muted-foreground">Pilihan lokal dengan harga spesial</p>
               </div>
             </div>
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
@@ -264,13 +264,13 @@ const Index = () => {
             />
           );
         return sortedProducts.length > 0 ? (
-          <section className="mt-8 px-5">
-            <div className="sticky top-[116px] z-20 -mx-5 mb-4 flex items-center gap-2 border-y border-border/60 bg-background/95 px-5 py-3 backdrop-blur">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <TrendingUp className="h-4 w-4" />
+          <section className="mt-9 px-5">
+            <div className="mb-4 flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <UtensilsCrossed className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="font-heading text-sm font-bold text-foreground">Produk Unggulan</h2>
+                <h2 className="font-heading text-base font-bold text-foreground">Kuliner & Produk Pilihan</h2>
                 <p className="text-[9px] text-muted-foreground flex items-center gap-1">
                   <MapPin className="h-2.5 w-2.5" />
                   {userLocation?.source === 'gps' ? 'Berdasarkan lokasi Anda' : 'Sekitar Anda'}
@@ -278,13 +278,13 @@ const Index = () => {
               </div>
               <Link 
                 to="/products"
-                className="text-[10px] text-primary font-bold hover:underline flex items-center gap-0.5 ml-auto"
+                className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
               >
                 Lihat Semua
                 <ChevronRight className="h-3 w-3" />
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-3 pb-2">
+            <div className="grid grid-cols-2 gap-3.5 pb-2">
               {sortedProducts.slice(0, visibleProductCount).map((product, idx) => (
                 <ProductCard 
                   key={product.id} 
@@ -361,7 +361,7 @@ const Index = () => {
       <Header />
 
       {/* Scrollable Content */}
-      <main className="flex-1 overflow-y-auto pb-28">
+      <main className="flex-1 overflow-y-auto pb-32">
         <>
           {enabledSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id)).map((section) => (
             <div key={section.id}>
@@ -374,7 +374,7 @@ const Index = () => {
               <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5">
                 <ShoppingBag className="h-10 w-10 text-primary" />
               </div>
-              <h3 className="text-lg font-bold text-foreground mb-2">Selamat Datang! 🎉</h3>
+              <h3 className="mb-2 font-heading text-lg font-bold text-foreground">Kuliner desa menanti Anda</h3>
               <p className="text-sm text-muted-foreground max-w-[280px] mb-6">
                 Temukan kuliner, produk UMKM, dan layanan ojek di sekitar Anda.
               </p>
