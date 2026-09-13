@@ -158,9 +158,9 @@ const Index = () => {
   const enabledSections = getEnabledSections();
   const sectionPriority: Record<string, number> = {
     categories: 1,
-    hero: 2,
-    promo: 3,
-    recommendations: 4,
+    promo: 2,
+    recommendations: 3,
+    hero: 4,
     popular_tourism: 5,
     villages: 6,
   };
