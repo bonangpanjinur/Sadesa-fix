@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { UtensilsCrossed, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, Bike, Wheat } from 'lucide-react';
+import { ArrowRight, UtensilsCrossed, Shapes, MapPin, Package, ShoppingBasket, Wrench, Sprout, Bike, Wheat } from 'lucide-react';
 import { getHomepageCategoryHref } from '@/lib/homeCategories';
 import { cn } from '@/lib/utils';
 
@@ -45,23 +45,37 @@ interface CategoryIconProps {
 }
 
 export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIconProps) {
-  const Icon = icons[icon] || Package;
+  const Icon = id === 'ojek' ? MotorcycleIcon : icons[icon] || Package;
+  const isTransport = id === 'ojek';
+  const description = isTransport ? 'Jemput atau kirim barang' : 'Makanan enak di sekitar';
   
   return (
     <Link
       to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
-      className="group flex min-w-0 flex-col items-center gap-1 sm:gap-1.5"
+      className={cn(
+        'group relative flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border p-3.5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]',
+        isTransport
+          ? 'border-primary/20 bg-primary text-primary-foreground'
+          : 'border-accent/30 bg-accent/15 text-foreground',
+      )}
     >
       <div 
         className={cn(
-          'relative flex h-[clamp(2.75rem,12vw,3.25rem)] w-[clamp(2.75rem,12vw,3.25rem)] items-center justify-center overflow-hidden rounded-[1rem] border-2 border-white/70 shadow-[0_6px_16px_-8px_hsl(var(--foreground)/0.35)] transition-all duration-200',
-          'before:pointer-events-none before:absolute before:inset-0 before:bg-white/20 before:opacity-0 before:transition-opacity group-hover:-translate-y-1 group-hover:shadow-[0_12px_20px_-10px_hsl(var(--foreground)/0.45)] group-hover:before:opacity-100 group-active:scale-95',
-          colorClass
+          'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm transition-transform duration-200 group-hover:scale-105',
+          isTransport
+            ? 'border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground'
+            : 'border-accent/30 bg-card text-accent-foreground',
         )}
       >
-        <Icon className="relative h-5 w-5 stroke-[2.25] transition-transform duration-200 group-hover:scale-105 sm:h-6 sm:w-6" />
+        <Icon className="relative h-6 w-6 stroke-[2.1]" />
       </div>
-      <span className="line-clamp-1 w-full text-center text-[10px] font-medium leading-tight text-muted-foreground sm:text-[11px]">{name}</span>
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block truncate font-heading text-sm font-bold leading-tight">{name}</span>
+        <span className={cn('mt-1 block text-[9px] leading-tight', isTransport ? 'text-primary-foreground/75' : 'text-muted-foreground')}>
+          {description}
+        </span>
+      </span>
+      <ArrowRight className={cn('h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5', isTransport ? 'text-primary-foreground/80' : 'text-accent-foreground')} />
     </Link>
   );
 }
