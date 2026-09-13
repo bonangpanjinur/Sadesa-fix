@@ -28,6 +28,7 @@ const fallbackImages = [heroVillage, villageBojong, villageSukamaju];
 export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   const slideCount = slides.length;
 
@@ -48,11 +49,11 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   // Auto-play
   useEffect(() => {
-    if (slideCount <= 1) return;
+    if (slideCount <= 1 || isPaused) return;
     
     const interval = setInterval(nextSlide, autoPlayInterval);
     return () => clearInterval(interval);
-  }, [nextSlide, autoPlayInterval, slideCount]);
+  }, [nextSlide, autoPlayInterval, slideCount, isPaused]);
 
   if (slides.length === 0) {
     return (
@@ -81,31 +82,44 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
   };
 
   const slideContent = (
-    <>
-      <div className="mb-2 flex items-center gap-1.5">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: {},
+        visible: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
+      }}
+    >
+      <motion.div className="mb-2 flex items-center gap-1.5" variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.22 }}>
           <span className="rounded-full bg-accent px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-accent-foreground shadow-sm">
             Pilihan minggu ini
-        </span>
-      </div>
-      <h2 className="max-w-[min(72vw,260px)] font-heading text-[1.3rem] font-bold leading-[1.12] text-primary-foreground sm:text-xl">
+          </span>
+      </motion.div>
+      <motion.h2 className="max-w-[min(72vw,260px)] font-heading text-[1.3rem] font-bold leading-[1.12] text-primary-foreground sm:text-xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
         {currentSlide.title}
-      </h2>
+      </motion.h2>
       {currentSlide.subtitle && (
-        <p className="mt-1.5 max-w-[min(68vw,240px)] text-[0.7rem] leading-relaxed text-primary-foreground/80 sm:text-xs">
+        <motion.p className="mt-1.5 max-w-[min(68vw,240px)] text-[0.7rem] leading-relaxed text-primary-foreground/80 sm:text-xs" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
           {currentSlide.subtitle}
-        </p>
+        </motion.p>
       )}
       {currentSlide.linkUrl && (
-          <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-card px-4 py-2.5 text-xs font-bold text-primary shadow-md transition hover:bg-secondary">
+          <motion.span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-card px-4 py-2.5 text-xs font-bold text-primary shadow-md transition hover:bg-secondary" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
           Lihat Sekarang
           <ChevronRight className="h-3.5 w-3.5" />
-        </span>
+        </motion.span>
       )}
-    </>
+    </motion.div>
   );
 
   return (
-    <section className="relative mx-5 mt-5 h-[10.5rem] overflow-hidden rounded-[1.5rem] bg-muted shadow-[0_16px_35px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-[10.5rem]">
+    <section
+      className="group relative mx-5 mt-5 h-[10.5rem] overflow-hidden rounded-[1.5rem] bg-muted shadow-[0_16px_35px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-[10.5rem]"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onFocus={() => setIsPaused(true)}
+      onBlur={() => setIsPaused(false)}
+    >
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
           key={currentIndex}
@@ -120,10 +134,13 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
           }}
           className="absolute inset-0"
         >
-          <img
+          <motion.img
             src={slideImage}
             alt={currentSlide.title}
-            className="w-full h-full object-cover"
+            initial={{ scale: 1.08 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: autoPlayInterval / 1000, ease: 'linear' }}
+            className="h-full w-full object-cover"
           />
           <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/60 to-foreground/5">
             <div className="px-5 py-4 sm:px-6">
@@ -182,6 +199,16 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
             />
           ))}
         </div>
+      )}
+
+      {slideCount > 1 && !isPaused && (
+        <motion.div
+          key={`progress-${currentIndex}`}
+          className="absolute bottom-0 left-0 z-10 h-0.5 bg-accent"
+          initial={{ width: '0%' }}
+          animate={{ width: '100%' }}
+          transition={{ duration: autoPlayInterval / 1000, ease: 'linear' }}
+        />
       )}
     </section>
   );
