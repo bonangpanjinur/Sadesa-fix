@@ -35,27 +35,27 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 space-y-4 border-b border-border/40 bg-card/95 px-5 pb-5 pt-4 backdrop-blur-xl sm:px-6">
-      <div className="flex min-w-0 items-center justify-between gap-2">
+    <header className="sticky top-0 z-40 space-y-2.5 border-b border-border/40 bg-card/95 px-4 pb-3 pt-2.5 backdrop-blur-xl sm:px-5 sm:pb-3.5 sm:pt-3">
+      <div className="flex min-h-10 min-w-0 items-center justify-between gap-2">
         <Link to="/" className="flex min-w-0 shrink items-center gap-2 sm:gap-3">
           {settings.logoUrl ? (
             <img 
               src={settings.logoUrl} 
               alt={settings.siteName} 
-              className="h-9 w-9 rounded-xl object-cover shadow-sm sm:h-11 sm:w-11"
+              className="h-8 w-8 rounded-lg object-cover shadow-sm sm:h-9 sm:w-9"
             />
           ) : (
             <img
               src="/branding/sadesa-logo.png"
               alt={settings.siteName}
-              className="h-9 w-9 rounded-xl object-cover shadow-sm sm:h-11 sm:w-11"
+              className="h-8 w-8 rounded-lg object-cover shadow-sm sm:h-9 sm:w-9"
             />
           )}
           <div className="min-w-0">
-            <p className="mb-1 truncate text-[9px] font-bold uppercase tracking-[0.16em] text-primary">
+            <p className="mb-0.5 truncate text-[8px] font-bold uppercase tracking-[0.15em] text-primary">
               Ekosistem UMKM
             </p>
-            <h1 className="truncate font-heading text-[1.15rem] font-bold leading-none text-foreground">
+            <h1 className="truncate font-heading text-[1.05rem] font-bold leading-none text-foreground">
               {settings.siteName}
             </h1>
           </div>
@@ -66,10 +66,10 @@ export function Header() {
             variant="ghost"
             size="icon"
             onClick={handleChatNavigation}
-            className="relative h-9 w-9 rounded-xl text-muted-foreground sm:h-10 sm:w-10"
+            className="relative h-8 w-8 rounded-lg text-muted-foreground sm:h-9 sm:w-9"
             aria-label="Chat"
           >
-            <MessageCircle className="h-[18px] w-[18px] text-muted-foreground" />
+            <MessageCircle className="h-[17px] w-[17px] text-muted-foreground" />
             {chatUnread > 0 && (
               <span className="absolute top-1 right-1 w-4 h-4 bg-destructive rounded-full text-[8px] flex items-center justify-center text-destructive-foreground font-bold">
                 {chatUnread > 9 ? '9+' : chatUnread}
@@ -86,10 +86,10 @@ export function Header() {
             variant="ghost"
             size="icon"
             onClick={() => navigate('/cart')}
-            className="relative h-9 w-9 rounded-xl text-muted-foreground sm:h-10 sm:w-10"
+            className="relative h-8 w-8 rounded-lg text-muted-foreground sm:h-9 sm:w-9"
             aria-label="Keranjang"
           >
-            <ShoppingCart className="h-[18px] w-[18px] text-muted-foreground" />
+            <ShoppingCart className="h-[17px] w-[17px] text-muted-foreground" />
             {cartCount > 0 && (
               <span className="absolute top-1 right-1 w-4 h-4 bg-primary rounded-full text-[8px] flex items-center justify-center text-primary-foreground font-bold">
                 {cartCount > 9 ? '9+' : cartCount}
@@ -103,32 +103,32 @@ export function Header() {
       <button
         type="button"
         onClick={() => navigate('/addresses')}
-        className="group flex w-full items-center gap-3 rounded-2xl border border-primary/10 bg-primary/[0.045] px-3.5 py-2.5 text-left transition hover:border-primary/20 hover:bg-primary/[0.08]"
+        className="group flex w-full items-center gap-2.5 rounded-xl border border-primary/10 bg-primary/[0.045] px-3 py-2 text-left transition hover:border-primary/20 hover:bg-primary/[0.08]"
         aria-label="Pilih lokasi pengantaran"
       >
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <MapPin className="h-4 w-4" />
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <MapPin className="h-3.5 w-3.5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Antar ke</span>
-          <span className="mt-0.5 block truncate text-xs font-bold text-foreground">
+          <span className="block text-[8px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Antar ke</span>
+          <span className="mt-0.5 block truncate text-[11px] font-bold leading-tight text-foreground">
             {locationLoading ? 'Mencari lokasi...' : userLocation?.district || 'Pilih lokasi pengantaran'}
           </span>
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
       </button>
 
       {/* Search Bar - Main pages */}
       {showSearchBar && (
         <form onSubmit={handleSearch} className="group relative">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari makanan, restoran, atau produk..."
             aria-label="Cari makanan, restoran, atau produk"
-            className="h-[3.35rem] w-full rounded-[1.15rem] border border-transparent bg-[hsl(var(--brand-light))] pl-12 pr-4 text-[13px] outline-none transition placeholder:text-muted-foreground/75 focus:border-primary/30 focus:bg-card focus:ring-4 focus:ring-primary/10"
+            className="h-11 w-full rounded-xl border border-transparent bg-[hsl(var(--brand-light))] pl-11 pr-4 text-xs outline-none transition placeholder:text-muted-foreground/75 focus:border-primary/30 focus:bg-card focus:ring-4 focus:ring-primary/10"
           />
         </form>
       )}
