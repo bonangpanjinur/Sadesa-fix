@@ -17,7 +17,7 @@ interface ExpeditionProvider {
   id: string;
   name: string;
   logo_url: string | null;
-  tracking_website: string;
+  tracking_website: string | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -91,7 +91,7 @@ export default function AdminExpeditionProvidersPage() {
     const name = form.name.trim();
     const website = form.tracking_website.trim();
     if (name.length < 2) { toast.error('Nama ekspedisi minimal 2 karakter'); return; }
-    if (!/^https?:\/\//i.test(website)) { toast.error('Website harus diawali http:// atau https://'); return; }
+    if (website && !/^https?:\/\//i.test(website)) { toast.error('Website harus diawali http:// atau https://'); return; }
     setSaving(true);
     try {
       const payload = {
@@ -176,7 +176,7 @@ export default function AdminExpeditionProvidersPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2"><Label htmlFor="provider-name">Nama ekspedisi *</Label><Input id="provider-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="JNE, J&T Express, SiCepat" maxLength={120} /></div>
             <div className="space-y-2"><Label>Logo ekspedisi</Label><div className="flex items-center gap-3"><div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg border bg-muted">{form.logo_url ? <img src={form.logo_url} alt="Preview logo" className="h-full w-full object-contain" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}</div><div><Button type="button" variant="outline" asChild disabled={uploading}><label className="cursor-pointer">{uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}Upload Logo<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={uploadLogo} /></label></Button><p className="mt-1 text-xs text-muted-foreground">PNG, JPG, WEBP, SVG. Maksimal 2 MB.</p></div></div><Input value={form.logo_url} onChange={(e) => setForm({ ...form, logo_url: e.target.value })} placeholder="Atau masukkan URL logo" /></div>
-            <div className="space-y-2"><Label htmlFor="tracking-website">Website tracking resmi *</Label><Input id="tracking-website" type="url" value={form.tracking_website} onChange={(e) => setForm({ ...form, tracking_website: e.target.value })} placeholder="https://website-resmi-ekspedisi.com/track" /></div>
+      <div className="space-y-2"><Label htmlFor="tracking-website">Website tracking resmi <span className="text-xs font-normal text-muted-foreground">(opsional)</span></Label><Input id="tracking-website" type="url" value={form.tracking_website} onChange={(e) => setForm({ ...form, tracking_website: e.target.value })} placeholder="https://website-resmi-ekspedisi.com/track" /><p className="text-xs text-muted-foreground">Boleh dikosongkan jika ekspedisi belum memiliki link tracking.</p></div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="sort-order">Urutan tampil</Label><Input id="sort-order" type="number" min="0" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} /></div><div className="flex items-center gap-3 pt-7"><Switch checked={form.is_active} onCheckedChange={(value) => setForm({ ...form, is_active: value })} /><Label>Aktif untuk pedagang</Label></div></div>
           </div>
           <DialogFooter><Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button><Button onClick={saveProvider} disabled={saving || uploading}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{saving ? 'Menyimpan...' : 'Simpan Ekspedisi'}</Button></DialogFooter>
