@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   User, Settings, HelpCircle, LogIn, LogOut, Store, ChevronRight, Edit, Heart, 
-  Bell, LayoutDashboard, Shield, CheckCircle, Bike, Building2, MapPin, Star, Clock,
+  Bell, LayoutDashboard, Shield, CheckCircle, Bike, Building2, MapPin, Star, Clock, Utensils,
   MessageCircle, Package, Wallet, Users, RefreshCw
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -36,6 +36,7 @@ export default function AccountPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -217,6 +218,44 @@ export default function AccountPage() {
                 )}
               </div>
 
+              {/* Fokus layanan pengguna: Kuliner dan Ojek */}
+              <div className="mb-6">
+                <div className="mb-3 flex items-center justify-between px-1">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Layanan Utama</h3>
+                    <p className="text-xs text-muted-foreground">Akses cepat kebutuhan Anda hari ini</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => navigate('/shops')}
+                    className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 p-4 text-left text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+                  >
+                    <div className="relative z-10">
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                        <Utensils className="h-5 w-5" />
+                      </div>
+                      <p className="font-bold">Kuliner</p>
+                      <p className="mt-0.5 text-[11px] text-white/80">Cari makanan desa</p>
+                    </div>
+                    <Utensils className="absolute -bottom-3 -right-3 h-20 w-20 rotate-[-18deg] text-white/10" />
+                  </button>
+                  <button
+                    onClick={() => navigate('/ride')}
+                    className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-brand-dark p-4 text-left text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+                  >
+                    <div className="relative z-10">
+                      <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                        <Bike className="h-5 w-5" />
+                      </div>
+                      <p className="font-bold">Ojek</p>
+                      <p className="mt-0.5 text-[11px] text-primary-foreground/80">Pesan perjalanan</p>
+                    </div>
+                    <Bike className="absolute -bottom-3 -right-3 h-20 w-20 rotate-[-12deg] text-white/10" />
+                  </button>
+                </div>
+              </div>
+
               {/* Quick Access Grid */}
               <div className="grid grid-cols-4 gap-3 mb-6">
                 {[
@@ -279,8 +318,8 @@ export default function AccountPage() {
             </div>
           )}
           
-          {/* Merchant/Village Registration CTA - Only show for logged in users who are NOT yet merchants or admins */}
-          {user && !isMerchant && !isAdminDesa && !isAdmin && !isVerifikator && !isCourier && (
+          {/* Pendaftaran desa wisata disembunyikan sementara; route dan fiturnya tetap dipertahankan. */}
+          {showVillageRegistration && user && !isMerchant && !isAdminDesa && !isAdmin && !isVerifikator && !isCourier && (
             <div 
               onClick={() => navigate('/register')}
               className="bg-gradient-to-r from-primary to-brand-dark rounded-2xl p-5 mb-6 text-primary-foreground relative overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"

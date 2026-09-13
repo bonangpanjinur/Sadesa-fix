@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { MapPin, Utensils, Camera, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 
 export type ExploreCategory = 'all' | 'villages' | 'tourism' | 'products';
 
@@ -10,8 +10,6 @@ interface CategoryTabsProps {
 
 const categories = [
   { id: 'all' as const, label: 'Semua', icon: null },
-  { id: 'villages' as const, label: 'Desa', icon: MapPin },
-  { id: 'tourism' as const, label: 'Wisata', icon: Camera },
   { id: 'products' as const, label: 'Produk', icon: ShoppingBag },
 ];
 

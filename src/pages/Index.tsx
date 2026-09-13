@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, Map, MoreHorizontal } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, TrendingUp, MapPin, ShoppingBag, Store, MoreHorizontal, Utensils, Bike } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -32,6 +32,9 @@ import {
 import type { Product, Village, Tourism } from '@/types';
 
 const Index = () => {
+  // Sementara fokus publik diarahkan ke kuliner dan ojek. Data, route, dan
+  // pengaturan desa wisata tetap dipertahankan agar bisa diaktifkan kembali.
+  const HIDDEN_VILLAGE_FEATURES = new Set(['popular_tourism', 'villages']);
   const navigate = useNavigate();
   const [visibleProductCount, setVisibleProductCount] = useState(12);
   
@@ -152,8 +155,9 @@ const Index = () => {
   const popularTourism = sortedTourism;
   
   // Admin-managed active categories are the single source of truth for this menu.
-  const visibleCategories = getHomepageCategories();
-  const otherCategories = getOtherCategories();
+  const publicCategoryIds = new Set(['kuliner', 'ojek']);
+  const visibleCategories = getHomepageCategories().filter((category) => publicCategoryIds.has(category.id));
+  const otherCategories = getOtherCategories().filter((category) => publicCategoryIds.has(category.id));
 
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
@@ -199,6 +203,36 @@ const Index = () => {
                      <p className="mt-0.5 text-[11px] text-muted-foreground">Pilihan cepat untuk mulai menjelajah</p>
                    </div>
                  </div>
+                  <div className="mb-4 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/shops')}
+                      className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 p-4 text-left text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+                    >
+                      <div className="relative z-10">
+                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                          <Utensils className="h-5 w-5" />
+                        </div>
+                        <p className="font-bold">Kuliner</p>
+                        <p className="mt-0.5 text-[11px] text-white/80">Pesan makanan favorit</p>
+                      </div>
+                      <Utensils className="absolute -bottom-3 -right-3 h-20 w-20 rotate-[-18deg] text-white/10" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/ride')}
+                      className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-brand-dark p-4 text-left text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98]"
+                    >
+                      <div className="relative z-10">
+                        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
+                          <Bike className="h-5 w-5" />
+                        </div>
+                        <p className="font-bold">Ojek</p>
+                        <p className="mt-0.5 text-[11px] text-primary-foreground/80">Antar jemput dengan mudah</p>
+                      </div>
+                      <Bike className="absolute -bottom-3 -right-3 h-20 w-20 rotate-[-12deg] text-white/10" />
+                    </button>
+                  </div>
                   <div
                     className="grid grid-cols-5 gap-0.5 rounded-2xl border border-border/60 bg-card p-2 shadow-sm sm:gap-1.5 sm:p-3"
                    aria-label="Kategori utama"
@@ -417,7 +451,7 @@ const Index = () => {
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto pb-28">
         <>
-          {enabledSections.map((section) => (
+          {enabledSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id)).map((section) => (
             <div key={section.id}>
               {renderSection(section.id)}
             </div>
@@ -430,14 +464,14 @@ const Index = () => {
               </div>
               <h3 className="text-lg font-bold text-foreground mb-2">Selamat Datang! 🎉</h3>
               <p className="text-sm text-muted-foreground max-w-[280px] mb-6">
-                Platform ini baru diluncurkan. Jelajahi toko dan desa wisata di sekitar Anda.
+                Temukan kuliner, produk UMKM, dan layanan ojek di sekitar Anda.
               </p>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => navigate('/shops')} className="rounded-full">
                   <Store className="h-4 w-4 mr-2" /> Lihat Toko
                 </Button>
-                <Button onClick={() => navigate('/tourism')} className="rounded-full">
-                  <Map className="h-4 w-4 mr-2" /> Wisata
+                <Button onClick={() => navigate('/shops')} className="rounded-full">
+                  <Store className="h-4 w-4 mr-2" /> Kuliner & UMKM
                 </Button>
               </div>
             </div>

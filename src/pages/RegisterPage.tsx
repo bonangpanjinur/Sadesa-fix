@@ -8,6 +8,7 @@ import { getSettingByKey } from '@/lib/adminApi';
 
 export default function RegisterPage() {
   const [courierEnabled, setCourierEnabled] = useState<boolean | null>(null);
+  const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
 
   useEffect(() => {
     async function checkCourierRegistration() {
@@ -41,14 +42,14 @@ export default function RegisterPage() {
               Bergabung Bersama Kami
             </h1>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-               Daftarkan desa, usaha lokal, jasa, hasil tani, atau jadi kurir desa
+               Pilih cara bergabung sebagai mitra Kuliner atau Ojek di SaDesa
             </p>
           </motion.div>
 
           {/* Registration Options */}
           <div className="space-y-4">
-            {/* Village Registration Card */}
-            <motion.div
+            {/* Village Registration Card - retained behind a feature flag */}
+            {showVillageRegistration && <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
@@ -82,7 +83,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
               </Link>
-            </motion.div>
+            </motion.div>}
 
             {/* Merchant Registration Card */}
             <motion.div
@@ -100,11 +101,11 @@ export default function RegisterPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                       <h2 className="font-bold text-lg text-foreground">Pelaku Usaha Desa</h2>
+                       <h2 className="font-bold text-lg text-foreground">Mitra Kuliner & UMKM</h2>
                       <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all" />
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 mb-3">
-                       Daftarkan kuliner, sembako, produk desa, jasa, petani, dan usaha lokal lainnya
+                       Daftarkan usaha kuliner, makanan siap saji, sembako, dan produk UMKM lokal
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <span className="inline-flex items-center gap-1 text-xs bg-accent/20 text-accent-foreground px-2 py-1 rounded-full">
@@ -138,11 +139,11 @@ export default function RegisterPage() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <h2 className="font-bold text-lg text-foreground">Kurir/Ojek Desa</h2>
+                        <h2 className="font-bold text-lg text-foreground">Mitra Ojek</h2>
                         <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-destructive group-hover:translate-x-1 transition-all" />
                       </div>
                       <p className="text-sm text-muted-foreground mt-1 mb-3">
-                        Antar pesanan dan bantu warga desa
+                        Layani perjalanan dan antar jemput pengguna di sekitar Anda
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <span className="inline-flex items-center gap-1 text-xs bg-destructive/10 text-destructive px-2 py-1 rounded-full">
@@ -177,7 +178,7 @@ export default function RegisterPage() {
                   <CheckCircle className="h-3 w-3 text-primary" />
                 </div>
                 <span className="text-muted-foreground">
-                  Jangkau ribuan wisatawan potensial dari berbagai daerah
+                  Jangkau lebih banyak pelanggan kuliner dan UMKM di sekitar Anda
                 </span>
               </li>
               <li className="flex items-start gap-3 text-sm">

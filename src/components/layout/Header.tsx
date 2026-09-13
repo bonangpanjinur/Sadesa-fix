@@ -105,8 +105,8 @@ export function Header() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari hasil desa terbaik..."
-            aria-label="Cari hasil desa terbaik"
+            placeholder="Cari kuliner, produk, atau layanan..."
+            aria-label="Cari kuliner, produk, atau layanan"
             className="h-12 w-full rounded-2xl border border-transparent bg-secondary pl-12 pr-4 text-sm outline-none transition placeholder:text-muted-foreground focus:border-primary/30 focus:bg-card focus:ring-2 focus:ring-primary/10"
           />
         </form>

@@ -125,8 +125,10 @@ export default function ExplorePage() {
     };
   }, [villages, tourismSpots, products, searchQuery, filters, sortOption]);
 
-  const showVillages = activeCategory === 'all' || activeCategory === 'villages';
-  const showTourism = activeCategory === 'all' || activeCategory === 'tourism';
+  // Desa wisata tetap diambil oleh aplikasi agar fiturnya tidak terhapus,
+  // tetapi seluruh entry point dan daftar publiknya disembunyikan sementara.
+  const showVillages = false;
+  const showTourism = false;
   const showProducts = activeCategory === 'all' || activeCategory === 'products';
 
   const hasResults = 
@@ -195,7 +197,7 @@ export default function ExplorePage() {
           {/* Search + Filter + Sort in one row */}
           <div className="px-5 pt-5 pb-3 flex items-center gap-2">
             <SearchBarAdvanced 
-              placeholder="Cari desa, wisata, atau produk..." 
+              placeholder="Cari kuliner, ojek, atau produk..." 
               value={searchQuery}
               onChange={setSearchQuery}
               onSubmit={handleSearchSubmit}
@@ -227,7 +229,7 @@ export default function ExplorePage() {
             title={searchQuery ? "Tidak ditemukan" : "Belum ada data"}
             description={searchQuery 
               ? `Tidak ada hasil untuk "${searchQuery}". Coba kata kunci lain atau periksa ejaan.`
-              : "Belum ada produk, toko, atau wisata tersedia. Coba lagi nanti atau jelajahi kategori lain."
+              : "Belum ada produk atau layanan tersedia. Coba lagi nanti atau jelajahi kategori lain."
             }
           />
         ) : (
