@@ -55,6 +55,8 @@ interface OrderDetails {
   delivery_type: string;
   expedition_name: string | null;
   tracking_number: string | null;
+  expedition_logo_url_snapshot: string | null;
+  expedition_tracking_url_snapshot: string | null;
 }
 
 interface CourierInfo {
@@ -379,12 +381,20 @@ export default function OrderTrackingPage() {
         {order.delivery_type === 'EXPEDITION' && order.expedition_name && order.tracking_number && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.11 }} className="bg-card rounded-2xl p-4 border border-border">
             <h3 className="font-medium text-sm text-muted-foreground mb-3">Pengiriman Ekspedisi</h3>
-            <p className="font-medium">{getExpeditionLabel(order.expedition_name)}</p>
+            <div className="flex items-center gap-3">
+              {order.expedition_logo_url_snapshot && <img src={order.expedition_logo_url_snapshot} alt={`Logo ${getExpeditionLabel(order.expedition_name)}`} className="h-10 w-10 rounded-md border bg-white object-contain p-1" />}
+              <p className="font-medium">{getExpeditionLabel(order.expedition_name)}</p>
+            </div>
             <button type="button" className="mt-1 inline-flex items-center gap-2 font-mono text-sm text-primary underline underline-offset-4" onClick={() => copyTrackingNumber(order.tracking_number)} aria-label="Salin nomor resi">
               <Copy className="h-3.5 w-3.5" />
                 {order.tracking_number}
             </button>
             <p className="mt-2 text-xs text-muted-foreground">Klik nomor resi untuk mengcopy.</p>
+            {order.expedition_tracking_url_snapshot && (
+              <a href={order.expedition_tracking_url_snapshot} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center text-sm font-medium text-primary underline underline-offset-4">
+                Cek resi di website resmi
+              </a>
+            )}
           </motion.div>
         )}
 

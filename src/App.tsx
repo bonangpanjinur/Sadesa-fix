@@ -107,6 +107,7 @@ const AdminIklanPage = lazy(() => import("./pages/admin/AdminIklanPage"));
 const AdminRealtimeDashboardPage = lazy(() => import("./pages/admin/AdminRealtimeDashboardPage"));
 const AdminSupportTicketsPage = lazy(() => import("./pages/admin/AdminSupportTicketsPage"));
 const AdminSEOPage = lazy(() => import("./pages/admin/AdminSEOPage"));
+const AdminExpeditionProvidersPage = lazy(() => import("./pages/admin/AdminExpeditionProvidersPage"));
 const BuyerSupportPage = lazy(() => import("./pages/buyer/BuyerSupportPage"));
 
 // Courier Pages
@@ -645,6 +646,11 @@ const App = () => (
               <Route path="/admin/couriers" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminCouriersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/expeditions" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminExpeditionProvidersPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/promotions" element={

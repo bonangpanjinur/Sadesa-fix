@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatPrice } from '@/lib/utils';
 import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle, Package } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -42,6 +43,14 @@ interface OrderRow {
   is_self_delivery?: boolean;
   expedition_name?: string | null;
   tracking_number?: string | null;
+  expedition_provider_id?: string | null;
+}
+
+interface ExpeditionProvider {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  tracking_website: string;
 }
 
 interface OrderDetailsDialogProps {
@@ -67,14 +76,25 @@ export function OrderDetailsDialog({
 }: OrderDetailsDialogProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [deliveryType, setDeliveryType] = useState<"courier" | "self">("courier");
-  const [expeditionName, setExpeditionName] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [expeditionProviderId, setExpeditionProviderId] = useState('');
+  const [expeditionProviders, setExpeditionProviders] = useState<ExpeditionProvider[]>([]);
+
+  useEffect(() => {
+    if (!open || order?.delivery_type !== 'EXPEDITION') return;
+    supabase.from('expedition_providers').select('id, name, logo_url, tracking_website').eq('is_active', true).order('sort_order').order('name')
+      .then(({ data, error }) => {
+        if (error) toast.error(`Gagal memuat master ekspedisi: ${error.message}`);
+        else setExpeditionProviders((data || []) as unknown as ExpeditionProvider[]);
+      });
+  }, [open, order?.delivery_type]);
 
   if (!order) return null;
 
   const handleExpeditionHandoff = async () => {
-    if (!expeditionName.trim() || !trackingNumber.trim()) {
-      toast.error('Nama ekspedisi dan nomor resi wajib diisi');
+    const provider = expeditionProviders.find((item) => item.id === expeditionProviderId);
+    if (!provider || !trackingNumber.trim()) {
+      toast.error('Pilih ekspedisi dan isi nomor resi');
       return;
     }
     setIsProcessing(true);
@@ -82,9 +102,13 @@ export function OrderDetailsDialog({
       const { error } = await supabase.rpc('merchant_transition_order' as never, {
         p_order_id: order.id,
         p_to_status: 'SENT',
+        p_is_self_delivery: null,
         p_reason: JSON.stringify({
           type: 'EXPEDITION_HANDOFF',
-          expedition_name: expeditionName.trim(),
+          expedition_provider_id: provider.id,
+          expedition_name: provider.name,
+          expedition_logo_url: provider.logo_url,
+          expedition_tracking_url: provider.tracking_website,
           tracking_number: trackingNumber.trim(),
         }),
       } as never);
@@ -472,15 +496,11 @@ export function OrderDetailsDialog({
               <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
                 <p className="text-sm font-semibold">Data Ekspedisi</p>
                 <div className="space-y-1.5">
-                  <Label htmlFor="expedition-name">Nama ekspedisi</Label>
-                  <input
-                    id="expedition-name"
-                    value={expeditionName}
-                    onChange={(event) => setExpeditionName(event.target.value)}
-                    placeholder="Contoh: JNE, J&T, SiCepat"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    maxLength={100}
-                  />
+                  <Label htmlFor="expedition-name">Pilih ekspedisi</Label>
+                  <Select value={expeditionProviderId} onValueChange={setExpeditionProviderId}>
+                    <SelectTrigger id="expedition-name"><SelectValue placeholder="Pilih ekspedisi" /></SelectTrigger>
+                    <SelectContent>{expeditionProviders.map((provider) => <SelectItem key={provider.id} value={provider.id}><span className="flex items-center gap-2">{provider.logo_url && <img src={provider.logo_url} alt="" className="h-5 w-5 object-contain" />} {provider.name}</span></SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="tracking-number">Nomor resi</Label>
