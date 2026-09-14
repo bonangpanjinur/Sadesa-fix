@@ -428,8 +428,11 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
   const otherItemsCount = (orderInfo?.items?.length || 0) - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+    <div className="fixed inset-0 z-[2000] isolate flex items-end justify-center sm:items-center">
+      {/* Leaflet uses pane/control z-index values up to 1000. Keep the chat in
+          its own higher stacking context so map tiles and controls can never
+          paint over the buyer/passenger modal. */}
+      <div className="fixed inset-0 z-0 bg-black/50" onClick={onClose} />
       <div className="mobile-action-safe relative flex h-[min(92dvh,720px)] max-h-[calc(100dvh-0.5rem)] w-full max-w-md min-h-0 flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-xl sm:h-[min(80vh,680px)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3 sm:p-4">
