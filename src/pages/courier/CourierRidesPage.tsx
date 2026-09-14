@@ -243,12 +243,13 @@ export default function CourierRidesPage() {
   });
 
   const updateRideStatusMutation = useMutation({
-    mutationFn: async (newStatus: string) => {
+    mutationFn: async ({ newStatus, verificationNote }: { newStatus: string; verificationNote?: string }) => {
       if (!activeRide || !courierId) return;
       setUpdatingStatus(true);
       const { error: rpcError } = await supabase.rpc('transition_ride_status', {
         p_ride_id: activeRide.id,
         p_to_status: newStatus,
+        p_verification_note: verificationNote || null,
       });
 
       if (!rpcError) return newStatus;
@@ -274,6 +275,21 @@ export default function CourierRidesPage() {
       case 'IN_TRANSIT': return { label: 'Selesai', nextStatus: 'COMPLETED' };
       default: return null;
     }
+  };
+
+  const advanceActiveRide = () => {
+    const action = getNextAction();
+    if (!action) return;
+    if (action.nextStatus === 'PICKED_UP' || action.nextStatus === 'COMPLETED') {
+      const label = action.nextStatus === 'PICKED_UP'
+        ? 'Konfirmasi jemput (contoh: penumpang sudah naik):'
+        : 'Konfirmasi penyelesaian (contoh: penumpang sudah turun):';
+      const note = window.prompt(label, action.nextStatus === 'PICKED_UP' ? 'Penumpang sudah dijemput' : 'Penumpang sudah sampai');
+      if (!note?.trim()) return;
+      updateRideStatusMutation.mutate({ newStatus: action.nextStatus, verificationNote: note.trim() });
+      return;
+    }
+    updateRideStatusMutation.mutate({ newStatus: action.nextStatus });
   };
 
   const openNavigation = (lat: number, lng: number) => {
@@ -364,7 +380,7 @@ export default function CourierRidesPage() {
                   </Button>
                 )}
                 {getNextAction() && (
-                  <Button size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => updateRideStatusMutation.mutate(getNextAction()!.nextStatus)} disabled={updatingStatus}>
+                  <Button size="sm" className="min-h-11 w-full sm:min-h-9" onClick={advanceActiveRide} disabled={updatingStatus}>
                     {updatingStatus ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
                     {getNextAction()!.label}
                   </Button>

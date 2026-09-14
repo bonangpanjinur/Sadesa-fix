@@ -82,11 +82,11 @@ Pada `src/pages/courier/CourierRidesPage.tsx`, preview `Lihat Rute` masih menggu
 
 **Perbaikan:** gunakan `getRoadRoute` yang sama pada preview ride dan render polyline geometry jalan; gunakan fallback yang eksplisit bila routing gagal.
 
-### [Belum dikerjakan] P1 — Tidak ada verifikasi pickup dan penyelesaian ride
+### [Selesai dengan batasan] P1 — Verifikasi pickup dan penyelesaian ride
 
-Delivery sudah meminta Proof of Delivery untuk status `DELIVERED`, tetapi ride hanya memajukan status lewat tombol. Tidak ada PIN/OTP penumpang, konfirmasi jemput, atau bukti penyelesaian. Ini membuat status `PICKED_UP` dan `COMPLETED` bergantung sepenuhnya pada satu tap driver.
+Delivery sudah meminta Proof of Delivery untuk status `DELIVERED`. Ride sekarang meminta catatan konfirmasi driver saat transisi ke `PICKED_UP` dan `COMPLETED`; RPC authoritative menyimpan metode, catatan, dan timestamp verifikasi pada `ride_requests`. PIN/OTP penumpang belum diterapkan karena belum ada sumber PIN atau kebijakan OTP pada alur penumpang.
 
-**Perbaikan:** tambahkan opsi verifikasi ringan sesuai kebijakan: PIN pickup/drop-off, konfirmasi penumpang, atau minimal alasan dan audit metadata untuk penyelesaian.
+**Perbaikan:** verifikasi ringan diterapkan melalui konfirmasi wajib dan audit metadata. Implementasi PIN/OTP dapat ditambahkan kemudian tanpa mengubah guard RPC.
 
 ### [Parsial] P2 — Detail order yang diterima terlalu minim
 
@@ -124,7 +124,7 @@ Pada sisi UX, driver sudah memiliki toggle online/offline, update lokasi GPS, to
 | 4 | ◐ Tambahkan release/cancel workflow dengan alasan dan reassign; reassign otomatis masih tersisa | P1 |
 | 5 | ✅ Tambahkan expiry countdown dan realtime assignment recovery | P1 |
 | 6 | ✅ Ganti preview ride garis lurus dengan OSRM road route | P1 |
-| 7 | ☐ Tambahkan verifikasi pickup/drop-off untuk ride | P1 |
+| 7 | ✅ Tambahkan verifikasi pickup/drop-off untuk ride | P1 |
 | 8 | ✅ Sentralisasi status dictionary dan mutation handling | P2 |
 | 9 | ◐ Tambahkan detail order, item, catatan, ETA, dan observability | P2 |
 
@@ -137,13 +137,13 @@ Pada sisi UX, driver sudah memiliki toggle online/offline, update lokasi GPS, to
 5. ✅ Hanya ada satu inbox delivery canonical dan tidak ada offer ganda antar halaman.
 6. ✅ Preview ride memakai rute jalan, bukan garis lurus. Tracking aktif tetap mengikuti mekanisme yang sudah ada.
 7. ✅ Status aktif pulih otomatis setelah realtime disconnect tanpa reload manual.
-8. ✅ Setiap transisi status menampilkan error domain yang dapat ditindaklanjuti; history delivery tercatat oleh RPC. Verifikasi ride belum tersedia.
+8. ✅ Setiap transisi status menampilkan error domain yang dapat ditindaklanjuti; history delivery tercatat oleh RPC. Pickup dan penyelesaian ride memerlukan catatan konfirmasi yang diaudit.
 
 ## Kesimpulan
 
-Kekurangan terbesar pada sisi driver bukan pada kemampuan menerima order, melainkan pada **kelengkapan informasi dan kemampuan menyelesaikan atau memulihkan tugas**. Pickup merchant, inbox canonical, expiry, realtime recovery, dan release/cancel dasar sudah ditangani. Risiko yang masih tersisa adalah verifikasi ride, reassign otomatis, serta kelengkapan jarak/ETA/komisi dan detail item.
+Kekurangan terbesar pada sisi driver bukan pada kemampuan menerima order, melainkan pada **kelengkapan informasi dan kemampuan menyelesaikan atau memulihkan tugas**. Pickup merchant, inbox canonical, expiry, realtime recovery, release/cancel dasar, serta verifikasi ringan ride sudah ditangani. Risiko yang masih tersisa adalah reassign otomatis, PIN/OTP opsional, serta kelengkapan jarak/ETA/komisi dan detail item.
 
-**Status audit:** diperbarui setelah implementasi; sebagian besar perbaikan prioritas driver sudah selesai. Pekerjaan tersisa adalah verifikasi pickup/drop-off ride, reassign otomatis sesuai kebijakan, serta pelengkapan jarak/ETA/komisi dan detail item.
+**Status audit:** diperbarui setelah implementasi; seluruh perbaikan prioritas yang memiliki kontrak kebijakan saat ini sudah diterapkan. Pekerjaan lanjutan adalah reassign otomatis sesuai kebijakan, PIN/OTP opsional, serta pelengkapan jarak/ETA/komisi dan detail item.
 
 ## Referensi source
 
