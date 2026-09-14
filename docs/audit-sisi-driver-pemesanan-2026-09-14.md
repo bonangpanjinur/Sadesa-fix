@@ -7,24 +7,26 @@
 
 Fondasi backend sudah memiliki RPC authoritative untuk menerima ride (`accept_ride`), menerima atau menolak tawaran delivery (`respond_delivery_offer`), mengubah status delivery (`courier_transition_order`), dan mengubah status ride (`transition_ride_status`). Namun, pengalaman operasional driver belum menjadi satu alur yang utuh. Informasi yang diperlukan untuk memutuskan sebuah tawaran masih kurang, order pickup dan delivery tersebar di dua permukaan berbeda, dan beberapa tindakan penting—terutama pembatalan/release tugas, navigasi ke titik pickup, expiry yang terlihat, dan pemulihan realtime—belum tersedia atau belum konsisten.
 
-**Kesimpulan audit:** alur saat ini cukup untuk demo dan happy path, tetapi belum cukup kuat untuk operasi driver harian tanpa intervensi admin/merchant.
+**Kesimpulan audit awal:** alur saat itu cukup untuk demo dan happy path, tetapi belum cukup kuat untuk operasi driver harian tanpa intervensi admin/merchant. Perbaikan prioritas sudah diterapkan pada commit `968feaa` dan perbaikan overlay buyer pada commit `8aadb46`.
+
+**Status implementasi:** audit ini sudah ditindaklanjuti sebagian besar pada sisi driver. Item yang belum selesai atau masih parsial ditandai secara eksplisit di bawah.
 
 ## Peta alur yang saat ini tersedia
 
 | Tahap | Ride/ojek | Delivery/kurir | Hasil audit |
 |---|---|---|---|
-| Order masuk | Daftar ride `SEARCHING`, bunyi notifikasi, tombol Terima | Tawaran `delivery_assignments` berstatus `OFFERED`, polling 15 detik, tombol Ambil/Tolak | Ada, tetapi informasinya belum lengkap |
+| Order masuk | Daftar ride `SEARCHING`, bunyi notifikasi, tombol Terima | Tawaran `delivery_assignments` berstatus `OFFERED`, polling 15 detik, countdown, tombol Ambil/Tolak | **Selesai untuk informasi utama dan expiry** |
 | Driver menerima | RPC `accept_ride` dengan validasi driver aktif | RPC `respond_delivery_offer` | Backend cukup baik |
-| Menuju pickup | Status `ACCEPTED`, tombol navigasi pickup | Status `COURIER_ACCEPTED`, tetapi tidak ada navigasi pickup merchant yang jelas | Gap operasional penting |
+| Menuju pickup | Status `ACCEPTED`, tombol navigasi pickup | Status `COURIER_ACCEPTED`, navigasi ke toko dengan koordinat pickup bila tersedia | **Selesai** |
 | Pickup | Tombol `Sudah Dijemput` mengubah ke `PICKED_UP` | Tombol `Ambil Pesanan` mengubah ke `PICKED_UP` | Ada, belum ada verifikasi pickup/OTP |
 | Perjalanan | Tombol `Mulai Perjalanan` mengubah ke `IN_TRANSIT` | Tombol `Mulai Antar` mengubah ke `SENT` | Ada, istilah status tidak seragam |
 | Tujuan | Tombol `Selesai` mengubah ke `COMPLETED` | POD/foto lalu `DELIVERED` | Ada, tetapi ride belum memiliki bukti penyelesaian |
-| Pembatalan/release | Tidak ada aksi batal dari driver pada UI yang diaudit | Tidak ada aksi batal/release dari driver | Gap P1/P0 tergantung kebijakan operasional |
+| Pembatalan/release | Tombol batal dengan alasan wajib dan RPC authoritative | Tombol lepas tugas dengan alasan wajib, notifikasi, dan pengembalian ke `ASSIGNED` | **Selesai; reassign otomatis belum diterapkan** |
 | Histori/pendapatan | Ada halaman histori dan earnings | Ada histori order | Ada, tetapi tidak menjadi bagian dari alur aktif |
 
 ## Temuan prioritas
 
-### P0 — Driver tidak melihat informasi pickup yang diperlukan untuk delivery
+### [Selesai] P0 — Driver tidak melihat informasi pickup yang diperlukan untuk delivery
 
 Pada `src/pages/CourierDashboardPage.tsx`, query assigned order hanya mengambil data tujuan dari `orders`: `delivery_name`, `delivery_phone`, `delivery_address`, `delivery_lat`, dan `delivery_lng`. Kartu aktif hanya menyediakan tombol navigasi ke tujuan delivery. Tidak ada merchant/pickup address, pickup latitude/longitude, nama toko, atau navigasi ke toko.
 
@@ -34,15 +36,15 @@ Pada `respond_delivery_offer`, driver hanya melihat `delivery_address` dan total
 
 **Perbaikan wajib:** sertakan data merchant/pickup pada offer dan assigned order, tampilkan dua CTA terpisah (`Navigasi ke toko` dan `Navigasi ke pelanggan`), serta gunakan koordinat pickup sebagai sumber navigasi utama sebelum status `PICKED_UP`.
 
-### P1 — Nilai yang ditampilkan kepada driver adalah total belanja, bukan estimasi pendapatan driver
+### [Parsial] P1 — Nilai yang ditampilkan kepada driver adalah total belanja, bukan estimasi pendapatan driver
 
 Kartu tawaran dan kartu order menampilkan `orders.total`. Total tersebut adalah nilai pesanan pembeli, bukan kompensasi kurir. Pada delivery offer, driver tidak melihat shipping fee, komisi, pendapatan bersih, atau estimasi jarak/waktu.
 
 **Dampak:** driver tidak memiliki informasi ekonomi untuk menerima/menolak tugas; angka yang ditampilkan dapat disalahartikan sebagai penghasilan.
 
-**Perbaikan:** tampilkan `Estimasi pendapatan kurir`, jarak, ETA, biaya platform/komisi bila relevan, dan bedakan jelas dari `Total pesanan`.
+**Status implementasi:** `Estimasi pendapatan kurir` dan `Total pesanan` sekarang dibedakan pada offer dan order aktif. Nilai earning disimpan pada `courier_earning_estimate` dengan dasar `shipping_cost`. Jarak/ETA dan rincian komisi belum sepenuhnya ditambahkan.
 
-### P1 — Tidak ada aksi pembatalan atau pelepasan tugas oleh driver
+### [Selesai dengan batasan] P1 — Tidak ada aksi pembatalan atau pelepasan tugas oleh driver
 
 UI driver hanya menyediakan terima/tolak untuk offer dan maju ke status berikutnya setelah order diterima. `courier_transition_order` hanya mengizinkan transisi maju: `COURIER_ACCEPTED → PICKED_UP → SENT/DELIVERING → DELIVERED`. Pada ride, UI juga hanya maju dari `ACCEPTED → PICKED_UP → IN_TRANSIT → COMPLETED`.
 
@@ -50,9 +52,9 @@ Tidak terlihat workflow untuk driver yang mengalami kendaraan rusak, kecelakaan,
 
 **Dampak:** tugas macet pada driver yang tidak mampu menyelesaikan; admin/merchant harus melakukan pemulihan manual.
 
-**Perbaikan:** buat RPC `courier_release_order`/`driver_cancel_ride` dengan alasan wajib, batasan status yang aman, notifikasi ke merchant/buyer, audit history, dan reassign otomatis bila kebijakan mengizinkan.
+**Status implementasi:** RPC `courier_release_order` dan `driver_cancel_ride` sudah dibuat dengan alasan wajib dan batasan status aman. Release delivery mengirim notifikasi buyer/merchant dan menulis `order_status_history`. Reassign otomatis belum diterapkan karena kebijakan pemilihan kurir belum ditetapkan.
 
-### P1 — Expiry tawaran tidak terlihat jelas
+### [Selesai] P1 — Expiry tawaran tidak terlihat jelas
 
 Query hanya memfilter `expires_at > now()` dan melakukan refetch setiap 15 detik. Kartu tidak menampilkan countdown atau waktu kedaluwarsa individual; teks hanya mengatakan “ambil atau tolak sebelum waktu habis”.
 
@@ -60,13 +62,13 @@ Query hanya memfilter `expires_at > now()` dan melakukan refetch setiap 15 detik
 
 **Perbaikan:** tampilkan countdown per offer, ubah tampilan menjadi `Kedaluwarsa`, disable tombol saat habis, dan refresh/invalidate saat `delivery_assignments` berubah menjadi `EXPIRED` atau `REJECTED`.
 
-### P1 — Realtime delivery belum lengkap
+### [Selesai] P1 — Realtime delivery belum lengkap
 
 Dashboard berlangganan insert `delivery_assignments` dan update `orders`, tetapi belum menangani perubahan assignment menjadi expired/rejected/accepted secara langsung. Perubahan tersebut baru terlihat setelah interval query berikutnya. Pada halaman ojek, realtime melakukan invalidasi ride, tetapi tidak ada mekanisme recovery khusus ketika channel error atau reconnect.
 
 **Perbaikan:** subscribe `INSERT/UPDATE/DELETE` pada assignment yang terkait courier, tampilkan status koneksi, lakukan refetch setelah reconnect, dan gunakan fallback polling dengan interval yang ditampilkan secara jujur.
 
-### P1 — Alur delivery dan ride terpecah di permukaan berbeda
+### [Selesai] P1 — Alur delivery dan ride terpecah di permukaan berbeda
 
 `CourierDashboardPage` menangani delivery order, sedangkan `CourierRidesPage` menangani ride dan juga menampilkan delivery offer kedua. Ini menciptakan dua lokasi tawaran delivery dengan kontrak UI berbeda. Satu halaman menampilkan merchant pada offer, halaman lain tidak; satu halaman melakukan invalidasi assigned orders setelah accept, halaman lain hanya `refetchOffers`.
 
@@ -74,31 +76,31 @@ Dashboard berlangganan insert `delivery_assignments` dan update `orders`, tetapi
 
 **Perbaikan:** pilih satu inbox driver canonical, gunakan komponen `DeliveryOfferCard` dan `AssignedDeliveryCard` bersama, serta satu query/repository untuk status offer dan order aktif.
 
-### P1 — Preview rute ride driver masih garis lurus
+### [Selesai] P1 — Preview rute ride driver masih garis lurus
 
 Pada `src/pages/courier/CourierRidesPage.tsx`, preview `Lihat Rute` masih menggunakan `Polyline` dengan dua titik pickup dan destination. Ini tidak mengikuti jalan nyata, berbeda dengan komponen `CourierMap` yang sudah memakai route OSRM.
 
 **Perbaikan:** gunakan `getRoadRoute` yang sama pada preview ride dan render polyline geometry jalan; gunakan fallback yang eksplisit bila routing gagal.
 
-### P1 — Tidak ada verifikasi pickup dan penyelesaian ride
+### [Belum dikerjakan] P1 — Tidak ada verifikasi pickup dan penyelesaian ride
 
 Delivery sudah meminta Proof of Delivery untuk status `DELIVERED`, tetapi ride hanya memajukan status lewat tombol. Tidak ada PIN/OTP penumpang, konfirmasi jemput, atau bukti penyelesaian. Ini membuat status `PICKED_UP` dan `COMPLETED` bergantung sepenuhnya pada satu tap driver.
 
 **Perbaikan:** tambahkan opsi verifikasi ringan sesuai kebijakan: PIN pickup/drop-off, konfirmasi penumpang, atau minimal alasan dan audit metadata untuk penyelesaian.
 
-### P2 — Detail order yang diterima terlalu minim
+### [Parsial] P2 — Detail order yang diterima terlalu minim
 
 Offer delivery tidak menampilkan daftar item, catatan pembeli, nama merchant, titik pickup, biaya antar, jarak, atau ETA. Ride menampilkan alamat dan tarif, tetapi tidak memiliki detail kontak atau instruksi penumpang sebelum diterima.
 
 **Perbaikan:** sediakan detail bertahap: ringkasan pada card dan drawer/detail screen sebelum accept, dengan masking data pribadi sampai status yang sesuai.
 
-### P2 — Handling aksi belum konsisten
+### [Selesai] P2 — Handling aksi belum konsisten
 
 Pada `CourierDashboardPage`, tombol offer tidak memiliki state loading per assignment. Double click dapat mengirim dua request sebelum query cache diperbarui. Error ditampilkan sebagai pesan generik “Gagal memproses tawaran”. Pada `CourierRidesPage`, state `accepting` sudah lebih baik, tetapi error accept tetap kehilangan detail penyebab.
 
 **Perbaikan:** gunakan mutation keyed per assignment, disable kedua tombol selama request, tampilkan error domain (`offer expired`, `already assigned`, `courier offline`), dan invalidate semua query terkait setelah sukses.
 
-### P2 — Status delivery dan ride memiliki kamus berbeda
+### [Selesai] P2 — Status delivery dan ride memiliki kamus berbeda
 
 Delivery memakai `COURIER_ACCEPTED`, `PICKED_UP`, `SENT`, `DELIVERING`, `DELIVERED`; ride memakai `ACCEPTED`, `PICKED_UP`, `IN_TRANSIT`, `COMPLETED`. UI memetakan sebagian status ke label yang mirip, tetapi tidak ada satu dictionary/transition matrix frontend yang dipakai bersama.
 
@@ -116,32 +118,32 @@ Pada sisi UX, driver sudah memiliki toggle online/offline, update lokasi GPS, to
 
 | Urutan | Pekerjaan | Prioritas |
 |---|---|---|
-| 1 | Satukan inbox delivery driver dan hilangkan duplikasi offer pada dua halaman | P0 |
-| 2 | Tambahkan pickup merchant lengkap dan dua navigasi: toko lalu pelanggan | P0 |
-| 3 | Pisahkan pendapatan driver dari total belanja pembeli | P1 |
-| 4 | Tambahkan release/cancel workflow dengan alasan dan reassign | P1 |
-| 5 | Tambahkan expiry countdown dan realtime assignment recovery | P1 |
-| 6 | Ganti preview ride garis lurus dengan OSRM road route | P1 |
-| 7 | Tambahkan verifikasi pickup/drop-off untuk ride | P1 |
-| 8 | Sentralisasi status dictionary dan mutation handling | P2 |
-| 9 | Tambahkan detail order, item, catatan, ETA, dan observability | P2 |
+| 1 | ✅ Satukan inbox delivery driver dan hilangkan duplikasi offer pada dua halaman | P0 |
+| 2 | ✅ Tambahkan pickup merchant lengkap dan dua navigasi: toko lalu pelanggan | P0 |
+| 3 | ◐ Pisahkan pendapatan driver dari total belanja pembeli; jarak/ETA/komisi masih tersisa | P1 |
+| 4 | ◐ Tambahkan release/cancel workflow dengan alasan dan reassign; reassign otomatis masih tersisa | P1 |
+| 5 | ✅ Tambahkan expiry countdown dan realtime assignment recovery | P1 |
+| 6 | ✅ Ganti preview ride garis lurus dengan OSRM road route | P1 |
+| 7 | ☐ Tambahkan verifikasi pickup/drop-off untuk ride | P1 |
+| 8 | ✅ Sentralisasi status dictionary dan mutation handling | P2 |
+| 9 | ◐ Tambahkan detail order, item, catatan, ETA, dan observability | P2 |
 
 ## Acceptance criteria minimum
 
-1. Driver dapat melihat merchant/pickup address dan koordinat sebelum/tepat setelah menerima delivery.
-2. Driver melihat estimasi pendapatan sendiri, bukan hanya total order buyer.
-3. Setiap offer memiliki countdown dan tombol otomatis disabled setelah expiry.
-4. Driver dapat melepaskan tugas secara aman dengan alasan; buyer, merchant, dan sistem menerima notifikasi.
-5. Hanya ada satu inbox delivery canonical dan tidak ada offer ganda antar halaman.
-6. Preview ride dan tracking memakai rute jalan, bukan garis lurus.
-7. Status aktif pulih otomatis setelah realtime disconnect tanpa reload manual.
-8. Setiap transisi status menampilkan error domain yang dapat ditindaklanjuti dan tercatat di history.
+1. ✅ Driver dapat melihat merchant/pickup address dan koordinat sebelum/tepat setelah menerima delivery.
+2. ◐ Driver melihat estimasi pendapatan sendiri, bukan hanya total order buyer; rincian jarak/ETA/komisi belum lengkap.
+3. ✅ Setiap offer memiliki countdown dan tombol otomatis disabled setelah expiry.
+4. ◐ Driver dapat melepaskan tugas secara aman dengan alasan; buyer, merchant, dan sistem menerima notifikasi. Reassign otomatis belum tersedia.
+5. ✅ Hanya ada satu inbox delivery canonical dan tidak ada offer ganda antar halaman.
+6. ✅ Preview ride memakai rute jalan, bukan garis lurus. Tracking aktif tetap mengikuti mekanisme yang sudah ada.
+7. ✅ Status aktif pulih otomatis setelah realtime disconnect tanpa reload manual.
+8. ✅ Setiap transisi status menampilkan error domain yang dapat ditindaklanjuti; history delivery tercatat oleh RPC. Verifikasi ride belum tersedia.
 
 ## Kesimpulan
 
-Kekurangan terbesar pada sisi driver bukan pada kemampuan menerima order, melainkan pada **kelengkapan informasi dan kemampuan menyelesaikan atau memulihkan tugas**. Prioritas tertinggi adalah pickup merchant, pendapatan driver, release/reassign, expiry yang terlihat, dan penyatuan inbox. Tanpa lima hal tersebut, driver masih dapat menerima order pada happy path, tetapi workflow akan rapuh ketika terjadi keterlambatan, penolakan, perubahan alamat, merchant tidak siap, jaringan putus, atau driver perlu menyerahkan tugas.
+Kekurangan terbesar pada sisi driver bukan pada kemampuan menerima order, melainkan pada **kelengkapan informasi dan kemampuan menyelesaikan atau memulihkan tugas**. Pickup merchant, inbox canonical, expiry, realtime recovery, dan release/cancel dasar sudah ditangani. Risiko yang masih tersisa adalah verifikasi ride, reassign otomatis, serta kelengkapan jarak/ETA/komisi dan detail item.
 
-**Status audit:** selesai; belum melakukan perubahan source pada audit ini.
+**Status audit:** diperbarui setelah implementasi; sebagian besar perbaikan prioritas driver sudah selesai. Pekerjaan tersisa adalah verifikasi pickup/drop-off ride, reassign otomatis sesuai kebijakan, serta pelengkapan jarak/ETA/komisi dan detail item.
 
 ## Referensi source
 
@@ -154,4 +156,3 @@ Kekurangan terbesar pada sisi driver bukan pada kemampuan menerima order, melain
 - `supabase/bootstrap/45_20260909201500_fix_delivery_offer_rpc.sql`
 - `supabase/bootstrap/33_20260908190000_ride_history_earnings_contract.sql`
 - `src/lib/routeCalculation.ts`
-
