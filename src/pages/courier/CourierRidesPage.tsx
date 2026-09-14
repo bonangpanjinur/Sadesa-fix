@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, Volume2, MessageCircle, X, Package } from 'lucide-react';
@@ -16,6 +16,8 @@ import 'leaflet/dist/leaflet.css';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OrderChat } from '@/components/chat/OrderChat';
+import { getRoadRoute } from '@/lib/routeCalculation';
+import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
 
 const pickupIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -84,6 +86,8 @@ export default function CourierRidesPage() {
   const [courierLng, setCourierLng] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [expandedMap, setExpandedMap] = useState<string | null>(null);
+  const [roadRoute, setRoadRoute] = useState<[number, number][]>([]);
+  const [routeFallback, setRouteFallback] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
   const prevRideCount = useRef(0);
@@ -113,40 +117,6 @@ export default function CourierRidesPage() {
   });
 
   const courierId = courierInfo?.id ?? null;
-
-  const { data: deliveryOffers = [], refetch: refetchOffers } = useQuery<DeliveryOffer[]>({
-    queryKey: ['courier-order-offers', courierId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('delivery_assignments')
-        .select('id, order_id, expires_at, orders(id, total, delivery_name, delivery_address, merchants(name))')
-        .eq('courier_id', courierId!)
-        .eq('status', 'OFFERED')
-        .gt('expires_at', new Date().toISOString())
-        .order('offered_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as unknown as DeliveryOffer[];
-    },
-    enabled: !!courierId,
-    staleTime: 10_000,
-    refetchInterval: 15_000,
-  });
-
-  const respondToOffer = async (offerId: string, accept: boolean) => {
-    setAccepting(offerId);
-    const { error } = await supabase.rpc('respond_delivery_offer' as never, {
-      p_assignment_id: offerId,
-      p_accept: accept,
-      p_reason: accept ? null : 'Kurir menolak tawaran',
-    } as never);
-    setAccepting(null);
-    if (error) {
-      toast({ title: 'Tawaran tidak dapat diproses', description: error.message, variant: 'destructive' });
-      return;
-    }
-    toast({ title: accept ? 'Pesanan diambil' : 'Pesanan ditolak' });
-    await refetchOffers();
-  };
 
   // Fetch rides data
   const { data: ridesData, isLoading: ridesLoading, refetch: refetchRides } = useQuery<RidesData>({
@@ -185,7 +155,7 @@ export default function CourierRidesPage() {
     staleTime: 30_000,
   });
 
-  const availableRides = ridesData?.availableRides ?? [];
+  const availableRides = useMemo(() => ridesData?.availableRides ?? [], [ridesData?.availableRides]);
   const activeRide = ridesData?.activeRide ?? null;
   const passengerNames = ridesData?.passengerNames ?? {};
   const loading = courierLoading || ridesLoading;
@@ -213,7 +183,9 @@ export default function CourierRidesPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests', filter: `driver_id=eq.${courierId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
+      });
     return () => { supabase.removeChannel(channel); };
   }, [courierId, queryClient]);
 
@@ -308,6 +280,35 @@ export default function CourierRidesPage() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
 
+  const cancelActiveRide = async () => {
+    if (!activeRide) return;
+    const reason = window.prompt('Alasan membatalkan perjalanan (wajib):', 'Kendaraan bermasalah');
+    if (!reason?.trim()) return;
+    try {
+      const { error } = await supabase.rpc('driver_cancel_ride' as never, { p_ride_id: activeRide.id, p_reason: reason.trim() } as never);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
+      toast({ title: 'Perjalanan dibatalkan', description: 'Penumpang telah diberi tahu.' });
+    } catch (error) {
+      toast({ title: 'Gagal membatalkan perjalanan', description: getRpcErrorMessage(error), variant: 'destructive' });
+    }
+  };
+
+  useEffect(() => {
+    const ride = availableRides.find((item) => item.id === expandedMap);
+    if (!ride) { setRoadRoute([]); setRouteFallback(false); return; }
+    const controller = new AbortController();
+    void getRoadRoute(
+      { lat: ride.pickup_lat, lng: ride.pickup_lng },
+      { lat: ride.destination_lat, lng: ride.destination_lng },
+      controller.signal,
+    ).then((route) => {
+      if (route?.geometry?.length) { setRoadRoute(route.geometry); setRouteFallback(false); }
+      else { setRoadRoute([[ride.pickup_lat, ride.pickup_lng], [ride.destination_lat, ride.destination_lng]]); setRouteFallback(true); }
+    }).catch(() => { setRoadRoute([[ride.pickup_lat, ride.pickup_lng], [ride.destination_lat, ride.destination_lng]]); setRouteFallback(true); });
+    return () => controller.abort();
+  }, [expandedMap, availableRides]);
+
   return (
     <CourierLayout title="Ojek Desa" subtitle="Terima dan kelola perjalanan ojek">
       <div className="space-y-4 sm:space-y-6">
@@ -317,37 +318,6 @@ export default function CourierRidesPage() {
             {soundEnabled ? 'Notifikasi On' : 'Notifikasi Off'}
           </Button>
         </div>
-
-        {deliveryOffers.length > 0 && (
-          <Card className="p-5 border-amber-300 border-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold flex items-center gap-2"><Package className="h-5 w-5 text-amber-600" /> Tawaran Pesanan</h3>
-              <Badge variant="outline">{deliveryOffers.length} baru</Badge>
-            </div>
-            <div className="space-y-3">
-              {deliveryOffers.map((offer) => (
-                <div key={offer.id} className="rounded-lg border p-3 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
-                      <p className="text-xs text-muted-foreground">{offer.orders?.merchants?.name || 'Merchant'} · {offer.orders?.delivery_name || 'Pembeli'}</p>
-                      <p className="text-xs text-muted-foreground">{offer.orders?.delivery_address || 'Alamat tujuan tersedia setelah diambil'}</p>
-                    </div>
-                    <p className="font-bold">{formatPrice(offer.orders?.total || 0)}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button className="flex-1" size="sm" onClick={() => void respondToOffer(offer.id, true)} disabled={accepting === offer.id}>
-                      {accepting === offer.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />} Ambil Pesanan
-                    </Button>
-                    <Button className="flex-1" size="sm" variant="outline" onClick={() => void respondToOffer(offer.id, false)} disabled={accepting === offer.id}>
-                      <X className="h-4 w-4 mr-1" /> Tolak
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
 
         {activeRide && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -397,6 +367,11 @@ export default function CourierRidesPage() {
                   <Button size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => updateRideStatusMutation.mutate(getNextAction()!.nextStatus)} disabled={updatingStatus}>
                     {updatingStatus ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
                     {getNextAction()!.label}
+                  </Button>
+                )}
+                {['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'].includes(activeRide.status) && (
+                  <Button variant="destructive" size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => void cancelActiveRide()}>
+                    <X className="h-4 w-4 mr-1" /> Batalkan perjalanan
                   </Button>
                 )}
               </div>
@@ -490,10 +465,7 @@ export default function CourierRidesPage() {
                           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                           <Marker position={[ride.pickup_lat, ride.pickup_lng]} icon={pickupIcon} />
                           <Marker position={[ride.destination_lat, ride.destination_lng]} icon={destIcon} />
-                          <Polyline
-                            positions={[[ride.pickup_lat, ride.pickup_lng], [ride.destination_lat, ride.destination_lng]]}
-                            pathOptions={{ color: 'hsl(160,84%,39%)', weight: 2, dashArray: '8, 6', opacity: 0.7 }}
-                          />
+                          <Polyline positions={roadRoute} pathOptions={{ color: routeFallback ? 'hsl(45,90%,45%)' : 'hsl(160,84%,39%)', weight: 3, dashArray: routeFallback ? '8, 6' : undefined, opacity: 0.8 }} />
                         </MapContainer>
                       </div>
                     )}

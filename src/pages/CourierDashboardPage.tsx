@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
 import { NavigationButton } from '@/components/courier/NavigationButton';
+import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
 import { ProofOfDelivery } from '@/components/courier/ProofOfDelivery';
 import { OrderBatchingPanel } from '@/components/courier/OrderBatchingPanel';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +38,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { formatDistance, calculateDistance } from '@/lib/etaCalculation';
 import { formatPrice } from '@/lib/utils';
+import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
 
 interface CourierData {
   id: string;
@@ -62,13 +64,20 @@ interface AssignedOrder {
   total: number;
   created_at: string;
   notes: string | null;
+  pickup_address: string | null;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
+  shipping_cost: number;
+  courier_earning_estimate: number;
+  courier_platform_fee: number;
+  merchants: { name: string; address: string | null } | null;
 }
 
 interface DeliveryOffer {
   id: string;
   order_id: string;
   expires_at: string;
-  orders?: { delivery_address: string | null; total: number; delivery_name: string | null } | null;
+  orders?: DeliveryOfferCardData['order'];
 }
 
 export default function CourierDashboardPage() {
@@ -77,6 +86,9 @@ export default function CourierDashboardPage() {
   const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [podOrderId, setPodOrderId] = useState<string | null>(null);
+  const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
+  const [releasingOrder, setReleasingOrder] = useState<string | null>(null);
+  const [realtimeOnline, setRealtimeOnline] = useState(false);
 
   // Query: profil kurir + status registrasi
   const { data: courierQueryData, isLoading: courierLoading, isError: fetchError } = useQuery<CourierData | null>({
@@ -124,7 +136,7 @@ export default function CourierDashboardPage() {
       if (!courier) return [];
       const { data } = await supabase
         .from('orders')
-        .select('*')
+        .select('*, pickup_address, pickup_lat, pickup_lng, shipping_cost, courier_earning_estimate, courier_platform_fee, merchants(name, address)')
         .eq('courier_id', courier.id)
         .in('status', ['COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'DELIVERING'])
         .order('created_at', { ascending: false });
@@ -139,7 +151,7 @@ export default function CourierDashboardPage() {
     queryFn: async () => {
       if (!courier) return [];
       const { data, error } = await supabase.from('delivery_assignments')
-        .select('id, order_id, expires_at, orders(delivery_address, total, delivery_name)')
+        .select('id, order_id, expires_at, orders(total, shipping_cost, courier_earning_estimate, pickup_address, pickup_lat, pickup_lng, delivery_name, delivery_address, delivery_lat, delivery_lng, notes, merchants(name, address))')
         .eq('courier_id', courier.id).eq('status', 'OFFERED')
         .gt('expires_at', new Date().toISOString()).order('offered_at', { ascending: false });
       if (error) throw error;
@@ -162,6 +174,15 @@ export default function CourierDashboardPage() {
       }, () => {
         queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier.id] });
       })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courier.id}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier.id] });
+        queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier.id] });
+      })
+      .on('postgres_changes', {
+        event: 'DELETE', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courier.id}`,
+      }, () => queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier.id] }))
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -186,7 +207,14 @@ export default function CourierDashboardPage() {
           queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier.id] });
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        const connected = status === 'SUBSCRIBED';
+        setRealtimeOnline(connected);
+        if (connected) {
+          queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier.id] });
+          queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier.id] });
+        }
+      });
     return () => { supabase.removeChannel(channel); };
   }, [courier?.id, queryClient]);
 
@@ -218,6 +246,7 @@ export default function CourierDashboardPage() {
   };
 
   const respondToDeliveryOffer = async (assignmentId: string, accept: boolean) => {
+    setRespondingOffer(assignmentId);
     try {
       const { error } = await supabase.rpc('respond_delivery_offer' as never, {
         p_assignment_id: assignmentId,
@@ -228,9 +257,25 @@ export default function CourierDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier?.id] });
       queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier?.id] });
       toast({ title: accept ? 'Pesanan diambil' : 'Tawaran ditolak', description: accept ? 'Arahkan ke toko untuk mengambil pesanan.' : undefined });
-    } catch {
-      toast({ title: 'Gagal memproses tawaran', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Tawaran tidak dapat diproses', description: getRpcErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setRespondingOffer(null);
     }
+  };
+
+  const releaseOrder = async (orderId: string) => {
+    const reason = window.prompt('Alasan melepas tugas (wajib):', 'Merchant tidak siap');
+    if (!reason?.trim()) return;
+    setReleasingOrder(orderId);
+    try {
+      const { error } = await supabase.rpc('courier_release_order' as never, { p_order_id: orderId, p_reason: reason.trim() } as never);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier?.id] });
+      toast({ title: 'Tugas dilepas', description: 'Pesanan dikembalikan untuk penugasan ulang.' });
+    } catch (error) {
+      toast({ title: 'Gagal melepas tugas', description: getRpcErrorMessage(error), variant: 'destructive' });
+    } finally { setReleasingOrder(null); }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -250,6 +295,7 @@ export default function CourierDashboardPage() {
       console.error('Error updating order:', error);
       toast({
         title: 'Gagal memperbarui status',
+        description: getRpcErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -486,25 +532,21 @@ export default function CourierDashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">Tawaran pesanan baru</p>
-                  <p className="text-xs text-muted-foreground">Ambil atau tolak sebelum waktu habis</p>
+                  <p className="text-xs text-muted-foreground">Countdown aktif · fallback refresh 15 detik</p>
                 </div>
                 <Badge>{deliveryOffers.length}</Badge>
               </div>
               {deliveryOffers.map((offer) => (
-                <div key={offer.id} className="rounded-xl border p-3 space-y-2">
-                  <div className="flex justify-between gap-3">
-                    <div>
-                      <p className="font-mono text-sm">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
-                      <p className="text-xs text-muted-foreground">{offer.orders?.delivery_name || 'Pembeli'} · {offer.orders?.delivery_address || 'Alamat tersedia di detail'}</p>
-                    </div>
-                    <p className="font-semibold text-sm">{formatPrice(offer.orders?.total || 0)}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button className="flex-1" size="sm" onClick={() => void respondToDeliveryOffer(offer.id, true)}>Ambil Pesanan</Button>
-                    <Button className="flex-1" size="sm" variant="outline" onClick={() => void respondToDeliveryOffer(offer.id, false)}>Tolak</Button>
-                  </div>
-                </div>
+                <DeliveryOfferCard
+                  key={offer.id}
+                  offer={{ id: offer.id, order_id: offer.order_id, expires_at: offer.expires_at, order: offer.orders || null }}
+                  busy={respondingOffer === offer.id}
+                  onRespond={respondToDeliveryOffer}
+                />
               ))}
+              <p className={`text-[11px] ${realtimeOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {realtimeOnline ? 'Realtime tersambung' : 'Realtime terputus · daftar diperbarui otomatis setiap 15 detik'}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -694,6 +736,10 @@ export default function CourierDashboardPage() {
 
                     <div className="space-y-2 mb-4">
                       <div className="flex items-start gap-2 text-sm">
+                        <Package className="h-4 w-4 text-primary mt-0.5" />
+                        <span><b>{order.merchants?.name || 'Toko'}</b><br /><span className="text-muted-foreground">{order.pickup_address || order.merchants?.address || 'Lokasi toko belum tersedia'}</span></span>
+                      </div>
+                      <div className="flex items-start gap-2 text-sm">
                         <User className="h-4 w-4 text-muted-foreground mt-0.5" />
                         <span>{order.delivery_name || 'Pelanggan'}</span>
                       </div>
@@ -730,9 +776,13 @@ export default function CourierDashboardPage() {
                       )}
                     </div>
 
-                    {/* Navigation button */}
-                    {order.delivery_lat && order.delivery_lng && (
-                      <div className="mb-3">
+                    <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {order.pickup_lat != null && order.pickup_lng != null && order.status === 'COURIER_ACCEPTED' && (
+                        <NavigationButton lat={order.pickup_lat} lng={order.pickup_lng} address={order.pickup_address || order.merchants?.address || undefined} variant="outline" size="sm" className="w-full">
+                          Navigasi ke toko
+                        </NavigationButton>
+                      )}
+                      {order.delivery_lat != null && order.delivery_lng != null && (
                         <NavigationButton
                           lat={order.delivery_lat}
                           lng={order.delivery_lng}
@@ -740,15 +790,15 @@ export default function CourierDashboardPage() {
                           variant="outline"
                           size="sm"
                           className="w-full"
-                        />
-                      </div>
-                    )}
+                        >Navigasi ke pelanggan</NavigationButton>
+                      )}
+                    </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-border">
-                      <p className="font-bold text-primary">
-                        Rp {order.total.toLocaleString('id-ID')}
-                      </p>
+                      <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(order.courier_earning_estimate || order.shipping_cost || 0)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order.total)}</p></div>
                       
+                      <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => void releaseOrder(order.id)} disabled={releasingOrder === order.id}>Lepas tugas</Button>
                       {action && (
                         <Button
                           size="sm"
@@ -764,6 +814,7 @@ export default function CourierDashboardPage() {
                           {action.label}
                         </Button>
                       )}
+                      </div>
                     </div>
                   </div>
                 );

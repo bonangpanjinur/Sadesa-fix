@@ -1,0 +1,62 @@
+import { useEffect, useState } from 'react';
+import { CheckCircle, Clock3, MapPin, Navigation, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { NavigationButton } from '@/components/courier/NavigationButton';
+import { formatPrice } from '@/lib/utils';
+import { formatRemainingTime } from '@/lib/courierOrderStatus';
+
+export interface DeliveryOfferCardData {
+  id: string;
+  order_id: string;
+  expires_at: string;
+  order: {
+    total: number;
+    shipping_cost?: number | null;
+    pickup_address?: string | null;
+    pickup_lat?: number | null;
+    pickup_lng?: number | null;
+    delivery_name?: string | null;
+    delivery_address?: string | null;
+    delivery_lat?: number | null;
+    delivery_lng?: number | null;
+    notes?: string | null;
+    merchants?: { name: string; address?: string | null } | null;
+  } | null;
+}
+
+interface Props { offer: DeliveryOfferCardData; busy?: boolean; onRespond: (id: string, accept: boolean) => void; }
+
+export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
+  const remaining = Math.max(0, new Date(offer.expires_at).getTime() - now);
+  const expired = remaining === 0;
+  const order = offer.order;
+  const pickupAddress = order?.pickup_address || order?.merchants?.address;
+  const earning = order?.shipping_cost ?? 0;
+  const distance = pickupAddress && order?.delivery_address ? 'Pickup → delivery' : 'Detail lokasi tersedia';
+  return (
+    <Card className={`p-4 space-y-3 ${expired ? 'opacity-70' : 'border-amber-300 border-2'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
+          <p className="text-xs text-muted-foreground">{order?.merchants?.name || 'Pesanan delivery'} · {order?.delivery_name || 'Pelanggan'}</p>
+        </div>
+        <div className={`flex items-center gap-1 text-sm font-semibold ${expired ? 'text-destructive' : 'text-amber-700'}`}>
+          <Clock3 className="h-4 w-4" /> {expired ? 'Kedaluwarsa' : formatRemainingTime(offer.expires_at, now)}
+        </div>
+      </div>
+      <div className="grid gap-2 text-sm">
+        <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-primary mt-0.5" /><div><b>Toko</b><p className="text-muted-foreground">{pickupAddress || 'Lokasi pickup belum tersedia'}</p></div></div>
+        <div className="flex items-start gap-2"><Navigation className="h-4 w-4 text-destructive mt-0.5" /><div><b>Pelanggan</b><p className="text-muted-foreground">{order?.delivery_address || 'Alamat tujuan belum tersedia'}</p></div></div>
+      </div>
+      {order?.notes && <p className="text-xs bg-secondary rounded p-2">Catatan: {order.notes}</p>}
+      <div className="flex items-center justify-between border-t pt-3">
+        <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(earning)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order?.total || 0)} · {distance}</p></div>
+        {!expired && <div className="flex gap-2"><Button size="sm" onClick={() => onRespond(offer.id, true)} disabled={busy}><CheckCircle className="h-4 w-4 mr-1" /> Ambil</Button><Button size="sm" variant="outline" onClick={() => onRespond(offer.id, false)} disabled={busy}><X className="h-4 w-4 mr-1" /> Tolak</Button></div>}
+      </div>
+      {!expired && order?.pickup_lat != null && order?.pickup_lng != null && <NavigationButton lat={order.pickup_lat} lng={order.pickup_lng} address={pickupAddress || undefined} variant="outline" size="sm" className="w-full"><span>Navigasi ke toko</span></NavigationButton>}
+    </Card>
+  );
+}

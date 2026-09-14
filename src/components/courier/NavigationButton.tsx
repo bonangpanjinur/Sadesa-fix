@@ -1,4 +1,5 @@
 import { Navigation, MapPin, ExternalLink } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ interface NavigationButtonProps {
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   className?: string;
+  children?: ReactNode;
 }
 
 export function NavigationButton({ 
@@ -22,7 +24,8 @@ export function NavigationButton({
   address,
   variant = 'default',
   size = 'default',
-  className 
+  className,
+  children,
 }: NavigationButtonProps) {
   const openGoogleMaps = () => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
@@ -49,7 +52,7 @@ export function NavigationButton({
       <DropdownMenuTrigger asChild>
         <Button variant={variant} size={size} className={className}>
           <Navigation className="h-4 w-4 mr-2" />
-          Navigasi
+          {children || 'Navigasi'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

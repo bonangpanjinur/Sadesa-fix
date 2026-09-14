@@ -1150,7 +1150,7 @@ export default function CheckoutPage() {
             'Pesan'
           )}
         </Button>
-        {!isDeliveryReady && deliveryType !== 'PICKUP' && (
+        {!isDeliveryReady && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
             Pilih alamat pengiriman dan tentukan titik lokasi di peta untuk melanjutkan.
           </p>
