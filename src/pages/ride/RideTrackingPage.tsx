@@ -61,6 +61,8 @@ interface DriverInfo {
   vehicle_type: string;
   vehicle_plate: string | null;
   photo_url: string;
+  rating_avg: number | null;
+  rating_count: number | null;
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -118,7 +120,7 @@ export default function RideTrackingPage() {
   const fetchDriver = useCallback(async (driverId: string) => {
     const { data } = await supabase
       .from('couriers')
-      .select('name, phone, vehicle_type, vehicle_plate, photo_url, user_id')
+      .select('name, phone, vehicle_type, vehicle_plate, photo_url, user_id, rating_avg, rating_count')
       .eq('id', driverId)
       .maybeSingle();
     if (data) {
@@ -354,6 +356,15 @@ export default function RideTrackingPage() {
                 <div className="flex-1">
                   <p className="font-bold">{driver.name}</p>
                   <p className="text-sm text-muted-foreground">{driver.vehicle_type === 'motor' ? 'Motor' : driver.vehicle_type} {driver.vehicle_plate && `• ${driver.vehicle_plate}`}</p>
+                  <div className="mt-1 flex items-center gap-1.5 text-sm" aria-label={`Rating driver ${driver.rating_avg ?? 0} dari 5 dari ${driver.rating_count ?? 0} ulasan`}>
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <span className="font-semibold text-amber-700 dark:text-amber-300">
+                      {driver.rating_count ? (driver.rating_avg ?? 0).toFixed(1) : 'Baru'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {driver.rating_count ? `(${driver.rating_count} ulasan)` : 'Belum ada ulasan'}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   {driverUserId && ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'].includes(ride.status) && (
