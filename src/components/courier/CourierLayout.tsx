@@ -14,7 +14,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-[100dvh] bg-background">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -34,7 +34,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
       </div>
 
       {/* Main content */}
-      <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header (Fixed) */}
         <div className="flex items-center justify-between p-4 lg:px-8 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30">
           <div className="flex items-center gap-3">
@@ -49,8 +49,8 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
         </div>
 
         {/* Content (Scrollable) */}
-        <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:p-8">
-          <div className="max-w-4xl mx-auto">
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-subtle p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:p-8">
+          <div className="mx-auto min-w-0 max-w-4xl">
             {children}
           </div>
         </main>

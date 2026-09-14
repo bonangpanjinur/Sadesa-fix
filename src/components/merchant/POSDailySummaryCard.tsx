@@ -33,7 +33,7 @@ export function POSDailySummaryCard({ tenantId, activeOutletId, activeOutletName
     queryFn: async () => {
       const { start, end } = getTodayRange();
       const { data: sales, error: salesError } = await supabase
-        .from('pos_unified_transaction_history' as never)
+        .from('pos_sales' as never)
         .select('total, outlet_id')
         .eq('tenant_id', tenantId)
         .eq('status', 'completed')
@@ -61,7 +61,7 @@ export function POSDailySummaryCard({ tenantId, activeOutletId, activeOutletName
   if (isError) {
     return (
       <MerchantCardError
-        message={error instanceof Error ? error.message : 'Penjualan POS hari ini gagal dimuat.'}
+        message={error instanceof Error && error.message ? error.message : 'Penjualan POS hari ini gagal dimuat.'}
         onRetry={() => void refetch()}
       />
     );

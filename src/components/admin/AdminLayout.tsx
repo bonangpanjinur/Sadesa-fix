@@ -81,11 +81,11 @@ export function AdminLayout({ children, title, subtitle, rightElement }: AdminLa
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-background">
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />}
 
       <div className={cn(
-        'w-full sm:w-64 lg:w-64 flex-shrink-0 transition-transform duration-200 ease-out',
+        'w-[min(17rem,calc(100vw-2rem))] sm:w-64 lg:w-64 flex-shrink-0 transition-transform duration-200 ease-out',
         'fixed sm:relative inset-y-0 left-0 z-50 lg:z-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0',
       )}>
@@ -101,7 +101,7 @@ export function AdminLayout({ children, title, subtitle, rightElement }: AdminLa
         />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen w-full">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col h-full w-full">
         <header className="flex items-center justify-between p-3 sm:p-4 lg:px-6 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Button variant="ghost" size="icon" className="sm:hidden h-8 w-8" onClick={() => setSidebarOpen((open) => !open)} aria-label="Buka navigasi admin">
@@ -130,8 +130,8 @@ export function AdminLayout({ children, title, subtitle, rightElement }: AdminLa
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 xl:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-subtle p-3 sm:p-4 lg:p-6 xl:p-8">
+          <div className="mx-auto min-w-0 max-w-7xl">{children}</div>
         </main>
       </div>
     </div>

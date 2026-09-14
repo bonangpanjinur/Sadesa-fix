@@ -272,7 +272,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   };
 
   return (
-    <aside className="flex h-dvh w-[min(18rem,calc(100vw-2rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground lg:w-72" aria-label="Navigasi merchant dan POS">
+    <aside className="flex h-dvh w-[min(17rem,calc(100vw-2rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground lg:w-64" aria-label="Navigasi merchant dan POS">
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-5">
         <Link to="/merchant" onClick={onNavigate} className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
@@ -285,7 +285,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         </Button>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto py-4" aria-label="Menu merchant">
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 scrollbar-subtle" aria-label="Menu merchant">
         <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Merchant</p>
         <div className="mb-3 px-4">
           <div className="relative">

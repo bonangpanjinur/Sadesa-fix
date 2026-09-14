@@ -16,7 +16,7 @@ export function DesaLayout({ children, title, subtitle, actions }: DesaLayoutPro
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-background">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -33,7 +33,7 @@ export function DesaLayout({ children, title, subtitle, actions }: DesaLayoutPro
         <DesaSidebar />
       </div>
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col h-full">
         {/* Header (Fixed) */}
         <div className="flex items-center justify-between p-4 lg:px-8 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-30">
           <div className="flex items-center gap-3">
@@ -52,8 +52,8 @@ export function DesaLayout({ children, title, subtitle, actions }: DesaLayoutPro
         </div>
 
         {/* Content (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <div className="max-w-6xl mx-auto">
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-subtle p-4 lg:p-8">
+          <div className="mx-auto min-w-0 max-w-6xl">
             {children}
           </div>
         </div>

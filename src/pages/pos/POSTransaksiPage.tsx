@@ -104,8 +104,8 @@ export default function POSTransaksiPage() {
             ? { start: startOfMonth(now), end: endOfMonth(now) }
             : { start: startOfDay(now), end: endOfDay(now) };
     const { data, error: salesError } = await supabase
-      .from('pos_unified_transaction_history' as never)
-      .select('*')
+      .from('pos_sales' as never)
+      .select('*, pos_sale_items(*)')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .gte('created_at', start.toISOString())
@@ -115,7 +115,12 @@ export default function POSTransaksiPage() {
       setError(salesError.message || 'Gagal memuat transaksi');
       setSales([]);
     } else {
-      setSales((data || []) as unknown as Sale[]);
+      setSales(((data || []) as unknown as Array<Record<string, unknown>>).map((sale) => ({
+        ...sale,
+        source: 'modern' as const,
+        source_id: String(sale.id),
+        items: [],
+      })) as Sale[]);
     }
     setLoading(false);
   }, [tenant, activeOutlet, dateFilter]);
@@ -125,7 +130,7 @@ export default function POSTransaksiPage() {
   }, [tenant, activeOutlet, fetchSales]);
 
   const openDetail = async (sale: Sale) => {
-    setSelected({ ...sale, pos_sale_items: normaliseSaleItems(sale.items) });
+    setSelected({ ...sale, pos_sale_items: normaliseSaleItems(sale.pos_sale_items ?? sale.items) });
     setDetailOpen(true);
   };
 

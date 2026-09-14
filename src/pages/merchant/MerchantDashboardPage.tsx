@@ -529,20 +529,20 @@ export default function MerchantDashboardPage() {
         </section>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-          <TabsList className="sticky top-[73px] z-20 grid w-full grid-cols-2 rounded-xl border border-border bg-background/95 p-1 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-overview">
+          <TabsList className="sticky top-0 z-20 flex h-auto min-h-12 w-full gap-1 overflow-x-auto overflow-y-hidden rounded-xl border border-border bg-background/95 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <TabsTrigger value="overview" className="min-w-[7.25rem] flex-1 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-sm" data-testid="tab-overview">
               <TrendingUp className="h-3.5 w-3.5" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-orders">
+            <TabsTrigger value="orders" className="min-w-[7.25rem] flex-1 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-sm" data-testid="tab-orders">
               <Receipt className="h-3.5 w-3.5" />
               Pesanan
             </TabsTrigger>
-            <TabsTrigger value="stock" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-stock">
+            <TabsTrigger value="stock" className="min-w-[7.25rem] flex-1 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-sm" data-testid="tab-stock">
               <Package className="h-3.5 w-3.5" />
               Stok
             </TabsTrigger>
-            <TabsTrigger value="more" className="flex items-center gap-2 rounded-lg py-2.5 text-xs sm:text-sm" data-testid="tab-more">
+            <TabsTrigger value="more" className="min-w-[7.25rem] flex-1 gap-2 rounded-lg px-3 py-2.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:text-sm" data-testid="tab-more">
               <BarChart3 className="h-3.5 w-3.5" />
               Lainnya
             </TabsTrigger>
@@ -627,25 +627,8 @@ export default function MerchantDashboardPage() {
             )}
 
             <div className="grid gap-4 xl:grid-cols-2">
-              <div className="overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-warning/10 text-warning">
-                    <AlertCircle className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold">Peringatan stok</h4>
-                    <p className="text-xs text-muted-foreground">Produk yang perlu diperhatikan</p>
-                  </div>
-                </div>
-                <div className="pr-1">
-                  <StockAlerts merchantId={merchant.id} />
-                </div>
-              </div>
-              <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                <div>
-                  <CustomerReviews merchantId={merchant.id} />
-                </div>
-              </div>
+              <StockAlerts merchantId={merchant.id} />
+              <CustomerReviews merchantId={merchant.id} />
             </div>
           </TabsContent>
 
@@ -656,9 +639,7 @@ export default function MerchantDashboardPage() {
           </TabsContent>
 
           <TabsContent value="stock" className="mt-0">
-            <div className="min-h-[400px] rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-              <StockAlerts merchantId={merchant.id} />
-            </div>
+            <StockAlerts merchantId={merchant.id} />
           </TabsContent>
 
           <TabsContent value="more" className="mt-0 space-y-5">

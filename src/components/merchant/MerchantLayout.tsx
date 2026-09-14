@@ -19,7 +19,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-dvh bg-background">
+    <div className="fixed inset-0 flex overflow-hidden bg-background">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-foreground/50 z-40 lg:hidden"
@@ -39,7 +39,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
         />
       </div>
 
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header (Fixed) */}
         <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-8">
           <div className="flex items-center gap-3">
@@ -58,8 +58,11 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
         </div>
 
         {/* Content (Scrollable) */}
-        <div className={fullWidth ? 'min-w-0 flex-1 overflow-hidden' : 'flex-1 p-4 lg:p-8'}>
-          <div className={fullWidth ? 'h-full min-w-0' : 'max-w-6xl mx-auto'}>
+        <div className={cn(
+          'min-h-0 min-w-0 flex-1 scrollbar-subtle',
+          fullWidth ? 'overflow-hidden' : 'overflow-x-hidden overflow-y-auto overscroll-contain p-4 lg:p-8',
+        )}>
+          <div className={fullWidth ? 'h-full min-h-0 min-w-0' : 'mx-auto max-w-6xl'}>
             <ErrorBoundary
               fallback={
                 <MerchantCardError

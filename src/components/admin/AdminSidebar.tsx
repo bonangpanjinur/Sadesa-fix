@@ -210,7 +210,7 @@ export function AdminSidebar({
         </Link>
       </div>
 
-      <nav className="flex-1 p-2 sm:p-3 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-border" aria-label="Navigasi admin">
+      <nav className="min-h-0 flex-1 p-2 sm:p-3 space-y-2 overflow-y-auto overscroll-contain scrollbar-subtle" aria-label="Navigasi admin">
         {visibleGroups.map((group) => {
           const groupOpen = normalizedSearch.length > 0 || openGroups[group.label] === true;
           return (

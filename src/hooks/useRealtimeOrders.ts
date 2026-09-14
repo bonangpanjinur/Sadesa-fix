@@ -113,8 +113,11 @@ export function useRealtimeOrders({
   useEffect(() => {
     if (!merchantId) return;
 
+    // A hook can be mounted more than once (for example dashboard + orders route)
+    // and Supabase reuses channels by name. Use a unique instance name so a new
+    // subscription never tries to register callbacks on an already-subscribed channel.
     const channel = supabase
-      .channel(`merchant-orders-${merchantId}`)
+      .channel(`merchant-orders-${merchantId}-${Math.random().toString(36).slice(2)}`)
       .on(
         'postgres_changes',
         {
