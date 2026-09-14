@@ -151,7 +151,7 @@ export default function CourierDashboardPage() {
     queryFn: async () => {
       if (!courier) return [];
       const { data, error } = await supabase.from('delivery_assignments')
-        .select('id, order_id, expires_at, orders(total, shipping_cost, courier_earning_estimate, pickup_address, pickup_lat, pickup_lng, delivery_name, delivery_address, delivery_lat, delivery_lng, notes, merchants(name, address))')
+        .select('id, order_id, expires_at, orders(total, shipping_cost, courier_earning_estimate, courier_platform_fee, pickup_address, pickup_lat, pickup_lng, delivery_name, delivery_address, delivery_lat, delivery_lng, notes, merchants(name, address))')
         .eq('courier_id', courier.id).eq('status', 'OFFERED')
         .gt('expires_at', new Date().toISOString()).order('offered_at', { ascending: false });
       if (error) throw error;
@@ -473,9 +473,9 @@ export default function CourierDashboardPage() {
           </div>
 
           {/* Online/Offline Toggle */}
-          <div className="flex items-center justify-between p-4 bg-secondary rounded-xl">
+          <div className={`flex items-center justify-between rounded-xl border p-4 ${courier.is_available ? 'border-status-online/20 bg-status-online/5' : 'border-border bg-secondary'}`}>
             <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${courier.is_available ? 'bg-primary animate-pulse' : 'bg-muted-foreground'}`} />
+              <div className={`h-3 w-3 rounded-full ${courier.is_available ? 'bg-status-online animate-pulse' : 'bg-muted-foreground'}`} />
               <div>
                 <Label className="font-medium">
                   {courier.is_available ? 'Online' : 'Offline'}
@@ -489,6 +489,7 @@ export default function CourierDashboardPage() {
               checked={courier.is_available}
               onCheckedChange={toggleAvailability}
               disabled={updatingStatus}
+              className="data-[state=checked]:bg-status-online"
             />
           </div>
         </motion.div>
@@ -499,7 +500,7 @@ export default function CourierDashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08 }}
         >
-          <div className="bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-5 text-primary-foreground">
+          <div className="rounded-2xl bg-gradient-to-r from-primary to-brand-dark p-5 text-primary-foreground shadow-brand">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm opacity-80 flex items-center gap-1.5"><Wallet className="h-4 w-4" />Saldo Tersedia</span>
               <Link to="/courier/deposit" className="text-xs underline opacity-80 hover:opacity-100">Setor Saldo</Link>
@@ -509,22 +510,20 @@ export default function CourierDashboardPage() {
         </motion.div>
 
         {/* Location Tracking */}
-        {courier.is_available && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <CourierLocationUpdater
-              courierId={courier.id}
-              onLocationUpdate={(lat, lng) => {
-                queryClient.setQueryData<CourierData | null>(['courier-profile', user?.id], (old) =>
-                  old ? { ...old, current_lat: lat, current_lng: lng } : old
-                );
-              }}
-            />
-          </motion.div>
-        )}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <CourierLocationUpdater
+            courierId={courier.id}
+            onLocationUpdate={(lat, lng) => {
+              queryClient.setQueryData<CourierData | null>(['courier-profile', user?.id], (old) =>
+                old ? { ...old, current_lat: lat, current_lng: lng } : old
+              );
+            }}
+          />
+        </motion.div>
 
         {deliveryOffers.length > 0 && (
           <Card className="border-primary/40 shadow-sm">
@@ -559,11 +558,11 @@ export default function CourierDashboardPage() {
         >
           <Link
             to="/courier/rides"
-            className="flex items-center justify-between p-4 bg-card rounded-xl border-2 border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition"
+            className="flex items-center justify-between rounded-xl border border-border bg-card p-4 transition hover:border-primary/40 hover:bg-secondary"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center">
-                <Bike className="h-5 w-5 text-emerald-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Bike className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <p className="font-medium">Ojek Desa</p>
@@ -574,7 +573,7 @@ export default function CourierDashboardPage() {
             </div>
             <div className="flex items-center gap-2">
               {rideRequestCount > 0 && (
-                <span className="w-5 h-5 bg-emerald-500 rounded-full text-[10px] flex items-center justify-center text-white font-bold">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
                   {rideRequestCount > 9 ? '9+' : rideRequestCount}
                 </span>
               )}

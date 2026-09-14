@@ -13,6 +13,8 @@ export interface DeliveryOfferCardData {
   order: {
     total: number;
     shipping_cost?: number | null;
+    courier_earning_estimate?: number | null;
+    courier_platform_fee?: number | null;
     pickup_address?: string | null;
     pickup_lat?: number | null;
     pickup_lng?: number | null;
@@ -34,16 +36,16 @@ export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
   const expired = remaining === 0;
   const order = offer.order;
   const pickupAddress = order?.pickup_address || order?.merchants?.address;
-  const earning = order?.shipping_cost ?? 0;
+  const earning = order?.courier_earning_estimate ?? order?.shipping_cost ?? 0;
   const distance = pickupAddress && order?.delivery_address ? 'Pickup → delivery' : 'Detail lokasi tersedia';
   return (
-    <Card className={`p-4 space-y-3 ${expired ? 'opacity-70' : 'border-amber-300 border-2'}`}>
+    <Card className={`space-y-3 p-4 ${expired ? 'opacity-70' : 'border-primary/30 border-2'}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-semibold">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
           <p className="text-xs text-muted-foreground">{order?.merchants?.name || 'Pesanan delivery'} · {order?.delivery_name || 'Pelanggan'}</p>
         </div>
-        <div className={`flex items-center gap-1 text-sm font-semibold ${expired ? 'text-destructive' : 'text-amber-700'}`}>
+        <div className={`flex items-center gap-1 text-sm font-semibold ${expired ? 'text-destructive' : 'text-warning-foreground'}`}>
           <Clock3 className="h-4 w-4" /> {expired ? 'Kedaluwarsa' : formatRemainingTime(offer.expires_at, now)}
         </div>
       </div>
@@ -52,9 +54,9 @@ export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
         <div className="flex items-start gap-2"><Navigation className="h-4 w-4 text-destructive mt-0.5" /><div><b>Pelanggan</b><p className="text-muted-foreground">{order?.delivery_address || 'Alamat tujuan belum tersedia'}</p></div></div>
       </div>
       {order?.notes && <p className="text-xs bg-secondary rounded p-2">Catatan: {order.notes}</p>}
-      <div className="flex items-center justify-between border-t pt-3">
+      <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
         <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(earning)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order?.total || 0)} · {distance}</p></div>
-        {!expired && <div className="flex gap-2"><Button size="sm" onClick={() => onRespond(offer.id, true)} disabled={busy}><CheckCircle className="h-4 w-4 mr-1" /> Ambil</Button><Button size="sm" variant="outline" onClick={() => onRespond(offer.id, false)} disabled={busy}><X className="h-4 w-4 mr-1" /> Tolak</Button></div>}
+        {!expired && <div className="grid grid-cols-2 gap-2 sm:flex"><Button size="sm" onClick={() => onRespond(offer.id, true)} disabled={busy}><CheckCircle className="h-4 w-4 mr-1" /> Ambil</Button><Button size="sm" variant="outline" onClick={() => onRespond(offer.id, false)} disabled={busy}><X className="h-4 w-4 mr-1" /> Tolak</Button></div>}
       </div>
       {!expired && order?.pickup_lat != null && order?.pickup_lng != null && <NavigationButton lat={order.pickup_lat} lng={order.pickup_lng} address={pickupAddress || undefined} variant="outline" size="sm" className="w-full"><span>Navigasi ke toko</span></NavigationButton>}
     </Card>
