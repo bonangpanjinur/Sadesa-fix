@@ -430,14 +430,14 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="mobile-action-safe relative flex h-[min(92dvh,720px)] w-full max-w-md flex-col rounded-t-2xl border border-border bg-card shadow-xl sm:h-auto sm:max-h-[80vh] sm:rounded-2xl">
+      <div className="mobile-action-safe relative flex h-[min(92dvh,720px)] max-h-[calc(100dvh-0.5rem)] w-full max-w-md min-h-0 flex-col overflow-hidden rounded-t-2xl border border-border bg-card shadow-xl sm:h-[min(80vh,680px)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border p-3 sm:p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <MessageCircle className="h-5 w-5 text-primary" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h3 className="truncate text-sm font-semibold">{otherUserName}</h3>
               <p className="text-[10px] text-muted-foreground">
              {typing.typing
@@ -501,7 +501,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px]">
+        <div className="min-h-0 min-w-0 flex-1 basis-0 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-4">
           {hasOlderMessages && (
             <div className="flex justify-center">
               <Button type="button" variant="outline" size="sm" onClick={() => void loadOlderMessages()} disabled={loadingOlderMessages}>
@@ -519,7 +519,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
           )}
 
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-10">
+            <div className="flex min-h-full flex-col items-center justify-center px-4 py-10 text-center text-muted-foreground">
               <MessageCircle className="h-12 w-12 opacity-20 mb-2" />
               <p className="text-xs">Belum ada pesan. Mulai percakapan sekarang!</p>
             </div>
@@ -583,7 +583,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
             </div>
           )}
           {quickReplies.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar">
+            <div className="flex max-w-full gap-2 overflow-x-auto pb-3 no-scrollbar">
               {quickReplies.map((reply) => (
                 <Button
                   key={reply}
