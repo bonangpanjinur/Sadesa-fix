@@ -21,11 +21,11 @@ export function FloatingCartButton() {
       >
         <Link
           to="/cart"
-          className="flex items-center gap-3 bg-primary text-primary-foreground px-4 py-3 rounded-2xl shadow-lg hover:bg-brand-dark transition-all hover:scale-105"
+          className="flex items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-[0_12px_28px_-10px_hsl(4_78%_47%_/_0.65)] transition-all hover:bg-brand-dark hover:scale-105"
         >
           <div className="relative">
             <ShoppingCart className="h-5 w-5" />
-            <span className="absolute -top-2 -right-2 w-5 h-5 bg-destructive rounded-full text-[10px] flex items-center justify-center text-destructive-foreground font-bold border-2 border-primary">
+            <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-primary bg-accent text-[10px] font-extrabold text-accent-foreground">
               {itemCount > 9 ? '9+' : itemCount}
             </span>
           </div>

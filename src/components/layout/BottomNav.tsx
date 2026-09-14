@@ -117,7 +117,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
   return (
     <>
       <FloatingCartButton />
-      <nav ref={ref} className="safe-area-bottom fixed bottom-0 left-0 right-0 z-30 mx-auto flex max-w-[480px] justify-around rounded-t-[1.1rem] border border-b-0 border-white/80 bg-card/95 px-1 pt-1 shadow-[0_10px_30px_-12px_hsl(var(--foreground)/0.35)] backdrop-blur-xl sm:bottom-3 sm:left-3 sm:right-3 sm:rounded-[1.1rem] sm:border-b sm:pb-1">
+      <nav ref={ref} aria-label="Navigasi utama" className="safe-area-bottom fixed bottom-0 left-0 right-0 z-30 mx-auto flex max-w-[480px] justify-around rounded-t-[1.1rem] border border-b-0 border-orange-100 bg-white/95 px-1 pt-1 shadow-[0_12px_30px_-12px_hsl(4_78%_47%_/_0.3)] backdrop-blur-xl sm:bottom-3 sm:left-3 sm:right-3 sm:rounded-[1.1rem] sm:border-b sm:pb-1">
         {navItems.map(({ path, icon: Icon, label }) => {
         const isActive = location.pathname === path;
         const badgeCount = getBadgeCount(path);
@@ -130,18 +130,18 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
               'group relative flex min-w-12 flex-1 flex-col items-center gap-0.5 rounded-[0.8rem] px-1 py-1 transition-all duration-200',
               'text-[10px] font-medium',
               isActive
-                ? 'bg-primary/10 text-primary shadow-sm ring-1 ring-primary/10'
-                : 'text-muted-foreground hover:bg-secondary/70 hover:text-primary'
+                ? 'bg-[hsl(4_78%_47%_/_0.1)] text-primary shadow-sm ring-1 ring-[hsl(4_78%_47%_/_0.12)]'
+                : 'text-muted-foreground hover:bg-[hsl(43_96%_55%_/_0.14)] hover:text-primary'
             )}
             aria-current={isActive ? 'page' : undefined}
           >
             <div className={cn(
-              'pointer-events-none absolute -top-1 left-1/2 h-0.5 -translate-x-1/2 rounded-full bg-primary transition-all duration-300',
+              'pointer-events-none absolute -top-1 left-1/2 h-1 -translate-x-1/2 rounded-full bg-accent transition-all duration-300',
               isActive ? 'w-7 opacity-100' : 'w-0 opacity-0'
             )} />
             <span className={cn(
               'flex h-6 w-10 items-center justify-center rounded-lg transition-all duration-200',
-              isActive ? 'bg-primary/10' : 'group-hover:bg-secondary'
+              isActive ? 'bg-white/80' : 'group-hover:bg-[hsl(43_96%_55%_/_0.12)]'
             )}>
               <Icon className={cn(
                 'h-[1.15rem] w-[1.15rem] stroke-[2.15] transition-transform duration-200',
