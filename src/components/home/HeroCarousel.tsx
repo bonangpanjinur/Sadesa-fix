@@ -90,21 +90,21 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
         visible: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
       }}
     >
-      <motion.div className="mb-2 flex items-center gap-1.5" variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.22 }}>
-          <span className="rounded-full bg-accent px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-accent-foreground shadow-sm">
+      <motion.div className="mb-2.5 flex items-center gap-1.5" variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.22 }}>
+          <span className="rounded-full bg-accent px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-accent-foreground shadow-sm">
             Pilihan minggu ini
           </span>
       </motion.div>
-      <motion.h2 className="max-w-[min(72vw,260px)] font-heading text-[1.3rem] font-bold leading-[1.12] text-primary-foreground sm:text-xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+      <motion.h2 className="max-w-[min(70vw,270px)] font-heading text-[1.28rem] font-extrabold leading-[1.08] tracking-[-0.02em] text-primary-foreground sm:max-w-[310px] sm:text-xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
         {currentSlide.title}
       </motion.h2>
       {currentSlide.subtitle && (
-        <motion.p className="mt-1.5 max-w-[min(68vw,240px)] text-[0.7rem] leading-relaxed text-primary-foreground/80 sm:text-xs" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+        <motion.p className="mt-2 max-w-[min(66vw,245px)] text-[0.7rem] leading-[1.45] text-primary-foreground/85 sm:max-w-[280px] sm:text-xs" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
           {currentSlide.subtitle}
         </motion.p>
       )}
       {currentSlide.linkUrl && (
-          <motion.span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-card px-4 py-2.5 text-xs font-bold text-primary shadow-md transition hover:bg-secondary" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
+          <motion.span className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-extrabold text-primary shadow-[0_8px_20px_-10px_hsl(var(--foreground)/0.75)] transition hover:bg-orange-50" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
           Lihat Sekarang
           <ChevronRight className="h-3.5 w-3.5" />
         </motion.span>
@@ -114,7 +114,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   return (
     <section
-      className="group relative mx-5 mt-5 h-[10.5rem] overflow-hidden rounded-[1.5rem] bg-muted shadow-[0_16px_35px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-[10.5rem]"
+      className="group relative mx-4 mt-5 h-[13.75rem] overflow-hidden rounded-[1.65rem] bg-muted shadow-[0_18px_38px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-[14.5rem]"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={() => setIsPaused(true)}
@@ -142,8 +142,8 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
             transition={{ duration: autoPlayInterval / 1000, ease: 'linear' }}
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/60 to-foreground/5">
-            <div className="px-5 py-4 sm:px-6">
+          <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/62 to-foreground/10">
+            <div className="max-w-[78%] px-5 py-5 sm:max-w-[72%] sm:px-6">
               {currentSlide.linkUrl ? (
                 <Link to={currentSlide.linkUrl} className="block">
                   {slideContent}
@@ -164,36 +164,36 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
             variant="ghost"
             size="icon"
             onClick={prevSlide}
-            className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-lg bg-background/35 text-primary-foreground backdrop-blur-sm hover:bg-background/55"
+            className="absolute left-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/25 text-white backdrop-blur-md transition hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label="Previous slide"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-5 w-5" />
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={nextSlide}
-            className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-lg bg-background/35 text-primary-foreground backdrop-blur-sm hover:bg-background/55"
+            className="absolute right-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/25 text-white backdrop-blur-md transition hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label="Next slide"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5" />
           </Button>
         </>
       )}
 
       {/* Dot Indicators */}
       {slideCount > 1 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+        <div className="absolute bottom-3.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1.5 backdrop-blur-sm">
           {slides.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
               className={cn(
-                "w-1.5 h-1.5 rounded-full transition-all",
+                "h-1.5 w-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
                 index === currentIndex
-                  ? "bg-primary-foreground w-4"
-                  : "bg-primary-foreground/40 hover:bg-primary-foreground/60"
+                  ? "w-5 bg-white"
+                  : "bg-white/50 hover:bg-white/80"
               )}
               aria-label={`Go to slide ${index + 1}`}
             />
@@ -204,7 +204,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
       {slideCount > 1 && !isPaused && (
         <motion.div
           key={`progress-${currentIndex}`}
-          className="absolute bottom-0 left-0 z-10 h-0.5 bg-accent"
+          className="absolute bottom-0 left-0 z-10 h-1 bg-accent"
           initial={{ width: '0%' }}
           animate={{ width: '100%' }}
           transition={{ duration: autoPlayInterval / 1000, ease: 'linear' }}
