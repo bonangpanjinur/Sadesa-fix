@@ -32,6 +32,11 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   const slideCount = slides.length;
 
+  useEffect(() => {
+    if (slideCount === 0) return;
+    setCurrentIndex((prev) => Math.min(prev, slideCount - 1));
+  }, [slideCount]);
+
   const nextSlide = useCallback(() => {
     setDirection(1);
     setCurrentIndex((prev) => (prev + 1) % slideCount);
@@ -95,11 +100,11 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
             Pilihan minggu ini
           </span>
       </motion.div>
-      <motion.h2 className="max-w-[min(70vw,270px)] font-heading text-[1.28rem] font-extrabold leading-[1.08] tracking-[-0.02em] text-primary-foreground sm:max-w-[310px] sm:text-xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+      <motion.h2 className="max-w-[min(64vw,250px)] font-heading text-[1.28rem] font-extrabold leading-[1.08] tracking-[-0.02em] text-primary-foreground sm:max-w-[310px] sm:text-xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
         {currentSlide.title}
       </motion.h2>
       {currentSlide.subtitle && (
-        <motion.p className="mt-2 max-w-[min(66vw,245px)] text-[0.7rem] leading-[1.45] text-primary-foreground/85 sm:max-w-[280px] sm:text-xs" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+        <motion.p className="mt-2 max-w-[min(60vw,230px)] text-[0.7rem] leading-[1.45] text-primary-foreground/85 sm:max-w-[280px] sm:text-xs" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
           {currentSlide.subtitle}
         </motion.p>
       )}
@@ -114,11 +119,18 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
 
   return (
     <section
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Promo pilihan SaDesa"
       className="group relative mx-4 mt-5 h-[13.75rem] overflow-hidden rounded-[1.65rem] bg-muted shadow-[0_18px_38px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-[14.5rem]"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      onFocus={() => setIsPaused(true)}
-      onBlur={() => setIsPaused(false)}
+      onFocus={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsPaused(true);
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsPaused(false);
+      }}
     >
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
@@ -188,6 +200,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
           {slides.map((_, index) => (
             <button
               key={index}
+              type="button"
               onClick={() => goToSlide(index)}
               className={cn(
                 "h-1.5 w-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
