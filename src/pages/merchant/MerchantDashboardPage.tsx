@@ -637,12 +637,12 @@ export default function MerchantDashboardPage() {
                     <p className="text-xs text-muted-foreground">Produk yang perlu diperhatikan</p>
                   </div>
                 </div>
-                <div className="max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+                <div className="pr-1">
                   <StockAlerts merchantId={merchant.id} />
                 </div>
               </div>
               <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                <div className="max-h-[465px] overflow-y-auto custom-scrollbar">
+                <div>
                   <CustomerReviews merchantId={merchant.id} />
                 </div>
               </div>
