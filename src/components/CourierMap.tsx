@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { Loader2, Navigation, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { getRoadRoute } from '@/lib/routeCalculation';
 
 // Fix for default marker icons in Leaflet with Vite
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -97,8 +98,36 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
   const [loading, setLoading] = useState(true);
   const [center, setCenter] = useState<[number, number]>([-6.2088, 106.8456]);
   const [hasFittedBounds, setHasFittedBounds] = useState(false);
+  const [roadRoute, setRoadRoute] = useState<[number, number][]>([]);
 
   const hasDestination = destinationLat != null && destinationLng != null;
+
+  // Use the road network for the buyer-facing tracking line. The old straight
+  // segment could cut through buildings and fields, which made the live route
+  // look inaccurate even when the courier GPS position was correct.
+  useEffect(() => {
+    const courier = couriers[0];
+    if (!courier || !hasDestination) {
+      setRoadRoute([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    setRoadRoute([]);
+    void getRoadRoute(
+      { lat: courier.lat, lng: courier.lng },
+      { lat: destinationLat!, lng: destinationLng! },
+      controller.signal,
+    ).then((route) => {
+      if (!controller.signal.aborted) setRoadRoute(route?.geometry ?? []);
+    }).catch((error) => {
+      if (!controller.signal.aborted) {
+        console.warn('Rute jalan tracking tidak tersedia:', error);
+      }
+    });
+
+    return () => controller.abort();
+  }, [couriers, destinationLat, destinationLng, hasDestination]);
 
   const fetchCouriers = useCallback(async () => {
     try {
@@ -317,13 +346,13 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
           </Marker>
         )}
 
-        {/* Dashed line between courier and destination */}
-        {hasDestination && couriers.length > 0 && (
+        {/* Road-following route between courier and destination */}
+        {roadRoute.length > 1 ? (
           <Polyline
-            positions={[[couriers[0].lat, couriers[0].lng], [destinationLat!, destinationLng!]]}
-            pathOptions={{ color: 'hsl(var(--primary))', weight: 3, dashArray: '8, 8', opacity: 0.6 }}
+            positions={roadRoute}
+            pathOptions={{ color: 'hsl(var(--primary))', weight: 4, opacity: 0.85 }}
           />
-        )}
+        ) : null}
       </MapContainer>
 
       {/* Refresh button */}

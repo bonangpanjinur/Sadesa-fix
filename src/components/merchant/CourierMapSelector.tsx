@@ -6,6 +6,7 @@ import { Loader2, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { getRoadRoute } from '@/lib/routeCalculation';
 
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -88,10 +89,49 @@ export function CourierMapSelector({
   assigning,
 }: CourierMapSelectorProps) {
   const [realtimeCouriers, setRealtimeCouriers] = useState<CourierOnMap[]>(couriers);
+  const [roadRoutes, setRoadRoutes] = useState<Record<string, [number, number][]>>({});
 
   useEffect(() => {
     setRealtimeCouriers(couriers);
   }, [couriers]);
+
+  // Draw the actual drivable road instead of a straight-line connection.
+  // Prefer courier -> delivery because that is the route the customer follows;
+  // before a destination is available, use courier -> merchant as the fallback.
+  useEffect(() => {
+    const from = deliveryLat !== undefined && deliveryLng !== undefined
+      ? { lat: deliveryLat, lng: deliveryLng }
+      : merchantLat !== undefined && merchantLng !== undefined
+        ? { lat: merchantLat, lng: merchantLng }
+        : null;
+    if (!from || realtimeCouriers.length === 0) {
+      setRoadRoutes({});
+      return;
+    }
+
+    const controller = new AbortController();
+    setRoadRoutes({});
+    void Promise.all(realtimeCouriers.map(async (courier) => {
+      try {
+        const route = await getRoadRoute(
+          { lat: courier.lat, lng: courier.lng },
+          from,
+          controller.signal,
+        );
+        return route?.geometry?.length ? [courier.id, route.geometry] as const : null;
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.warn('Rute jalan kurir tidak tersedia:', error);
+        }
+        return null;
+      }
+    })).then((routes) => {
+      if (controller.signal.aborted) return;
+      setRoadRoutes(Object.fromEntries(routes.filter((route): route is readonly [string, [number, number][]] => route !== null)));
+    });
+
+    return () => controller.abort();
+  }, [deliveryLat, deliveryLng, merchantLat, merchantLng, realtimeCouriers]);
 
   // Subscribe to realtime courier location updates
   useEffect(() => {
@@ -195,14 +235,18 @@ export function CourierMapSelector({
           );
         })}
 
-        {/* Dashed lines from merchant to each courier */}
-        {merchantLat && merchantLng && realtimeCouriers.map(c => (
-          <Polyline
-            key={`line-${c.id}`}
-            positions={[[merchantLat, merchantLng], [c.lat, c.lng]]}
-            pathOptions={{ color: '#94a3b8', weight: 1.5, dashArray: '6, 6', opacity: 0.4 }}
-          />
-        ))}
+        {/* Road-following routes from each courier to the delivery destination. */}
+        {realtimeCouriers.map(courier => {
+          const roadRoute = roadRoutes[courier.id];
+          if (!roadRoute) return null;
+          return (
+            <Polyline
+              key={`route-${courier.id}`}
+              positions={roadRoute}
+              pathOptions={{ color: '#ef4444', weight: 4, opacity: 0.8 }}
+            />
+          );
+        })}
       </MapContainer>
 
       {/* Live indicator */}
