@@ -41,11 +41,11 @@ export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
   return (
     <Card className={`space-y-3 p-4 ${expired ? 'opacity-70' : 'border-primary/30 border-2'}`}>
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="font-semibold">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
           <p className="text-xs text-muted-foreground">{order?.merchants?.name || 'Pesanan delivery'} · {order?.delivery_name || 'Pelanggan'}</p>
         </div>
-        <div className={`flex items-center gap-1 text-sm font-semibold ${expired ? 'text-destructive' : 'text-warning-foreground'}`}>
+        <div className={`flex shrink-0 items-center gap-1 text-sm font-semibold ${expired ? 'text-destructive' : 'text-warning'}`}>
           <Clock3 className="h-4 w-4" /> {expired ? 'Kedaluwarsa' : formatRemainingTime(offer.expires_at, now)}
         </div>
       </div>
@@ -56,7 +56,7 @@ export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
       {order?.notes && <p className="text-xs bg-secondary rounded p-2">Catatan: {order.notes}</p>}
       <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
         <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(earning)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order?.total || 0)} · {distance}</p></div>
-        {!expired && <div className="grid grid-cols-2 gap-2 sm:flex"><Button size="sm" onClick={() => onRespond(offer.id, true)} disabled={busy}><CheckCircle className="h-4 w-4 mr-1" /> Ambil</Button><Button size="sm" variant="outline" onClick={() => onRespond(offer.id, false)} disabled={busy}><X className="h-4 w-4 mr-1" /> Tolak</Button></div>}
+        {!expired && <div className="grid grid-cols-2 gap-2 sm:flex"><Button className="min-h-11 sm:min-h-9" size="sm" onClick={() => onRespond(offer.id, true)} disabled={busy}><CheckCircle className="h-4 w-4 mr-1" /> Ambil</Button><Button className="min-h-11 sm:min-h-9" size="sm" variant="outline" onClick={() => onRespond(offer.id, false)} disabled={busy}><X className="h-4 w-4 mr-1" /> Tolak</Button></div>}
       </div>
       {!expired && order?.pickup_lat != null && order?.pickup_lng != null && <NavigationButton lat={order.pickup_lat} lng={order.pickup_lng} address={pickupAddress || undefined} variant="outline" size="sm" className="w-full"><span>Navigasi ke toko</span></NavigationButton>}
     </Card>

@@ -719,10 +719,10 @@ export default function CourierDashboardPage() {
                 return (
                   <div
                     key={order.id}
-                    className="bg-card rounded-xl p-4 border border-border"
+                    className="rounded-xl border border-border bg-card p-4 shadow-sm"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <p className="font-medium text-sm">
                           #{order.id.slice(0, 8).toUpperCase()}
                         </p>
@@ -736,7 +736,7 @@ export default function CourierDashboardPage() {
                     <div className="space-y-2 mb-4">
                       <div className="flex items-start gap-2 text-sm">
                         <Package className="h-4 w-4 text-primary mt-0.5" />
-                        <span><b>{order.merchants?.name || 'Toko'}</b><br /><span className="text-muted-foreground">{order.pickup_address || order.merchants?.address || 'Lokasi toko belum tersedia'}</span></span>
+                        <span className="min-w-0 break-words"><b>{order.merchants?.name || 'Toko'}</b><br /><span className="text-muted-foreground">{order.pickup_address || order.merchants?.address || 'Lokasi toko belum tersedia'}</span></span>
                       </div>
                       <div className="flex items-start gap-2 text-sm">
                         <User className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -754,7 +754,7 @@ export default function CourierDashboardPage() {
 
                       <div className="flex items-start gap-2 text-sm">
                         <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <span className="text-muted-foreground">
+                        <span className="min-w-0 break-words text-muted-foreground">
                           {order.delivery_address || 'Alamat tidak tersedia'}
                         </span>
                       </div>
@@ -793,13 +793,15 @@ export default function CourierDashboardPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-border">
-                      <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(order.courier_earning_estimate || order.shipping_cost || 0)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order.total)}</p></div>
-                      
-                      <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => void releaseOrder(order.id)} disabled={releasingOrder === order.id}>Lepas tugas</Button>
+                    <div className="space-y-3 border-t border-border pt-3">
+                      <div className="flex items-end justify-between gap-3">
+                        <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(order.courier_earning_estimate || order.shipping_cost || 0)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order.total)}</p></div>
+                      </div>
+                      <div className={`grid gap-2 ${action ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      <Button className="min-h-11 w-full" size="sm" variant="outline" onClick={() => void releaseOrder(order.id)} disabled={releasingOrder === order.id}>{releasingOrder === order.id ? 'Memproses…' : 'Lepas tugas'}</Button>
                       {action && (
                         <Button
+                          className="min-h-11 w-full"
                           size="sm"
                           onClick={handleAction}
                         >

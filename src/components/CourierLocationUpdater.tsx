@@ -201,7 +201,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4 space-y-4">
+    <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -215,10 +215,10 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
               <MapPin className="h-5 w-5" />
             )}
           </div>
-          <div>
+          <div className="min-w-0">
             <Label className="text-sm font-medium">Live Tracking</Label>
             <p className="text-xs text-muted-foreground">
-              {isTracking ? 'Lokasi Anda sedang dibagikan' : 'Bagikan lokasi realtime'}
+              {isTracking ? 'Lokasi Anda sedang dibagikan' : 'Bagikan lokasi secara realtime'}
             </p>
           </div>
         </div>
@@ -249,7 +249,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
         <Button
           variant="outline"
           size="sm"
-          className="w-full"
+          className="min-h-11 w-full"
           onClick={() => {
             if (currentLocation) {
               updateLocationToServer(currentLocation.lat, currentLocation.lng);
