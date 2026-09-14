@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   User, Settings, HelpCircle, LogIn, LogOut, Store, ChevronRight, Edit, Heart, 
   Bell, LayoutDashboard, Shield, CheckCircle, Bike, Building2, MapPin, Star, Clock, Utensils,
-  MessageCircle, Package, Wallet, Users, RefreshCw
+  MessageCircle, Package, Wallet, RefreshCw
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -378,7 +378,6 @@ export default function AccountPage() {
                 <div className="space-y-1">
                   {[
                     { icon: Wallet, label: 'Cashback Saya', path: '/cashback' },
-                    { icon: Users, label: 'Program Referral', path: '/referral' },
                     { icon: Star, label: 'Loyalty Points', path: '/loyalty' },
                   ].map((item) => (
                     <button
