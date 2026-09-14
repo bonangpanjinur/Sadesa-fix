@@ -8,6 +8,8 @@
 .leaflet-container {
   font-family: inherit;
   background: hsl(var(--muted));
+  position: relative;
+  z-index: 0;
 }
 
 .leaflet-control-attribution {

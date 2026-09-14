@@ -187,7 +187,7 @@ export function NotificationDropdown() {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="z-[2000] w-80 border border-border bg-popover shadow-xl">
         <div className="flex items-center justify-between px-3 py-2 border-b border-border">
           <span className="font-semibold text-sm">Notifikasi</span>
           {unreadCount > 0 && (
