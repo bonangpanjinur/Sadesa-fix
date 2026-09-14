@@ -355,6 +355,19 @@ export default function CheckoutPage() {
 
   const allMerchantsOpen = !operatingHoursError && closedMerchants.length === 0;
 
+  const hasCompleteDeliveryAddress = Boolean(
+    addressData.address.province &&
+    addressData.address.city &&
+    addressData.address.district &&
+    addressData.address.village,
+  );
+  const hasValidDeliveryLocation = Boolean(
+    addressData.location &&
+    Number.isFinite(addressData.location.lat) &&
+    Number.isFinite(addressData.location.lng),
+  );
+  const isDeliveryReady = deliveryType === 'PICKUP' || (hasCompleteDeliveryAddress && hasValidDeliveryLocation);
+
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
     const merchantItems = itemsByMerchant[merchantId]?.items || [];
@@ -1114,7 +1127,7 @@ export default function CheckoutPage() {
             !loading && items.length > 0 && allMerchantsOpen ? 'animate-pulse hover:animate-none' : ''
           }`}
           size="lg"
-          disabled={loading || items.length === 0 || operatingHoursLoading || !allMerchantsOpen}
+          disabled={loading || items.length === 0 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady}
         >
           {loading ? (
             <>
@@ -1133,14 +1146,15 @@ export default function CheckoutPage() {
               <Clock className="h-4 w-4 mr-2" />
               Ada Toko Tutup
             </>
-          ) : paymentMethod === 'COD' ? (
-            'Pesan & Konfirmasi WA'
-          ) : paymentMethod === 'TRANSFER' ? (
-            'Pesan & Transfer'
           ) : (
-            'Bayar Sekarang'
+            'Pesan'
           )}
         </Button>
+        {!isDeliveryReady && deliveryType !== 'PICKUP' && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Pilih alamat pengiriman dan tentukan titik lokasi di peta untuk melanjutkan.
+          </p>
+        )}
       </div>
     </div>
   );
