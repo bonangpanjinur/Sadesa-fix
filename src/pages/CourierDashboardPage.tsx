@@ -20,7 +20,8 @@ import {
   Banknote,
   Volume2,
   PiggyBank,
-  Bike
+  Bike,
+  Star
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,8 @@ interface CourierData {
   available_balance: number | null;
   registration_status: string;
   rejection_reason: string | null;
+  rating_avg: number | null;
+  rating_count: number | null;
 }
 
 interface AssignedOrder {
@@ -97,7 +100,7 @@ export default function CourierDashboardPage() {
       if (!user) return null;
       const { data, error } = await supabase
         .from('couriers')
-        .select('id, name, phone, is_available, vehicle_type, current_lat, current_lng, registration_status, rejection_reason, available_balance')
+        .select('id, name, phone, is_available, vehicle_type, current_lat, current_lng, registration_status, rejection_reason, available_balance, rating_avg, rating_count')
         .eq('user_id', user.id)
         .maybeSingle();
       if (error) throw error;
@@ -466,6 +469,15 @@ export default function CourierDashboardPage() {
                 <Truck className="h-3.5 w-3.5" />
                 {courier.vehicle_type === 'motor' ? 'Motor' : courier.vehicle_type}
               </p>
+              <div className="mt-1 flex items-center gap-1.5 text-sm" aria-label={`Rating ${courier.rating_avg ?? 0} dari 5 dari ${courier.rating_count ?? 0} ulasan`}>
+                <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                <span className="font-semibold text-amber-700 dark:text-amber-300">
+                  {courier.rating_count ? Number(courier.rating_avg ?? 0).toFixed(1) : 'Baru'}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {courier.rating_count ? `${courier.rating_count} ulasan` : 'Belum ada ulasan'}
+                </span>
+              </div>
             </div>
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-5 w-5 text-muted-foreground" />

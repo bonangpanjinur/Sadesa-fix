@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Calendar, MapPin, CheckCircle, XCircle, Image as ImageIcon, Bike, AlertTriangle } from 'lucide-react';
+import { Package, Calendar, MapPin, CheckCircle, XCircle, Image as ImageIcon, Bike, AlertTriangle, Star, MessageCircle } from 'lucide-react';
 import { CourierLayout } from '@/components/courier/CourierLayout';
 import { PodImage } from '@/components/courier/PodImage';
 import { Button } from '@/components/ui/button';
@@ -47,11 +47,25 @@ interface RideRecord {
   completed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  rating: number | null;
+  rating_comment: string | null;
+}
+
+interface CustomerReview {
+  id: string;
+  source: 'delivery' | 'ride';
+  rating: number;
+  comment: string | null;
+  tags: string[];
+  created_at: string;
 }
 
 interface CourierHistoryData {
   deliveries: DeliveryRecord[];
   rides: RideRecord[];
+  reviews: CustomerReview[];
+  ratingAvg: number;
+  ratingCount: number;
 }
 
 export default function CourierHistoryPage() {
@@ -69,17 +83,27 @@ export default function CourierHistoryPage() {
     queryFn: async () => {
       const { data: courier, error: courierError } = await supabase
         .from('couriers')
-        .select('id, registration_status')
+        .select('id, registration_status, rating_avg, rating_count')
         .eq('user_id', user!.id)
         .maybeSingle();
 
       if (courierError) throw courierError;
       if (!courier || courier.registration_status !== 'APPROVED') {
         navigate('/courier');
-        return { deliveries: [], rides: [] };
+        return {
+          deliveries: [],
+          rides: [],
+          reviews: [],
+          ratingAvg: 0,
+          ratingCount: 0,
+        };
       }
 
-      const [{ data: deliveryData, error: deliveryError }, { data: rideData, error: rideError }] = await Promise.all([
+      const [
+        { data: deliveryData, error: deliveryError },
+        { data: rideData, error: rideError },
+        { data: courierRatingData, error: courierRatingError },
+      ] = await Promise.all([
         supabase
           .from('orders')
           .select('id, status, total, shipping_cost, delivery_name, delivery_phone, delivery_address, pod_image_url, pod_notes, pod_uploaded_at, delivered_at, created_at, assigned_at, picked_up_at, delivery_type')
@@ -87,17 +111,47 @@ export default function CourierHistoryPage() {
           .order('created_at', { ascending: false }),
         supabase
           .from('ride_requests')
-          .select('id, status, pickup_address, destination_address, distance_km, estimated_fare, final_fare, created_at, accepted_at, picked_up_at, completed_at, cancelled_at, cancellation_reason')
+          .select('id, status, pickup_address, destination_address, distance_km, estimated_fare, final_fare, rating, rating_comment, created_at, accepted_at, picked_up_at, completed_at, cancelled_at, cancellation_reason')
           .eq('driver_id', courier.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('courier_ratings')
+          .select('id, rating, comment, tags, created_at')
+          .eq('courier_id', courier.id)
           .order('created_at', { ascending: false }),
       ]);
 
       if (deliveryError) throw deliveryError;
       if (rideError) throw rideError;
+      if (courierRatingError) throw courierRatingError;
+
+      const rideReviews: CustomerReview[] = (rideData || [])
+        .filter((ride) => ride.status === 'COMPLETED' && ride.rating != null)
+        .map((ride) => ({
+          id: ride.id,
+          source: 'ride',
+          rating: ride.rating as number,
+          comment: ride.rating_comment,
+          tags: [],
+          created_at: ride.completed_at || ride.created_at,
+        }));
+      const deliveryReviews: CustomerReview[] = (courierRatingData || []).map((review) => ({
+        id: review.id,
+        source: 'delivery',
+        rating: review.rating,
+        comment: review.comment,
+        tags: review.tags || [],
+        created_at: review.created_at,
+      }));
 
       return {
         deliveries: deliveryData || [],
         rides: rideData || [],
+        reviews: [...rideReviews, ...deliveryReviews].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        ),
+        ratingAvg: Number(courier.rating_avg || 0),
+        ratingCount: courier.rating_count || 0,
       };
     },
     enabled: !!user && !authLoading,
@@ -106,6 +160,7 @@ export default function CourierHistoryPage() {
 
   const deliveries = data?.deliveries ?? [];
   const rideOrders = data?.rides ?? [];
+  const reviews = data?.reviews ?? [];
   const deliveryOrders = deliveries.filter(d => d.delivery_type !== 'RIDE');
   const currentList = serviceTab === 'ride' ? rideOrders : deliveryOrders;
   const completedList = currentList.filter(d => d.status === 'DELIVERED' || d.status === 'DONE');
@@ -212,6 +267,17 @@ export default function CourierHistoryPage() {
           </div>
           <p className="font-bold text-primary">{formatPrice(ride.final_fare ?? ride.estimated_fare)}</p>
         </div>
+        {ride.rating != null && (
+          <div className="mt-3 border-t border-border pt-3">
+            <div className="flex items-center gap-1" aria-label={`Rating ${ride.rating} dari 5`}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star key={star} className={`h-4 w-4 ${star <= ride.rating! ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />
+              ))}
+              <span className="ml-1 text-xs text-muted-foreground">Rating penumpang</span>
+            </div>
+            {ride.rating_comment && <p className="mt-1 text-sm text-muted-foreground">“{ride.rating_comment}”</p>}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -263,6 +329,57 @@ export default function CourierHistoryPage() {
         <Card><CardContent className="p-4 text-center"><CheckCircle className="h-6 w-6 mx-auto text-green-500 mb-1" /><p className="text-2xl font-bold">{serviceTab === 'ride' ? rideCompletedList.length : completedList.length}</p><p className="text-xs text-muted-foreground">Selesai</p></CardContent></Card>
         <Card><CardContent className="p-4 text-center"><XCircle className="h-6 w-6 mx-auto text-red-500 mb-1" /><p className="text-2xl font-bold">{cancelledList.length}</p><p className="text-xs text-muted-foreground">Batal</p></CardContent></Card>
       </div>
+
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Ulasan Pelanggan</p>
+              <p className="text-xs text-muted-foreground">Gabungan rating pengiriman dan ojek</p>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1">
+                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                <span className="text-xl font-bold">{data?.ratingCount ? data.ratingAvg.toFixed(1) : '—'}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{data?.ratingCount || 0} ulasan</p>
+            </div>
+          </div>
+          {reviews.length === 0 ? (
+            <div className="mt-4 rounded-lg bg-secondary/60 p-4 text-center text-sm text-muted-foreground">
+              Belum ada ulasan dari pelanggan.
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {reviews.slice(0, 8).map((review) => (
+                <div key={`${review.source}-${review.id}`} className="rounded-lg border border-border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1" aria-label={`Rating ${review.rating} dari 5`}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star key={star} className={`h-3.5 w-3.5 ${star <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'}`} />
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      {review.source === 'ride' ? 'Ojek' : 'Pengiriman'} · {format(new Date(review.created_at), 'dd MMM yyyy', { locale: idLocale })}
+                    </span>
+                  </div>
+                  {review.comment ? (
+                    <p className="mt-2 flex items-start gap-1.5 text-sm text-muted-foreground">
+                      <MessageCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> “{review.comment}”
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-muted-foreground">Tanpa komentar</p>
+                  )}
+                  {review.tags.length > 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">{review.tags.join(' · ')}</p>
+                  )}
+                </div>
+              ))}
+              {reviews.length > 8 && <p className="text-center text-xs text-muted-foreground">Menampilkan 8 ulasan terbaru dari {reviews.length} ulasan.</p>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="all">
         <TabsList className="w-full">
