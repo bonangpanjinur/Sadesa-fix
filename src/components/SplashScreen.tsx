@@ -37,22 +37,10 @@ export function SplashScreen({ children }: SplashScreenProps) {
             exiting ? 'translate-y-[-10px] scale-[1.03] opacity-0' : 'translate-y-0 scale-100 opacity-100'
           }`}
         >
-          <div className="relative mb-7 flex w-full items-center justify-center">
-            <div className="absolute h-40 w-40 rounded-full border border-[#006b45]/10" />
-            <div className="absolute h-32 w-32 rounded-full border border-[#e51c2a]/10 [animation:spin_10s_linear_infinite]" />
-            <div className="relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-white p-2 shadow-[0_18px_45px_-18px_rgba(0,70,45,0.45)]">
-              <img
-                src="/branding/sadesa-icon-192.png"
-                alt=""
-                className="h-full w-full object-contain"
-              />
-            </div>
-          </div>
-
           <img
             src="/branding/sadesa-logo.png"
             alt="SaDesa"
-            className="w-[min(80vw,340px)] object-contain"
+            className="w-[min(86vw,420px)] object-contain"
           />
           <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.24em] text-[#006b45]/70">
             Dari desa untuk Indonesia
