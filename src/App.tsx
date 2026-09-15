@@ -15,6 +15,7 @@ import { SEO } from "@/components/SEO";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { SplashScreen } from "@/components/SplashScreen";
 import { POSProvider } from "./contexts/POSContext";
 import { POSAccessRoute } from "@/components/pos/posPermissions";
 import { logUnhandledErrors, reportObservability } from '@/lib/observability';
@@ -364,8 +365,9 @@ function HomeRoute() {
 }
 
 const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
+  <SplashScreen>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
           <WhitelabelProvider>
@@ -1182,8 +1184,9 @@ const App = () => (
       </WhitelabelProvider>
     </AuthProvider>
   </TooltipProvider>
-</QueryClientProvider>
-  </ErrorBoundary>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  </SplashScreen>
 );
 
 export default App;
