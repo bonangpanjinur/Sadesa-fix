@@ -57,7 +57,7 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
         'group relative min-h-[132px] min-w-0 overflow-hidden rounded-[1.35rem] border p-4 shadow-[0_16px_34px_-22px_hsl(var(--foreground)/0.65)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_38px_-18px_hsl(var(--foreground)/0.6)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         isTransport
           ? 'border-[hsl(160_84%_26%)] bg-[linear-gradient(145deg,hsl(160_72%_40%),hsl(160_84%_26%))] text-primary-foreground'
-          : 'border-[hsl(28_100%_40%)] bg-[linear-gradient(145deg,hsl(30_100%_53%),hsl(24_96%_45%))] text-white',
+          : 'border-[#c2410c] bg-[linear-gradient(145deg,#f97316,#ea580c)] text-white',
       )}
     >
       <div className={cn('pointer-events-none absolute -right-7 -top-8 h-24 w-24 rounded-full opacity-40 transition-transform duration-300 group-hover:scale-125', isTransport ? 'bg-white/10' : 'bg-orange-300/20')} />
