@@ -672,7 +672,7 @@ export default function CourierBookingPage() {
           </Card>
         </div>
 
-        <div className="mobile-action-safe sticky bottom-20 mt-5 rounded-2xl border border-border/70 bg-card/95 p-4 shadow-lg backdrop-blur-xl">
+        <div className="mobile-action-safe mt-5 mb-4 rounded-2xl border border-border/70 bg-card p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-[10px] text-muted-foreground">Estimasi biaya layanan</p>
