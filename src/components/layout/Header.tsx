@@ -32,11 +32,8 @@ export function Header() {
           <img
             src={settings.logoUrl || '/branding/sadesa-logo.png'}
             alt={settings.siteName}
-            className="h-8 w-8 rounded-lg object-cover shadow-sm"
+            className="h-10 w-auto max-w-[150px] object-contain"
           />
-          <h1 className="truncate font-heading text-[1.05rem] font-extrabold leading-none tracking-[-0.03em] text-foreground">
-            {settings.siteName}
-          </h1>
         </Link>
 
         <div className="flex shrink-0 items-center gap-0.5">
