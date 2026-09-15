@@ -17,6 +17,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatAddressSummary, reverseGeocode } from '@/hooks/useGeocoding';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
 
 type CourierMode = 'send' | 'pickup';
 type DistanceBand = 'near' | 'medium' | 'far';
@@ -136,18 +137,25 @@ export default function CourierBookingPage() {
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [drivers, setDrivers] = useState<AvailableDriver[]>([]);
   const [driversLoading, setDriversLoading] = useState(true);
+  const [driversError, setDriversError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
 
-  const distanceKm = pickupLocation && destinationLocation
+  const straightLineDistanceKm = pickupLocation && destinationLocation
     ? haversineDistance(pickupLocation, destinationLocation)
     : 0;
+  const distanceKm = roadRoute?.distanceKm ?? straightLineDistanceKm;
 
   const routePoints = useMemo(
-    () => [pickupLocation, destinationLocation].filter((point): point is RoutePoint => point !== null),
-    [destinationLocation, pickupLocation],
+    () => roadRoute?.geometry.length
+      ? roadRoute.geometry.map(([lat, lng]) => ({ lat, lng }))
+      : [pickupLocation, destinationLocation].filter((point): point is RoutePoint => point !== null),
+    [destinationLocation, pickupLocation, roadRoute],
   );
 
-  const fetchDrivers = useCallback(async () => {
+  const fetchDrivers = useCallback(async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
+    if (showLoading) setDriversLoading(true);
     const { data, error } = await supabase
       .from('couriers')
       .select('id, name, current_lat, current_lng')
@@ -158,10 +166,12 @@ export default function CourierBookingPage() {
 
     if (error) {
       console.error('Gagal mengambil lokasi driver:', error);
+      setDriversError('Lokasi kurir belum dapat dimuat. Coba lagi.');
       setDriversLoading(false);
       return;
     }
 
+    setDriversError(null);
     const availableDrivers = (data ?? []).flatMap((driver) => {
       if (driver.current_lat == null || driver.current_lng == null) return [];
       return [{
@@ -176,7 +186,7 @@ export default function CourierBookingPage() {
   }, []);
 
   useEffect(() => {
-    fetchDrivers();
+    void fetchDrivers({ showLoading: true });
 
     const channel = supabase
       .channel('courier-availability-map')
@@ -215,12 +225,36 @@ export default function CourierBookingPage() {
       })
       .subscribe();
 
-    const refreshInterval = window.setInterval(fetchDrivers, 15000);
+    const refreshInterval = window.setInterval(() => { void fetchDrivers(); }, 15000);
     return () => {
       window.clearInterval(refreshInterval);
       supabase.removeChannel(channel);
     };
   }, [fetchDrivers]);
+
+  useEffect(() => {
+    if (!pickupLocation || !destinationLocation) {
+      setRoadRoute(null);
+      setRouteLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setRouteLoading(true);
+    getRoadRoute(pickupLocation, destinationLocation, controller.signal)
+      .then((route) => setRoadRoute(route))
+      .catch((error: unknown) => {
+        if ((error as { name?: string })?.name !== 'AbortError') {
+          console.warn('Gagal mengambil rute jalan:', error);
+          setRoadRoute(null);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRouteLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [destinationLocation, pickupLocation]);
 
   const nearbyDrivers = useMemo(() => {
     if (!pickupLocation) return drivers;
@@ -352,9 +386,14 @@ export default function CourierBookingPage() {
       });
       navigate(`/orders/${result.order_id}/tracking`);
     } catch (error) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : (error as { message?: string; details?: string } | null)?.message
+          || (error as { details?: string } | null)?.details
+          || 'Layanan antar belum siap. Pastikan database layanan kurir sudah diperbarui.';
       toast({
         title: 'Gagal membuat pesanan kurir',
-        description: error instanceof Error ? error.message : 'Silakan coba lagi.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -460,13 +499,20 @@ export default function CourierBookingPage() {
                     <Marker key={driver.id} position={[driver.lat, driver.lng]} icon={driverIcon} title={driver.name} />
                   ))}
                   {pickupLocation && destinationLocation && (
-                    <Polyline
-                      positions={[
-                        [pickupLocation.lat, pickupLocation.lng],
-                        [destinationLocation.lat, destinationLocation.lng],
-                      ]}
-                      pathOptions={{ color: '#d97706', weight: 4, dashArray: '10, 8', opacity: 0.85 }}
-                    />
+                    roadRoute?.geometry.length ? (
+                      <Polyline
+                        positions={roadRoute.geometry}
+                        pathOptions={{ color: '#d97706', weight: 4, opacity: 0.9 }}
+                      />
+                    ) : (
+                      <Polyline
+                        positions={[
+                          [pickupLocation.lat, pickupLocation.lng],
+                          [destinationLocation.lat, destinationLocation.lng],
+                        ]}
+                        pathOptions={{ color: '#d97706', weight: 4, dashArray: '10, 8', opacity: 0.6 }}
+                      />
+                    )
                   )}
                 </MapContainer>
                 <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold shadow-sm backdrop-blur">
@@ -492,6 +538,20 @@ export default function CourierBookingPage() {
                   <div className="absolute bottom-3 left-3 z-[400] flex items-center gap-1.5 rounded-full bg-background/90 px-3 py-1.5 text-[10px] shadow-sm">
                     <Loader2 className="h-3 w-3 animate-spin text-primary" />
                     Mengambil alamat...
+                  </div>
+                )}
+                {driversError && (
+                  <div className="absolute bottom-3 right-3 z-[400] max-w-[220px] rounded-lg border border-destructive/30 bg-background/95 p-2.5 text-[10px] shadow-sm backdrop-blur">
+                    <p className="text-destructive">{driversError}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 h-7 w-full text-[10px]"
+                      onClick={() => void fetchDrivers({ showLoading: true })}
+                    >
+                      Coba lagi
+                    </Button>
                   </div>
                 )}
               </div>
@@ -523,7 +583,10 @@ export default function CourierBookingPage() {
             </div>
             {distanceKm > 0 && (
               <div className="flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
-                <span className="flex items-center gap-2"><Navigation className="h-3.5 w-3.5" /> Jarak garis lurus</span>
+                <span className="flex items-center gap-2">
+                  <Navigation className="h-3.5 w-3.5" />
+                  {routeLoading ? 'Menghitung rute jalan...' : roadRoute ? 'Jarak via jalan' : 'Jarak garis lurus'}
+                </span>
                 <strong>{distanceKm.toFixed(1)} km</strong>
               </div>
             )}

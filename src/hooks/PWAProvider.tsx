@@ -19,6 +19,7 @@ interface PWAStatus {
 }
 
 const HEARTBEAT_INTERVAL_MS = 60_000;
+const SERVICE_WORKER_UPDATE_INTERVAL_MS = 30 * 60 * 1000;
 const BACKGROUND_SYNC_TAG = 'sadesa-background-sync';
 const PERIODIC_SYNC_TAG = 'sadesa-periodic-refresh';
 
@@ -46,6 +47,17 @@ async function registerPwaSyncCapabilities(registration: ServiceWorkerRegistrati
         minInterval: 24 * 60 * 60 * 1000,
       });
     }
+  }
+}
+
+async function checkForServiceWorkerUpdate() {
+  if (!('serviceWorker' in navigator)) return;
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.update();
+  } catch (error: unknown) {
+    reportObservability('device', 'service_worker_update_check_failed', 'warn', {}, error);
   }
 }
 
@@ -125,6 +137,7 @@ function usePWAController(): PWAContextValue {
     const handleOnline = () => {
       setStatus((prev) => ({ ...prev, isOnline: true }));
       void heartbeat();
+      void checkForServiceWorkerUpdate();
     };
     const handleOffline = () => {
       setStatus((prev) => ({ ...prev, isOnline: false }));
@@ -136,11 +149,49 @@ function usePWAController(): PWAContextValue {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    const hadController = Boolean(navigator.serviceWorker?.controller);
+    let hasReloadedForControllerChange = false;
+    let updateCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+    const handleControllerChange = () => {
+      // Do not reload the first page load that becomes PWA-controlled. On later
+      // activations, reload immediately so mobile standalone windows use the
+      // newly precached application shell instead of the old document.
+      if (!hadController || hasReloadedForControllerChange) return;
+      hasReloadedForControllerChange = true;
+      window.location.reload();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void checkForServiceWorkerUpdate();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      void checkForServiceWorkerUpdate();
+    };
+
     if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
       void navigator.serviceWorker.ready.then((registration) => {
         void registerPwaSyncCapabilities(registration).catch((error: unknown) => {
           reportObservability('offline_sync', 'capability_registration_failed', 'warn', {}, error);
         });
+
+        // A browser may keep an installed PWA suspended for hours. Check now,
+        // when it becomes visible, and periodically while it stays open.
+        void registration.update().catch((error: unknown) => {
+          reportObservability('device', 'service_worker_update_check_failed', 'warn', {}, error);
+        });
+        updateCheckTimer = setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            void registration.update().catch((error: unknown) => {
+              reportObservability('device', 'service_worker_update_check_failed', 'warn', {}, error);
+            });
+          }
+        }, SERVICE_WORKER_UPDATE_INTERVAL_MS);
+
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {
@@ -153,6 +204,8 @@ function usePWAController(): PWAContextValue {
         });
       }).catch((error: unknown) => reportObservability('device', 'service_worker_registration_failed', 'warn', {}, error));
     }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
 
     let cancelled = false;
     const handleSession = async (session: { user?: { id: string } } | null) => {
@@ -181,6 +234,13 @@ function usePWAController(): PWAContextValue {
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
+      navigator.serviceWorker?.removeEventListener('controllerchange', handleControllerChange);
+      if (updateCheckTimer) {
+        clearInterval(updateCheckTimer);
+        updateCheckTimer = null;
+      }
     };
   }, [heartbeat, registerForSession, startHeartbeat, stopHeartbeat]);
 
