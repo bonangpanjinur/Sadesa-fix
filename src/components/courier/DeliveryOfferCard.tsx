@@ -50,22 +50,22 @@ export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold">#{offer.order_id.slice(0, 8).toUpperCase()}</p>
-          <p className="text-xs text-muted-foreground">{order?.merchants?.name || 'Pesanan delivery'} · {order?.delivery_name || 'Pelanggan'}</p>
+          <p className="text-xs text-muted-foreground">Kirim barang langsung · {order?.delivery_name || 'Penerima'}</p>
         </div>
         <div className={`flex shrink-0 items-center gap-1 text-sm font-semibold ${expired ? 'text-destructive' : 'text-warning'}`}>
           <Clock3 className="h-4 w-4" /> {expired ? 'Kedaluwarsa' : formatRemainingTime(offer.expires_at, now)}
         </div>
       </div>
       <div className="grid gap-2 text-sm">
-        <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-primary mt-0.5" /><div><b>Toko</b><p className="text-muted-foreground">{pickupAddress || 'Lokasi pickup belum tersedia'}</p></div></div>
-        <div className="flex items-start gap-2"><Navigation className="h-4 w-4 text-destructive mt-0.5" /><div><b>Pelanggan</b><p className="text-muted-foreground">{order?.delivery_address || 'Alamat tujuan belum tersedia'}</p></div></div>
+        <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-primary mt-0.5" /><div><b>Pickup pengirim</b><p className="text-muted-foreground">{pickupAddress || 'Lokasi pickup belum tersedia'}</p></div></div>
+        <div className="flex items-start gap-2"><Navigation className="h-4 w-4 text-destructive mt-0.5" /><div><b>Penerima</b><p className="text-muted-foreground">{order?.delivery_address || 'Alamat tujuan belum tersedia'}</p></div></div>
       </div>
       {order?.notes && <p className="text-xs bg-secondary rounded p-2">Catatan: {order.notes}</p>}
       <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
         <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(earning)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order?.total || 0)}</p>{estimate && <p className="text-[11px] text-muted-foreground">{estimate.distanceFormatted} · ETA {estimate.etaFormatted}</p>}</div>
         {!expired && <div className="grid grid-cols-2 gap-2 sm:flex"><Button className="min-h-11 sm:min-h-9" size="sm" onClick={() => onRespond(offer.id, true)} disabled={busy}><CheckCircle className="h-4 w-4 mr-1" /> Terima</Button><Button className="min-h-11 sm:min-h-9" size="sm" variant="outline" onClick={() => onRespond(offer.id, false)} disabled={busy}><X className="h-4 w-4 mr-1" /> Tolak</Button></div>}
       </div>
-      {!expired && order?.pickup_lat != null && order?.pickup_lng != null && <NavigationButton lat={order.pickup_lat} lng={order.pickup_lng} address={pickupAddress || undefined} variant="outline" size="sm" className="w-full"><span>Navigasi ke toko</span></NavigationButton>}
+      {!expired && order?.pickup_lat != null && order?.pickup_lng != null && <NavigationButton lat={order.pickup_lat} lng={order.pickup_lng} address={pickupAddress || undefined} variant="outline" size="sm" className="w-full"><span>Navigasi ke pickup</span></NavigationButton>}
     </Card>
   );
 }

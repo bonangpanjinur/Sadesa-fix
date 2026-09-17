@@ -885,11 +885,6 @@ const OrdersPage = () => {
                             </Button>
                           )}
                         </div>
-                        {isCourierDelivery && isActive && (
-                          <Button size="sm" variant="outline" className="text-xs h-8 rounded-full px-4" onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/tracking`); }}>
-                            <MapPin className="w-3 h-3 mr-1" /> Lacak Kurir
-                          </Button>
-                        )}
                       </div>
                     </CardContent>
                   </Card>

@@ -149,7 +149,7 @@ export default function CourierDashboardPage() {
     staleTime: 30_000,
   });
 
-  const { data: deliveryOffers = [] } = useQuery<DeliveryOffer[]>({
+  const { data: deliveryOffers = [], isError: deliveryOffersError } = useQuery<DeliveryOffer[]>({
     queryKey: ['courier-delivery-offers', courier?.id],
     queryFn: async () => {
       if (!courier) return [];
@@ -532,30 +532,37 @@ export default function CourierDashboardPage() {
           />
         </motion.div>
 
-        {deliveryOffers.length > 0 && (
-          <Card className="border-primary/40 shadow-sm">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold">Tawaran pesanan baru</p>
-                  <p className="text-xs text-muted-foreground">Countdown aktif · fallback refresh 15 detik</p>
-                </div>
-                <Badge>{deliveryOffers.length}</Badge>
+        <Card className="border-primary/40 shadow-sm">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold">Kirim Barang Langsung</p>
+                <p className="text-xs text-muted-foreground">Tawaran pickup dan pengantaran barang masuk di sini.</p>
               </div>
-              {deliveryOffers.map((offer) => (
+              <Badge>{deliveryOffers.length}</Badge>
+            </div>
+            {deliveryOffersError ? (
+              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Tawaran belum dapat dimuat. Buka menu Pengiriman Barang untuk mencoba lagi.</div>
+            ) : deliveryOffers.length > 0 ? (
+              deliveryOffers.map((offer) => (
                 <DeliveryOfferCard
                   key={offer.id}
                   offer={{ id: offer.id, order_id: offer.order_id, expires_at: offer.expires_at, order: offer.orders || null }}
                   busy={respondingOffer === offer.id}
                   onRespond={respondToDeliveryOffer}
                 />
-              ))}
+              ))
+            ) : (
+              <div className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">Belum ada tawaran aktif. Status Anda harus Online agar dapat menerima tawaran baru.</div>
+            )}
+            <div className="flex items-center justify-between gap-3">
               <p className={`text-[11px] ${realtimeOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
-                {realtimeOnline ? 'Realtime tersambung' : 'Realtime terputus · daftar diperbarui otomatis setiap 15 detik'}
+                {realtimeOnline ? 'Realtime tersambung' : 'Memperbarui otomatis setiap 15 detik'}
               </p>
-            </CardContent>
-          </Card>
-        )}
+              <Link to="/courier/deliveries"><Button size="sm" variant="outline">Buka Pengiriman Barang</Button></Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Ojek Desa Card */}
         <motion.div
