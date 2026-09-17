@@ -241,30 +241,32 @@ Deno.serve(async (req) => {
     // Assign the best candidate
     const bestCourier = candidates[0]
 
-    const { data: assignedOrder, error: updateError } = await supabase
-      .from('orders')
-      .update({
-        courier_id: bestCourier.id,
-        status: 'ASSIGNED',
-        assigned_at: new Date().toISOString()
-      })
-      .eq('id', order_id)
-      .is('courier_id', null)
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('delivery_assignments')
+      .insert({ order_id, courier_id: bestCourier.id, created_by: user.id })
       .select('id')
-      .maybeSingle()
+      .single()
 
-    if (updateError) {
-      console.error('Error assigning courier:', updateError)
+    if (assignmentError) {
+      console.error('Error creating courier offer:', assignmentError)
       return new Response(
-        JSON.stringify({ error: 'Failed to assign courier' }),
+        JSON.stringify({ error: 'Failed to create courier offer' }),
         { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
       )
     }
 
-    if (!assignedOrder) {
-      return new Response(JSON.stringify({ error: 'Order was assigned by another request' }), {
-        status: 409, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
-      })
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({ status: 'ASSIGNED', status_updated_at: new Date().toISOString() })
+      .eq('id', order_id)
+      .in('status', ['PROCESSING', 'PROCESSED', 'READY'])
+
+    if (orderError) {
+      console.error('Error marking order as offered:', orderError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to mark order as offered' }),
+        { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
+      )
     }
 
     // Create notification for courier
@@ -277,10 +279,10 @@ Deno.serve(async (req) => {
     if (courierData?.user_id) {
       await supabase.from('notifications').insert({
         user_id: courierData.user_id,
-        title: 'Pesanan Baru Ditugaskan',
-        message: `Anda mendapat pesanan baru #${order_id.slice(0, 8).toUpperCase()}. Segera ambil pesanan.`,
+        title: 'Tawaran Pengiriman Baru',
+        message: `Ada tawaran pengiriman baru #${order_id.slice(0, 8).toUpperCase()}. Pilih Terima atau Tolak.`,
         type: 'order',
-        link: '/courier'
+        link: `/courier/rides?orderId=${order_id}`
       })
     }
 
@@ -293,7 +295,9 @@ Deno.serve(async (req) => {
           distance_km: Math.round(bestCourier.distance_km * 10) / 10,
           vehicle_type: bestCourier.vehicle_type
         },
-        candidates_count: candidates.length
+        candidates_count: candidates.length,
+        assignment_id: assignment.id,
+        dispatch_status: 'OFFERED'
       }),
       { status: 200, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } }
     )

@@ -76,8 +76,8 @@ type OrderItem = {
   products?: { image_url: string | null } | null;
 };
 
-type DeliveryCardStatus = 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
-const DELIVERY_CARD_STATUSES: readonly DeliveryCardStatus[] = ['NEW', 'PROCESSING', 'ASSIGNED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
+type DeliveryCardStatus = 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'COURIER_ACCEPTED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
+const DELIVERY_CARD_STATUSES: readonly DeliveryCardStatus[] = ['NEW', 'PROCESSING', 'ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
 
 export default function OrderTrackingPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -299,7 +299,7 @@ export default function OrderTrackingPage() {
         </motion.div>
 
         {/* ETA Card */}
-        {etaInfo && ['ASSIGNED', 'PICKED_UP', 'SENT', 'DELIVERING'].includes(order.status) && (
+        {etaInfo && ['COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'DELIVERING'].includes(order.status) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -325,7 +325,7 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Courier Info */}
-        {courier && !order.is_self_delivery && (
+        {courier && !order.is_self_delivery && ['COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'DELIVERING', 'DELIVERED', 'DONE'].includes(order.status) && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

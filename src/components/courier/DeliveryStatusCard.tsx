@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useTranslation, useFormatters, type TranslationKey } from '@/lib/i18n';
 
 interface DeliveryStatus {
-  status: 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
+  status: 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'COURIER_ACCEPTED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
   created_at: string;
   assigned_at?: string | null;
   picked_up_at?: string | null;
@@ -25,7 +25,7 @@ const statusSteps: Array<{ key: string; labelKey: TranslationKey; icon: typeof P
   { key: 'DELIVERED', labelKey: 'order.step.delivered', icon: CheckCircle },
 ];
 
-const statusOrder = ['NEW', 'PROCESSING', 'PROCESSED', 'READY', 'ASSIGNED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
+const statusOrder = ['NEW', 'PROCESSING', 'PROCESSED', 'READY', 'ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
 
 export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatusCardProps) {
   const { t, tStatus } = useTranslation();
@@ -81,7 +81,7 @@ export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatu
         )}>
           {order.status === 'DELIVERED' || order.status === 'DONE' ? (
             <CheckCircle className="h-6 w-6 text-white" />
-          ) : order.status === 'ON_DELIVERY' || order.status === 'SENT' || order.status === 'PICKED_UP' || order.status === 'DELIVERING' ? (
+          ) : order.status === 'COURIER_ACCEPTED' || order.status === 'ON_DELIVERY' || order.status === 'SENT' || order.status === 'PICKED_UP' || order.status === 'DELIVERING' ? (
             <Truck className="h-6 w-6 text-white" />
           ) : (
             <Package className="h-6 w-6 text-white" />
