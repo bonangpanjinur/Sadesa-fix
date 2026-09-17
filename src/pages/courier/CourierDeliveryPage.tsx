@@ -43,17 +43,25 @@ export default function CourierDeliveryPage() {
   });
 
   const courierId = courier?.registration_status === 'APPROVED' ? courier.id : null;
-  const { data: offers = [], isLoading: offersLoading, refetch } = useQuery<DeliveryOffer[]>({
+  const { data: offers = [], isLoading: offersLoading, isError: offersError, refetch } = useQuery<DeliveryOffer[]>({
     queryKey: ['courier-delivery-page-offers', courierId],
     queryFn: async () => {
       const { data, error } = await supabase.from('delivery_assignments')
         .select(OFFER_SELECT)
         .eq('courier_id', courierId!)
         .eq('status', 'OFFERED')
-        .gt('expires_at', new Date().toISOString())
         .order('offered_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as unknown as DeliveryOffer[];
+      const assignments = (data || []) as unknown as DeliveryOffer[];
+      const now = Date.now();
+      return (await Promise.all(assignments.map(async (assignment) => {
+        if (new Date(assignment.expires_at).getTime() > now) return assignment;
+        const { data: renewed, error: renewError } = await supabase.rpc('renew_delivery_offer' as never, {
+          p_assignment_id: assignment.id,
+        } as never);
+        if (renewError || !renewed) return assignment;
+        return { ...assignment, expires_at: (renewed as { expires_at: string }).expires_at };
+      }))).filter(Boolean);
     },
     enabled: !!courierId,
     refetchInterval: 15_000,
@@ -121,7 +129,9 @@ export default function CourierDeliveryPage() {
           <Button variant="outline" size="sm" onClick={() => { void refetch(); queryClient.invalidateQueries({ queryKey: ['courier-delivery-page-active', courierId] }); }}><RefreshCw className="mr-1.5 h-4 w-4" /> Muat ulang</Button>
         </div>
 
-        {offersLoading ? <Card className="p-8 text-center"><RefreshCw className="mx-auto h-6 w-6 animate-spin" /></Card> : offers.length === 0 ? (
+        {offersLoading ? <Card className="p-8 text-center"><RefreshCw className="mx-auto h-6 w-6 animate-spin" /></Card> : offersError ? (
+          <Card className="p-8 text-center"><p className="font-semibold">Tawaran belum dapat dimuat</p><p className="mt-1 text-sm text-muted-foreground">Periksa koneksi lalu tekan Muat ulang.</p></Card>
+        ) : offers.length === 0 ? (
           <Card className="p-8 text-center"><Clock3 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" /><p className="font-semibold">Belum ada tawaran pengiriman</p><p className="mt-1 text-sm text-muted-foreground">Tawaran dari pemesan akan muncul di halaman ini.</p></Card>
         ) : <div className="space-y-3">{offers.map((offer) => <DeliveryOfferCard key={offer.id} offer={{ id: offer.id, order_id: offer.order_id, expires_at: offer.expires_at, order: offer.orders || null }} busy={responding === offer.id} onRespond={respond} />)}</div>}
 
