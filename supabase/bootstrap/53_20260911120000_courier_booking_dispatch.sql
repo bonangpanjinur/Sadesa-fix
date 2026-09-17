@@ -104,6 +104,12 @@ BEGIN
     INSERT INTO public.delivery_assignments(order_id, courier_id, created_by)
     VALUES (v_order.id, v_courier.id, auth.uid())
     RETURNING * INTO v_assignment;
+    UPDATE public.orders
+    SET courier_id = v_courier.id,
+        assigned_at = COALESCE(assigned_at, now()),
+        status_updated_at = now(),
+        updated_at = now()
+    WHERE id = v_order.id;
     PERFORM public.send_notification(
       v_courier.user_id,
       'Pesanan Kurir Baru',

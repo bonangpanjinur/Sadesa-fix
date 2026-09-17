@@ -24,8 +24,6 @@ interface ActiveDelivery {
   merchants: { name: string } | null;
 }
 
-const OFFER_SELECT = 'id, order_id, expires_at, orders(total, shipping_cost, courier_earning_estimate, courier_platform_fee, pickup_address, pickup_lat, pickup_lng, delivery_name, delivery_address, delivery_lat, delivery_lng, notes, merchants(name, address))';
-
 export default function CourierDeliveryPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -46,22 +44,9 @@ export default function CourierDeliveryPage() {
   const { data: offers = [], isLoading: offersLoading, isError: offersError, refetch } = useQuery<DeliveryOffer[]>({
     queryKey: ['courier-delivery-page-offers', courierId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('delivery_assignments')
-        .select(OFFER_SELECT)
-        .eq('courier_id', courierId!)
-        .eq('status', 'OFFERED')
-        .order('offered_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_courier_delivery_offers' as never);
       if (error) throw error;
-      const assignments = (data || []) as unknown as DeliveryOffer[];
-      const now = Date.now();
-      return (await Promise.all(assignments.map(async (assignment) => {
-        if (new Date(assignment.expires_at).getTime() > now) return assignment;
-        const { data: renewed, error: renewError } = await supabase.rpc('renew_delivery_offer' as never, {
-          p_assignment_id: assignment.id,
-        } as never);
-        if (renewError || !renewed) return assignment;
-        return { ...assignment, expires_at: (renewed as { expires_at: string }).expires_at };
-      }))).filter(Boolean);
+      return (data || []) as unknown as DeliveryOffer[];
     },
     enabled: !!courierId,
     refetchInterval: 15_000,
