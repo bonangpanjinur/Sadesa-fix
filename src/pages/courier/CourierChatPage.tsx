@@ -35,12 +35,23 @@ export default function CourierChatPage() {
   const fetchThreads = useCallback(async () => {
     if (!user) return;
     try {
+      const { data: memberships, error: membershipError } = await supabase
+        .from('chat_participants')
+        .select('conversation_id, last_read_at, role')
+        .eq('user_id', user.id)
+        .eq('role', 'courier')
+        .is('left_at', null);
+      if (membershipError) throw membershipError;
+      const conversationIds = [...new Set((memberships || []).map((row) => row.conversation_id))];
+      const lastReadAtByConversation = new Map(
+        (memberships || []).map((row) => [row.conversation_id, row.last_read_at ? new Date(row.last_read_at).getTime() : 0]),
+      );
+      if (conversationIds.length === 0) { setThreads([]); setLoading(false); return; }
       const { data: messages } = await supabase
         .from('chat_messages')
         .select('*')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .in('conversation_id', conversationIds)
         .is('deleted_at', null)
-        .not('order_id', 'is', null)
         .in('chat_type', ['buyer_courier', 'merchant_courier'])
         .order('created_at', { ascending: false })
         .limit(500);
@@ -63,9 +74,25 @@ export default function CourierChatPage() {
             chatType: (msg.chat_type || 'buyer_courier') as ChatType,
           });
         }
-        if (msg.receiver_id === user.id && !msg.is_read) {
+        const lastReadAt = msg.conversation_id ? lastReadAtByConversation.get(msg.conversation_id) || 0 : 0;
+        if (msg.receiver_id === user.id && (
+          msg.conversation_id ? new Date(msg.created_at).getTime() > lastReadAt : !msg.is_read
+        )) {
           threadMap.get(key)!.unreadCount++;
         }
+      }
+
+      const otherParticipants = await supabase
+        .from('chat_participants')
+        .select('conversation_id, user_id')
+        .in('conversation_id', conversationIds)
+        .neq('user_id', user.id)
+        .is('left_at', null);
+      const otherUserByConversation = new Map(
+        (otherParticipants.data || []).map((row) => [row.conversation_id, row.user_id]),
+      );
+      for (const thread of threadMap.values()) {
+        if (thread.conversationId) thread.otherUserId = otherUserByConversation.get(thread.conversationId) || thread.otherUserId;
       }
 
       const userIds = [...new Set([...threadMap.values()].map(t => t.otherUserId))];

@@ -799,14 +799,26 @@ const OrdersPage = () => {
                             </Button>
                           )}
                           {isCourierDelivery && isActive && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs h-8 rounded-full px-4 border-primary/30 text-primary hover:bg-primary/5"
-                              onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/tracking`); }}
-                            >
-                              <MapPin className="w-3 h-3 mr-1" /> Lacak Kurir
-                            </Button>
+                            <>
+                              {['ASSIGNED', 'COURIER_ACCEPTED'].includes(order.status) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs h-8 rounded-full px-3 text-destructive hover:text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); setCancelOrderId(order.id); }}
+                                >
+                                  <X className="w-3 h-3 mr-1" /> Batalkan
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-8 rounded-full px-4 border-primary/30 text-primary hover:bg-primary/5"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/tracking`); }}
+                              >
+                                <MapPin className="w-3 h-3 mr-1" /> Lacak Kurir
+                              </Button>
+                            </>
                           )}
                           {!isCourierDelivery && SHIPPING_STATUSES.includes(order.status) && (
                             <Button
@@ -942,6 +954,7 @@ const OrdersPage = () => {
         open={!!cancelOrderId}
         onOpenChange={(open) => { if (!open) setCancelOrderId(null); }}
         orderId={cancelOrderId || ''}
+        isDirectCourier={Boolean(cancelOrderId && orders.some((order) => order.id === cancelOrderId && order.service_type === 'COURIER_DELIVERY'))}
         onCancelled={() => { setCancelOrderId(null); fetchOrders(); }}
       />
       {/* S4-03: Rating kurir dialog */}
