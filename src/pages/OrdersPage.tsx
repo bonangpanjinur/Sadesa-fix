@@ -194,7 +194,7 @@ async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]
     console.warn("L1 failed:", r1.error.message);
       const r2 = await supabase
         .from("orders")
-        .select("id, status, total, created_at, merchant_id, service_type, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
+        .select("id, status, total, created_at, merchant_id, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
       .eq("buyer_id", userId)
       .order("created_at", { ascending: false })
       .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
@@ -204,7 +204,7 @@ async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]
       console.warn("L2 failed:", r2.error.message);
       const r3 = await supabase
         .from("orders")
-        .select("id, status, total, created_at, merchant_id, service_type, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
+        .select("id, status, total, created_at, merchant_id, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
         .eq("buyer_id", userId)
         .order("created_at", { ascending: false })
         .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
@@ -214,7 +214,7 @@ async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]
         console.warn("L3 failed:", r3.error.message);
       const r4 = await supabase
         .from("orders")
-        .select("id, status, total, created_at, merchant_id, service_type, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, payment_method, payment_status, order_items(id, quantity, product_name, product_price, product_id)")
+        .select("id, status, total, created_at, merchant_id, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, payment_method, payment_status, order_items(id, quantity, product_name, product_price, product_id)")
           .eq("buyer_id", userId)
           .order("created_at", { ascending: false })
           .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
