@@ -5,6 +5,7 @@ import {
   Wallet, 
   ChevronLeft,
   Bike,
+  Package,
   History,
   Banknote,
   MessageCircle,
@@ -26,6 +27,7 @@ export function CourierSidebar() {
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', href: '/courier', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Ojek Desa', href: '/courier/rides', icon: <Bike className="h-4 w-4" /> },
+    { label: 'Pengiriman Barang', href: '/courier?tab=delivery', icon: <Package className="h-4 w-4" /> },
     { label: 'Riwayat Pengiriman', href: '/courier/history', icon: <History className="h-4 w-4" /> },
     { label: 'Chat', href: '/courier/chat', icon: <MessageCircle className="h-4 w-4" /> },
     { label: 'Pendapatan', href: '/courier/earnings', icon: <Wallet className="h-4 w-4" /> },
@@ -58,7 +60,9 @@ export function CourierSidebar() {
           />
         </div>
         {visibleMenuItems.map((item) => {
-          const isActive = location.pathname === item.href;
+          const [itemPath, itemQuery] = item.href.split('?');
+          const isActive = location.pathname === itemPath
+            && (!itemQuery ? !location.search : location.search.includes(itemQuery));
           
           return (
             <Link

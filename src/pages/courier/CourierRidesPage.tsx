@@ -16,6 +16,7 @@ import 'leaflet/dist/leaflet.css';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OrderChat } from '@/components/chat/OrderChat';
+import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
 import { getRoadRoute } from '@/lib/routeCalculation';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
 
@@ -60,13 +61,7 @@ interface DeliveryOffer {
   id: string;
   order_id: string;
   expires_at: string;
-  orders: {
-    id: string;
-    total: number;
-    delivery_name: string | null;
-    delivery_address: string | null;
-    merchants: { name: string } | null;
-  } | null;
+  orders?: DeliveryOfferCardData['order'];
 }
 
 interface RidesData {
@@ -90,6 +85,7 @@ export default function CourierRidesPage() {
   const [routeFallback, setRouteFallback] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
+  const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
   const prevRideCount = useRef(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -117,6 +113,23 @@ export default function CourierRidesPage() {
   });
 
   const courierId = courierInfo?.id ?? null;
+
+  const { data: deliveryOffers = [] } = useQuery<DeliveryOffer[]>({
+    queryKey: ['courier-rides-delivery-offers', courierId],
+    queryFn: async () => {
+      if (!courierId) return [];
+      const { data, error } = await supabase.from('delivery_assignments')
+        .select('id, order_id, expires_at, orders(total, shipping_cost, courier_earning_estimate, courier_platform_fee, pickup_address, pickup_lat, pickup_lng, delivery_name, delivery_address, delivery_lat, delivery_lng, notes, merchants(name, address))')
+        .eq('courier_id', courierId)
+        .eq('status', 'OFFERED')
+        .gt('expires_at', new Date().toISOString())
+        .order('offered_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as DeliveryOffer[];
+    },
+    enabled: !!courierId,
+    refetchInterval: 15_000,
+  });
 
   // Fetch rides data
   const { data: ridesData, isLoading: ridesLoading, refetch: refetchRides } = useQuery<RidesData>({
@@ -183,11 +196,33 @@ export default function CourierRidesPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests', filter: `driver_id=eq.${courierId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierId}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['courier-rides-delivery-offers', courierId] });
+      })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
       });
     return () => { supabase.removeChannel(channel); };
   }, [courierId, queryClient]);
+
+  const respondToDeliveryOffer = async (assignmentId: string, accept: boolean) => {
+    setRespondingOffer(assignmentId);
+    try {
+      const { error } = await supabase.rpc('respond_delivery_offer' as never, {
+        p_assignment_id: assignmentId,
+        p_accept: accept,
+        p_reason: accept ? null : 'Kurir menolak tawaran',
+      } as never);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['courier-rides-delivery-offers', courierId] });
+      queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
+      toast({ title: accept ? 'Pesanan pengantaran diterima' : 'Tawaran pengantaran ditolak' });
+    } catch (error) {
+      toast({ title: 'Tawaran pengantaran tidak dapat diproses', description: getRpcErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setRespondingOffer(null);
+    }
+  };
 
   // Sound notification when new rides come in
   const playNotificationSound = useCallback(() => {
@@ -328,6 +363,28 @@ export default function CourierRidesPage() {
   return (
     <CourierLayout title="Ojek Desa" subtitle="Terima dan kelola perjalanan ojek">
       <div className="space-y-4 sm:space-y-6">
+        {deliveryOffers.length > 0 && (
+          <Card className="border-primary/40 shadow-sm">
+            <div className="space-y-3 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold">Tawaran Pengiriman Barang</p>
+                  <p className="text-xs text-muted-foreground">Pilih Terima atau Tolak sebelum waktu habis</p>
+                </div>
+                <Badge>{deliveryOffers.length}</Badge>
+              </div>
+              {deliveryOffers.map((offer) => (
+                <DeliveryOfferCard
+                  key={offer.id}
+                  offer={{ id: offer.id, order_id: offer.order_id, expires_at: offer.expires_at, order: offer.orders || null }}
+                  busy={respondingOffer === offer.id}
+                  onRespond={respondToDeliveryOffer}
+                />
+              ))}
+            </div>
+          </Card>
+        )}
+
         <div className="flex justify-end">
           <Button variant={soundEnabled ? 'default' : 'outline'} size="sm" onClick={() => setSoundEnabled(!soundEnabled)} className="min-h-11 text-xs sm:min-h-9">
             <Volume2 className="h-3.5 w-3.5 mr-1" />
