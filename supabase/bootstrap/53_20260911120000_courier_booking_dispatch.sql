@@ -61,13 +61,13 @@ BEGIN
   v_shipping := v_base + (GREATEST(0, v_weight - 2) * 2500)::integer;
 
   INSERT INTO public.orders (
-    buyer_id, merchant_id, status, handled_by, delivery_type,
+    buyer_id, merchant_id, service_type, status, handled_by, delivery_type,
     delivery_address, delivery_phone, delivery_name, delivery_lat, delivery_lng,
     shipping_cost, subtotal, total, notes, payment_method, payment_status,
     buyer_distance_km, is_self_delivery, pickup_address, pickup_lat, pickup_lng,
     package_type, package_weight_kg, courier_notes, scheduled_pickup, cod_service_fee
   ) VALUES (
-    auth.uid(), NULL, 'ASSIGNED', 'ADMIN', 'INTERNAL',
+    auth.uid(), NULL, 'COURIER_DELIVERY', 'ASSIGNED', 'ADMIN', 'INTERNAL',
     left(btrim(p_request->>'destination_address'), 500),
     left(btrim(p_request->>'recipient_phone'), 40),
     left(btrim(p_request->>'recipient_name'), 160), v_destination_lat, v_destination_lng,

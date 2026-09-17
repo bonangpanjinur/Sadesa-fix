@@ -27,6 +27,7 @@ import { toast } from "@/hooks/use-toast";
 import { OrderCancelDialog } from "@/components/order/OrderCancelDialog";
 import { OrderDetailSheet } from "@/components/order/OrderDetailSheet";
 import { CourierRatingDialog } from "@/components/buyer/CourierRatingDialog";
+import { getBuyerTransactionKind } from "@/lib/buyerTransaction";
 
 interface BuyerOrderItem {
   id: string;
@@ -43,6 +44,19 @@ interface BuyerOrder {
   total: number;
   created_at: string;
   merchant_id: string | null;
+  service_type?: string | null;
+  pickup_address?: string | null;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  package_type?: string | null;
+  package_weight_kg?: number | null;
+  courier_notes?: string | null;
+  delivery_type?: string | null;
+  delivery_address?: string | null;
+  delivery_name?: string | null;
+  delivery_phone?: string | null;
+  delivery_lat?: number | null;
+  delivery_lng?: number | null;
   merchants: { name: string; phone: string | null; user_id?: string | null } | null;
   order_items?: BuyerOrderItem[];
   is_self_delivery?: boolean;
@@ -169,7 +183,7 @@ async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]
   // Level 1: Full query with all relations including nested products
   const r1 = await supabase
     .from("orders")
-    .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone, user_id), order_items(id, quantity, product_name, product_price, product_id, products(name, image_url))")
+    .select("id, status, total, created_at, merchant_id, service_type, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone, user_id), order_items(id, quantity, product_name, product_price, product_id, products(name, image_url))")
     .eq("buyer_id", userId)
     .order("created_at", { ascending: false })
     .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
@@ -178,9 +192,9 @@ async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]
     data = r1.data as unknown as OrderRow[];
   } else {
     console.warn("L1 failed:", r1.error.message);
-    const r2 = await supabase
-      .from("orders")
-      .select("id, status, total, created_at, merchant_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
+      const r2 = await supabase
+        .from("orders")
+        .select("id, status, total, created_at, merchant_id, service_type, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, is_self_delivery, has_review, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
       .eq("buyer_id", userId)
       .order("created_at", { ascending: false })
       .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
@@ -190,7 +204,7 @@ async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]
       console.warn("L2 failed:", r2.error.message);
       const r3 = await supabase
         .from("orders")
-        .select("id, status, total, created_at, merchant_id, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
+        .select("id, status, total, created_at, merchant_id, service_type, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, payment_method, payment_status, merchants(name, phone), order_items(id, quantity, product_name, product_price, product_id)")
         .eq("buyer_id", userId)
         .order("created_at", { ascending: false })
         .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
@@ -198,9 +212,9 @@ async function loadBuyerOrders(userId: string, offset = 0): Promise<BuyerOrder[]
         data = r3.data as unknown as OrderRow[];
       } else {
         console.warn("L3 failed:", r3.error.message);
-        const r4 = await supabase
-          .from("orders")
-          .select("id, status, total, created_at, merchant_id, payment_method, payment_status, order_items(id, quantity, product_name, product_price, product_id)")
+      const r4 = await supabase
+        .from("orders")
+        .select("id, status, total, created_at, merchant_id, service_type, pickup_address, pickup_lat, pickup_lng, package_type, package_weight_kg, courier_notes, delivery_type, delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng, courier_id, payment_method, payment_status, order_items(id, quantity, product_name, product_price, product_id)")
           .eq("buyer_id", userId)
           .order("created_at", { ascending: false })
           .range(offset, offset + BUYER_ORDER_PAGE_SIZE - 1);
@@ -259,6 +273,7 @@ const OrdersPage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("all");
+  const [activeCategory, setActiveCategory] = useState<"all" | "product" | "transport">("all");
   const [chatOrder, setChatOrder] = useState<{ orderId: string; merchantUserId: string; merchantName: string } | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -382,14 +397,21 @@ const OrdersPage = () => {
     ...rides.map((ride) => ({ kind: "ride" as const, item: ride })),
   ].sort((a, b) => new Date(b.item.created_at).getTime() - new Date(a.item.created_at).getTime());
 
+  const categoryMatches = (item: HistoryItem) => {
+    if (activeCategory === "all") return true;
+    if (item.kind === "ride") return activeCategory === "transport";
+    return activeCategory === (getBuyerTransactionKind(item.item) === "courier_delivery" ? "transport" : "product");
+  };
+
   const filteredHistory = historyItems.filter((item) => {
+    if (!categoryMatches(item)) return false;
     if (activeTab === "all") return true;
     return getHistoryStatusGroup(item) === activeTab;
   });
 
   const getTabCount = (tabValue: string) => {
-    if (tabValue === "all") return historyItems.length;
-    return historyItems.filter((item) => getHistoryStatusGroup(item) === tabValue).length;
+    if (tabValue === "all") return historyItems.filter(categoryMatches).length;
+    return historyItems.filter((item) => categoryMatches(item) && getHistoryStatusGroup(item) === tabValue).length;
   };
 
   const activeOrderCount = historyItems.filter((item) =>
@@ -479,6 +501,13 @@ const OrdersPage = () => {
       <div className="container max-w-md mx-auto px-4 -mt-3">
         <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
           <div className="bg-card rounded-xl shadow-sm p-1.5 mb-4">
+            <div className="grid grid-cols-3 gap-1 mb-2">
+              {([['all', 'Semua'], ['product', 'Produk'], ['transport', 'Ojek & Kurir']] as const).map(([value, label]) => (
+                <button key={value} type="button" onClick={() => setActiveCategory(value)} className={`rounded-lg px-2 py-2 text-[11px] font-medium transition-colors ${activeCategory === value ? 'bg-emerald-100 text-emerald-800' : 'text-muted-foreground hover:bg-muted'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent h-auto p-0 gap-1 no-scrollbar">
               {TAB_FILTERS.map((tab) => {
                 const count = getTabCount(tab.value);
@@ -625,6 +654,8 @@ const OrdersPage = () => {
                 }
 
                 const order = historyItem.item;
+                const transactionKind = getBuyerTransactionKind(order);
+                const isCourierDelivery = transactionKind === "courier_delivery";
                 const firstItem = order.order_items?.[0];
                 // Support both image_url from DB and image from mapped Product interface
                 const imageUrl = firstItem?.products?.image_url;
@@ -654,8 +685,8 @@ const OrdersPage = () => {
                             <span className="font-mono">#{shortId}</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-sm">
-                            <Store className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span className="font-medium truncate max-w-[160px]">{order.merchants?.name || "Toko"}</span>
+                            {isCourierDelivery ? <Bike className="w-3.5 h-3.5 text-primary" /> : <Store className="w-3.5 h-3.5 text-muted-foreground" />}
+                            <span className="font-medium truncate max-w-[160px]">{isCourierDelivery ? "Ojek & Kurir" : order.merchants?.name || "Toko"}</span>
                           </div>
                         </div>
                         <Badge
@@ -674,29 +705,30 @@ const OrdersPage = () => {
                         </div>
                       )}
 
-                      {/* Product info */}
+                      {/* Product or courier service info */}
                       <div className="p-4 flex gap-4">
-                        <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
-                          {imageUrl ? (
+                        <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center">
+                          {isCourierDelivery ? <Bike className="w-10 h-10 text-primary" /> : imageUrl ? (
                             <img src={imageUrl} alt={productName} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                              <ShoppingBag className="w-8 h-8" />
-                            </div>
-                          )}
+                          ) : <ShoppingBag className="w-8 h-8 text-muted-foreground" />}
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col justify-between">
-                          <div>
+                          {isCourierDelivery ? (
+                            <div className="space-y-1">
+                              <h4 className="font-medium text-sm text-foreground">Antar barang</h4>
+                              <p className="text-xs text-muted-foreground truncate">{order.pickup_address || "Lokasi pickup"}</p>
+                              <p className="text-xs text-muted-foreground truncate">→ {order.delivery_address || "Tujuan pengiriman"}</p>
+                              <p className="text-xs text-muted-foreground">{order.package_type || "Paket"}{order.package_weight_kg ? ` • ${order.package_weight_kg} kg` : ""}</p>
+                            </div>
+                          ) : <div>
                             <h4 className="font-medium text-sm truncate text-foreground">{productName}</h4>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {itemCount > 1
-                                ? `+${itemCount - 1} produk lainnya`
-                                : `${firstItem?.quantity || 1} barang`}
+                              {itemCount > 1 ? `+${itemCount - 1} produk lainnya` : `${firstItem?.quantity || 1} barang`}
                             </p>
-                          </div>
+                          </div>}
                           <div className="flex items-end justify-between mt-2">
                             <div>
-                              <p className="text-[11px] text-muted-foreground">Total Belanja</p>
+                              <p className="text-[11px] text-muted-foreground">{isCourierDelivery ? "Biaya Layanan" : "Total Belanja"}</p>
                               <p className="text-sm font-bold text-primary">{formatPrice(order.total)}</p>
                             </div>
                             <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -707,7 +739,7 @@ const OrdersPage = () => {
                       {/* Contextual actions */}
                       <div className="px-4 py-3 border-t border-border/50 bg-muted/30 flex justify-between items-center gap-2">
                         {/* Contact seller (always visible for active orders) */}
-                        {isActive && (order.merchant_id || order.merchants?.phone) && (
+                        {!isCourierDelivery && isActive && (order.merchant_id || order.merchants?.phone) && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -719,7 +751,7 @@ const OrdersPage = () => {
                         )}
                         
                         <div className="flex gap-2 ml-auto">
-                        {PENDING_STATUSES.includes(order.status) && (
+                          {!isCourierDelivery && PENDING_STATUSES.includes(order.status) && (
                             <>
                               <Button
                                 size="sm"
@@ -753,7 +785,7 @@ const OrdersPage = () => {
                               )}
                             </>
                           )}
-                          {order.payment_status === 'PAID' &&
+                          {!isCourierDelivery && order.payment_status === 'PAID' &&
                             !PENDING_STATUSES.includes(order.status) &&
                             !CANCELLED_STATUSES.includes(order.status) &&
                             order.status !== 'DONE' && (
@@ -776,7 +808,7 @@ const OrdersPage = () => {
                               <MapPin className="w-3 h-3 mr-1" /> Lacak
                             </Button>
                           )}
-                          {order.status === "DONE" && (
+                          {!isCourierDelivery && order.status === "DONE" && (
                             <>
                               {!order.has_review && (
                                 <Button
@@ -832,7 +864,7 @@ const OrdersPage = () => {
                               </Button>
                             </>
                           )}
-                          {CANCELLED_STATUSES.includes(order.status) && (
+                          {!isCourierDelivery && CANCELLED_STATUSES.includes(order.status) && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -843,6 +875,11 @@ const OrdersPage = () => {
                             </Button>
                           )}
                         </div>
+                        {isCourierDelivery && isActive && (
+                          <Button size="sm" variant="outline" className="text-xs h-8 rounded-full px-4" onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/tracking`); }}>
+                            <MapPin className="w-3 h-3 mr-1" /> Lacak Kurir
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, Truck, MapPin, CreditCard, Clock, CheckCircle, XCircle, MessageCircle, Navigation } from 'lucide-react';
+import { Package, Truck, Bike, Store, MapPin, CreditCard, Clock, CheckCircle, XCircle, MessageCircle, Navigation } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -9,6 +9,7 @@ import { formatPrice } from '@/lib/utils';
 import { formatETA, calculateETA, formatDistance, calculateDistance, type VehicleType } from '@/lib/etaCalculation';
 import { useAuth } from '@/contexts/AuthContext';
 import { OrderChat } from '@/components/chat/OrderChat';
+import { getBuyerTransactionKind } from '@/lib/buyerTransaction';
 
 interface OrderDetailSheetProps {
   orderId: string | null;
@@ -41,6 +42,11 @@ interface OrderDetail {
   confirmed_at: string | null;
   delivered_at: string | null;
   merchant_id: string | null;
+  service_type: string | null;
+  pickup_address: string | null;
+  package_type: string | null;
+  package_weight_kg: number | null;
+  courier_notes: string | null;
   merchant: { name: string; location_lat: number | null; location_lng: number | null; user_id: string | null } | null;
   courier: { name: string; phone: string; current_lat: number | null; current_lng: number | null; vehicle_type: string } | null;
   items: Array<{
@@ -82,7 +88,8 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
       const { data, error } = await supabase
         .from('orders')
         .select(`
-          id, status, total, subtotal, shipping_cost, delivery_type,
+          id, status, total, subtotal, shipping_cost, delivery_type, service_type,
+          pickup_address, package_type, package_weight_kg, courier_notes,
           delivery_address, delivery_name, delivery_phone, delivery_lat, delivery_lng,
           payment_method, payment_status, notes, created_at,
           confirmed_at, delivered_at, merchant_id,
@@ -111,6 +118,7 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
   };
 
   const currentStatusIdx = order ? statusOrder.indexOf(order.status) : -1;
+  const isCourierDelivery = order ? getBuyerTransactionKind(order) === 'courier_delivery' : false;
 
   // Calculate ETA
   const etaInfo = (() => {
@@ -149,10 +157,13 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
           </div>
         ) : order ? (
           <div className="space-y-4">
-            {/* Order ID & Merchant */}
+            {/* Order ID & transaction type */}
             <div>
               <p className="text-xs text-muted-foreground font-mono">#{order.id.slice(0, 8).toUpperCase()}</p>
-              <p className="font-semibold">{order.merchant?.name || 'Toko'}</p>
+              <div className="flex items-center gap-2">
+                {isCourierDelivery ? <Bike className="h-4 w-4 text-primary" /> : <Store className="h-4 w-4 text-muted-foreground" />}
+                <p className="font-semibold">{isCourierDelivery ? 'Ojek & Kurir · Antar barang' : order.merchant?.name || 'Toko'}</p>
+              </div>
               <p className="text-xs text-muted-foreground">
                 {new Date(order.created_at).toLocaleDateString('id-ID', {
                   day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -163,7 +174,7 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
             <Separator />
 
             {/* Items */}
-            <div>
+            {!isCourierDelivery && <div>
               <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                 <Package className="h-4 w-4" /> Item Pesanan
               </h4>
@@ -182,18 +193,32 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
 
             <Separator />
 
+            </div>}
+
+            {isCourierDelivery && <div className="space-y-3 rounded-lg bg-primary/5 p-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2"><Bike className="h-4 w-4" /> Detail Pengiriman</h4>
+              <div className="space-y-2 text-sm">
+                <div><p className="text-xs text-muted-foreground">Pickup</p><p>{order.pickup_address || '-'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Tujuan</p><p>{order.delivery_address || '-'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Penerima</p><p>{order.delivery_name || '-'}{order.delivery_phone ? ` · ${order.delivery_phone}` : ''}</p></div>
+                <div className="flex gap-6"><div><p className="text-xs text-muted-foreground">Jenis barang</p><p>{order.package_type || '-'}</p></div><div><p className="text-xs text-muted-foreground">Berat</p><p>{order.package_weight_kg ? `${order.package_weight_kg} kg` : '-'}</p></div></div>
+              </div>
+            </div>}
+
+            <Separator />
+
             {/* Pricing */}
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
+              {!isCourierDelivery && <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatPrice(order.subtotal)}</span>
-              </div>
+              </div>}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Ongkir</span>
+                <span className="text-muted-foreground">{isCourierDelivery ? 'Biaya layanan' : 'Ongkir'}</span>
                 <span>{formatPrice(order.shipping_cost)}</span>
               </div>
               <div className="flex justify-between font-bold text-base pt-1 border-t border-border">
-                <span>Total</span>
+                <span>{isCourierDelivery ? 'Total biaya layanan' : 'Total'}</span>
                 <span className="text-primary">{formatPrice(order.total)}</span>
               </div>
             </div>
@@ -201,7 +226,7 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
             <Separator />
 
             {/* Delivery Info */}
-            {order.delivery_address && (
+            {!isCourierDelivery && order.delivery_address && (
               <div>
                 <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                   <MapPin className="h-4 w-4" /> Alamat Pengiriman
