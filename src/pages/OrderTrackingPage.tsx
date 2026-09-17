@@ -131,6 +131,16 @@ export default function OrderTrackingPage() {
 
       setOrder(orderData as unknown as OrderDetails);
 
+      // A booking can remain ASSIGNED when the first courier offer was missed
+      // or created before a courier became available. Retry dispatch from the
+      // authoritative RPC; failures are non-blocking for legacy deployments.
+      if (orderData.status === 'ASSIGNED' && orderData.pickup_lat != null && orderData.pickup_lng != null) {
+        const { error: dispatchError } = await supabase.rpc('dispatch_courier_order' as never, {
+          p_order_id: orderId,
+        } as never);
+        if (dispatchError) console.warn('Courier dispatch retry unavailable:', dispatchError.message);
+      }
+
       // Fetch order items with product images
       const { data: itemsData } = await supabase
         .from('order_items')
