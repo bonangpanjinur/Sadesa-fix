@@ -274,7 +274,7 @@ const OrdersPage = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("all");
   const [activeCategory, setActiveCategory] = useState<"all" | "product" | "transport">("all");
-  const [chatOrder, setChatOrder] = useState<{ orderId: string; merchantUserId: string; merchantName: string } | null>(null);
+  const [chatOrder, setChatOrder] = useState<{ orderId: string; otherUserId: string; otherUserName: string; chatType?: 'buyer_merchant' | 'buyer_courier' } | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
@@ -344,6 +344,21 @@ const OrdersPage = () => {
   const fetchOrders = useCallback(async (isRefresh = false) => {
     if (isRefresh) await Promise.all([refetch(), refetchRides()]);
   }, [refetch, refetchRides]);
+
+  const handleContactCourier = async (event: React.MouseEvent, order: BuyerOrder) => {
+    event.stopPropagation();
+    if (!order.courier_id) return toast({ title: 'Kurir belum tersedia', variant: 'destructive' });
+    const { data: courier, error } = await supabase
+      .from('couriers')
+      .select('user_id, name')
+      .eq('id', order.courier_id)
+      .maybeSingle();
+    if (error || !courier?.user_id) {
+      toast({ title: 'Chat kurir belum tersedia', description: 'Kurir belum memiliki akun chat aktif.', variant: 'destructive' });
+      return;
+    }
+    setChatOrder({ orderId: order.id, otherUserId: courier.user_id, otherUserName: courier.name || 'Kurir', chatType: 'buyer_courier' });
+  };
 
   // Realtime subscription for order status updates — updates React Query cache directly
   useEffect(() => {
@@ -438,8 +453,9 @@ const OrdersPage = () => {
     if (merchantUserId && order.merchant_id) {
       setChatOrder({
         orderId: order.id,
-        merchantUserId,
-        merchantName: order.merchants?.name || 'Penjual',
+        otherUserId: merchantUserId,
+        otherUserName: order.merchants?.name || 'Penjual',
+        chatType: 'buyer_merchant',
       });
       return;
     }
@@ -800,6 +816,16 @@ const OrdersPage = () => {
                           )}
                           {isCourierDelivery && isActive && (
                             <>
+                              {order.courier_id && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-8 rounded-full px-3 border-primary/30 text-primary hover:bg-primary/5"
+                                  onClick={(e) => { void handleContactCourier(e, order); }}
+                                >
+                                  <MessageCircle className="w-3 h-3 mr-1" /> Chat Kurir
+                                </Button>
+                              )}
                               {['ASSIGNED', 'COURIER_ACCEPTED'].includes(order.status) && (
                                 <Button
                                   size="sm"
@@ -943,8 +969,9 @@ const OrdersPage = () => {
       {chatOrder && (
         <OrderChat
           orderId={chatOrder.orderId}
-          otherUserId={chatOrder.merchantUserId}
-          otherUserName={chatOrder.merchantName}
+          otherUserId={chatOrder.otherUserId}
+          otherUserName={chatOrder.otherUserName}
+          chatType={chatOrder.chatType}
           isOpen={!!chatOrder}
           onClose={() => setChatOrder(null)}
         />
