@@ -19,28 +19,6 @@ BEGIN
     RETURN '[]'::jsonb;
   END IF;
 
-  -- An offline courier must not lose an offer merely because the five-minute
-  -- response window elapsed while the order is still waiting for acceptance.
-  UPDATE public.delivery_assignments da
-  SET expires_at = now() + interval '5 minutes'
-  FROM public.orders o
-  WHERE da.order_id = o.id
-    AND da.courier_id = v_courier_id
-    AND da.status = 'OFFERED'
-    AND da.expires_at <= now()
-    AND o.status = 'ASSIGNED';
-
-  UPDATE public.orders o
-  SET courier_id = da.courier_id,
-      assigned_at = COALESCE(o.assigned_at, now()),
-      status_updated_at = now(),
-      updated_at = now()
-  FROM public.delivery_assignments da
-  WHERE da.order_id = o.id
-    AND da.courier_id = v_courier_id
-    AND da.status = 'OFFERED'
-    AND o.status = 'ASSIGNED';
-
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
     'id', da.id,
     'order_id', da.order_id,

@@ -66,24 +66,15 @@ export function ProofOfDelivery({ orderId, onSuccess, open, onOpenChange }: Proo
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('pod-images')
-        .getPublicUrl(filePath);
-
-      // Update order with POD info and status
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({
-          pod_image_url: urlData.publicUrl,
-          pod_notes: notes || null,
-          pod_uploaded_at: new Date().toISOString(),
-          status: 'DELIVERED',
-          delivered_at: new Date().toISOString(),
-        })
-        .eq('id', orderId);
-
-      if (updateError) throw updateError;
+      const { error: updateError } = await supabase.rpc('courier_complete_delivery' as never, {
+        p_order_id: orderId,
+        p_proof_path: filePath,
+        p_notes: notes.trim() || null,
+      } as never);
+      if (updateError) {
+        await supabase.storage.from('pod-images').remove([filePath]);
+        throw updateError;
+      }
 
       toast({ title: 'Pengiriman selesai!', description: 'Bukti pengiriman berhasil diunggah' });
       onSuccess();
