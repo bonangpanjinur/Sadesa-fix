@@ -72,8 +72,8 @@ BEGIN
   -- the courier never receives a stale notification for a failed assignment.
   PERFORM public.send_notification(
     v_courier.user_id,
-    'Pesanan Kurir Baru',
-    'Ada tugas pengiriman baru. Buka notifikasi untuk melihat detail dan menerima pesanan.',
+    'Tawaran Pengiriman Baru',
+    'Ada tawaran pengiriman baru. Silakan pilih Terima atau Tolak.',
     'order',
     '/courier?orderId=' || p_order_id::text
   );
