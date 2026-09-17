@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet } from 'lucide-react';
 import { CourierSidebar } from './CourierSidebar';
@@ -20,47 +20,85 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
   const location = useLocation();
   const isActive = (href: string) => location.pathname === href;
 
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [sidebarOpen]);
+
   return (
-    <div className="flex min-h-dvh w-full flex-col overflow-x-hidden bg-background">
+    <div className="flex min-h-dvh w-full overflow-x-hidden bg-background">
+      {/* Full navigation stays visible on desktop; mobile uses the drawer below. */}
+      <aside className="hidden w-64 shrink-0 md:flex" aria-label="Menu kurir">
+        <CourierSidebar />
+      </aside>
+
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+        <button
+          type="button"
+          className="fixed inset-0 z-40 cursor-default bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Tutup menu kurir"
+        />
       )}
 
-      {/* Drawer only: it never consumes page width, including on desktop-sized mobile browsers. */}
-      <div className={cn(
-        'fixed inset-y-0 left-0 z-50 w-72 max-w-[86vw] transform transition-transform duration-200',
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-      )}>
-        <div className="h-full shadow-2xl"><CourierSidebar /></div>
-        <Button variant="secondary" size="icon" className="absolute right-2 top-3" onClick={() => setSidebarOpen(false)} aria-label="Tutup menu">
-          <X className="h-5 w-5" />
-        </Button>
+      <div
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 w-72 max-w-[86vw] transform transition-transform duration-200 md:hidden',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+        aria-hidden={!sidebarOpen}
+      >
+        <div className="relative h-full shadow-2xl">
+          <CourierSidebar onNavigate={() => setSidebarOpen(false)} />
+          <Button
+            variant="secondary"
+            size="icon"
+            className="absolute right-2 top-3"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Tutup menu"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
-      <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
-        <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} aria-label="Buka menu kurir">
-          <Menu className="h-5 w-5" />
-        </Button>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-semibold sm:text-xl">{title}</h1>
-          {subtitle && <p className="hidden truncate text-xs text-muted-foreground sm:block">{subtitle}</p>}
-        </div>
-      </header>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Buka menu kurir"
+            aria-expanded={sidebarOpen}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-base font-semibold sm:text-xl">{title}</h1>
+            {subtitle && <p className="hidden truncate text-xs text-muted-foreground sm:block">{subtitle}</p>}
+          </div>
+        </header>
 
-      <main className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-24 pt-4 sm:px-6 sm:pt-6">
-        <div className="mx-auto w-full max-w-3xl">{children}</div>
-      </main>
+        <main className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-24 pt-4 sm:px-6 sm:pt-6 md:pb-8">
+          <div className="mx-auto w-full max-w-3xl">{children}</div>
+        </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur" aria-label="Navigasi kurir">
-        <div className="mx-auto grid h-16 w-full max-w-3xl grid-cols-5">
-          {mobileNav.map(({ label, href, icon: Icon }) => (
-            <Link key={href} to={href} className={cn('flex min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors', isActive(href) ? 'text-primary' : 'text-muted-foreground')}>
-              <Icon className={cn('h-5 w-5', isActive(href) && 'stroke-[2.5]')} />
-              <span className="truncate">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </nav>
+        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden" aria-label="Navigasi cepat kurir">
+          <div className="mx-auto grid h-16 w-full max-w-3xl grid-cols-5">
+            {mobileNav.map(({ label, href, icon: Icon }) => (
+              <Link key={href} to={href} className={cn('flex min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors', isActive(href) ? 'text-primary' : 'text-muted-foreground')}>
+                <Icon className={cn('h-5 w-5', isActive(href) && 'stroke-[2.5]')} />
+                <span className="truncate">{label}</span>
+              </Link>
+            ))}
+          </div>
+        </nav>
+      </div>
     </div>
   );
 }

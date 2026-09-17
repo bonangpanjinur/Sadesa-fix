@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Wallet, 
+import {
+  LayoutDashboard,
+  Wallet,
   ChevronLeft,
   Bike,
   Package,
@@ -10,7 +10,7 @@ import {
   Banknote,
   MessageCircle,
   PiggyBank,
-  Search
+  Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,7 +20,11 @@ interface SidebarItem {
   icon: React.ReactNode;
 }
 
-export function CourierSidebar() {
+interface CourierSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function CourierSidebar({ onNavigate }: CourierSidebarProps) {
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -40,16 +44,16 @@ export function CourierSidebar() {
     : menuItems;
 
   return (
-    <div className="sticky top-0 flex h-[100dvh] w-64 flex-col border-r border-border bg-card">
-      <div className="p-4 border-b border-border">
+    <div className="flex h-[100dvh] w-full flex-col border-r border-border bg-card">
+      <div className="border-b border-border p-4">
         <div className="flex items-center gap-2">
-          <Bike className="h-6 w-6 text-primary" />
-          <span className="font-semibold text-lg">Dashboard Kurir</span>
+          <Bike className="h-6 w-6 shrink-0 text-primary" />
+          <span className="text-lg font-semibold">Dashboard Kurir</span>
         </div>
       </div>
 
-      <nav className="min-h-0 flex-1 p-3 space-y-1 overflow-y-auto overscroll-contain scrollbar-subtle">
-        <div className="mb-3 relative">
+      <nav className="scrollbar-subtle min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
+        <div className="relative mb-3">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={searchTerm}
@@ -63,20 +67,21 @@ export function CourierSidebar() {
           const [itemPath, itemQuery] = item.href.split('?');
           const isActive = location.pathname === itemPath
             && (!itemQuery ? !location.search : location.search.includes(itemQuery));
-          
+
           return (
             <Link
               key={item.href}
               to={item.href}
+              onClick={onNavigate}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive 
-                  ? "bg-primary text-primary-foreground" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
               )}
             >
               {item.icon}
-              {item.label}
+              <span className="truncate">{item.label}</span>
             </Link>
           );
         })}
@@ -85,10 +90,11 @@ export function CourierSidebar() {
         )}
       </nav>
 
-      <div className="p-3 border-t border-border">
+      <div className="border-t border-border p-3">
         <Link
           to="/"
-          className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          onClick={onNavigate}
+          className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />
           Kembali ke Aplikasi
