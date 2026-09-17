@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface DeliveryProofDialogProps { open: boolean; onClose: () => void; orderId: string; orderNumber: string; onConfirmed: () => void; }
+const DELIVERY_PROOF_BUCKET = 'pod-images';
 
 export function DeliveryProofDialog({ open, onClose, orderId, orderNumber, onConfirmed }: DeliveryProofDialogProps) {
   const [photo, setPhoto] = useState<File | null>(null);
@@ -31,13 +32,13 @@ export function DeliveryProofDialog({ open, onClose, orderId, orderNumber, onCon
     setUploading(true);
     try {
       const path = `${orderId}/${crypto.randomUUID()}-${photo.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-      const { error: uploadError } = await supabase.storage.from('delivery-proofs').upload(path, photo, { contentType: photo.type, upsert: false });
+      const { error: uploadError } = await supabase.storage.from(DELIVERY_PROOF_BUCKET).upload(path, photo, { contentType: photo.type, upsert: false });
       if (uploadError) throw uploadError;
       const { error } = await supabase.rpc('courier_complete_delivery' as never, {
         p_order_id: orderId, p_proof_path: path, p_notes: notes.trim() || null,
       } as never);
       if (error) {
-        await supabase.storage.from('delivery-proofs').remove([path]);
+        await supabase.storage.from(DELIVERY_PROOF_BUCKET).remove([path]);
         throw error;
       }
       toast.success(`Pengiriman #${orderNumber} berhasil diselesaikan`);
