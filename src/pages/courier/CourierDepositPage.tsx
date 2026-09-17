@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, PiggyBank, Upload, Clock, CheckCircle, XCircle, Loader2, Info } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { PiggyBank, Upload, Clock, CheckCircle, XCircle, Loader2, Info } from 'lucide-react';
+import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -124,12 +124,8 @@ export default function CourierDepositPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/courier')}>
-          <ArrowLeft className="h-4 w-4 mr-2" /> Kembali
-        </Button>
+    <CourierLayout title="Setor Saldo" subtitle="Kelola setoran saldo kurir">
+      <div className="space-y-6">
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
@@ -206,6 +202,6 @@ export default function CourierDepositPage() {
           )}
         </motion.div>
       </div>
-    </div>
+    </CourierLayout>
   );
 }

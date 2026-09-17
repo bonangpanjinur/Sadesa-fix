@@ -1,7 +1,7 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Wallet, TrendingUp, Package, CheckCircle, ArrowLeft, FileDown, Banknote, AlertTriangle, ClipboardCheck } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { Wallet, TrendingUp, Package, CheckCircle, FileDown, Banknote, AlertTriangle, ClipboardCheck } from 'lucide-react';
+import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -146,13 +146,9 @@ export default function CourierEarningsPage() {
   const pendingEarnings = earnings.filter(e => e.status === 'PENDING');
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/courier')}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Kembali
-          </Button>
+    <CourierLayout title="Pendapatan" subtitle="Ringkasan pendapatan dan rekonsiliasi COD">
+      <div className="space-y-6">
+        <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={() => navigate('/courier/slip')}>
             <FileDown className="h-4 w-4 mr-1.5" />
             Download Slip PDF
@@ -254,7 +250,7 @@ export default function CourierEarningsPage() {
         </motion.div>
       </div>
       <Dialog open={codDialogOpen} onOpenChange={setCodDialogOpen}><DialogContent><DialogHeader><DialogTitle><ClipboardCheck className="inline h-4 w-4 mr-2" />Setor COD #{selectedCodOrder?.id.slice(0, 8).toUpperCase()}</DialogTitle></DialogHeader><div className="space-y-3"><div className="rounded-lg bg-muted p-3 text-sm">Expected cash: <strong>{selectedCodOrder ? formatPrice(selectedCodOrder.total + (selectedCodOrder.shipping_cost ?? 0)) : '-'}</strong></div><div><Label>Uang tunai diterima</Label><Input className="mt-1" type="number" min="0" step="1" value={collectedCash} onChange={(event) => setCollectedCash(event.target.value)} /></div><div><Label>Catatan</Label><Textarea className="mt-1" maxLength={500} value={codNotes} onChange={(event) => setCodNotes(event.target.value)} /></div></div><DialogFooter><Button variant="outline" onClick={() => setCodDialogOpen(false)}>Batal</Button><Button onClick={() => void submitCodReconciliation()} disabled={codSubmitting}>{codSubmitting ? 'Mengirim...' : 'Kirim Rekonsiliasi'}</Button></DialogFooter></DialogContent></Dialog>
-    </div>
+    </CourierLayout>
   );
 }
 

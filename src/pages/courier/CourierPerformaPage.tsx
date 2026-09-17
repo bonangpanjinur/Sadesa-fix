@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Header } from '@/components/layout/Header';
+import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
-import { ArrowLeft, TrendingUp, Package, CheckCircle, Clock, Award } from 'lucide-react';
+import { TrendingUp, Package, CheckCircle, Clock, Award } from 'lucide-react';
 import { subDays, format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 
@@ -140,13 +140,9 @@ export default function CourierPerformaPage() {
   const onTimeBadge = getPerformaBadge(stats.onTimeRate);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/courier')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />Kembali
-          </Button>
+    <CourierLayout title="Performa" subtitle="Pantau kinerja pengiriman Anda">
+      <div className="space-y-6">
+        <div className="flex justify-end">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-32 h-8"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -244,6 +240,6 @@ export default function CourierPerformaPage() {
           </>
         )}
       </div>
-    </div>
+    </CourierLayout>
   );
 }

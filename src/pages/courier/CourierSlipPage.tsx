@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, FileDown, Calendar, Wallet, Package,
+  FileDown, Calendar, Wallet, Package,
   TrendingUp, Bike, Star, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -288,18 +288,8 @@ export default function CourierSlipPage() {
   const dailySummary = data?.dailySummary ?? [];
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/courier/earnings')}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Kembali
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold">Slip Penghasilan</h1>
-            <p className="text-xs text-muted-foreground">Download PDF rekap pendapatan kurir</p>
-          </div>
-        </div>
+    <CourierLayout title="Slip Penghasilan" subtitle="Download PDF rekap pendapatan kurir">
+      <div className="space-y-6">
 
         {/* Filter periode */}
         <Card>
@@ -459,6 +449,6 @@ export default function CourierSlipPage() {
           Simpan sebagai arsip penghasilan Anda.
         </p>
       </div>
-    </div>
+    </CourierLayout>
   );
 }
