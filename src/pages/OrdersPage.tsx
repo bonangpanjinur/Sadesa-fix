@@ -97,19 +97,19 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; co
   COURIER_ASSIGNED: { label: "Menunggu Kurir", icon: Truck, color: "bg-teal-50 text-teal-700 border-teal-200" },
   COURIER_ACCEPTED: { label: "Kurir Menuju Toko", icon: Truck, color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   PICKED_UP: { label: "Pesanan Diambil Kurir", icon: Truck, color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  DELIVERING: { label: "Diantar Penjual", icon: Truck, color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-  SENT: { label: "Dalam Pengiriman", icon: Truck, color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  DELIVERING: { label: "Kurir Mengantar", icon: Truck, color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+  SENT: { label: "Dalam Perjalanan", icon: Truck, color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   DELIVERED: { label: "Sudah Diantar", icon: MapPin, color: "bg-violet-50 text-violet-700 border-violet-200" },
   DONE: { label: "Selesai", icon: CheckCircle, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   CANCELLED: { label: "Dibatalkan", icon: XCircle, color: "bg-red-50 text-red-700 border-red-200" },
   CANCELED: { label: "Dibatalkan", icon: XCircle, color: "bg-red-50 text-red-700 border-red-200" },
 };
 
-const ORDER_STEPS = ["NEW", "CONFIRMED", "PROCESSED", "ASSIGNED", "PICKED_UP", "SENT", "DELIVERED", "DONE"];
+const ORDER_STEPS = ["NEW", "PENDING_CONFIRMATION", "PROCESSED", "READY", "ASSIGNED", "COURIER_ACCEPTED", "PICKED_UP", "DELIVERING", "DELIVERED", "DONE"];
 
 const PENDING_STATUSES = ["NEW", "PENDING_PAYMENT", "PENDING_CONFIRMATION"];
-const PROCESSING_STATUSES = ["CONFIRMED", "PROCESSED", "READY", "ASSIGNED", "COURIER_ASSIGNED", "COURIER_ACCEPTED", "PICKED_UP"];
-const SHIPPING_STATUSES = ["SENT", "DELIVERING", "DELIVERED"];
+const PROCESSING_STATUSES = ["CONFIRMED", "PROCESSED", "READY", "ASSIGNED", "COURIER_ASSIGNED", "COURIER_ACCEPTED"];
+const SHIPPING_STATUSES = ["PICKED_UP", "SENT", "DELIVERING", "DELIVERED"];
 const DONE_STATUSES = ["DONE"];
 const CANCELLED_STATUSES = ["CANCELLED", "CANCELED"];
 const RIDE_ACTIVE_STATUSES = ["SEARCHING", "ACCEPTED", "PICKED_UP", "IN_TRANSIT"];
@@ -798,7 +798,17 @@ const OrdersPage = () => {
                               <CheckCircle className="w-3 h-3 mr-1" /> Cek Status Pesanan
                             </Button>
                           )}
-                          {SHIPPING_STATUSES.includes(order.status) && (
+                          {isCourierDelivery && isActive && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-8 rounded-full px-4 border-primary/30 text-primary hover:bg-primary/5"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}/tracking`); }}
+                            >
+                              <MapPin className="w-3 h-3 mr-1" /> Lacak Kurir
+                            </Button>
+                          )}
+                          {!isCourierDelivery && SHIPPING_STATUSES.includes(order.status) && (
                             <Button
                               size="sm"
                               variant="outline"

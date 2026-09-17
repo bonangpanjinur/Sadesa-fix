@@ -40,6 +40,10 @@ interface OrderDetails {
   delivery_address: string | null;
   delivery_lat: number | null;
   delivery_lng: number | null;
+  pickup_address: string | null;
+  package_type: string | null;
+  package_weight_kg: number | null;
+  courier_notes: string | null;
   total: number;
   subtotal: number;
   shipping_cost: number;
@@ -232,12 +236,9 @@ export default function OrderTrackingPage() {
     if (!order || !user) return;
     setCompleting(true);
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'DONE', updated_at: new Date().toISOString() })
-        .eq('id', order.id)
-        .eq('buyer_id', user.id)
-        .eq('status', 'DELIVERED');
+      const { error } = await supabase.rpc('buyer_confirm_delivery' as never, {
+        p_order_id: order.id,
+      } as never);
 
       if (error) throw error;
       toast.success('Pesanan telah diselesaikan');
@@ -509,7 +510,16 @@ export default function OrderTrackingPage() {
           transition={{ delay: 0.2 }}
           className="bg-card rounded-2xl p-4 border border-border"
         >
-          <h3 className="font-medium text-sm text-muted-foreground mb-3">Alamat Pengiriman</h3>
+          <h3 className="font-medium text-sm text-muted-foreground mb-3">{order.pickup_address ? 'Detail Pengiriman' : 'Alamat Pengiriman'}</h3>
+          {order.pickup_address && (
+            <div className="mb-3 rounded-lg bg-primary/5 p-3 text-sm">
+              <p className="text-xs font-medium text-muted-foreground">Pickup</p>
+              <p>{order.pickup_address}</p>
+              <p className="mt-2 text-xs font-medium text-muted-foreground">Paket</p>
+              <p>{order.package_type || 'Barang'}{order.package_weight_kg ? ` · ${order.package_weight_kg} kg` : ''}</p>
+              {order.courier_notes && <p className="mt-2 text-xs text-muted-foreground">Catatan: {order.courier_notes}</p>}
+            </div>
+          )}
           <div className="flex items-start gap-3">
             <MapPin className="h-5 w-5 text-primary mt-0.5" />
             <div>
@@ -565,18 +575,18 @@ export default function OrderTrackingPage() {
           transition={{ delay: 0.3 }}
           className="bg-card rounded-2xl p-4 border border-border"
         >
-          <h3 className="font-medium text-sm text-muted-foreground mb-3">Ringkasan Pembayaran</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
+            <h3 className="font-medium text-sm text-muted-foreground mb-3">{order.pickup_address ? 'Biaya Layanan' : 'Ringkasan Pembayaran'}</h3>
+            <div className="space-y-2 text-sm">
+            {!order.pickup_address && <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span>Rp {order.subtotal.toLocaleString('id-ID')}</span>
-            </div>
+            </div>}
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Ongkir</span>
+              <span className="text-muted-foreground">{order.pickup_address ? 'Tarif antar' : 'Ongkir'}</span>
               <span>Rp {order.shipping_cost.toLocaleString('id-ID')}</span>
             </div>
             <div className="flex justify-between font-bold pt-2 border-t border-border">
-              <span>Total</span>
+              <span>{order.pickup_address ? 'Total biaya layanan' : 'Total'}</span>
               <span className="text-primary">Rp {order.total.toLocaleString('id-ID')}</span>
             </div>
           </div>
