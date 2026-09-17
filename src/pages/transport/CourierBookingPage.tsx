@@ -440,7 +440,7 @@ export default function CourierBookingPage() {
             <span className="sr-only">Kembali</span>
           </Button>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Layanan antar</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Kirim barang langsung</p>
             <h1 className="font-heading text-xl font-bold">Kurir Barang</h1>
           </div>
         </div>
@@ -449,7 +449,7 @@ export default function CourierBookingPage() {
           <div className="flex gap-3">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Isi detail barang dengan lengkap. Tarif di bawah adalah estimasi awal berdasarkan jarak dan berat barang.
+              Ini bukan pengiriman pesanan toko. Kurir mengambil barang dari titik pickup Anda lalu mengantarkannya langsung ke penerima. Tarif di bawah adalah estimasi awal berdasarkan jarak dan berat barang.
             </p>
           </div>
         </Card>

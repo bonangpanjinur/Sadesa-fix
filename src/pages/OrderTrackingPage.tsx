@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { safeGoBack } from '@/lib/utils';
 import { RefundRequestDialog } from '@/components/order/RefundRequestDialog';
+import { OrderCancelDialog } from '@/components/order/OrderCancelDialog';
 import { OrderChat, ChatType } from '@/components/chat/OrderChat';
 import { CourierMap } from '@/components/CourierMap';
 import { getDeliveryEstimate, type VehicleType } from '@/lib/etaCalculation';
@@ -54,6 +55,7 @@ interface OrderDetails {
   notes: string | null;
   courier_id: string | null;
   merchant_id: string | null;
+  service_type: string | null;
   buyer_id: string | null;
   pod_image_url: string | null;
   is_self_delivery: boolean | null;
@@ -94,6 +96,7 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState<{ type: ChatType; userId: string; name: string } | null>(null);
   const [merchantInfo, setMerchantInfo] = useState<{ userId: string; name: string } | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -101,6 +104,8 @@ export default function OrderTrackingPage() {
   const orderRef = useRef<OrderDetails | null>(null);
   const fetchCourierInfoRef = useRef<((courierId: string) => Promise<void>) | null>(null);
   const [etaInfo, setEtaInfo] = useState<{ etaFormatted: string; distanceFormatted: string } | null>(null);
+  const isDirectCourier = Boolean(order?.service_type === 'COURIER_DELIVERY' || order?.pickup_address);
+  const canCancelDirectCourier = isDirectCourier && ['ASSIGNED', 'COURIER_ACCEPTED'].includes(order?.status || '');
   const copyTrackingNumber = useCallback(async (trackingNumber: string) => {
     try {
       await navigator.clipboard.writeText(trackingNumber);
@@ -309,6 +314,29 @@ export default function OrderTrackingPage() {
             }}
           />
         </motion.div>
+
+        {isDirectCourier && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/25"
+          >
+            <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">Kirim barang langsung</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Layanan kurir dari lokasi pickup Anda ke penerima, bukan pengiriman pesanan toko.
+            </p>
+          </motion.div>
+        )}
+
+        {canCancelDirectCourier && (
+          <Button
+            variant="outline"
+            className="w-full border-destructive/40 text-destructive hover:bg-destructive/5"
+            onClick={() => setCancelDialogOpen(true)}
+          >
+            Batalkan pengiriman
+          </Button>
+        )}
 
         {/* ETA Card */}
         {etaInfo && ['COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'DELIVERING'].includes(order.status) && (
@@ -634,20 +662,20 @@ export default function OrderTrackingPage() {
                 <CheckCircle className="h-5 w-5 mr-2" />
                 {completing ? 'Memproses...' : '✅ Pesanan Diterima - Selesaikan'}
               </Button>
-              <Button 
+              {!isDirectCourier && <Button
                 variant="outline"
                 className="w-full"
                 onClick={() => setRefundDialogOpen(true)}
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Ada Masalah? Ajukan Refund
-              </Button>
+              </Button>}
             </div>
           </motion.div>
         )}
 
         {/* Reorder CTA for finished/cancelled orders */}
-        {(order.status === 'DONE' || order.status === 'CANCELLED' || order.status === 'CANCELED') && orderItems.length > 0 && (
+        {!isDirectCourier && (order.status === 'DONE' || order.status === 'CANCELLED' || order.status === 'CANCELED') && orderItems.length > 0 && (
           <Button
             variant="outline"
             className="w-full"
@@ -659,7 +687,7 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Refund Dialog */}
-        {order.status === 'DELIVERED' && (
+        {order.status === 'DELIVERED' && !isDirectCourier && (
           <RefundRequestDialog
             orderId={order.id}
             orderTotal={order.total}
@@ -667,6 +695,16 @@ export default function OrderTrackingPage() {
             open={refundDialogOpen}
             onOpenChange={setRefundDialogOpen}
             onSuccess={fetchOrderDetails}
+          />
+        )}
+
+        {isDirectCourier && (
+          <OrderCancelDialog
+            orderId={order.id}
+            open={cancelDialogOpen}
+            onOpenChange={setCancelDialogOpen}
+            onCancelled={fetchOrderDetails}
+            isDirectCourier
           />
         )}
 

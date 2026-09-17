@@ -21,6 +21,7 @@ interface OrderCancelDialogProps {
   onOpenChange: (open: boolean) => void;
   orderId: string;
   onCancelled: () => void;
+  isDirectCourier?: boolean;
 }
 
 const cancelReasons = [
@@ -35,7 +36,8 @@ export function OrderCancelDialog({
   open, 
   onOpenChange, 
   orderId, 
-  onCancelled 
+  onCancelled,
+  isDirectCourier = false,
 }: OrderCancelDialogProps) {
   const { user } = useAuth();
   const [reason, setReason] = useState('');
@@ -81,10 +83,12 @@ export function OrderCancelDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-destructive" />
-            Batalkan Pesanan
+            {isDirectCourier ? 'Batalkan Pengiriman' : 'Batalkan Pesanan'}
           </DialogTitle>
           <DialogDescription>
-            Apakah Anda yakin ingin membatalkan pesanan ini? Tindakan ini tidak dapat dibatalkan.
+            {isDirectCourier
+              ? 'Pengiriman dapat dibatalkan selama kurir belum mengambil barang. Setelah pickup, gunakan bantuan/refund.'
+              : 'Apakah Anda yakin ingin membatalkan pesanan ini? Tindakan ini tidak dapat dibatalkan.'}
           </DialogDescription>
         </DialogHeader>
 
