@@ -23,7 +23,7 @@ import {
   Bike,
   Star
 } from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -449,10 +449,8 @@ export default function CourierDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+    <CourierLayout title="Dashboard Kurir" subtitle="Kelola pengiriman dan perjalanan">
+      <div className="space-y-6">
         {/* Courier Profile Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -847,6 +845,6 @@ export default function CourierDashboardPage() {
           fetchCourierData();
         }}
       />
-    </div>
+    </CourierLayout>
   );
 }
