@@ -116,6 +116,7 @@ const CourierHistoryPage = lazy(() => import("./pages/courier/CourierHistoryPage
 const CourierWithdrawalPage = lazy(() => import("./pages/courier/CourierWithdrawalPage"));
 const CourierChatPage = lazy(() => import("./pages/courier/CourierChatPage"));
 const CourierRidesPage = lazy(() => import("./pages/courier/CourierRidesPage"));
+const CourierDeliveryPage = lazy(() => import("./pages/courier/CourierDeliveryPage"));
 const CourierPerformaPage = lazy(() => import("./pages/courier/CourierPerformaPage"));
 const CourierSlipPage = lazy(() => import("./pages/courier/CourierSlipPage"));
 
@@ -526,6 +527,11 @@ const App = () => (
               <Route path="/courier/rides" element={
                 <ProtectedRoute>
                   <CourierRidesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/courier/deliveries" element={
+                <ProtectedRoute>
+                  <CourierDeliveryPage />
                 </ProtectedRoute>
               } />
               <Route path="/courier/slip" element={
