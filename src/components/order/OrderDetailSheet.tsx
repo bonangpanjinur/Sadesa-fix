@@ -174,7 +174,8 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
             <Separator />
 
             {/* Items */}
-            {!isCourierDelivery && <div>
+            {!isCourierDelivery && (
+              <div>
               <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                 <Package className="h-4 w-4" /> Item Pesanan
               </h4>
@@ -189,11 +190,10 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
                   </div>
                 ))}
               </div>
-            </div>
+              </div>
+            )}
 
             <Separator />
-
-            </div>}
 
             {isCourierDelivery && <div className="space-y-3 rounded-lg bg-primary/5 p-3">
               <h4 className="text-sm font-semibold flex items-center gap-2"><Bike className="h-4 w-4" /> Detail Pengiriman</h4>
