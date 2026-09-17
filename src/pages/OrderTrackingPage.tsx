@@ -30,6 +30,7 @@ import { CourierMap } from '@/components/CourierMap';
 import { getDeliveryEstimate, type VehicleType } from '@/lib/etaCalculation';
 import { useReorder } from '@/hooks/useReorder';
 import { getExpeditionLabel } from '@/lib/expeditionTracking';
+import { canBuyerContactCourier, canBuyerTrackCourier } from '@/lib/deliveryVisibility';
 
 interface OrderDetails {
   id: string;
@@ -409,7 +410,7 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Live Tracking Map - Courier */}
-        {courier && order.courier_id && !order.is_self_delivery && ['ASSIGNED', 'PICKED_UP', 'SENT'].includes(order.status) && (
+        {canBuyerTrackCourier(order.status, order.courier_id) && !order.is_self_delivery && courier && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -473,7 +474,7 @@ export default function OrderTrackingPage() {
         )}
 
         {/* Chat buttons */}
-        {['ASSIGNED', 'PICKED_UP', 'SENT', 'DELIVERED'].includes(order.status) && courier && !order.is_self_delivery && (
+        {canBuyerContactCourier(order.status, order.courier_id) && courier && !order.is_self_delivery && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
             <Button
               variant="outline"

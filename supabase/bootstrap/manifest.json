@@ -1,7 +1,7 @@
 {
   "source": "archive/supabase/migrations",
   "migration_count": 211,
-  "bundle_count": 41,
+  "bundle_count": 42,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -515,6 +515,14 @@
       ],
       "sha256": "929628437b3b3ed396ee0a407140b356cc9533e2673346da0542585b77616ef2",
       "bytes": 310
+    },
+    {
+      "file": "73_20260917200000_courier_offer_authority_repair.sql",
+      "source_files": [
+        "73_20260917200000_courier_offer_authority_repair.sql"
+      ],
+      "sha256": "ec489af198336e101696c92b18fc062cd7164196fb30c9a100b936006635302e",
+      "bytes": 13395
     }
   ]
 }

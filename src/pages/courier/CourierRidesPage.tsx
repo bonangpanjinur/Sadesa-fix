@@ -118,12 +118,7 @@ export default function CourierRidesPage() {
     queryKey: ['courier-rides-delivery-offers', courierId],
     queryFn: async () => {
       if (!courierId) return [];
-      const { data, error } = await supabase.from('delivery_assignments')
-        .select('id, order_id, expires_at, orders(total, shipping_cost, courier_earning_estimate, courier_platform_fee, pickup_address, pickup_lat, pickup_lng, delivery_name, delivery_address, delivery_lat, delivery_lng, notes, merchants(name, address))')
-        .eq('courier_id', courierId)
-        .eq('status', 'OFFERED')
-        .gt('expires_at', new Date().toISOString())
-        .order('offered_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_courier_delivery_offers' as never);
       if (error) throw error;
       return (data || []) as unknown as DeliveryOffer[];
     },
