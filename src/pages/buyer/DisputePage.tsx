@@ -29,6 +29,7 @@ const DISPUTE_CATEGORIES = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  OPEN: { label: 'Diajukan', color: 'bg-amber-100 text-amber-700' },
   PENDING: { label: 'Diajukan', color: 'bg-amber-100 text-amber-700' },
   MERCHANT_RESPONDED: { label: 'Direspons Penjual', color: 'bg-blue-100 text-blue-700' },
   IN_MEDIATION: { label: 'Dalam Mediasi Admin', color: 'bg-purple-100 text-purple-700' },
@@ -58,6 +59,7 @@ interface ExistingDispute {
   admin_notes: string | null;
   merchant_response: string | null;
   merchant_responded_at: string | null;
+  settlement_status: string | null;
   created_at: string;
 }
 
@@ -98,7 +100,7 @@ export default function DisputePage() {
       if (!orderId) return null;
       const { data } = await supabase
         .from('refund_requests')
-        .select('id, title, reason, category, status, dispute_status, amount, evidence_urls, admin_notes, merchant_response, merchant_responded_at, created_at')
+        .select('id, title, reason, category, status, dispute_status, amount, evidence_urls, admin_notes, merchant_response, merchant_responded_at, settlement_status, created_at')
         .eq('order_id', orderId)
         .eq('buyer_id', user!.id)
         .maybeSingle();
@@ -269,6 +271,17 @@ export default function DisputePage() {
                       Diajukan {format(new Date(existingDispute.created_at), 'dd MMM yyyy', { locale: idLocale })}
                     </span>
                   </div>
+                  {existingDispute.dispute_status === 'RESOLVED_REFUND' && (
+                    <div className={`rounded-lg border p-3 text-sm ${existingDispute.settlement_status === 'COMPLETED' ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : existingDispute.settlement_status === 'FAILED' ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      <p className="font-medium">
+                        {existingDispute.settlement_status === 'COMPLETED'
+                          ? 'Refund sudah berhasil dicairkan.'
+                          : existingDispute.settlement_status === 'FAILED'
+                            ? 'Refund disetujui, tetapi pencairan gagal dan sedang ditindaklanjuti.'
+                            : 'Refund disetujui dan sedang menunggu proses pencairan.'}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Timeline */}
                   <div className="space-y-3">

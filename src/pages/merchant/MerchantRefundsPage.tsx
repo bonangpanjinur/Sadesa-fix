@@ -33,6 +33,7 @@ interface RefundRequest {
   category: string | null;
   status: string;
   dispute_status: string | null;
+  settlement_status: string | null;
   adminNotes: string | null;
   merchant_response: string | null;
   createdAt: string;
@@ -78,6 +79,7 @@ export default function MerchantRefundsPage() {
         category?: string | null;
         status: string;
         dispute_status?: string | null;
+        settlement_status?: string | null;
         admin_notes?: string | null;
         merchant_response?: string | null;
         created_at: string;
@@ -103,6 +105,7 @@ export default function MerchantRefundsPage() {
         category: r.category || null,
         status: r.status,
         dispute_status: r.dispute_status || null,
+        settlement_status: r.settlement_status || null,
         adminNotes: r.admin_notes || null,
         merchant_response: r.merchant_response || null,
         createdAt: r.created_at,
@@ -269,6 +272,14 @@ export default function MerchantRefundsPage() {
                     <p className="text-xs text-muted-foreground">Status</p>
                     {getStatusBadge(selectedRefund)}
                   </div>
+                  {selectedRefund.status === 'APPROVED' && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Pencairan</p>
+                      <Badge variant={selectedRefund.settlement_status === 'COMPLETED' ? 'default' : selectedRefund.settlement_status === 'FAILED' ? 'destructive' : 'outline'}>
+                        {selectedRefund.settlement_status === 'COMPLETED' ? 'Selesai' : selectedRefund.settlement_status === 'FAILED' ? 'Gagal' : 'Menunggu pencairan'}
+                      </Badge>
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-muted-foreground">Pembeli</p>
                     <p className="font-medium">{selectedRefund.buyerName}</p>
