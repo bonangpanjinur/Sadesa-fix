@@ -517,22 +517,22 @@ const OrdersPage = () => {
 
       <div className="container max-w-md mx-auto px-4 -mt-3">
         <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>
-          <div className="bg-card rounded-xl shadow-sm p-1.5 mb-4">
-            <div className="grid grid-cols-3 gap-1 mb-2">
+          <div className="bg-card rounded-2xl shadow-sm p-2 mb-4 border border-border/40">
+            <div className="grid grid-cols-3 gap-1 mb-2" role="tablist" aria-label="Kategori pesanan">
               {([['all', 'Semua'], ['product', 'Produk'], ['transport', 'Ojek & Kurir']] as const).map(([value, label]) => (
-                <button key={value} type="button" onClick={() => setActiveCategory(value)} className={`rounded-lg px-2 py-2 text-[11px] font-medium transition-colors ${activeCategory === value ? 'bg-emerald-100 text-emerald-800' : 'text-muted-foreground hover:bg-muted'}`}>
+                <button key={value} type="button" role="tab" aria-selected={activeCategory === value} onClick={() => setActiveCategory(value)} className={`rounded-xl px-2 py-2.5 text-[11px] font-semibold transition-colors ${activeCategory === value ? 'bg-emerald-100 text-emerald-800 shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}>
                   {label}
                 </button>
               ))}
             </div>
-            <TabsList className="w-full justify-start overflow-x-auto bg-transparent h-auto p-0 gap-1 no-scrollbar">
+            <TabsList className="w-full justify-start overflow-x-auto bg-muted/40 h-auto p-1 gap-1 no-scrollbar rounded-xl">
               {TAB_FILTERS.map((tab) => {
                 const count = getTabCount(tab.value);
                 return (
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
-                    className="rounded-lg border-0 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2 h-auto flex-shrink-0 text-xs font-medium gap-1.5 transition-all"
+                    className="rounded-lg border-0 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-2 h-auto flex-shrink-0 text-xs font-semibold gap-1.5 transition-all"
                   >
                     <tab.icon className="w-3.5 h-3.5" />
                     {tab.label}
@@ -694,22 +694,22 @@ const OrdersPage = () => {
                   >
                     <CardContent className="p-0">
                       {/* Card header */}
-                      <div className="px-4 py-3 border-b border-border/50 flex justify-between items-center">
+                      <div className="px-4 py-3 border-b border-border/50 flex justify-between items-start gap-3">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-0.5">
-                            <CalendarDays className="w-3 h-3" />
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
+                            <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
                             <span>{relativeTime}</span>
                             <span className="text-border">•</span>
-                            <span className="font-mono">#{shortId}</span>
+                            <span className="font-mono tracking-tight">#{shortId}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-sm">
-                            {isCourierDelivery ? <Bike className="w-3.5 h-3.5 text-primary" /> : <Store className="w-3.5 h-3.5 text-muted-foreground" />}
-                            <span className="font-medium truncate max-w-[160px]">{isCourierDelivery ? deliveryFlow.label : order.merchants?.name || "Toko"}</span>
+                          <div className="flex items-center gap-1.5 text-sm font-semibold">
+                            {isCourierDelivery ? <Bike className="w-4 h-4 text-primary flex-shrink-0" /> : <Store className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                            <span className="truncate">{isCourierDelivery ? deliveryFlow.label : order.merchants?.name || "Toko"}</span>
                           </div>
                         </div>
                         <Badge
                           variant="outline"
-                          className={`${statusConf.color} border px-2.5 py-1 text-[11px] font-medium gap-1 flex-shrink-0`}
+                          className={`${statusConf.color} border px-2.5 py-1.5 text-[11px] font-semibold gap-1 flex-shrink-0 whitespace-nowrap`}
                         >
                           <StatusIcon className="w-3 h-3" />
                           {statusConf.label}
@@ -724,8 +724,8 @@ const OrdersPage = () => {
                       )}
 
                       {/* Product or courier service info */}
-                      <div className="p-4 flex gap-4">
-                        <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center">
+                      <div className="p-4 flex gap-3.5">
+                        <div className="w-[76px] h-[76px] sm:w-20 sm:h-20 bg-muted rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center ring-1 ring-border/40">
                           {isCourierDelivery ? <Bike className="w-10 h-10 text-primary" /> : imageUrl ? (
                             <img src={imageUrl} alt={productName} className="w-full h-full object-cover" />
                           ) : <ShoppingBag className="w-8 h-8 text-muted-foreground" />}
@@ -739,23 +739,25 @@ const OrdersPage = () => {
                               <p className="text-xs text-muted-foreground">{order.package_type || "Paket"}{order.package_weight_kg ? ` • ${order.package_weight_kg} kg` : ""}</p>
                             </div>
                           ) : <div>
-                            <h4 className="font-medium text-sm truncate text-foreground">{productName}</h4>
-                            <p className="text-xs text-muted-foreground mt-0.5">
+                            <h4 className="font-semibold text-[15px] leading-5 truncate text-foreground">{productName}</h4>
+                            <p className="text-xs text-muted-foreground mt-1">
                               {itemCount > 1 ? `+${itemCount - 1} produk lainnya` : `${firstItem?.quantity || 1} barang`}
                             </p>
                           </div>}
                           <div className="flex items-end justify-between mt-2">
                             <div>
                               <p className="text-[11px] text-muted-foreground">{isCourierDelivery ? "Biaya Layanan" : "Total Belanja"}</p>
-                              <p className="text-sm font-bold text-primary">{formatPrice(order.total)}</p>
+                              <p className="text-base font-bold text-primary">{formatPrice(order.total)}</p>
                             </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              Detail <ChevronRight className="w-4 h-4" />
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       {/* Contextual actions */}
-                      <div className="px-4 py-3 border-t border-border/50 bg-muted/30 flex justify-between items-center gap-2">
+                      <div className="px-4 py-3 border-t border-border/50 bg-muted/30 flex flex-wrap justify-between items-center gap-2">
                         {/* Contact seller (always visible for active orders) */}
                         {!isCourierDelivery && isActive && (order.merchant_id || order.merchants?.phone) && (
                           <Button
@@ -768,7 +770,7 @@ const OrdersPage = () => {
                           </Button>
                         )}
                         
-                        <div className="flex gap-2 ml-auto">
+                        <div className="flex flex-wrap justify-end gap-2 ml-auto w-full sm:w-auto">
                           {!isCourierDelivery && PENDING_STATUSES.includes(order.status) && (
                             <>
                               <Button
