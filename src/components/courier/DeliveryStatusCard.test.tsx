@@ -42,4 +42,26 @@ describe('DeliveryStatusCard i18n', () => {
     act(() => setLocale('en'));
     expect(screen.getByText(/ETA/)).toBeInTheDocument();
   });
+
+  it('does not mark an offered order as assigned before courier acceptance', () => {
+    render(
+      <DeliveryStatusCard
+        order={{ ...baseOrder, status: 'ASSIGNED', assigned_at: null, picked_up_at: null }}
+      />,
+    );
+
+    const assignedLabel = screen.getByText(/Tawaran Dikirim ke Kurir/i);
+    expect(assignedLabel).toHaveClass('text-muted-foreground');
+    expect(assignedLabel).not.toHaveClass('text-foreground');
+  });
+
+  it('marks assignment as completed only after courier acceptance', () => {
+    render(
+      <DeliveryStatusCard
+        order={{ ...baseOrder, status: 'COURIER_ACCEPTED', assigned_at: '2026-05-04T08:10:00Z' }}
+      />,
+    );
+
+    expect(screen.getByText(/Tawaran Dikirim ke Kurir/i)).toHaveClass('text-foreground');
+  });
 });

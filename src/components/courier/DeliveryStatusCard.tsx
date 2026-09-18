@@ -50,6 +50,11 @@ export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatu
   };
 
   const isStepCompleted = (stepKey: string): boolean => {
+    // ASSIGNED is the offer phase. It must not look like a confirmed
+    // assignment until the courier explicitly accepts the offer.
+    if (stepKey === 'ASSIGNED' && currentIndex < statusOrder.indexOf('COURIER_ACCEPTED')) {
+      return false;
+    }
     const stepIndex = statusOrder.indexOf(stepKey);
     return currentIndex >= stepIndex;
   };
@@ -58,7 +63,7 @@ export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatu
     if ((order.status === 'ON_DELIVERY' || order.status === 'SENT' || order.status === 'DELIVERING') && stepKey === 'DELIVERED') {
       return true;
     }
-    return order.status === stepKey;
+    return order.status === stepKey && !(stepKey === 'ASSIGNED' && order.status === 'ASSIGNED');
   };
 
   const getEstimatedTime = () => {
