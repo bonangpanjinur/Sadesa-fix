@@ -16,16 +16,19 @@ export interface BannerSlide {
   subtitle?: string;
   image?: string;
   linkUrl?: string;
+  isSponsored?: boolean;
 }
 
 interface HeroCarouselProps {
   slides: BannerSlide[];
   autoPlayInterval?: number;
+  onView?: (slideId: string) => void;
+  onClick?: (slideId: string) => void;
 }
 
 const fallbackImages = [heroVillage, villageBojong, villageSukamaju];
 
-export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselProps) {
+export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -59,6 +62,11 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
     const interval = setInterval(nextSlide, autoPlayInterval);
     return () => clearInterval(interval);
   }, [nextSlide, autoPlayInterval, slideCount, isPaused]);
+
+  const viewedSlideId = slides[currentIndex]?.id;
+  useEffect(() => {
+    if (viewedSlideId) onView?.(viewedSlideId);
+  }, [viewedSlideId, onView]);
 
   if (slides.length === 0) {
     return (
@@ -97,7 +105,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
     >
       <motion.div className="mb-2.5 flex items-center gap-1.5" variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.22 }}>
           <span className="rounded-full bg-accent px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-accent-foreground shadow-sm">
-            Pilihan minggu ini
+            {currentSlide.isSponsored ? 'Sponsor' : 'Pilihan minggu ini'}
           </span>
       </motion.div>
       <motion.h2 className="max-w-[min(64vw,250px)] font-heading text-[1.28rem] font-extrabold leading-[1.08] tracking-[-0.02em] text-primary-foreground sm:max-w-[310px] sm:text-xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
@@ -157,7 +165,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000 }: HeroCarouselPr
           <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/62 to-foreground/10">
             <div className="max-w-[78%] px-5 py-5 sm:max-w-[72%] sm:px-6">
               {currentSlide.linkUrl ? (
-                <Link to={currentSlide.linkUrl} className="block">
+                <Link to={currentSlide.linkUrl} className="block" onClick={() => onClick?.(currentSlide.id)}>
                   {slideContent}
                 </Link>
               ) : (

@@ -94,12 +94,16 @@ export async function fetchBannerPromotions(): Promise<Promotion[]> {
   return [...paidBanners, ...adminBanners];
 }
 
-// Increment view count (no-op placeholder - can add RPC later)
-export async function incrementPromotionView(_id: string): Promise<void> {
-  // Placeholder - admin dashboard can implement proper tracking via RPC
+export async function incrementPromotionView(id: string): Promise<void> {
+  const isMerchantAd = id.startsWith('merchant-ad-');
+  const rpc = isMerchantAd ? 'increment_merchant_ad_view' : 'increment_promotion_view';
+  const { error } = await supabase.rpc(rpc, { [isMerchantAd ? 'p_ad_id' : 'p_promotion_id']: isMerchantAd ? id.replace('merchant-ad-', '') : id });
+  if (error) console.warn('Unable to record banner view:', error.message);
 }
 
-// Increment click count  
-export async function incrementPromotionClick(_id: string): Promise<void> {
-  // Placeholder - admin dashboard can implement proper tracking via RPC
+export async function incrementPromotionClick(id: string): Promise<void> {
+  const isMerchantAd = id.startsWith('merchant-ad-');
+  const rpc = isMerchantAd ? 'increment_merchant_ad_click' : 'increment_promotion_click';
+  const { error } = await supabase.rpc(rpc, { [isMerchantAd ? 'p_ad_id' : 'p_promotion_id']: isMerchantAd ? id.replace('merchant-ad-', '') : id });
+  if (error) console.warn('Unable to record banner click:', error.message);
 }

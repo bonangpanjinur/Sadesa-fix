@@ -87,7 +87,7 @@ export function ContextualRecommendation({ products = [], userLocation, onDismis
   const operationalDescription = nearestMerchant
     ? `${nearestMerchant.merchantName} sedang buka · ${formatDistance(nearestMerchant.distanceKm)} dari kamu.`
     : userLocation
-      ? 'Belum ada merchant kuliner yang sedang buka di sekitar kamu.'
+      ? 'Belum ada kuliner yang buka saat ini. Coba lihat semua merchant atau pesan untuk nanti.'
       : content.description;
 
   return (

@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed, Receipt, Truck, Tag, HelpCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -16,13 +16,15 @@ import {
   fetchVillages, 
   fetchTourism,
 } from '@/lib/api';
-import { fetchBannerPromotions } from '@/lib/promotions';
+import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance, calculateDistance } from '@/hooks/useUserLocation';
 import { useCategories } from '@/hooks/useCategories';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Drawer,
   DrawerContent,
@@ -43,6 +45,27 @@ const Index = () => {
   
   const { getEnabledSections } = useHomepageLayout();
   const { getHomepageCategories } = useCategories();
+  const { user } = useAuth();
+  const handleBannerView = useCallback((id: string) => { void incrementPromotionView(id); }, []);
+  const handleBannerClick = useCallback((id: string) => { void incrementPromotionClick(id); }, []);
+
+  const { data: activeOrder } = useQuery<{ id: string; status: string; total: number }>({
+    queryKey: ['homepage-active-order', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('id, status, total')
+        .eq('buyer_id', user!.id)
+        .in('status', ['NEW', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PROCESSED', 'ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT', 'DELIVERED'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+  });
 
   const { location: userLocation } = useUserLocation();
 
@@ -122,6 +145,7 @@ const Index = () => {
         subtitle: p.subtitle,
         image: p.imageUrl,
         linkUrl: p.linkUrl,
+        isSponsored: p.advertiserType === 'merchant',
         }));
     }),
     staleTime: 120_000,
@@ -207,7 +231,7 @@ const Index = () => {
               onRetry={() => refetchBanners()}
             />
           );
-        return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} />;
+        return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} onView={handleBannerView} onClick={handleBannerClick} />;
       
       case 'categories':
         return (
@@ -435,6 +459,35 @@ const Index = () => {
               onDismiss={() => setShowContextualRecommendation(false)}
             />
           )}
+          {activeOrder && (
+            <Link
+              to={`/orders/${activeOrder.id}`}
+              className="mx-4 mt-4 flex items-center gap-3 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 shadow-[0_12px_26px_-22px_hsl(4_78%_47%_/_0.7)] transition hover:border-primary/30 hover:bg-primary/10"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                {['ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT'].includes(activeOrder.status) ? <Truck className="h-5 w-5" /> : <Receipt className="h-5 w-5" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Pesanan aktif</span>
+                <span className="block truncate text-sm font-extrabold text-foreground">Pesanan #{activeOrder.id.slice(0, 8)}</span>
+                <span className="block text-[10px] text-muted-foreground">Status: {activeOrder.status.replaceAll('_', ' ').toLowerCase()}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
+            </Link>
+          )}
+          <div className="mx-4 mt-3 grid grid-cols-4 gap-2" aria-label="Akses cepat">
+            {[
+              { label: 'Toko', href: '/shops', icon: Store },
+              { label: 'Promo', href: '/products?promo=true', icon: Tag },
+              { label: 'Pesanan', href: '/orders', icon: Receipt },
+              { label: 'Bantuan', href: '/help', icon: HelpCircle },
+            ].map(({ label, href, icon: Icon }) => (
+              <Link key={label} to={href} className="flex flex-col items-center gap-1 rounded-xl border border-orange-100 bg-white px-2 py-2.5 text-[9px] font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary active:scale-95">
+                <Icon className="h-4 w-4 text-primary" />
+                {label}
+              </Link>
+            ))}
+          </div>
           {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id)).map((section) => (
             <div key={section.id}>
               {renderSection(section.id)}

@@ -107,6 +107,8 @@ const EMPTY_FORM = {
   link_url: '',
   duration_days: 7,
   payment_proof_url: '',
+  target_area: '',
+  target_category: '',
 };
 
 export default function MerchantIklanPage() {
@@ -171,6 +173,8 @@ export default function MerchantIklanPage() {
         status: 'pending',
         payment_amount: total,
         payment_proof_url: form.payment_proof_url,
+        target_area: form.target_area.trim() || null,
+        target_category: form.target_category.trim() || null,
         view_count: 0,
         click_count: 0,
       });
@@ -575,6 +579,17 @@ export default function MerchantIklanPage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <Label>Target Area (opsional)</Label>
+                      <Input className="mt-1" value={form.target_area} onChange={e => setForm(p => ({ ...p, target_area: e.target.value }))} placeholder="Contoh: Desa Bojong" maxLength={80} />
+                    </div>
+                    <div>
+                      <Label>Target Kategori (opsional)</Label>
+                      <Input className="mt-1" value={form.target_category} onChange={e => setForm(p => ({ ...p, target_category: e.target.value }))} placeholder="Contoh: Kuliner" maxLength={50} />
+                    </div>
+                  </div>
+
                   <div>
                     <Label>Durasi Iklan <span className="text-destructive">*</span></Label>
                     <div className="flex items-center gap-2 mt-1">
@@ -589,6 +604,23 @@ export default function MerchantIklanPage() {
                       <span className="text-sm text-muted-foreground">hari (maks. {selectedPackage.max_days})</span>
                     </div>
                   </div>
+
+                  {selectedPackage.placement_type === 'home_banner' && (
+                    <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Preview banner di atas menu</p>
+                        <span className="rounded-full bg-accent px-2 py-1 text-[8px] font-bold uppercase text-accent-foreground">Sponsor</span>
+                      </div>
+                      <div className="relative flex min-h-24 items-end overflow-hidden rounded-lg bg-gradient-to-r from-foreground/90 to-primary/40 p-3 text-white">
+                        {form.image_url && <img src={form.image_url} alt="Preview banner" className="absolute inset-0 h-full w-full object-cover opacity-60" />}
+                        <div className="relative max-w-[80%]">
+                          <p className="text-sm font-extrabold">{form.title || 'Judul iklan Anda'}</p>
+                          <p className="mt-1 line-clamp-2 text-[10px] text-white/80">{form.description || 'Deskripsi singkat promosi merchant'}</p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-[10px] text-muted-foreground">Gunakan gambar landscape agar tampil optimal di homepage.</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Total */}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, MapPin, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, MapPin, ChevronRight, LocateFixed, Clock3, Tag } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
 import { useCart } from '@/contexts/CartContext';
@@ -59,18 +59,22 @@ export function Header() {
       <button
         type="button"
         onClick={() => navigate('/addresses')}
-        className="group flex min-h-7 w-full items-center gap-2 px-0.5 py-1 text-left transition"
+        className="group mt-2 flex min-h-11 w-full items-center gap-2 rounded-2xl border border-orange-100 bg-white px-3 py-2 text-left shadow-[0_8px_20px_-18px_hsl(4_78%_47%_/_0.8)] transition hover:border-primary/30"
         aria-label="Pilih lokasi pengantaran"
       >
-        <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-        <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Antar ke</span>
-        <span className="truncate text-[11px] font-bold leading-tight text-foreground">
-          {locationLoading ? 'Mencari lokasi...' : userLocation?.district || 'Pilih lokasi pengantaran'}
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><MapPin className="h-4 w-4" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Kirim ke mana?</span>
+          <span className="block truncate text-[11px] font-bold leading-tight text-foreground">
+            {locationLoading ? 'Mencari lokasi...' : userLocation?.district || 'Pilih alamat pengantaran'}
+          </span>
         </span>
+        {!userLocation && !locationLoading && <span className="hidden items-center gap-1 text-[9px] font-bold text-primary sm:flex"><LocateFixed className="h-3 w-3" />Pilih</span>}
         <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
       </button>
 
       {showSearchBar && (
+        <>
         <form onSubmit={handleSearch} className="group relative mt-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
           <input
@@ -82,6 +86,23 @@ export function Header() {
             className="h-11 w-full rounded-2xl border border-orange-100 bg-white pl-10 pr-4 text-xs shadow-[0_8px_24px_-18px_hsl(4_78%_47%_/_0.6)] outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
           />
         </form>
+        <div className="mt-2 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {[
+            { label: 'Buka sekarang', icon: Clock3 },
+            { label: 'Terdekat', icon: LocateFixed },
+            { label: 'Promo', icon: Tag },
+          ].map(({ label, icon: Icon }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => navigate(`/search?q=${encodeURIComponent(label)}`)}
+              className="flex shrink-0 items-center gap-1 rounded-full border border-orange-100 bg-white px-3 py-1.5 text-[9px] font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary active:scale-95"
+            >
+              <Icon className="h-3 w-3" />{label}
+            </button>
+          ))}
+        </div>
+        </>
       )}
     </header>
   );

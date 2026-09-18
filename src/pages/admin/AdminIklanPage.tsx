@@ -55,6 +55,8 @@ interface MerchantAd {
   payment_amount: number;
   payment_proof_url: string | null;
   rejection_reason: string | null;
+  target_area?: string | null;
+  target_category?: string | null;
   view_count: number;
   click_count: number;
   created_at: string;
@@ -483,7 +485,14 @@ export default function AdminIklanPage() {
                             <p className="text-sm font-medium truncate">{ad.title}</p>
                             {ad.description && <p className="text-xs text-muted-foreground truncate">{ad.description}</p>}
                           </TableCell>
-                          <TableCell className="text-sm">{PLACEMENT_LABELS[ad.placement_type] || ad.placement_type}</TableCell>
+                          <TableCell className="text-sm">
+                            {PLACEMENT_LABELS[ad.placement_type] || ad.placement_type}
+                            {(ad.target_area || ad.target_category) && (
+                              <p className="mt-1 text-[10px] text-muted-foreground">
+                                {[ad.target_area, ad.target_category].filter(Boolean).join(' • ')}
+                              </p>
+                            )}
+                          </TableCell>
                           <TableCell className="text-sm">
                             {ad.duration_days}h
                             {ad.status === 'active' && daysLeft !== null && (
