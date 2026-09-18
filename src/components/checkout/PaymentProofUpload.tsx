@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Upload, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { uploadFile, validateFile, compressImage } from '@/lib/storage';
+import { uploadFile, deleteFile, validateFile, compressImage } from '@/lib/storage';
 import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -57,16 +57,14 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
       }
 
       if (result.url) {
-        // Update order with payment proof URL
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({ 
-            payment_proof_url: result.url,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', orderId);
+        // Buyer order updates are revoked; use the ownership-scoped RPC.
+        const { error: updateError } = await supabase.rpc('buyer_submit_payment_proof', {
+          p_order_id: orderId,
+          p_payment_proof_url: result.url,
+        });
 
         if (updateError) {
+          await deleteFile('payment-proofs', result.url);
           reportObservability('upload', 'payment_proof_order_update_failed', 'error', { hasOrderId: Boolean(orderId) }, updateError);
           toast.error('Gagal menyimpan bukti pembayaran');
           return;

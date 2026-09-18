@@ -22,7 +22,6 @@ import { fetchCODSettings, quickCODCheck, getBuyerCODStatus } from '@/lib/codSec
 import { validatePhone, isWhatsAppFormat } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
-import { canUseOnlinePaymentForMerchantCount } from '@/lib/orderStatus';
 
 type PaymentMethod = 'COD' | 'TRANSFER' | 'ONLINE';
 
@@ -455,12 +454,12 @@ export default function CheckoutPage() {
       return;
     }
 
-    // One Xendit invoice currently belongs to one marketplace order. Do not
-    // create the first merchant order and silently skip the remaining ones.
-    if (paymentMethod !== 'COD' && !canUseOnlinePaymentForMerchantCount(merchantIds.length)) {
+    // Checkout currently creates one order and one payment flow. Do not create
+    // partial child orders for a cart containing multiple merchants.
+    if (merchantIds.length > 1) {
       toast({
-        title: 'Pembayaran ini hanya untuk satu toko',
-        description: 'Pisahkan produk berdasarkan toko sebelum membayar online atau transfer.',
+        title: 'Checkout hanya untuk satu toko',
+        description: 'Pisahkan produk berdasarkan toko sebelum checkout.',
         variant: 'destructive',
       });
       return;
@@ -1139,7 +1138,7 @@ export default function CheckoutPage() {
             !loading && items.length > 0 && allMerchantsOpen ? 'animate-pulse hover:animate-none' : ''
           }`}
           size="lg"
-          disabled={loading || items.length === 0 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady}
+          disabled={loading || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady}
         >
           {loading ? (
             <>
