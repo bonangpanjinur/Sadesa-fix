@@ -12,32 +12,33 @@ interface AssignCourierResult {
   candidates_count?: number;
 }
 
-const API_BASE = '/api';
-
 export async function autoAssignCourier(
   orderId: string,
   merchantLat?: number,
   merchantLng?: number,
-  maxDistanceKm: number = 10
+  maxDistanceKm: number = 10,
 ): Promise<AssignCourierResult> {
   try {
-    const response = await fetch(`${API_BASE}/assign-courier`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        order_id: orderId,
-        merchant_lat: merchantLat,
-        merchant_lng: merchantLng,
-        max_distance_km: maxDistanceKm,
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({ error: 'Failed to assign courier' }));
-      return { success: false, error: err.error || 'Failed to assign courier' };
+    void merchantLat;
+    void merchantLng;
+    void maxDistanceKm;
+    const { data, error } = await supabase.rpc('dispatch_merchant_order' as never, {
+      p_order_id: orderId,
+    } as never);
+    if (error) return { success: false, error: error.message || 'Gagal menugaskan kurir' };
+    const result = data as { dispatch_status?: string; courier_id?: string } | null;
+    if (result?.dispatch_status !== 'OFFERED') {
+      return { success: false, error: 'Belum ada kurir aktif yang tersedia di sekitar toko' };
     }
-
-    return response.json();
+    return {
+      success: true,
+      courier: result.courier_id ? {
+        id: result.courier_id,
+        name: 'Kurir terdekat',
+        distance_km: 0,
+        vehicle_type: 'motor',
+      } : undefined,
+    };
   } catch (err) {
     console.error('Error in autoAssignCourier:', err);
     return { success: false, error: 'Failed to assign courier' };
