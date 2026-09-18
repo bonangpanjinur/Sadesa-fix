@@ -58,7 +58,8 @@ interface OrderDetails {
   merchant_id: string | null;
   service_type: string | null;
   buyer_id: string | null;
-  pod_image_url: string | null;
+  delivery_proof_url: string | null;
+  delivery_notes: string | null;
   is_self_delivery: boolean | null;
   delivery_type: string;
   expedition_name: string | null;
@@ -639,14 +640,17 @@ export default function OrderTrackingPage() {
             className="space-y-3"
           >
             {/* Proof of Delivery Photo */}
-            {order.pod_image_url && (
+            {order.delivery_proof_url && (
               <div className="bg-card rounded-2xl p-4 border border-border">
                 <h3 className="font-medium text-sm text-muted-foreground mb-3">Bukti Pengiriman</h3>
-                <PodImage 
-                  storedUrl={order.pod_image_url} 
+                <PodImage
+                  storedUrl={order.delivery_proof_url} 
                   alt="Bukti pengiriman" 
                   className="w-full h-48 object-cover rounded-xl border border-border"
                 />
+                {order.delivery_notes && (
+                  <p className="text-sm text-muted-foreground mt-3">Catatan kurir: {order.delivery_notes}</p>
+                )}
               </div>
             )}
 
