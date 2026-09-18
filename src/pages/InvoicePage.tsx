@@ -33,17 +33,29 @@ export default function InvoicePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: order, isLoading } = useQuery<InvoiceOrder | null>({
-    queryKey: ['invoice-order', orderId],
+  const { data: order, isLoading, isError } = useQuery<InvoiceOrder | null>({
+    queryKey: ['invoice-order', orderId, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('orders')
-        .select('id, total, status, created_at, payment_method, shipping_address, delivery_fee, merchant_id, merchants(name, address, phone), order_items(id, product_name, product_price, quantity), profiles(full_name, phone)')
+        .select('id, total, status, created_at, payment_method, shipping_address, delivery_fee, merchant_id, merchants(name, address, phone), order_items(id, product_name, product_price, quantity)')
         .eq('id', orderId!)
         .eq('buyer_id', user!.id)
         .maybeSingle();
       if (error) throw error;
-      return data as unknown as InvoiceOrder | null;
+
+      if (!data) return null;
+
+      // orders.buyer_id references auth.users, while the buyer profile is
+      // keyed by profiles.user_id. Query it separately instead of relying on
+      // a relationship PostgREST may not be able to infer.
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+
+      return { ...data, profiles: profile } as unknown as InvoiceOrder;
     },
     enabled: !!orderId && !!user,
   });
@@ -63,7 +75,9 @@ export default function InvoicePage() {
   if (!order) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <p className="text-muted-foreground">Invoice tidak ditemukan</p>
+        <p className="text-muted-foreground">
+          {isError ? 'Invoice gagal dimuat. Silakan coba lagi.' : 'Invoice tidak ditemukan'}
+        </p>
         <Button variant="outline" onClick={() => navigate('/orders')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Kembali ke Pesanan
         </Button>
