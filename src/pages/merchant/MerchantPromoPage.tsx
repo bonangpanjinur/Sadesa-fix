@@ -1,5 +1,6 @@
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { PromoManager } from '@/components/merchant/PromoManager';
+import { CashbackRuleManager } from '@/components/merchant/CashbackRuleManager';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 
 export default function MerchantPromoPage() {
@@ -21,7 +22,10 @@ export default function MerchantPromoPage() {
 
   return (
     <MerchantLayout title="Promo & Diskon" subtitle="Kelola promosi produk">
-      <PromoManager merchantId={merchantId} />
+      <div className="space-y-6">
+        <PromoManager merchantId={merchantId} />
+        <CashbackRuleManager merchantId={merchantId} />
+      </div>
     </MerchantLayout>
   );
 }
