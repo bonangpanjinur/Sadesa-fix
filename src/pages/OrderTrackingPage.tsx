@@ -85,6 +85,12 @@ type OrderItem = {
   products?: { image_url: string | null } | null;
 };
 
+type RefundTracking = {
+  status: string;
+  dispute_status: string | null;
+  settlement_status: string | null;
+};
+
 type DeliveryCardStatus = 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'COURIER_ACCEPTED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
 const DELIVERY_CARD_STATUSES: readonly DeliveryCardStatus[] = ['NEW', 'PROCESSING', 'ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
 
@@ -103,6 +109,7 @@ export default function OrderTrackingPage() {
   const [chatOpen, setChatOpen] = useState<{ type: ChatType; userId: string; name: string } | null>(null);
   const [merchantInfo, setMerchantInfo] = useState<{ userId: string; name: string } | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [refund, setRefund] = useState<RefundTracking | null>(null);
   const courierRef = useRef<CourierInfo | null>(null);
   const orderRef = useRef<OrderDetails | null>(null);
   const fetchCourierInfoRef = useRef<((courierId: string) => Promise<void>) | null>(null);
@@ -143,6 +150,16 @@ export default function OrderTrackingPage() {
       }
 
       setOrder(orderData as unknown as OrderDetails);
+
+      const { data: refundData } = await supabase
+        .from('refund_requests')
+        .select('status, dispute_status, settlement_status')
+        .eq('order_id', orderId)
+        .eq('buyer_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setRefund((refundData as RefundTracking | null) ?? null);
 
       // A booking can remain ASSIGNED when the first courier offer was missed
       // or created before a courier became available. Retry dispatch from the
@@ -218,6 +235,10 @@ export default function OrderTrackingPage() {
           const updated = payload.new as OrderDetails;
           setOrder(updated);
           if (updated.courier_id && !courierRef.current) fetchCourierInfo(updated.courier_id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'refund_requests', filter: `order_id=eq.${orderId}` }, (payload) => {
+          const updated = payload.new as RefundTracking;
+          setRefund(updated);
         })
         .subscribe();
       const etaChannel = supabase.channel(`eta-tracking-${orderId}`);
@@ -315,6 +336,7 @@ export default function OrderTrackingPage() {
               picked_up_at: order.picked_up_at,
               delivered_at: order.delivered_at,
             }}
+            refund={refund}
           />
         </motion.div>
 

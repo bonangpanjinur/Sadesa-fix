@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, Truck, MapPin, Clock } from 'lucide-react';
+import { CheckCircle, Package, Truck, MapPin, Clock, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation, useFormatters, type TranslationKey } from '@/lib/i18n';
 
@@ -15,6 +15,11 @@ interface DeliveryStatus {
 interface DeliveryStatusCardProps {
   order: DeliveryStatus;
   showEstimate?: boolean;
+  refund?: {
+    status: string;
+    dispute_status?: string | null;
+    settlement_status?: string | null;
+  } | null;
 }
 
 const statusSteps: Array<{ key: string; labelKey: TranslationKey; icon: typeof Package }> = [
@@ -27,7 +32,7 @@ const statusSteps: Array<{ key: string; labelKey: TranslationKey; icon: typeof P
 
 const statusOrder = ['NEW', 'PROCESSING', 'PROCESSED', 'READY', 'ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
 
-export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatusCardProps) {
+export function DeliveryStatusCard({ order, showEstimate = true, refund }: DeliveryStatusCardProps) {
   const { t, tStatus } = useTranslation();
   const { formatTime } = useFormatters();
   const currentIndex = statusOrder.indexOf(order.status);
@@ -168,6 +173,43 @@ export function DeliveryStatusCard({ order, showEstimate = true }: DeliveryStatu
             </motion.div>
           );
         })}
+        {refund && (() => {
+          const rejected = refund.status === 'REJECTED' || refund.dispute_status === 'RESOLVED_REJECTED';
+          const completed = refund.settlement_status === 'COMPLETED';
+          const approved = refund.status === 'APPROVED';
+          const label = rejected ? 'Refund Ditolak' : completed ? 'Refund Selesai' : approved ? 'Refund Diproses' : 'Pengajuan Refund';
+          const description = rejected
+            ? 'Permintaan refund ditolak oleh admin'
+            : completed
+              ? 'Dana refund sudah berhasil dicairkan'
+              : approved
+                ? refund.settlement_status === 'FAILED'
+                  ? 'Pencairan gagal dan perlu ditindaklanjuti'
+                  : 'Refund disetujui, menunggu pencairan dana'
+                : 'Permintaan refund sedang ditinjau';
+          return (
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex flex-col items-center">
+                <div className={cn(
+                  'w-10 h-10 rounded-full flex items-center justify-center transition-all',
+                  rejected || completed ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                )}>
+                  {rejected || completed ? <CheckCircle className="h-5 w-5" /> : <RotateCcw className="h-5 w-5" />}
+                </div>
+              </div>
+              <div className="min-w-0 flex-1 pb-4">
+                <p className={cn('font-medium', rejected || completed ? 'text-foreground' : 'text-muted-foreground')}>{label}</p>
+                <p className="text-xs text-muted-foreground mt-1">{description}</p>
+                {!rejected && !completed && (
+                  <span className="inline-flex items-center gap-1 text-xs text-primary mt-1">
+                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                    Sedang diproses
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
