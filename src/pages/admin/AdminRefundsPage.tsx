@@ -169,7 +169,7 @@ export default function AdminRefundsPage() {
   };
 
   const filteredRefunds = refunds.filter(r => {
-    const matchesStatus = statusFilter === 'all' || r.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || r.status === statusFilter || r.disputeStatus === statusFilter;
     const matchesSearch = 
       r.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.buyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -198,6 +198,14 @@ export default function AdminRefundsPage() {
     RESOLVED_REJECTED: 'Selesai - ditolak',
     CLOSED: 'Ditutup',
   }[status || ''] || status || 'Belum ada');
+
+  const getDisputeBadge = (status: string | null) => {
+    if (status === 'MERCHANT_RESPONDED') return <Badge variant="warning">Menunggu keputusan admin</Badge>;
+    if (status === 'IN_MEDIATION') return <Badge variant="default">Dalam mediasi admin</Badge>;
+    if (status === 'RESOLVED_REFUND') return <Badge variant="success">Refund disetujui</Badge>;
+    if (status === 'RESOLVED_REJECTED') return <Badge variant="destructive">Refund ditolak</Badge>;
+    return getStatusBadge(status || 'PENDING');
+  };
 
   const getSettlementLabel = (status: string | null) => ({
     NOT_REQUIRED: 'Tidak diperlukan',
@@ -248,6 +256,8 @@ export default function AdminRefundsPage() {
           <SelectContent>
             <SelectItem value="all">Semua status</SelectItem>
             <SelectItem value="PENDING">Menunggu</SelectItem>
+            <SelectItem value="MERCHANT_RESPONDED">Merchant merespons</SelectItem>
+            <SelectItem value="IN_MEDIATION">Dalam mediasi</SelectItem>
             <SelectItem value="APPROVED">Disetujui</SelectItem>
             <SelectItem value="REJECTED">Ditolak</SelectItem>
           </SelectContent>
@@ -295,8 +305,8 @@ export default function AdminRefundsPage() {
                     <TableCell className="font-medium">{formatPrice(refund.amount)}</TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        {getStatusBadge(refund.status)}
-                        <p className="text-xs text-muted-foreground">{getDisputeLabel(refund.disputeStatus)}</p>
+                        {getDisputeBadge(refund.disputeStatus)}
+                        <p className="text-xs text-muted-foreground">Refund: {getStatusBadge(refund.status)}</p>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
