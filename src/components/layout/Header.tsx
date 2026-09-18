@@ -6,6 +6,7 @@ import { useWhitelabel } from '@/hooks/useWhitelabel';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { getTimeAwareSearchPlaceholder } from '@/lib/timeAwareSearch';
 
 export function Header() {
   const { settings } = useWhitelabel();
@@ -76,7 +77,7 @@ export function Header() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari makanan, restoran, atau produk"
+            placeholder={getTimeAwareSearchPlaceholder()}
             aria-label="Cari makanan, restoran, atau produk"
             className="h-11 w-full rounded-2xl border border-orange-100 bg-white pl-10 pr-4 text-xs shadow-[0_8px_24px_-18px_hsl(4_78%_47%_/_0.6)] outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
           />

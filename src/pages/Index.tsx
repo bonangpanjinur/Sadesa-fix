@@ -10,6 +10,7 @@ import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
+import { ContextualRecommendation } from '@/components/home/ContextualRecommendation';
 import { 
   fetchProducts, 
   fetchVillages, 
@@ -38,6 +39,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [visibleProductCount, setVisibleProductCount] = useState(12);
   const [promoFilter, setPromoFilter] = useState<'semua' | 'makanan' | 'minuman' | 'produk'>('semua');
+  const [showContextualRecommendation, setShowContextualRecommendation] = useState(true);
   
   const { getEnabledSections } = useHomepageLayout();
   const { getHomepageCategories } = useCategories();
@@ -223,6 +225,11 @@ const Index = () => {
             </div>
           </section>
         );
+
+      case 'contextual-recommendation':
+        return showContextualRecommendation ? (
+          <ContextualRecommendation onDismiss={() => setShowContextualRecommendation(false)} />
+        ) : null;
       
       case 'popular_tourism':
         if (tourismLoading) return <CarouselSkeleton count={3} />;
@@ -421,6 +428,13 @@ const Index = () => {
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto pb-32">
         <>
+          {showContextualRecommendation && (
+            <ContextualRecommendation
+              products={products}
+              userLocation={userLocation}
+              onDismiss={() => setShowContextualRecommendation(false)}
+            />
+          )}
           {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id)).map((section) => (
             <div key={section.id}>
               {renderSection(section.id)}
