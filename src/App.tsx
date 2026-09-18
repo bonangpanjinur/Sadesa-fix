@@ -105,6 +105,7 @@ const AdminPushNotificationPage = lazy(() => import("./pages/admin/AdminPushNoti
 const AdminPwaDevicesPage = lazy(() => import("./pages/admin/AdminPwaDevicesPage"));
 const AdminCashbackPage = lazy(() => import("./pages/admin/AdminCashbackPage"));
 const AdminIklanPage = lazy(() => import("./pages/admin/AdminIklanPage"));
+const AdminIklanLaporanPage = lazy(() => import("./pages/admin/AdminIklanLaporanPage"));
 const AdminRealtimeDashboardPage = lazy(() => import("./pages/admin/AdminRealtimeDashboardPage"));
 const AdminSupportTicketsPage = lazy(() => import("./pages/admin/AdminSupportTicketsPage"));
 const AdminSEOPage = lazy(() => import("./pages/admin/AdminSEOPage"));
@@ -820,6 +821,11 @@ const App = () => (
               <Route path="/admin/iklan" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminIklanPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/iklan/laporan" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminIklanLaporanPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/support-tickets" element={
