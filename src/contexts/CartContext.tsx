@@ -20,13 +20,22 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = 'desawisata_cart';
+const MAX_CART_QUANTITY = 1000;
 
 function loadCartFromStorage(): CartItem[] {
   try {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is CartItem => Boolean(
+          item && item.product && typeof item.product.id === 'string'
+          && Number.isFinite(item.quantity) && item.quantity > 0,
+        )).map(item => ({
+          ...item,
+          quantity: Math.min(MAX_CART_QUANTITY, Math.max(1, Math.trunc(item.quantity))),
+        }));
+      }
     }
   } catch (e) {
     console.warn('Failed to load cart from localStorage:', e);
@@ -53,11 +62,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       toast({ title: 'Tidak dapat menambahkan ke keranjang', description: reason || 'Produk tidak tersedia', variant: 'destructive' });
       return;
     }
+    const safeQuantity = Math.min(MAX_CART_QUANTITY, Math.max(1, Math.trunc(quantity) || 1));
     setItems(prev => {
       const existingItem = prev.find(item => item.product.id === product.id);
-      if (existingItem) return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
+      if (existingItem) return prev.map(item => item.product.id === product.id ? { ...item, quantity: Math.min(MAX_CART_QUANTITY, item.quantity + safeQuantity) } : item);
       setSelectedItemIds(current => current.includes(product.id) ? current : [...current, product.id]);
-      return [...prev, { product, quantity }];
+      return [...prev, { product, quantity: safeQuantity }];
     });
   }, []);
 
@@ -68,7 +78,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {
     if (quantity <= 0) { removeFromCart(productId); return; }
-    setItems(prev => prev.map(item => item.product.id === productId ? { ...item, quantity } : item));
+    setItems(prev => prev.map(item => item.product.id === productId ? { ...item, quantity: Math.min(MAX_CART_QUANTITY, Math.trunc(quantity)) } : item));
   }, [removeFromCart]);
 
   const clearCart = useCallback(() => { setItems([]); setSelectedItemIds([]); }, []);

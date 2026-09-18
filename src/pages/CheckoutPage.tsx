@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, MapPin, Truck, Package, Loader2, CheckCircle, CreditCard, Wallet, AlertTriangle, ShieldCheck, Clock, Ticket } from 'lucide-react';
@@ -59,13 +59,16 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [appliedVoucher, setAppliedVoucher] = useState<{ id: string; name: string; discount: number } | null>(null);
-  
+  // Keep the same key while a checkout attempt is retried after a timeout or
+  // invoice-provider failure. The database then returns the original order.
+  const checkoutKeyRef = useRef<string | null>(null);
+
   // Address state
   const [addressData, setAddressData] = useState<CheckoutAddressData>(createEmptyCheckoutAddress());
-  
+
   // Distance & COD state
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
-  
+
   // Shipping settings from admin
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
   const [codSettings, setCodSettings] = useState<Awaited<ReturnType<typeof fetchCODSettings>> | null>(null);
@@ -110,30 +113,30 @@ export default function CheckoutPage() {
   }>({ cityName: null, districtName: null });
 
   const subtotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  
+
   // Calculate shipping based on distance
   const shippingCost = useMemo(() => {
     if (deliveryType === 'PICKUP') return 0;
-    
+
     // Free shipping threshold check
     const freeShippingMin = shippingSettings?.free_shipping_min_order ?? Infinity;
     if (subtotal >= freeShippingMin) return 0;
-    
+
     const baseFee = shippingSettings?.base_fee ?? 5000;
     const perKmFee = shippingSettings?.per_km_fee ?? 2000;
     const minFee = shippingSettings?.min_fee ?? 5000;
     const maxFee = shippingSettings?.max_fee ?? 50000;
-    
+
     if (distanceKm !== null && distanceKm > 0) {
       return Math.min(maxFee, Math.max(minFee, baseFee + Math.round(distanceKm * perKmFee)));
     }
-    
+
     return baseFee;
   }, [deliveryType, distanceKm, shippingSettings, subtotal]);
 
   // COD service fee
   const codServiceFee = paymentMethod === 'COD' && codSettings ? codSettings.serviceFee : 0;
-  
+
   const voucherDiscount = appliedVoucher?.discount || 0;
   const total = subtotal + shippingCost + codServiceFee - voucherDiscount;
 
@@ -168,7 +171,7 @@ export default function CheckoutPage() {
     }
 
     if (!codSettings) return;
-    
+
     // Check if COD is globally disabled
     if (!codSettings.enabled) {
       setCodEligible(false);
@@ -235,14 +238,14 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchMerchantData = async () => {
       if (!firstMerchantId) return;
-      
+
       // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
       const { data } = await supabase
         .from('merchants')
         .select('location_lat, location_lng, province, city, district, payment_cod_enabled, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
         .eq('id', firstMerchantId)
         .maybeSingle();
-      
+
       if (data) {
         if (data.location_lat && data.location_lng) {
           setMerchantLocation({
@@ -254,13 +257,13 @@ export default function CheckoutPage() {
           cityName: data.city ?? null,
           districtName: data.district ?? null,
         });
-        
+
         // If merchant has no bank info, load admin defaults
         let bankName = data.bank_name;
         let bankAccountNumber = data.bank_account_number;
         let bankAccountName = data.bank_account_name;
         let qrisImageUrl = data.qris_image_url;
-        
+
         if (!bankName || !bankAccountNumber) {
           const { data: adminSettings } = await supabase
             .from('app_settings')
@@ -275,7 +278,7 @@ export default function CheckoutPage() {
             if (!qrisImageUrl) qrisImageUrl = ap.qris_image_url || null;
           }
         }
-        
+
         setMerchantPaymentSettings({
           codEnabled: data.payment_cod_enabled ?? true,
           transferEnabled: data.payment_transfer_enabled ?? true,
@@ -295,7 +298,7 @@ export default function CheckoutPage() {
         }
       }
     };
-    
+
     fetchMerchantData();
   }, [firstMerchantId, xenditAvailable]);
 
@@ -309,7 +312,7 @@ export default function CheckoutPage() {
         setOperatingHoursLoading(false);
         return;
       }
-      
+
       setOperatingHoursLoading(true);
       setOperatingHoursError(null);
       try {
@@ -417,7 +420,7 @@ export default function CheckoutPage() {
     if (deliveryType === 'INTERNAL' && deliveryRestriction.requiresExpedition) {
       newErrors.delivery = 'Alamat ini wajib menggunakan ekspedisi.';
     }
-    
+
     if (Object.keys(newErrors).length > 0) {
       console.warn('Validation failed:', newErrors);
       // Scroll to the first error
@@ -434,7 +437,7 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) {
       toast({
         title: 'Silakan login terlebih dahulu',
@@ -454,10 +457,10 @@ export default function CheckoutPage() {
 
     // One Xendit invoice currently belongs to one marketplace order. Do not
     // create the first merchant order and silently skip the remaining ones.
-    if (paymentMethod === 'ONLINE' && !canUseOnlinePaymentForMerchantCount(merchantIds.length)) {
+    if (paymentMethod !== 'COD' && !canUseOnlinePaymentForMerchantCount(merchantIds.length)) {
       toast({
-        title: 'Checkout online hanya untuk satu toko',
-        description: 'Pisahkan produk berdasarkan toko sebelum membayar online.',
+        title: 'Pembayaran ini hanya untuk satu toko',
+        description: 'Pisahkan produk berdasarkan toko sebelum membayar online atau transfer.',
         variant: 'destructive',
       });
       return;
@@ -490,6 +493,7 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
+      checkoutKeyRef.current ??= crypto.randomUUID();
       // Validate stock before creating orders
       const allProductIds = items.map(item => item.product.id);
       const { data: currentStocks, error: stockCheckError } = await supabase
@@ -546,6 +550,7 @@ export default function CheckoutPage() {
         p_voucher_id: appliedVoucher?.id ?? null,
         // Shipping distance is recalculated from persisted coordinates by the RPC.
         p_distance_km: null,
+        p_checkout_key: checkoutKeyRef.current,
       } as never);
       if (checkoutError) {
         console.error('Authoritative checkout error:', checkoutError);
@@ -572,6 +577,7 @@ export default function CheckoutPage() {
       }
 
       selectedItems.forEach(item => removeFromCart(item.product.id));
+      checkoutKeyRef.current = null;
       if (paymentMethod === 'TRANSFER') {
         navigate(`/payment/${authoritativeOrderId}`);
         return;
@@ -588,7 +594,7 @@ export default function CheckoutPage() {
 
       } catch (error: unknown) {
       console.error('Checkout error:', error);
-      
+
       // Extract more specific error message
       let errorMessage = 'Terjadi kesalahan, silakan coba lagi';
       const rawMessage = error instanceof Error ? error.message : '';
@@ -603,7 +609,7 @@ export default function CheckoutPage() {
           errorMessage = rawMessage;
         }
       }
-      
+
       toast({
         title: 'Gagal membuat pesanan',
         description: errorMessage,
@@ -650,7 +656,7 @@ export default function CheckoutPage() {
       <div className="sticky top-0 z-50 bg-card shadow-sm">
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center gap-3">
-          <button 
+          <button
             onClick={() => safeGoBack(navigate)}
             className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center"
           >
@@ -663,7 +669,7 @@ export default function CheckoutPage() {
             )}
           </h2>
         </div>
-        
+
         {/* Step Indicator */}
         <div className="px-4 pt-3 pb-1 border-b border-border">
           <div className="flex items-center justify-between">
@@ -763,12 +769,12 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">Ringkasan Pesanan</h3>
             <Badge variant="secondary" className="text-xs ml-auto">{items.length} produk</Badge>
           </div>
-          
+
           <div className="space-y-3">
             {items.map(item => (
               <div key={item.product.id} className="flex gap-3">
-                <img 
-                  src={item.product.image} 
+                <img
+                  src={item.product.image}
                   alt={item.product.name}
                   className="w-12 h-12 rounded-lg object-cover"
                 />
@@ -793,7 +799,7 @@ export default function CheckoutPage() {
             <MapPin className="h-5 w-5 text-primary" />
             <h3 className="font-bold text-foreground">Alamat Pengiriman</h3>
           </div>
-          
+
           <CheckoutAddressForm
             value={addressData}
             onChange={setAddressData}
@@ -869,9 +875,9 @@ export default function CheckoutPage() {
             <Truck className="h-5 w-5 text-primary" />
             <h3 className="font-bold text-foreground">{t('shipping.method')}</h3>
           </div>
-          
-          <RadioGroup 
-            value={deliveryType} 
+
+          <RadioGroup
+            value={deliveryType}
             onValueChange={(value) => setDeliveryType(value as 'PICKUP' | 'INTERNAL' | 'EXPEDITION')}
             className="space-y-2"
           >
@@ -902,7 +908,7 @@ export default function CheckoutPage() {
               </div>
               <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
             </label>
-            
+
             <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
               deliveryType === 'PICKUP' ? 'border-primary bg-primary/5' : 'border-border'
             }`}>
@@ -930,9 +936,9 @@ export default function CheckoutPage() {
             <CreditCard className="h-5 w-5 text-primary" />
             <h3 className="font-bold text-foreground">Metode Pembayaran</h3>
           </div>
-          
-          <RadioGroup 
-            value={paymentMethod} 
+
+          <RadioGroup
+            value={paymentMethod}
             onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
             className="space-y-2"
           >
@@ -966,18 +972,20 @@ export default function CheckoutPage() {
                 </div>
               </label>
             )}
-            
+
             {/* Transfer Option - Based on merchant settings */}
             {merchantPaymentSettings?.transferEnabled !== false && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'
-              }`}>
-                <RadioGroupItem value="TRANSFER" id="transfer" />
+              } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <RadioGroupItem value="TRANSFER" id="transfer" disabled={merchantIds.length > 1} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">Transfer Bank</p>
                   <p className="text-xs text-muted-foreground">
-                    {merchantPaymentSettings?.bankName 
+                    {merchantIds.length > 1
+                      ? 'Tersedia untuk checkout satu toko saja'
+                      : merchantPaymentSettings?.bankName
                       ? `Transfer ke ${merchantPaymentSettings.bankName}`
                       : 'Transfer ke rekening penjual'}
                   </p>
@@ -989,8 +997,8 @@ export default function CheckoutPage() {
             {xenditAvailable && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border'
-              }`}>
-                <RadioGroupItem value="ONLINE" id="online" />
+              } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <RadioGroupItem value="ONLINE" id="online" disabled={merchantIds.length > 1} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">Bayar Online</p>
@@ -1030,7 +1038,7 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Skor Kepercayaan:</span>
                 <span className={`font-medium ${
-                  codStatus.trustScore >= 80 ? 'text-green-600' : 
+                  codStatus.trustScore >= 80 ? 'text-green-600' :
                   codStatus.trustScore >= 50 ? 'text-yellow-600' : 'text-red-600'
                 }`}>
                   {codStatus.trustScore}/100
@@ -1049,15 +1057,19 @@ export default function CheckoutPage() {
           transition={{ delay: 0.25 }}
           className="bg-card rounded-xl p-4 border border-border shadow-sm mb-4"
         >
-          <VoucherInput
-            orderTotal={subtotal}
-            merchantId={merchantIds[0]}
-            onVoucherApplied={(discount, voucherId, voucherName) => {
-              setAppliedVoucher({ id: voucherId, name: voucherName, discount });
-            }}
-            onVoucherRemoved={() => setAppliedVoucher(null)}
-            appliedVoucher={appliedVoucher}
-          />
+          {merchantIds.length > 1 ? (
+            <p className="text-sm text-muted-foreground">Voucher hanya dapat digunakan untuk checkout satu toko.</p>
+          ) : (
+            <VoucherInput
+              orderTotal={subtotal}
+              merchantId={merchantIds[0]}
+              onVoucherApplied={(discount, voucherId, voucherName) => {
+                setAppliedVoucher({ id: voucherId, name: voucherName, discount });
+              }}
+              onVoucherRemoved={() => setAppliedVoucher(null)}
+              appliedVoucher={appliedVoucher}
+            />
+          )}
         </motion.div>
 
         <motion.div
