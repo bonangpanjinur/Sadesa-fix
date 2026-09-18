@@ -1,4 +1,31 @@
 -- Direct courier state machine: all courier mutations are authorized, locked, and audited.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('pod-images', 'pod-images', false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+ON CONFLICT (id) DO UPDATE SET file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Couriers upload delivery proof images" ON storage.objects;
+CREATE POLICY "Couriers upload delivery proof images"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'pod-images'
+  AND EXISTS (
+    SELECT 1 FROM public.couriers c
+    WHERE c.user_id = auth.uid() AND c.status = 'ACTIVE' AND c.registration_status = 'APPROVED'
+  )
+);
+
+DROP POLICY IF EXISTS "Couriers delete own delivery proof images" ON storage.objects;
+CREATE POLICY "Couriers delete own delivery proof images"
+ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'pod-images'
+  AND EXISTS (
+    SELECT 1 FROM public.couriers c
+    WHERE c.user_id = auth.uid() AND c.status = 'ACTIVE' AND c.registration_status = 'APPROVED'
+  )
+);
+
 CREATE OR REPLACE FUNCTION public.courier_pickup_order(p_order_id uuid)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -50,8 +77,19 @@ BEGIN
   IF NULLIF(trim(p_proof_path), '') IS NULL THEN RAISE EXCEPTION 'Proof of delivery is required' USING ERRCODE = '22023'; END IF;
   SELECT * INTO v_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
   IF NOT FOUND OR v_order.service_type <> 'COURIER_DELIVERY' OR v_order.courier_id <> v_courier_id
-     OR v_order.status NOT IN ('PICKED_UP', 'SENT', 'DELIVERING') THEN
+     OR v_order.status NOT IN ('PICKED_UP', 'SENT', 'DELIVERING', 'DELIVERED') THEN
     RAISE EXCEPTION 'Order is not ready to complete' USING ERRCODE = '22023';
+  END IF;
+  -- A lost network response may cause the courier to retry after the first
+  -- request already committed. Return the completed order instead of failing.
+  IF v_order.status = 'DELIVERED' THEN
+    IF v_order.delivery_proof_url IS NULL THEN
+      UPDATE public.orders SET delivery_proof_url = p_proof_path,
+        delivery_notes = COALESCE(NULLIF(trim(p_notes), ''), delivery_notes),
+        updated_at = now()
+      WHERE id = p_order_id RETURNING * INTO v_order;
+    END IF;
+    RETURN v_order;
   END IF;
   v_from_status := v_order.status;
   UPDATE public.orders SET status = 'DELIVERED', delivered_at = now(), delivery_proof_url = p_proof_path,

@@ -11,6 +11,16 @@ import { toast } from 'sonner';
 interface DeliveryProofDialogProps { open: boolean; onClose: () => void; orderId: string; orderNumber: string; onConfirmed: () => void; }
 const DELIVERY_PROOF_BUCKET = 'pod-images';
 
+function getDeliveryErrorMessage(error: unknown) {
+  if (error && typeof error === 'object') {
+    const details = error as { message?: string; details?: string; hint?: string; code?: string };
+    return [details.message, details.details, details.hint, details.code ? `Kode ${details.code}` : null]
+      .filter(Boolean)
+      .join(' — ') || 'Coba lagi';
+  }
+  return error instanceof Error ? error.message : 'Coba lagi';
+}
+
 export function DeliveryProofDialog({ open, onClose, orderId, orderNumber, onConfirmed }: DeliveryProofDialogProps) {
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -44,7 +54,8 @@ export function DeliveryProofDialog({ open, onClose, orderId, orderNumber, onCon
       toast.success(`Pengiriman #${orderNumber} berhasil diselesaikan`);
       onConfirmed(); onClose(); clearPhoto(); setNotes('');
     } catch (error) {
-      toast.error(`Gagal menyelesaikan pengiriman: ${error instanceof Error ? error.message : 'Coba lagi'}`);
+      console.error('courier_complete_delivery failed', error);
+      toast.error(`Gagal menyelesaikan pengiriman: ${getDeliveryErrorMessage(error)}`);
     } finally { setUploading(false); }
   };
 
