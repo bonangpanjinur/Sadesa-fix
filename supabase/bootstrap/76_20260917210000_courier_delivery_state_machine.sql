@@ -1,4 +1,8 @@
 -- Direct courier state machine: all courier mutations are authorized, locked, and audited.
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS delivery_proof_url text,
+  ADD COLUMN IF NOT EXISTS delivery_notes text;
+
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('pod-images', 'pod-images', false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
 ON CONFLICT (id) DO UPDATE SET file_size_limit = EXCLUDED.file_size_limit,
