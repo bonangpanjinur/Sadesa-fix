@@ -71,9 +71,9 @@ const PLACEMENT_LABELS: Record<string, { label: string; icon: React.ReactNode; d
     color: 'text-purple-600 bg-purple-50 border-purple-200',
   },
   home_banner: {
-    label: 'Banner Homepage',
+    label: 'Banner di Atas Menu',
     icon: <Image className="h-4 w-4" />,
-    desc: 'Banner besar di halaman utama — jangkauan terluas',
+    desc: 'Banner tampil paling atas di halaman utama, sebelum menu layanan — jangkauan terluas',
     color: 'text-orange-600 bg-orange-50 border-orange-200',
   },
   product_recommend: {
@@ -94,7 +94,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 const DEFAULT_PACKAGES: AdPackage[] = [
   { id: 'default-1', name: 'Spotlight Pencarian', placement_type: 'search_top', description: 'Produk Anda muncul di atas hasil pencarian', price_per_day: 15000, max_days: 30, is_active: true },
   { id: 'default-2', name: 'Teratas Kategori', placement_type: 'category_top', description: 'Muncul paling atas di halaman kategori', price_per_day: 20000, max_days: 30, is_active: true },
-  { id: 'default-3', name: 'Banner Homepage', placement_type: 'home_banner', description: 'Banner besar di halaman utama', price_per_day: 50000, max_days: 14, is_active: true },
+  { id: 'default-3', name: 'Banner di Atas Menu', placement_type: 'home_banner', description: 'Banner besar di atas menu layanan halaman utama', price_per_day: 50000, max_days: 14, is_active: true },
   { id: 'default-4', name: 'Produk Pilihan', placement_type: 'product_recommend', description: 'Tampil di seksi rekomendasi produk', price_per_day: 10000, max_days: 30, is_active: true },
 ];
 

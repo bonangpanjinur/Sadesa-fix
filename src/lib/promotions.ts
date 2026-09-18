@@ -57,7 +57,41 @@ export async function fetchPromotions(type?: Promotion['type']): Promise<Promoti
 
 // Fetch banner promotions specifically
 export async function fetchBannerPromotions(): Promise<Promotion[]> {
-  return fetchPromotions('banner');
+  const adminBanners = await fetchPromotions('banner');
+  const now = new Date().toISOString();
+  const { data: merchantAds, error } = await supabase
+    .from('merchant_ads')
+    .select('id, title, description, image_url, link_url, merchant_id, start_date, end_date, sort_order, view_count, click_count')
+    .eq('placement_type', 'home_banner')
+    .eq('status', 'active')
+    .lte('start_date', now)
+    .or(`end_date.is.null,end_date.gte.${now}`)
+    .order('sort_order', { ascending: true })
+    .limit(10);
+
+  if (error) {
+    console.warn('Error fetching merchant banner ads:', error);
+    return adminBanners;
+  }
+
+  const paidBanners: Promotion[] = (merchantAds || []).map((ad) => ({
+    id: `merchant-ad-${ad.id}`,
+    type: 'banner',
+    title: ad.title,
+    subtitle: ad.description || undefined,
+    imageUrl: ad.image_url || undefined,
+    linkUrl: ad.link_url || `/merchant/${ad.merchant_id}`,
+    linkType: 'merchant',
+    advertiserType: 'merchant',
+    advertiserId: ad.merchant_id,
+    startDate: ad.start_date,
+    endDate: ad.end_date || undefined,
+    sortOrder: ad.sort_order || 0,
+    viewCount: ad.view_count || 0,
+    clickCount: ad.click_count || 0,
+  }));
+
+  return [...paidBanners, ...adminBanners];
 }
 
 // Increment view count (no-op placeholder - can add RPC later)

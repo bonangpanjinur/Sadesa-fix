@@ -64,14 +64,14 @@ interface MerchantAd {
 const PLACEMENT_OPTIONS = [
   { value: 'search_top', label: 'Teratas Pencarian' },
   { value: 'category_top', label: 'Teratas Kategori' },
-  { value: 'home_banner', label: 'Banner Homepage' },
+  { value: 'home_banner', label: 'Banner di Atas Menu' },
   { value: 'product_recommend', label: 'Rekomendasi Produk' },
 ];
 
 const PLACEMENT_LABELS: Record<string, string> = {
   search_top: 'Teratas Pencarian',
   category_top: 'Teratas Kategori',
-  home_banner: 'Banner Homepage',
+  home_banner: 'Banner di Atas Menu',
   product_recommend: 'Rekomendasi Produk',
 };
 
@@ -89,7 +89,7 @@ const DEFAULT_PKG: Partial<AdPackage> = {
 const DEFAULT_PACKAGES_SEED: Omit<AdPackage, 'id' | 'created_at'>[] = [
   { name: 'Spotlight Pencarian', placement_type: 'search_top', description: 'Produk Anda muncul di atas hasil pencarian', price_per_day: 15000, max_days: 30, is_active: true },
   { name: 'Teratas Kategori', placement_type: 'category_top', description: 'Muncul paling atas di halaman kategori', price_per_day: 20000, max_days: 30, is_active: true },
-  { name: 'Banner Homepage', placement_type: 'home_banner', description: 'Banner besar di halaman utama — jangkauan terluas', price_per_day: 50000, max_days: 14, is_active: true },
+  { name: 'Banner di Atas Menu', placement_type: 'home_banner', description: 'Banner besar di atas menu layanan halaman utama — jangkauan terluas', price_per_day: 50000, max_days: 14, is_active: true },
   { name: 'Produk Pilihan', placement_type: 'product_recommend', description: 'Tampil di seksi rekomendasi produk', price_per_day: 10000, max_days: 30, is_active: true },
 ];
 

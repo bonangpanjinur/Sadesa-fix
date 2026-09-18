@@ -171,10 +171,10 @@ const Index = () => {
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
   const sectionPriority: Record<string, number> = {
-    categories: 1,
-    promo: 2,
-    recommendations: 3,
-    hero: 4,
+    hero: 1,
+    categories: 2,
+    promo: 3,
+    recommendations: 4,
     popular_tourism: 5,
     villages: 6,
   };
