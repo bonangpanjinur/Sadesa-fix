@@ -22,7 +22,13 @@ interface ActiveDelivery {
   pickup_lat: number | null; pickup_lng: number | null; courier_earning_estimate: number | null;
 }
 
-const statusLabel: Record<string, string> = { COURIER_ACCEPTED: 'Menuju pickup pengirim', PICKED_UP: 'Barang sudah diambil', DELIVERING: 'Sedang mengantar' };
+const statusLabel: Record<string, string> = {
+  COURIER_ACCEPTED: 'Menuju pickup pengirim',
+  PICKED_UP: 'Barang sudah diambil',
+  SENT: 'Sedang mengantar',
+  ON_DELIVERY: 'Sedang mengantar',
+  DELIVERING: 'Sedang mengantar',
+};
 
 export default function CourierDeliveryPage() {
   const { user } = useAuth(); const queryClient = useQueryClient();
