@@ -30,6 +30,7 @@ import { OrderChat, ChatType } from '@/components/chat/OrderChat';
 import { CourierMap } from '@/components/CourierMap';
 import { getDeliveryEstimate, type VehicleType } from '@/lib/etaCalculation';
 import { useReorder } from '@/hooks/useReorder';
+import { useChatUnread } from '@/hooks/useChatUnread';
 import { getExpeditionLabel } from '@/lib/expeditionTracking';
 import { canBuyerContactCourier, canBuyerTrackCourier } from '@/lib/deliveryVisibility';
 
@@ -91,6 +92,7 @@ export default function OrderTrackingPage() {
   const navigate = useNavigate();
   const reorder = useReorder();
   const { user, loading: authLoading } = useAuth();
+  const { unreadCount: chatUnreadCount } = useChatUnread();
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [courier, setCourier] = useState<CourierInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -387,7 +389,7 @@ export default function OrderTrackingPage() {
               {canBuyerContactCourier(order.status, order.courier_id) && (
                 <button
                   type="button"
-                  className="rounded-full bg-primary/10 p-3"
+                  className="relative rounded-full bg-primary/10 p-3"
                   aria-label="Chat kurir"
                   title="Chat kurir"
                   onClick={() => {
@@ -397,6 +399,14 @@ export default function OrderTrackingPage() {
                   }}
                 >
                   <MessageCircle className="h-5 w-5 text-primary" />
+                  {chatUnreadCount > 0 && (
+                    <span
+                      className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive-foreground"
+                      aria-label={`${chatUnreadCount} chat belum dibaca`}
+                    >
+                      {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                    </span>
+                  )}
                 </button>
               )}
               <a
