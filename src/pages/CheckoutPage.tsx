@@ -55,6 +55,8 @@ export default function CheckoutPage() {
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [xenditAvailable, setXenditAvailable] = useState(false);
+  const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
+  const [retryingPayment, setRetryingPayment] = useState(false);
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [appliedVoucher, setAppliedVoucher] = useState<{ id: string; name: string; discount: number } | null>(null);
@@ -558,6 +560,7 @@ export default function CheckoutPage() {
 
       const authoritativeOrderId = (checkoutResult as { primary_order_id?: string } | null)?.primary_order_id;
       if (!authoritativeOrderId) throw new Error('Checkout tidak menghasilkan order');
+      let paymentNeedsRecovery = false;
 
       if (paymentMethod === 'ONLINE' && xenditAvailable) {
         try {
@@ -568,10 +571,12 @@ export default function CheckoutPage() {
         } catch (paymentError) {
           console.error('Payment error:', paymentError);
           toast({
-            title: 'Pesanan dibuat, tapi pembayaran gagal',
-            description: 'Silakan bayar dari halaman pesanan Anda',
+            title: 'Invoice belum berhasil dibuat',
+            description: 'Pesanan tersimpan dan Anda dapat mencoba pembayaran lagi.',
             variant: 'destructive',
           });
+          paymentNeedsRecovery = true;
+          setPaymentRecoveryError(true);
         }
       }
 
@@ -584,10 +589,12 @@ export default function CheckoutPage() {
       setOrderId(authoritativeOrderId);
       setSuccess(true);
       toast({
-        title: 'Pesanan berhasil dibuat!',
+        title: paymentNeedsRecovery ? 'Pesanan dibuat, pembayaran tertunda' : 'Pesanan berhasil dibuat!',
         description: paymentMethod === 'COD'
           ? 'Pesanan Anda menunggu konfirmasi dari penjual'
-          : 'Pesanan Anda telah masuk ke sistem',
+          : paymentNeedsRecovery
+            ? 'Gunakan tombol coba lagi untuk membuat invoice pembayaran.'
+            : 'Pesanan Anda telah masuk ke sistem',
       });
       return;
 
@@ -620,6 +627,23 @@ export default function CheckoutPage() {
   };
 
   if (success) {
+    const retryPayment = async () => {
+      if (!orderId || retryingPayment) return;
+      setRetryingPayment(true);
+      try {
+        const invoice = await createPaymentInvoice({ orderId });
+        window.location.href = invoice.invoice_url;
+      } catch (error) {
+        console.error('Payment retry error:', error);
+        toast({
+          title: 'Invoice belum berhasil dibuat',
+          description: 'Silakan coba lagi beberapa saat lagi.',
+          variant: 'destructive',
+        });
+      } finally {
+        setRetryingPayment(false);
+      }
+    };
     return (
       <div className="mobile-shell bg-background flex flex-col min-h-screen items-center justify-center p-8">
         <motion.div
@@ -627,16 +651,23 @@ export default function CheckoutPage() {
           animate={{ scale: 1 }}
           className="text-center"
         >
-          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="h-10 w-10 text-primary" />
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${paymentRecoveryError ? 'bg-amber-100' : 'bg-primary/10'}`}>
+            <CheckCircle className={`h-10 w-10 ${paymentRecoveryError ? 'text-amber-600' : 'text-primary'}`} />
           </div>
           <h1 className="text-2xl font-bold text-foreground mb-2">
-            Pesanan Berhasil!
+            {paymentRecoveryError ? 'Pesanan Dibuat, Pembayaran Tertunda' : 'Pesanan Berhasil!'}
           </h1>
           <p className="text-muted-foreground mb-6">
-            Pesanan Anda telah masuk ke sistem dan sedang menunggu konfirmasi dari penjual.
+            {paymentRecoveryError
+              ? 'Order sudah tersimpan dan stok diamankan sementara. Invoice online belum berhasil dibuat.'
+              : 'Pesanan Anda telah masuk ke sistem dan sedang menunggu konfirmasi dari penjual.'}
           </p>
           <div className="space-y-3">
+            {paymentRecoveryError && (
+              <Button onClick={retryPayment} className="w-full" disabled={retryingPayment}>
+                {retryingPayment ? 'Mencoba membuat invoice...' : 'Coba Bayar Lagi'}
+              </Button>
+            )}
             <Button onClick={() => navigate('/orders')} className="w-full">
               Lihat Pesanan Saya
             </Button>
