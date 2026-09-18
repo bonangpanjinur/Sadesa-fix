@@ -138,7 +138,7 @@ export default function VoucherPage() {
   );
 
   const getDiscountLabel = (v: Voucher) => {
-    if (v.type === 'percent') return `${v.discount_percent}% OFF`;
+    if (v.type === 'percent' || v.type === 'percentage') return `${v.discount_percent}% OFF`;
     return `Rp ${v.discount_amount.toLocaleString('id-ID')} OFF`;
   };
 

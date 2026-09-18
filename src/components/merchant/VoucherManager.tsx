@@ -132,7 +132,7 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
           .insert([voucherData]);
         
         if (error) throw error;
-        toast.success('Voucher berhasil dibuat');
+        toast.success(`Voucher ${voucherData.code} berhasil dibuat. Bagikan kode ini ke pembeli.`);
       }
 
       setDialogOpen(false);
@@ -232,6 +232,14 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
 
   return (
     <div className="space-y-4">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4">
+          <p className="text-sm font-semibold">Kode inilah yang dimasukkan pembeli</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Buat atau generate kode di sini, lalu bagikan kode yang tampil pada kartu voucher kepada pembeli melalui WhatsApp, poster, atau struk.
+          </p>
+        </CardContent>
+      </Card>
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Kelola Voucher</h2>
         <Dialog open={dialogOpen} onOpenChange={(open) => {

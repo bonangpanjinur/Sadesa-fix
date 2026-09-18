@@ -7,7 +7,7 @@ export default function MerchantVouchersPage() {
 
   if (loading) {
     return (
-      <MerchantLayout title="Voucher & Kupon" subtitle="Buat kode diskon untuk pembeli">
+      <MerchantLayout title="Voucher & Kupon" subtitle="Buat kode yang akan dimasukkan pembeli saat checkout">
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
         </div>
@@ -20,7 +20,7 @@ export default function MerchantVouchersPage() {
   }
 
   return (
-    <MerchantLayout title="Voucher & Kupon" subtitle="Buat kode diskon untuk pembeli">
+    <MerchantLayout title="Voucher & Kupon" subtitle="Buat kode yang akan dimasukkan pembeli saat checkout">
       <VoucherManager merchantId={merchantId} />
     </MerchantLayout>
   );

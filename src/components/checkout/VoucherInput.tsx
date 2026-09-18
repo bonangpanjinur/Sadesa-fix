@@ -118,7 +118,7 @@ export function VoucherInput({
         <Input
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
-          placeholder="Masukkan kode"
+          placeholder="Masukkan kode dari pedagang"
           className="flex-1 uppercase"
           disabled={loading}
         />
