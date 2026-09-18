@@ -1,29 +1,123 @@
 # SaDesa POS Print Bridge
 
-Print Bridge adalah service lokal yang menerima job ESC/POS dari PWA melalui loopback dan mengirimkannya ke printer thermal tanpa popup atau dialog browser.
+Print Bridge adalah service lokal di komputer kasir. PWA mengirim byte ESC/POS ke `127.0.0.1:18181`, lalu bridge meneruskannya ke printer thermal tanpa dialog browser.
 
-## Menjalankan
+## Rekomendasi pilihan perangkat
 
-```bash
-cd print-bridge
-cp data/config.example.json data/config.json
-# Edit data/config.json sesuai printer
-npm install
-npm start
+| Jalur | Rekomendasi | Catatan |
+|---|---|---|
+| **LAN/WiFi + bridge** | **Paling disarankan** | Printer dan komputer kasir berada di jaringan yang sama; tidak bergantung pada Web Serial browser. |
+| USB + bridge | Disarankan untuk printer USB | Bridge memakai `serialport`; lebih stabil daripada mencoba USB printer class langsung dari browser. |
+| USB langsung dari browser | Hanya untuk perangkat yang benar-benar menyediakan USB-serial/CDC | Banyak printer thermal USB bukan serial sehingga tidak muncul di Web Serial. |
+| Bluetooth langsung dari browser | Tidak disarankan untuk operasional utama | Web Bluetooth tidak mendukung Bluetooth Classic/SPP dan profil BLE tiap printer berbeda. |
+
+## Setup Windows satu kali
+
+1. Pastikan Node.js 22 atau lebih baru terpasang.
+2. Buka PowerShell di root repository.
+3. Jalankan:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\print-bridge\scripts\install-windows.ps1
 ```
 
-Service berjalan di `http://127.0.0.1:18181`.
+Script tersebut akan memasang dependency, membuat `print-bridge/data/config.json` dari template, dan memasang auto-start saat Windows login.
 
-## Konfigurasi printer
+4. Edit `print-bridge/data/config.json`.
+5. Jalankan bridge pertama kali dengan `npm --prefix print-bridge start`, lalu lakukan **Test Print** dari POS.
 
-Printer LAN memakai `type: "tcp"`, `host`, dan `port` raw printing yang umumnya `9100`. Printer USB tahap awal memakai `type: "serial"`, `path` seperti `COM3` di Windows atau `/dev/ttyUSB0` di Linux, serta `baudRate`.
+## Setup macOS satu kali
 
-## Endpoint
+1. Pastikan Node.js 22 atau lebih baru terpasang.
+2. Buka Terminal di root repository.
+3. Jalankan:
 
-`GET /health` mengembalikan status service. `GET /printers` mengembalikan daftar printer dari `data/config.json`. `POST /jobs` menerima envelope job dengan `jobId`, `saleId`, `saleNumber`, `outletId`, `createdAt`, `copies`, `printerId`, dan `data` berupa byte ESC/POS dalam Base64. `GET /jobs/:jobId` membaca status job.
+```bash
+chmod +x print-bridge/scripts/install-macos.sh
+./print-bridge/scripts/install-macos.sh
+```
 
-Bridge menyimpan job secara lokal dan menggunakan `jobId` sebagai idempotency key. Submit ulang job dengan ID yang sama tidak mencetak ulang secara otomatis.
+Installer memasang dependency, membuat konfigurasi awal, dan mendaftarkan LaunchAgent `id.sadesa.pos-print-bridge` agar bridge otomatis berjalan saat user login. Konfigurasi berada di `print-bridge/data/config.json`; log berada di `print-bridge/data/logs/`.
 
-## Catatan keamanan
+Untuk menghentikan service sementara:
 
-Bridge hanya bind ke `127.0.0.1` secara default. Jangan expose port ini ke internet atau jaringan publik. Pada fase hardening, tambahkan token pairing, allowlist origin, installer signed, dan service auto-start.
+```bash
+launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/id.sadesa.pos-print-bridge.plist"
+```
+
+## Setup Linux satu kali
+
+1. Pastikan Node.js 22 atau lebih baru terpasang.
+2. Buka Terminal di root repository.
+3. Jalankan:
+
+```bash
+chmod +x print-bridge/scripts/install-linux.sh
+./print-bridge/scripts/install-linux.sh
+```
+
+Installer memasang dependency, membuat konfigurasi awal, dan mendaftarkan systemd user service `sadesa-pos-print-bridge.service`. Status dan log dapat dilihat dengan:
+
+```bash
+systemctl --user status sadesa-pos-print-bridge.service
+journalctl --user -u sadesa-pos-print-bridge.service -f
+```
+
+Jika distro tidak menjalankan systemd user session, installer tetap membuat unit file dan menampilkan perintah aktivasi manual.
+
+Untuk printer LAN, konfigurasi minimal:
+
+```json
+{
+  "printers": [{
+    "id": "kasir-lan",
+    "name": "Printer Thermal LAN",
+    "type": "tcp",
+    "host": "192.168.1.100",
+    "port": 9100,
+    "isDefault": true
+  }]
+}
+```
+
+Untuk printer USB yang dikenali sebagai serial:
+
+```json
+{
+  "printers": [{
+    "id": "kasir-usb",
+    "name": "Printer Thermal USB",
+    "type": "serial",
+    "path": "COM3",
+    "baudRate": 9600,
+    "isDefault": true
+  }]
+}
+```
+
+> `COM3` hanya contoh. Lihat nama port sebenarnya di Device Manager. Tidak semua printer USB dapat dipakai sebagai serial; untuk printer seperti itu gunakan LAN atau driver/print server OS.
+
+## Pengujian dari POS
+
+1. Pastikan browser membuka aplikasi SaDesa melalui HTTPS.
+2. Buka **POS → Pengaturan → Printer**.
+3. Pilih **WiFi/LAN melalui Print Bridge** atau **USB melalui Print Bridge**.
+4. Simpan pengaturan dan tekan **Test Print**.
+5. Jika gagal, cek `http://127.0.0.1:18181/health`. Respons yang benar memiliki `ok: true`.
+
+Untuk LAN, IP printer dan port pada halaman POS harus sama dengan entry `type: "tcp"` pada bridge. Port raw printing yang umum adalah `9100`.
+
+## Operasional dan keamanan
+
+Bridge hanya bind ke `127.0.0.1` secara default dan tidak boleh diekspos ke internet. Job disimpan lokal dengan `jobId` sebagai idempotency key sehingga retry job yang sama tidak mencetak ulang secara otomatis. PWA juga menyimpan antrean receipt ketika printer belum tersedia.
+
+Endpoint yang tersedia:
+
+- `GET /health` — status service.
+- `GET /printers` — daftar printer dari konfigurasi lokal.
+- `POST /jobs` — menerima byte ESC/POS dalam Base64.
+- `GET /jobs/:jobId` — status job cetak.
+
+## Batasan yang masih perlu diuji secara fisik
+
+Sebelum pilot, uji minimal satu printer nyata untuk setiap kombinasi model, OS, dan koneksi. Fokus uji: struk 58/80 mm, karakter Indonesia, QR, pemutusan listrik saat job, retry, dan status printer kehabisan kertas. Untuk deployment multi-kasir, setiap komputer kasir perlu menjalankan bridge lokalnya sendiri atau memakai print server terdedikasi.
