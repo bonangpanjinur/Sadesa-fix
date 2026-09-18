@@ -22,14 +22,16 @@ Risiko paling penting berasal dari ketergantungan historis pada state client unt
 | Pedagang | Voucher/kupon | Sudah tersedia | Ownership voucher dan checkout RPC | Perlu staging concurrency test untuk usage limit |
 | Pedagang | Cashback khusus toko | Diimplementasikan | `merchant_id`, RLS ownership, trigger award | Belum ada budget harian dan approval admin |
 | Pembeli | Melihat promo/voucher | Sudah tersedia | Public active rules dan voucher page | UX pemilihan promo masih dapat dipersatukan |
-| Pembeli | Melihat saldo dan riwayat cashback | Diperbaiki | `profiles.user_id`, ledger type/status | Penukaran saldo ke checkout belum menjadi bagian perubahan ini |
-| Sistem | Award cashback saat order selesai | Diimplementasikan | Trigger + function security definer + unique conflict | Job konfirmasi tiga hari perlu dijadwalkan |
+| Pembeli | Melihat saldo dan riwayat cashback | Diperbaiki | `profiles.user_id`, ledger type/status | Penukaran saldo ke checkout utama masih membutuhkan integrasi RPC checkout |
+| Sistem | Award cashback saat order selesai | Diimplementasikan | Trigger + function security definer + unique conflict | Job konfirmasi tiga hari tetap perlu dijadwalkan |
+| Sistem | Reversal cashback saat refund | Diimplementasikan | Trigger `REFUNDED`, reversal ledger idempotent | Partial refund masih mengikuti kebijakan konservatif full reversal |
+| Sistem | Redeem saldo atomik | Diimplementasikan | RPC `redeem_cashback`, row lock profile | Belum dipanggil dari checkout utama |
 
 ## Kontrak bisnis yang diimplementasikan
 
 Aturan cashback dapat bersifat global (`merchant_id` kosong) atau khusus merchant. Aturan hanya berlaku dalam periode aktif, memiliki minimum order, persentase maksimum 50%, dan batas nominal opsional. Ketika order berubah ke `DELIVERED` atau `DONE`, sistem mengunci order, memilih aturan yang relevan, menghitung nominal dari subtotal server, lalu menulis transaksi `pending`. Unique partial index dan `ON CONFLICT DO NOTHING` membuat retry status tidak menggandakan cashback.
 
-Cashback dikonfirmasi setelah tiga hari untuk memberi ruang dispute/refund. Fungsi `confirm_due_cashback()` mengubah transaksi menjadi `confirmed` dan menambah `profiles.cashback_balance` secara server-side. Jika order dibatalkan atau direfund, fase berikutnya harus menambahkan reversal ledger yang merujuk pada transaksi earn asli.
+Cashback dikonfirmasi setelah tiga hari untuk memberi ruang dispute/refund. Fungsi `confirm_due_cashback()` mengubah transaksi menjadi `confirmed` dan menambah `profiles.cashback_balance` secara server-side. Admin kini memiliki aksi manual untuk menjalankan fungsi tersebut. Jika order direfund, trigger membuat reversal ledger; transaksi pending dibatalkan, sedangkan transaksi confirmed dikembalikan dari saldo secara auditable.
 
 ## Rencana pengembangan bertahap
 
@@ -37,7 +39,7 @@ Cashback dikonfirmasi setelah tiga hari untuk memberi ruang dispute/refund. Fung
 |---|---|---:|---|
 | 0. Hardening | Terapkan migration, staging RLS, uji trigger dan retry | P0 | Tidak ada award ganda dan merchant tidak dapat mengubah rule toko lain |
 | 1. Pilot | Admin global + merchant cashback + buyer history | P0 | Dua merchant, dua buyer, order DONE, saldo dan ledger konsisten |
-| 2. Checkout | Gunakan cashback confirmed sebagai tender/discount server-side | P1 | Saldo terkunci atomik, rollback aman, idempotency key tersedia |
+| 2. Checkout | Panggil `redeem_cashback` dari RPC checkout authoritative | P1 | Saldo terkunci atomik, rollback aman, idempotency key tersedia |
 | 3. Kupon unified | Satu model campaign untuk global dan merchant, preview dan apply satu kontrak | P1 | Usage limit, per-user limit, periode, merchant scope diuji paralel |
 | 4. Governance | Budget campaign, approval admin, audit log, pause otomatis | P1 | Program over-budget otomatis berhenti dan semua perubahan terlacak |
 | 5. Analitik | ROI, redemption rate, incremental sales, merchant funding split | P2 | Laporan periodik dapat direkonsiliasi dengan order dan payout |

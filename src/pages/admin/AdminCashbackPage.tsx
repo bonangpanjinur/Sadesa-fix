@@ -48,6 +48,7 @@ export default function AdminCashbackPage() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoadError(null);
@@ -133,6 +134,18 @@ export default function AdminCashbackPage() {
     toast.success(r.is_active ? 'Aturan dinonaktifkan' : 'Aturan diaktifkan');
   };
 
+  const confirmDueCashback = async () => {
+    setConfirming(true);
+    const { data, error } = await supabase.rpc('confirm_due_cashback' as never);
+    setConfirming(false);
+    if (error) {
+      toast.error(error.message || 'Gagal mengonfirmasi cashback');
+      return;
+    }
+    toast.success(`${Number(data || 0)} transaksi cashback dikonfirmasi`);
+    await fetchData();
+  };
+
   return (
     <AdminLayout title="Manajemen Cashback" subtitle="Atur program cashback untuk pembeli marketplace">
       <div className="space-y-6">
@@ -151,7 +164,8 @@ export default function AdminCashbackPage() {
           </CardContent></Card>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" onClick={() => void confirmDueCashback()} disabled={confirming}>{confirming ? 'Memproses...' : 'Konfirmasi Cashback Jatuh Tempo'}</Button>
           <Button onClick={openCreate} className="gap-2"><Plus className="h-4 w-4" /> Tambah Program Cashback</Button>
         </div>
 
