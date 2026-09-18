@@ -43,6 +43,9 @@ interface RefundRequest {
   amount: number;
   reason: string;
   status: string;
+  disputeStatus: string | null;
+  merchantResponse: string | null;
+  settlementStatus: string | null;
   adminNotes: string | null;
   processedAt: string | null;
   createdAt: string;
@@ -101,13 +104,16 @@ export default function AdminRefundsPage() {
         amount: r.amount,
         reason: r.reason,
         status: r.status,
+        disputeStatus: r.dispute_status || null,
+        merchantResponse: r.merchant_response || null,
+        settlementStatus: r.settlement_status || null,
         adminNotes: r.admin_notes,
         processedAt: r.processed_at,
         createdAt: r.created_at,
         orderTotal: order?.total || 0,
         buyerName: profileMap.get(r.buyer_id) || 'Unknown',
         merchantName: order?.merchants?.name || 'Unknown Merchant',
-        evidenceUrls: [],
+        evidenceUrls: r.evidence_urls || [],
         refundType: 'FULL',
         };
       });
@@ -183,6 +189,23 @@ export default function AdminRefundsPage() {
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
+
+  const getDisputeLabel = (status: string | null) => ({
+    OPEN: 'Diajukan',
+    MERCHANT_RESPONDED: 'Merchant merespons',
+    IN_MEDIATION: 'Dalam mediasi',
+    RESOLVED_REFUND: 'Selesai - refund',
+    RESOLVED_REJECTED: 'Selesai - ditolak',
+    CLOSED: 'Ditutup',
+  }[status || ''] || status || 'Belum ada');
+
+  const getSettlementLabel = (status: string | null) => ({
+    NOT_REQUIRED: 'Tidak diperlukan',
+    PENDING: 'Menunggu pencairan',
+    PROCESSING: 'Sedang dicairkan',
+    COMPLETED: 'Sudah dicairkan',
+    FAILED: 'Pencairan gagal',
+  }[status || ''] || status || 'Belum dibuat');
 
   const pendingCount = refunds.filter(r => r.status === 'PENDING').length;
 
@@ -270,7 +293,12 @@ export default function AdminRefundsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{formatPrice(refund.amount)}</TableCell>
-                    <TableCell>{getStatusBadge(refund.status)}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {getStatusBadge(refund.status)}
+                        <p className="text-xs text-muted-foreground">{getDisputeLabel(refund.disputeStatus)}</p>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {format(new Date(refund.createdAt), 'dd MMM yyyy', { locale: idLocale })}
                     </TableCell>
@@ -342,6 +370,16 @@ export default function AdminRefundsPage() {
                   {getStatusBadge(selectedRefund.status)}
                 </div>
                 <div>
+                  <p className="text-sm text-muted-foreground">Status Dispute</p>
+                  <Badge variant="outline">{getDisputeLabel(selectedRefund.disputeStatus)}</Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Status Pencairan</p>
+                  <Badge variant={selectedRefund.settlementStatus === 'FAILED' ? 'destructive' : selectedRefund.settlementStatus === 'COMPLETED' ? 'success' : 'outline'}>
+                    {getSettlementLabel(selectedRefund.settlementStatus)}
+                  </Badge>
+                </div>
+                <div>
                   <p className="text-sm text-muted-foreground">Pembeli</p>
                   <p className="font-medium">{selectedRefund.buyerName}</p>
                 </div>
@@ -363,6 +401,13 @@ export default function AdminRefundsPage() {
                 <p className="text-sm text-muted-foreground mb-1">Alasan Refund</p>
                 <div className="bg-muted p-3 rounded-lg text-sm">
                   {selectedRefund.reason}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Respons Merchant</p>
+                <div className="bg-emerald-50 border border-emerald-100 text-emerald-950 p-3 rounded-lg text-sm">
+                  {selectedRefund.merchantResponse || 'Merchant belum memberikan respons.'}
                 </div>
               </div>
 
@@ -401,7 +446,7 @@ export default function AdminRefundsPage() {
             </DialogTitle>
             <DialogDescription>
               {processAction === 'approve' 
-                ? 'Apakah Anda yakin ingin menyetujui permintaan refund ini? Saldo akan dikembalikan ke pembeli.'
+                ? 'Apakah Anda yakin ingin menyetujui permintaan refund ini? Sistem akan membuat proses pencairan dan dana baru dianggap cair setelah provider mengonfirmasi.'
                 : 'Berikan alasan mengapa permintaan refund ini ditolak.'}
             </DialogDescription>
           </DialogHeader>
