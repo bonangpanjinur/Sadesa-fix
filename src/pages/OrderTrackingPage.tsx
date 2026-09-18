@@ -384,9 +384,26 @@ export default function OrderTrackingPage() {
                   {courier.vehicle_type === 'motor' ? 'Motor' : courier.vehicle_type}
                 </p>
               </div>
+              {canBuyerContactCourier(order.status, order.courier_id) && (
+                <button
+                  type="button"
+                  className="rounded-full bg-primary/10 p-3"
+                  aria-label="Chat kurir"
+                  title="Chat kurir"
+                  onClick={() => {
+                    supabase.from('couriers').select('user_id').eq('id', order.courier_id!).maybeSingle().then(({ data }) => {
+                      if (data?.user_id) setChatOpen({ type: 'buyer_courier', userId: data.user_id, name: courier.name });
+                    });
+                  }}
+                >
+                  <MessageCircle className="h-5 w-5 text-primary" />
+                </button>
+              )}
               <a
                 href={`tel:${courier.phone}`}
                 className="p-3 bg-primary/10 rounded-full"
+                aria-label={`Telepon ${courier.name}`}
+                title={`Telepon ${courier.name}`}
               >
                 <Phone className="h-5 w-5 text-primary" />
               </a>
@@ -499,23 +516,6 @@ export default function OrderTrackingPage() {
               destinationLng={order.delivery_lng}
               destinationLabel={order.delivery_address || 'Tujuan Pengiriman'}
             />
-          </motion.div>
-        )}
-
-        {/* Chat buttons */}
-        {canBuyerContactCourier(order.status, order.courier_id) && courier && !order.is_self_delivery && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                supabase.from('couriers').select('user_id').eq('id', order.courier_id!).maybeSingle().then(({ data }) => {
-                  if (data?.user_id) setChatOpen({ type: 'buyer_courier', userId: data.user_id, name: courier.name });
-                });
-              }}
-            >
-              <MessageCircle className="h-4 w-4 mr-2" /> Chat Kurir
-            </Button>
           </motion.div>
         )}
 
