@@ -1,11 +1,8 @@
 -- Align POD storage access with the current orders.delivery_proof_url column.
--- The bucket remains private; clients must use createSignedUrl().
-
-UPDATE storage.buckets
-SET public = false,
-    file_size_limit = LEAST(COALESCE(file_size_limit, 5242880), 5242880),
-    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp']
-WHERE id = 'pod-images';
+-- The bucket configuration is intentionally not updated here: migration 76
+-- already creates/configures pod-images, and avoiding a second relation lock
+-- prevents a deadlock with concurrent storage metadata access. The bucket
+-- remains private; clients must use createSignedUrl().
 
 DROP POLICY IF EXISTS "POD images: read by order parties" ON storage.objects;
 DROP POLICY IF EXISTS "POD images: read by delivery parties" ON storage.objects;
