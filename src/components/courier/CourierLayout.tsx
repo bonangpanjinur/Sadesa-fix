@@ -1,9 +1,10 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet } from 'lucide-react';
+import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet, MessageCircle } from 'lucide-react';
 import { CourierSidebar } from './CourierSidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useChatUnread } from '@/hooks/useChatUnread';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -11,6 +12,7 @@ const mobileNav = [
   { label: 'Dashboard', href: '/courier', icon: LayoutDashboard },
   { label: 'Ojek', href: '/courier/rides', icon: Bike },
   { label: 'Barang', href: '/courier/deliveries', icon: Package },
+  { label: 'Chat', href: '/courier/chat', icon: MessageCircle },
   { label: 'Riwayat', href: '/courier/history', icon: History },
   { label: 'Pendapatan', href: '/courier/earnings', icon: Wallet },
 ];
@@ -18,6 +20,7 @@ const mobileNav = [
 export function CourierLayout({ children, title, subtitle }: CourierLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { unreadCount: chatUnreadCount } = useChatUnread();
   const isActive = (href: string) => location.pathname === href;
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
     <div className="flex min-h-dvh w-full overflow-x-hidden bg-background">
       {/* Full navigation stays visible on desktop; mobile uses the drawer below. */}
       <aside className="hidden w-64 shrink-0 md:flex" aria-label="Menu kurir">
-        <CourierSidebar />
+        <CourierSidebar chatUnreadCount={chatUnreadCount} />
       </aside>
 
       {sidebarOpen && (
@@ -53,7 +56,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
         aria-hidden={!sidebarOpen}
       >
         <div className="relative h-full shadow-2xl">
-          <CourierSidebar onNavigate={() => setSidebarOpen(false)} />
+          <CourierSidebar onNavigate={() => setSidebarOpen(false)} chatUnreadCount={chatUnreadCount} />
           <Button
             variant="secondary"
             size="icon"
@@ -89,10 +92,17 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
         </main>
 
         <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden" aria-label="Navigasi cepat kurir">
-          <div className="mx-auto grid h-16 w-full max-w-3xl grid-cols-5">
+          <div className="mx-auto grid h-16 w-full max-w-3xl grid-cols-6">
             {mobileNav.map(({ label, href, icon: Icon }) => (
               <Link key={href} to={href} className={cn('flex min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors', isActive(href) ? 'text-primary' : 'text-muted-foreground')}>
-                <Icon className={cn('h-5 w-5', isActive(href) && 'stroke-[2.5]')} />
+                <span className="relative">
+                  <Icon className={cn('h-5 w-5', isActive(href) && 'stroke-[2.5]')} />
+                  {href === '/courier/chat' && chatUnreadCount > 0 && (
+                    <span className="absolute -right-2 -top-2 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold leading-4 text-destructive-foreground" aria-label={`${chatUnreadCount} chat belum dibaca`}>
+                      {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                    </span>
+                  )}
+                </span>
                 <span className="truncate">{label}</span>
               </Link>
             ))}
