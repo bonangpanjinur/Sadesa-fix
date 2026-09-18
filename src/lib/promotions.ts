@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { isWithinOperatingHours } from '@/lib/merchantOperatingHours';
 
 export interface Promotion {
   id: string;
@@ -16,6 +17,59 @@ export interface Promotion {
   sortOrder: number;
   viewCount: number;
   clickCount: number;
+}
+
+export interface MerchantAd {
+  id: string;
+  merchantId: string;
+  merchantName: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  linkUrl?: string;
+  placementType: string;
+  viewCount: number;
+  clickCount: number;
+  merchantIsOpen: boolean;
+  locationLat?: number | null;
+  locationLng?: number | null;
+}
+
+export async function fetchActiveHomepageAds(): Promise<MerchantAd[]> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('merchant_ads')
+    .select('id, merchant_id, title, description, image_url, link_url, placement_type, view_count, click_count, merchant:merchant_id(name, is_open, open_time, close_time, location_lat, location_lng)')
+    .eq('placement_type', 'home_banner')
+    .eq('status', 'active')
+    .or(`start_date.is.null,start_date.lte.${now}`)
+    .or(`end_date.is.null,end_date.gt.${now}`)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching active homepage ads:', error);
+    return [];
+  }
+
+  return (data || []).flatMap((ad) => {
+    const merchant = Array.isArray(ad.merchant) ? ad.merchant[0] : ad.merchant;
+    if (!merchant?.is_open || !isWithinOperatingHours(merchant.open_time || '08:00', merchant.close_time || '17:00')) return [];
+    return [{
+      id: ad.id,
+      merchantId: ad.merchant_id,
+      merchantName: merchant.name || 'Merchant sponsor',
+      title: ad.title,
+      description: ad.description || undefined,
+      imageUrl: ad.image_url || undefined,
+      linkUrl: ad.link_url || undefined,
+      placementType: ad.placement_type,
+      viewCount: ad.view_count || 0,
+      clickCount: ad.click_count || 0,
+      merchantIsOpen: true,
+      locationLat: merchant.location_lat == null ? null : Number(merchant.location_lat),
+      locationLng: merchant.location_lng == null ? null : Number(merchant.location_lng),
+    }];
+  });
 }
 
 // Fetch active promotions by type

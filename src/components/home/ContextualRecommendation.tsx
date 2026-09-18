@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import type { Product } from '@/types';
 import { findNearestOpenMerchant, formatDistance, type NearestOpenMerchant } from '@/lib/nearestOpenMerchant';
+import { calculateDistance } from '@/hooks/useUserLocation';
+import type { MerchantAd } from '@/lib/promotions';
 
 interface RecommendationContent {
   icon: LucideIcon;
@@ -76,15 +78,22 @@ function getRecommendation(hour: number): RecommendationContent {
 
 interface ContextualRecommendationProps {
   products?: Product[];
+  sponsoredAds?: MerchantAd[];
   userLocation?: { lat: number; lng: number } | null;
   onDismiss?: () => void;
 }
 
-export function ContextualRecommendation({ products = [], userLocation, onDismiss }: ContextualRecommendationProps) {
+export function ContextualRecommendation({ products = [], sponsoredAds = [], userLocation, onDismiss }: ContextualRecommendationProps) {
   const content = getRecommendation(new Date().getHours());
   const nearestMerchant: NearestOpenMerchant | null = findNearestOpenMerchant(products, userLocation);
+  const sponsoredAd = userLocation
+    ? [...sponsoredAds]
+      .sort((a, b) => calculateDistance(userLocation.lat, userLocation.lng, a.locationLat, a.locationLng) - calculateDistance(userLocation.lat, userLocation.lng, b.locationLat, b.locationLng))[0]
+    : sponsoredAds[0];
   const Icon = content.icon;
-  const operationalDescription = nearestMerchant
+  const operationalDescription = sponsoredAd
+    ? `${sponsoredAd.merchantName} sedang buka · ${formatDistance(calculateDistance(userLocation?.lat ?? 0, userLocation?.lng ?? 0, sponsoredAd.locationLat, sponsoredAd.locationLng))}`
+    : nearestMerchant
     ? `${nearestMerchant.merchantName} sedang buka · ${formatDistance(nearestMerchant.distanceKm)} dari kamu.`
     : userLocation
       ? 'Belum ada kuliner yang buka saat ini. Coba lihat semua merchant atau pesan untuk nanti.'
@@ -98,15 +107,15 @@ export function ContextualRecommendation({ products = [], userLocation, onDismis
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">{content.eyebrow}</p>
-          <h2 className="mt-0.5 truncate text-[13px] font-extrabold leading-tight text-foreground">{content.title}</h2>
+          <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">{sponsoredAd ? 'Sponsor lokal' : content.eyebrow}</p>
+          <h2 className="mt-0.5 truncate text-[13px] font-extrabold leading-tight text-foreground">{sponsoredAd ? sponsoredAd.title : content.title}</h2>
           <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
-            {nearestMerchant && <MapPin className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />}
-            <span className="truncate">{operationalDescription}</span>
+            {(sponsoredAd || nearestMerchant) && <MapPin className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />}
+            <span className="truncate">{sponsoredAd?.description || operationalDescription}</span>
           </p>
         </div>
         <Link
-          to="/products"
+          to={sponsoredAd?.linkUrl || '/products'}
           className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/80 px-2.5 py-2 text-[9px] font-bold text-primary shadow-sm transition hover:bg-white active:scale-95"
           aria-label={content.cta}
         >

@@ -16,7 +16,7 @@ import {
   fetchVillages, 
   fetchTourism,
 } from '@/lib/api';
-import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
+import { fetchActiveHomepageAds, fetchBannerPromotions, incrementPromotionView, incrementPromotionClick, type MerchantAd } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
@@ -149,6 +149,12 @@ const Index = () => {
         }));
     }),
     staleTime: 120_000,
+  });
+
+  const { data: sponsoredAds = [] } = useQuery<MerchantAd[]>({
+    queryKey: ['homepage-sponsored-ads'],
+    queryFn: fetchActiveHomepageAds,
+    staleTime: 60_000,
   });
 
 
@@ -455,6 +461,7 @@ const Index = () => {
           {showContextualRecommendation && (
             <ContextualRecommendation
               products={products}
+              sponsoredAds={sponsoredAds}
               userLocation={userLocation}
               onDismiss={() => setShowContextualRecommendation(false)}
             />

@@ -47,6 +47,7 @@ export function findNearestOpenMerchant(
 }
 
 export function formatDistance(distanceKm: number): string {
+  if (!Number.isFinite(distanceKm)) return 'di sekitar kamu';
   if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m`;
   return `${distanceKm.toFixed(1).replace('.', ',')} km`;
 }
