@@ -15,6 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 
+const MIN_REFUND_REASON_LENGTH = 10;
+const MAX_REFUND_REASON_LENGTH = 4000;
+
 interface RefundRequestDialogProps {
   orderId: string;
   orderTotal: number;
@@ -61,8 +64,9 @@ export function RefundRequestDialog({
   };
 
   const handleSubmit = async () => {
-    if (!reason.trim()) {
-      toast.error('Mohon masukkan alasan refund');
+    const trimmedReason = reason.trim();
+    if (trimmedReason.length < MIN_REFUND_REASON_LENGTH) {
+      toast.error(`Alasan refund minimal ${MIN_REFUND_REASON_LENGTH} karakter`);
       return;
     }
 
@@ -99,7 +103,7 @@ export function RefundRequestDialog({
       const { error } = await supabase.rpc('create_refund_request' as never, {
         p_order_id: orderId,
         p_amount: refundAmount,
-        p_reason: reason.trim(),
+        p_reason: trimmedReason,
         p_evidence_urls: evidenceUrls,
       } as never);
 
@@ -151,8 +155,13 @@ export function RefundRequestDialog({
               placeholder="Jelaskan alasan Anda meminta pengembalian dana..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
+              minLength={MIN_REFUND_REASON_LENGTH}
+              maxLength={MAX_REFUND_REASON_LENGTH}
               rows={3}
             />
+            <p className="text-[10px] text-muted-foreground">
+              Minimal {MIN_REFUND_REASON_LENGTH} karakter ({reason.length}/{MAX_REFUND_REASON_LENGTH})
+            </p>
           </div>
 
           <div className="space-y-2">

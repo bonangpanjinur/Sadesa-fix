@@ -20,6 +20,14 @@ const SENSITIVE_KEY = /(token|secret|password|authorization|cookie|api[-_]?key|s
 function safeError(error: unknown): ObservabilityEvent['error'] | undefined {
   if (error === undefined || error === null) return undefined;
   if (error instanceof Error) return { name: error.name, message: error.message.slice(0, 240) };
+  if (typeof error === 'object') {
+    const details = error as { name?: unknown; message?: unknown; code?: unknown; hint?: unknown };
+    const name = typeof details.name === 'string' ? details.name : 'UnknownError';
+    const message = typeof details.message === 'string' ? details.message : 'Unknown error';
+    const code = typeof details.code === 'string' ? ` [code: ${details.code}]` : '';
+    const hint = typeof details.hint === 'string' && details.hint ? ` Hint: ${details.hint}` : '';
+    return { name, message: `${message}${code}${hint}`.slice(0, 240) };
+  }
   return { name: 'UnknownError', message: String(error).slice(0, 240) };
 }
 
