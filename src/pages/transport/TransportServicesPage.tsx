@@ -32,7 +32,7 @@ export default function TransportServicesPage() {
             <div>
               <h2 className="font-heading text-base font-bold">Antar dari desa, untuk Anda</h2>
               <p className="mt-1 text-xs leading-relaxed text-primary-foreground/80">
-                Pesan ojek penumpang atau atur pengiriman barang dalam satu tempat.
+                Pesan ojek penumpang atau gunakan layanan Antar Barang dalam satu tempat.
               </p>
             </div>
           </div>
@@ -55,7 +55,7 @@ export default function TransportServicesPage() {
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
               <Box className="mb-2 h-5 w-5 text-amber-600" />
               <p className="text-xs font-bold">Kurir barang</p>
-              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Sertakan detail agar mudah diproses.</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Kurir mengambil dari pickup dan mengantar ke tujuan.</p>
             </div>
           </div>
         </div>

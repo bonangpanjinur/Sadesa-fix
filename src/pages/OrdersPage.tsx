@@ -28,6 +28,7 @@ import { OrderCancelDialog } from "@/components/order/OrderCancelDialog";
 import { OrderDetailSheet } from "@/components/order/OrderDetailSheet";
 import { CourierRatingDialog } from "@/components/buyer/CourierRatingDialog";
 import { getBuyerTransactionKind } from "@/lib/buyerTransaction";
+import { getDeliveryFlow } from "@/lib/deliveryFlow";
 
 interface BuyerOrderItem {
   id: string;
@@ -671,7 +672,8 @@ const OrdersPage = () => {
 
                 const order = historyItem.item;
                 const transactionKind = getBuyerTransactionKind(order);
-                const isCourierDelivery = transactionKind === "courier_delivery";
+                const deliveryFlow = getDeliveryFlow(transactionKind);
+                const isCourierDelivery = deliveryFlow.intent === "direct_courier";
                 const firstItem = order.order_items?.[0];
                 // Support both image_url from DB and image from mapped Product interface
                 const imageUrl = firstItem?.products?.image_url;
@@ -702,7 +704,7 @@ const OrdersPage = () => {
                           </div>
                           <div className="flex items-center gap-1.5 text-sm">
                             {isCourierDelivery ? <Bike className="w-3.5 h-3.5 text-primary" /> : <Store className="w-3.5 h-3.5 text-muted-foreground" />}
-                            <span className="font-medium truncate max-w-[160px]">{isCourierDelivery ? "Ojek & Kurir" : order.merchants?.name || "Toko"}</span>
+                            <span className="font-medium truncate max-w-[160px]">{isCourierDelivery ? deliveryFlow.label : order.merchants?.name || "Toko"}</span>
                           </div>
                         </div>
                         <Badge
@@ -731,7 +733,7 @@ const OrdersPage = () => {
                         <div className="flex-1 min-w-0 flex flex-col justify-between">
                           {isCourierDelivery ? (
                             <div className="space-y-1">
-                              <h4 className="font-medium text-sm text-foreground">Antar barang</h4>
+                              <h4 className="font-medium text-sm text-foreground">{deliveryFlow.label}</h4>
                               <p className="text-xs text-muted-foreground truncate">{order.pickup_address || "Lokasi pickup"}</p>
                               <p className="text-xs text-muted-foreground truncate">→ {order.delivery_address || "Tujuan pengiriman"}</p>
                               <p className="text-xs text-muted-foreground">{order.package_type || "Paket"}{order.package_weight_kg ? ` • ${order.package_weight_kg} kg` : ""}</p>

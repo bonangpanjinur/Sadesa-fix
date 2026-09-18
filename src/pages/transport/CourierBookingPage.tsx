@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Box, CalendarDays, Check, ContactRound, Info, LocateFixed, Loader2, MapPin, Navigation, PackageCheck, UserRound } from 'lucide-react';
+import { ArrowLeft, Box, CalendarDays, Check, ContactRound, Info, LocateFixed, Loader2, MapPin, Navigation, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
@@ -19,7 +18,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
 
-type CourierMode = 'send' | 'pickup';
 type DistanceBand = 'near' | 'medium' | 'far';
 type RoutePoint = { lat: number; lng: number };
 type DeviceContact = { name?: string[]; tel?: string[] };
@@ -117,7 +115,6 @@ function FocusMapPoint({ point }: { point: RoutePoint | null }) {
 export default function CourierBookingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [mode, setMode] = useState<CourierMode>('send');
   const [pickupAddress, setPickupAddress] = useState('');
   const [destinationAddress, setDestinationAddress] = useState('');
   const [pickupLocation, setPickupLocation] = useState<RoutePoint | null>(null);
@@ -361,7 +358,6 @@ export default function CourierBookingPage() {
     try {
       const { data, error } = await supabase.rpc('create_courier_order' as never, {
         p_request: {
-          mode,
           pickup_lat: pickupLocation!.lat,
           pickup_lng: pickupLocation!.lng,
           pickup_address: pickupAddress,
@@ -440,7 +436,7 @@ export default function CourierBookingPage() {
             <span className="sr-only">Kembali</span>
           </Button>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Kirim barang langsung</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">Antar barang</p>
             <h1 className="font-heading text-xl font-bold">Kurir Barang</h1>
           </div>
         </div>
@@ -455,23 +451,6 @@ export default function CourierBookingPage() {
         </Card>
 
         <div className="space-y-4">
-          <Card className="p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <PackageCheck className="h-4 w-4 text-amber-600" />
-              <h2 className="text-sm font-bold">Jenis layanan</h2>
-            </div>
-            <RadioGroup value={mode} onValueChange={(value) => setMode(value as CourierMode)} className="grid grid-cols-2 gap-3">
-              <Label htmlFor="send" className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs ${mode === 'send' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30' : 'border-border'}`}>
-                <RadioGroupItem value="send" id="send" />
-                <span><strong>Kirim barang</strong><br /><span className="text-muted-foreground">Saya mengirim</span></span>
-              </Label>
-              <Label htmlFor="pickup" className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs ${mode === 'pickup' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30' : 'border-border'}`}>
-                <RadioGroupItem value="pickup" id="pickup" />
-                <span><strong>Ambil barang</strong><br /><span className="text-muted-foreground">Kurir mengambil</span></span>
-              </Label>
-            </RadioGroup>
-          </Card>
-
           <Card className="space-y-4 p-4">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-primary" />
