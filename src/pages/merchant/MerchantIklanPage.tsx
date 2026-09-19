@@ -197,17 +197,50 @@ export default function MerchantIklanPage() {
     field: 'payment_proof_url' | 'image_url',
     setLoading: (b: boolean) => void
   ) => {
+    if (!merchantId) {
+      toast.error('Data toko belum siap. Muat ulang halaman lalu coba lagi.');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      toast.error('File harus berupa gambar JPG, PNG, atau WebP.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran file maksimal 5 MB.');
+      return;
+    }
     setLoading(true);
     try {
-      const ext = file.name.split('.').pop();
-      const path = `${merchantId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const safeExtension = ['jpg', 'jpeg', 'png', 'webp'].includes(extension) ? extension : 'jpg';
+      const path = `${merchantId}/${crypto.randomUUID()}.${safeExtension}`;
+      let activeBucket = bucket;
+      let { error: upErr } = await supabase.storage.from(activeBucket).upload(path, file, {
+        upsert: false,
+        contentType: file.type,
+        cacheControl: '3600',
+      });
+
+      // Older deployments may not yet have the merchant-ads bucket. The
+      // existing promotions bucket is a safe fallback for banner creatives;
+      // payment proofs must never be redirected to a different bucket.
+      if (upErr && field === 'image_url' && bucket === 'merchant-ads') {
+        activeBucket = 'promotions';
+        const fallback = await supabase.storage.from(activeBucket).upload(path, file, {
+          upsert: false,
+          contentType: file.type,
+          cacheControl: '3600',
+        });
+        upErr = fallback.error;
+      }
       if (upErr) throw upErr;
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+      const { data: urlData } = supabase.storage.from(activeBucket).getPublicUrl(path);
       setForm(prev => ({ ...prev, [field]: urlData.publicUrl }));
       toast.success('File berhasil diupload');
-    } catch {
-      toast.error('Gagal upload file');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Storage belum siap atau Anda tidak memiliki izin upload.';
+      console.error('[merchant-ads] upload failed', { bucket, field, message });
+      toast.error(`Gagal upload file: ${message}`);
     } finally {
       setLoading(false);
     }
