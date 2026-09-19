@@ -26,12 +26,14 @@ import { useCategories } from '@/hooks/useCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import type { Product, Village, Tourism } from '@/types';
 
 const Index = () => {
@@ -459,7 +461,6 @@ const Index = () => {
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto pb-32">
         <>
-          {enabledSections.some((section) => section.id === 'categories') && renderSection('categories')}
           {showContextualRecommendation && (
             <ContextualRecommendation
               products={products}
@@ -468,21 +469,40 @@ const Index = () => {
               onDismiss={() => setShowContextualRecommendation(false)}
             />
           )}
+          {enabledSections.some((section) => section.id === 'categories') && renderSection('categories')}
           {activeOrder && (
-            <Link
-              to={`/orders/${activeOrder.id}`}
-              className="mx-4 mt-4 flex items-center gap-3 rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 shadow-[0_12px_26px_-22px_hsl(4_78%_47%_/_0.7)] transition hover:border-primary/30 hover:bg-primary/10"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                {['ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT'].includes(activeOrder.status) ? <Truck className="h-5 w-5" /> : <Receipt className="h-5 w-5" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[9px] font-bold uppercase tracking-[0.14em] text-primary">Pesanan aktif</span>
-                <span className="block truncate text-sm font-extrabold text-foreground">Pesanan #{activeOrder.id.slice(0, 8)}</span>
-                <span className="block text-[10px] text-muted-foreground">Status: {activeOrder.status.replaceAll('_', ' ').toLowerCase()}</span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
-            </Link>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button type="button" className="fixed bottom-24 right-4 z-20 flex items-center gap-2 rounded-full border border-primary/20 bg-white px-3 py-2 text-left shadow-[0_12px_28px_-12px_hsl(4_78%_47%_/_0.55)] transition hover:-translate-y-0.5 hover:border-primary/40 sm:right-7">
+                  <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    {['ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT'].includes(activeOrder.status) ? <Truck className="h-4 w-4" /> : <Receipt className="h-4 w-4" />}
+                    <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500" />
+                  </span>
+                  <span>
+                    <span className="block text-[9px] font-bold uppercase tracking-[0.12em] text-primary">Pesanan aktif</span>
+                    <span className="block max-w-[115px] truncate text-[11px] font-bold text-foreground">#{activeOrder.id.slice(0, 8)} · Ketuk detail</span>
+                  </span>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-[calc(100%-2rem)] rounded-2xl sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2"><Receipt className="h-5 w-5 text-primary" /> Pesanan aktif</DialogTitle>
+                  <DialogDescription>Ringkasan status pesanan yang sedang berjalan.</DialogDescription>
+                </DialogHeader>
+                <div className="flex items-center gap-3 rounded-xl bg-primary/5 p-4">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                    {['ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT'].includes(activeOrder.status) ? <Truck className="h-5 w-5" /> : <Receipt className="h-5 w-5" />}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold text-foreground">Pesanan #{activeOrder.id.slice(0, 8)}</p>
+                    <p className="text-xs capitalize text-muted-foreground">Status: {activeOrder.status.replaceAll('_', ' ').toLowerCase()}</p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button asChild className="w-full sm:w-auto"><Link to={`/orders/${activeOrder.id}`}>Lihat detail pesanan <ChevronRight className="ml-1 h-4 w-4" /></Link></Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
           {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id) && section.id !== 'categories' && section.id !== 'contextual-recommendation').map((section) => (
             <div key={section.id}>
