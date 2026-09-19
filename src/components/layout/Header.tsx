@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, MapPin, ChevronRight, LocateFixed, Clock3, Tag } from 'lucide-react';
+import { Search, ShoppingCart, MapPin, ChevronRight, LocateFixed } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
 import { useCart } from '@/contexts/CartContext';
@@ -74,8 +74,7 @@ export function Header() {
       </button>
 
       {showSearchBar && (
-        <>
-        <form onSubmit={handleSearch} className="group relative mt-1">
+        <form onSubmit={handleSearch} className="group relative mt-2">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
           <input
             type="text"
@@ -86,23 +85,6 @@ export function Header() {
             className="h-11 w-full rounded-2xl border border-orange-100 bg-white pl-10 pr-4 text-xs shadow-[0_8px_24px_-18px_hsl(4_78%_47%_/_0.6)] outline-none transition placeholder:text-muted-foreground/70 focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
           />
         </form>
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[
-            { label: 'Buka sekarang', icon: Clock3 },
-            { label: 'Terdekat', icon: LocateFixed },
-            { label: 'Promo', icon: Tag },
-          ].map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => navigate(`/search?q=${encodeURIComponent(label)}`)}
-              className="flex shrink-0 items-center gap-1 rounded-full border border-orange-100 bg-white px-3 py-1.5 text-[9px] font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary active:scale-95"
-            >
-              <Icon className="h-3 w-3" />{label}
-            </button>
-          ))}
-        </div>
-        </>
       )}
     </header>
   );

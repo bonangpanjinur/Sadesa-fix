@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed, Receipt, Truck, Tag, HelpCircle } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed, Receipt, Truck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -458,6 +458,7 @@ const Index = () => {
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto pb-32">
         <>
+          {enabledSections.some((section) => section.id === 'categories') && renderSection('categories')}
           {showContextualRecommendation && (
             <ContextualRecommendation
               products={products}
@@ -482,20 +483,7 @@ const Index = () => {
               <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
             </Link>
           )}
-          <div className="mx-4 mt-3 grid grid-cols-4 gap-2" aria-label="Akses cepat">
-            {[
-              { label: 'Toko', href: '/shops', icon: Store },
-              { label: 'Promo', href: '/products?promo=true', icon: Tag },
-              { label: 'Pesanan', href: '/orders', icon: Receipt },
-              { label: 'Bantuan', href: '/help', icon: HelpCircle },
-            ].map(({ label, href, icon: Icon }) => (
-              <Link key={label} to={href} className="flex flex-col items-center gap-1 rounded-xl border border-orange-100 bg-white px-2 py-2.5 text-[9px] font-bold text-muted-foreground transition hover:border-primary/30 hover:text-primary active:scale-95">
-                <Icon className="h-4 w-4 text-primary" />
-                {label}
-              </Link>
-            ))}
-          </div>
-          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id)).map((section) => (
+          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id) && section.id !== 'categories' && section.id !== 'contextual-recommendation').map((section) => (
             <div key={section.id}>
               {renderSection(section.id)}
             </div>
