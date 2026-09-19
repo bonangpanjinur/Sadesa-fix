@@ -201,12 +201,13 @@ const Index = () => {
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
   const sectionPriority: Record<string, number> = {
-    hero: 1,
-    categories: 2,
+    // Banner menjadi discovery/promo lanjutan, bukan konten pertama yang menghalangi tugas utama.
+    hero: 6,
+    categories: 1,
     promo: 3,
     recommendations: 4,
     popular_tourism: 5,
-    villages: 6,
+    villages: 7,
   };
   const orderedSections = [...enabledSections].sort(
     (a, b) => (sectionPriority[a.id] ?? 99) - (sectionPriority[b.id] ?? 99),
