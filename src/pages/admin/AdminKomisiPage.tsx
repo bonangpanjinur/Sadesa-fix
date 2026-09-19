@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,9 +50,8 @@ const EMPTY_FORM = {
   commission_percent: '5', min_amount: '0', max_commission: '', is_active: true,
 };
 
-const CATEGORIES = BUSINESS_CATEGORY_VALUES;
-
 export default function AdminKomisiPage() {
+  const { data: categories = [] } = useAdminCategories();
   const [rules, setRules] = useState<CommissionRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -286,7 +285,7 @@ export default function AdminKomisiPage() {
                     <SelectValue placeholder="Pilih kategori" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
+                    {categories.map(category => <SelectItem key={category.slug} value={category.slug}>{category.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

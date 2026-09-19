@@ -30,7 +30,7 @@ import {
 } from '@/lib/addressApi';
 import { AdminLocationPicker } from './AdminLocationPicker';
 import { getAvailableMerchantUsers, type MerchantUser } from '@/lib/adminApi';
-import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 
 interface MerchantAddDialogProps {
   open: boolean;
@@ -52,6 +52,7 @@ export function MerchantAddDialog({
   onSuccess,
 }: MerchantAddDialogProps) {
   const [loading, setLoading] = useState(false);
+  const { data: categories = [], isLoading: categoriesLoading } = useAdminCategories();
   
   // Address data states
   const [provinces, setProvinces] = useState<Region[]>([]);
@@ -574,6 +575,7 @@ export function MerchantAddDialog({
               <div className="space-y-2">
                 <Label htmlFor="category">Kategori Bisnis</Label>
                 <Select
+                  disabled={categoriesLoading || categories.length === 0}
                   value={formData.business_category}
                   onValueChange={(v) => setFormData({ ...formData, business_category: v })}
                 >
@@ -581,9 +583,9 @@ export function MerchantAddDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {BUSINESS_CATEGORY_OPTIONS.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.label}
+                    {categories.map((category) => (
+                      <SelectItem key={category.slug} value={category.slug}>
+                        {category.icon ? `${category.icon} ` : ''}{category.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

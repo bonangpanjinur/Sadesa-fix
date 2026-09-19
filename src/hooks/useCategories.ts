@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { PRIMARY_HOME_CATEGORIES } from '@/lib/homeCategories';
 
 export interface CategoryItem {
   id: string;
@@ -92,42 +91,19 @@ export function useCategories() {
     }
   };
 
-  // Get categories formatted for homepage display
-  const getHomepageCategories = (): HomepageCategoryItem[] => {
-    // Keep the homepage focused on the four primary journeys. Other categories
-    // remain available in admin and product browsing, but should not compete
-    // with the first actions users see on the home screen.
-    const primaryCategoryIds = new Set(PRIMARY_HOME_CATEGORIES.map((category) => category.id));
-    const adminCategories = categories
-      .map((cat, index) => ({
+  const mapCategory = (cat: CategoryItem, index: number): HomepageCategoryItem => ({
         id: cat.slug,
         name: cat.name,
         icon: (cat.icon ? iconMap[cat.icon] : null) || categoryStyles[cat.slug]?.icon || getDefaultIcon(index),
         colorClass: categoryStyles[cat.slug]?.colorClass || colorClasses[index % colorClasses.length],
         route: categoryStyles[cat.slug]?.route,
-      }));
-    const primaryAdminCategories = adminCategories.filter((category) => primaryCategoryIds.has(category.id));
+      });
 
-    // Menu utama desa tetap tersedia meskipun admin belum membuat baris
-    // kategori yang sesuai. Kategori aktif admin ditambahkan tanpa duplikasi.
-    const adminSlugs = new Set(primaryAdminCategories.map((category) => category.id));
-    const coreCategories = PRIMARY_HOME_CATEGORIES.filter((category) => !adminSlugs.has(category.id));
-
-    return [...coreCategories, ...primaryAdminCategories];
-  };
+  // Homepage and "lainnya" deliberately use the same active admin list.
+  const getHomepageCategories = (): HomepageCategoryItem[] => categories.map(mapCategory);
 
   const getOtherCategories = (): HomepageCategoryItem[] => {
-    const primaryCategoryIds = new Set(PRIMARY_HOME_CATEGORIES.map((category) => category.id));
-
-    return categories
-      .filter((category) => !primaryCategoryIds.has(category.slug))
-      .map((category, index) => ({
-        id: category.slug,
-        name: category.name,
-        icon: (category.icon ? iconMap[category.icon] : null) || categoryStyles[category.slug]?.icon || getDefaultIcon(index),
-        colorClass: categoryStyles[category.slug]?.colorClass || colorClasses[index % colorClasses.length],
-        route: categoryStyles[category.slug]?.route,
-      }));
+    return categories.map(mapCategory);
   };
 
   return { categories, loading, error, getHomepageCategories, getOtherCategories, refetch: fetchCategories };

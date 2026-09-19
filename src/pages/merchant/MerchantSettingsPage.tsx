@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BUSINESS_CATEGORY_OPTIONS, BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { merchantSettingsSchema } from '@/lib/validationSchemas';
 import { AddressDropdowns } from '@/components/admin/AddressDropdowns';
 import { MerchantLocationPicker } from '@/components/merchant/MerchantLocationPicker';
@@ -65,6 +65,7 @@ const PRICE_CLASSIFICATIONS = [
 export default function MerchantSettingsPage() {
   const { user } = useAuth();
   const { merchantId: guardMerchantId, loading: guardLoading } = useMerchantGuard();
+  const { data: categories = [], isLoading: categoriesLoading } = useAdminCategories();
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
@@ -170,6 +171,9 @@ export default function MerchantSettingsPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!merchant) return;
+      if (!categories.some((category) => category.slug === formData.business_category)) {
+        throw new Error('Kategori usaha tidak aktif atau sudah dihapus admin. Pilih kategori yang tersedia.');
+      }
       const parsed = merchantSettingsSchema.safeParse(formData);
       if (!parsed.success) {
         throw new Error(parsed.error.issues[0]?.message || 'Periksa kembali data pengaturan toko.');
@@ -293,12 +297,13 @@ export default function MerchantSettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="business_category">Kategori Bisnis</Label>
-                <Select value={formData.business_category} onValueChange={v => setFormData(p => ({ ...p, business_category: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
+                <Select disabled={categoriesLoading || categories.length === 0} value={formData.business_category} onValueChange={v => setFormData(p => ({ ...p, business_category: v }))}>
+                  <SelectTrigger><SelectValue placeholder={categoriesLoading ? 'Memuat kategori admin...' : 'Pilih kategori'} /></SelectTrigger>
                   <SelectContent>
-                  {BUSINESS_CATEGORY_OPTIONS.map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                  {categories.map(category => <SelectItem key={category.slug} value={category.slug}>{category.icon ? `${category.icon} ` : ''}{category.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">Pilihan kategori mengikuti pengaturan aktif di dashboard admin.</p>
               </div>
             </div>
             <div className="space-y-2">

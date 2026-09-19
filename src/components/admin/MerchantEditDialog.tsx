@@ -30,7 +30,7 @@ import {
   fetchVillages as fetchVillagesList,
   Region,
 } from '@/lib/addressApi';
-import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 
 interface MerchantEditDialogProps {
   open: boolean;
@@ -115,6 +115,7 @@ export function MerchantEditDialog({
   onSuccess,
 }: MerchantEditDialogProps) {
   const [loading, setLoading] = useState(false);
+  const { data: categories = [], isLoading: categoriesLoading } = useAdminCategories();
 
   // Owner state
   const [currentOwner, setCurrentOwner] = useState<OwnerInfo | null>(null);
@@ -581,13 +582,14 @@ export function MerchantEditDialog({
               <div className="space-y-2">
                 <Label>Kategori Bisnis</Label>
                 <Select
+                  disabled={categoriesLoading || categories.length === 0}
                   value={formData.business_category}
                   onValueChange={(v) => setFormData({ ...formData, business_category: v })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {BUSINESS_CATEGORY_OPTIONS.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.slug} value={category.slug}>{category.icon ? `${category.icon} ` : ''}{category.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

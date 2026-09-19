@@ -36,6 +36,7 @@ import { MerchantLocationPicker } from '../components/merchant/MerchantLocationP
 import { AddressDropdowns } from '../components/admin/AddressDropdowns';
 import { HalalRegistrationInfo } from '../components/merchant/HalalRegistrationInfo';
 import { merchantSchema } from '@/lib/commerceSchemas';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 
 type MerchantFormData = z.infer<typeof merchantSchema>;
 
@@ -52,12 +53,6 @@ interface ReferralInfo {
   tradeGroup: string;
   description: string;
   isLoading: boolean;
-}
-
-interface AdminCategoryOption {
-  slug: string;
-  name: string;
-  icon: string | null;
 }
 
 interface DraftData {
@@ -86,8 +81,7 @@ export default function RegisterMerchantPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
-  const [categoryOptions, setCategoryOptions] = useState<AdminCategoryOption[]>([]);
-  const [categoryLoading, setCategoryLoading] = useState(true);
+  const { data: categoryOptions = [], isLoading: categoryLoading } = useAdminCategories();
   const draftRestoredRef = useRef(false);
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -123,33 +117,6 @@ export default function RegisterMerchantPage() {
     mode: 'onBlur',
     reValidateMode: 'onChange',
   });
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetchAdminCategories = async () => {
-      setCategoryLoading(true);
-      const { data, error } = await supabase
-        .from('categories')
-        .select('slug, name, icon')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-
-      if (cancelled) return;
-      if (error) {
-        console.error('Error fetching merchant categories:', error);
-        toast.error('Kategori usaha belum dapat dimuat. Coba muat ulang halaman.');
-        setCategoryOptions([]);
-      } else {
-        setCategoryOptions((data || []) as AdminCategoryOption[]);
-      }
-      setCategoryLoading(false);
-    };
-
-    fetchAdminCategories();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // === DRAFT: Save ===
   const saveDraft = useCallback(() => {
@@ -319,6 +286,10 @@ export default function RegisterMerchantPage() {
   }, [referralCode, validateReferralCode]);
 
   const onSubmit = async (data: MerchantFormData) => {
+    if (!categoryOptions.some((category) => category.slug === data.businessCategory)) {
+      toast.error('Kategori usaha tidak aktif atau sudah dihapus admin. Silakan pilih kategori yang tersedia.');
+      return;
+    }
     if (referralCode && referralCode.length > 0 && !referralInfo.isValid) {
       toast.error('Kode referral tidak valid');
       return;

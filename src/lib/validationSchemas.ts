@@ -1,6 +1,5 @@
 // Centralized Zod validation schemas for consistent form validation
 import { z } from 'zod';
-import { BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
 
 // Common patterns
 const phoneRegex = /^(\+62|62|0)8[1-9][0-9]{6,11}$/;
@@ -85,7 +84,8 @@ export const merchantSettingsSchema = z.object({
   subdistrict: z.string().trim().max(100, 'Nama kelurahan/desa maksimal 100 karakter').or(z.literal('')),
   location_lat: z.number().min(-90).max(90).nullable(),
   location_lng: z.number().min(-180).max(180).nullable(),
-  business_category: z.enum(BUSINESS_CATEGORY_VALUES as [string, ...string[]]).or(z.literal('')),
+  // Allowed values are resolved from the active admin catalog at runtime.
+  business_category: z.string().max(100).or(z.literal('')),
   business_description: z.string().trim().max(2000, 'Deskripsi maksimal 2.000 karakter'),
   open_time: optionalTimeSchema,
   close_time: optionalTimeSchema,

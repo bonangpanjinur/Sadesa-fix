@@ -4,7 +4,7 @@ import {
   Package, RefreshCw, Eye, Trash2, Plus, Info
 } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
-import { BUSINESS_CATEGORY_VALUES } from '@/lib/businessCategories';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,14 +47,7 @@ interface ImportRow {
   valid: boolean;
 }
 
-const VALID_CATEGORIES = BUSINESS_CATEGORY_VALUES;
-
 const CSV_TEMPLATE_HEADER = 'nama_produk,deskripsi,harga,stok,kategori,aktif,promo';
-const CSV_TEMPLATE_ROWS = [
-  'Contoh Produk A,Deskripsi produk A yang menarik,25000,50,kuliner,ya,tidak',
-  'Contoh Produk B,Produk kerajinan tangan,75000,10,kriya,ya,ya',
-  'Contoh Produk C,,15000,100,sembako,ya,tidak',
-];
 
 function downloadCSV(filename: string, content: string) {
   const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
@@ -85,7 +78,7 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-function validateImportRow(raw: string[], rowNum: number): ImportRow {
+function validateImportRow(raw: string[], rowNum: number, validCategories: string[]): ImportRow {
   const [name = '', description = '', priceStr = '', stockStr = '', category = '', activeStr = '', promoStr = ''] = raw;
   const errors: string[] = [];
 
@@ -95,7 +88,7 @@ function validateImportRow(raw: string[], rowNum: number): ImportRow {
   const stock = parseInt(stockStr);
   if (isNaN(stock) || stock < 0) errors.push('Stok harus angka >= 0');
   const cat = category.trim().toLowerCase();
-  if (!VALID_CATEGORIES.includes(cat)) errors.push(`Kategori tidak valid (gunakan: ${VALID_CATEGORIES.join(', ')})`);
+  if (!validCategories.includes(cat)) errors.push(`Kategori tidak valid (gunakan: ${validCategories.join(', ') || 'kategori aktif admin'})`);
   const is_active = !['tidak', 'no', 'false', '0'].includes(activeStr.trim().toLowerCase());
   const is_promo = ['ya', 'yes', 'true', '1'].includes(promoStr.trim().toLowerCase());
 
@@ -115,6 +108,7 @@ function validateImportRow(raw: string[], rowNum: number): ImportRow {
 
 export default function MerchantImportExportPage() {
   const { merchantId, loading: guardLoading } = useMerchantGuard();
+  const { data: categories = [], isLoading: categoriesLoading } = useAdminCategories();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
@@ -123,6 +117,7 @@ export default function MerchantImportExportPage() {
   const [importDone, setImportDone] = useState<{ success: number; failed: number } | null>(null);
   const [fileLoaded, setFileLoaded] = useState(false);
   const [lastImportJobId, setLastImportJobId] = useState<string | null>(null);
+  const validCategories = categories.map((category) => category.slug);
 
   const { data: products = [], isLoading: productsLoading, refetch } = useQuery<ProductRow[]>({
     queryKey: ['merchant-products-export', merchantId],
@@ -140,7 +135,8 @@ export default function MerchantImportExportPage() {
   });
 
   const downloadTemplate = () => {
-    const content = [CSV_TEMPLATE_HEADER, ...CSV_TEMPLATE_ROWS].join('\n');
+    const examples = validCategories.slice(0, 3).map((category, index) => `Contoh Produk ${String.fromCharCode(65 + index)},Deskripsi produk contoh,${25000 + index * 10000},50,${category},ya,tidak`);
+    const content = [CSV_TEMPLATE_HEADER, ...examples].join('\n');
     downloadCSV('template_produk_sadesa.csv', content);
     toast.success('Template CSV berhasil diunduh');
   };
@@ -186,7 +182,7 @@ export default function MerchantImportExportPage() {
         return;
       }
       const dataLines = lines.slice(1); // skip header
-      const parsed = dataLines.map((line, i) => validateImportRow(parseCSVLine(line), i + 2));
+      const parsed = dataLines.map((line, i) => validateImportRow(parseCSVLine(line), i + 2, validCategories));
       setImportRows(parsed);
       setFileLoaded(true);
       setImportDone(null);
@@ -290,11 +286,11 @@ export default function MerchantImportExportPage() {
                     <Info className="h-4 w-4" />
                     <AlertDescription className="text-xs">
                       <strong>Kolom wajib:</strong> nama_produk, harga, stok, kategori<br />
-                      <strong>Kategori valid:</strong> {VALID_CATEGORIES.join(', ')}<br />
+                      <strong>Kategori valid:</strong> {categoriesLoading ? 'memuat...' : validCategories.join(', ') || 'belum ada kategori aktif'}<br />
                       <strong>aktif/promo:</strong> isi <code className="bg-muted px-1 rounded">ya</code> atau <code className="bg-muted px-1 rounded">tidak</code>
                     </AlertDescription>
                   </Alert>
-                  <Button className="w-full" variant="outline" onClick={downloadTemplate}>
+                  <Button className="w-full" variant="outline" onClick={downloadTemplate} disabled={categoriesLoading || validCategories.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     Download Template CSV
                   </Button>
@@ -319,13 +315,13 @@ export default function MerchantImportExportPage() {
                   />
                   <div
                     className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !categoriesLoading && validCategories.length > 0 && fileInputRef.current?.click()}
                   >
                     <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm font-medium">Klik untuk pilih file CSV</p>
-                    <p className="text-xs text-muted-foreground mt-1">Hanya file .csv</p>
+                    <p className="text-xs text-muted-foreground mt-1">{categoriesLoading ? 'Memuat kategori admin...' : validCategories.length === 0 ? 'Belum ada kategori aktif admin' : 'Hanya file .csv'}</p>
                   </div>
-                  <Button className="w-full" onClick={() => fileInputRef.current?.click()}>
+                  <Button className="w-full" onClick={() => fileInputRef.current?.click()} disabled={categoriesLoading || validCategories.length === 0}>
                     <Upload className="h-4 w-4 mr-2" />
                     Pilih File CSV
                   </Button>

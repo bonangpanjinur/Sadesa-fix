@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Store, Eye, Check, X, MoreHorizontal, Plus, Trash2, User } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { DataTable } from '@/components/admin/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ interface MerchantRow {
 export default function AdminMerchantsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: categories = [] } = useAdminCategories();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [merchantAction, setMerchantAction] = useState<'reject' | 'delete' | null>(null);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantRow | null>(null);
@@ -243,7 +244,7 @@ export default function AdminMerchantsPage() {
       key: 'business_category',
       label: 'Kategori',
       options: [
-        ...BUSINESS_CATEGORY_OPTIONS.map(({ value, label }) => ({ value, label })),
+        ...categories.map(({ slug, name }) => ({ value: slug, label: name })),
       ],
     },
   ];
