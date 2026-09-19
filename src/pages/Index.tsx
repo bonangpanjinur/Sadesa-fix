@@ -23,6 +23,7 @@ import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance, calculateDistance } from '@/hooks/useUserLocation';
 import { useCategories } from '@/hooks/useCategories';
+import { PRIMARY_HOME_CATEGORIES } from '@/lib/homeCategories';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -196,9 +197,14 @@ const Index = () => {
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
-  // Admin-managed active categories are the single source of truth for this menu.
-  const publicCategoryIds = new Set(['kuliner', 'ojek']);
-  const visibleCategories = getHomepageCategories().filter((category) => publicCategoryIds.has(category.id));
+  // Pesan Makanan dan Ojek adalah layanan inti dan harus selalu tersedia di tampilan awal.
+  // Data admin tetap dipakai untuk label/style, tetapi tidak boleh menghilangkan dua layanan utama
+  // jika konfigurasi kategori belum termuat atau salah satu kategori dinonaktifkan.
+  const configuredCategories = getHomepageCategories();
+  const visibleCategories = ['kuliner', 'ojek'].map((categoryId) =>
+    configuredCategories.find((category) => category.id === categoryId)
+      || PRIMARY_HOME_CATEGORIES.find((category) => category.id === categoryId),
+  ).filter(Boolean);
 
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();

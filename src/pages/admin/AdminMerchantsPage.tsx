@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Store, Eye, Check, X, MoreHorizontal, Plus, Trash2, User } from 'lucide-react';
+import { Store, Eye, Check, X, MoreHorizontal, Plus, Trash2, User, Power } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { DataTable } from '@/components/admin/DataTable';
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { approveMerchant, rejectMerchant, deleteMerchant } from '@/lib/adminApi';
+import { approveMerchant, rejectMerchant, deleteMerchant, setMerchantStatus } from '@/lib/adminApi';
 import { MerchantAddDialog } from '@/components/admin/MerchantAddDialog';
 
 interface MerchantRow {
@@ -82,6 +82,21 @@ export default function AdminMerchantsPage() {
       const success = await approveMerchant(id);
       if (success) { toast.success('Merchant berhasil disetujui'); await invalidate(); }
       else toast.error('Gagal menyetujui merchant');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (merchant: MerchantRow) => {
+    const nextStatus = merchant.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setActionLoading(true);
+    try {
+      const success = await setMerchantStatus(merchant.id, nextStatus);
+      if (!success) throw new Error(`Gagal ${nextStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'} merchant`);
+      toast.success(nextStatus === 'ACTIVE' ? 'Merchant berhasil diaktifkan' : 'Merchant berhasil dinonaktifkan');
+      await invalidate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Status merchant gagal diperbarui');
     } finally {
       setActionLoading(false);
     }
@@ -218,6 +233,12 @@ export default function AdminMerchantsPage() {
                   Tolak
                 </DropdownMenuItem>
               </>
+            )}
+            {item.registration_status === 'APPROVED' && (
+              <DropdownMenuItem onClick={() => void handleToggleStatus(item)} disabled={actionLoading}>
+                <Power className="h-4 w-4 mr-2" />
+                {item.status === 'ACTIVE' ? 'Nonaktifkan Merchant' : 'Aktifkan Merchant'}
+              </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => openMerchantAction(item, 'delete')} className="text-destructive">

@@ -218,6 +218,23 @@ export async function rejectMerchant(id: string, reason: string): Promise<boolea
   return true;
 }
 
+export async function setMerchantStatus(id: string, status: 'ACTIVE' | 'INACTIVE'): Promise<boolean> {
+  const { error } = await supabase
+    .from('merchants')
+    .update({
+      status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating merchant status:', error);
+    return false;
+  }
+
+  return true;
+}
+
 export async function approveVillage(id: string): Promise<boolean> {
   // Update village status
   const { error: updateError } = await supabase
