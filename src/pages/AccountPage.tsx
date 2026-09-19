@@ -35,6 +35,7 @@ export default function AccountPage() {
   const { user, signOut, loading: authLoading, isAdmin, isVerifikator, isMerchant, isCourier, isAdminDesa } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasPartnerApplication, setHasPartnerApplication] = useState<boolean | null>(null);
   const [editing, setEditing] = useState(false);
   const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
 
@@ -67,6 +68,40 @@ export default function AccountPage() {
       setLoading(false);
     }
   }, [user, authLoading, fetchProfile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkPartnerApplication = async () => {
+      if (!user) {
+        setHasPartnerApplication(false);
+        return;
+      }
+
+      const [merchantResult, courierResult] = await Promise.all([
+        supabase.from('merchants').select('id').eq('user_id', user.id).limit(1),
+        supabase.from('couriers').select('id').eq('user_id', user.id).limit(1),
+      ]);
+
+      if (!cancelled) {
+        if (merchantResult.error || courierResult.error) {
+          setHasPartnerApplication(true);
+          return;
+        }
+        setHasPartnerApplication(
+          (merchantResult.data?.length ?? 0) > 0 || (courierResult.data?.length ?? 0) > 0,
+        );
+      }
+    };
+
+    checkPartnerApplication().catch((error) => {
+      console.error('Error checking partner application:', error);
+      if (!cancelled) setHasPartnerApplication(true);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const handleProfileSave = async () => {
     setEditing(false);
@@ -219,7 +254,7 @@ export default function AccountPage() {
               </div>
 
               {/* Onboarding partner untuk buyer baru */}
-              {user && !isMerchant && !isCourier && !isAdmin && !isAdminDesa && !isVerifikator && (
+              {user && hasPartnerApplication === false && !isMerchant && !isCourier && !isAdmin && !isAdminDesa && !isVerifikator && (
                 <section className="mb-6 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-accent/10 p-4">
                   <div className="mb-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Peluang di Sadesa</p>
