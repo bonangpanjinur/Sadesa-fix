@@ -32,7 +32,7 @@ interface Profile {
 
 export default function AccountPage() {
   const navigate = useNavigate();
-  const { user, signOut, loading: authLoading, roles, isAdmin, isVerifikator, isMerchant, isCourier, isAdminDesa } = useAuth();
+  const { user, signOut, loading: authLoading, isAdmin, isVerifikator, isMerchant, isCourier, isAdminDesa } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -217,6 +217,41 @@ export default function AccountPage() {
                   </div>
                 )}
               </div>
+
+              {/* Onboarding partner untuk buyer baru */}
+              {user && !isMerchant && !isCourier && !isAdmin && !isAdminDesa && !isVerifikator && (
+                <section className="mb-6 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-accent/10 p-4">
+                  <div className="mb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Peluang di Sadesa</p>
+                    <h3 className="mt-1 font-heading text-base font-extrabold text-foreground">Mau ikut tumbuh bersama desa?</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Gunakan akun ini untuk membuka usaha atau mendapatkan penghasilan sebagai kurir.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/register/merchant')}
+                      className="group flex min-h-[112px] flex-col justify-between rounded-xl bg-orange-500 p-3 text-left text-white transition hover:-translate-y-0.5 hover:bg-orange-600 active:scale-[0.98]"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20"><Store className="h-5 w-5" /></span>
+                      <span>
+                        <span className="block text-sm font-bold">Daftar Merchant</span>
+                        <span className="mt-0.5 block text-[10px] text-white/80">Jual makanan & produk</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/register/courier')}
+                      className="group flex min-h-[112px] flex-col justify-between rounded-xl bg-emerald-600 p-3 text-left text-white transition hover:-translate-y-0.5 hover:bg-emerald-700 active:scale-[0.98]"
+                    >
+                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20"><Bike className="h-5 w-5" /></span>
+                      <span>
+                        <span className="block text-sm font-bold">Daftar Kurir</span>
+                        <span className="mt-0.5 block text-[10px] text-white/80">Antar pesanan & dapatkan penghasilan</span>
+                      </span>
+                    </button>
+                  </div>
+                </section>
+              )}
 
               {/* Fokus layanan pengguna: Kuliner dan Ojek */}
               <div className="mb-6">
