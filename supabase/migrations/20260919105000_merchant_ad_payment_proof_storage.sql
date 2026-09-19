@@ -8,7 +8,6 @@ CREATE POLICY "Merchant can upload ad payment proof" ON storage.objects
       SELECT 1 FROM public.merchants m
       WHERE m.id::text = split_part(name, '/', 1)
         AND m.user_id = auth.uid()
-        AND m.registration_status = 'APPROVED'
     )
   );
 
