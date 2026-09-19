@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, MapPin, Loader2 } from 'lucide-react';
@@ -22,11 +22,31 @@ import {
 
 export default function SavedAddressesPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSelecting = searchParams.get('select') === '1';
   const { addresses, loading, addAddress, updateAddress, deleteAddress, setDefaultAddress } = useSavedAddresses();
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const handleSelect = (address: SavedAddress) => {
+    const addressText = address.full_address || [
+      address.address_detail,
+      address.village_name,
+      address.district_name,
+      address.city_name,
+    ].filter(Boolean).join(', ');
+    localStorage.setItem('sadesa-selected-address', JSON.stringify({
+      id: address.id,
+      label: address.label,
+      address: addressText || address.label,
+      lat: address.lat,
+      lng: address.lng,
+    }));
+    window.dispatchEvent(new Event('sadesa-address-selected'));
+    navigate(-1);
+  };
 
   const handleEdit = (address: SavedAddress) => {
     setEditingAddress(address);
@@ -69,9 +89,9 @@ export default function SavedAddressesPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-xl font-bold">Alamat Tersimpan</h1>
+              <h1 className="text-xl font-bold">{isSelecting ? 'Pilih alamat pengantaran' : 'Alamat Tersimpan'}</h1>
               <p className="text-sm text-muted-foreground">
-                Kelola alamat pengiriman Anda
+                {isSelecting ? 'Pilih alamat untuk pesanan ini atau tambahkan alamat baru.' : 'Kelola alamat pengiriman Anda'}
               </p>
             </div>
             <Button onClick={handleAdd} size="sm">
@@ -104,9 +124,11 @@ export default function SavedAddressesPage() {
                 <AddressCard
                   key={address.id}
                   address={address}
-                  onEdit={handleEdit}
-                  onDelete={(id) => setDeleteId(id)}
-                  onSetDefault={setDefaultAddress}
+                  onEdit={isSelecting ? undefined : handleEdit}
+                  onDelete={isSelecting ? undefined : (id) => setDeleteId(id)}
+                  onSetDefault={isSelecting ? undefined : setDefaultAddress}
+                  onSelect={isSelecting ? handleSelect : undefined}
+                  selectable={isSelecting}
                 />
               ))}
             </div>
