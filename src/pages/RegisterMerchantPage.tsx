@@ -35,7 +35,6 @@ import type { Village } from '../types';
 import { MerchantLocationPicker } from '../components/merchant/MerchantLocationPicker';
 import { AddressDropdowns } from '../components/admin/AddressDropdowns';
 import { HalalRegistrationInfo } from '../components/merchant/HalalRegistrationInfo';
-import { BUSINESS_CATEGORY_OPTIONS } from '@/lib/businessCategories';
 import { merchantSchema } from '@/lib/commerceSchemas';
 
 type MerchantFormData = z.infer<typeof merchantSchema>;
@@ -53,6 +52,12 @@ interface ReferralInfo {
   tradeGroup: string;
   description: string;
   isLoading: boolean;
+}
+
+interface AdminCategoryOption {
+  slug: string;
+  name: string;
+  icon: string | null;
 }
 
 interface DraftData {
@@ -81,6 +86,8 @@ export default function RegisterMerchantPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
+  const [categoryOptions, setCategoryOptions] = useState<AdminCategoryOption[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(true);
   const draftRestoredRef = useRef(false);
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -116,6 +123,33 @@ export default function RegisterMerchantPage() {
     mode: 'onBlur',
     reValidateMode: 'onChange',
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchAdminCategories = async () => {
+      setCategoryLoading(true);
+      const { data, error } = await supabase
+        .from('categories')
+        .select('slug, name, icon')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (cancelled) return;
+      if (error) {
+        console.error('Error fetching merchant categories:', error);
+        toast.error('Kategori usaha belum dapat dimuat. Coba muat ulang halaman.');
+        setCategoryOptions([]);
+      } else {
+        setCategoryOptions((data || []) as AdminCategoryOption[]);
+      }
+      setCategoryLoading(false);
+    };
+
+    fetchAdminCategories();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // === DRAFT: Save ===
   const saveDraft = useCallback(() => {
@@ -476,21 +510,22 @@ export default function RegisterMerchantPage() {
 
             <div className="space-y-2">
               <Label>Kategori Usaha</Label>
-              <Select onValueChange={(val) => void setValue('businessCategory', val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })} value={watch('businessCategory') || undefined}>
+              <Select disabled={categoryLoading || categoryOptions.length === 0} onValueChange={(val) => void setValue('businessCategory', val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })} value={watch('businessCategory') || undefined}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pilih kategori" />
+                  <SelectValue placeholder={categoryLoading ? 'Memuat kategori admin...' : categoryOptions.length === 0 ? 'Kategori belum tersedia' : 'Pilih kategori'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {BUSINESS_CATEGORY_OPTIONS.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
+                  {categoryOptions.map((cat) => (
+                    <SelectItem key={cat.slug} value={cat.slug}>
                       <div className="flex items-center gap-2">
                         <span>{cat.icon}</span>
-                        <span>{cat.label}</span>
+                        <span>{cat.name}</span>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground">Pilihan ini mengikuti kategori aktif yang diatur admin.</p>
               {errors.businessCategory && <p role="alert" className="text-xs text-destructive">{errors.businessCategory.message}</p>}
             </div>
 
