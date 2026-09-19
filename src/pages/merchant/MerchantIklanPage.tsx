@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { format, differenceInDays, isPast, isFuture } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { MerchantAdsPerformance } from '@/components/merchant/MerchantAdsPerformance';
 
 interface AdPackage {
   id: string;
@@ -294,6 +295,9 @@ export default function MerchantIklanPage() {
             <TabsTrigger value="riwayat" className="flex-1">
               <Clock className="h-4 w-4 mr-1.5" />Riwayat
             </TabsTrigger>
+            <TabsTrigger value="performa" className="flex-1">
+              <TrendingUp className="h-4 w-4 mr-1.5" />Performa
+            </TabsTrigger>
           </TabsList>
 
           {/* BELI IKLAN */}
@@ -489,6 +493,11 @@ export default function MerchantIklanPage() {
                 );
               })
             )}
+          </TabsContent>
+
+          {/* PERFORMA IKLAN */}
+          <TabsContent value="performa" className="mt-4">
+            <MerchantAdsPerformance ads={ads} />
           </TabsContent>
         </Tabs>
 
