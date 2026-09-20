@@ -24,8 +24,13 @@ export default function InstallPage() {
   const navigate = useNavigate();
   const { canInstall, isInstalled, isOnline, isUpdateAvailable, installApp, updateApp } = usePWA();
 
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  // iPadOS 13+ can identify itself as Macintosh, so include touch-capable
+  // Macintosh devices in the iOS detection for the Safari install guide.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isAndroid = /Android/.test(navigator.userAgent);
+  const isWindows = /Windows/.test(navigator.userAgent);
+  const isMac = /Macintosh|Mac OS X/.test(navigator.userAgent) && !isIOS;
 
   const handleInstall = async () => {
     const success = await installApp();
@@ -150,7 +155,7 @@ export default function InstallPage() {
                       <ol className="space-y-3 text-sm text-muted-foreground">
                         <li className="flex items-start gap-3">
                           <span className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">1</span>
-                          <span>Ketuk tombol <Share className="h-4 w-4 inline mx-1" /> Share di browser Safari</span>
+                          <span>Buka halaman ini di <strong>Safari</strong>, lalu ketuk tombol <Share className="h-4 w-4 inline mx-1" /> Share. Browser iOS lain perlu dibuka ulang melalui Safari untuk memasang ke Home Screen.</span>
                         </li>
                         <li className="flex items-start gap-3">
                           <span className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">2</span>
@@ -188,9 +193,20 @@ export default function InstallPage() {
                   {!isIOS && !isAndroid && (
                     <div className="bg-secondary/50 rounded-xl p-4">
                       <h4 className="font-semibold text-foreground mb-3">Cara Install di Desktop</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Klik ikon install di address bar browser atau gunakan menu browser → "Install SaDesa"
-                      </p>
+                      <ol className="space-y-3 text-sm text-muted-foreground">
+                        <li className="flex items-start gap-3">
+                          <span className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">1</span>
+                          <span>{isWindows ? 'Buka SaDesa di Microsoft Edge atau Google Chrome.' : isMac ? 'Buka SaDesa di Google Chrome atau Microsoft Edge.' : 'Buka SaDesa di browser Chromium yang mendukung PWA.'}</span>
+                        </li>
+                        <li className="flex items-start gap-3">
+                          <span className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">2</span>
+                          <span>Klik ikon install di address bar, atau buka menu browser → <strong>Install SaDesa</strong>.</span>
+                        </li>
+                        <li className="flex items-start gap-3">
+                          <span className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">3</span>
+                          <span>Jika tombol install tidak muncul, pastikan halaman dibuka melalui HTTPS dan browser sudah diperbarui.</span>
+                        </li>
+                      </ol>
                     </div>
                   )}
                 </div>
