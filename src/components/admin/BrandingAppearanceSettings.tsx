@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Image as ImageIcon, Palette, Globe, Type, Upload, CheckCircle2, Info, RefreshCw, Search, Plus, Edit2, Trash2, Eye, EyeOff, Share2, Layout, GripVertical } from 'lucide-react';
+import { Save, Loader2, Image as ImageIcon, Palette, Globe, Type, Upload, CheckCircle2, Info, RefreshCw, Search, Plus, Edit2, Trash2, Eye, EyeOff, Share2, Layout, GripVertical, BarChart2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

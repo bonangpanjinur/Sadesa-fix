@@ -90,16 +90,27 @@ function applyBrandingHead(settings: WhitelabelSettings, previousManifestUrl: st
 
   if (!settings.pwa) return previousManifestUrl;
 
+  // A manifest loaded from a blob URL has an opaque origin. Relative URLs in
+  // that manifest (including start_url, scope, and icon src) are therefore
+  // invalid in Chromium. Resolve every URL against the real application origin
+  // before serialising the dynamic manifest.
+  const resolveManifestUrl = (value: string): string => {
+    try {
+      return new URL(value, window.location.href).href;
+    } catch {
+      return value;
+    }
+  };
   const manifest = {
     name: settings.pwa.appName || settings.siteName,
     short_name: settings.pwa.shortName || settings.siteName,
     description: settings.pwa.description,
-    start_url: '/',
-    scope: '/',
+    start_url: new URL('/', window.location.origin).href,
+    scope: new URL('/', window.location.origin).href,
     display: 'standalone',
     theme_color: settings.pwa.themeColor,
     background_color: settings.pwa.backgroundColor,
-    icons: settings.pwa.icons,
+    icons: settings.pwa.icons.map((icon) => ({ ...icon, src: resolveManifestUrl(icon.src) })),
   };
   const manifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
   upsertLink('manifest', manifestUrl, 'application/manifest+json');

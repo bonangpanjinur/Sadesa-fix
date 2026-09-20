@@ -37,15 +37,28 @@ async function registerPwaSyncCapabilities(registration: ServiceWorkerRegistrati
   const syncRegistration = registration as SyncRegistration;
 
   if (syncRegistration.sync) {
-    await syncRegistration.sync.register(BACKGROUND_SYNC_TAG);
+    try {
+      await syncRegistration.sync.register(BACKGROUND_SYNC_TAG);
+    } catch (error: unknown) {
+      // Background Sync is an optional browser capability. Some browsers
+      // expose the API but reject registration when permission is unavailable.
+      // Offline queue processing still works without this best-effort wake-up.
+      if ((error as DOMException | undefined)?.name !== 'NotAllowedError') throw error;
+      reportObservability('offline_sync', 'background_sync_unavailable', 'info');
+    }
   }
 
   if (syncRegistration.periodicSync) {
-    const tags = await syncRegistration.periodicSync.getTags();
-    if (!tags.includes(PERIODIC_SYNC_TAG)) {
-      await syncRegistration.periodicSync.register(PERIODIC_SYNC_TAG, {
-        minInterval: 24 * 60 * 60 * 1000,
-      });
+    try {
+      const tags = await syncRegistration.periodicSync.getTags();
+      if (!tags.includes(PERIODIC_SYNC_TAG)) {
+        await syncRegistration.periodicSync.register(PERIODIC_SYNC_TAG, {
+          minInterval: 24 * 60 * 60 * 1000,
+        });
+      }
+    } catch (error: unknown) {
+      if ((error as DOMException | undefined)?.name !== 'NotAllowedError') throw error;
+      reportObservability('offline_sync', 'periodic_sync_unavailable', 'info');
     }
   }
 }
@@ -283,4 +296,3 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const value = usePWAController();
   return <PWAContext.Provider value={value}>{children}</PWAContext.Provider>;
 }
-
