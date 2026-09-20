@@ -76,6 +76,26 @@ interface HomepageLayoutSettings {
   visible_categories: string[];
 }
 
+interface HomepageRecommendationBanner {
+  enabled: boolean;
+  target: 'courier' | 'merchant';
+  eyebrow: string;
+  title: string;
+  description: string;
+  cta: string;
+  linkUrl: string;
+}
+
+const DEFAULT_RECOMMENDATION_BANNER: HomepageRecommendationBanner = {
+  enabled: false,
+  target: 'courier',
+  eyebrow: 'Bergabung bersama kami',
+  title: 'Jadi mitra SaDesa',
+  description: 'Daftar sekarang dan dapatkan peluang baru bersama SaDesa.',
+  cta: 'Daftar sekarang',
+  linkUrl: '/register/courier',
+};
+
 const DEFAULT_PWA_SETTINGS: PWASettings = {
   appName: 'SaDesa - Marketplace UMKM & Desa Wisata',
   shortName: 'SaDesa',
@@ -173,6 +193,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
   const [visibleCategories, setVisibleCategories] = useState<string[]>([]);
   const [allCategories, setAllCategories] = useState<{id: string; name: string}[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [recommendationBanner, setRecommendationBanner] = useState<HomepageRecommendationBanner>(DEFAULT_RECOMMENDATION_BANNER);
 
   // Loading & Saving State
   const [loading, setLoading] = useState(true);
@@ -264,9 +285,10 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
       setSeoSettings(seoData || []);
 
       // Fetch Homepage Layout and Dynamic Categories in parallel
-      const [layoutRes, categoriesRes] = await Promise.all([
+      const [layoutRes, categoriesRes, recommendationRes] = await Promise.all([
         supabase.from('app_settings').select('value').eq('key', 'homepage_layout').maybeSingle(),
         supabase.from('categories').select('id, name, slug').eq('is_active', true).order('sort_order'),
+        supabase.from('app_settings').select('value').eq('key', 'homepage_recommendation_banner').maybeSingle(),
       ]);
 
       const cats = (categoriesRes.data || []).map(c => ({ id: c.slug, name: c.name }));
@@ -282,6 +304,9 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         }
       } else {
         setVisibleCategories(cats.map(c => c.id));
+      }
+      if (recommendationRes.data?.value && typeof recommendationRes.data.value === 'object' && !Array.isArray(recommendationRes.data.value)) {
+        setRecommendationBanner({ ...DEFAULT_RECOMMENDATION_BANNER, ...(recommendationRes.data.value as unknown as Partial<HomepageRecommendationBanner>) });
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -506,6 +531,28 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
     } catch (error) {
       console.error('Error saving layout:', error);
       toast.error('Gagal menyimpan layout beranda');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSaveRecommendationBanner = async () => {
+    setSaving('recommendation');
+    try {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({
+          key: 'homepage_recommendation_banner',
+          category: 'layout',
+          value: recommendationBanner as unknown as JsonValue,
+          description: 'Pesan ajakan pada banner rekomendasi di atas menu beranda',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'key' });
+      if (error) throw error;
+      toast.success('Pesan rekomendasi berhasil disimpan');
+    } catch (error) {
+      console.error('Error saving recommendation banner:', error);
+      toast.error('Gagal menyimpan pesan rekomendasi');
     } finally {
       setSaving(null);
     }
@@ -854,6 +901,64 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               <Button onClick={handleSaveHomepageLayout} disabled={saving === 'layout'} className="w-full">
                 {saving === 'layout' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Simpan Layout
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Pesan Banner Rekomendasi</CardTitle>
+              <CardDescription>Atur ajakan yang tampil di atas menu beranda, misalnya untuk mengajak pengguna menjadi driver atau pedagang.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label className="text-sm font-medium">Tampilkan banner custom</Label>
+                  <p className="text-xs text-muted-foreground">Jika dimatikan, rekomendasi otomatis berdasarkan waktu akan digunakan.</p>
+                </div>
+                <Switch checked={recommendationBanner.enabled} onCheckedChange={(enabled) => setRecommendationBanner((current) => ({ ...current, enabled }))} />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Ajakan untuk</Label>
+                  <Select
+                    value={recommendationBanner.target}
+                    onValueChange={(target: HomepageRecommendationBanner['target']) => setRecommendationBanner((current) => ({
+                      ...current,
+                      target,
+                      linkUrl: target === 'merchant' ? '/register/merchant' : '/register/courier',
+                    }))}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="courier">Driver / Kurir</SelectItem>
+                      <SelectItem value="merchant">Pedagang / UMKM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Label kecil</Label>
+                  <Input value={recommendationBanner.eyebrow} onChange={(e) => setRecommendationBanner((current) => ({ ...current, eyebrow: e.target.value }))} placeholder="Bergabung bersama kami" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Judul banner</Label>
+                  <Input value={recommendationBanner.title} onChange={(e) => setRecommendationBanner((current) => ({ ...current, title: e.target.value }))} placeholder="Jadi driver di SaDesa" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Pesan</Label>
+                  <Textarea value={recommendationBanner.description} onChange={(e) => setRecommendationBanner((current) => ({ ...current, description: e.target.value }))} placeholder="Bantu antar pesanan dan dapatkan penghasilan tambahan." />
+                </div>
+                <div className="space-y-2">
+                  <Label>Teks tombol</Label>
+                  <Input value={recommendationBanner.cta} onChange={(e) => setRecommendationBanner((current) => ({ ...current, cta: e.target.value }))} placeholder="Daftar sekarang" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Link tombol</Label>
+                  <Input value={recommendationBanner.linkUrl} onChange={(e) => setRecommendationBanner((current) => ({ ...current, linkUrl: e.target.value }))} placeholder="/register/courier" />
+                </div>
+              </div>
+              <Button onClick={handleSaveRecommendationBanner} disabled={saving === 'recommendation'} className="w-full">
+                {saving === 'recommendation' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Simpan Pesan Rekomendasi
               </Button>
             </CardContent>
           </Card>
