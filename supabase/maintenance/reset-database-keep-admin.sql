@@ -69,13 +69,16 @@ BEGIN
   WHERE id <> v_admin_id;
 
   -- Restore the administrator's application identity after the public reset.
-  -- These statements are intentionally dynamic so the script remains useful
-  -- if a future migration adds nullable columns to either table.
+  -- TRUNCATE ... CASCADE may leave these two tables intact because they are
+  -- excluded above. ON CONFLICT makes reruns safe in either case: an existing
+  -- admin row is kept, while a row removed by a cascade is restored.
   INSERT INTO public.profiles
-  SELECT * FROM _reset_admin_profiles;
+  SELECT * FROM _reset_admin_profiles
+  ON CONFLICT DO NOTHING;
 
   INSERT INTO public.user_roles
-  SELECT * FROM _reset_admin_user_roles;
+  SELECT * FROM _reset_admin_user_roles
+  ON CONFLICT DO NOTHING;
 
   RAISE NOTICE 'Reset completed for all public tables except admin identity rows.';
 END $$;
