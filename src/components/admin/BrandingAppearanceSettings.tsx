@@ -576,7 +576,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Logo Aplikasi</Label>
+                  <Label>Logo Toko</Label>
                   <ImageUpload
                     bucket="admin-assets"
                     path="branding/logo"
@@ -584,9 +584,9 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                     onChange={(url) => setLogoUrl(url || '')}
                     aspectRatio="wide"
                     stableFileName
-                    placeholder="Upload logo aplikasi"
+                    placeholder="Upload logo toko"
                   />
-                  <p className="text-xs text-muted-foreground">Format JPG, PNG, WEBP, atau GIF. Maksimal 5MB.</p>
+                  <p className="text-xs text-muted-foreground">Ditampilkan pada header toko SaDesa. Format JPG, PNG, WEBP, atau GIF. Maksimal 5MB.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Favicon Aplikasi</Label>
