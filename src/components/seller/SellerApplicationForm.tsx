@@ -76,7 +76,7 @@ export default function SellerApplicationForm() {
 
       if (error) throw error;
 
-      toast({ title: "Pendaftaran Berhasil", description: "Aplikasi merchant Anda telah dikirim untuk ditinjau." });
+      toast({ title: "Pendaftaran Berhasil", description: "Toko Anda aktif dengan 100 transaksi gratis selama 2 bulan. Anda sudah bisa mulai berjualan." });
       navigate("/merchant/dashboard");
     } catch (error: unknown) {
       console.error("Submission error:", error);
@@ -94,6 +94,9 @@ export default function SellerApplicationForm() {
         </div>
         <h2 className="text-3xl font-extrabold text-foreground tracking-tight">Daftar Merchant Baru</h2>
         <p className="text-muted-foreground mt-3 text-lg">Mulai kembangkan usaha Anda bersama kami</p>
+        <div className="mx-auto mt-5 max-w-xl rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+          <strong>Benefit merchant baru:</strong> dapatkan 100 kuota transaksi gratis yang aktif selama 2 bulan sejak pendaftaran.
+        </div>
       </div>
 
       <Form {...form}>

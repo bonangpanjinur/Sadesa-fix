@@ -73,6 +73,8 @@ export async function fetchMerchantQuotaInfo(merchantId: string): Promise<Mercha
     const packageName = subscriptions.length > 1 
       ? `${pkg?.name || 'Premium'} (+${subscriptions.length - 1} paket)` 
       : (pkg?.name || 'Premium');
+    const isFreePackage = (pkg?.name || '').toLowerCase().includes('gratis')
+      || (pkg?.name || '').toLowerCase().includes('free');
 
     return {
       hasActiveSubscription: true,
@@ -81,7 +83,7 @@ export async function fetchMerchantQuotaInfo(merchantId: string): Promise<Mercha
       usedQuota,
       expiresAt: firstSub.expired_at,
       packageName,
-      type: 'premium',
+      type: isFreePackage ? 'free' : 'premium',
     };
   }
 
