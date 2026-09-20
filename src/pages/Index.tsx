@@ -338,8 +338,11 @@ const Index = () => {
       
       case 'promo':
         if (productsLoading) return <CarouselSkeleton count={3} />;
-        if (productsError || promoProducts.length === 0) return <MerchantJoinCard onRetry={() => refetchProducts()} />;
-        return promoProducts.length > 0 ? (
+        // Promo is optional content. If the product query fails or there are
+        // no eligible promo products yet, keep the homepage clean and omit the
+        // entire section instead of showing an error/retry card.
+        if (productsError || promoProducts.length === 0 || filteredPromoProducts.length === 0) return null;
+        return (
           <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-[linear-gradient(135deg,hsl(8_100%_98%),hsl(42_100%_97%))] px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.45)]">
             <div className="flex items-center gap-2 mb-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(4_78%_47%_/_0.1)] text-primary">
@@ -367,15 +370,15 @@ const Index = () => {
                 </button>
               ))}
             </div>
-            {filteredPromoProducts.length > 0 ? <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
               {filteredPromoProducts.map((product, idx) => (
                 <div key={product.id} className="min-w-[160px]">
                   <ProductCard product={product} index={idx} distanceKm={getProductDistance(product)} deliveryEta={getDeliveryEta(getProductDistance(product))} />
                 </div>
               ))}
-            </div> : <MerchantJoinCard />}
+            </div>
           </section>
-        ) : null;
+        );
       
       case 'recommendations':
         if (productsLoading) return <ProductGridSkeleton count={6} />;
