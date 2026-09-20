@@ -443,16 +443,26 @@ export async function getSettingByKey(key: string): Promise<AppSetting | null> {
 }
 
 export async function deleteMerchant(id: string): Promise<boolean> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('merchants')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
 
   if (error) {
-    console.error('Error deleting merchant:', error);
+    console.error('Error deleting merchant:', {
+      id,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
     return false;
   }
-  return true;
+  // A DELETE can return no error when no row matched the filter. Do not tell
+  // admins that deletion succeeded unless the target row was returned.
+  return Boolean(data?.id);
 }
 
 export async function deleteVillage(id: string): Promise<boolean> {
