@@ -125,6 +125,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
   // Whitelabel State
   const [siteName, setSiteName] = useState('SaDesa');
   const [siteTagline, setSiteTagline] = useState('EKOSISTEM UMKM');
+  const [companyLegalName, setCompanyLegalName] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   
@@ -185,6 +186,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         whitelabelData.forEach((item) => {
           if (item.key === 'site_name') setSiteName(String(item.value) || 'SaDesa');
           if (item.key === 'site_tagline') setSiteTagline(String(item.value) || 'EKOSISTEM UMKM');
+          if (item.key === 'company_legal_name') setCompanyLegalName(String(item.value) || '');
           if (item.key === 'logo_url') setLogoUrl(item.value ? String(item.value) : null);
           if (item.key === 'favicon_url') setFaviconUrl(item.value ? String(item.value) : null);
         });
@@ -268,6 +270,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
       await Promise.all([
         saveSetting('site_name', siteName),
         saveSetting('site_tagline', siteTagline),
+        saveSetting('company_legal_name', companyLegalName),
         saveSetting('logo_url', logoUrl),
         saveSetting('favicon_url', faviconUrl),
       ]);
@@ -438,7 +441,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               <CardDescription>Sesuaikan identitas situs Anda</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Nama Situs</Label>
                   <Input value={siteName} onChange={(e) => setSiteName(e.target.value)} />
@@ -446,6 +449,11 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                 <div className="space-y-2">
                   <Label>Tagline</Label>
                   <Input value={siteTagline} onChange={(e) => setSiteTagline(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nama PT Pemilik Aplikasi</Label>
+                  <Input value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} placeholder="PT Nama Perusahaan" maxLength={150} />
+                  <p className="text-xs text-muted-foreground">Ditampilkan pada footer frontend sebagai identitas legal aplikasi.</p>
                 </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4">

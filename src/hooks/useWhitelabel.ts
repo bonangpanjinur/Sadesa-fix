@@ -21,6 +21,7 @@ interface PWAConfig {
 interface WhitelabelSettings {
   siteName: string;
   siteTagline: string;
+  companyLegalName: string;
   logoUrl: string;
   faviconUrl: string;
   pwa?: PWAConfig;
@@ -36,6 +37,7 @@ const DEFAULT_PWA_ICONS: PWAIcon[] = [
 const defaultSettings: WhitelabelSettings = {
   siteName: 'SaDesa',
   siteTagline: 'EKOSISTEM UMKM',
+  companyLegalName: '',
   logoUrl: DEFAULT_LOGO_URL,
   faviconUrl: DEFAULT_ICON_URL,
   pwa: {
@@ -139,6 +141,7 @@ export function useWhitelabelProvider() {
         if (item.category === 'whitelabel') {
           if (item.key === 'site_name' && item.value) newSettings.siteName = String(item.value);
           if (item.key === 'site_tagline' && item.value) newSettings.siteTagline = String(item.value);
+          if (item.key === 'company_legal_name' && item.value) newSettings.companyLegalName = String(item.value);
           if (item.key === 'logo_url' && item.value) newSettings.logoUrl = String(item.value);
           if (item.key === 'favicon_url' && item.value) newSettings.faviconUrl = String(item.value);
         }
