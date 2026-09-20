@@ -1,9 +1,10 @@
 -- SaDesa / Supabase destructive reset
 --
 -- PURPOSE
---   Remove application data, uploaded storage objects, and all Auth users
+--   Remove application data and all Auth users
 --   except the administrator identified below. Database objects, tables,
---   functions, policies, buckets, and migrations are preserved.
+--   functions, policies, storage buckets, storage objects, and migrations are
+--   preserved.
 --
 -- HOW TO RUN
 --   Run this file once from the Supabase SQL Editor using a privileged
@@ -13,6 +14,12 @@
 --   This is destructive and cannot be undone without a backup. Take a
 --   database/storage backup before execution if any data may be needed later.
 --   The transaction is rolled back automatically if any statement fails.
+--
+-- STORAGE NOTE
+--   Supabase intentionally blocks direct DELETE/TRUNCATE statements against
+--   storage.objects. Uploaded files must be removed separately through the
+--   Supabase Storage API or Dashboard after this SQL completes. The database
+--   reset below does not orphan or modify Storage metadata.
 
 BEGIN;
 
@@ -56,10 +63,6 @@ BEGIN
       AND c.relname NOT IN ('profiles', 'user_roles')
   );
 
-  -- Storage metadata is application data too. Keep buckets/configuration, but
-  -- remove every uploaded object. This requires a privileged SQL role.
-  DELETE FROM storage.objects;
-
   -- Remove every Supabase Auth account except the named administrator. The
   -- admin's auth identity, password, MFA configuration, and metadata remain.
   DELETE FROM auth.users
@@ -94,8 +97,6 @@ BEGIN
   SELECT count(*) INTO v_auth_count FROM auth.users;
   SELECT count(*) INTO v_profile_count FROM public.profiles;
   SELECT count(*) INTO v_role_count FROM public.user_roles;
-  SELECT count(*) INTO v_storage_count FROM storage.objects;
-
   IF v_admin_count <> 1 THEN
     RAISE EXCEPTION 'Verification failed: expected exactly one admin account, found %', v_admin_count;
   END IF;
@@ -122,12 +123,8 @@ BEGIN
     RAISE EXCEPTION 'Verification failed: a non-admin role remains';
   END IF;
 
-  IF v_storage_count <> 0 THEN
-    RAISE EXCEPTION 'Verification failed: % storage objects remain', v_storage_count;
-  END IF;
-
-  RAISE NOTICE 'Verified: auth_users=%, admin=%, profiles=%, admin_roles=%, storage_objects=%',
-    v_auth_count, v_admin_count, v_profile_count, v_role_count, v_storage_count;
+  RAISE NOTICE 'Verified: auth_users=%, admin=%, profiles=%, admin_roles=%',
+    v_auth_count, v_admin_count, v_profile_count, v_role_count;
 END $$;
 
 COMMIT;
@@ -135,6 +132,6 @@ COMMIT;
 -- Expected result after COMMIT:
 --   auth.users: exactly bopan86@gmail.com
 --   public.profiles / public.user_roles: only rows belonging to that admin
---   storage.objects: zero rows
+--   storage.objects: unchanged; clear files separately via Storage API/Dashboard
 --   all other public tables: empty
 --   schema, migrations, functions, policies, and storage buckets: preserved
