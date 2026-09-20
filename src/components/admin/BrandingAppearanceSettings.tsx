@@ -132,6 +132,11 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
   // PWA State
   const [pwaSettings, setPwaSettings] = useState<PWASettings>(DEFAULT_PWA_SETTINGS);
   const [uploading, setUploading] = useState<string | null>(null);
+
+  // Google Search Console & Analytics State
+  const [googleVerification, setGoogleVerification] = useState('');
+  const [ga4MeasurementId, setGa4MeasurementId] = useState('');
+  const [gtmId, setGtmId] = useState('');
   
   // SEO State
   const [seoSettings, setSeoSettings] = useState<SEOSetting[]>([]);
@@ -191,6 +196,17 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
           if (item.key === 'favicon_url') setFaviconUrl(item.value ? String(item.value) : null);
         });
       }
+
+      const { data: googleData } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .in('key', ['seo_google_verification', 'seo_ga4_measurement_id', 'seo_gtm_id']);
+      googleData?.forEach((item) => {
+        const value = typeof item.value === 'string' ? item.value : '';
+        if (item.key === 'seo_google_verification') setGoogleVerification(value);
+        if (item.key === 'seo_ga4_measurement_id') setGa4MeasurementId(value);
+        if (item.key === 'seo_gtm_id') setGtmId(value);
+      });
 
       // Fetch PWA
       const { data: pwaData } = await supabase
@@ -303,6 +319,41 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
     } catch (error) {
       console.error('Error saving PWA:', error);
       toast.error('Gagal menyimpan pengaturan PWA');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSaveGoogleSettings = async () => {
+    const normalizedGa4 = ga4MeasurementId.trim().toUpperCase();
+    const normalizedGtm = gtmId.trim().toUpperCase();
+    if (normalizedGa4 && !/^G-[A-Z0-9]+$/.test(normalizedGa4)) {
+      toast.error('Format Google Analytics 4 harus seperti G-XXXXXXXXXX');
+      return;
+    }
+    if (normalizedGtm && !/^GTM-[A-Z0-9]+$/.test(normalizedGtm)) {
+      toast.error('Format Google Tag Manager harus seperti GTM-XXXXXXX');
+      return;
+    }
+
+    setSaving('google');
+    try {
+      const values = [
+        { key: 'seo_google_verification', value: googleVerification.trim(), description: 'Google Search Console verification token' },
+        { key: 'seo_ga4_measurement_id', value: normalizedGa4, description: 'Google Analytics 4 Measurement ID' },
+        { key: 'seo_gtm_id', value: normalizedGtm, description: 'Google Tag Manager container ID' },
+      ];
+      const { error } = await supabase.from('app_settings').upsert(
+        values.map((setting) => ({ ...setting, category: 'seo', updated_at: new Date().toISOString() })),
+        { onConflict: 'key' },
+      );
+      if (error) throw error;
+      setGa4MeasurementId(normalizedGa4);
+      setGtmId(normalizedGtm);
+      toast.success('Pengaturan Google berhasil disimpan');
+    } catch (error) {
+      console.error('Error saving Google settings:', error);
+      toast.error('Gagal menyimpan pengaturan Google');
     } finally {
       setSaving(null);
     }
@@ -424,8 +475,9 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="whitelabel">
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="whitelabel">Branding</TabsTrigger>
+          <TabsTrigger value="google">Google</TabsTrigger>
           <TabsTrigger value="pwa">PWA</TabsTrigger>
           <TabsTrigger value="seo">SEO</TabsTrigger>
           <TabsTrigger value="layout">Layout</TabsTrigger>
@@ -478,6 +530,45 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="google">
+          <div className="grid gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> Google Search Console</CardTitle>
+                <CardDescription>Simpan kode verifikasi agar otomatis dipasang pada halaman frontend.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Google Site Verification</Label>
+                  <Input value={googleVerification} onChange={(event) => setGoogleVerification(event.target.value)} placeholder="google-site-verification=..." className="font-mono text-sm" />
+                  <p className="text-xs text-muted-foreground">Bisa diisi token saja atau meta tag dari Google Search Console.</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5" /> Google Analytics</CardTitle>
+                <CardDescription>Analytics aktif otomatis setelah Measurement ID disimpan.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Google Analytics 4 Measurement ID</Label>
+                  <Input value={ga4MeasurementId} onChange={(event) => setGa4MeasurementId(event.target.value)} placeholder="G-XXXXXXXXXX" className="font-mono text-sm" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Google Tag Manager ID <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+                  <Input value={gtmId} onChange={(event) => setGtmId(event.target.value)} placeholder="GTM-XXXXXXX" className="font-mono text-sm" />
+                </div>
+                <Button onClick={() => void handleSaveGoogleSettings()} disabled={saving === 'google'} className="w-full">
+                  {saving === 'google' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Simpan Pengaturan Google
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="pwa">
