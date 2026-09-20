@@ -109,6 +109,17 @@ export const SEO = () => {
               'seo_ga4_measurement_id',
               'seo_gtm_id',
               'seo_global_schema',
+              'seo_global_title',
+              'seo_global_description',
+              'seo_global_keywords',
+              'seo_global_robots',
+              'seo_global_canonical_url',
+              'seo_global_og_title',
+              'seo_global_og_description',
+              'seo_global_og_image',
+              'seo_global_twitter_title',
+              'seo_global_twitter_description',
+              'seo_global_twitter_image',
             ]),
         ]);
 
@@ -140,10 +151,21 @@ export const SEO = () => {
           }
         }
 
-        if (data) {
-          if (data.title) document.title = data.title;
+        const globalMeta = {
+          title: settingString(toolSettings, 'seo_global_title'),
+          description: settingString(toolSettings, 'seo_global_description'),
+          keywords: settingString(toolSettings, 'seo_global_keywords'),
+          robots: settingString(toolSettings, 'seo_global_robots'),
+          canonicalUrl: settingString(toolSettings, 'seo_global_canonical_url'),
+          ogTitle: settingString(toolSettings, 'seo_global_og_title'),
+          ogDescription: settingString(toolSettings, 'seo_global_og_description'),
+          ogImage: settingString(toolSettings, 'seo_global_og_image'),
+          twitterTitle: settingString(toolSettings, 'seo_global_twitter_title'),
+          twitterDescription: settingString(toolSettings, 'seo_global_twitter_description'),
+          twitterImage: settingString(toolSettings, 'seo_global_twitter_image'),
+        };
 
-          const updateMeta = (name: string, content: string | null, isProperty = false) => {
+        const updateMeta = (name: string, content: string | null, isProperty = false) => {
             if (!content) return;
             let element = isProperty
               ? document.querySelector(`meta[property="${name}"]`)
@@ -156,27 +178,40 @@ export const SEO = () => {
               document.head.appendChild(element);
             }
             element.setAttribute('content', content);
-          };
+        };
 
-          updateMeta('description', data.description);
-          updateMeta('keywords', data.keywords);
-          updateMeta('robots', data.robots);
-          updateMeta('og:title', data.og_title || data.title, true);
-          updateMeta('og:description', data.og_description || data.description, true);
-          updateMeta('og:image', data.og_image, true);
-          updateMeta('twitter:title', data.og_title || data.title);
-          updateMeta('twitter:description', data.og_description || data.description);
-          updateMeta('twitter:image', data.og_image);
+        const title = data?.title || globalMeta.title;
+        const description = data?.description || globalMeta.description;
+        const keywords = data?.keywords || globalMeta.keywords;
+        const robots = data?.robots || globalMeta.robots;
+        const ogTitle = data?.og_title || data?.title || globalMeta.ogTitle || title;
+        const ogDescription = data?.og_description || data?.description || globalMeta.ogDescription || description;
+        const ogImage = data?.og_image || globalMeta.ogImage;
+        const twitterTitle = globalMeta.twitterTitle || ogTitle;
+        const twitterDescription = globalMeta.twitterDescription || ogDescription;
+        const twitterImage = globalMeta.twitterImage || ogImage;
 
-          if (data.canonical_url) {
-            let canonical = document.querySelector('link[rel="canonical"]');
-            if (!canonical) {
-              canonical = document.createElement('link');
-              canonical.setAttribute('rel', 'canonical');
-              document.head.appendChild(canonical);
-            }
-            canonical.setAttribute('href', data.canonical_url);
+        if (title) document.title = title;
+        updateMeta('description', description);
+        updateMeta('keywords', keywords);
+        updateMeta('robots', robots);
+        updateMeta('og:title', ogTitle, true);
+        updateMeta('og:description', ogDescription, true);
+        updateMeta('og:image', ogImage, true);
+        updateMeta('twitter:card', twitterImage ? 'summary_large_image' : 'summary');
+        updateMeta('twitter:title', twitterTitle);
+        updateMeta('twitter:description', twitterDescription);
+        updateMeta('twitter:image', twitterImage);
+
+        const canonicalUrl = data?.canonical_url || globalMeta.canonicalUrl;
+        if (canonicalUrl) {
+          let canonical = document.querySelector('link[rel="canonical"]');
+          if (!canonical) {
+            canonical = document.createElement('link');
+            canonical.setAttribute('rel', 'canonical');
+            document.head.appendChild(canonical);
           }
+          canonical.setAttribute('href', canonicalUrl);
         }
 
         updatePageView(location.pathname);

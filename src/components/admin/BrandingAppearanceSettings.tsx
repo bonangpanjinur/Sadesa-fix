@@ -154,6 +154,19 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
     canonical_url: '',
     robots: 'index, follow',
   });
+  const [globalSeoForm, setGlobalSeoForm] = useState({
+    title: '',
+    description: '',
+    keywords: '',
+    robots: 'index, follow',
+    canonicalUrl: '',
+    ogTitle: '',
+    ogDescription: '',
+    ogImage: '',
+    twitterTitle: '',
+    twitterDescription: '',
+    twitterImage: '',
+  });
 
   // Homepage Layout State
   const [homepageSections, setHomepageSections] = useState<HomepageSection[]>(DEFAULT_HOMEPAGE_SECTIONS);
@@ -206,6 +219,29 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         if (item.key === 'seo_google_verification') setGoogleVerification(value);
         if (item.key === 'seo_ga4_measurement_id') setGa4MeasurementId(value);
         if (item.key === 'seo_gtm_id') setGtmId(value);
+      });
+
+      const { data: globalSeoData } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .in('key', [
+          'seo_global_title', 'seo_global_description', 'seo_global_keywords', 'seo_global_robots',
+          'seo_global_canonical_url', 'seo_global_og_title', 'seo_global_og_description', 'seo_global_og_image',
+          'seo_global_twitter_title', 'seo_global_twitter_description', 'seo_global_twitter_image',
+        ]);
+      const globalSeoValues = new Map((globalSeoData || []).map((item) => [item.key, typeof item.value === 'string' ? item.value : '']));
+      setGlobalSeoForm({
+        title: globalSeoValues.get('seo_global_title') || '',
+        description: globalSeoValues.get('seo_global_description') || '',
+        keywords: globalSeoValues.get('seo_global_keywords') || '',
+        robots: globalSeoValues.get('seo_global_robots') || 'index, follow',
+        canonicalUrl: globalSeoValues.get('seo_global_canonical_url') || '',
+        ogTitle: globalSeoValues.get('seo_global_og_title') || '',
+        ogDescription: globalSeoValues.get('seo_global_og_description') || '',
+        ogImage: globalSeoValues.get('seo_global_og_image') || '',
+        twitterTitle: globalSeoValues.get('seo_global_twitter_title') || '',
+        twitterDescription: globalSeoValues.get('seo_global_twitter_description') || '',
+        twitterImage: globalSeoValues.get('seo_global_twitter_image') || '',
       });
 
       // Fetch PWA
@@ -354,6 +390,36 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
     } catch (error) {
       console.error('Error saving Google settings:', error);
       toast.error('Gagal menyimpan pengaturan Google');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSaveGlobalSeo = async () => {
+    setSaving('global-seo');
+    try {
+      const values = [
+        ['seo_global_title', globalSeoForm.title],
+        ['seo_global_description', globalSeoForm.description],
+        ['seo_global_keywords', globalSeoForm.keywords],
+        ['seo_global_robots', globalSeoForm.robots],
+        ['seo_global_canonical_url', globalSeoForm.canonicalUrl],
+        ['seo_global_og_title', globalSeoForm.ogTitle],
+        ['seo_global_og_description', globalSeoForm.ogDescription],
+        ['seo_global_og_image', globalSeoForm.ogImage],
+        ['seo_global_twitter_title', globalSeoForm.twitterTitle],
+        ['seo_global_twitter_description', globalSeoForm.twitterDescription],
+        ['seo_global_twitter_image', globalSeoForm.twitterImage],
+      ];
+      const { error } = await supabase.from('app_settings').upsert(
+        values.map(([key, value]) => ({ key, value, category: 'seo', description: `Global SEO meta: ${key}`, updated_at: new Date().toISOString() })),
+        { onConflict: 'key' },
+      );
+      if (error) throw error;
+      toast.success('Meta tags SEO global berhasil disimpan');
+    } catch (error) {
+      console.error('Error saving global SEO:', error);
+      toast.error('Gagal menyimpan meta tags SEO global');
     } finally {
       setSaving(null);
     }
@@ -648,6 +714,34 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         </TabsContent>
 
         <TabsContent value="seo">
+          <Card className="mb-4">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> Meta Tags Global</CardTitle>
+              <CardDescription>Default SEO untuk halaman yang belum memiliki pengaturan per halaman. Meta per halaman akan menjadi prioritas.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2"><Label>Meta Title Global</Label><Input value={globalSeoForm.title} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, title: event.target.value }))} placeholder="SaDesa — Marketplace UMKM & Desa Wisata" maxLength={70} /><p className="text-xs text-muted-foreground">Idealnya maksimal 60–70 karakter.</p></div>
+                <div className="space-y-2"><Label>Robots</Label><Input value={globalSeoForm.robots} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, robots: event.target.value }))} placeholder="index, follow" /></div>
+              </div>
+              <div className="space-y-2"><Label>Meta Description Global</Label><Textarea value={globalSeoForm.description} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, description: event.target.value }))} placeholder="Deskripsi utama aplikasi untuk mesin pencari..." rows={3} maxLength={170} /><p className="text-xs text-muted-foreground">Idealnya maksimal 150–160 karakter.</p></div>
+              <div className="space-y-2"><Label>Meta Keywords</Label><Input value={globalSeoForm.keywords} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, keywords: event.target.value }))} placeholder="UMKM, desa wisata, marketplace desa" /></div>
+              <div className="space-y-2"><Label>Canonical URL</Label><Input value={globalSeoForm.canonicalUrl} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, canonicalUrl: event.target.value }))} placeholder="https://sadesa.id" type="url" /></div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2"><Label>Open Graph Title</Label><Input value={globalSeoForm.ogTitle} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, ogTitle: event.target.value }))} placeholder="Judul saat dibagikan ke media sosial" /></div>
+                <div className="space-y-2"><Label>Open Graph Image URL</Label><Input value={globalSeoForm.ogImage} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, ogImage: event.target.value }))} placeholder="https://.../og-image.jpg" type="url" /></div>
+              </div>
+              <div className="space-y-2"><Label>Open Graph Description</Label><Textarea value={globalSeoForm.ogDescription} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, ogDescription: event.target.value }))} placeholder="Deskripsi ketika link dibagikan" rows={2} /></div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2"><Label>Twitter Card Title</Label><Input value={globalSeoForm.twitterTitle} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, twitterTitle: event.target.value }))} placeholder="Judul Twitter/X" /></div>
+                <div className="space-y-2"><Label>Twitter Card Image URL</Label><Input value={globalSeoForm.twitterImage} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, twitterImage: event.target.value }))} placeholder="https://.../twitter-image.jpg" type="url" /></div>
+              </div>
+              <div className="space-y-2"><Label>Twitter Card Description</Label><Textarea value={globalSeoForm.twitterDescription} onChange={(event) => setGlobalSeoForm((prev) => ({ ...prev, twitterDescription: event.target.value }))} placeholder="Deskripsi Twitter/X" rows={2} /></div>
+              <Button onClick={() => void handleSaveGlobalSeo()} disabled={saving === 'global-seo'} className="w-full">
+                {saving === 'global-seo' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />} Simpan Meta Tags Global
+              </Button>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
