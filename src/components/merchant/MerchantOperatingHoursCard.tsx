@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Save, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 const DAYS = [
   { index: 0, label: 'Minggu', short: 'Min' },
@@ -48,18 +49,7 @@ interface Props {
  * Hitung apakah toko sedang buka berdasarkan jadwal hari ini.
  */
 export function isCurrentlyOpen(schedule: DaySchedule[]): boolean {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const todaySchedule = schedule.find(s => s.day_of_week === dayOfWeek);
-  if (!todaySchedule || todaySchedule.is_closed) return false;
-
-  const [openH, openM] = todaySchedule.open_time.split(':').map(Number);
-  const [closeH, closeM] = todaySchedule.close_time.split(':').map(Number);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const openMinutes = openH * 60 + openM;
-  const closeMinutes = closeH * 60 + closeM;
-
-  return currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+  return getMerchantOperatingStatus(true, null, null, schedule as OperatingDaySchedule[]).isCurrentlyOpen;
 }
 
 export function MerchantOperatingHoursCard({ merchantId }: Props) {

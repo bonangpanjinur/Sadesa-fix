@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, Store, Clock, MapPin, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff, Navigation } from 'lucide-react';
+import { Save, Store, MapPin, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff, Navigation, Tags } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ImageUpload } from '@/components/ui/ImageUpload';
@@ -19,6 +20,7 @@ import { merchantSettingsSchema } from '@/lib/validationSchemas';
 import { AddressDropdowns } from '@/components/admin/AddressDropdowns';
 import { MerchantLocationPicker } from '@/components/merchant/MerchantLocationPicker';
 import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages } from '@/lib/addressApi';
+import { MerchantOperatingHoursCard } from '@/components/merchant/MerchantOperatingHoursCard';
 
 interface MerchantData {
   id: string;
@@ -82,6 +84,7 @@ export default function MerchantSettingsPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
   const { data: merchant, isLoading: fetchLoading } = useQuery<MerchantData | null>({
     queryKey: ['merchant-settings', guardMerchantId],
@@ -97,6 +100,21 @@ export default function MerchantSettingsPage() {
     },
     enabled: !!guardMerchantId && !guardLoading,
     staleTime: 60_000,
+  });
+
+  const { isLoading: merchantCategoriesLoading } = useQuery({
+    queryKey: ['merchant-categories', guardMerchantId],
+    enabled: !!guardMerchantId && !guardLoading,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('merchant_categories')
+        .select('category_id')
+        .eq('merchant_id', guardMerchantId!);
+      if (error) throw error;
+      const ids = (data || []).map((row) => row.category_id as string);
+      setSelectedCategoryIds(ids);
+      return ids;
+    },
   });
 
   // Populate form when merchant data loads
@@ -168,11 +186,18 @@ export default function MerchantSettingsPage() {
     return () => { active = false; };
   }, [merchant]);
 
+  useEffect(() => {
+    if (!merchant || merchantCategoriesLoading || selectedCategoryIds.length > 0) return;
+    const legacy = categories.find((category) => category.slug === merchant.business_category);
+    if (legacy) setSelectedCategoryIds([legacy.id]);
+  }, [merchant, merchantCategoriesLoading, selectedCategoryIds.length, categories]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!merchant) return;
-      if (!categories.some((category) => category.slug === formData.business_category)) {
-        throw new Error('Kategori usaha tidak aktif atau sudah dihapus admin. Pilih kategori yang tersedia.');
+      if (selectedCategoryIds.length === 0) throw new Error('Pilih minimal satu kategori usaha yang tersedia.');
+      if (selectedCategoryIds.some((id) => !categories.some((category) => category.id === id))) {
+        throw new Error('Salah satu kategori tidak aktif atau sudah dihapus admin. Pilih ulang kategori usaha.');
       }
       const parsed = merchantSettingsSchema.safeParse(formData);
       if (!parsed.success) {
@@ -209,11 +234,21 @@ export default function MerchantSettingsPage() {
         slug: settings.slug || null,
       }).eq('id', merchant.id);
       if (error) throw error;
+      const { error: deleteCategoriesError } = await supabase
+        .from('merchant_categories')
+        .delete()
+        .eq('merchant_id', merchant.id);
+      if (deleteCategoriesError) throw deleteCategoriesError;
+      const { error: categoryError } = await supabase.from('merchant_categories').insert(
+        selectedCategoryIds.map((category_id) => ({ merchant_id: merchant.id, category_id }))
+      );
+      if (categoryError) throw categoryError;
     },
     onSuccess: () => {
       toast.success('Pengaturan toko berhasil disimpan');
       queryClient.invalidateQueries({ queryKey: ['merchant-settings', guardMerchantId] });
       queryClient.invalidateQueries({ queryKey: ['merchant-profile', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-categories', guardMerchantId] });
     },
     onError: (error: unknown) => {
       const code = (error as { code?: string })?.code;
@@ -295,15 +330,20 @@ export default function MerchantSettingsPage() {
                 <Label htmlFor="phone">No. Telepon</Label>
                 <Input id="phone" name="phone" type="tel" inputMode="tel" value={formData.phone} onChange={handleChange} maxLength={30} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="business_category">Kategori Bisnis</Label>
-                <Select disabled={categoriesLoading || categories.length === 0} value={formData.business_category} onValueChange={v => setFormData(p => ({ ...p, business_category: v }))}>
-                  <SelectTrigger><SelectValue placeholder={categoriesLoading ? 'Memuat kategori admin...' : 'Pilih kategori'} /></SelectTrigger>
-                  <SelectContent>
-                  {categories.map(category => <SelectItem key={category.slug} value={category.slug}>{category.icon ? `${category.icon} ` : ''}{category.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">Pilihan kategori mengikuti pengaturan aktif di dashboard admin.</p>
+              <div className="space-y-2 col-span-2">
+                <Label className="flex items-center gap-2"><Tags className="h-4 w-4" />Kategori Bisnis</Label>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-3">Pilih semua kategori yang relevan agar toko mudah ditemukan pelanggan.</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {categories.map((category) => (
+                      <label key={category.id} className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 cursor-pointer hover:border-primary/50">
+                        <Checkbox checked={selectedCategoryIds.includes(category.id)} onCheckedChange={(checked) => setSelectedCategoryIds((prev) => checked ? [...new Set([...prev, category.id])] : prev.filter((id) => id !== category.id))} />
+                        <span className="text-sm">{category.icon ? `${category.icon} ` : ''}{category.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {categoriesLoading && <p className="text-xs text-muted-foreground mt-2">Memuat kategori...</p>}
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -453,23 +493,7 @@ export default function MerchantSettingsPage() {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Clock className="h-5 w-5" />Jam Operasional</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="open_time">Jam Buka</Label>
-                <Input id="open_time" name="open_time" type="time" value={formData.open_time} onChange={handleChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="close_time">Jam Tutup</Label>
-                <Input id="close_time" name="close_time" type="time" value={formData.close_time} onChange={handleChange} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <MerchantOperatingHoursCard merchantId={merchant.id} />
 
         <Card>
           <CardHeader>

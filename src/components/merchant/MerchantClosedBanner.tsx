@@ -1,5 +1,5 @@
 import { Clock, AlertTriangle } from 'lucide-react';
-import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
+import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 interface MerchantClosedBannerProps {
   isManuallyOpen: boolean;
@@ -7,6 +7,7 @@ interface MerchantClosedBannerProps {
   closeTime: string | null;
   merchantName?: string;
   hasQuota?: boolean;
+  weeklySchedule?: OperatingDaySchedule[] | null;
 }
 
 export function MerchantClosedBanner({
@@ -15,8 +16,9 @@ export function MerchantClosedBanner({
   closeTime,
   merchantName,
   hasQuota = true,
+  weeklySchedule,
 }: MerchantClosedBannerProps) {
-  const status = getMerchantOperatingStatus(isManuallyOpen, openTime, closeTime);
+  const status = getMerchantOperatingStatus(isManuallyOpen, openTime, closeTime, weeklySchedule);
   
   // Quota depleted takes priority
   if (!hasQuota) {
@@ -73,6 +75,7 @@ interface MerchantStatusBadgeProps {
   closeTime: string | null;
   hasQuota?: boolean;
   size?: 'sm' | 'md';
+  weeklySchedule?: OperatingDaySchedule[] | null;
 }
 
 export function MerchantStatusBadge({
@@ -81,8 +84,9 @@ export function MerchantStatusBadge({
   closeTime,
   hasQuota = true,
   size = 'sm',
+  weeklySchedule,
 }: MerchantStatusBadgeProps) {
-  const status = getMerchantOperatingStatus(isManuallyOpen, openTime, closeTime);
+  const status = getMerchantOperatingStatus(isManuallyOpen, openTime, closeTime, weeklySchedule);
   
   const sizeClasses = size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1';
   

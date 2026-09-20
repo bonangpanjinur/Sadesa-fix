@@ -25,7 +25,7 @@ import { ProductCard } from '../components/ProductCard';
 import { supabase } from '../integrations/supabase/client';
 import { VerifiedBadge } from '../components/merchant/VerifiedBadge';
 import { MerchantClosedBanner, MerchantStatusBadge } from '../components/merchant/MerchantClosedBanner';
-import { getMerchantOperatingStatus, formatTime } from '../lib/merchantOperatingHours';
+import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '../lib/merchantOperatingHours';
 import { checkMerchantHasActiveQuota } from '../lib/api';
 import { ShareStoreButton } from '../components/merchant/ShareStoreButton';
 import { OrderChat } from '../components/chat/OrderChat';
@@ -92,6 +92,13 @@ interface GalleryImage {
   sort_order: number;
 }
 
+interface MerchantCategory {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string | null;
+}
+
 interface MerchantProfilePageProps {
   overrideId?: string;
 }
@@ -105,6 +112,8 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
   const [products, setProducts] = useState<Product[]>([]);
   const [reviews, setReviews] = useState<ReviewData[]>([]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
+  const [weeklySchedule, setWeeklySchedule] = useState<OperatingDaySchedule[]>([]);
+  const [merchantCategories, setMerchantCategories] = useState<MerchantCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasActiveQuota, setHasActiveQuota] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
@@ -167,10 +176,22 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
         const quotaActive = await checkMerchantHasActiveQuota(id);
         setHasActiveQuota(quotaActive);
 
+        const [scheduleResult, categoryResult] = await Promise.all([
+          supabase.from('merchant_operating_hours').select('day_of_week, open_time, close_time, is_closed').eq('merchant_id', id).order('day_of_week'),
+          supabase.from('merchant_categories').select('category:categories(id, slug, name, icon)').eq('merchant_id', id),
+        ]);
+        const schedule = (scheduleResult.data || []) as OperatingDaySchedule[];
+        setWeeklySchedule(schedule);
+        const categories = ((categoryResult.data || []) as Array<{ category: MerchantCategory | MerchantCategory[] | null }>).flatMap((row) => {
+          const category = Array.isArray(row.category) ? row.category[0] : row.category;
+          return category ? [category] : [];
+        });
+        setMerchantCategories(categories);
         const merchantStatus = getMerchantOperatingStatus(
           merchantData.is_open,
           merchantData.open_time,
-          merchantData.close_time
+          merchantData.close_time,
+          schedule,
         );
         const isMerchantOpen = merchantStatus.isCurrentlyOpen;
 
@@ -329,7 +350,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
     );
   }
 
-  const operatingStatus = getMerchantOperatingStatus(merchant.is_open, merchant.open_time, merchant.close_time);
+  const operatingStatus = getMerchantOperatingStatus(merchant.is_open, merchant.open_time, merchant.close_time, weeklySchedule);
   const isClosed = !hasActiveQuota || !operatingStatus.isCurrentlyOpen;
 
   // Compute average rating from reviews for display
@@ -436,18 +457,19 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   </div>
 
                   {/* Row 3: Operating hours */}
-                  {merchant.open_time && merchant.close_time && (
+                  {operatingStatus.openTime && operatingStatus.closeTime && (
                     <div className="inline-flex items-center gap-1.5 mt-2 rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      <span>{formatTime(merchant.open_time)} - {formatTime(merchant.close_time)}</span>
+                      <span>{formatTime(operatingStatus.openTime)} - {formatTime(operatingStatus.closeTime)}</span>
                     </div>
                   )}
                 </div>
 
                 <MerchantStatusBadge
                   isManuallyOpen={merchant.is_open}
-                  openTime={merchant.open_time}
-                  closeTime={merchant.close_time}
+                  openTime={operatingStatus.openTime}
+                  closeTime={operatingStatus.closeTime}
+                  weeklySchedule={weeklySchedule}
                   hasQuota={hasActiveQuota}
                   size="md"
                 />
@@ -494,8 +516,9 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   <div className="mb-3">
                     <MerchantClosedBanner
                       isManuallyOpen={merchant.is_open}
-                      openTime={merchant.open_time}
-                      closeTime={merchant.close_time}
+                      openTime={operatingStatus.openTime}
+                      closeTime={operatingStatus.closeTime}
+                      weeklySchedule={weeklySchedule}
                       merchantName={merchant.name}
                       hasQuota={hasActiveQuota}
                     />
@@ -658,10 +681,26 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                   </div>
                 )}
 
-                {merchant.business_category && (
+                {(merchantCategories.length > 0 || merchant.business_category) && (
                   <div className="bg-card rounded-xl p-3 border border-border">
                     <h3 className="font-semibold text-foreground text-sm mb-1.5">Kategori</h3>
-                    <Badge variant="secondary" className="text-xs">{merchant.business_category}</Badge>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(merchantCategories.length > 0 ? merchantCategories : [{ id: 'legacy', slug: merchant.business_category || '', name: merchant.business_category || '', icon: null }]).map((category) => (
+                        <Badge key={category.id} variant="secondary" className="text-xs">{category.icon ? `${category.icon} ` : ''}{category.name}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {weeklySchedule.length > 0 && (
+                  <div className="bg-card rounded-xl p-3 border border-border">
+                    <h3 className="font-semibold text-foreground text-sm mb-2">Jam Operasional</h3>
+                    <div className="grid grid-cols-2 gap-y-1 text-xs">
+                      {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((day, index) => {
+                        const hours = weeklySchedule.find((entry) => entry.day_of_week === index);
+                        return <div key={day} className="contents"><span className="text-muted-foreground">{day}</span><span className="text-right">{hours?.is_closed ? 'Tutup' : `${formatTime(hours?.open_time)} – ${formatTime(hours?.close_time)}`}</span></div>;
+                      })}
+                    </div>
                   </div>
                 )}
 
