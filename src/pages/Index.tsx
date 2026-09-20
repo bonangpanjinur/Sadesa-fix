@@ -361,11 +361,26 @@ const Index = () => {
         if (productsLoading) return <ProductGridSkeleton count={6} />;
         if (productsError)
           return (
-            <SectionError
-              title="Produk gagal dimuat"
-              message="Kami tidak dapat mengambil daftar produk terdekat."
-              onRetry={() => refetchProducts()}
-            />
+            <section className="mx-4 mt-8 overflow-hidden rounded-[1.65rem] border border-emerald-100 bg-[linear-gradient(135deg,hsl(152_61%_97%),hsl(43_100%_97%))] px-5 py-5 shadow-[0_18px_40px_-28px_hsl(152_61%_35%_/_0.5)]" aria-label="Ajakan menjadi mitra merchant">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                  <Store className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-700">Peluang untuk usaha lokal</p>
+                  <h2 className="mt-1 font-heading text-base font-extrabold tracking-[-0.02em] text-foreground">Yuk gabung jadi Mitra Merchant SaDesa.id</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Tawarkan produkmu ke lebih banyak pelanggan dan dapatkan penghasilan tambahan bersama SaDesa.</p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Button asChild size="sm" className="h-9 rounded-full bg-emerald-600 px-4 text-xs font-bold text-white shadow-sm hover:bg-emerald-700">
+                      <Link to="/register/merchant">Daftar Jadi Mitra</Link>
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => refetchProducts()} className="h-9 rounded-full px-3 text-xs text-muted-foreground">
+                      Coba muat produk
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </section>
           );
         return (
           <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-white px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]">
