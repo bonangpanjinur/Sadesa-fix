@@ -192,8 +192,10 @@ const Index = () => {
       return !isKuliner;
     });
   }, [promoFilter, promoProducts]);
-  const nearbyFoodProducts = sortedProducts.filter((product) => product.category.toLowerCase() === 'kuliner');
-  const displayedFoodProducts = nearbyFoodProducts.length > 0 ? nearbyFoodProducts : sortedProducts;
+  const culinaryProductCategories = new Set(['kuliner', 'makanan', 'minuman', 'camilan']);
+  const nearbyFoodProducts = sortedProducts.filter((product) =>
+    culinaryProductCategories.has(product.category.trim().toLowerCase()),
+  );
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
@@ -365,7 +367,7 @@ const Index = () => {
               onRetry={() => refetchProducts()}
             />
           );
-        return displayedFoodProducts.length > 0 ? (
+        return (
           <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-white px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]">
             <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
@@ -378,41 +380,62 @@ const Index = () => {
                   {userLocation?.source === 'gps' ? 'Berdasarkan lokasi Anda' : 'Sekitar Anda'}
                 </p>
               </div>
-              <Link 
-                to="/products"
-                className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
-              >
-                Lihat Semua
-                <ChevronRight className="h-3 w-3" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-3.5 pb-2">
-              {displayedFoodProducts.slice(0, visibleProductCount).map((product, idx) => (
-                <ProductCard 
-                  key={product.id} 
-                  product={product}
-                  index={idx} 
-                  showCategoryBadge={true}
-                  distanceKm={getProductDistance(product)}
-                  deliveryEta={getDeliveryEta(getProductDistance(product))}
-                />
-              ))}
-            </div>
-            {displayedFoodProducts.length > visibleProductCount && (
-              <div className="flex justify-center pb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setVisibleProductCount(prev => prev + 12)}
-                  className="text-xs"
+              {nearbyFoodProducts.length > 0 && (
+                <Link
+                  to="/products?category=kuliner"
+                  className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
                 >
-                  <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
-                  Lihat Lebih Banyak ({displayedFoodProducts.length - visibleProductCount} lagi)
+                  Lihat Semua
+                  <ChevronRight className="h-3 w-3" />
+                </Link>
+              )}
+            </div>
+            {nearbyFoodProducts.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 gap-3.5 pb-2">
+                  {nearbyFoodProducts.slice(0, visibleProductCount).map((product, idx) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      index={idx}
+                      showCategoryBadge={true}
+                      distanceKm={getProductDistance(product)}
+                      deliveryEta={getDeliveryEta(getProductDistance(product))}
+                    />
+                  ))}
+                </div>
+                {nearbyFoodProducts.length > visibleProductCount && (
+                  <div className="flex justify-center pb-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVisibleProductCount(prev => prev + 12)}
+                      className="text-xs"
+                    >
+                      <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
+                      Lihat Lebih Banyak ({nearbyFoodProducts.length - visibleProductCount} lagi)
+                    </Button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-center">
+                <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 text-orange-700">
+                  <Store className="h-5 w-5" />
+                </div>
+                <h3 className="font-heading text-sm font-extrabold text-foreground">
+                  Yuk daftar jadi pedagang sekarang
+                </h3>
+                <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
+                  Jadilah merchant kuliner pertama di sekitar sini dan mulai jual makananmu.
+                </p>
+                <Button asChild size="sm" className="mt-4 rounded-full px-5">
+                  <Link to="/register/merchant">Daftar Jadi Pedagang</Link>
                 </Button>
               </div>
             )}
           </section>
-        ) : null;
+        );
       
       case 'villages':
         if (villagesLoading) return <CarouselSkeleton count={3} />;

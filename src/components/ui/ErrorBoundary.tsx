@@ -34,13 +34,15 @@ export class ErrorBoundary extends Component<Props, State> {
     }, error);
     this.setState({ errorInfo });
 
-    // A deploy can leave an older HTML shell pointing at a removed hashed chunk.
-    // Reload once so the browser obtains the current shell/service worker; avoid
-    // an infinite reload loop when the chunk is genuinely broken.
+    // A deploy can leave an older HTML shell or service worker pointing at a
+    // removed hashed chunk. Clear client-side caches before one recovery reload.
+    // The timestamp prevents an infinite reload loop when the chunk is genuinely
+    // broken or the deployment is still propagating.
     const isChunkError = /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed/i.test(error.message);
-    if (isChunkError && sessionStorage.getItem('sadesa-chunk-reload') !== '1') {
-      sessionStorage.setItem('sadesa-chunk-reload', '1');
-      window.location.reload();
+    const lastChunkReload = Number(sessionStorage.getItem('sadesa-chunk-reload-at') || 0);
+    if (isChunkError && (!lastChunkReload || Date.now() - lastChunkReload > 30_000)) {
+      sessionStorage.setItem('sadesa-chunk-reload-at', String(Date.now()));
+      void this.recoverFromChunkError();
     }
     
     // Optional: Send to error reporting service
@@ -49,12 +51,27 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleReset = () => {
     if (this.state.error && /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed/i.test(this.state.error.message)) {
-      sessionStorage.removeItem('sadesa-chunk-reload');
-      window.location.reload();
+      sessionStorage.removeItem('sadesa-chunk-reload-at');
+      void this.recoverFromChunkError();
       return;
     }
     this.setState({ hasError: false, error: null, errorInfo: null });
     this.props.onReset?.();
+  };
+
+  private recoverFromChunkError = async () => {
+    try {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)));
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+      }
+    } catch (recoveryError) {
+      console.warn('Unable to clear stale application assets:', recoveryError);
+    } finally {
+      window.location.reload();
+    }
   };
 
   private handleGoHome = () => {

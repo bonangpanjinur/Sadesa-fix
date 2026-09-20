@@ -36,6 +36,14 @@
   }
   header @html Cache-Control "no-cache, no-store, must-revalidate"
 
-  try_files {path} /index.html
-  file_server
+  # Never serve the SPA shell for a missing hashed asset. Returning index.html
+  # for /assets/*.js makes the browser reject it as a JavaScript module.
+  @assets path /assets/*
+  handle @assets {
+    file_server
+  }
+  handle {
+    try_files {path} /index.html
+    file_server
+  }
 }
