@@ -576,18 +576,30 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Logo URL</Label>
-                  <div className="flex gap-2">
-                    <Input value={logoUrl || ''} onChange={(e) => setLogoUrl(e.target.value)} />
-                    <ImageUpload bucket="admin-assets" path={`branding/logo-${Date.now()}`} value={logoUrl} onChange={(url) => setLogoUrl(url || '')} />
-                  </div>
+                  <Label>Logo Aplikasi</Label>
+                  <ImageUpload
+                    bucket="admin-assets"
+                    path="branding/logo"
+                    value={logoUrl}
+                    onChange={(url) => setLogoUrl(url || '')}
+                    aspectRatio="wide"
+                    stableFileName
+                    placeholder="Upload logo aplikasi"
+                  />
+                  <p className="text-xs text-muted-foreground">Format JPG, PNG, WEBP, atau GIF. Maksimal 5MB.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Favicon URL</Label>
-                  <div className="flex gap-2">
-                    <Input value={faviconUrl || ''} onChange={(e) => setFaviconUrl(e.target.value)} />
-                    <ImageUpload bucket="admin-assets" path={`branding/favicon-${Date.now()}`} value={faviconUrl} onChange={(url) => setFaviconUrl(url || '')} />
-                  </div>
+                  <Label>Favicon Aplikasi</Label>
+                  <ImageUpload
+                    bucket="admin-assets"
+                    path="branding/favicon"
+                    value={faviconUrl}
+                    onChange={(url) => setFaviconUrl(url || '')}
+                    aspectRatio="square"
+                    stableFileName
+                    placeholder="Upload favicon aplikasi"
+                  />
+                  <p className="text-xs text-muted-foreground">Gunakan gambar persegi untuk ikon browser. Maksimal 5MB.</p>
                 </div>
               </div>
               <Button onClick={handleSaveWhitelabel} disabled={saving === 'whitelabel'} className="w-full">
