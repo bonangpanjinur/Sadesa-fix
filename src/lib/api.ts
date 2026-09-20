@@ -30,6 +30,7 @@ const villageImages: Record<string, string> = {
 
 let cachedFreeTierLimit: number | null = null;
 let cacheTs = 0;
+const DEFAULT_FREE_TIER_LIMIT = 100;
 
 // Simple in-memory cache for API calls (TTL 60s)
 const apiCache = new Map<string, { data: unknown; ts: number }>();
@@ -60,7 +61,10 @@ async function getFreeTierLimit(): Promise<number> {
 
   const configuredLimit = (data?.value as { limit?: unknown } | null)?.limit;
   if (typeof configuredLimit !== 'number' || !Number.isInteger(configuredLimit) || configuredLimit < 0) {
-    throw new Error('Invalid free-tier quota configuration');
+    console.warn(`Invalid or missing free-tier quota configuration; using default ${DEFAULT_FREE_TIER_LIMIT}.`);
+    cachedFreeTierLimit = DEFAULT_FREE_TIER_LIMIT;
+    cacheTs = Date.now();
+    return DEFAULT_FREE_TIER_LIMIT;
   }
 
   cachedFreeTierLimit = configuredLimit;

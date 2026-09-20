@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 let cachedFreeTierLimit: number | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_FREE_TIER_LIMIT = 100;
 
 async function getFreeTierLimit(): Promise<number> {
   if (cachedFreeTierLimit !== null && Date.now() - cacheTimestamp < CACHE_TTL) {
@@ -20,7 +21,10 @@ async function getFreeTierLimit(): Promise<number> {
 
   const configuredLimit = (data?.value as { limit?: unknown } | null)?.limit;
   if (typeof configuredLimit !== 'number' || !Number.isInteger(configuredLimit) || configuredLimit < 0) {
-    throw new Error('Invalid free-tier quota configuration');
+    console.warn(`Invalid or missing free-tier quota configuration; using default ${DEFAULT_FREE_TIER_LIMIT}.`);
+    cachedFreeTierLimit = DEFAULT_FREE_TIER_LIMIT;
+    cacheTimestamp = Date.now();
+    return DEFAULT_FREE_TIER_LIMIT;
   }
 
   cachedFreeTierLimit = configuredLimit;
@@ -44,7 +48,6 @@ export interface MerchantQuotaInfo {
  * This ensures consistent quota numbers across all pages.
  */
 export async function fetchMerchantQuotaInfo(merchantId: string): Promise<MerchantQuotaInfo> {
-  const FREE_TIER_LIMIT = await getFreeTierLimit();
   
   // Get ALL active subscriptions for this merchant
   const { data: subscriptions, error: subscriptionsError } = await supabase
