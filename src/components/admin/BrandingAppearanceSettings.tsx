@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Image as ImageIcon, Palette, Globe, Type, Upload, CheckCircle2, Info, RefreshCw, Search, Plus, Edit2, Trash2, Eye, EyeOff, Share2, Layout, GripVertical, BarChart2 } from 'lucide-react';
+import { Save, Loader2, Image as ImageIcon, Palette, Globe, Type, Upload, CheckCircle2, Info, RefreshCw, Search, Plus, Edit2, Trash2, Eye, EyeOff, Share2, Layout, GripVertical, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -616,7 +616,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BarChart2 className="h-5 w-5" /> Google Analytics</CardTitle>
+                <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5" /> Google Analytics</CardTitle>
                 <CardDescription>Analytics aktif otomatis setelah Measurement ID disimpan.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
