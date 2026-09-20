@@ -103,16 +103,16 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
         visible: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
       }}
     >
-      <motion.h2 className="max-w-[min(72vw,280px)] font-heading text-[1.5rem] font-extrabold leading-[1.05] tracking-[-0.025em] text-primary-foreground drop-shadow-[0_2px_8px_rgb(0_0_0/0.45)] sm:max-w-[340px] sm:text-2xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+      <motion.h2 className="max-w-[min(72vw,280px)] font-heading text-[1.5rem] font-extrabold leading-[1.05] tracking-[-0.025em] text-primary-foreground drop-shadow-[0_1px_3px_rgb(0_0_0/0.2)] sm:max-w-[340px] sm:text-2xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
         {currentSlide.title}
       </motion.h2>
       {currentSlide.subtitle && (
-        <motion.p className="mt-2 max-w-[min(68vw,260px)] text-[0.78rem] font-medium leading-[1.4] text-white drop-shadow-[0_1px_5px_rgb(0_0_0/0.5)] sm:max-w-[300px] sm:text-sm" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+        <motion.p className="mt-2 max-w-[min(68vw,260px)] text-[0.78rem] font-medium leading-[1.4] text-white drop-shadow-[0_1px_2px_rgb(0_0_0/0.18)] sm:max-w-[300px] sm:text-sm" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
           {currentSlide.subtitle}
         </motion.p>
       )}
       {currentSlide.linkUrl && (
-          <motion.span className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-extrabold text-primary shadow-[0_8px_20px_-10px_hsl(var(--foreground)/0.75)] transition hover:bg-orange-50" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
+          <motion.span className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-extrabold text-primary shadow-[0_6px_16px_-10px_hsl(var(--primary)/0.45)] transition hover:bg-orange-50" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
           Lihat Sekarang
           <ChevronRight className="h-3.5 w-3.5" />
         </motion.span>
@@ -125,7 +125,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
       role="region"
       aria-roledescription="carousel"
       aria-label="Promo pilihan SaDesa"
-      className="group relative mx-4 mt-5 h-[13.75rem] overflow-hidden rounded-[1.65rem] bg-muted shadow-[0_18px_38px_-18px_hsl(var(--foreground)/0.65)] sm:mx-6 sm:h-[14.5rem]"
+      className="group relative mx-4 mt-5 h-[13.75rem] overflow-hidden rounded-[1.65rem] bg-muted shadow-[0_14px_32px_-20px_hsl(var(--primary)/0.35)] sm:mx-6 sm:h-[14.5rem]"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={(event) => {
@@ -157,7 +157,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             transition={{ duration: autoPlayInterval / 1000, ease: 'linear' }}
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/90 via-foreground/62 to-foreground/10">
+          <div className="absolute inset-0 flex items-center bg-gradient-to-r from-foreground/35 via-foreground/8 to-transparent">
             <div className="max-w-[78%] px-5 py-5 sm:max-w-[72%] sm:px-6">
               {currentSlide.linkUrl ? (
                 <Link to={currentSlide.linkUrl} className="block" onClick={() => onClick?.(currentSlide.id)}>
@@ -179,7 +179,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             variant="ghost"
             size="icon"
             onClick={prevSlide}
-            className="absolute left-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/25 text-white backdrop-blur-md transition hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute left-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/70 bg-white/75 text-primary backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label="Previous slide"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -189,7 +189,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             variant="ghost"
             size="icon"
             onClick={nextSlide}
-            className="absolute right-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/20 bg-black/25 text-white backdrop-blur-md transition hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute right-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/70 bg-white/75 text-primary backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label="Next slide"
           >
             <ChevronRight className="h-5 w-5" />
@@ -199,7 +199,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
 
       {/* Dot Indicators */}
       {slideCount > 1 && (
-        <div className="absolute bottom-3.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/20 px-2.5 py-1.5 backdrop-blur-sm">
+        <div className="absolute bottom-3.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white/60 px-2.5 py-1.5 backdrop-blur-sm">
           {slides.map((_, index) => (
             <button
               key={index}
@@ -209,7 +209,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
                 "h-1.5 w-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white",
                 index === currentIndex
                   ? "w-5 bg-white"
-                  : "bg-white/50 hover:bg-white/80"
+                  : "bg-primary/35 hover:bg-primary/60"
               )}
               aria-label={`Go to slide ${index + 1}`}
             />
