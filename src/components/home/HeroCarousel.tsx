@@ -103,21 +103,16 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
         visible: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
       }}
     >
-      <motion.div className="mb-2.5 flex items-center gap-1.5" variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.22 }}>
-          <span className="rounded-full bg-accent px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-accent-foreground shadow-sm">
-            {currentSlide.isSponsored ? 'Sponsor' : 'Pilihan minggu ini'}
-          </span>
-      </motion.div>
-      <motion.h2 className="max-w-[min(64vw,250px)] font-heading text-[1.28rem] font-extrabold leading-[1.08] tracking-[-0.02em] text-primary-foreground sm:max-w-[310px] sm:text-xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+      <motion.h2 className="max-w-[min(72vw,280px)] font-heading text-[1.5rem] font-extrabold leading-[1.05] tracking-[-0.025em] text-primary-foreground drop-shadow-[0_2px_8px_rgb(0_0_0/0.45)] sm:max-w-[340px] sm:text-2xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
         {currentSlide.title}
       </motion.h2>
       {currentSlide.subtitle && (
-        <motion.p className="mt-2 max-w-[min(60vw,230px)] text-[0.7rem] leading-[1.45] text-primary-foreground/85 sm:max-w-[280px] sm:text-xs" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
+        <motion.p className="mt-2 max-w-[min(68vw,260px)] text-[0.78rem] font-medium leading-[1.4] text-white drop-shadow-[0_1px_5px_rgb(0_0_0/0.5)] sm:max-w-[300px] sm:text-sm" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
           {currentSlide.subtitle}
         </motion.p>
       )}
       {currentSlide.linkUrl && (
-          <motion.span className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-extrabold text-primary shadow-[0_8px_20px_-10px_hsl(var(--foreground)/0.75)] transition hover:bg-orange-50" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
+          <motion.span className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-extrabold text-primary shadow-[0_8px_20px_-10px_hsl(var(--foreground)/0.75)] transition hover:bg-orange-50" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
           Lihat Sekarang
           <ChevronRight className="h-3.5 w-3.5" />
         </motion.span>
