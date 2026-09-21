@@ -8,11 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TargetRole = 'merchant' | 'courier';
 type ChatTarget = { id: string; user_id: string; name: string; role: TargetRole; detail?: string };
 
 export default function AdminChatPage() {
+  const { user } = useAuth();
   const [targets, setTargets] = useState<ChatTarget[]>([]);
   const [selected, setSelected] = useState<ChatTarget | null>(null);
   const [search, setSearch] = useState('');
@@ -22,6 +24,7 @@ export default function AdminChatPage() {
 
   useEffect(() => {
     let active = true;
+    if (!user) return () => { active = false; };
     const loadTargets = async () => {
       setLoading(true);
       const [{ data: merchants, error: merchantsError }, { data: couriers, error: couriersError }] = await Promise.all([
@@ -31,14 +34,14 @@ export default function AdminChatPage() {
       if (!active) return;
       if (merchantsError || couriersError) setError('Daftar merchant dan kurir belum dapat dimuat.');
       setTargets([
-        ...(merchants || []).filter((item) => item.user_id && item.status === 'ACTIVE').map((item) => ({ id: item.id, user_id: item.user_id!, name: item.name || 'Merchant tanpa nama', role: 'merchant' as const, detail: 'Merchant aktif' })),
-        ...(couriers || []).filter((item) => item.user_id && item.registration_status === 'APPROVED').map((item) => ({ id: item.id, user_id: item.user_id!, name: item.name || 'Kurir tanpa nama', role: 'courier' as const, detail: item.status === 'ACTIVE' ? 'Kurir aktif' : 'Kurir terdaftar' })),
+        ...(merchants || []).filter((item) => item.user_id && item.user_id !== user?.id && item.status === 'ACTIVE').map((item) => ({ id: item.id, user_id: item.user_id!, name: item.name || 'Merchant tanpa nama', role: 'merchant' as const, detail: 'Merchant aktif' })),
+        ...(couriers || []).filter((item) => item.user_id && item.user_id !== user?.id && item.registration_status === 'APPROVED').map((item) => ({ id: item.id, user_id: item.user_id!, name: item.name || 'Kurir tanpa nama', role: 'courier' as const, detail: item.status === 'ACTIVE' ? 'Kurir aktif' : 'Kurir terdaftar' })),
       ]);
       setLoading(false);
     };
     void loadTargets();
     return () => { active = false; };
-  }, []);
+  }, [user]);
 
   const visibleTargets = useMemo(() => targets.filter((target) => target.role === tab && target.name.toLowerCase().includes(search.trim().toLowerCase())), [targets, tab, search]);
 
