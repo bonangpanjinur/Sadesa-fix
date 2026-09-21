@@ -19,41 +19,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
-import { reverseGeocode, formatAddressSummary } from '@/hooks/useGeocoding';
+import { geocodeFreeformAddress, reverseGeocode, formatAddressSummary } from '@/hooks/useGeocoding';
 import { calculateETA, formatETA } from '@/lib/etaCalculation';
 import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap, Polyline } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: '/motor-icon.png',
-  iconRetinaUrl: '/motor-icon.png',
-  shadowUrl: markerShadow,
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -40],
-});
-
-const pickupIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: markerShadow,
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-});
-
-const destIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: markerShadow,
-  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-});
-
-const driverIcon = new L.Icon({
-  iconUrl: '/motor-icon.png',
-  iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -36],
-});
+import { GoogleRideMap } from '@/components/transport/GoogleRideMap';
 
 interface FareSettings { base_fare: number; per_km_fare: number; min_fare: number; max_fare: number; }
 const DEFAULT_FARE: FareSettings = { base_fare: 5000, per_km_fare: 3000, min_fare: 5000, max_fare: 100000 };
@@ -67,31 +36,6 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 interface DriverMarker { id: string; lat: number; lng: number; name: string; }
-
-function MapClickHandler({ onSelect }: { onSelect: (lat: number, lng: number) => void }) {
-  useMapEvents({ click(e) { onSelect(e.latlng.lat, e.latlng.lng); } });
-  return null;
-}
-
-function FitBoundsHelper({ points }: { points: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (points.length >= 2) {
-      map.fitBounds(L.latLngBounds(points.map(p => L.latLng(p[0], p[1]))), { padding: [50, 50], maxZoom: 16 });
-    } else if (points.length === 1) {
-      map.setView(points[0], 15, { animate: true });
-    }
-  }, [points, map]);
-  return null;
-}
-
-function MapReadyHandler({ onReady }: { onReady: () => void }) {
-  const map = useMap();
-  useEffect(() => {
-    map.whenReady(() => onReady());
-  }, [map, onReady]);
-  return null;
-}
 
 export default function RideBookingPage() {
   const navigate = useNavigate();
@@ -108,11 +52,11 @@ export default function RideBookingPage() {
   const [mapCenter] = useState<[number, number]>([-7.3274, 108.2207]);
   const [activeRide, setActiveRide] = useState<{ id: string; status: string } | null>(null);
   const [geocoding, setGeocoding] = useState(false);
-  const [mapReady, setMapReady] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const geocodeAbort = useRef<AbortController | null>(null);
+  const manualAddressRef = useRef({ pickup: false, destination: false });
 
   const fetchDrivers = useCallback(async () => {
     const { data } = await supabase.from('couriers').select('id, name, current_lat, current_lng')
@@ -127,6 +71,7 @@ export default function RideBookingPage() {
       async (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setPickupLocation(loc);
+        manualAddressRef.current.pickup = false;
         setGettingGps(false);
         setMode('destination');
         // Reverse geocode GPS position
@@ -220,9 +165,11 @@ export default function RideBookingPage() {
     if (mode === 'pickup') {
       setPickupLocation({ lat, lng });
       setPickupAddress('Memuat alamat...');
+      manualAddressRef.current.pickup = false;
     } else {
       setDestLocation({ lat, lng });
       setDestAddress('Memuat alamat...');
+      manualAddressRef.current.destination = false;
     }
 
     // Reverse geocode the clicked point
@@ -243,6 +190,30 @@ export default function RideBookingPage() {
       setGeocoding(false);
     }
   }, [mode]);
+
+  useEffect(() => {
+    const query = pickupAddress.trim();
+    if (!manualAddressRef.current.pickup || query.length < 4) return;
+    const timer = window.setTimeout(async () => {
+      setGeocoding(true);
+      const result = await geocodeFreeformAddress(query);
+      if (result && manualAddressRef.current.pickup) setPickupLocation({ lat: result.lat, lng: result.lng });
+      setGeocoding(false);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [pickupAddress]);
+
+  useEffect(() => {
+    const query = destAddress.trim();
+    if (!manualAddressRef.current.destination || query.length < 4) return;
+    const timer = window.setTimeout(async () => {
+      setGeocoding(true);
+      const result = await geocodeFreeformAddress(query);
+      if (result && manualAddressRef.current.destination) setDestLocation({ lat: result.lat, lng: result.lng });
+      setGeocoding(false);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [destAddress]);
 
   const straightLineDistanceKm = pickupLocation && destLocation
     ? haversineDistance(pickupLocation.lat, pickupLocation.lng, destLocation.lat, destLocation.lng) : 0;
@@ -354,43 +325,17 @@ export default function RideBookingPage() {
         </div>
       )}
 
-      {/* Fullscreen map with loading overlay */}
+      {/* Fullscreen Google map */}
       <div className="flex-1 relative z-0">
-        {!mapReady && (
-          <div className="absolute inset-0 z-[1001] bg-muted flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-xs text-muted-foreground">Memuat peta...</p>
-            </div>
-          </div>
-        )}
-        <MapContainer center={mapCenter} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <MapClickHandler onSelect={handleMapClick} />
-          <MapReadyHandler onReady={() => setMapReady(true)} />
-          {fitPoints.length > 0 && <FitBoundsHelper points={fitPoints} />}
-          {pickupLocation && <Marker position={[pickupLocation.lat, pickupLocation.lng]} icon={pickupIcon} />}
-          {destLocation && <Marker position={[destLocation.lat, destLocation.lng]} icon={destIcon} />}
-          {pickupLocation && destLocation && (
-            roadRoute?.geometry.length ? (
-              <Polyline
-                positions={roadRoute.geometry}
-                pathOptions={{ color: 'hsl(160,84%,39%)', weight: 3, opacity: 0.85 }}
-              />
-            ) : (
-              <Polyline
-                positions={[[pickupLocation.lat, pickupLocation.lng], [destLocation.lat, destLocation.lng]]}
-                pathOptions={{ color: 'hsl(160,84%,39%)', weight: 3, dashArray: '10, 8', opacity: 0.7 }}
-              />
-            )
-          )}
-          {drivers.map(d => (
-            <Marker key={d.id} position={[d.lat, d.lng]} icon={driverIcon} />
-          ))}
-        </MapContainer>
+        <GoogleRideMap
+          center={{ lat: mapCenter[0], lng: mapCenter[1] }}
+          pickupLocation={pickupLocation}
+          destinationLocation={destLocation}
+          drivers={drivers}
+          route={fitPoints.length > 1 ? fitPoints : []}
+          mode={mode}
+          onMapClick={({ lat, lng }) => void handleMapClick(lat, lng)}
+        />
 
         {/* Mode indicator floating on map */}
         <div className="absolute top-3 left-3 z-[1000]">
@@ -426,8 +371,7 @@ export default function RideBookingPage() {
         >
           {/* Input fields */}
           <div className="space-y-2">
-            <button
-              type="button"
+            <div
               onClick={() => setMode('pickup')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-sm transition ${
                 mode === 'pickup' ? 'border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/30' : 'border-border bg-muted/30'
@@ -437,14 +381,17 @@ export default function RideBookingPage() {
               <Input
                 placeholder="Titik jemput"
                 value={pickupAddress}
-                onChange={(e) => setPickupAddress(e.target.value)}
                 onFocus={() => setMode('pickup')}
                 className="border-0 bg-transparent p-0 h-auto text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-                readOnly
+                onClick={(event) => event.stopPropagation()}
+                onChange={(event) => {
+                  manualAddressRef.current.pickup = true;
+                  setPickupLocation(null);
+                  setPickupAddress(event.target.value);
+                }}
               />
-            </button>
-            <button
-              type="button"
+            </div>
+            <div
               onClick={() => setMode('destination')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-sm transition ${
                 mode === 'destination' ? 'border-red-500 bg-red-50/50 ring-1 ring-red-500/30' : 'border-border bg-muted/30'
@@ -454,13 +401,21 @@ export default function RideBookingPage() {
               <Input
                 placeholder="Mau ke mana?"
                 value={destAddress}
-                onChange={(e) => setDestAddress(e.target.value)}
                 onFocus={() => setMode('destination')}
                 className="border-0 bg-transparent p-0 h-auto text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-                readOnly
+                onClick={(event) => event.stopPropagation()}
+                onChange={(event) => {
+                  manualAddressRef.current.destination = true;
+                  setDestLocation(null);
+                  setDestAddress(event.target.value);
+                }}
               />
-            </button>
+            </div>
           </div>
+          <p className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+            <MapPin className="h-3 w-3 text-primary" />
+            Pilih titik langsung di peta atau ketik alamat untuk mencari otomatis.
+          </p>
 
           {/* Fare estimation + Order */}
           {canOrder && (

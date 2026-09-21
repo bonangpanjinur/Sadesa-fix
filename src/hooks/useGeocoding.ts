@@ -128,6 +128,32 @@ export async function geocodeAddress(
   }
 }
 
+/** Resolve an address typed directly by the user into map coordinates. */
+export async function geocodeFreeformAddress(query: string): Promise<GeocodingResult | null> {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 4) return null;
+
+  try {
+    const params = new URLSearchParams({
+      q: `${normalizedQuery}, Indonesia`,
+      format: 'json',
+      limit: '1',
+      countrycodes: 'id',
+      addressdetails: '1',
+    });
+    const results = await fetchNominatim<Array<{ lat: string; lon: string; display_name: string }>>(
+      `${NOMINATIM_URL}/search?${params.toString()}`,
+      `freeform:${normalizedQuery.toLowerCase()}`,
+    );
+    const result = results?.[0];
+    if (!result) return null;
+    return { lat: Number(result.lat), lng: Number(result.lon), displayName: result.display_name };
+  } catch (error) {
+    console.error('Free-form geocoding error:', error);
+    return null;
+  }
+}
+
 /**
  * Reverse geocoding - convert coordinates to address
  */
