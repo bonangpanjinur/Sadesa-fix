@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageCircle, User, Store, ShoppingBag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface ChatThread {
   orderId: string | null;
@@ -26,6 +26,7 @@ interface ChatThread {
 
 export default function CourierChatPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [loading, setLoading] = useState(true);
@@ -243,11 +244,15 @@ export default function CourierChatPage() {
         <OrderChat
           orderId={selectedThread.orderId}
           conversationId={selectedThread.conversationId || undefined}
+          contextType={selectedThread.orderId ? 'order' : 'direct'}
           otherUserId={selectedThread.otherUserId}
           otherUserName={selectedThread.otherUserName}
           chatType={selectedThread.chatType}
           isOpen={!!selectedThread}
-          onClose={() => setSelectedThread(null)}
+          onClose={() => {
+            setSelectedThread(null);
+            navigate('/courier/chat', { replace: true });
+          }}
         />
       )}
     </CourierLayout>

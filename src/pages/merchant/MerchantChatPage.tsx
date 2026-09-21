@@ -339,7 +339,10 @@ export default function MerchantChatPage() {
           otherUserName={selectedThread.otherUserName}
           chatType={selectedThread.chatType}
           isOpen={!!selectedThread}
-          onClose={() => setSelectedThread(null)}
+          onClose={() => {
+            setSelectedThread(null);
+            navigate('/merchant/chat', { replace: true });
+          }}
         />
       )}
     </MerchantLayout>

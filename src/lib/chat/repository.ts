@@ -124,7 +124,12 @@ export async function getConversationUnreadCount() { const { data, error } = awa
 
 export function subscribeToConversation(conversationId: string, onInsert: (message: ConversationMessage) => void, onStatus: (status: string, error?: unknown) => void, onUpdate?: (message: ConversationMessage) => void): RealtimeChannel {
   let subscribedOnce = false;
-  const channel = supabase.channel(`chat-conversation-${conversationId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => { const message = normalizeMessage(payload.new as Record<string, unknown>); recordMessageEventLatency(message.created_at, conversationId); onInsert(message); }).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => onUpdate?.(normalizeMessage(payload.new as Record<string, unknown>)));
+  // Supabase reuses channels by name. A modal can be opened again before the
+  // previous channel is fully removed, so every subscription needs its own
+  // channel name to avoid adding callbacks after subscribe().
+  const channel = supabase.channel(`chat-conversation-${conversationId}-${crypto.randomUUID()}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => { const message = normalizeMessage(payload.new as Record<string, unknown>); recordMessageEventLatency(message.created_at, conversationId); onInsert(message); })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => onUpdate?.(normalizeMessage(payload.new as Record<string, unknown>)));
   channel.subscribe((status, error) => { recordChatChannelStatus(status, subscribedOnce); if (status === 'SUBSCRIBED') subscribedOnce = true; onStatus(status, error); });
   return channel;
 }
