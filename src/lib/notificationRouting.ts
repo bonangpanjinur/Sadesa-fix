@@ -5,6 +5,8 @@ export interface NotificationRouteInput {
   deep_link?: string | null;
   type?: string | null;
   data?: unknown;
+  conversation_id?: string | null;
+  message_id?: string | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -26,7 +28,13 @@ function firstString(...values: unknown[]): string | null {
 function withChatContext(path: string, input: NotificationRouteInput): string {
   const params = new URLSearchParams(path.split('?')[1] || '');
   const data = asRecord(input.data);
-  const conversationId = firstString(params.get('conversationId'), params.get('conversation'), data.conversation_id, data.conversationId);
+  const conversationId = firstString(
+    params.get('conversationId'),
+    params.get('conversation'),
+    input.conversation_id,
+    data.conversation_id,
+    data.conversationId,
+  );
   const orderId = firstString(params.get('orderId'), data.order_id, data.orderId);
   const rideRequestId = firstString(params.get('rideRequestId'), data.ride_request_id, data.rideRequestId);
   params.delete('conversation');
@@ -59,7 +67,7 @@ export function resolveNotificationLink(input: NotificationRouteInput, roles: No
     }
   }
 
-  if (input.type === 'chat' || /(^|\/)chat(\/|\?|$)/.test(link)) {
+  if (input.type === 'chat' || input.conversation_id || /(^|\/)chat(\/|\?|$)/.test(link)) {
     // Older database triggers stored every chat notification as /buyer/chat.
     // For a merchant+buyer account that legacy target must open the merchant
     // inbox; canonical role-scoped links remain untouched below.
@@ -90,5 +98,8 @@ export function resolveNotificationLink(input: NotificationRouteInput, roles: No
 }
 
 export function isChatNotification(input: NotificationRouteInput): boolean {
-  return input.type === 'chat' || /(^|\/)chat(\/|\?|$)/.test(input.link || '') || Boolean(asRecord(input.data).conversation_id || asRecord(input.data).conversationId);
+  return input.type === 'chat'
+    || Boolean(input.conversation_id)
+    || /(^|\/)chat(\/|\?|$)/.test(input.link || '')
+    || Boolean(asRecord(input.data).conversation_id || asRecord(input.data).conversationId);
 }

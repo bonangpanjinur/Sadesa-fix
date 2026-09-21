@@ -81,7 +81,7 @@ export default function MerchantChatPage() {
         .select('*')
         .in('conversation_id', conversationIds)
         .is('deleted_at', null)
-        .in('chat_type', ['buyer_merchant', 'merchant_courier'])
+        .in('chat_type', ['buyer_merchant', 'merchant_courier', 'admin_merchant'])
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -161,7 +161,9 @@ export default function MerchantChatPage() {
         const profile = (profiles || []).find(p => p.user_id === thread.otherUserId);
         const merchant = (merchants || []).find(m => m.user_id === thread.otherUserId);
         const courier = (couriers || []).find(c => c.user_id === thread.otherUserId);
-        if (thread.chatType === 'buyer_merchant') {
+        if (thread.chatType === 'admin_merchant') {
+          thread.otherUserName = profile?.full_name?.trim() || 'Admin';
+        } else if (thread.chatType === 'buyer_merchant') {
           thread.otherUserName = profile?.full_name?.trim() || merchant?.name?.trim() || 'Pembeli';
         } else {
           thread.otherUserName = courier?.name?.trim() || merchant?.name?.trim() || 'Kurir';
@@ -288,7 +290,9 @@ export default function MerchantChatPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm truncate">{thread.otherUserName}</span>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      {thread.chatType === 'merchant_courier' ? 'Kurir' : 'Pembeli'}
+                      {thread.chatType === 'merchant_courier'
+                        ? 'Kurir'
+                        : thread.chatType === 'admin_merchant' ? 'Admin' : 'Pembeli'}
                     </Badge>
                     {thread.unreadCount > 0 && (
                       <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{thread.unreadCount}</Badge>

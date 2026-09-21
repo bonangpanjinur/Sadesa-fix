@@ -1,25 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
-  Store, Phone, MapPin, ArrowLeft, CheckCircle, Clock, 
-  Tag, FileText, Building, Shield, AlertCircle, Check, Mail, Loader2, ShieldCheck, RefreshCw, Save, Trash2
+  Store, Phone, MapPin, CheckCircle,
+  Tag, Building, AlertCircle, Check, Loader2, Save, Trash2
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { BottomNav } from '../components/layout/BottomNav';
 import { Button } from '../components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../components/ui/alert-dialog";
 import { useAuth } from '../contexts/AuthContext';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
@@ -92,8 +82,6 @@ export default function RegisterMerchantPage() {
   const navigate = useNavigate();
   const { user, refetchRoles } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [showEmailModal, setShowEmailModal] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(createDefaultSchedule);
@@ -411,9 +399,8 @@ export default function RegisterMerchantPage() {
       // Clear draft on success
       localStorage.removeItem(DRAFT_KEY);
       setHasDraft(false);
-      setIsSuccess(true);
-      setShowEmailModal(true);
-      toast.success('Pendaftaran pedagang berhasil dikirim!');
+      toast.success('Pendaftaran merchant berhasil. Selamat datang di dashboard merchant!');
+      navigate('/merchant', { replace: true });
     } catch (error) {
       console.error('Error submitting merchant registration:', error);
       toast.error('Gagal mengirim pendaftaran. Silakan coba lagi.');
@@ -421,31 +408,6 @@ export default function RegisterMerchantPage() {
       setIsSubmitting(false);
     }
   };
-
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <PageHeader title="Pendaftaran Berhasil" showBack={false} />
-        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mb-6"
-          >
-            <CheckCircle className="w-10 h-10 text-success" />
-          </motion.div>
-          <h2 className="text-2xl font-bold mb-2">Pendaftaran Terkirim!</h2>
-          <p className="text-muted-foreground mb-8">
-            Akun merchant Anda telah disetujui! Anda sekarang dapat mengakses dashboard dan mulai mengelola produk serta pesanan.
-          </p>
-          <Button onClick={() => navigate('/')} className="w-full max-w-xs">
-            Kembali ke Beranda
-          </Button>
-        </main>
-        <BottomNav />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -721,38 +683,6 @@ export default function RegisterMerchantPage() {
           </div>
         </form>
       </main>
-
-      <AlertDialog open={showEmailModal} onOpenChange={setShowEmailModal}>
-        <AlertDialogContent className="max-w-[90vw] rounded-2xl">
-          <AlertDialogHeader>
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-primary" />
-            </div>
-            <AlertDialogTitle className="text-center text-xl">Pendaftaran Berhasil!</AlertDialogTitle>
-            <AlertDialogDescription className="text-center space-y-3">
-              <p>
-                Selamat! Akun merchant Anda telah disetujui dan siap digunakan.
-              </p>
-              <div className="bg-muted p-3 rounded-lg text-xs text-left space-y-2">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-3 h-3 text-primary" />
-                  <span className="font-semibold">Apa selanjutnya?</span>
-                </div>
-                <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                  <li>Akses langsung ke Dashboard Merchant</li>
-                  <li>Mulai tambahkan produk Anda</li>
-                  <li>Terima pesanan dari pembeli</li>
-                </ul>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => navigate('/')} className="w-full h-11">
-              Mengerti
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <BottomNav />
     </div>

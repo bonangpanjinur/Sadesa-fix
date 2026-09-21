@@ -23,7 +23,13 @@ import type { ChatContextType, ChatCursor } from '@/lib/chat/types';
 import { useChatPresence } from '@/hooks/chat/useChatPresence';
 import { useTypingIndicator } from '@/hooks/chat/useTypingIndicator';
 
-export type ChatType = 'buyer_merchant' | 'buyer_courier' | 'merchant_courier' | 'passenger_courier';
+export type ChatType =
+  | 'buyer_merchant'
+  | 'buyer_courier'
+  | 'merchant_courier'
+  | 'passenger_courier'
+  | 'admin_merchant'
+  | 'admin_courier';
 
 interface JoinedUser {
   user_id: string | null;
@@ -73,6 +79,8 @@ const QUICK_REPLIES: Record<string, string[]> = {
   merchant_courier: ['Barang sudah siap diambil', 'Tolong hubungi saya dulu', 'Alamat pickup berubah'],
   buyer_courier: ['Sudah di mana?', 'Saya tunggu di depan rumah', 'Tolong hubungi saya'],
   buyer_merchant: ['Apakah stok masih ada?', 'Kapan pesanan saya dikirim?', 'Terima kasih!'],
+  admin_merchant: ['Baik, admin.', 'Siap, akan saya tindak lanjuti.', 'Terima kasih informasinya.'],
+  admin_courier: ['Baik, admin.', 'Siap, akan saya tindak lanjuti.', 'Terima kasih informasinya.'],
 };
 
 export function OrderChat({ orderId, contextType = 'order', conversationId: existingConversationId, rideRequestId, merchantId, otherUserId, otherUserName, isOpen, onClose, chatType = 'buyer_merchant', senderRole }: OrderChatProps) {

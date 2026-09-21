@@ -46,4 +46,14 @@ describe('resolveNotificationLink', () => {
     expect(resolveNotificationLink({ type: 'order', link: '/orders', data: { order_id: 'o5' } }, ['merchant', 'buyer']))
       .toBe('/merchant/orders?orderId=o5');
   });
+
+  it('opens the merchant chat when conversation_id is stored on the notification row', () => {
+    expect(resolveNotificationLink({ type: 'info', conversation_id: 'admin-merchant-1' }, ['merchant']))
+      .toBe('/merchant/chat?conversationId=admin-merchant-1');
+  });
+
+  it('opens the courier chat when conversation_id is stored on the notification row', () => {
+    expect(resolveNotificationLink({ type: 'info', conversation_id: 'admin-courier-1' }, ['courier']))
+      .toBe('/courier/chat?conversationId=admin-courier-1');
+  });
 });

@@ -12,7 +12,7 @@ import { id as idLocale } from 'date-fns/locale';
 import { useSearchParams } from 'react-router-dom';
 
 interface ChatThread {
-  orderId: string;
+  orderId: string | null;
   conversationId: string | null;
   otherUserId: string;
   otherUserName: string;
@@ -52,7 +52,7 @@ export default function CourierChatPage() {
         .select('*')
         .in('conversation_id', conversationIds)
         .is('deleted_at', null)
-        .in('chat_type', ['buyer_courier', 'merchant_courier'])
+        .in('chat_type', ['buyer_courier', 'merchant_courier', 'admin_courier'])
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -218,6 +218,9 @@ export default function CourierChatPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm truncate">{thread.otherUserName}</span>
+                    {thread.chatType === 'admin_courier' && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">Admin</Badge>
+                    )}
                     {thread.unreadCount > 0 && (
                       <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{thread.unreadCount}</Badge>
                     )}
