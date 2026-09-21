@@ -69,6 +69,7 @@ const AdminSystemHealthPage = lazy(() => import("./pages/admin/AdminSystemHealth
 
 // Admin Pages
 const AdminDashboardPage = lazy(() => import("./pages/admin/AdminDashboardPage"));
+const AdminChatPage = lazy(() => import("./pages/admin/AdminChatPage"));
 const AdminSettingsPage = lazy(() => import("./pages/admin/AdminSettingsPage"));
 const AdminMerchantDetailPage = lazy(() => import("./pages/admin/AdminMerchantDetailPage"));
 const AdminMerchantsPage = lazy(() => import("./pages/admin/AdminMerchantsPage"));
@@ -617,6 +618,11 @@ const App = () => (
               <Route path="/admin" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminDashboardPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/chat" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminChatPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/settings" element={

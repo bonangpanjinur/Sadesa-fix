@@ -17,6 +17,7 @@ import {
   Image,
   Key,
   LayoutDashboard,
+  MessageCircle,
   MapPin,
   Megaphone,
   Package,
@@ -95,6 +96,7 @@ export function AdminSidebar({
       label: 'Operasional',
       items: [
         { label: 'Pesanan', href: '/admin/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
+        { label: 'Chat Admin', href: '/admin/chat', icon: <MessageCircle className="h-4 w-4" /> },
         { label: 'Merchant', href: '/admin/merchants', icon: <Store className="h-4 w-4" />, badge: pendingMerchants },
         { label: 'Desa Wisata', href: '/admin/villages', icon: <MapPin className="h-4 w-4" />, badge: pendingVillages },
         { label: 'Kurir', href: '/admin/couriers', icon: <Bike className="h-4 w-4" />, badge: pendingCouriers },

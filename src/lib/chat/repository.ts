@@ -24,6 +24,14 @@ export async function getOrCreateDirectConversation(merchantId: string) {
   return { conversationId: typeof data === 'string' ? data : null, error: error ? toChatError(error) : null };
 }
 
+export async function getOrCreateAdminDirectConversation(targetUserId: string, targetRole: 'merchant' | 'courier') {
+  const { data, error } = await supabase.rpc('get_or_create_admin_direct_chat' as never, {
+    p_target_user_id: targetUserId,
+    p_target_role: targetRole,
+  } as never);
+  return { conversationId: typeof data === 'string' ? data : null, error: error ? toChatError(error) : null };
+}
+
 export async function listConversationMessages(conversationId: string, limit = 50, cursor?: ChatCursor): Promise<{ messages: ConversationMessage[]; error: Error | null }> {
   const startedAt = Date.now();
   let query = supabase.from('chat_messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: true }).order('id', { ascending: true }).limit(limit);

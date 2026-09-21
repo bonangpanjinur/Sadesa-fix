@@ -4,7 +4,9 @@ export type ConversationType =
   | 'buyer_merchant'
   | 'buyer_courier'
   | 'merchant_courier'
-  | 'passenger_courier';
+  | 'passenger_courier'
+  | 'admin_merchant'
+  | 'admin_courier';
 
 export type ChatConnectionState = 'idle' | 'loading' | 'subscribed' | 'reconnecting' | 'offline' | 'closed' | 'expired';
 export type MessageDeliveryStatus = 'sending' | 'sent' | 'failed';

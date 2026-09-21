@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation } from '@/lib/chat/repository';
+import { getOrCreateAdminDirectConversation, getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation } from '@/lib/chat/repository';
 import { validateMessageBody } from '@/lib/chat/retention';
 import { getChatReconnectDelay } from '@/lib/chat/realtime';
 import type { ChatConnectionState, ChatCursor, ConversationMessage, ConversationType } from '@/lib/chat/types';
@@ -12,6 +12,8 @@ interface ConversationOptions {
   orderId?: string;
   rideRequestId?: string;
   merchantId?: string;
+  adminTargetUserId?: string;
+  adminTargetRole?: 'merchant' | 'courier';
   receiverId: string;
 }
 
@@ -32,7 +34,7 @@ export function useConversation(options: ConversationOptions) {
   const cursorRef = useRef<ChatCursor | null>(null);
   const activeRef = useRef(true);
   const catchUpRef = useRef(false);
-  const key = `${options.contextType}:${options.orderId || options.rideRequestId || options.merchantId || ''}:${options.conversationType}:${options.receiverId}`;
+  const key = `${options.contextType}:${options.orderId || options.rideRequestId || options.merchantId || options.adminTargetUserId || ''}:${options.conversationType}:${options.receiverId}`;
 
   const addMessage = useCallback((message: ConversationMessage) => {
     setMessages((current) => {
@@ -63,7 +65,9 @@ export function useConversation(options: ConversationOptions) {
     activeRef.current = true;
     setStatus('loading'); setError(null); setMessages([]); cursorRef.current = null;
     const load = async () => {
-      const result = options.contextType === 'direct' && options.merchantId
+      const result = options.contextType === 'direct' && options.adminTargetUserId && options.adminTargetRole
+        ? await getOrCreateAdminDirectConversation(options.adminTargetUserId, options.adminTargetRole)
+        : options.contextType === 'direct' && options.merchantId
         ? await getOrCreateDirectConversation(options.merchantId)
         : await getOrCreateConversation({ contextType: options.contextType, orderId: options.orderId, rideRequestId: options.rideRequestId, conversationType: options.conversationType });
       if (!activeRef.current) return;
