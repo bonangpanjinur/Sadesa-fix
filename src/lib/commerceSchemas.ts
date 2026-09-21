@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const merchantSchema = z.object({
   referralCode: z.string().max(50).optional(),
   name: z.string().min(3, 'Nama usaha minimal 3 karakter').max(100),
-  businessCategory: z.string().min(1, 'Pilih kategori usaha'),
+  businessCategory: z.string().min(1, 'Pilih minimal satu kategori usaha'),
   businessDescription: z.string().max(500).optional(),
   province: z.string().min(1, 'Pilih provinsi'),
   city: z.string().min(1, 'Pilih kabupaten/kota'),

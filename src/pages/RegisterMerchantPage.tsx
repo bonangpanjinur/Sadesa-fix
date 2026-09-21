@@ -25,6 +25,7 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Checkbox } from '../components/ui/checkbox';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 import { 
@@ -59,6 +60,7 @@ interface DraftData {
   referralCode: string;
   name: string;
   businessCategory: string;
+  businessCategoryIds?: string[];
   businessDescription: string;
   phone: string;
   openTime: string;
@@ -81,6 +83,7 @@ export default function RegisterMerchantPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const { data: categoryOptions = [], isLoading: categoryLoading } = useAdminCategories();
   const draftRestoredRef = useRef(false);
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -125,6 +128,7 @@ export default function RegisterMerchantPage() {
       referralCode,
       name: values.name || '',
       businessCategory: values.businessCategory || '',
+      businessCategoryIds: selectedCategoryIds,
       businessDescription: values.businessDescription || '',
       phone: values.phone || '',
       openTime: values.openTime || '',
@@ -143,7 +147,7 @@ export default function RegisterMerchantPage() {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setHasDraft(true);
     } catch (err) { console.warn('[register-merchant] gagal menyimpan draf:', err); }
-  }, [getValues, referralCode, addressData, merchantLocation, halalStatus, halalCertUrl, ktpUrl]);
+  }, [getValues, referralCode, selectedCategoryIds, addressData, merchantLocation, halalStatus, halalCertUrl, ktpUrl]);
 
   // Debounced auto-save
   const scheduleSaveDraft = useCallback(() => {
@@ -173,6 +177,7 @@ export default function RegisterMerchantPage() {
       // Restore simple fields
       if (draft.name) setValue('name', draft.name);
       if (draft.businessCategory) setValue('businessCategory', draft.businessCategory);
+      if (draft.businessCategoryIds?.length) setSelectedCategoryIds(draft.businessCategoryIds);
       if (draft.businessDescription) setValue('businessDescription', draft.businessDescription);
       if (draft.phone) setValue('phone', draft.phone);
       if (draft.openTime) setValue('openTime', draft.openTime);
@@ -286,16 +291,20 @@ export default function RegisterMerchantPage() {
   }, [referralCode, validateReferralCode]);
 
   const onSubmit = async (data: MerchantFormData) => {
-    if (!categoryOptions.some((category) => category.slug === data.businessCategory)) {
-      toast.error('Kategori usaha tidak aktif atau sudah dihapus admin. Silakan pilih kategori yang tersedia.');
+    const fallbackCategoryIds = categoryOptions.filter((category) => category.slug === data.businessCategory).map((category) => category.id);
+    const categoryIds = [...new Set(selectedCategoryIds.length ? selectedCategoryIds : fallbackCategoryIds)];
+    const selectedCategories = categoryOptions.filter((category) => categoryIds.includes(category.id));
+    if (selectedCategories.length === 0 || selectedCategories.length !== categoryIds.length) {
+      toast.error('Pilih minimal satu kategori usaha yang masih aktif.');
       return;
     }
+    const primaryCategory = selectedCategories[0];
     if (referralCode && referralCode.length > 0 && !referralInfo.isValid) {
       toast.error('Kode referral tidak valid');
       return;
     }
 
-    if (data.businessCategory === 'kuliner' && halalStatus === 'NONE' && !ktpUrl) {
+    if (selectedCategories.some((category) => category.slug === 'kuliner') && halalStatus === 'NONE' && !ktpUrl) {
       toast.error('Foto KTP wajib diunggah untuk kategori kuliner yang belum memiliki sertifikat halal');
       return;
     }
@@ -318,7 +327,7 @@ export default function RegisterMerchantPage() {
       const registrationStatus = 'APPROVED';
       const merchantStatus = 'ACTIVE';
 
-      const { error } = await supabase.from('merchants').insert({
+      const { data: merchant, error } = await supabase.from('merchants').insert({
         name: data.name.trim(),
         user_id: user.id,
         village_id: matchedVillage?.id || null,
@@ -328,7 +337,7 @@ export default function RegisterMerchantPage() {
         district: districtName,
         subdistrict: subdistrictName,
         phone: data.phone.trim(),
-        business_category: data.businessCategory,
+        business_category: primaryCategory.slug,
         business_description: data.businessDescription?.trim() || null,
         verifikator_code: referralCode ? referralCode.toUpperCase() : null,
         trade_group: referralInfo.tradeGroup || null,
@@ -344,9 +353,14 @@ export default function RegisterMerchantPage() {
         halal_status: halalStatus,
         halal_certificate_url: halalCertUrl,
         ktp_url: ktpUrl,
-      });
+      }).select('id').single();
 
       if (error) throw error;
+
+      const { error: categoryError } = await supabase.from('merchant_categories').insert(
+        selectedCategories.map((category) => ({ merchant_id: merchant.id, category_id: category.id })),
+      );
+      if (categoryError) throw categoryError;
 
       // Role assignment is handled by database trigger (on_merchant_approval)
       // when registration_status is set to 'APPROVED'.
@@ -481,22 +495,24 @@ export default function RegisterMerchantPage() {
 
             <div className="space-y-2">
               <Label>Kategori Usaha</Label>
-              <Select disabled={categoryLoading || categoryOptions.length === 0} onValueChange={(val) => void setValue('businessCategory', val, { shouldDirty: true, shouldTouch: true, shouldValidate: true })} value={watch('businessCategory') || undefined}>
-                <SelectTrigger>
-                  <SelectValue placeholder={categoryLoading ? 'Memuat kategori admin...' : categoryOptions.length === 0 ? 'Kategori belum tersedia' : 'Pilih kategori'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categoryOptions.map((cat) => (
-                    <SelectItem key={cat.slug} value={cat.slug}>
-                      <div className="flex items-center gap-2">
-                        <span>{cat.icon}</span>
-                        <span>{cat.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">Pilihan ini mengikuti kategori aktif yang diatur admin.</p>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="mb-3 text-xs text-muted-foreground">Pilih satu atau lebih kategori yang sesuai dengan usaha Anda.</p>
+                {categoryLoading ? <p className="text-sm text-muted-foreground">Memuat kategori admin...</p> : categoryOptions.length === 0 ? <p className="text-sm text-muted-foreground">Kategori belum tersedia.</p> : <div className="grid gap-2 sm:grid-cols-2">
+                  {categoryOptions.map((cat) => {
+                    const checked = selectedCategoryIds.includes(cat.id);
+                    return <label key={cat.id} className="flex cursor-pointer items-center gap-3 rounded-md border bg-background px-3 py-2 transition hover:border-primary/50">
+                      <Checkbox checked={checked} onCheckedChange={(nextChecked) => {
+                        const nextIds = nextChecked ? [...new Set([...selectedCategoryIds, cat.id])] : selectedCategoryIds.filter((id) => id !== cat.id);
+                        setSelectedCategoryIds(nextIds);
+                        const primary = categoryOptions.find((option) => option.id === nextIds[0]);
+                        setValue('businessCategory', primary?.slug || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                      }} />
+                      <span className="text-sm">{cat.icon ? `${cat.icon} ` : ''}{cat.name}</span>
+                    </label>;
+                  })}
+                </div>}
+                {selectedCategoryIds.length > 0 && <p className="mt-3 text-xs text-primary">{selectedCategoryIds.length} kategori dipilih</p>}
+              </div>
               {errors.businessCategory && <p role="alert" className="text-xs text-destructive">{errors.businessCategory.message}</p>}
             </div>
 
