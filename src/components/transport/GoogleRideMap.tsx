@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Loader2, MapPin } from 'lucide-react';
-import { Loader } from '@googlemaps/js-api-loader';
 import { Card } from '@/components/ui/card';
+import { loadGoogleMaps } from '@/lib/googleMaps';
 
 type Point = { lat: number; lng: number };
 
@@ -44,15 +44,7 @@ export function GoogleRideMap({
 
   useEffect(() => {
     let disposed = false;
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-
-    if (!apiKey) {
-      setStatus('error');
-      return;
-    }
-
-    const loader = new Loader({ apiKey, version: 'weekly', libraries: ['places'] });
-    loader.load().then(() => {
+    loadGoogleMaps().then(() => {
       if (disposed || !mapElement.current) return;
       const map = new google.maps.Map(mapElement.current, {
         center: DEFAULT_CENTER,

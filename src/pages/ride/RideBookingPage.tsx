@@ -4,7 +4,6 @@ import { safeGoBack } from '@/lib/utils';
 import { Bike, Loader2, ArrowLeft, LocateFixed, MapPin, Navigation, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +22,7 @@ import { geocodeFreeformAddress, reverseGeocode, formatAddressSummary } from '@/
 import { calculateETA, formatETA } from '@/lib/etaCalculation';
 import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
 import { GoogleRideMap } from '@/components/transport/GoogleRideMap';
+import { GoogleAddressInput } from '@/components/transport/GoogleAddressInput';
 
 interface FareSettings { base_fare: number; per_km_fare: number; min_fare: number; max_fare: number; }
 const DEFAULT_FARE: FareSettings = { base_fare: 5000, per_km_fare: 3000, min_fare: 5000, max_fare: 100000 };
@@ -375,40 +375,45 @@ export default function RideBookingPage() {
               mode === 'pickup' ? 'border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/30' : 'border-border bg-muted/30'
             }`}>
               <span className="h-3 w-3 shrink-0 rounded-full bg-emerald-500" />
-              <Input
+              <GoogleAddressInput
                 id="ride-pickup-address"
-                type="text"
-                inputMode="text"
-                autoComplete="street-address"
                 placeholder="Ketik alamat titik jemput"
                 value={pickupAddress}
                 onFocus={() => setMode('pickup')}
-                onChange={(event) => {
+                onChange={(value) => {
                   manualAddressRef.current.pickup = true;
                   setPickupLocation(null);
-                  setPickupAddress(event.target.value);
+                  setPickupAddress(value);
                 }}
                 className="relative z-10 h-auto min-w-0 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                onPlaceSelected={({ address, location }) => {
+                  manualAddressRef.current.pickup = false;
+                  setPickupAddress(address);
+                  setPickupLocation(location);
+                  setMode('destination');
+                }}
               />
             </label>
             <label className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
               mode === 'destination' ? 'border-red-500 bg-red-50/50 ring-1 ring-red-500/30' : 'border-border bg-muted/30'
             }`}>
               <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" />
-              <Input
+              <GoogleAddressInput
                 id="ride-destination-address"
-                type="text"
-                inputMode="text"
-                autoComplete="street-address"
                 placeholder="Ketik alamat tujuan"
                 value={destAddress}
                 onFocus={() => setMode('destination')}
-                onChange={(event) => {
+                onChange={(value) => {
                   manualAddressRef.current.destination = true;
                   setDestLocation(null);
-                  setDestAddress(event.target.value);
+                  setDestAddress(value);
                 }}
                 className="relative z-10 h-auto min-w-0 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                onPlaceSelected={({ address, location }) => {
+                  manualAddressRef.current.destination = false;
+                  setDestAddress(address);
+                  setDestLocation(location);
+                }}
               />
             </label>
           </div>
