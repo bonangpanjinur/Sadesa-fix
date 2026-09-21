@@ -73,6 +73,9 @@ const POS_GROUP_BY_CATEGORY: Record<string, string> = {
   administrasi: 'team',
 };
 
+// POS disembunyikan sementara dari workspace merchant; route dan implementasinya tetap dipertahankan.
+const POS_UI_ENABLED = false;
+
 function isItemActive(pathname: string, href: string) {
   if (href === '/merchant') return pathname === href;
   return pathname.startsWith(href);
@@ -201,7 +204,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
     ...category,
     items: category.items.filter((item) => (item.scope === 'merchant' || canAccessPOSPath(roles, item.href, posRole))
       && isPOSModuleEnabled(tenant?.enabled_modules, item.moduleId)),
-  })).filter((category) => posEnabled && category.items.length > 0), [posEnabled, roles, posRole, tenant?.enabled_modules]);
+  })).filter((category) => POS_UI_ENABLED && posEnabled && category.items.length > 0), [posEnabled, roles, posRole, tenant?.enabled_modules]);
 
   const activeMerchantGroupId = groups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -301,7 +304,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         </div>
         {showDashboard && renderItem({ label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> })}
 
-        {canSeePOS && (
+        {canSeePOS && POS_UI_ENABLED && (
           <div className="mx-4 mt-4 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Toko aktif</p>
             <p className="mt-1 truncate font-heading text-xs font-semibold text-sidebar-foreground">

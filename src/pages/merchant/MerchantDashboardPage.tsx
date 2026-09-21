@@ -43,10 +43,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { cn, formatPrice } from '@/lib/utils';
 import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
-import { usePOS } from '@/contexts/POSContext';
-import { POSOnboardingChecklist } from '@/components/pos/POSOnboardingChecklist';
 import { MerchantCardError } from '@/components/merchant/MerchantDataState';
-import { POSDailySummaryCard } from '@/components/merchant/POSDailySummaryCard';
 
 interface MerchantData {
   id: string;
@@ -70,7 +67,6 @@ interface OrderData {
 export default function MerchantDashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { posEnabled, loading: posLoading, tenant, outlets, activeOutlet } = usePOS();
   const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -297,90 +293,6 @@ export default function MerchantDashboardPage() {
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
       <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
-        {!posLoading && !posEnabled && (
-          <section className="flex flex-col gap-4 rounded-2xl border border-primary/20 bg-primary/[0.06] p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6" data-testid="pos-activation-card">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Operasional toko</p>
-              <h2 className="mt-1 text-lg font-semibold">Butuh kasir untuk toko fisik?</h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Aktifkan Kasir untuk menerima pembayaran langsung dan menyinkronkan stok dengan toko online.
-              </p>
-            </div>
-            <Button className="shrink-0" onClick={() => navigate('/merchant/pos/subscribe')} data-testid="button-activate-pos">
-              Lihat Paket POS
-              <ArrowUpRight className="ml-2 h-4 w-4" />
-            </Button>
-          </section>
-        )}
-
-        {!posLoading && posEnabled && tenant && (
-          <>
-          <section className="grid gap-4 lg:grid-cols-2" data-testid="merchant-workspace-summary">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Store className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Marketplace</p>
-                    <h3 className="mt-1 text-base font-semibold">Toko online</h3>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => navigate('/merchant/products')}>
-                  Kelola katalog <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                Atur produk, pesanan online, kuota, dan visibilitas storefront dari workspace merchant.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-muted px-3 py-1.5">Pesanan pending: {pendingOrders.length}</span>
-                <span className="rounded-full bg-muted px-3 py-1.5">Stok kritis tersedia di menu katalog</span>
-              </div>
-            </div>
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm sm:p-6 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-300">
-                    <Receipt className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-300/80">Operasional POS</p>
-                    <h3 className="mt-1 text-base font-semibold">{tenant.name}</h3>
-                  </div>
-                </div>
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('/merchant/pos/kasir')}>
-                  Buka kasir <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                Outlet aktif <span className="font-medium text-foreground">{activeOutlet?.name || 'belum dipilih'}</span>. Gunakan POS untuk penjualan fisik dan stok outlet.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full bg-background/70 px-3 py-1.5">{outlets.length} outlet aktif</span>
-                <span className="rounded-full bg-background/70 px-3 py-1.5">Modul {tenant.enabled_modules.length} aktif</span>
-                <Button variant="link" size="sm" className="h-auto p-0 text-xs text-emerald-700 dark:text-emerald-300" onClick={() => navigate('/merchant/pos/integrasi')}>
-                  Rekonsiliasi stok
-                </Button>
-              </div>
-            </div>
-          </section>
-          <POSOnboardingChecklist
-            tenantId={tenant.id}
-            tenantName={tenant.name}
-            outletCount={outlets.length}
-            activeOutletName={activeOutlet?.name}
-            enabledModuleCount={tenant.enabled_modules.length}
-          />
-           <POSDailySummaryCard
-             tenantId={tenant.id}
-             activeOutletId={activeOutlet?.id}
-             activeOutletName={activeOutlet?.name}
-           />
-          </>
-        )}
-
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
           <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] via-card to-card p-5 shadow-sm sm:p-7">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
@@ -441,15 +353,6 @@ export default function MerchantDashboardPage() {
               </p>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                className="flex-1"
-                onClick={() => navigate('/merchant/pos/kasir')}
-                data-testid="button-open-cashier"
-              >
-                <Receipt className="mr-1.5 h-3.5 w-3.5" />
-                Buka kasir
-              </Button>
               <Button
                 variant="outline"
                 size="sm"

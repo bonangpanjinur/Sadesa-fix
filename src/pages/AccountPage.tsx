@@ -148,7 +148,7 @@ export default function AccountPage() {
 
     if (isMerchant || isAdmin) {
       buttons.push({
-        label: 'Merchant & POS',
+        label: 'Dashboard Merchant',
         path: '/merchant',
         icon: <Store className="h-5 w-5" />,
         color: 'bg-warning/10 text-warning border-warning/20',
