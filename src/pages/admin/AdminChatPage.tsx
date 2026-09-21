@@ -9,12 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 
 type TargetRole = 'merchant' | 'courier';
 type ChatTarget = { id: string; user_id: string; name: string; role: TargetRole; detail?: string };
 
 export default function AdminChatPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [targets, setTargets] = useState<ChatTarget[]>([]);
   const [selected, setSelected] = useState<ChatTarget | null>(null);
   const [search, setSearch] = useState('');
@@ -33,15 +35,30 @@ export default function AdminChatPage() {
       ]);
       if (!active) return;
       if (merchantsError || couriersError) setError('Daftar merchant dan kurir belum dapat dimuat.');
-      setTargets([
+      const nextTargets = [
         ...(merchants || []).filter((item) => item.user_id && item.user_id !== user?.id && item.status === 'ACTIVE').map((item) => ({ id: item.id, user_id: item.user_id!, name: item.name || 'Merchant tanpa nama', role: 'merchant' as const, detail: 'Merchant aktif' })),
         ...(couriers || []).filter((item) => item.user_id && item.user_id !== user?.id && item.registration_status === 'APPROVED').map((item) => ({ id: item.id, user_id: item.user_id!, name: item.name || 'Kurir tanpa nama', role: 'courier' as const, detail: item.status === 'ACTIVE' ? 'Kurir aktif' : 'Kurir terdaftar' })),
-      ]);
+      ];
+      setTargets(nextTargets);
+      const conversationId = searchParams.get('conversationId');
+      if (conversationId) {
+        const { data: conversation } = await supabase
+          .from('chat_conversations')
+          .select('direct_target_user_id')
+          .eq('id', conversationId)
+          .maybeSingle();
+        if (!active) return;
+        const target = nextTargets.find((item) => item.user_id === conversation?.direct_target_user_id);
+        if (target) {
+          setTab(target.role);
+          setSelected(target);
+        }
+      }
       setLoading(false);
     };
     void loadTargets();
     return () => { active = false; };
-  }, [user]);
+  }, [searchParams, user]);
 
   const visibleTargets = useMemo(() => targets.filter((target) => target.role === tab && target.name.toLowerCase().includes(search.trim().toLowerCase())), [targets, tab, search]);
 

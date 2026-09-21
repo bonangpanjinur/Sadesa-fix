@@ -56,4 +56,9 @@ describe('resolveNotificationLink', () => {
     expect(resolveNotificationLink({ type: 'info', conversation_id: 'admin-courier-1' }, ['courier']))
       .toBe('/courier/chat?conversationId=admin-courier-1');
   });
+
+  it('repairs legacy buyer links for admin accounts', () => {
+    expect(resolveNotificationLink({ type: 'chat', link: '/buyer/chat?conversationId=admin-1' }, ['admin']))
+      .toBe('/admin/chat?conversationId=admin-1');
+  });
 });

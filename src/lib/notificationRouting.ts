@@ -77,6 +77,8 @@ export function resolveNotificationLink(input: NotificationRouteInput, roles: No
       link = link.replace(/^\/buyer\/chat/, '/courier/chat');
     } else if (link.startsWith('/buyer/chat') && roles.includes('admin_desa')) {
       link = link.replace(/^\/buyer\/chat/, '/desa/chat');
+    } else if (link.startsWith('/buyer/chat') && roles.includes('admin')) {
+      link = link.replace(/^\/buyer\/chat/, '/admin/chat');
     }
     if (/^\/chat(?:\/|\?|$)/.test(link)) {
       link = roles.includes('merchant') ? `/merchant${link}`
