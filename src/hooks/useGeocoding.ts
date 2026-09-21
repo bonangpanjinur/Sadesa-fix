@@ -6,6 +6,10 @@ export interface GeocodingResult {
   displayName?: string;
 }
 
+export interface AddressSuggestion extends GeocodingResult {
+  id: string;
+}
+
 export interface ReverseGeocodingResult {
   province?: string;
   city?: string;
@@ -151,6 +155,36 @@ export async function geocodeFreeformAddress(query: string): Promise<GeocodingRe
   } catch (error) {
     console.error('Free-form geocoding error:', error);
     return null;
+  }
+}
+
+/** Search a short list of Indonesian address suggestions for autocomplete. */
+export async function searchAddressSuggestions(query: string): Promise<AddressSuggestion[]> {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 3) return [];
+
+  try {
+    const params = new URLSearchParams({
+      q: normalizedQuery,
+      format: 'jsonv2',
+      addressdetails: '1',
+      limit: '5',
+      countrycodes: 'id',
+      'accept-language': 'id',
+    });
+    const results = await fetchNominatim<Array<{ place_id: number; lat: string; lon: string; display_name: string }>>(
+      `${NOMINATIM_URL}/search?${params.toString()}`,
+      `suggestions:${normalizedQuery.toLowerCase()}`,
+    );
+    return (results ?? []).map((result) => ({
+      id: String(result.place_id),
+      lat: Number(result.lat),
+      lng: Number(result.lon),
+      displayName: result.display_name,
+    }));
+  } catch (error) {
+    console.warn('Nominatim autocomplete unavailable:', error);
+    return [];
   }
 }
 

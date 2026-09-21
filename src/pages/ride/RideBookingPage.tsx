@@ -22,7 +22,7 @@ import { geocodeFreeformAddress, reverseGeocode, formatAddressSummary } from '@/
 import { calculateETA, formatETA } from '@/lib/etaCalculation';
 import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
 import { GoogleRideMap } from '@/components/transport/GoogleRideMap';
-import { GoogleAddressInput } from '@/components/transport/GoogleAddressInput';
+import { NominatimAddressInput } from '@/components/transport/NominatimAddressInput';
 
 interface FareSettings { base_fare: number; per_km_fare: number; min_fare: number; max_fare: number; }
 const DEFAULT_FARE: FareSettings = { base_fare: 5000, per_km_fare: 3000, min_fare: 5000, max_fare: 100000 };
@@ -375,7 +375,7 @@ export default function RideBookingPage() {
               mode === 'pickup' ? 'border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/30' : 'border-border bg-muted/30'
             }`}>
               <span className="h-3 w-3 shrink-0 rounded-full bg-emerald-500" />
-              <GoogleAddressInput
+              <NominatimAddressInput
                 id="ride-pickup-address"
                 placeholder="Ketik alamat titik jemput"
                 value={pickupAddress}
@@ -398,7 +398,7 @@ export default function RideBookingPage() {
               mode === 'destination' ? 'border-red-500 bg-red-50/50 ring-1 ring-red-500/30' : 'border-border bg-muted/30'
             }`}>
               <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" />
-              <GoogleAddressInput
+              <NominatimAddressInput
                 id="ride-destination-address"
                 placeholder="Ketik alamat tujuan"
                 value={destAddress}
