@@ -42,6 +42,17 @@ import { useAdminCategories } from '@/hooks/useAdminCategories';
 type MerchantFormData = z.infer<typeof merchantSchema>;
 
 const DRAFT_KEY = 'merchant_registration_draft';
+const WEEK_DAYS = [
+  { day: 1, label: 'Senin' }, { day: 2, label: 'Selasa' }, { day: 3, label: 'Rabu' },
+  { day: 4, label: 'Kamis' }, { day: 5, label: 'Jumat' }, { day: 6, label: 'Sabtu' }, { day: 0, label: 'Minggu' },
+];
+
+type ScheduleDay = { openTime: string; closeTime: string; isClosed: boolean };
+type WeeklySchedule = Record<number, ScheduleDay>;
+
+const createDefaultSchedule = (): WeeklySchedule => Object.fromEntries(
+  WEEK_DAYS.map(({ day }) => [day, { openTime: '08:00', closeTime: '21:00', isClosed: false }]),
+) as WeeklySchedule;
 
 const timeOptions = [
   '05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
@@ -65,6 +76,7 @@ interface DraftData {
   phone: string;
   openTime: string;
   closeTime: string;
+  weeklySchedule?: WeeklySchedule;
   addressDetail: string;
   selectedProvince: string;
   selectedCity: string;
@@ -84,6 +96,7 @@ export default function RegisterMerchantPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(createDefaultSchedule);
   const { data: categoryOptions = [], isLoading: categoryLoading } = useAdminCategories();
   const draftRestoredRef = useRef(false);
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,6 +132,10 @@ export default function RegisterMerchantPage() {
     resolver: zodResolver(merchantSchema),
     mode: 'onBlur',
     reValidateMode: 'onChange',
+    defaultValues: {
+      openTime: '08:00',
+      closeTime: '21:00',
+    },
   });
 
   // === DRAFT: Save ===
@@ -133,6 +150,7 @@ export default function RegisterMerchantPage() {
       phone: values.phone || '',
       openTime: values.openTime || '',
       closeTime: values.closeTime || '',
+      weeklySchedule,
       addressDetail: values.addressDetail || '',
       selectedProvince: addressData.provinceCode,
       selectedCity: addressData.regencyCode,
@@ -147,7 +165,7 @@ export default function RegisterMerchantPage() {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setHasDraft(true);
     } catch (err) { console.warn('[register-merchant] gagal menyimpan draf:', err); }
-  }, [getValues, referralCode, selectedCategoryIds, addressData, merchantLocation, halalStatus, halalCertUrl, ktpUrl]);
+  }, [getValues, referralCode, selectedCategoryIds, weeklySchedule, addressData, merchantLocation, halalStatus, halalCertUrl, ktpUrl]);
 
   // Debounced auto-save
   const scheduleSaveDraft = useCallback(() => {
@@ -182,6 +200,7 @@ export default function RegisterMerchantPage() {
       if (draft.phone) setValue('phone', draft.phone);
       if (draft.openTime) setValue('openTime', draft.openTime);
       if (draft.closeTime) setValue('closeTime', draft.closeTime);
+      if (draft.weeklySchedule) setWeeklySchedule(draft.weeklySchedule);
       if (draft.addressDetail) setValue('addressDetail', draft.addressDetail);
       if (draft.referralCode) setReferralCode(draft.referralCode);
       if (draft.merchantLocation) setMerchantLocation(draft.merchantLocation);
@@ -299,6 +318,11 @@ export default function RegisterMerchantPage() {
       return;
     }
     const primaryCategory = selectedCategories[0];
+    const openDays = WEEK_DAYS.filter(({ day }) => !weeklySchedule[day]?.isClosed);
+    if (openDays.length === 0) {
+      toast.error('Pilih minimal satu hari operasional.');
+      return;
+    }
     if (referralCode && referralCode.length > 0 && !referralInfo.isValid) {
       toast.error('Kode referral tidak valid');
       return;
@@ -326,6 +350,7 @@ export default function RegisterMerchantPage() {
       const isAutoApproveEnabled = true;
       const registrationStatus = 'APPROVED';
       const merchantStatus = 'ACTIVE';
+      const legacySchedule = weeklySchedule[1] || weeklySchedule[openDays[0].day];
 
       const { data: merchant, error } = await supabase.from('merchants').insert({
         name: data.name.trim(),
@@ -345,8 +370,8 @@ export default function RegisterMerchantPage() {
         status: merchantStatus,
         order_mode: 'ADMIN_ASSISTED',
         is_open: false,
-        open_time: data.openTime,
-        close_time: data.closeTime,
+        open_time: legacySchedule.openTime,
+        close_time: legacySchedule.closeTime,
         registered_at: new Date().toISOString(),
         location_lat: merchantLocation?.lat || null,
         location_lng: merchantLocation?.lng || null,
@@ -361,6 +386,17 @@ export default function RegisterMerchantPage() {
         selectedCategories.map((category) => ({ merchant_id: merchant.id, category_id: category.id })),
       );
       if (categoryError) throw categoryError;
+
+      const { error: scheduleError } = await supabase.from('merchant_operating_hours').insert(
+        WEEK_DAYS.map(({ day }) => ({
+          merchant_id: merchant.id,
+          day_of_week: day,
+          open_time: weeklySchedule[day].openTime,
+          close_time: weeklySchedule[day].closeTime,
+          is_closed: weeklySchedule[day].isClosed,
+        })),
+      );
+      if (scheduleError) throw scheduleError;
 
       // Role assignment is handled by database trigger (on_merchant_approval)
       // when registration_status is set to 'APPROVED'.
@@ -543,35 +579,35 @@ export default function RegisterMerchantPage() {
               {errors.phone && <p id="merchant-phone-error" role="alert" className="text-xs text-destructive">{errors.phone.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Jam Buka</Label>
-                <Select onValueChange={(val) => setValue('openTime', val)} value={watch('openTime') || undefined}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Buka" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeOptions.map((time) => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.openTime && <p className="text-xs text-destructive">{errors.openTime.message}</p>}
+            <div className="space-y-3">
+              <div>
+                <Label>Jadwal Operasional Mingguan</Label>
+                <p className="mt-1 text-xs text-muted-foreground">Atur jam berbeda untuk weekday, Sabtu, dan Minggu. Hari yang dicentang tutup tidak menerima pesanan.</p>
               </div>
-              <div className="space-y-2">
-                <Label>Jam Tutup</Label>
-                <Select onValueChange={(val) => setValue('closeTime', val)} value={watch('closeTime') || undefined}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Tutup" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeOptions.map((time) => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.closeTime && <p className="text-xs text-destructive">{errors.closeTime.message}</p>}
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                {WEEK_DAYS.map(({ day, label }) => {
+                  const schedule = weeklySchedule[day];
+                  return <div key={day} className="grid items-center gap-2 sm:grid-cols-[minmax(100px,1fr)_1fr_1fr_auto]">
+                    <span className="text-sm font-medium">{label}</span>
+                    <Select disabled={schedule.isClosed} onValueChange={(value) => setWeeklySchedule((current) => ({ ...current, [day]: { ...current[day], openTime: value } }))} value={schedule.openTime}>
+                      <SelectTrigger aria-label={`Jam buka ${label}`}><SelectValue placeholder="Buka" /></SelectTrigger>
+                      <SelectContent>{timeOptions.map((time) => <SelectItem key={time} value={time}>{time}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select disabled={schedule.isClosed} onValueChange={(value) => setWeeklySchedule((current) => ({ ...current, [day]: { ...current[day], closeTime: value } }))} value={schedule.closeTime}>
+                      <SelectTrigger aria-label={`Jam tutup ${label}`}><SelectValue placeholder="Tutup" /></SelectTrigger>
+                      <SelectContent>{timeOptions.map((time) => <SelectItem key={time} value={time}>{time}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Checkbox checked={schedule.isClosed} onCheckedChange={(checked) => setWeeklySchedule((current) => ({ ...current, [day]: { ...current[day], isClosed: Boolean(checked) } }))} />
+                      Tutup
+                    </label>
+                  </div>;
+                })}
               </div>
+              <input type="hidden" {...register('openTime')} />
+              <input type="hidden" {...register('closeTime')} />
+              {errors.openTime && <p className="text-xs text-destructive">{errors.openTime.message}</p>}
+              {errors.closeTime && <p className="text-xs text-destructive">{errors.closeTime.message}</p>}
             </div>
           </div>
 
