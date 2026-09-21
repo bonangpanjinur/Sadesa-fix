@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
 
 export interface OrderRow {
   id: string;
@@ -130,8 +131,8 @@ export function useRealtimeOrders({
           const newOrder = payload.new as OrderRow;
           setOrders((prev) => [newOrder, ...prev]);
           
-          // Play notification sound for new orders
-          playNotificationSound();
+          // Play the admin-configured order alarm without blocking realtime updates.
+          void playOrderNotificationSound('merchant');
           
           toast.info('Pesanan baru masuk!', {
             description: `Pesanan dari ${newOrder.delivery_name || 'Pelanggan'}`,
@@ -225,35 +226,4 @@ export function useRealtimeOrders({
     loadingMore,
     hasMore,
   };
-}
-
-// Simple notification sound
-function playNotificationSound() {
-  try {
-    const audioContext = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = 800;
-    oscillator.type = 'sine';
-    gainNode.gain.value = 0.1;
-    
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.2);
-    
-    // Second beep
-    setTimeout(() => {
-      const osc2 = audioContext.createOscillator();
-      osc2.connect(gainNode);
-      osc2.frequency.value = 1000;
-      osc2.type = 'sine';
-      osc2.start(audioContext.currentTime);
-      osc2.stop(audioContext.currentTime + 0.2);
-    }, 250);
-  } catch (e) {
-    // Audio not supported or blocked
-  }
 }

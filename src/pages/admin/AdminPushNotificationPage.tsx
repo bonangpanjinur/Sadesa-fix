@@ -12,12 +12,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  Bell, Save, Send, TestTube, CheckCircle, AlertCircle,
+  Bell, Save, Send, TestTube, CheckCircle, AlertCircle, Volume2, Upload,
   Loader2, Key, Users, Info, Eye, EyeOff, RefreshCw,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { generateVapidKeyPair } from '@/lib/vapid';
+import {
+  DEFAULT_ORDER_SOUND_SETTINGS,
+  normalizeOrderNotificationSoundSettings,
+  ORDER_SOUND_PRESET_LABELS,
+  ORDER_SOUND_SETTINGS_KEY,
+  previewOrderNotificationSound,
+  clearOrderNotificationSoundSettingsCache,
+  type OrderNotificationSoundSettings,
+} from '@/lib/orderNotificationSound';
 
 
 interface PushSettings {
@@ -40,6 +49,9 @@ export default function AdminPushNotificationPage() {
   const [saving, setSaving] = useState(false);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [soundSettings, setSoundSettings] = useState<OrderNotificationSoundSettings>(DEFAULT_ORDER_SOUND_SETTINGS);
+  const [soundSaving, setSoundSaving] = useState(false);
+  const [soundUploading, setSoundUploading] = useState(false);
 
   // Test push state
   const [testUserId, setTestUserId] = useState('');
@@ -59,7 +71,68 @@ export default function AdminPushNotificationPage() {
   useEffect(() => {
     fetchSettings();
     fetchSubscriberCount();
+    fetchSoundSettings();
   }, []);
+
+  const fetchSoundSettings = async () => {
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', ORDER_SOUND_SETTINGS_KEY)
+      .maybeSingle();
+    setSoundSettings(normalizeOrderNotificationSoundSettings(data?.value));
+  };
+
+  const handleSaveSoundSettings = async () => {
+    setSoundSaving(true);
+    try {
+      const normalized = normalizeOrderNotificationSoundSettings(soundSettings);
+      const { error } = await supabase.from('app_settings').upsert({
+        key: ORDER_SOUND_SETTINGS_KEY,
+        value: normalized,
+        category: 'notification',
+        description: 'Pengaturan suara alarm pesanan masuk untuk merchant dan kurir',
+      }, { onConflict: 'key' });
+      if (error) throw error;
+      setSoundSettings(normalized);
+      clearOrderNotificationSoundSettingsCache();
+      toast.success('Pengaturan suara pesanan berhasil disimpan');
+    } catch {
+      toast.error('Gagal menyimpan pengaturan suara pesanan');
+    } finally {
+      setSoundSaving(false);
+    }
+  };
+
+  const handleSoundUpload = async (file: File) => {
+    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Format audio harus MP3, WAV, OGG, atau M4A');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ukuran audio maksimal 5 MB');
+      return;
+    }
+    setSoundUploading(true);
+    try {
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'mp3';
+      const path = `order-alarm-${Date.now()}.${extension}`;
+      const { error } = await supabase.storage.from('notification-sounds').upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: '3600',
+      });
+      if (error) throw error;
+      const { data } = supabase.storage.from('notification-sounds').getPublicUrl(path);
+      setSoundSettings((current) => ({ ...current, preset: 'custom', custom_audio_url: data.publicUrl }));
+      toast.success('Audio custom berhasil diunggah. Klik simpan untuk mengaktifkannya.');
+    } catch {
+      toast.error('Gagal mengunggah audio custom');
+    } finally {
+      setSoundUploading(false);
+    }
+  };
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -233,6 +306,119 @@ export default function AdminPushNotificationPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="border-primary/20 bg-primary/[0.03]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Volume2 className="h-5 w-5 text-primary" />
+              Alarm Pesanan Masuk
+            </CardTitle>
+            <CardDescription>
+              Atur suara yang diputar saat pesanan baru masuk di dashboard merchant dan kurir. Browser tetap memerlukan satu interaksi pengguna sebelum audio dapat diputar otomatis.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {([
+                ['enabled', 'Aktifkan alarm global'],
+                ['merchant_enabled', 'Alarm merchant'],
+                ['courier_enabled', 'Alarm kurir'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={soundSettings[key]}
+                    onChange={(event) => setSoundSettings((current) => ({ ...current, [key]: event.target.checked }))}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="order-sound-preset">Preset suara</Label>
+                <select
+                  id="order-sound-preset"
+                  value={soundSettings.preset}
+                  onChange={(event) => setSoundSettings((current) => ({ ...current, preset: event.target.value as OrderNotificationSoundSettings['preset'] }))}
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {Object.entries(ORDER_SOUND_PRESET_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="order-sound-volume">Volume: {Math.round(soundSettings.volume * 100)}%</Label>
+                <input
+                  id="order-sound-volume"
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  value={soundSettings.volume}
+                  onChange={(event) => setSoundSettings((current) => ({ ...current, volume: Number(event.target.value) }))}
+                  className="mt-4 w-full accent-primary"
+                />
+              </div>
+              <div>
+                <Label htmlFor="order-sound-repeat">Jumlah pengulangan: {soundSettings.repeat_count}x</Label>
+                <input
+                  id="order-sound-repeat"
+                  type="range"
+                  min="1"
+                  max="6"
+                  step="1"
+                  value={soundSettings.repeat_count}
+                  onChange={(event) => setSoundSettings((current) => ({ ...current, repeat_count: Number(event.target.value) }))}
+                  className="mt-4 w-full accent-primary"
+                />
+              </div>
+              <div>
+                <Label htmlFor="order-sound-gap">Jeda antar bunyi: {soundSettings.repeat_gap_ms} ms</Label>
+                <input
+                  id="order-sound-gap"
+                  type="range"
+                  min="250"
+                  max="3000"
+                  step="50"
+                  value={soundSettings.repeat_gap_ms}
+                  onChange={(event) => setSoundSettings((current) => ({ ...current, repeat_gap_ms: Number(event.target.value) }))}
+                  className="mt-4 w-full accent-primary"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-dashed bg-background p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium">Audio custom</p>
+                  <p className="text-xs text-muted-foreground">MP3, WAV, OGG, atau M4A — maksimal 5 MB.</p>
+                </div>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-muted">
+                  <Upload className="mr-2 h-4 w-4" />
+                  {soundUploading ? 'Mengunggah...' : 'Upload audio'}
+                  <input type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4" className="hidden" disabled={soundUploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleSoundUpload(file); event.currentTarget.value = ''; }} />
+                </label>
+              </div>
+              {soundSettings.custom_audio_url && (
+                <p className="mt-2 truncate text-xs text-muted-foreground">Audio aktif: {soundSettings.custom_audio_url}</p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => void previewOrderNotificationSound(soundSettings)}>
+                <Volume2 className="mr-2 h-4 w-4" /> Preview suara
+              </Button>
+              <Button onClick={() => void handleSaveSoundSettings()} disabled={soundSaving || soundUploading}>
+                {soundSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Simpan alarm
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="config">
           <TabsList className="grid w-full grid-cols-3">

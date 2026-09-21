@@ -19,6 +19,7 @@ import { OrderChat } from '@/components/chat/OrderChat';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
 import { getRoadRoute } from '@/lib/routeCalculation';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
+import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
 
 const pickupIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -87,7 +88,7 @@ export default function CourierRidesPage() {
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
   const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
   const prevRideCount = useRef(0);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const prevOfferCount = useRef(0);
 
   // Fetch courier info
   const { data: courierInfo, isLoading: courierLoading } = useQuery<CourierInfo | null>({
@@ -219,31 +220,15 @@ export default function CourierRidesPage() {
     }
   };
 
-  // Sound notification when new rides come in
-  const playNotificationSound = useCallback(() => {
-    try {
-      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
-      const ctx = audioCtxRef.current;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.4);
-    } catch { /* Audio not available */ }
-  }, []);
-
   useEffect(() => {
-    if (availableRides.length > prevRideCount.current && prevRideCount.current > 0 && soundEnabled) {
-      playNotificationSound();
+    const hasNewRide = availableRides.length > prevRideCount.current && prevRideCount.current > 0;
+    const hasNewOffer = deliveryOffers.length > prevOfferCount.current && prevOfferCount.current > 0;
+    if ((hasNewRide || hasNewOffer) && soundEnabled) {
+      void playOrderNotificationSound('courier');
     }
     prevRideCount.current = availableRides.length;
-  }, [availableRides.length, soundEnabled, playNotificationSound]);
+    prevOfferCount.current = deliveryOffers.length;
+  }, [availableRides.length, deliveryOffers.length, soundEnabled]);
 
   const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const R = 6371;
