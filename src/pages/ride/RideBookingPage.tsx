@@ -369,48 +369,48 @@ export default function RideBookingPage() {
           animate={{ y: 0, opacity: 1 }}
           className="relative z-10 bg-card border-t border-border rounded-t-2xl shadow-lg px-4 pt-4 pb-6 space-y-3"
         >
-          {/* Input fields */}
+          {/* Address inputs are intentionally independent from the map-mode controls. */}
           <div className="space-y-2">
-            <div
-              onClick={() => setMode('pickup')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-sm transition ${
-                mode === 'pickup' ? 'border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/30' : 'border-border bg-muted/30'
-              }`}
-            >
-              <div className="w-3 h-3 rounded-full bg-emerald-500 flex-shrink-0" />
+            <label className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+              mode === 'pickup' ? 'border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/30' : 'border-border bg-muted/30'
+            }`}>
+              <span className="h-3 w-3 shrink-0 rounded-full bg-emerald-500" />
               <Input
-                placeholder="Titik jemput"
+                id="ride-pickup-address"
+                type="text"
+                inputMode="text"
+                autoComplete="street-address"
+                placeholder="Ketik alamat titik jemput"
                 value={pickupAddress}
                 onFocus={() => setMode('pickup')}
-                className="border-0 bg-transparent p-0 h-auto text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-                onClick={(event) => event.stopPropagation()}
                 onChange={(event) => {
                   manualAddressRef.current.pickup = true;
                   setPickupLocation(null);
                   setPickupAddress(event.target.value);
                 }}
+                className="relative z-10 h-auto min-w-0 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
               />
-            </div>
-            <div
-              onClick={() => setMode('destination')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left text-sm transition ${
-                mode === 'destination' ? 'border-red-500 bg-red-50/50 ring-1 ring-red-500/30' : 'border-border bg-muted/30'
-              }`}
-            >
-              <div className="w-3 h-3 rounded-full bg-red-500 flex-shrink-0" />
+            </label>
+            <label className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+              mode === 'destination' ? 'border-red-500 bg-red-50/50 ring-1 ring-red-500/30' : 'border-border bg-muted/30'
+            }`}>
+              <span className="h-3 w-3 shrink-0 rounded-full bg-red-500" />
               <Input
-                placeholder="Mau ke mana?"
+                id="ride-destination-address"
+                type="text"
+                inputMode="text"
+                autoComplete="street-address"
+                placeholder="Ketik alamat tujuan"
                 value={destAddress}
                 onFocus={() => setMode('destination')}
-                className="border-0 bg-transparent p-0 h-auto text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
-                onClick={(event) => event.stopPropagation()}
                 onChange={(event) => {
                   manualAddressRef.current.destination = true;
                   setDestLocation(null);
                   setDestAddress(event.target.value);
                 }}
+                className="relative z-10 h-auto min-w-0 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
               />
-            </div>
+            </label>
           </div>
           <p className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
             <MapPin className="h-3 w-3 text-primary" />
