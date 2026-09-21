@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Loader2, MapPin } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import { loadGoogleMaps } from '@/lib/googleMaps';
+import { CircleMarker, MapContainer, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 type Point = { lat: number; lng: number };
 
@@ -22,6 +24,56 @@ interface GoogleRideMapProps {
 }
 
 const DEFAULT_CENTER = { lat: -7.3274, lng: 108.2207 };
+
+function OpenStreetMapClickHandler({ onMapClick }: { onMapClick: (point: Point) => void }) {
+  useMapEvents({
+    click: (event) => onMapClick({ lat: event.latlng.lat, lng: event.latlng.lng }),
+  });
+  return null;
+}
+
+function OpenStreetMapViewport({ pickupLocation, destinationLocation }: Pick<GoogleRideMapProps, 'pickupLocation' | 'destinationLocation'>) {
+  const map = useMap();
+  useEffect(() => {
+    const points = [pickupLocation, destinationLocation].filter((point): point is Point => point !== null);
+    if (points.length > 1) {
+      map.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [40, 40], maxZoom: 16 });
+    } else if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], 15, { animate: true });
+    }
+  }, [destinationLocation, map, pickupLocation]);
+  return null;
+}
+
+function OpenStreetMapRideFallback({
+  center,
+  pickupLocation,
+  destinationLocation,
+  drivers,
+  route,
+  mode,
+  onMapClick,
+}: GoogleRideMapProps) {
+  return (
+    <div className="relative h-full min-h-[320px] w-full">
+      <MapContainer center={[center.lat, center.lng]} zoom={14} className="h-full min-h-[320px] w-full" scrollWheelZoom zoomControl>
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <OpenStreetMapClickHandler onMapClick={onMapClick} />
+        <OpenStreetMapViewport pickupLocation={pickupLocation} destinationLocation={destinationLocation} />
+        {pickupLocation && <CircleMarker center={[pickupLocation.lat, pickupLocation.lng]} radius={11} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#10b981', fillOpacity: 1 }} />}
+        {destinationLocation && <CircleMarker center={[destinationLocation.lat, destinationLocation.lng]} radius={11} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#ef4444', fillOpacity: 1 }} />}
+        {drivers.map((driver) => <CircleMarker key={driver.id} center={[driver.lat, driver.lng]} radius={8} pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#2563eb', fillOpacity: 1 }} />)}
+        {route.length > 1 && <Polyline positions={route} pathOptions={{ color: '#059669', weight: 4, opacity: 0.85 }} />}
+      </MapContainer>
+      <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold shadow-sm backdrop-blur">
+        Tap peta untuk pilih {mode === 'pickup' ? 'pickup' : 'tujuan'} · OpenStreetMap
+      </div>
+    </div>
+  );
+}
 
 export function GoogleRideMap({
   center,
@@ -127,16 +179,7 @@ export function GoogleRideMap({
           </div>
         </div>
       )}
-      {status === 'error' && (
-        <Card className="absolute inset-4 flex items-center justify-center border-amber-200 bg-amber-50 p-4 text-amber-900">
-          <div className="max-w-sm text-center">
-            <AlertCircle className="mx-auto mb-2 h-6 w-6 text-amber-600" />
-            <p className="text-sm font-semibold">Google Maps belum dikonfigurasi</p>
-            <p className="mt-1 text-xs leading-relaxed">Tambahkan VITE_GOOGLE_MAPS_API_KEY pada environment aplikasi untuk mengaktifkan peta.</p>
-            <p className="mt-2 flex items-center justify-center gap-1 text-[10px] text-amber-700"><MapPin className="h-3 w-3" /> Mode aktif: pilih {mode === 'pickup' ? 'pickup' : 'tujuan'}</p>
-          </div>
-        </Card>
-      )}
+      {status === 'error' && <OpenStreetMapRideFallback {...{ center, pickupLocation, destinationLocation, drivers, route, mode, onMapClick }} />}
     </div>
   );
 }
