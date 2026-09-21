@@ -24,6 +24,7 @@ interface GoogleRideMapProps {
 }
 
 const DEFAULT_CENTER = { lat: -7.3274, lng: 108.2207 };
+const hasGoogleMapsKey = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
 
 function OpenStreetMapClickHandler({ onMapClick }: { onMapClick: (point: Point) => void }) {
   useMapEvents({
@@ -90,12 +91,14 @@ export function GoogleRideMap({
   const markersRef = useRef<google.maps.Marker[]>([]);
   const routeRef = useRef<google.maps.Polyline | null>(null);
   const onMapClickRef = useRef(onMapClick);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(hasGoogleMapsKey ? 'loading' : 'error');
 
   onMapClickRef.current = onMapClick;
 
   useEffect(() => {
     let disposed = false;
+    if (!hasGoogleMapsKey) return;
+
     loadGoogleMaps().then(() => {
       if (disposed || !mapElement.current) return;
       const map = new google.maps.Map(mapElement.current, {
@@ -114,7 +117,7 @@ export function GoogleRideMap({
       setStatus('ready');
       onReady?.();
     }).catch((error: unknown) => {
-      console.error('Google Maps failed to load:', error);
+      console.warn('Google Maps tidak tersedia, menggunakan OpenStreetMap:', error);
       if (!disposed) setStatus('error');
     });
 
@@ -171,15 +174,20 @@ export function GoogleRideMap({
 
   return (
     <div className="relative h-full min-h-[320px] w-full">
-      <div ref={mapElement} className="h-full min-h-[320px] w-full" />
-      {status === 'loading' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
-          <div className="flex items-center gap-2 rounded-full bg-background px-4 py-2 text-xs shadow">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" /> Memuat Google Maps...
-          </div>
-        </div>
+      {status === 'error' ? (
+        <OpenStreetMapRideFallback {...{ center, pickupLocation, destinationLocation, drivers, route, mode, onMapClick }} />
+      ) : (
+        <>
+          <div ref={mapElement} className="h-full min-h-[320px] w-full" />
+          {status === 'loading' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted/80">
+              <div className="flex items-center gap-2 rounded-full bg-background px-4 py-2 text-xs shadow">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" /> Memuat Google Maps...
+              </div>
+            </div>
+          )}
+        </>
       )}
-      {status === 'error' && <OpenStreetMapRideFallback {...{ center, pickupLocation, destinationLocation, drivers, route, mode, onMapClick }} />}
     </div>
   );
 }
