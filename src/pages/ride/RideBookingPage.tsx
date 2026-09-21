@@ -441,10 +441,6 @@ export default function RideBookingPage() {
                   <p className="font-bold text-primary text-base">{formatPrice(estimatedFare)}</p>
                 </div>
               </div>
-              <Button className="w-full h-12 text-sm font-bold rounded-xl" onClick={() => setShowConfirm(true)} disabled={submitting}>
-                <Bike className="h-4 w-4 mr-2" />
-                Pesan Ojek
-              </Button>
             </motion.div>
           )}
 
@@ -456,6 +452,19 @@ export default function RideBookingPage() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      {canOrder && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-background/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur">
+          <Button
+            className="pointer-events-auto mx-auto flex h-12 w-full max-w-2xl rounded-xl text-sm font-bold shadow-lg"
+            onClick={() => setShowConfirm(true)}
+            disabled={submitting}
+          >
+            <Bike className="mr-2 h-4 w-4" />
+            Pesan Ojek · {formatPrice(estimatedFare)}
+          </Button>
+        </div>
+      )}
 
       {/* Booking Confirmation Dialog */}
       <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
