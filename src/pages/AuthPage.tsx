@@ -13,7 +13,7 @@ import { z } from 'zod';
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, 'Nama minimal 2 karakter').max(100, 'Nama terlalu panjang'),
-  email: z.string().email('Email tidak valid'),
+  email: z.string().trim().email('Masukkan alamat email aktif yang valid'),
   password: z.string()
     .min(8, 'Password minimal 8 karakter')
     .regex(/[A-Za-z]/, 'Password harus mengandung huruf')
@@ -25,7 +25,7 @@ const signUpSchema = z.object({
 });
 
 const signInSchema = z.object({
-  email: z.string().email('Email tidak valid'),
+  email: z.string().trim().email('Masukkan alamat email aktif yang valid'),
   password: z.string().min(1, 'Password wajib diisi'),
 });
 
@@ -104,9 +104,11 @@ export default function AuthPage() {
         if (error) {
           toast({
             title: 'Gagal masuk',
-            description: error.message === 'Invalid login credentials' 
-              ? 'Email atau password salah' 
-              : error.message,
+            description: error.message === 'Invalid login credentials'
+              ? 'Email atau password salah'
+              : error.message.toLowerCase().includes('email not confirmed')
+                ? 'Email belum dikonfirmasi. Silakan klik tautan verifikasi di inbox Anda.'
+                : error.message,
             variant: 'destructive',
           });
         } else {
@@ -127,9 +129,9 @@ export default function AuthPage() {
           });
         } else {
           if (data?.session) {
-            toast({ title: 'Akun berhasil didaftarkan dan otomatis terverifikasi!' });
+            toast({ title: 'Akun berhasil didaftarkan.' });
           } else {
-            navigate('/email-confirmation', { state: { email: formData.email } });
+            navigate('/email-confirmation', { state: { email: formData.email.trim() } });
           }
         }
       }
