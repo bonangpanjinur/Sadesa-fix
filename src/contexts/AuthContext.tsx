@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/auth';
 import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole } from '@/lib/authRoles';
+import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 
 const AUTH_CHANNEL_NAME = 'desamart_auth';
 const AUTH_INIT_TIMEOUT_MS = 8_000;
@@ -220,8 +221,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUserRoles]);
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    const emailResult = signupEmailSchema.safeParse(email);
+    if (!emailResult.success) {
+      return {
+        data: { user: null, session: null },
+        error: new Error(emailResult.error.issues[0]?.message ?? 'Email tidak valid'),
+      };
+    }
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizeEmail(email),
       password,
       options: {
         emailRedirectTo: window.location.origin,

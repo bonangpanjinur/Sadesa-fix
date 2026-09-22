@@ -9,11 +9,12 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { getRedirectPathForRoles } from '@/types/auth';
+import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
   fullName: z.string().min(2, 'Nama minimal 2 karakter').max(100, 'Nama terlalu panjang'),
-  email: z.string().trim().email('Masukkan alamat email aktif yang valid'),
+  email: signupEmailSchema,
   password: z.string()
     .min(8, 'Password minimal 8 karakter')
     .regex(/[A-Za-z]/, 'Password harus mengandung huruf')
@@ -25,7 +26,7 @@ const signUpSchema = z.object({
 });
 
 const signInSchema = z.object({
-  email: z.string().trim().email('Masukkan alamat email aktif yang valid'),
+  email: signupEmailSchema,
   password: z.string().min(1, 'Password wajib diisi'),
 });
 
@@ -100,7 +101,7 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        const { error } = await signIn(formData.email.trim(), formData.password);
+        const { error } = await signIn(normalizeEmail(formData.email), formData.password);
         if (error) {
           toast({
             title: 'Gagal masuk',
@@ -117,7 +118,7 @@ export default function AuthPage() {
         }
       } else {
         const { data, error } = await signUp(
-          formData.email.trim(),
+          normalizeEmail(formData.email),
           formData.password,
           formData.fullName.trim(),
         );
@@ -131,7 +132,7 @@ export default function AuthPage() {
           if (data?.session) {
             toast({ title: 'Akun berhasil didaftarkan.' });
           } else {
-            navigate('/email-confirmation', { state: { email: formData.email.trim() } });
+            navigate('/email-confirmation', { state: { email: normalizeEmail(formData.email) } });
           }
         }
       }
@@ -237,7 +238,7 @@ export default function AuthPage() {
                 className="pl-10"
               />
             </div>
-            <p className="text-[10px] text-muted-foreground italic">masukan email yang aktif</p>
+            <p className="text-[10px] text-muted-foreground italic">Gunakan email yang benar-benar aktif. Tautan verifikasi akan dikirim ke inbox Anda.</p>
             {errors.email && (
               <p id="email-error" role="alert" className="text-xs text-destructive">{errors.email}</p>
             )}
