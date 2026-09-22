@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
-  Users, Search, Ban, CheckCircle, Eye, Filter, Download, 
+  Users, Search, Ban, CheckCircle, Eye, Filter, Download, CalendarDays, Copy,
   MoreHorizontal, ChevronLeft, ChevronRight, UserPlus, 
   Mail, Lock, Phone, User, Shield, AlertCircle, XCircle, Settings2
 } from 'lucide-react';
@@ -80,6 +80,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
@@ -306,6 +307,21 @@ export default function AdminUsersPage() {
     setSelectedRoles(prev =>
       prev.includes(roleId) ? prev.filter(r => r !== roleId) : [...prev, roleId]
     );
+  };
+
+  const openDetailDialog = (user: UserProfile) => {
+    setSelectedUser(user);
+    setDetailDialogOpen(true);
+  };
+
+  const handleCopyUserId = async () => {
+    if (!selectedUser) return;
+    try {
+      await navigator.clipboard.writeText(selectedUser.userId);
+      toast.success('ID pengguna disalin');
+    } catch {
+      toast.error('ID pengguna tidak dapat disalin');
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -546,7 +562,7 @@ export default function AdminUsersPage() {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48">
-                                  <DropdownMenuItem className="gap-2">
+                                  <DropdownMenuItem className="gap-2" onClick={() => openDetailDialog(user)}>
                                     <Eye className="h-4 w-4" /> Lihat Detail
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="gap-2" onClick={() => openRoleDialog(user)}>
@@ -642,6 +658,109 @@ export default function AdminUsersPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* User Detail Dialog */}
+        <Dialog
+          open={detailDialogOpen}
+          onOpenChange={(open) => {
+            setDetailDialogOpen(open);
+            if (!open) setSelectedUser(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-[520px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3">
+                <Avatar className="h-11 w-11 border">
+                  <AvatarImage src={selectedUser?.avatarUrl || undefined} />
+                  <AvatarFallback className="bg-primary/5 text-primary font-bold">
+                    {selectedUser?.fullName.substring(0, 2).toUpperCase() || 'US'}
+                  </AvatarFallback>
+                </Avatar>
+                <span>Detail Pengguna</span>
+              </DialogTitle>
+              <DialogDescription>
+                Informasi akun dan status akses pengguna.
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedUser && (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{selectedUser.fullName}</p>
+                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">{selectedUser.userId}</p>
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={handleCopyUserId} aria-label="Salin ID pengguna">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Nomor telepon</p>
+                    <p className="mt-1 flex items-center gap-2 text-sm font-medium">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      {selectedUser.phone || 'Belum diisi'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Terdaftar pada</p>
+                    <p className="mt-1 flex items-center gap-2 text-sm font-medium">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      {format(new Date(selectedUser.createdAt), 'dd MMMM yyyy', { locale: idLocale })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold">Status akses</p>
+                    {selectedUser.isBlocked ? (
+                      <Badge variant="destructive" className="gap-1"><Ban className="h-3 w-3" /> Diblokir</Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1 border-green-200 bg-green-50 text-green-600"><CheckCircle className="h-3 w-3" /> Aktif</Badge>
+                    )}
+                  </div>
+                  {selectedUser.isBlocked && (
+                    <div className="mt-3 rounded-lg bg-destructive/5 p-3 text-sm">
+                      <p className="font-medium text-destructive">Alasan blokir</p>
+                      <p className="mt-1 text-muted-foreground">{selectedUser.blockReason || 'Tidak ada alasan yang dicatat.'}</p>
+                      {selectedUser.blockedAt && (
+                        <p className="mt-2 text-xs text-muted-foreground">Diblokir pada {format(new Date(selectedUser.blockedAt), 'dd MMMM yyyy, HH:mm', { locale: idLocale })}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <p className="mb-2 text-sm font-semibold">Role pengguna</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedUser.roles.map((role) => (
+                      <Badge key={role} variant={getRoleBadgeVariant(role)} className="uppercase">
+                        {AVAILABLE_ROLES.find((item) => item.id === role)?.label || role}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button type="button" variant="outline" onClick={() => setDetailDialogOpen(false)}>Tutup</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!selectedUser) return;
+                  setDetailDialogOpen(false);
+                  openRoleDialog(selectedUser);
+                }}
+              >
+                <Settings2 className="mr-2 h-4 w-4" /> Kelola Role
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Add User Dialog */}
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
