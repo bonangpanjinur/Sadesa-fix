@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
+import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { toast } from 'sonner';
 
 export default function ForgotPasswordPage() {
@@ -28,6 +29,11 @@ export default function ForgotPasswordPage() {
     }
 
     const normalizedEmail = normalizeEmail(email);
+    const resetLimit = checkPersistentRateLimit(normalizedEmail, 'passwordReset', RATE_LIMITS.passwordReset);
+    if (!resetLimit.allowed) {
+      setError(`Batas permintaan reset tercapai. Coba lagi dalam ${Math.ceil(resetLimit.resetIn / 60000)} menit.`);
+      return;
+    }
 
     setLoading(true);
 
@@ -41,7 +47,7 @@ export default function ForgotPasswordPage() {
 
       setEmail(normalizedEmail);
       setSent(true);
-      toast.success('Link reset password terkirim!');
+      toast.success('Jika email terdaftar, link reset password telah dikirim.');
     } catch (error: unknown) {
       console.error('Reset password error:', error);
       toast.error(error instanceof Error ? error.message : 'Gagal mengirim email reset password');
@@ -72,10 +78,10 @@ export default function ForgotPasswordPage() {
               <CheckCircle className="h-10 w-10 text-primary" />
             </div>
             <h1 className="text-xl font-bold text-foreground mb-2">
-              Email Terkirim!
+              Periksa Email Anda
             </h1>
             <p className="text-muted-foreground text-sm mb-6">
-              Kami telah mengirim link untuk reset password ke <strong>{email}</strong>. 
+              Jika <strong>{email}</strong> terdaftar di SaDesa, kami akan mengirimkan link reset password.
               Silakan cek inbox atau folder spam Anda.
             </p>
             <Button onClick={() => navigate('/auth')} className="w-full">
