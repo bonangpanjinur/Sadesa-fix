@@ -12,6 +12,12 @@ CREATE TABLE IF NOT EXISTS public.marketplace_checkout_idempotency (
 ALTER TABLE public.marketplace_checkout_idempotency ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.marketplace_checkout_idempotency FROM PUBLIC, anon, authenticated;
 
+-- Keep the legacy six-argument implementation private and unambiguous. The
+-- seven-argument idempotent wrapper below has defaults, so leaving both names
+-- active makes a six-argument call resolve ambiguously in PostgreSQL.
+ALTER FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric)
+  RENAME TO create_marketplace_checkout_legacy;
+
 CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
@@ -58,7 +64,7 @@ BEGIN
     RAISE EXCEPTION 'Pembayaran online dan transfer hanya tersedia untuk checkout satu toko' USING ERRCODE = '22023';
   END IF;
 
-  v_result := public.create_marketplace_checkout(
+  v_result := public.create_marketplace_checkout_legacy(
     p_items, p_delivery, p_delivery_type, p_payment_method, p_voucher_id, p_distance_km
   );
   INSERT INTO public.marketplace_checkout_idempotency(user_id, checkout_key, result)
