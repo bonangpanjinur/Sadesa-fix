@@ -236,6 +236,7 @@ export async function fetchProducts(): Promise<Product[]> {
           )
         )
       `)
+      .order('created_at', { ascending: false })
       .limit(200),
   ]);
 
@@ -281,6 +282,7 @@ export async function fetchProducts(): Promise<Product[]> {
 
     return {
       id: p.id,
+      createdAt: p.created_at,
       merchantId: p.merchant_id,
       merchantName: merchant?.name || '',
       merchantVillage: merchant?.villages?.name || '',

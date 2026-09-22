@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, ArrowUpDown, UtensilsCrossed, Search, SlidersHorizontal } from 'lucide-react';
+import { MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ProductCard } from '../components/ProductCard';
 import { Skeleton } from '../components/ui/skeleton';
+import { Button } from '../components/ui/button';
 import { fetchProducts } from '../lib/api';
 import { useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
@@ -35,14 +36,10 @@ function normalize(value: string | undefined) {
   return (value || '').toLowerCase().trim();
 }
 
-function isFoodProduct(product: Product) {
-  const category = normalize(product.category);
-  return ['kuliner', 'makanan', 'minuman', 'camilan', 'sembako', 'snack', 'kopi'].some((keyword) => category.includes(keyword));
-}
-
 function matchesFoodType(product: Product, type: FoodType) {
   if (type === 'all') return true;
   const haystack = `${normalize(product.category)} ${normalize(product.name)} ${normalize(product.description)}`;
+  if (type === 'produk-desa') return /produk|kriya|kerajinan|anyaman|pertanian|peternakan|desa/.test(haystack);
   if (type === 'minuman') return /minum|kopi|teh|jus|susu|es |cokelat|cafe|latte|smoothie|drink/.test(haystack);
   if (type === 'camilan') return /camil|snack|goreng|keripik|roti|kue|dessert|jajan/.test(haystack);
   if (type === 'sembako') return /sembako|beras|minyak|gula|telur|bumbu/.test(haystack);
@@ -54,10 +51,10 @@ export default function ProductsPage() {
   const initialType = (searchParams.get('type') as FoodType | null) || 'all';
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ ...defaultFoodFilters, type: initialType });
-  const [sortMode, setSortMode] = useState<SortMode>('nearest');
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
   const { location: userLocation } = useUserLocation();
 
-  const { data: products = [], isLoading: loading } = useQuery<Product[]>({
+  const { data: products = [], isLoading: loading, isError, refetch } = useQuery<Product[]>({
     queryKey: ['all-products'],
     queryFn: fetchProducts,
     staleTime: 120_000,
@@ -65,7 +62,6 @@ export default function ProductsPage() {
 
   const filteredAndSortedProducts = useMemo(() => {
     let result = products.filter((product) => {
-      if (!isFoodProduct(product)) return false;
       const query = normalize(searchQuery);
       const haystack = `${normalize(product.name)} ${normalize(product.description)} ${normalize(product.merchantName)} ${normalize(product.category)}`;
       if (query && !haystack.includes(query)) return false;
@@ -83,7 +79,7 @@ export default function ProductsPage() {
         break;
       case 'cheapest': result = [...result].sort((a, b) => a.price - b.price); break;
       case 'expensive': result = [...result].sort((a, b) => b.price - a.price); break;
-      case 'newest': break;
+      case 'newest': result = [...result].sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
     }
     return result;
   }, [products, searchQuery, foodFilters, sortMode, userLocation]);
@@ -109,28 +105,27 @@ export default function ProductsPage() {
 
       <div className="border-b border-border/40 bg-card px-5 pb-4 pt-4">
         <div className="mb-3 flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><UtensilsCrossed className="h-5 w-5" /></div>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><PackageOpen className="h-5 w-5" /></div>
           <div>
-            <h1 className="font-heading text-lg font-extrabold text-foreground">Makanan & Minuman</h1>
-            <p className="text-xs text-muted-foreground">Cari menu yang ingin kamu nikmati hari ini.</p>
+            <h1 className="font-heading text-lg font-extrabold text-foreground">Katalog produk</h1>
+            <p className="text-xs text-muted-foreground">Temukan produk lokal dari merchant sekitar.</p>
           </div>
         </div>
 
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari nasi, kopi, ayam, camilan..." aria-label="Cari makanan dan minuman" className="h-11 w-full rounded-2xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10" />
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari produk atau toko" aria-label="Cari produk atau toko" className="h-11 w-full rounded-2xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10" />
           </div>
           <FoodFilterSheet filters={foodFilters} onFiltersChange={setFoodFilters} activeFilterCount={activeFilterCount} />
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {([
-            ['all', 'Semua menu'],
-            ['makanan', 'Makanan'],
-            ['minuman', 'Minuman'],
-            ['camilan', 'Camilan'],
-            ['sembako', 'Kebutuhan dapur'],
+            ['all', 'Semua'],
+            ['makanan', 'Kuliner'],
+            ['produk-desa', 'Produk desa'],
+            ['sembako', 'Sembako'],
           ] as const).map(([value, label]) => (
             <button key={value} type="button" onClick={() => handleTypeChange(value)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95', foodFilters.type === value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80')}>
               {label}
@@ -142,13 +137,13 @@ export default function ProductsPage() {
           <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
             <SelectTrigger className="h-9 flex-1 rounded-xl text-xs"><ArrowUpDown className="mr-1.5 h-3.5 w-3.5" /><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="newest">Terbaru</SelectItem>
               {userLocation && <SelectItem value="nearest">Terdekat dari saya</SelectItem>}
               <SelectItem value="cheapest">Harga terendah</SelectItem>
               <SelectItem value="expensive">Harga tertinggi</SelectItem>
-              <SelectItem value="newest">Menu terbaru</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground"><SlidersHorizontal className="h-3.5 w-3.5" />{activeFilterCount ? `${activeFilterCount} filter aktif` : 'Filter pintar'}</div>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground"><SlidersHorizontal className="h-3.5 w-3.5" />{activeFilterCount ? `${activeFilterCount} filter aktif` : 'Filter katalog'}</div>
         </div>
       </div>
 
@@ -158,11 +153,17 @@ export default function ProductsPage() {
 
       <div className="flex-1 overflow-y-auto pb-24">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 py-4">
-          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat menu...' : `${filteredAndSortedProducts.length} menu ditemukan`}</span><span className="text-xs text-muted-foreground">Makanan & minuman</span></div>
+          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat katalog...' : `${filteredAndSortedProducts.length} produk ditemukan`}</span><span className="text-xs text-muted-foreground">Produk terbaru</span></div>
           {loading ? (
             <div className="grid grid-cols-2 gap-3">{Array.from({ length: 6 }).map((_, index) => <ProductSkeleton key={index} />)}</div>
+          ) : isError ? (
+            <div className="rounded-2xl border border-dashed border-destructive/30 bg-destructive/5 px-5 py-10 text-center">
+              <p className="font-semibold text-foreground">Katalog belum dapat dimuat</p>
+              <p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">Periksa koneksi internetmu lalu coba lagi.</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => refetch()} className="mt-4 rounded-full">Coba lagi</Button>
+            </div>
           ) : filteredAndSortedProducts.length === 0 ? (
-            <div className="py-12 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted"><UtensilsCrossed className="h-8 w-8 text-muted-foreground" /></div><p className="font-semibold text-foreground">Menu belum ditemukan</p><p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">Coba ganti kata kunci atau kurangi filter makanan dan minuman.</p></div>
+            <div className="py-12 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div><p className="font-semibold text-foreground">Produk belum ditemukan</p><p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">Coba ganti kata kunci atau kurangi filter katalog.</p></div>
           ) : (
             <div className="grid grid-cols-2 gap-3">{filteredAndSortedProducts.map((product, index) => <ProductCard key={product.id} product={product} index={index} showCategoryBadge />)}</div>
           )}

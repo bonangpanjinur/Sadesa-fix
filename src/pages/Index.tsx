@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed, Receipt, Truck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -10,13 +10,12 @@ import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
-import { ContextualRecommendation } from '@/components/home/ContextualRecommendation';
 import { 
   fetchProducts, 
   fetchVillages, 
   fetchTourism,
 } from '@/lib/api';
-import { fetchActiveHomepageAds, fetchBannerPromotions, incrementPromotionView, incrementPromotionClick, type MerchantAd } from '@/lib/promotions';
+import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
@@ -69,9 +68,6 @@ const Index = () => {
   // pengaturan desa wisata tetap dipertahankan agar bisa diaktifkan kembali.
   const HIDDEN_VILLAGE_FEATURES = new Set(['popular_tourism', 'villages']);
   const navigate = useNavigate();
-  const [visibleProductCount, setVisibleProductCount] = useState(12);
-  const [promoFilter, setPromoFilter] = useState<'semua' | 'makanan' | 'minuman' | 'produk'>('semua');
-  const [showContextualRecommendation, setShowContextualRecommendation] = useState(true);
   
   const { getEnabledSections } = useHomepageLayout();
   const { getHomepageCategories } = useCategories();
@@ -181,22 +177,9 @@ const Index = () => {
     staleTime: 120_000,
   });
 
-  const { data: sponsoredAds = [] } = useQuery<MerchantAd[]>({
-    queryKey: ['homepage-sponsored-ads'],
-    queryFn: fetchActiveHomepageAds,
-    staleTime: 60_000,
-  });
-
-
-
   const loading = productsLoading || villagesLoading || tourismLoading;
 
   // Sort data by proximity to user location
-  const sortedProducts = useMemo(() => {
-    if (!userLocation) return products;
-    return sortByDistance(products, userLocation.lat, userLocation.lng);
-  }, [products, userLocation]);
-
   const sortedVillages = useMemo(() => {
     if (!userLocation) return villages;
     return sortByDistance(villages, userLocation.lat, userLocation.lng);
@@ -207,22 +190,17 @@ const Index = () => {
     return sortByDistance(tourismSpots, userLocation.lat, userLocation.lng);
   }, [tourismSpots, userLocation]);
 
-  const promoProducts = sortedProducts.filter(p => p.isPromo);
-  const filteredPromoProducts = useMemo(() => {
-    if (promoFilter === 'semua') return promoProducts;
-    return promoProducts.filter((product) => {
-      const haystack = `${product.name} ${product.description} ${product.category}`.toLowerCase();
-      const isKuliner = product.category.toLowerCase() === 'kuliner';
-      const isDrink = /minum|kopi|teh|jus|susu|es |cokelat|cafe|cappuccino|latte/.test(haystack);
-      if (promoFilter === 'makanan') return isKuliner && !isDrink;
-      if (promoFilter === 'minuman') return isKuliner && isDrink;
-      return !isKuliner;
-    });
-  }, [promoFilter, promoProducts]);
-  const culinaryProductCategories = new Set(['kuliner', 'makanan', 'minuman', 'camilan']);
-  const nearbyFoodProducts = sortedProducts.filter((product) =>
-    culinaryProductCategories.has(product.category.trim().toLowerCase()),
-  );
+  // Beranda masih tahap validasi awal: tanpa transaksi/rating, gunakan sinyal
+  // yang netral dan mudah dipahami pengguna, yaitu produk yang baru ditambahkan.
+  const newestProducts = useMemo(() => (
+    [...products]
+      .sort((a, b) => {
+        const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 6)
+  ), [products]);
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
@@ -294,11 +272,6 @@ const Index = () => {
           </section>
         );
 
-      case 'contextual-recommendation':
-        return showContextualRecommendation ? (
-          <ContextualRecommendation onDismiss={() => setShowContextualRecommendation(false)} />
-        ) : null;
-      
       case 'popular_tourism':
         if (tourismLoading) return <CarouselSkeleton count={3} />;
         if (tourismError)
@@ -337,113 +310,46 @@ const Index = () => {
         ) : null;
       
       case 'promo':
-        if (productsLoading) return <CarouselSkeleton count={3} />;
-        // Promo is optional content. If the product query fails or there are
-        // no eligible promo products yet, keep the homepage clean and omit the
-        // entire section instead of showing an error/retry card.
-        if (productsError || promoProducts.length === 0 || filteredPromoProducts.length === 0) return null;
-        return (
-          <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-[linear-gradient(135deg,hsl(8_100%_98%),hsl(42_100%_97%))] px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.45)]">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(4_78%_47%_/_0.1)] text-primary">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="font-heading text-base font-bold text-foreground">Promo Kuliner & Produk</h2>
-                <p className="text-[10px] text-muted-foreground">Pilihan lokal dengan harga spesial</p>
-              </div>
-            </div>
-            <div className="mb-4 flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-              {([
-                ['semua', 'Semua'],
-                ['makanan', 'Makanan'],
-                ['minuman', 'Minuman'],
-                ['produk', 'Produk'],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setPromoFilter(value)}
-                  className={`shrink-0 rounded-full px-3.5 py-2 text-[10px] font-bold transition active:scale-95 ${promoFilter === value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-white text-muted-foreground ring-1 ring-orange-100 hover:text-primary'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
-              {filteredPromoProducts.map((product, idx) => (
-                <div key={product.id} className="min-w-[160px]">
-                  <ProductCard product={product} index={idx} distanceKm={getProductDistance(product)} deliveryEta={getDeliveryEta(getProductDistance(product))} />
-                </div>
-              ))}
-            </div>
-          </section>
-        );
+        return null;
       
       case 'recommendations':
         if (productsLoading) return <ProductGridSkeleton count={6} />;
         if (productsError) return <MerchantJoinCard onRetry={() => refetchProducts()} />;
         return (
-          <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-white px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]">
+          <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-white px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
             <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
-                <UtensilsCrossed className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
               </div>
               <div>
-                <h2 className="font-heading text-base font-bold text-foreground">Kuliner di Sekitar Kamu</h2>
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <MapPin className="h-2.5 w-2.5" />
-                  {userLocation?.source === 'gps' ? 'Berdasarkan lokasi Anda' : 'Sekitar Anda'}
-                </p>
+                <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
+                <p className="text-[10px] text-muted-foreground">Temukan pilihan yang baru hadir di SaDesa.</p>
               </div>
-              {nearbyFoodProducts.length > 0 && (
-                <Link
-                  to="/products?category=kuliner"
-                  className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
-                >
-                  Lihat Semua
-                  <ChevronRight className="h-3 w-3" />
-                </Link>
-              )}
+              <Link to="/products" className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline">Lihat semua <ChevronRight className="h-3 w-3" /></Link>
             </div>
-            {nearbyFoodProducts.length > 0 ? (
-              <>
-                <div className="grid grid-cols-2 gap-3.5 pb-2">
-                  {nearbyFoodProducts.slice(0, visibleProductCount).map((product, idx) => (
+            {newestProducts.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3.5 pb-2">
+                  {newestProducts.map((product, idx) => (
                     <ProductCard
                       key={product.id}
                       product={product}
                       index={idx}
-                      showCategoryBadge={true}
+                      showCategoryBadge
                       distanceKm={getProductDistance(product)}
                       deliveryEta={getDeliveryEta(getProductDistance(product))}
                     />
                   ))}
-                </div>
-                {nearbyFoodProducts.length > visibleProductCount && (
-                  <div className="flex justify-center pb-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setVisibleProductCount(prev => prev + 12)}
-                      className="text-xs"
-                    >
-                      <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
-                      Lihat Lebih Banyak ({nearbyFoodProducts.length - visibleProductCount} lagi)
-                    </Button>
-                  </div>
-                )}
-              </>
+              </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-center">
                 <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-100 text-orange-700">
                   <Store className="h-5 w-5" />
                 </div>
                 <h3 className="font-heading text-sm font-extrabold text-foreground">
-                  Yuk daftar jadi pedagang sekarang
+                  Belum ada produk baru
                 </h3>
                 <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
-                  Jadilah merchant kuliner pertama di sekitar sini dan mulai jual makananmu.
+                  Produk dari merchant lokal akan muncul di sini setelah ditambahkan.
                 </p>
                 <Button asChild size="sm" className="mt-4 rounded-full px-5">
                   <Link to="/register/merchant">Daftar Jadi Pedagang</Link>
@@ -506,14 +412,6 @@ const Index = () => {
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto pb-32">
         <>
-          {showContextualRecommendation && (
-            <ContextualRecommendation
-              products={products}
-              sponsoredAds={sponsoredAds}
-              userLocation={userLocation}
-              onDismiss={() => setShowContextualRecommendation(false)}
-            />
-          )}
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           {enabledSections.some((section) => section.id === 'categories') && renderSection('categories')}
           {activeOrder && (

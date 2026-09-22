@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-export type FoodType = 'all' | 'makanan' | 'minuman' | 'camilan' | 'sembako';
+export type FoodType = 'all' | 'makanan' | 'minuman' | 'camilan' | 'sembako' | 'produk-desa';
 
 export interface FoodFilters {
   type: FoodType;
@@ -72,14 +72,14 @@ export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount }:
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2"><Filter className="h-5 w-5" /> Filter makanan & minuman</SheetTitle>
-          <SheetDescription>Temukan menu yang paling sesuai dengan kebutuhanmu.</SheetDescription>
+          <SheetTitle className="flex items-center gap-2"><Filter className="h-5 w-5" /> Filter katalog</SheetTitle>
+          <SheetDescription>Temukan produk lokal yang paling sesuai dengan kebutuhanmu.</SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="mt-5 h-[calc(100vh-210px)] pr-4">
           <div className="space-y-7">
             <section className="space-y-3">
-              <Label className="text-sm font-semibold">Jenis menu</Label>
+              <Label className="text-sm font-semibold">Kategori produk</Label>
               <div className="grid grid-cols-2 gap-2">
                 {([
                   ['all', 'Semua menu'],
@@ -87,6 +87,7 @@ export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount }:
                   ['minuman', 'Minuman'],
                   ['camilan', 'Camilan'],
                   ['sembako', 'Sembako'],
+                  ['produk-desa', 'Produk desa'],
                 ] as const).map(([value, label]) => (
                   <Button key={value} type="button" variant={localFilters.type === value ? 'default' : 'outline'} className="justify-start" onClick={() => update({ type: value })}>
                     {localFilters.type === value && <Check className="mr-2 h-4 w-4" />}

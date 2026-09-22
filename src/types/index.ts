@@ -58,6 +58,7 @@ export type HalalStatus = 'NONE' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'REQUES
 
 export interface Product {
   id: string;
+  createdAt?: string;
   merchantId: string;
   merchantName: string;
   merchantVillage?: string;
