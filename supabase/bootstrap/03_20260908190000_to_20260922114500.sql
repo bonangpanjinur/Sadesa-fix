@@ -1,4 +1,10 @@
--- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_bf8562239f5f$
+BEGIN
+  EXECUTE $bootstrap_sql_bf8562239f5f$-- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
 -- DO NOT apply to an existing project with migration history.
 -- Consolidated range: 32_20260908190000_chat_notification_trigger_repair.sql .. 43_20260922114500_chat_image_attachments.sql
 
@@ -63,17 +69,28 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
--- ===== END BUNDLE: 32_20260908190000_chat_notification_trigger_repair.sql =====
+$$$bootstrap_sql_bf8562239f5f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bf8562239f5f$;
+
+DO $bootstrap_do_73ddd4ddd799$
+BEGIN
+  EXECUTE $bootstrap_sql_73ddd4ddd799$-- ===== END BUNDLE: 32_20260908190000_chat_notification_trigger_repair.sql =====
 
 -- ===== BEGIN BUNDLE: 33_20260908190000_ride_history_earnings_contract.sql =====
 -- Keep courier ride history and earnings connected to the ride lifecycle.
 -- This bundle is safe to replay and does not trust client-provided money fields.
 
 ALTER TABLE public.courier_earnings
-  ADD COLUMN IF NOT EXISTS ride_request_id uuid;
+  ADD COLUMN IF NOT EXISTS ride_request_id uuid$bootstrap_sql_73ddd4ddd799$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_73ddd4ddd799$;
 
-DO $$
+DO $bootstrap_do_54beccc9bb1f$
+BEGIN
+  EXECUTE $bootstrap_sql_54beccc9bb1f$DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1
@@ -87,16 +104,31 @@ BEGIN
       REFERENCES public.ride_requests(id)
       ON DELETE SET NULL;
   END IF;
-END $$;
+END $$$bootstrap_sql_54beccc9bb1f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_54beccc9bb1f$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_courier_earnings_ride_request
+DO $bootstrap_do_9ab258ca29ac$
+BEGIN
+  EXECUTE $bootstrap_sql_9ab258ca29ac$CREATE UNIQUE INDEX IF NOT EXISTS idx_courier_earnings_ride_request
   ON public.courier_earnings(ride_request_id)
-  WHERE type = 'RIDE' AND ride_request_id IS NOT NULL;
+  WHERE type = 'RIDE' AND ride_request_id IS NOT NULL$bootstrap_sql_9ab258ca29ac$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9ab258ca29ac$;
 
-CREATE INDEX IF NOT EXISTS idx_ride_requests_driver_history
-  ON public.ride_requests(driver_id, created_at DESC);
+DO $bootstrap_do_74bb7bdecf36$
+BEGIN
+  EXECUTE $bootstrap_sql_74bb7bdecf36$CREATE INDEX IF NOT EXISTS idx_ride_requests_driver_history
+  ON public.ride_requests(driver_id, created_at DESC)$bootstrap_sql_74bb7bdecf36$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_74bb7bdecf36$;
 
--- Backfill completed rides that predate the lifecycle ledger.
+DO $bootstrap_do_335685a380d5$
+BEGIN
+  EXECUTE $bootstrap_sql_335685a380d5$-- Backfill completed rides that predate the lifecycle ledger.
 INSERT INTO public.courier_earnings (
   courier_id,
   ride_request_id,
@@ -124,9 +156,15 @@ WHERE r.status = 'COMPLETED'
     FROM public.courier_earnings AS e
     WHERE e.ride_request_id = r.id
       AND e.type = 'RIDE'
-  );
+  )
+ON CONFLICT DO NOTHING$bootstrap_sql_335685a380d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_335685a380d5$;
 
--- Assignment must only be performed by the authenticated, active courier
+DO $bootstrap_do_a1d311dfea84$
+BEGIN
+  EXECUTE $bootstrap_sql_a1d311dfea84$-- Assignment must only be performed by the authenticated, active courier
 -- represented by p_courier_id.
 CREATE OR REPLACE FUNCTION public.accept_ride(p_ride_id uuid, p_courier_id uuid)
 RETURNS boolean
@@ -175,12 +213,22 @@ BEGIN
 
   RETURN true;
 END;
-$$;
+$$$bootstrap_sql_a1d311dfea84$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a1d311dfea84$;
 
--- Completion updates the ride and creates exactly one pending earning together.
-DROP FUNCTION IF EXISTS public.transition_ride_status(uuid, text);
+DO $bootstrap_do_9964b4959637$
+BEGIN
+  EXECUTE $bootstrap_sql_9964b4959637$-- Completion updates the ride and creates exactly one pending earning together.
+DROP FUNCTION IF EXISTS public.transition_ride_status(uuid, text)$bootstrap_sql_9964b4959637$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9964b4959637$;
 
-CREATE OR REPLACE FUNCTION public.transition_ride_status(
+DO $bootstrap_do_de99c0b2b3d2$
+BEGIN
+  EXECUTE $bootstrap_sql_de99c0b2b3d2$CREATE OR REPLACE FUNCTION public.transition_ride_status(
   p_ride_id uuid,
   p_to_status text
 )
@@ -263,46 +311,104 @@ BEGIN
 
   RETURN p_to_status;
 END;
-$$;
+$$$bootstrap_sql_de99c0b2b3d2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_de99c0b2b3d2$;
 
-REVOKE ALL ON FUNCTION public.accept_ride(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.accept_ride(uuid, uuid) TO authenticated;
+DO $bootstrap_do_951263e5f500$
+BEGIN
+  EXECUTE $bootstrap_sql_951263e5f500$REVOKE ALL ON FUNCTION public.accept_ride(uuid, uuid) FROM PUBLIC$bootstrap_sql_951263e5f500$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_951263e5f500$;
 
-REVOKE ALL ON FUNCTION public.transition_ride_status(uuid, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text) TO authenticated;
--- ===== END BUNDLE: 33_20260908190000_ride_history_earnings_contract.sql =====
+DO $bootstrap_do_c52c6aeb052a$
+BEGIN
+  EXECUTE $bootstrap_sql_c52c6aeb052a$GRANT EXECUTE ON FUNCTION public.accept_ride(uuid, uuid) TO authenticated$bootstrap_sql_c52c6aeb052a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c52c6aeb052a$;
+
+DO $bootstrap_do_ae79b09c5af8$
+BEGIN
+  EXECUTE $bootstrap_sql_ae79b09c5af8$REVOKE ALL ON FUNCTION public.transition_ride_status(uuid, text) FROM PUBLIC$bootstrap_sql_ae79b09c5af8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ae79b09c5af8$;
+
+DO $bootstrap_do_a60bb82a0aa7$
+BEGIN
+  EXECUTE $bootstrap_sql_a60bb82a0aa7$GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text) TO authenticated$bootstrap_sql_a60bb82a0aa7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a60bb82a0aa7$;
+
+DO $bootstrap_do_1bc5ce7f54bd$
+BEGIN
+  EXECUTE $bootstrap_sql_1bc5ce7f54bd$-- ===== END BUNDLE: 33_20260908190000_ride_history_earnings_contract.sql =====
 
 -- ===== BEGIN BUNDLE: 33_20260909100000_direct_chat_realtime.sql =====
 -- Direct in-app buyer/merchant chat.
 -- This extends the canonical conversation model without changing order/ride chat.
 
 ALTER TABLE public.chat_conversations
-  ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE;
+  ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE$bootstrap_sql_1bc5ce7f54bd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1bc5ce7f54bd$;
 
-ALTER TABLE public.chat_conversations
-  DROP CONSTRAINT IF EXISTS chat_conversations_context_type_check;
+DO $bootstrap_do_56a4d9d95512$
+BEGIN
+  EXECUTE $bootstrap_sql_56a4d9d95512$ALTER TABLE public.chat_conversations
+  DROP CONSTRAINT IF EXISTS chat_conversations_context_type_check$bootstrap_sql_56a4d9d95512$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_56a4d9d95512$;
 
-ALTER TABLE public.chat_conversations
+DO $bootstrap_do_84317da758f2$
+BEGIN
+  EXECUTE $bootstrap_sql_84317da758f2$ALTER TABLE public.chat_conversations
   ADD CONSTRAINT chat_conversations_context_type_check
-  CHECK (context_type IN ('order', 'ride', 'direct'));
+  CHECK (context_type IN ('order', 'ride', 'direct'))$bootstrap_sql_84317da758f2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_84317da758f2$;
 
-ALTER TABLE public.chat_conversations
-  DROP CONSTRAINT IF EXISTS chat_conversations_one_context;
+DO $bootstrap_do_68f7e8e6bcb4$
+BEGIN
+  EXECUTE $bootstrap_sql_68f7e8e6bcb4$ALTER TABLE public.chat_conversations
+  DROP CONSTRAINT IF EXISTS chat_conversations_one_context$bootstrap_sql_68f7e8e6bcb4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_68f7e8e6bcb4$;
 
-ALTER TABLE public.chat_conversations
+DO $bootstrap_do_35ac0f03615c$
+BEGIN
+  EXECUTE $bootstrap_sql_35ac0f03615c$ALTER TABLE public.chat_conversations
   ADD CONSTRAINT chat_conversations_one_context CHECK (
     (context_type = 'order' AND order_id IS NOT NULL AND ride_request_id IS NULL AND merchant_id IS NULL)
     OR
     (context_type = 'ride' AND ride_request_id IS NOT NULL AND order_id IS NULL AND merchant_id IS NULL)
     OR
     (context_type = 'direct' AND merchant_id IS NOT NULL AND order_id IS NULL AND ride_request_id IS NULL)
-  );
+  )$bootstrap_sql_35ac0f03615c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_35ac0f03615c$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_direct_merchant_uidx
+DO $bootstrap_do_55aa7be13f88$
+BEGIN
+  EXECUTE $bootstrap_sql_55aa7be13f88$CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_direct_merchant_uidx
   ON public.chat_conversations(merchant_id, conversation_type)
-  WHERE context_type = 'direct' AND merchant_id IS NOT NULL;
+  WHERE context_type = 'direct' AND merchant_id IS NOT NULL$bootstrap_sql_55aa7be13f88$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_55aa7be13f88$;
 
-CREATE OR REPLACE FUNCTION public.get_or_create_direct_chat(p_merchant_id uuid)
+DO $bootstrap_do_20cd39a07e23$
+BEGIN
+  EXECUTE $bootstrap_sql_20cd39a07e23$CREATE OR REPLACE FUNCTION public.get_or_create_direct_chat(p_merchant_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -351,11 +457,21 @@ BEGIN
 
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_20cd39a07e23$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_20cd39a07e23$;
 
-GRANT EXECUTE ON FUNCTION public.get_or_create_direct_chat(uuid) TO authenticated;
+DO $bootstrap_do_b6b6325cbcfe$
+BEGIN
+  EXECUTE $bootstrap_sql_b6b6325cbcfe$GRANT EXECUTE ON FUNCTION public.get_or_create_direct_chat(uuid) TO authenticated$bootstrap_sql_b6b6325cbcfe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b6b6325cbcfe$;
 
-DO $$
+DO $bootstrap_do_b24cddae2016$
+BEGIN
+  EXECUTE $bootstrap_sql_b24cddae2016$DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime'
@@ -366,17 +482,28 @@ BEGIN
     END;
   END IF;
 END;
-$$;
--- ===== END BUNDLE: 33_20260909100000_direct_chat_realtime.sql =====
+$$$bootstrap_sql_b24cddae2016$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b24cddae2016$;
+
+DO $bootstrap_do_8fe4e02467e4$
+BEGIN
+  EXECUTE $bootstrap_sql_8fe4e02467e4$-- ===== END BUNDLE: 33_20260909100000_direct_chat_realtime.sql =====
 
 -- ===== BEGIN BUNDLE: 34_20260909110000_chat_security_pair_isolation.sql =====
 -- Chat security hardening: pair-scoped direct conversations and immutable messages.
 -- Apply after 33_20260909100000_direct_chat_realtime.sql.
 
 ALTER TABLE public.chat_conversations
-  ADD COLUMN IF NOT EXISTS buyer_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
+  ADD COLUMN IF NOT EXISTS buyer_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE$bootstrap_sql_8fe4e02467e4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8fe4e02467e4$;
 
--- Existing direct conversations must have exactly one buyer before the new
+DO $bootstrap_do_d3df5a9a6761$
+BEGIN
+  EXECUTE $bootstrap_sql_d3df5a9a6761$-- Existing direct conversations must have exactly one buyer before the new
 -- pair-scoped key can be enabled. Ambiguous rows fail closed for manual repair.
 DO $$
 DECLARE
@@ -409,33 +536,63 @@ BEGIN
       USING ERRCODE = '23514';
   END IF;
 END;
-$$;
+$$$bootstrap_sql_d3df5a9a6761$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d3df5a9a6761$;
 
-ALTER TABLE public.chat_conversations
-  DROP CONSTRAINT IF EXISTS chat_conversations_one_context;
+DO $bootstrap_do_d463a6b1559a$
+BEGIN
+  EXECUTE $bootstrap_sql_d463a6b1559a$ALTER TABLE public.chat_conversations
+  DROP CONSTRAINT IF EXISTS chat_conversations_one_context$bootstrap_sql_d463a6b1559a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d463a6b1559a$;
 
-ALTER TABLE public.chat_conversations
+DO $bootstrap_do_0b9ea1edcdaf$
+BEGIN
+  EXECUTE $bootstrap_sql_0b9ea1edcdaf$ALTER TABLE public.chat_conversations
   ADD CONSTRAINT chat_conversations_one_context CHECK (
     (context_type = 'order' AND order_id IS NOT NULL AND ride_request_id IS NULL AND merchant_id IS NULL AND buyer_user_id IS NULL)
     OR
     (context_type = 'ride' AND ride_request_id IS NOT NULL AND order_id IS NULL AND merchant_id IS NULL AND buyer_user_id IS NULL)
     OR
     (context_type = 'direct' AND merchant_id IS NOT NULL AND buyer_user_id IS NOT NULL AND order_id IS NULL AND ride_request_id IS NULL)
-  );
+  )$bootstrap_sql_0b9ea1edcdaf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0b9ea1edcdaf$;
 
-DROP INDEX IF EXISTS public.chat_conversations_direct_merchant_uidx;
+DO $bootstrap_do_e51697ea266b$
+BEGIN
+  EXECUTE $bootstrap_sql_e51697ea266b$DROP INDEX IF EXISTS public.chat_conversations_direct_merchant_uidx$bootstrap_sql_e51697ea266b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e51697ea266b$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_direct_pair_uidx
+DO $bootstrap_do_e7e5bd6e44ad$
+BEGIN
+  EXECUTE $bootstrap_sql_e7e5bd6e44ad$CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_direct_pair_uidx
   ON public.chat_conversations(buyer_user_id, merchant_id, conversation_type)
   WHERE context_type = 'direct'
     AND buyer_user_id IS NOT NULL
-    AND merchant_id IS NOT NULL;
+    AND merchant_id IS NOT NULL$bootstrap_sql_e7e5bd6e44ad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e7e5bd6e44ad$;
 
-CREATE INDEX IF NOT EXISTS chat_conversations_direct_buyer_idx
+DO $bootstrap_do_212e0df8535b$
+BEGIN
+  EXECUTE $bootstrap_sql_212e0df8535b$CREATE INDEX IF NOT EXISTS chat_conversations_direct_buyer_idx
   ON public.chat_conversations(buyer_user_id, merchant_id)
-  WHERE context_type = 'direct';
+  WHERE context_type = 'direct'$bootstrap_sql_212e0df8535b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_212e0df8535b$;
 
-CREATE OR REPLACE FUNCTION public.get_or_create_direct_chat(p_merchant_id uuid)
+DO $bootstrap_do_e398e568e649$
+BEGIN
+  EXECUTE $bootstrap_sql_e398e568e649$CREATE OR REPLACE FUNCTION public.get_or_create_direct_chat(p_merchant_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -487,14 +644,30 @@ BEGIN
 
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_e398e568e649$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e398e568e649$;
 
--- Users must not mutate message rows to mark read. Read state is written only
+DO $bootstrap_do_909f7ca11927$
+BEGIN
+  EXECUTE $bootstrap_sql_909f7ca11927$-- Users must not mutate message rows to mark read. Read state is written only
 -- through mark_chat_conversation_read, while admin/service jobs retain access.
-DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages;
-DROP POLICY IF EXISTS "Users can update own chat messages read status" ON public.chat_messages;
+DROP POLICY IF EXISTS "Users can update own messages read status" ON public.chat_messages$bootstrap_sql_909f7ca11927$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_909f7ca11927$;
 
-CREATE OR REPLACE FUNCTION public.validate_chat_message_participants()
+DO $bootstrap_do_c2cc364a583e$
+BEGIN
+  EXECUTE $bootstrap_sql_c2cc364a583e$DROP POLICY IF EXISTS "Users can update own chat messages read status" ON public.chat_messages$bootstrap_sql_c2cc364a583e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c2cc364a583e$;
+
+DO $bootstrap_do_e34e18865996$
+BEGIN
+  EXECUTE $bootstrap_sql_e34e18865996$CREATE OR REPLACE FUNCTION public.validate_chat_message_participants()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -518,17 +691,45 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_e34e18865996$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e34e18865996$;
 
-DROP TRIGGER IF EXISTS chat_messages_validate_participants ON public.chat_messages;
-CREATE TRIGGER chat_messages_validate_participants
+DO $bootstrap_do_879d01facbc3$
+BEGIN
+  EXECUTE $bootstrap_sql_879d01facbc3$DROP TRIGGER IF EXISTS chat_messages_validate_participants ON public.chat_messages$bootstrap_sql_879d01facbc3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_879d01facbc3$;
+
+DO $bootstrap_do_282f9963c704$
+BEGIN
+  EXECUTE $bootstrap_sql_282f9963c704$CREATE TRIGGER chat_messages_validate_participants
 BEFORE INSERT ON public.chat_messages
 FOR EACH ROW
-EXECUTE FUNCTION public.validate_chat_message_participants();
+EXECUTE FUNCTION public.validate_chat_message_participants()$bootstrap_sql_282f9963c704$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_282f9963c704$;
 
-REVOKE UPDATE ON public.chat_messages FROM authenticated;
-GRANT UPDATE ON public.chat_messages TO authenticated;
--- ===== END BUNDLE: 34_20260909110000_chat_security_pair_isolation.sql =====
+DO $bootstrap_do_3157c2529499$
+BEGIN
+  EXECUTE $bootstrap_sql_3157c2529499$REVOKE UPDATE ON public.chat_messages FROM authenticated$bootstrap_sql_3157c2529499$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3157c2529499$;
+
+DO $bootstrap_do_69cd8dc0ecb8$
+BEGIN
+  EXECUTE $bootstrap_sql_69cd8dc0ecb8$GRANT UPDATE ON public.chat_messages TO authenticated$bootstrap_sql_69cd8dc0ecb8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_69cd8dc0ecb8$;
+
+DO $bootstrap_do_5727bd24417b$
+BEGIN
+  EXECUTE $bootstrap_sql_5727bd24417b$-- ===== END BUNDLE: 34_20260909110000_chat_security_pair_isolation.sql =====
 
 -- ===== BEGIN BUNDLE: 35_20260909120000_chat_message_retention.sql =====
 -- Chat message retention: soft delete at day 14, hard delete at day 30.
@@ -537,15 +738,25 @@ GRANT UPDATE ON public.chat_messages TO authenticated;
 ALTER TABLE public.chat_messages
   ADD COLUMN IF NOT EXISTS soft_delete_at timestamptz,
   ADD COLUMN IF NOT EXISTS hard_delete_at timestamptz,
-  ADD COLUMN IF NOT EXISTS deleted_reason text;
+  ADD COLUMN IF NOT EXISTS deleted_reason text$bootstrap_sql_5727bd24417b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5727bd24417b$;
 
--- Existing messages receive deterministic expiry dates based on created_at.
+DO $bootstrap_do_f6d50e952c49$
+BEGIN
+  EXECUTE $bootstrap_sql_f6d50e952c49$-- Existing messages receive deterministic expiry dates based on created_at.
 UPDATE public.chat_messages
 SET soft_delete_at = created_at + interval '14 days',
     hard_delete_at = created_at + interval '30 days'
-WHERE soft_delete_at IS NULL OR hard_delete_at IS NULL;
+WHERE soft_delete_at IS NULL OR hard_delete_at IS NULL$bootstrap_sql_f6d50e952c49$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f6d50e952c49$;
 
-DO $$
+DO $bootstrap_do_59b669527363$
+BEGIN
+  EXECUTE $bootstrap_sql_59b669527363$DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
@@ -556,16 +767,31 @@ BEGIN
       CHECK (hard_delete_at > soft_delete_at);
   END IF;
 END;
-$$;
+$$$bootstrap_sql_59b669527363$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_59b669527363$;
 
-CREATE INDEX IF NOT EXISTS chat_messages_soft_delete_idx
+DO $bootstrap_do_e0d1e43022a8$
+BEGIN
+  EXECUTE $bootstrap_sql_e0d1e43022a8$CREATE INDEX IF NOT EXISTS chat_messages_soft_delete_idx
   ON public.chat_messages(soft_delete_at, id)
-  WHERE deleted_at IS NULL;
+  WHERE deleted_at IS NULL$bootstrap_sql_e0d1e43022a8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e0d1e43022a8$;
 
-CREATE INDEX IF NOT EXISTS chat_messages_hard_delete_idx
-  ON public.chat_messages(hard_delete_at, id);
+DO $bootstrap_do_77038154c706$
+BEGIN
+  EXECUTE $bootstrap_sql_77038154c706$CREATE INDEX IF NOT EXISTS chat_messages_hard_delete_idx
+  ON public.chat_messages(hard_delete_at, id)$bootstrap_sql_77038154c706$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_77038154c706$;
 
-CREATE OR REPLACE FUNCTION public.set_chat_message_retention()
+DO $bootstrap_do_fb2e732ab5f6$
+BEGIN
+  EXECUTE $bootstrap_sql_fb2e732ab5f6$CREATE OR REPLACE FUNCTION public.set_chat_message_retention()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -583,15 +809,31 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_fb2e732ab5f6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fb2e732ab5f6$;
 
-DROP TRIGGER IF EXISTS chat_messages_set_retention ON public.chat_messages;
-CREATE TRIGGER chat_messages_set_retention
+DO $bootstrap_do_48bec44b13a0$
+BEGIN
+  EXECUTE $bootstrap_sql_48bec44b13a0$DROP TRIGGER IF EXISTS chat_messages_set_retention ON public.chat_messages$bootstrap_sql_48bec44b13a0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_48bec44b13a0$;
+
+DO $bootstrap_do_ba2ec836c685$
+BEGIN
+  EXECUTE $bootstrap_sql_ba2ec836c685$CREATE TRIGGER chat_messages_set_retention
 BEFORE INSERT ON public.chat_messages
 FOR EACH ROW
-EXECUTE FUNCTION public.set_chat_message_retention();
+EXECUTE FUNCTION public.set_chat_message_retention()$bootstrap_sql_ba2ec836c685$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ba2ec836c685$;
 
-CREATE OR REPLACE FUNCTION public.soft_delete_expired_chat_messages(
+DO $bootstrap_do_4be3982d2f93$
+BEGIN
+  EXECUTE $bootstrap_sql_4be3982d2f93$CREATE OR REPLACE FUNCTION public.soft_delete_expired_chat_messages(
   p_limit integer DEFAULT 500
 )
 RETURNS integer
@@ -625,9 +867,14 @@ BEGIN
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END;
-$$;
+$$$bootstrap_sql_4be3982d2f93$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4be3982d2f93$;
 
-CREATE OR REPLACE FUNCTION public.list_hard_expired_chat_messages(
+DO $bootstrap_do_9eb6addcd03c$
+BEGIN
+  EXECUTE $bootstrap_sql_9eb6addcd03c$CREATE OR REPLACE FUNCTION public.list_hard_expired_chat_messages(
   p_limit integer DEFAULT 500
 )
 RETURNS TABLE(id uuid, attachment_path text)
@@ -640,9 +887,14 @@ AS $$
   WHERE m.hard_delete_at <= now()
   ORDER BY m.hard_delete_at, m.id
   LIMIT LEAST(GREATEST(COALESCE(p_limit, 500), 1), 5000);
-$$;
+$$$bootstrap_sql_9eb6addcd03c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9eb6addcd03c$;
 
-CREATE OR REPLACE FUNCTION public.hard_delete_chat_messages(
+DO $bootstrap_do_995d5cad19c1$
+BEGIN
+  EXECUTE $bootstrap_sql_995d5cad19c1$CREATE OR REPLACE FUNCTION public.hard_delete_chat_messages(
   p_message_ids uuid[]
 )
 RETURNS integer
@@ -664,16 +916,56 @@ BEGIN
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END;
-$$;
+$$$bootstrap_sql_995d5cad19c1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_995d5cad19c1$;
 
-REVOKE ALL ON FUNCTION public.soft_delete_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.list_hard_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.hard_delete_chat_messages(uuid[]) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.soft_delete_expired_chat_messages(integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.list_hard_expired_chat_messages(integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.hard_delete_chat_messages(uuid[]) TO service_role;
+DO $bootstrap_do_bd10a44e38a4$
+BEGIN
+  EXECUTE $bootstrap_sql_bd10a44e38a4$REVOKE ALL ON FUNCTION public.soft_delete_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated$bootstrap_sql_bd10a44e38a4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bd10a44e38a4$;
 
--- Canonical cleanup is now delegated to the retention worker. Keep the legacy
+DO $bootstrap_do_1926df921c2c$
+BEGIN
+  EXECUTE $bootstrap_sql_1926df921c2c$REVOKE ALL ON FUNCTION public.list_hard_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated$bootstrap_sql_1926df921c2c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1926df921c2c$;
+
+DO $bootstrap_do_1f9631b2bca0$
+BEGIN
+  EXECUTE $bootstrap_sql_1f9631b2bca0$REVOKE ALL ON FUNCTION public.hard_delete_chat_messages(uuid[]) FROM PUBLIC, anon, authenticated$bootstrap_sql_1f9631b2bca0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1f9631b2bca0$;
+
+DO $bootstrap_do_411baff81a5f$
+BEGIN
+  EXECUTE $bootstrap_sql_411baff81a5f$GRANT EXECUTE ON FUNCTION public.soft_delete_expired_chat_messages(integer) TO service_role$bootstrap_sql_411baff81a5f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_411baff81a5f$;
+
+DO $bootstrap_do_4c406372fe27$
+BEGIN
+  EXECUTE $bootstrap_sql_4c406372fe27$GRANT EXECUTE ON FUNCTION public.list_hard_expired_chat_messages(integer) TO service_role$bootstrap_sql_4c406372fe27$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4c406372fe27$;
+
+DO $bootstrap_do_265eb33f2c14$
+BEGIN
+  EXECUTE $bootstrap_sql_265eb33f2c14$GRANT EXECUTE ON FUNCTION public.hard_delete_chat_messages(uuid[]) TO service_role$bootstrap_sql_265eb33f2c14$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_265eb33f2c14$;
+
+DO $bootstrap_do_7afde42e341a$
+BEGIN
+  EXECUTE $bootstrap_sql_7afde42e341a$-- Canonical cleanup is now delegated to the retention worker. Keep the legacy
 -- function name as a compatibility wrapper for existing operational tooling.
 CREATE OR REPLACE FUNCTION public.cleanup_expired_chats()
 RETURNS void
@@ -688,8 +980,14 @@ BEGIN
     AND auto_delete_at IS NOT NULL
     AND auto_delete_at <= now();
 END;
-$$;
--- ===== END BUNDLE: 35_20260909120000_chat_message_retention.sql =====
+$$$bootstrap_sql_7afde42e341a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7afde42e341a$;
+
+DO $bootstrap_do_24eee1d2f23e$
+BEGIN
+  EXECUTE $bootstrap_sql_24eee1d2f23e$-- ===== END BUNDLE: 35_20260909120000_chat_message_retention.sql =====
 
 -- ===== BEGIN BUNDLE: 36_20260909130000_chat_rls_rpc_abuse_control.sql =====
 -- Chat phase 3: database-owned authorization, canonical writes, and abuse control.
@@ -699,12 +997,35 @@ $$;
 -- through SECURITY DEFINER RPCs. Message identity and content are immutable;
 -- retention is the only supported message update.
 
-ALTER TABLE public.chat_conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_message_reads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_conversations ENABLE ROW LEVEL SECURITY$bootstrap_sql_24eee1d2f23e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_24eee1d2f23e$;
 
--- Remove legacy policies that allowed broad row mutation. The policies below
+DO $bootstrap_do_09368a0e0526$
+BEGIN
+  EXECUTE $bootstrap_sql_09368a0e0526$ALTER TABLE public.chat_participants ENABLE ROW LEVEL SECURITY$bootstrap_sql_09368a0e0526$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_09368a0e0526$;
+
+DO $bootstrap_do_84a0bd518462$
+BEGIN
+  EXECUTE $bootstrap_sql_84a0bd518462$ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY$bootstrap_sql_84a0bd518462$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_84a0bd518462$;
+
+DO $bootstrap_do_7b6e65495e08$
+BEGIN
+  EXECUTE $bootstrap_sql_7b6e65495e08$ALTER TABLE public.chat_message_reads ENABLE ROW LEVEL SECURITY$bootstrap_sql_7b6e65495e08$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7b6e65495e08$;
+
+DO $bootstrap_do_34d033f29d2f$
+BEGIN
+  EXECUTE $bootstrap_sql_34d033f29d2f$-- Remove legacy policies that allowed broad row mutation. The policies below
 -- are recreated explicitly so older database states fail closed as well.
 DO $$
 DECLARE
@@ -729,33 +1050,94 @@ BEGIN
     );
   END LOOP;
 END;
-$$;
+$$$bootstrap_sql_34d033f29d2f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_34d033f29d2f$;
 
-REVOKE ALL ON public.chat_conversations FROM anon, authenticated;
-REVOKE ALL ON public.chat_participants FROM anon, authenticated;
-REVOKE ALL ON public.chat_messages FROM anon, authenticated;
-REVOKE ALL ON public.chat_message_reads FROM anon, authenticated;
+DO $bootstrap_do_c1f6907fa73c$
+BEGIN
+  EXECUTE $bootstrap_sql_c1f6907fa73c$REVOKE ALL ON public.chat_conversations FROM anon, authenticated$bootstrap_sql_c1f6907fa73c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c1f6907fa73c$;
 
-GRANT SELECT ON public.chat_conversations TO authenticated;
-GRANT SELECT ON public.chat_participants TO authenticated;
-GRANT SELECT ON public.chat_messages TO authenticated;
-GRANT SELECT ON public.chat_message_reads TO authenticated;
+DO $bootstrap_do_ab71ea9670b8$
+BEGIN
+  EXECUTE $bootstrap_sql_ab71ea9670b8$REVOKE ALL ON public.chat_participants FROM anon, authenticated$bootstrap_sql_ab71ea9670b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ab71ea9670b8$;
 
-CREATE POLICY "Chat participants can view conversations"
+DO $bootstrap_do_1bf89dcbf3ce$
+BEGIN
+  EXECUTE $bootstrap_sql_1bf89dcbf3ce$REVOKE ALL ON public.chat_messages FROM anon, authenticated$bootstrap_sql_1bf89dcbf3ce$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1bf89dcbf3ce$;
+
+DO $bootstrap_do_d96314e357b7$
+BEGIN
+  EXECUTE $bootstrap_sql_d96314e357b7$REVOKE ALL ON public.chat_message_reads FROM anon, authenticated$bootstrap_sql_d96314e357b7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d96314e357b7$;
+
+DO $bootstrap_do_f65fb2b801f5$
+BEGIN
+  EXECUTE $bootstrap_sql_f65fb2b801f5$GRANT SELECT ON public.chat_conversations TO authenticated$bootstrap_sql_f65fb2b801f5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f65fb2b801f5$;
+
+DO $bootstrap_do_ea737b1e8eb7$
+BEGIN
+  EXECUTE $bootstrap_sql_ea737b1e8eb7$GRANT SELECT ON public.chat_participants TO authenticated$bootstrap_sql_ea737b1e8eb7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ea737b1e8eb7$;
+
+DO $bootstrap_do_3572fc219c69$
+BEGIN
+  EXECUTE $bootstrap_sql_3572fc219c69$GRANT SELECT ON public.chat_messages TO authenticated$bootstrap_sql_3572fc219c69$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3572fc219c69$;
+
+DO $bootstrap_do_fa90a4623313$
+BEGIN
+  EXECUTE $bootstrap_sql_fa90a4623313$GRANT SELECT ON public.chat_message_reads TO authenticated$bootstrap_sql_fa90a4623313$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fa90a4623313$;
+
+DO $bootstrap_do_8bfc6e71d0cd$
+BEGIN
+  EXECUTE $bootstrap_sql_8bfc6e71d0cd$CREATE POLICY "Chat participants can view conversations"
 ON public.chat_conversations FOR SELECT
 USING (
   public.is_chat_conversation_participant(id, auth.uid())
   OR public.chat_is_admin(auth.uid())
-);
+)$bootstrap_sql_8bfc6e71d0cd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8bfc6e71d0cd$;
 
-CREATE POLICY "Chat participants can view participant rows"
+DO $bootstrap_do_398e3d58e297$
+BEGIN
+  EXECUTE $bootstrap_sql_398e3d58e297$CREATE POLICY "Chat participants can view participant rows"
 ON public.chat_participants FOR SELECT
 USING (
   public.is_chat_conversation_participant(conversation_id, auth.uid())
   OR public.chat_is_admin(auth.uid())
-);
+)$bootstrap_sql_398e3d58e297$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_398e3d58e297$;
 
-CREATE POLICY "Participants can view conversation messages"
+DO $bootstrap_do_c9ee22c9f478$
+BEGIN
+  EXECUTE $bootstrap_sql_c9ee22c9f478$CREATE POLICY "Participants can view conversation messages"
 ON public.chat_messages FOR SELECT
 USING (
   conversation_id IS NOT NULL
@@ -763,9 +1145,14 @@ USING (
     public.is_chat_conversation_participant(conversation_id, auth.uid())
     OR public.chat_is_admin(auth.uid())
   )
-);
+)$bootstrap_sql_c9ee22c9f478$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c9ee22c9f478$;
 
-CREATE POLICY "Chat participants can view message reads"
+DO $bootstrap_do_cbabeaa5c517$
+BEGIN
+  EXECUTE $bootstrap_sql_cbabeaa5c517$CREATE POLICY "Chat participants can view message reads"
 ON public.chat_message_reads FOR SELECT
 USING (
   EXISTS (
@@ -775,9 +1162,14 @@ USING (
       AND public.is_chat_conversation_participant(m.conversation_id, auth.uid())
   )
   OR public.chat_is_admin(auth.uid())
-);
+)$bootstrap_sql_cbabeaa5c517$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cbabeaa5c517$;
 
--- Keep the old function name, but validate the caller before creating or
+DO $bootstrap_do_15170117e3a0$
+BEGIN
+  EXECUTE $bootstrap_sql_15170117e3a0$-- Keep the old function name, but validate the caller before creating or
 -- reactivating any participant rows.
 CREATE OR REPLACE FUNCTION public.get_or_create_chat_conversation(
   p_context_type text,
@@ -879,9 +1271,14 @@ BEGIN
 
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_15170117e3a0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_15170117e3a0$;
 
--- Direct chat remains pair-scoped and can only be opened by a buyer account.
+DO $bootstrap_do_59c844e7dc6f$
+BEGIN
+  EXECUTE $bootstrap_sql_59c844e7dc6f$-- Direct chat remains pair-scoped and can only be opened by a buyer account.
 CREATE OR REPLACE FUNCTION public.get_or_create_direct_chat(p_merchant_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -951,9 +1348,14 @@ BEGIN
 
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_59c844e7dc6f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_59c844e7dc6f$;
 
--- The read RPC is the only user write path for read cursors. A cursor may not
+DO $bootstrap_do_2c57ecda46ca$
+BEGIN
+  EXECUTE $bootstrap_sql_2c57ecda46ca$-- The read RPC is the only user write path for read cursors. A cursor may not
 -- point at a different conversation or at a message the caller cannot read.
 CREATE OR REPLACE FUNCTION public.mark_chat_conversation_read(
   p_conversation_id uuid,
@@ -1000,9 +1402,14 @@ BEGIN
     SET read_at = now();
   END IF;
 END;
-$$;
+$$$bootstrap_sql_2c57ecda46ca$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2c57ecda46ca$;
 
--- Canonical, idempotent message write. Sender, order context, message type,
+DO $bootstrap_do_b7d790de453a$
+BEGIN
+  EXECUTE $bootstrap_sql_b7d790de453a$-- Canonical, idempotent message write. Sender, order context, message type,
 -- and participant membership are derived or checked in the database.
 CREATE OR REPLACE FUNCTION public.send_chat_message(
   p_conversation_id uuid,
@@ -1110,9 +1517,14 @@ BEGIN
 
   RETURN v_message;
 END;
-$$;
+$$$bootstrap_sql_b7d790de453a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b7d790de453a$;
 
--- Prevent any future grant/policy regression from making messages mutable.
+DO $bootstrap_do_6a25476328f2$
+BEGIN
+  EXECUTE $bootstrap_sql_6a25476328f2$-- Prevent any future grant/policy regression from making messages mutable.
 CREATE OR REPLACE FUNCTION public.protect_chat_message_immutability()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1142,15 +1554,31 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_6a25476328f2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6a25476328f2$;
 
-DROP TRIGGER IF EXISTS chat_messages_protect_immutability ON public.chat_messages;
-CREATE TRIGGER chat_messages_protect_immutability
+DO $bootstrap_do_084306e6e746$
+BEGIN
+  EXECUTE $bootstrap_sql_084306e6e746$DROP TRIGGER IF EXISTS chat_messages_protect_immutability ON public.chat_messages$bootstrap_sql_084306e6e746$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_084306e6e746$;
+
+DO $bootstrap_do_4e892f16fe63$
+BEGIN
+  EXECUTE $bootstrap_sql_4e892f16fe63$CREATE TRIGGER chat_messages_protect_immutability
 BEFORE UPDATE ON public.chat_messages
 FOR EACH ROW
-EXECUTE FUNCTION public.protect_chat_message_immutability();
+EXECUTE FUNCTION public.protect_chat_message_immutability()$bootstrap_sql_4e892f16fe63$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4e892f16fe63$;
 
--- Re-check payload rules at the trigger boundary, including direct inserts
+DO $bootstrap_do_0234360557e0$
+BEGIN
+  EXECUTE $bootstrap_sql_0234360557e0$-- Re-check payload rules at the trigger boundary, including direct inserts
 -- from trusted server jobs or a future privileged integration.
 CREATE OR REPLACE FUNCTION public.validate_chat_message_payload()
 RETURNS trigger
@@ -1169,35 +1597,109 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_0234360557e0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0234360557e0$;
 
-DROP TRIGGER IF EXISTS chat_messages_validate_payload ON public.chat_messages;
-CREATE TRIGGER chat_messages_validate_payload
+DO $bootstrap_do_7d70444e9bdd$
+BEGIN
+  EXECUTE $bootstrap_sql_7d70444e9bdd$DROP TRIGGER IF EXISTS chat_messages_validate_payload ON public.chat_messages$bootstrap_sql_7d70444e9bdd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7d70444e9bdd$;
+
+DO $bootstrap_do_97963f544b97$
+BEGIN
+  EXECUTE $bootstrap_sql_97963f544b97$CREATE TRIGGER chat_messages_validate_payload
 BEFORE INSERT ON public.chat_messages
 FOR EACH ROW
-EXECUTE FUNCTION public.validate_chat_message_payload();
+EXECUTE FUNCTION public.validate_chat_message_payload()$bootstrap_sql_97963f544b97$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_97963f544b97$;
 
--- Explicit grants keep PostgREST from exposing the RPCs to anonymous callers.
+DO $bootstrap_do_c6d6611067ff$
+BEGIN
+  EXECUTE $bootstrap_sql_c6d6611067ff$-- Explicit grants keep PostgREST from exposing the RPCs to anonymous callers.
 REVOKE ALL ON FUNCTION public.get_or_create_chat_conversation(text, uuid, uuid, text)
-  FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.get_or_create_direct_chat(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.mark_chat_conversation_read(uuid, uuid)
-  FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.send_chat_message(uuid, uuid, text, uuid)
-  FROM PUBLIC, anon;
+  FROM PUBLIC, anon$bootstrap_sql_c6d6611067ff$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c6d6611067ff$;
 
-GRANT EXECUTE ON FUNCTION public.get_or_create_chat_conversation(text, uuid, uuid, text)
-  TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_or_create_direct_chat(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.mark_chat_conversation_read(uuid, uuid)
-  TO authenticated;
-GRANT EXECUTE ON FUNCTION public.send_chat_message(uuid, uuid, text, uuid)
-  TO authenticated;
+DO $bootstrap_do_5f033b276f6e$
+BEGIN
+  EXECUTE $bootstrap_sql_5f033b276f6e$REVOKE ALL ON FUNCTION public.get_or_create_direct_chat(uuid) FROM PUBLIC, anon$bootstrap_sql_5f033b276f6e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5f033b276f6e$;
 
--- Unread count is read-only, but must not be callable anonymously.
-REVOKE ALL ON FUNCTION public.get_chat_unread_count() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_chat_unread_count() TO authenticated;
--- ===== END BUNDLE: 36_20260909130000_chat_rls_rpc_abuse_control.sql =====
+DO $bootstrap_do_a88b1ed50a09$
+BEGIN
+  EXECUTE $bootstrap_sql_a88b1ed50a09$REVOKE ALL ON FUNCTION public.mark_chat_conversation_read(uuid, uuid)
+  FROM PUBLIC, anon$bootstrap_sql_a88b1ed50a09$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a88b1ed50a09$;
+
+DO $bootstrap_do_eb19cf815c65$
+BEGIN
+  EXECUTE $bootstrap_sql_eb19cf815c65$REVOKE ALL ON FUNCTION public.send_chat_message(uuid, uuid, text, uuid)
+  FROM PUBLIC, anon$bootstrap_sql_eb19cf815c65$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eb19cf815c65$;
+
+DO $bootstrap_do_26c1de69f7b8$
+BEGIN
+  EXECUTE $bootstrap_sql_26c1de69f7b8$GRANT EXECUTE ON FUNCTION public.get_or_create_chat_conversation(text, uuid, uuid, text)
+  TO authenticated$bootstrap_sql_26c1de69f7b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_26c1de69f7b8$;
+
+DO $bootstrap_do_19d93531bf04$
+BEGIN
+  EXECUTE $bootstrap_sql_19d93531bf04$GRANT EXECUTE ON FUNCTION public.get_or_create_direct_chat(uuid) TO authenticated$bootstrap_sql_19d93531bf04$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_19d93531bf04$;
+
+DO $bootstrap_do_b349bb224353$
+BEGIN
+  EXECUTE $bootstrap_sql_b349bb224353$GRANT EXECUTE ON FUNCTION public.mark_chat_conversation_read(uuid, uuid)
+  TO authenticated$bootstrap_sql_b349bb224353$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b349bb224353$;
+
+DO $bootstrap_do_ed1bd241ab34$
+BEGIN
+  EXECUTE $bootstrap_sql_ed1bd241ab34$GRANT EXECUTE ON FUNCTION public.send_chat_message(uuid, uuid, text, uuid)
+  TO authenticated$bootstrap_sql_ed1bd241ab34$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ed1bd241ab34$;
+
+DO $bootstrap_do_00f5542e002b$
+BEGIN
+  EXECUTE $bootstrap_sql_00f5542e002b$-- Unread count is read-only, but must not be callable anonymously.
+REVOKE ALL ON FUNCTION public.get_chat_unread_count() FROM PUBLIC, anon$bootstrap_sql_00f5542e002b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_00f5542e002b$;
+
+DO $bootstrap_do_c1cae8a0958d$
+BEGIN
+  EXECUTE $bootstrap_sql_c1cae8a0958d$GRANT EXECUTE ON FUNCTION public.get_chat_unread_count() TO authenticated$bootstrap_sql_c1cae8a0958d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c1cae8a0958d$;
+
+DO $bootstrap_do_8e68459b1676$
+BEGIN
+  EXECUTE $bootstrap_sql_8e68459b1676$-- ===== END BUNDLE: 36_20260909130000_chat_rls_rpc_abuse_control.sql =====
 
 -- ===== BEGIN BUNDLE: 37_20260909140000_chat_retention_operations.sql =====
 -- Chat retention operations: idempotent redaction, hard-delete claims, and metrics.
@@ -1207,9 +1709,14 @@ ALTER TABLE public.chat_messages
   ADD COLUMN IF NOT EXISTS soft_delete_at timestamptz,
   ADD COLUMN IF NOT EXISTS hard_delete_at timestamptz,
   ADD COLUMN IF NOT EXISTS deleted_at timestamptz,
-  ADD COLUMN IF NOT EXISTS deleted_reason text;
+  ADD COLUMN IF NOT EXISTS deleted_reason text$bootstrap_sql_8e68459b1676$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8e68459b1676$;
 
-CREATE TABLE IF NOT EXISTS public.chat_retention_runs (
+DO $bootstrap_do_f3947e863e9d$
+BEGIN
+  EXECUTE $bootstrap_sql_f3947e863e9d$CREATE TABLE IF NOT EXISTS public.chat_retention_runs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   started_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz,
@@ -1220,20 +1727,40 @@ CREATE TABLE IF NOT EXISTS public.chat_retention_runs (
   attachment_objects_removed integer NOT NULL DEFAULT 0,
   error_code text,
   error_message text
-);
+)$bootstrap_sql_f3947e863e9d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f3947e863e9d$;
 
-CREATE INDEX IF NOT EXISTS chat_retention_runs_started_idx
-  ON public.chat_retention_runs(started_at DESC);
+DO $bootstrap_do_0bba76a2c05b$
+BEGIN
+  EXECUTE $bootstrap_sql_0bba76a2c05b$CREATE INDEX IF NOT EXISTS chat_retention_runs_started_idx
+  ON public.chat_retention_runs(started_at DESC)$bootstrap_sql_0bba76a2c05b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0bba76a2c05b$;
 
-CREATE TABLE IF NOT EXISTS public.chat_retention_claims (
+DO $bootstrap_do_41ce1308009d$
+BEGIN
+  EXECUTE $bootstrap_sql_41ce1308009d$CREATE TABLE IF NOT EXISTS public.chat_retention_claims (
   message_id uuid PRIMARY KEY REFERENCES public.chat_messages(id) ON DELETE CASCADE,
   claimed_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_41ce1308009d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_41ce1308009d$;
 
-CREATE INDEX IF NOT EXISTS chat_retention_claims_claimed_idx
-  ON public.chat_retention_claims(claimed_at);
+DO $bootstrap_do_52a5955e26fb$
+BEGIN
+  EXECUTE $bootstrap_sql_52a5955e26fb$CREATE INDEX IF NOT EXISTS chat_retention_claims_claimed_idx
+  ON public.chat_retention_claims(claimed_at)$bootstrap_sql_52a5955e26fb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_52a5955e26fb$;
 
-CREATE OR REPLACE FUNCTION public.soft_delete_expired_chat_messages(p_limit integer DEFAULT 500)
+DO $bootstrap_do_15f73b3fbd4e$
+BEGIN
+  EXECUTE $bootstrap_sql_15f73b3fbd4e$CREATE OR REPLACE FUNCTION public.soft_delete_expired_chat_messages(p_limit integer DEFAULT 500)
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1265,9 +1792,14 @@ BEGIN
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END;
-$$;
+$$$bootstrap_sql_15f73b3fbd4e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_15f73b3fbd4e$;
 
-CREATE OR REPLACE FUNCTION public.list_hard_expired_chat_messages(p_limit integer DEFAULT 500)
+DO $bootstrap_do_992d22652372$
+BEGIN
+  EXECUTE $bootstrap_sql_992d22652372$CREATE OR REPLACE FUNCTION public.list_hard_expired_chat_messages(p_limit integer DEFAULT 500)
 RETURNS TABLE(id uuid, attachment_path text)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1293,9 +1825,14 @@ BEGIN
   ORDER BY m.hard_delete_at, m.id
   LIMIT LEAST(GREATEST(COALESCE(p_limit, 500), 1), 5000);
 END;
-$$;
+$$$bootstrap_sql_992d22652372$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_992d22652372$;
 
-CREATE OR REPLACE FUNCTION public.hard_delete_chat_messages(p_message_ids uuid[])
+DO $bootstrap_do_187f569c9d71$
+BEGIN
+  EXECUTE $bootstrap_sql_187f569c9d71$CREATE OR REPLACE FUNCTION public.hard_delete_chat_messages(p_message_ids uuid[])
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1313,9 +1850,14 @@ BEGIN
   DELETE FROM public.chat_retention_claims WHERE message_id = ANY(p_message_ids);
   RETURN v_count;
 END;
-$$;
+$$$bootstrap_sql_187f569c9d71$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_187f569c9d71$;
 
-CREATE OR REPLACE FUNCTION public.record_chat_retention_run(
+DO $bootstrap_do_58e0409fd33e$
+BEGIN
+  EXECUTE $bootstrap_sql_58e0409fd33e$CREATE OR REPLACE FUNCTION public.record_chat_retention_run(
   p_run_id uuid, p_status text, p_soft_deleted integer DEFAULT 0,
   p_hard_delete_candidates integer DEFAULT 0, p_hard_deleted integer DEFAULT 0,
   p_attachment_objects_removed integer DEFAULT 0, p_error_code text DEFAULT NULL,
@@ -1336,9 +1878,14 @@ AS $$
       error_code = p_error_code,
       error_message = left(p_error_message, 500)
   WHERE id = p_run_id;
-$$;
+$$$bootstrap_sql_58e0409fd33e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_58e0409fd33e$;
 
-CREATE OR REPLACE FUNCTION public.cleanup_expired_chats()
+DO $bootstrap_do_b85078a3509a$
+BEGIN
+  EXECUTE $bootstrap_sql_b85078a3509a$CREATE OR REPLACE FUNCTION public.cleanup_expired_chats()
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1348,19 +1895,84 @@ BEGIN
   -- The legacy three-hour auto_delete_at policy is intentionally disabled.
   PERFORM public.soft_delete_expired_chat_messages(5000);
 END;
-$$;
+$$$bootstrap_sql_b85078a3509a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b85078a3509a$;
 
-REVOKE ALL ON TABLE public.chat_retention_runs, public.chat_retention_claims FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.soft_delete_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.list_hard_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.hard_delete_chat_messages(uuid[]) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.record_chat_retention_run(uuid, text, integer, integer, integer, integer, text, text) FROM PUBLIC, anon, authenticated;
-GRANT SELECT, INSERT, UPDATE ON public.chat_retention_runs TO service_role;
-GRANT EXECUTE ON FUNCTION public.soft_delete_expired_chat_messages(integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.list_hard_expired_chat_messages(integer) TO service_role;
-GRANT EXECUTE ON FUNCTION public.hard_delete_chat_messages(uuid[]) TO service_role;
-GRANT EXECUTE ON FUNCTION public.record_chat_retention_run(uuid, text, integer, integer, integer, integer, text, text) TO service_role;
--- ===== END BUNDLE: 37_20260909140000_chat_retention_operations.sql =====
+DO $bootstrap_do_02b1bfbcb87c$
+BEGIN
+  EXECUTE $bootstrap_sql_02b1bfbcb87c$REVOKE ALL ON TABLE public.chat_retention_runs, public.chat_retention_claims FROM PUBLIC, anon, authenticated$bootstrap_sql_02b1bfbcb87c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_02b1bfbcb87c$;
+
+DO $bootstrap_do_ebf480c165fa$
+BEGIN
+  EXECUTE $bootstrap_sql_ebf480c165fa$REVOKE ALL ON FUNCTION public.soft_delete_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated$bootstrap_sql_ebf480c165fa$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ebf480c165fa$;
+
+DO $bootstrap_do_f5dd7737458e$
+BEGIN
+  EXECUTE $bootstrap_sql_f5dd7737458e$REVOKE ALL ON FUNCTION public.list_hard_expired_chat_messages(integer) FROM PUBLIC, anon, authenticated$bootstrap_sql_f5dd7737458e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f5dd7737458e$;
+
+DO $bootstrap_do_d9cc4ab4718e$
+BEGIN
+  EXECUTE $bootstrap_sql_d9cc4ab4718e$REVOKE ALL ON FUNCTION public.hard_delete_chat_messages(uuid[]) FROM PUBLIC, anon, authenticated$bootstrap_sql_d9cc4ab4718e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d9cc4ab4718e$;
+
+DO $bootstrap_do_f1b864ac5aa7$
+BEGIN
+  EXECUTE $bootstrap_sql_f1b864ac5aa7$REVOKE ALL ON FUNCTION public.record_chat_retention_run(uuid, text, integer, integer, integer, integer, text, text) FROM PUBLIC, anon, authenticated$bootstrap_sql_f1b864ac5aa7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f1b864ac5aa7$;
+
+DO $bootstrap_do_694d8178447d$
+BEGIN
+  EXECUTE $bootstrap_sql_694d8178447d$GRANT SELECT, INSERT, UPDATE ON public.chat_retention_runs TO service_role$bootstrap_sql_694d8178447d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_694d8178447d$;
+
+DO $bootstrap_do_9868a2e33846$
+BEGIN
+  EXECUTE $bootstrap_sql_9868a2e33846$GRANT EXECUTE ON FUNCTION public.soft_delete_expired_chat_messages(integer) TO service_role$bootstrap_sql_9868a2e33846$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9868a2e33846$;
+
+DO $bootstrap_do_ad0b9d6cde58$
+BEGIN
+  EXECUTE $bootstrap_sql_ad0b9d6cde58$GRANT EXECUTE ON FUNCTION public.list_hard_expired_chat_messages(integer) TO service_role$bootstrap_sql_ad0b9d6cde58$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ad0b9d6cde58$;
+
+DO $bootstrap_do_25a51f0575e8$
+BEGIN
+  EXECUTE $bootstrap_sql_25a51f0575e8$GRANT EXECUTE ON FUNCTION public.hard_delete_chat_messages(uuid[]) TO service_role$bootstrap_sql_25a51f0575e8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_25a51f0575e8$;
+
+DO $bootstrap_do_5c7376f61426$
+BEGIN
+  EXECUTE $bootstrap_sql_5c7376f61426$GRANT EXECUTE ON FUNCTION public.record_chat_retention_run(uuid, text, integer, integer, integer, integer, text, text) TO service_role$bootstrap_sql_5c7376f61426$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5c7376f61426$;
+
+DO $bootstrap_do_3b2db1262c18$
+BEGIN
+  EXECUTE $bootstrap_sql_3b2db1262c18$-- ===== END BUNDLE: 37_20260909140000_chat_retention_operations.sql =====
 
 -- ===== BEGIN BUNDLE: 38_20260909150000_chat_notification_observability.sql =====
 -- Fase 7: chat notification contract, idempotency, and safe operations metrics.
@@ -1372,16 +1984,32 @@ ALTER TABLE public.notifications
   ADD COLUMN IF NOT EXISTS sender_display_name text,
   ADD COLUMN IF NOT EXISTS preview text,
   ADD COLUMN IF NOT EXISTS deep_link text,
-  ADD COLUMN IF NOT EXISTS idempotency_key text;
+  ADD COLUMN IF NOT EXISTS idempotency_key text$bootstrap_sql_3b2db1262c18$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3b2db1262c18$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS notifications_chat_idempotency_uidx
+DO $bootstrap_do_0d0f6a6ddc50$
+BEGIN
+  EXECUTE $bootstrap_sql_0d0f6a6ddc50$CREATE UNIQUE INDEX IF NOT EXISTS notifications_chat_idempotency_uidx
   ON public.notifications (user_id, idempotency_key)
-  WHERE idempotency_key IS NOT NULL;
-CREATE INDEX IF NOT EXISTS notifications_chat_conversation_idx
-  ON public.notifications (conversation_id, created_at DESC)
-  WHERE conversation_id IS NOT NULL;
+  WHERE idempotency_key IS NOT NULL$bootstrap_sql_0d0f6a6ddc50$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0d0f6a6ddc50$;
 
-CREATE TABLE IF NOT EXISTS public.chat_observability_events (
+DO $bootstrap_do_0001b6c68d7a$
+BEGIN
+  EXECUTE $bootstrap_sql_0001b6c68d7a$CREATE INDEX IF NOT EXISTS notifications_chat_conversation_idx
+  ON public.notifications (conversation_id, created_at DESC)
+  WHERE conversation_id IS NOT NULL$bootstrap_sql_0001b6c68d7a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0001b6c68d7a$;
+
+DO $bootstrap_do_ea378a0c419b$
+BEGIN
+  EXECUTE $bootstrap_sql_ea378a0c419b$CREATE TABLE IF NOT EXISTS public.chat_observability_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   metric_name text NOT NULL CHECK (metric_name IN (
     'event_delivery_latency_ms', 'channel_subscribed', 'channel_timeout',
@@ -1396,15 +2024,50 @@ CREATE TABLE IF NOT EXISTS public.chat_observability_events (
   occurred_at timestamptz NOT NULL DEFAULT now(),
   source text NOT NULL DEFAULT 'app' CHECK (source IN ('app', 'worker', 'database')),
   CONSTRAINT chat_observability_context_object CHECK (jsonb_typeof(context) = 'object')
-);
-CREATE INDEX IF NOT EXISTS chat_observability_metric_time_idx
-  ON public.chat_observability_events (metric_name, occurred_at DESC);
-ALTER TABLE public.chat_observability_events ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.chat_observability_events FROM PUBLIC, anon, authenticated;
-GRANT INSERT ON public.chat_observability_events TO authenticated, service_role;
-GRANT SELECT ON public.chat_observability_events TO service_role;
+)$bootstrap_sql_ea378a0c419b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ea378a0c419b$;
 
-CREATE OR REPLACE FUNCTION public.record_chat_observability(
+DO $bootstrap_do_abb378476079$
+BEGIN
+  EXECUTE $bootstrap_sql_abb378476079$CREATE INDEX IF NOT EXISTS chat_observability_metric_time_idx
+  ON public.chat_observability_events (metric_name, occurred_at DESC)$bootstrap_sql_abb378476079$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_abb378476079$;
+
+DO $bootstrap_do_3d4241811bdf$
+BEGIN
+  EXECUTE $bootstrap_sql_3d4241811bdf$ALTER TABLE public.chat_observability_events ENABLE ROW LEVEL SECURITY$bootstrap_sql_3d4241811bdf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3d4241811bdf$;
+
+DO $bootstrap_do_99113d1639d6$
+BEGIN
+  EXECUTE $bootstrap_sql_99113d1639d6$REVOKE ALL ON public.chat_observability_events FROM PUBLIC, anon, authenticated$bootstrap_sql_99113d1639d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_99113d1639d6$;
+
+DO $bootstrap_do_fc8bd0bab46e$
+BEGIN
+  EXECUTE $bootstrap_sql_fc8bd0bab46e$GRANT INSERT ON public.chat_observability_events TO authenticated, service_role$bootstrap_sql_fc8bd0bab46e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fc8bd0bab46e$;
+
+DO $bootstrap_do_4bbf5750effc$
+BEGIN
+  EXECUTE $bootstrap_sql_4bbf5750effc$GRANT SELECT ON public.chat_observability_events TO service_role$bootstrap_sql_4bbf5750effc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4bbf5750effc$;
+
+DO $bootstrap_do_e53c79321fbe$
+BEGIN
+  EXECUTE $bootstrap_sql_e53c79321fbe$CREATE OR REPLACE FUNCTION public.record_chat_observability(
   p_metric_name text,
   p_metric_value numeric DEFAULT 1,
   p_context jsonb DEFAULT '{}'::jsonb,
@@ -1434,10 +2097,21 @@ BEGIN
   ) RETURNING id INTO v_id;
   RETURN v_id;
 END;
-$$;
-GRANT EXECUTE ON FUNCTION public.record_chat_observability(text, numeric, jsonb, text) TO authenticated, service_role;
+$$$bootstrap_sql_e53c79321fbe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e53c79321fbe$;
 
-CREATE OR REPLACE FUNCTION public.chat_notification_deep_link(p_user_id uuid, p_conversation_id uuid)
+DO $bootstrap_do_72421ced69d1$
+BEGIN
+  EXECUTE $bootstrap_sql_72421ced69d1$GRANT EXECUTE ON FUNCTION public.record_chat_observability(text, numeric, jsonb, text) TO authenticated, service_role$bootstrap_sql_72421ced69d1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_72421ced69d1$;
+
+DO $bootstrap_do_3214d2e655a4$
+BEGIN
+  EXECUTE $bootstrap_sql_3214d2e655a4$CREATE OR REPLACE FUNCTION public.chat_notification_deep_link(p_user_id uuid, p_conversation_id uuid)
 RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT CASE COALESCE((SELECT role FROM public.chat_participants WHERE conversation_id = p_conversation_id AND user_id = p_user_id AND left_at IS NULL LIMIT 1), '')
     WHEN 'merchant' THEN '/merchant/chat?conversationId=' || p_conversation_id::text
@@ -1445,9 +2119,14 @@ RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
     WHEN 'passenger' THEN '/ride/tracking?conversationId=' || p_conversation_id::text
     ELSE '/buyer/chat?conversationId=' || p_conversation_id::text
   END;
-$$;
+$$$bootstrap_sql_3214d2e655a4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3214d2e655a4$;
 
-CREATE OR REPLACE FUNCTION public.send_chat_notification(
+DO $bootstrap_do_751b2628c518$
+BEGIN
+  EXECUTE $bootstrap_sql_751b2628c518$CREATE OR REPLACE FUNCTION public.send_chat_notification(
   p_recipient_id uuid,
   p_conversation_id uuid,
   p_message_id uuid,
@@ -1475,10 +2154,21 @@ BEGIN
   RETURNING id INTO v_id;
   RETURN v_id;
 END;
-$$;
-GRANT EXECUTE ON FUNCTION public.send_chat_notification(uuid, uuid, uuid, text, text) TO service_role;
+$$$bootstrap_sql_751b2628c518$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_751b2628c518$;
 
-CREATE OR REPLACE FUNCTION public.notify_chat_message()
+DO $bootstrap_do_029f24a8031e$
+BEGIN
+  EXECUTE $bootstrap_sql_029f24a8031e$GRANT EXECUTE ON FUNCTION public.send_chat_notification(uuid, uuid, uuid, text, text) TO service_role$bootstrap_sql_029f24a8031e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_029f24a8031e$;
+
+DO $bootstrap_do_6d5103cc8d02$
+BEGIN
+  EXECUTE $bootstrap_sql_6d5103cc8d02$CREATE OR REPLACE FUNCTION public.notify_chat_message()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE recipient record; sender_name text; message_preview text;
 BEGIN
@@ -1497,10 +2187,21 @@ BEGIN
   END LOOP;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_6d5103cc8d02$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6d5103cc8d02$;
 
-COMMENT ON TABLE public.chat_observability_events IS 'Safe chat metrics only; never store message bodies, tokens, signed URLs, or location.';
--- ===== END BUNDLE: 38_20260909150000_chat_notification_observability.sql =====
+DO $bootstrap_do_6481e0abcbf2$
+BEGIN
+  EXECUTE $bootstrap_sql_6481e0abcbf2$COMMENT ON TABLE public.chat_observability_events IS 'Safe chat metrics only; never store message bodies, tokens, signed URLs, or location.'$bootstrap_sql_6481e0abcbf2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6481e0abcbf2$;
+
+DO $bootstrap_do_f6a1060b650f$
+BEGIN
+  EXECUTE $bootstrap_sql_f6a1060b650f$-- ===== END BUNDLE: 38_20260909150000_chat_notification_observability.sql =====
 
 -- ===== BEGIN BUNDLE: 39_20260909143000_chat_participant_names.sql =====
 -- Expose participant names only inside conversations the caller may access.
@@ -1536,16 +2237,43 @@ AS $$
       WHERE caller_membership.user_id = auth.uid()
         AND caller_membership.left_at IS NULL
     );
-$$;
+$$$bootstrap_sql_f6a1060b650f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f6a1060b650f$;
 
-REVOKE ALL ON FUNCTION public.get_chat_participant_profiles(uuid[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_chat_participant_profiles(uuid[]) TO authenticated;
+DO $bootstrap_do_0f50b5cb11f6$
+BEGIN
+  EXECUTE $bootstrap_sql_0f50b5cb11f6$REVOKE ALL ON FUNCTION public.get_chat_participant_profiles(uuid[]) FROM PUBLIC, anon$bootstrap_sql_0f50b5cb11f6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0f50b5cb11f6$;
 
-COMMENT ON FUNCTION public.get_chat_participant_profiles(uuid[]) IS
-  'Returns participant profile names only for conversations visible to the authenticated caller.';
+DO $bootstrap_do_132b4dfd7610$
+BEGIN
+  EXECUTE $bootstrap_sql_132b4dfd7610$GRANT EXECUTE ON FUNCTION public.get_chat_participant_profiles(uuid[]) TO authenticated$bootstrap_sql_132b4dfd7610$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_132b4dfd7610$;
 
-GRANT EXECUTE ON FUNCTION public.get_chat_participant_profiles(uuid[]) TO service_role;
--- ===== END BUNDLE: 39_20260909143000_chat_participant_names.sql =====
+DO $bootstrap_do_cefb9f36ffdb$
+BEGIN
+  EXECUTE $bootstrap_sql_cefb9f36ffdb$COMMENT ON FUNCTION public.get_chat_participant_profiles(uuid[]) IS
+  'Returns participant profile names only for conversations visible to the authenticated caller.'$bootstrap_sql_cefb9f36ffdb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cefb9f36ffdb$;
+
+DO $bootstrap_do_b0db03b07865$
+BEGIN
+  EXECUTE $bootstrap_sql_b0db03b07865$GRANT EXECUTE ON FUNCTION public.get_chat_participant_profiles(uuid[]) TO service_role$bootstrap_sql_b0db03b07865$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b0db03b07865$;
+
+DO $bootstrap_do_d0d88b8e9e4d$
+BEGIN
+  EXECUTE $bootstrap_sql_d0d88b8e9e4d$-- ===== END BUNDLE: 39_20260909143000_chat_participant_names.sql =====
 
 -- ===== BEGIN BUNDLE: 40_20260909150000_dual_role_chat_context.sql =====
 -- Dual-role accounts may act as buyer and merchant in separate chat contexts.
@@ -1601,11 +2329,28 @@ BEGIN
 
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_d0d88b8e9e4d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d0d88b8e9e4d$;
 
-REVOKE ALL ON FUNCTION public.get_or_create_direct_chat(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_or_create_direct_chat(uuid) TO authenticated;
--- ===== END BUNDLE: 40_20260909150000_dual_role_chat_context.sql =====
+DO $bootstrap_do_b2a87d4a3271$
+BEGIN
+  EXECUTE $bootstrap_sql_b2a87d4a3271$REVOKE ALL ON FUNCTION public.get_or_create_direct_chat(uuid) FROM PUBLIC, anon$bootstrap_sql_b2a87d4a3271$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b2a87d4a3271$;
+
+DO $bootstrap_do_28ff62a61e7d$
+BEGIN
+  EXECUTE $bootstrap_sql_28ff62a61e7d$GRANT EXECUTE ON FUNCTION public.get_or_create_direct_chat(uuid) TO authenticated$bootstrap_sql_28ff62a61e7d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_28ff62a61e7d$;
+
+DO $bootstrap_do_ee8cf53bdcfd$
+BEGIN
+  EXECUTE $bootstrap_sql_ee8cf53bdcfd$-- ===== END BUNDLE: 40_20260909150000_dual_role_chat_context.sql =====
 
 -- ===== BEGIN BUNDLE: 41_20260909152000_role_aware_chat_notifications.sql =====
 -- Role-aware chat badges and notification destinations for dual-role accounts.
@@ -1632,9 +2377,14 @@ AS $$
       WHERE r.message_id = m.id
         AND r.user_id = auth.uid()
     );
-$$;
+$$$bootstrap_sql_ee8cf53bdcfd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee8cf53bdcfd$;
 
-CREATE OR REPLACE FUNCTION public.notify_chat_message()
+DO $bootstrap_do_b0ceb2fe5e93$
+BEGIN
+  EXECUTE $bootstrap_sql_b0ceb2fe5e93$CREATE OR REPLACE FUNCTION public.notify_chat_message()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1708,11 +2458,28 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_b0ceb2fe5e93$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b0ceb2fe5e93$;
 
-REVOKE ALL ON FUNCTION public.get_chat_unread_count() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_chat_unread_count() TO authenticated;
--- ===== END BUNDLE: 41_20260909152000_role_aware_chat_notifications.sql =====
+DO $bootstrap_do_c6606aa1d4be$
+BEGIN
+  EXECUTE $bootstrap_sql_c6606aa1d4be$REVOKE ALL ON FUNCTION public.get_chat_unread_count() FROM PUBLIC, anon$bootstrap_sql_c6606aa1d4be$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c6606aa1d4be$;
+
+DO $bootstrap_do_536c8d5e3f8d$
+BEGIN
+  EXECUTE $bootstrap_sql_536c8d5e3f8d$GRANT EXECUTE ON FUNCTION public.get_chat_unread_count() TO authenticated$bootstrap_sql_536c8d5e3f8d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_536c8d5e3f8d$;
+
+DO $bootstrap_do_3daf551a0439$
+BEGIN
+  EXECUTE $bootstrap_sql_3daf551a0439$-- ===== END BUNDLE: 41_20260909152000_role_aware_chat_notifications.sql =====
 
 -- ===== BEGIN BUNDLE: 42_20260909170000_chat_notification_final_repair.sql =====
 -- Final chat notification repair.
@@ -1725,17 +2492,32 @@ ALTER TABLE public.notifications
   ADD COLUMN IF NOT EXISTS sender_display_name text,
   ADD COLUMN IF NOT EXISTS preview text,
   ADD COLUMN IF NOT EXISTS deep_link text,
-  ADD COLUMN IF NOT EXISTS idempotency_key text;
+  ADD COLUMN IF NOT EXISTS idempotency_key text$bootstrap_sql_3daf551a0439$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3daf551a0439$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS notifications_chat_idempotency_uidx
+DO $bootstrap_do_4d3c898cc5b1$
+BEGIN
+  EXECUTE $bootstrap_sql_4d3c898cc5b1$CREATE UNIQUE INDEX IF NOT EXISTS notifications_chat_idempotency_uidx
   ON public.notifications (user_id, idempotency_key)
-  WHERE idempotency_key IS NOT NULL;
+  WHERE idempotency_key IS NOT NULL$bootstrap_sql_4d3c898cc5b1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4d3c898cc5b1$;
 
-CREATE INDEX IF NOT EXISTS notifications_chat_conversation_idx
+DO $bootstrap_do_5cfef9319f92$
+BEGIN
+  EXECUTE $bootstrap_sql_5cfef9319f92$CREATE INDEX IF NOT EXISTS notifications_chat_conversation_idx
   ON public.notifications (conversation_id, created_at DESC)
-  WHERE conversation_id IS NOT NULL;
+  WHERE conversation_id IS NOT NULL$bootstrap_sql_5cfef9319f92$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5cfef9319f92$;
 
-CREATE OR REPLACE FUNCTION public.chat_notification_deep_link(
+DO $bootstrap_do_70cecd610a8a$
+BEGIN
+  EXECUTE $bootstrap_sql_70cecd610a8a$CREATE OR REPLACE FUNCTION public.chat_notification_deep_link(
   p_user_id uuid,
   p_conversation_id uuid
 )
@@ -1759,9 +2541,14 @@ AS $$
     WHEN 'admin_desa' THEN '/desa/chat?conversationId=' || p_conversation_id::text
     ELSE '/buyer/chat?conversationId=' || p_conversation_id::text
   END;
-$$;
+$$$bootstrap_sql_70cecd610a8a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_70cecd610a8a$;
 
-CREATE OR REPLACE FUNCTION public.send_chat_notification(
+DO $bootstrap_do_7c6f304317ed$
+BEGIN
+  EXECUTE $bootstrap_sql_7c6f304317ed$CREATE OR REPLACE FUNCTION public.send_chat_notification(
   p_recipient_id uuid,
   p_conversation_id uuid,
   p_message_id uuid,
@@ -1813,12 +2600,22 @@ BEGIN
 
   RETURN v_id;
 END;
-$$;
+$$$bootstrap_sql_7c6f304317ed$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7c6f304317ed$;
 
-GRANT EXECUTE ON FUNCTION public.send_chat_notification(uuid, uuid, uuid, text, text)
-  TO service_role;
+DO $bootstrap_do_79750e6be2e5$
+BEGIN
+  EXECUTE $bootstrap_sql_79750e6be2e5$GRANT EXECUTE ON FUNCTION public.send_chat_notification(uuid, uuid, uuid, text, text)
+  TO service_role$bootstrap_sql_79750e6be2e5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_79750e6be2e5$;
 
-CREATE OR REPLACE FUNCTION public.notify_chat_message()
+DO $bootstrap_do_c87e2633491d$
+BEGIN
+  EXECUTE $bootstrap_sql_c87e2633491d$CREATE OR REPLACE FUNCTION public.notify_chat_message()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1881,18 +2678,39 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_c87e2633491d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c87e2633491d$;
 
-DROP TRIGGER IF EXISTS chat_messages_notify_recipient ON public.chat_messages;
-CREATE TRIGGER chat_messages_notify_recipient
+DO $bootstrap_do_91cbb7a24964$
+BEGIN
+  EXECUTE $bootstrap_sql_91cbb7a24964$DROP TRIGGER IF EXISTS chat_messages_notify_recipient ON public.chat_messages$bootstrap_sql_91cbb7a24964$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_91cbb7a24964$;
+
+DO $bootstrap_do_e3a533520e02$
+BEGIN
+  EXECUTE $bootstrap_sql_e3a533520e02$CREATE TRIGGER chat_messages_notify_recipient
 AFTER INSERT ON public.chat_messages
 FOR EACH ROW
-EXECUTE FUNCTION public.notify_chat_message();
+EXECUTE FUNCTION public.notify_chat_message()$bootstrap_sql_e3a533520e02$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e3a533520e02$;
 
-COMMENT ON FUNCTION public.notify_chat_message() IS
-  'Creates one idempotent in-app notification per active chat recipient without rolling back the message.';
+DO $bootstrap_do_9bd031b39605$
+BEGIN
+  EXECUTE $bootstrap_sql_9bd031b39605$COMMENT ON FUNCTION public.notify_chat_message() IS
+  'Creates one idempotent in-app notification per active chat recipient without rolling back the message.'$bootstrap_sql_9bd031b39605$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9bd031b39605$;
 
--- Backfill recent messages created while the notification trigger was broken.
+DO $bootstrap_do_e957dfdf0cbb$
+BEGIN
+  EXECUTE $bootstrap_sql_e957dfdf0cbb$-- Backfill recent messages created while the notification trigger was broken.
 -- This is intentionally limited to one day and is idempotent for canonical
 -- notifications; legacy fallback rows are guarded by a message preview check.
 DO $$
@@ -1931,16 +2749,27 @@ BEGIN
     END;
   END LOOP;
 END;
-$$;
--- ===== END BUNDLE: 42_20260909170000_chat_notification_final_repair.sql =====
+$$$bootstrap_sql_e957dfdf0cbb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e957dfdf0cbb$;
+
+DO $bootstrap_do_e474cf366347$
+BEGIN
+  EXECUTE $bootstrap_sql_e474cf366347$-- ===== END BUNDLE: 42_20260909170000_chat_notification_final_repair.sql =====
 
 -- ===== BEGIN BUNDLE: 43_20260909180000_order_fulfillment_flow.sql =====
 -- Order fulfillment flow repair
 -- Keeps legacy statuses readable while allowing the complete merchant/buyer lifecycle.
 ALTER TABLE public.orders
-  DROP CONSTRAINT IF EXISTS orders_status_check;
+  DROP CONSTRAINT IF EXISTS orders_status_check$bootstrap_sql_e474cf366347$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e474cf366347$;
 
-ALTER TABLE public.orders
+DO $bootstrap_do_2fca112b1251$
+BEGIN
+  EXECUTE $bootstrap_sql_2fca112b1251$ALTER TABLE public.orders
   ADD CONSTRAINT orders_status_check CHECK (status IN (
     'NEW',
     'PENDING_CONFIRMATION',
@@ -1960,28 +2789,60 @@ ALTER TABLE public.orders
     'REJECTED',
     'REJECTED_BY_BUYER',
     'REFUNDED'
-  ));
+  ))$bootstrap_sql_2fca112b1251$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2fca112b1251$;
 
-ALTER TABLE public.orders
+DO $bootstrap_do_5821557963c7$
+BEGIN
+  EXECUTE $bootstrap_sql_5821557963c7$ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS delivery_notes text,
   ADD COLUMN IF NOT EXISTS courier_rejected_ids uuid[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS courier_assigned_at timestamptz,
   ADD COLUMN IF NOT EXISTS courier_accepted_at timestamptz,
   ADD COLUMN IF NOT EXISTS ready_at timestamptz,
-  ADD COLUMN IF NOT EXISTS delivered_at timestamptz;
+  ADD COLUMN IF NOT EXISTS delivered_at timestamptz$bootstrap_sql_5821557963c7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5821557963c7$;
 
-CREATE INDEX IF NOT EXISTS idx_orders_fulfillment_status
-  ON public.orders (merchant_id, status, created_at DESC);
+DO $bootstrap_do_6d5ee9d0e359$
+BEGIN
+  EXECUTE $bootstrap_sql_6d5ee9d0e359$CREATE INDEX IF NOT EXISTS idx_orders_fulfillment_status
+  ON public.orders (merchant_id, status, created_at DESC)$bootstrap_sql_6d5ee9d0e359$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6d5ee9d0e359$;
 
-CREATE INDEX IF NOT EXISTS idx_orders_courier_queue
+DO $bootstrap_do_2d3e9818c1ea$
+BEGIN
+  EXECUTE $bootstrap_sql_2d3e9818c1ea$CREATE INDEX IF NOT EXISTS idx_orders_courier_queue
   ON public.orders (status, delivery_type, created_at DESC)
-  WHERE delivery_type = 'INTERNAL';
+  WHERE delivery_type = 'INTERNAL'$bootstrap_sql_2d3e9818c1ea$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2d3e9818c1ea$;
 
-COMMENT ON COLUMN public.orders.status IS
-  'Lifecycle: NEW/PENDING_PAYMENT -> PROCESSED -> READY -> ASSIGNED/COURIER_ACCEPTED -> PICKED_UP -> DELIVERING -> DELIVERED -> DONE';
-COMMENT ON COLUMN public.orders.courier_rejected_ids IS
-  'Kurir yang menolak order ini dan tidak boleh ditawarkan ulang untuk order yang sama.';
--- ===== END BUNDLE: 43_20260909180000_order_fulfillment_flow.sql =====
+DO $bootstrap_do_fab1953e48e0$
+BEGIN
+  EXECUTE $bootstrap_sql_fab1953e48e0$COMMENT ON COLUMN public.orders.status IS
+  'Lifecycle: NEW/PENDING_PAYMENT -> PROCESSED -> READY -> ASSIGNED/COURIER_ACCEPTED -> PICKED_UP -> DELIVERING -> DELIVERED -> DONE'$bootstrap_sql_fab1953e48e0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fab1953e48e0$;
+
+DO $bootstrap_do_2b6dfd4daebe$
+BEGIN
+  EXECUTE $bootstrap_sql_2b6dfd4daebe$COMMENT ON COLUMN public.orders.courier_rejected_ids IS
+  'Kurir yang menolak order ini dan tidak boleh ditawarkan ulang untuk order yang sama.'$bootstrap_sql_2b6dfd4daebe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2b6dfd4daebe$;
+
+DO $bootstrap_do_8f029e7e3b79$
+BEGIN
+  EXECUTE $bootstrap_sql_8f029e7e3b79$-- ===== END BUNDLE: 43_20260909180000_order_fulfillment_flow.sql =====
 
 -- ===== BEGIN BUNDLE: 43_20260910200000_fix_chat_ride_deep_link.sql =====
 -- Fix passenger chat notifications to target the registered ride route.
@@ -2021,11 +2882,22 @@ AS $$
   END
   FROM public.chat_conversations c
   WHERE c.id = p_conversation_id);
-$$;
+$$$bootstrap_sql_8f029e7e3b79$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8f029e7e3b79$;
 
-GRANT EXECUTE ON FUNCTION public.chat_notification_deep_link(uuid, uuid)
-  TO service_role;
--- ===== END BUNDLE: 43_20260910200000_fix_chat_ride_deep_link.sql =====
+DO $bootstrap_do_39499f098c8e$
+BEGIN
+  EXECUTE $bootstrap_sql_39499f098c8e$GRANT EXECUTE ON FUNCTION public.chat_notification_deep_link(uuid, uuid)
+  TO service_role$bootstrap_sql_39499f098c8e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_39499f098c8e$;
+
+DO $bootstrap_do_3a8ee0d34941$
+BEGIN
+  EXECUTE $bootstrap_sql_3a8ee0d34941$-- ===== END BUNDLE: 43_20260910200000_fix_chat_ride_deep_link.sql =====
 
 -- ===== BEGIN BUNDLE: 43_20260922114500_chat_image_attachments.sql =====
 -- Chat image attachments: private storage + atomic message write.
@@ -2042,38 +2914,81 @@ VALUES (
 ON CONFLICT (id) DO UPDATE
 SET public = false,
     file_size_limit = 5242880,
-    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']::text[];
+    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']::text[]$bootstrap_sql_3a8ee0d34941$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3a8ee0d34941$;
 
-DROP POLICY IF EXISTS "Chat participants upload attachments" ON storage.objects;
-CREATE POLICY "Chat participants upload attachments"
+DO $bootstrap_do_33fc77f82994$
+BEGIN
+  EXECUTE $bootstrap_sql_33fc77f82994$DROP POLICY IF EXISTS "Chat participants upload attachments" ON storage.objects$bootstrap_sql_33fc77f82994$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_33fc77f82994$;
+
+DO $bootstrap_do_aebdd6d8e197$
+BEGIN
+  EXECUTE $bootstrap_sql_aebdd6d8e197$CREATE POLICY "Chat participants upload attachments"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
   bucket_id = 'chat-attachments'
   AND public.is_chat_conversation_participant((storage.foldername(name))[1]::uuid, auth.uid())
   AND (storage.foldername(name))[2] = auth.uid()::text
-);
+)$bootstrap_sql_aebdd6d8e197$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aebdd6d8e197$;
 
-DROP POLICY IF EXISTS "Chat participants read attachments" ON storage.objects;
-CREATE POLICY "Chat participants read attachments"
+DO $bootstrap_do_02bd9682d8d6$
+BEGIN
+  EXECUTE $bootstrap_sql_02bd9682d8d6$DROP POLICY IF EXISTS "Chat participants read attachments" ON storage.objects$bootstrap_sql_02bd9682d8d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_02bd9682d8d6$;
+
+DO $bootstrap_do_079237610592$
+BEGIN
+  EXECUTE $bootstrap_sql_079237610592$CREATE POLICY "Chat participants read attachments"
 ON storage.objects FOR SELECT TO authenticated
 USING (
   bucket_id = 'chat-attachments'
   AND public.is_chat_conversation_participant((storage.foldername(name))[1]::uuid, auth.uid())
-);
+)$bootstrap_sql_079237610592$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_079237610592$;
 
-DROP POLICY IF EXISTS "Users delete own chat attachments" ON storage.objects;
-CREATE POLICY "Users delete own chat attachments"
+DO $bootstrap_do_22c5d670fbb6$
+BEGIN
+  EXECUTE $bootstrap_sql_22c5d670fbb6$DROP POLICY IF EXISTS "Users delete own chat attachments" ON storage.objects$bootstrap_sql_22c5d670fbb6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_22c5d670fbb6$;
+
+DO $bootstrap_do_e237e629a46e$
+BEGIN
+  EXECUTE $bootstrap_sql_e237e629a46e$CREATE POLICY "Users delete own chat attachments"
 ON storage.objects FOR DELETE TO authenticated
 USING (
   bucket_id = 'chat-attachments'
   AND (storage.foldername(name))[2] = auth.uid()::text
-);
+)$bootstrap_sql_e237e629a46e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e237e629a46e$;
 
-ALTER TABLE public.chat_messages
+DO $bootstrap_do_e589b36147d9$
+BEGIN
+  EXECUTE $bootstrap_sql_e589b36147d9$ALTER TABLE public.chat_messages
   ADD CONSTRAINT chat_messages_attachment_path_check
-  CHECK (attachment_path IS NULL OR attachment_path LIKE '%/%/%') NOT VALID;
+  CHECK (attachment_path IS NULL OR attachment_path LIKE '%/%/%') NOT VALID$bootstrap_sql_e589b36147d9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e589b36147d9$;
 
--- Five-argument variant keeps the existing four-argument RPC backwards compatible.
+DO $bootstrap_do_cb6db7ac04e6$
+BEGIN
+  EXECUTE $bootstrap_sql_cb6db7ac04e6$-- Five-argument variant keeps the existing four-argument RPC backwards compatible.
 CREATE OR REPLACE FUNCTION public.send_chat_message_with_attachment(
   p_conversation_id uuid,
   p_receiver_id uuid,
@@ -2158,18 +3073,58 @@ BEGIN
   RETURNING * INTO v_message;
   RETURN v_message;
 END;
-$$;
+$$$bootstrap_sql_cb6db7ac04e6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cb6db7ac04e6$;
 
-REVOKE ALL ON FUNCTION public.send_chat_message_with_attachment(uuid, uuid, text, uuid, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.send_chat_message_with_attachment(uuid, uuid, text, uuid, text) TO authenticated;
+DO $bootstrap_do_76f738f6fc2b$
+BEGIN
+  EXECUTE $bootstrap_sql_76f738f6fc2b$REVOKE ALL ON FUNCTION public.send_chat_message_with_attachment(uuid, uuid, text, uuid, text) FROM PUBLIC$bootstrap_sql_76f738f6fc2b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_76f738f6fc2b$;
 
-COMMENT ON FUNCTION public.send_chat_message_with_attachment IS
-  'Atomically writes a chat text/image message after validating conversation membership and attachment path.';
+DO $bootstrap_do_18fdcd0a00f2$
+BEGIN
+  EXECUTE $bootstrap_sql_18fdcd0a00f2$GRANT EXECUTE ON FUNCTION public.send_chat_message_with_attachment(uuid, uuid, text, uuid, text) TO authenticated$bootstrap_sql_18fdcd0a00f2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_18fdcd0a00f2$;
 
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_a2e922d65f2b$
+BEGIN
+  EXECUTE $bootstrap_sql_a2e922d65f2b$COMMENT ON FUNCTION public.send_chat_message_with_attachment IS
+  'Atomically writes a chat text/image message after validating conversation membership and attachment path.'$bootstrap_sql_a2e922d65f2b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a2e922d65f2b$;
 
-ALTER TABLE public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_message_type_check;
-ALTER TABLE public.chat_messages ADD CONSTRAINT chat_messages_message_type_check
-  CHECK (message_type IN ('text', 'image')) NOT VALID;
--- ===== END BUNDLE: 43_20260922114500_chat_image_attachments.sql =====
+DO $bootstrap_do_473c44a95308$
+BEGIN
+  EXECUTE $bootstrap_sql_473c44a95308$NOTIFY pgrst, 'reload schema'$bootstrap_sql_473c44a95308$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_473c44a95308$;
 
+DO $bootstrap_do_d031d152bedd$
+BEGIN
+  EXECUTE $bootstrap_sql_d031d152bedd$ALTER TABLE public.chat_messages DROP CONSTRAINT IF EXISTS chat_messages_message_type_check$bootstrap_sql_d031d152bedd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d031d152bedd$;
+
+DO $bootstrap_do_30c94705f9cd$
+BEGIN
+  EXECUTE $bootstrap_sql_30c94705f9cd$ALTER TABLE public.chat_messages ADD CONSTRAINT chat_messages_message_type_check
+  CHECK (message_type IN ('text', 'image')) NOT VALID$bootstrap_sql_30c94705f9cd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30c94705f9cd$;
+
+DO $bootstrap_do_53d87b6866de$
+BEGIN
+  EXECUTE $bootstrap_sql_53d87b6866de$-- ===== END BUNDLE: 43_20260922114500_chat_image_attachments.sql =====$bootstrap_sql_53d87b6866de$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_53d87b6866de$;

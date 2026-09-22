@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 from pathlib import Path
 
@@ -16,6 +17,10 @@ def main() -> int:
         return 1
 
     manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    if manifest.get('idempotent') is not True:
+        print('Bootstrap bundle validation FAILED')
+        print('- manifest does not declare idempotent=true')
+        return 1
     manifest_sources = [name for bundle in manifest['bundles'] for name in bundle['source_files']]
     expected = [path.name for path in sorted(source.glob('*.sql'))] if source else manifest_sources
     actual = [name for bundle in manifest['bundles'] for name in bundle['source_files']]
@@ -33,8 +38,16 @@ def main() -> int:
         if duplicates:
             errors.append(f'duplicate source migrations: {duplicates[:5]}')
     for bundle in manifest['bundles']:
-        if not (bundle_dir / bundle['file']).exists():
+        bundle_path = bundle_dir / bundle['file']
+        if not bundle_path.exists():
             errors.append(f'missing bundle file: {bundle["file"]}')
+            continue
+        content = bundle_path.read_text(encoding='utf-8')
+        digest = hashlib.sha256(content.encode()).hexdigest()
+        if digest != bundle.get('sha256'):
+            errors.append(f'hash mismatch: {bundle["file"]}')
+        if 'DO $bootstrap_do_' not in content or 'EXCEPTION' not in content:
+            errors.append(f'non-repeatable bundle marker missing: {bundle["file"]}')
     if errors:
         print('Bootstrap bundle validation FAILED')
         for error in errors:

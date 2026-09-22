@@ -1,4 +1,10 @@
--- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_8e26c01124ec$
+BEGIN
+  EXECUTE $bootstrap_sql_8e26c01124ec$-- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
 -- DO NOT apply to an existing project with migration history.
 -- Consolidated range: 66_20260914153000_ride_driver_verification.sql .. 77_20260918170000_pod_delivery_proof_policy.sql
 
@@ -10,11 +16,21 @@ ALTER TABLE public.ride_requests
   ADD COLUMN IF NOT EXISTS pickup_verified_at timestamptz,
   ADD COLUMN IF NOT EXISTS completion_verification_method text,
   ADD COLUMN IF NOT EXISTS completion_verification_note text,
-  ADD COLUMN IF NOT EXISTS completion_verified_at timestamptz;
+  ADD COLUMN IF NOT EXISTS completion_verified_at timestamptz$bootstrap_sql_8e26c01124ec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8e26c01124ec$;
 
-DROP FUNCTION IF EXISTS public.transition_ride_status(uuid, text);
+DO $bootstrap_do_51c582286be9$
+BEGIN
+  EXECUTE $bootstrap_sql_51c582286be9$DROP FUNCTION IF EXISTS public.transition_ride_status(uuid, text)$bootstrap_sql_51c582286be9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_51c582286be9$;
 
-CREATE OR REPLACE FUNCTION public.transition_ride_status(
+DO $bootstrap_do_ce9e8d613216$
+BEGIN
+  EXECUTE $bootstrap_sql_ce9e8d613216$CREATE OR REPLACE FUNCTION public.transition_ride_status(
   p_ride_id uuid,
   p_to_status text,
   p_verification_note text DEFAULT NULL
@@ -91,12 +107,35 @@ BEGIN
 
   RETURN p_to_status;
 END;
-$$;
+$$$bootstrap_sql_ce9e8d613216$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ce9e8d613216$;
 
-REVOKE ALL ON FUNCTION public.transition_ride_status(uuid, text, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 66_20260914153000_ride_driver_verification.sql =====
+DO $bootstrap_do_7abc795b97fb$
+BEGIN
+  EXECUTE $bootstrap_sql_7abc795b97fb$REVOKE ALL ON FUNCTION public.transition_ride_status(uuid, text, text) FROM PUBLIC$bootstrap_sql_7abc795b97fb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7abc795b97fb$;
+
+DO $bootstrap_do_95eb57c2e54c$
+BEGIN
+  EXECUTE $bootstrap_sql_95eb57c2e54c$GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text, text) TO authenticated$bootstrap_sql_95eb57c2e54c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_95eb57c2e54c$;
+
+DO $bootstrap_do_ba98448527db$
+BEGIN
+  EXECUTE $bootstrap_sql_ba98448527db$NOTIFY pgrst, 'reload schema'$bootstrap_sql_ba98448527db$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ba98448527db$;
+
+DO $bootstrap_do_3e986d94768b$
+BEGIN
+  EXECUTE $bootstrap_sql_3e986d94768b$-- ===== END BUNDLE: 66_20260914153000_ride_driver_verification.sql =====
 
 -- ===== BEGIN BUNDLE: 67_20260915160000_unify_courier_and_ride_ratings.sql =====
 -- Keep courier rating statistics consistent across marketplace deliveries and Ojek Desa rides.
@@ -135,9 +174,14 @@ BEGIN
       updated_at = now()
   WHERE id = p_courier_id;
 END;
-$$;
+$$$bootstrap_sql_3e986d94768b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3e986d94768b$;
 
-CREATE OR REPLACE FUNCTION public.sync_courier_rating_from_ride()
+DO $bootstrap_do_cdee72348e05$
+BEGIN
+  EXECUTE $bootstrap_sql_cdee72348e05$CREATE OR REPLACE FUNCTION public.sync_courier_rating_from_ride()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -164,9 +208,14 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_cdee72348e05$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cdee72348e05$;
 
-CREATE OR REPLACE FUNCTION public.sync_courier_rating_from_delivery()
+DO $bootstrap_do_93e646d51954$
+BEGIN
+  EXECUTE $bootstrap_sql_93e646d51954$CREATE OR REPLACE FUNCTION public.sync_courier_rating_from_delivery()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -184,21 +233,48 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_93e646d51954$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_93e646d51954$;
 
-DROP TRIGGER IF EXISTS sync_courier_rating_after_ride ON public.ride_requests;
-CREATE TRIGGER sync_courier_rating_after_ride
+DO $bootstrap_do_82f20f73f729$
+BEGIN
+  EXECUTE $bootstrap_sql_82f20f73f729$DROP TRIGGER IF EXISTS sync_courier_rating_after_ride ON public.ride_requests$bootstrap_sql_82f20f73f729$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_82f20f73f729$;
+
+DO $bootstrap_do_a4aa15bd6df9$
+BEGIN
+  EXECUTE $bootstrap_sql_a4aa15bd6df9$CREATE TRIGGER sync_courier_rating_after_ride
 AFTER INSERT OR UPDATE OF driver_id, rating OR DELETE ON public.ride_requests
 FOR EACH ROW
-EXECUTE FUNCTION public.sync_courier_rating_from_ride();
+EXECUTE FUNCTION public.sync_courier_rating_from_ride()$bootstrap_sql_a4aa15bd6df9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a4aa15bd6df9$;
 
-DROP TRIGGER IF EXISTS sync_courier_rating_after_delivery ON public.courier_ratings;
-CREATE TRIGGER sync_courier_rating_after_delivery
+DO $bootstrap_do_2ca645ac3967$
+BEGIN
+  EXECUTE $bootstrap_sql_2ca645ac3967$DROP TRIGGER IF EXISTS sync_courier_rating_after_delivery ON public.courier_ratings$bootstrap_sql_2ca645ac3967$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2ca645ac3967$;
+
+DO $bootstrap_do_90d75e7ee7e2$
+BEGIN
+  EXECUTE $bootstrap_sql_90d75e7ee7e2$CREATE TRIGGER sync_courier_rating_after_delivery
 AFTER INSERT OR UPDATE OF courier_id, rating OR DELETE ON public.courier_ratings
 FOR EACH ROW
-EXECUTE FUNCTION public.sync_courier_rating_from_delivery();
+EXECUTE FUNCTION public.sync_courier_rating_from_delivery()$bootstrap_sql_90d75e7ee7e2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_90d75e7ee7e2$;
 
--- Backfill profiles created before the unified aggregation existed.
+DO $bootstrap_do_3fa33e9af615$
+BEGIN
+  EXECUTE $bootstrap_sql_3fa33e9af615$-- Backfill profiles created before the unified aggregation existed.
 UPDATE public.couriers AS c
 SET rating_avg = stats.rating_avg,
     rating_count = stats.rating_count,
@@ -219,13 +295,42 @@ FROM (
   ) AS r ON r.courier_id = c2.id
   GROUP BY c2.id
 ) AS stats
-WHERE c.id = stats.id;
+WHERE c.id = stats.id$bootstrap_sql_3fa33e9af615$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3fa33e9af615$;
 
-REVOKE ALL ON FUNCTION public.refresh_courier_rating(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.sync_courier_rating_from_ride() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.sync_courier_rating_from_delivery() FROM PUBLIC, anon, authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 67_20260915160000_unify_courier_and_ride_ratings.sql =====
+DO $bootstrap_do_a4a19ddaa295$
+BEGIN
+  EXECUTE $bootstrap_sql_a4a19ddaa295$REVOKE ALL ON FUNCTION public.refresh_courier_rating(uuid) FROM PUBLIC, anon, authenticated$bootstrap_sql_a4a19ddaa295$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a4a19ddaa295$;
+
+DO $bootstrap_do_78feb81f2135$
+BEGIN
+  EXECUTE $bootstrap_sql_78feb81f2135$REVOKE ALL ON FUNCTION public.sync_courier_rating_from_ride() FROM PUBLIC, anon, authenticated$bootstrap_sql_78feb81f2135$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_78feb81f2135$;
+
+DO $bootstrap_do_4e210008c9e3$
+BEGIN
+  EXECUTE $bootstrap_sql_4e210008c9e3$REVOKE ALL ON FUNCTION public.sync_courier_rating_from_delivery() FROM PUBLIC, anon, authenticated$bootstrap_sql_4e210008c9e3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4e210008c9e3$;
+
+DO $bootstrap_do_5d83917e2f03$
+BEGIN
+  EXECUTE $bootstrap_sql_5d83917e2f03$NOTIFY pgrst, 'reload schema'$bootstrap_sql_5d83917e2f03$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5d83917e2f03$;
+
+DO $bootstrap_do_597c2102ae4c$
+BEGIN
+  EXECUTE $bootstrap_sql_597c2102ae4c$-- ===== END BUNDLE: 67_20260915160000_unify_courier_and_ride_ratings.sql =====
 
 -- ===== BEGIN BUNDLE: 68_20260917100000_delivery_assignments_created_by_compatibility.sql =====
 -- Compatibility fix for existing Supabase projects.
@@ -233,14 +338,29 @@ NOTIFY pgrst, 'reload schema';
 -- create_courier_order RPC started writing created_by.
 
 ALTER TABLE public.delivery_assignments
-  ADD COLUMN IF NOT EXISTS created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL$bootstrap_sql_597c2102ae4c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_597c2102ae4c$;
 
-CREATE INDEX IF NOT EXISTS idx_delivery_assignments_created_by
-  ON public.delivery_assignments(created_by);
+DO $bootstrap_do_83fb5926977b$
+BEGIN
+  EXECUTE $bootstrap_sql_83fb5926977b$CREATE INDEX IF NOT EXISTS idx_delivery_assignments_created_by
+  ON public.delivery_assignments(created_by)$bootstrap_sql_83fb5926977b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_83fb5926977b$;
 
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_06110510e322$
+BEGIN
+  EXECUTE $bootstrap_sql_06110510e322$NOTIFY pgrst, 'reload schema'$bootstrap_sql_06110510e322$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_06110510e322$;
 
--- Existing assignments remain unchanged; created_by is NULL for old rows.
+DO $bootstrap_do_7d61c3a801d1$
+BEGIN
+  EXECUTE $bootstrap_sql_7d61c3a801d1$-- Existing assignments remain unchanged; created_by is NULL for old rows.
 -- New courier bookings will store auth.uid() in this column.
 -- ===== END BUNDLE: 68_20260917100000_delivery_assignments_created_by_compatibility.sql =====
 
@@ -327,18 +447,40 @@ BEGIN
 
   RETURN v_assignment;
 END;
-$$;
+$$$bootstrap_sql_7d61c3a801d1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7d61c3a801d1$;
 
-GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid, uuid) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 69_20260917110000_notify_courier_delivery_offer.sql =====
+DO $bootstrap_do_a486961d059c$
+BEGIN
+  EXECUTE $bootstrap_sql_a486961d059c$GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid, uuid) TO authenticated$bootstrap_sql_a486961d059c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a486961d059c$;
+
+DO $bootstrap_do_146894063218$
+BEGIN
+  EXECUTE $bootstrap_sql_146894063218$NOTIFY pgrst, 'reload schema'$bootstrap_sql_146894063218$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_146894063218$;
+
+DO $bootstrap_do_62075330423a$
+BEGIN
+  EXECUTE $bootstrap_sql_62075330423a$-- ===== END BUNDLE: 69_20260917110000_notify_courier_delivery_offer.sql =====
 
 -- ===== BEGIN BUNDLE: 69_20260917180000_order_service_type.sql =====
 -- Make buyer transaction classification explicit while preserving legacy orders.
 ALTER TABLE public.orders
-  ADD COLUMN IF NOT EXISTS service_type text NOT NULL DEFAULT 'MARKETPLACE';
+  ADD COLUMN IF NOT EXISTS service_type text NOT NULL DEFAULT 'MARKETPLACE'$bootstrap_sql_62075330423a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_62075330423a$;
 
-UPDATE public.orders
+DO $bootstrap_do_ebfdb92677e5$
+BEGIN
+  EXECUTE $bootstrap_sql_ebfdb92677e5$UPDATE public.orders
 SET service_type = 'COURIER_DELIVERY'
 WHERE service_type = 'MARKETPLACE'
   AND merchant_id IS NULL
@@ -346,9 +488,14 @@ WHERE service_type = 'MARKETPLACE'
     SELECT 1 FROM public.order_items oi WHERE oi.order_id = orders.id
   )
   AND pickup_address IS NOT NULL
-  AND package_type IS NOT NULL;
+  AND package_type IS NOT NULL$bootstrap_sql_ebfdb92677e5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ebfdb92677e5$;
 
-DO $$
+DO $bootstrap_do_593bb60eb0bc$
+BEGIN
+  EXECUTE $bootstrap_sql_593bb60eb0bc$DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
@@ -359,13 +506,29 @@ BEGIN
       ADD CONSTRAINT orders_service_type_check
       CHECK (service_type IN ('MARKETPLACE', 'COURIER_DELIVERY'));
   END IF;
-END $$;
+END $$$bootstrap_sql_593bb60eb0bc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_593bb60eb0bc$;
 
-CREATE INDEX IF NOT EXISTS idx_orders_buyer_service_type_created
-  ON public.orders (buyer_id, service_type, created_at DESC);
+DO $bootstrap_do_c71e0407d32b$
+BEGIN
+  EXECUTE $bootstrap_sql_c71e0407d32b$CREATE INDEX IF NOT EXISTS idx_orders_buyer_service_type_created
+  ON public.orders (buyer_id, service_type, created_at DESC)$bootstrap_sql_c71e0407d32b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c71e0407d32b$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 69_20260917180000_order_service_type.sql =====
+DO $bootstrap_do_1ae4775027ee$
+BEGIN
+  EXECUTE $bootstrap_sql_1ae4775027ee$NOTIFY pgrst, 'reload schema'$bootstrap_sql_1ae4775027ee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1ae4775027ee$;
+
+DO $bootstrap_do_2540cdcd3b67$
+BEGIN
+  EXECUTE $bootstrap_sql_2540cdcd3b67$-- ===== END BUNDLE: 69_20260917180000_order_service_type.sql =====
 
 -- ===== BEGIN BUNDLE: 70_20260917152000_offer_status_integrity.sql =====
 -- Keep assignment and acceptance separate.
@@ -450,9 +613,14 @@ BEGIN
 
   RETURN v_assignment;
 END;
-$$;
+$$$bootstrap_sql_2540cdcd3b67$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2540cdcd3b67$;
 
-CREATE OR REPLACE FUNCTION public.merchant_offer_order_to_courier(p_order_id uuid, p_courier_id uuid)
+DO $bootstrap_do_7c0875b91889$
+BEGIN
+  EXECUTE $bootstrap_sql_7c0875b91889$CREATE OR REPLACE FUNCTION public.merchant_offer_order_to_courier(p_order_id uuid, p_courier_id uuid)
 RETURNS public.delivery_assignments
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -461,9 +629,14 @@ AS $$
 BEGIN
   RETURN public.create_delivery_offer(p_order_id, p_courier_id);
 END;
-$$;
+$$$bootstrap_sql_7c0875b91889$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7c0875b91889$;
 
--- Acceptance is the only operation that makes the courier authoritative.
+DO $bootstrap_do_e3d9d846ca7f$
+BEGIN
+  EXECUTE $bootstrap_sql_e3d9d846ca7f$-- Acceptance is the only operation that makes the courier authoritative.
 CREATE OR REPLACE FUNCTION public.respond_delivery_offer(p_assignment_id uuid, p_accept boolean, p_reason text DEFAULT NULL)
 RETURNS public.delivery_assignments
 LANGUAGE plpgsql
@@ -530,13 +703,42 @@ BEGIN
 
   RETURN v_assignment;
 END;
-$$;
+$$$bootstrap_sql_e3d9d846ca7f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e3d9d846ca7f$;
 
-GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.merchant_offer_order_to_courier(uuid, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid, boolean, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 70_20260917152000_offer_status_integrity.sql =====
+DO $bootstrap_do_da08a1fc3299$
+BEGIN
+  EXECUTE $bootstrap_sql_da08a1fc3299$GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid, uuid) TO authenticated$bootstrap_sql_da08a1fc3299$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_da08a1fc3299$;
+
+DO $bootstrap_do_57ee3d1383b8$
+BEGIN
+  EXECUTE $bootstrap_sql_57ee3d1383b8$GRANT EXECUTE ON FUNCTION public.merchant_offer_order_to_courier(uuid, uuid) TO authenticated$bootstrap_sql_57ee3d1383b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_57ee3d1383b8$;
+
+DO $bootstrap_do_e9d3467ccbe3$
+BEGIN
+  EXECUTE $bootstrap_sql_e9d3467ccbe3$GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid, boolean, text) TO authenticated$bootstrap_sql_e9d3467ccbe3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e9d3467ccbe3$;
+
+DO $bootstrap_do_4b3d89c9345d$
+BEGIN
+  EXECUTE $bootstrap_sql_4b3d89c9345d$NOTIFY pgrst, 'reload schema'$bootstrap_sql_4b3d89c9345d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4b3d89c9345d$;
+
+DO $bootstrap_do_99f82448a01c$
+BEGIN
+  EXECUTE $bootstrap_sql_99f82448a01c$-- ===== END BUNDLE: 70_20260917152000_offer_status_integrity.sql =====
 
 -- ===== BEGIN BUNDLE: 70_20260917190000_renew_courier_offer.sql =====
 -- Keep a still-pending courier offer visible when a courier dashboard was offline.
@@ -583,12 +785,35 @@ BEGIN
 
   RETURN v_assignment;
 END;
-$$;
+$$$bootstrap_sql_99f82448a01c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_99f82448a01c$;
 
-REVOKE ALL ON FUNCTION public.renew_delivery_offer(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.renew_delivery_offer(uuid) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 70_20260917190000_renew_courier_offer.sql =====
+DO $bootstrap_do_5e1f11128da5$
+BEGIN
+  EXECUTE $bootstrap_sql_5e1f11128da5$REVOKE ALL ON FUNCTION public.renew_delivery_offer(uuid) FROM PUBLIC, anon$bootstrap_sql_5e1f11128da5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5e1f11128da5$;
+
+DO $bootstrap_do_cb2734fea682$
+BEGIN
+  EXECUTE $bootstrap_sql_cb2734fea682$GRANT EXECUTE ON FUNCTION public.renew_delivery_offer(uuid) TO authenticated$bootstrap_sql_cb2734fea682$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cb2734fea682$;
+
+DO $bootstrap_do_da3033a4f3d8$
+BEGIN
+  EXECUTE $bootstrap_sql_da3033a4f3d8$NOTIFY pgrst, 'reload schema'$bootstrap_sql_da3033a4f3d8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_da3033a4f3d8$;
+
+DO $bootstrap_do_685e89b4d038$
+BEGIN
+  EXECUTE $bootstrap_sql_685e89b4d038$-- ===== END BUNDLE: 70_20260917190000_renew_courier_offer.sql =====
 
 -- ===== BEGIN BUNDLE: 71_20260917193000_retry_courier_dispatch.sql =====
 -- Retry courier dispatch for bookings that remain ASSIGNED without a visible offer.
@@ -697,12 +922,35 @@ BEGIN
 
   RETURN jsonb_build_object('order_id', p_order_id, 'assignment_id', v_assignment.id, 'courier_id', v_courier.id, 'dispatch_status', 'OFFERED');
 END;
-$$;
+$$$bootstrap_sql_685e89b4d038$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_685e89b4d038$;
 
-REVOKE ALL ON FUNCTION public.dispatch_courier_order(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.dispatch_courier_order(uuid) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 71_20260917193000_retry_courier_dispatch.sql =====
+DO $bootstrap_do_fc77797a4798$
+BEGIN
+  EXECUTE $bootstrap_sql_fc77797a4798$REVOKE ALL ON FUNCTION public.dispatch_courier_order(uuid) FROM PUBLIC, anon$bootstrap_sql_fc77797a4798$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fc77797a4798$;
+
+DO $bootstrap_do_647310d9ebdb$
+BEGIN
+  EXECUTE $bootstrap_sql_647310d9ebdb$GRANT EXECUTE ON FUNCTION public.dispatch_courier_order(uuid) TO authenticated$bootstrap_sql_647310d9ebdb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_647310d9ebdb$;
+
+DO $bootstrap_do_c9e1187da7be$
+BEGIN
+  EXECUTE $bootstrap_sql_c9e1187da7be$NOTIFY pgrst, 'reload schema'$bootstrap_sql_c9e1187da7be$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c9e1187da7be$;
+
+DO $bootstrap_do_38ff9730db95$
+BEGIN
+  EXECUTE $bootstrap_sql_38ff9730db95$-- ===== END BUNDLE: 71_20260917193000_retry_courier_dispatch.sql =====
 
 -- ===== BEGIN BUNDLE: 72_20260917195000_courier_offer_feed.sql =====
 -- Courier offer feed: avoids nested orders RLS hiding an OFFERED assignment
@@ -756,12 +1004,35 @@ BEGIN
 
   RETURN v_offers;
 END;
-$$;
+$$$bootstrap_sql_38ff9730db95$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_38ff9730db95$;
 
-REVOKE ALL ON FUNCTION public.get_courier_delivery_offers() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_courier_delivery_offers() TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 72_20260917195000_courier_offer_feed.sql =====
+DO $bootstrap_do_bfac844169dd$
+BEGIN
+  EXECUTE $bootstrap_sql_bfac844169dd$REVOKE ALL ON FUNCTION public.get_courier_delivery_offers() FROM PUBLIC, anon$bootstrap_sql_bfac844169dd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bfac844169dd$;
+
+DO $bootstrap_do_4306ab0c1ebc$
+BEGIN
+  EXECUTE $bootstrap_sql_4306ab0c1ebc$GRANT EXECUTE ON FUNCTION public.get_courier_delivery_offers() TO authenticated$bootstrap_sql_4306ab0c1ebc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4306ab0c1ebc$;
+
+DO $bootstrap_do_4ca760f89193$
+BEGIN
+  EXECUTE $bootstrap_sql_4ca760f89193$NOTIFY pgrst, 'reload schema'$bootstrap_sql_4ca760f89193$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4ca760f89193$;
+
+DO $bootstrap_do_0e49259b82e7$
+BEGIN
+  EXECUTE $bootstrap_sql_0e49259b82e7$-- ===== END BUNDLE: 72_20260917195000_courier_offer_feed.sql =====
 
 -- ===== BEGIN BUNDLE: 73_20260917200000_courier_offer_authority_repair.sql =====
 -- Courier delivery flow repair:
@@ -779,9 +1050,14 @@ WHERE o.status = 'ASSIGNED'
     FROM public.delivery_assignments da
     WHERE da.order_id = o.id
       AND da.status = 'OFFERED'
-  );
+  )$bootstrap_sql_0e49259b82e7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0e49259b82e7$;
 
-CREATE OR REPLACE FUNCTION public.create_delivery_offer(p_order_id uuid, p_courier_id uuid)
+DO $bootstrap_do_6f5e4cdb3fbc$
+BEGIN
+  EXECUTE $bootstrap_sql_6f5e4cdb3fbc$CREATE OR REPLACE FUNCTION public.create_delivery_offer(p_order_id uuid, p_courier_id uuid)
 RETURNS public.delivery_assignments
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -857,9 +1133,14 @@ BEGIN
 
   RETURN v_assignment;
 END;
-$$;
+$$$bootstrap_sql_6f5e4cdb3fbc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6f5e4cdb3fbc$;
 
-CREATE OR REPLACE FUNCTION public.create_courier_order(p_request jsonb)
+DO $bootstrap_do_9194fe6835d0$
+BEGIN
+  EXECUTE $bootstrap_sql_9194fe6835d0$CREATE OR REPLACE FUNCTION public.create_courier_order(p_request jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -973,9 +1254,14 @@ BEGIN
     'dispatch_status', CASE WHEN v_assignment.id IS NULL THEN 'WAITING_FOR_COURIER' ELSE 'OFFERED' END
   );
 END;
-$$;
+$$$bootstrap_sql_9194fe6835d0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9194fe6835d0$;
 
-CREATE OR REPLACE FUNCTION public.dispatch_courier_order(p_order_id uuid)
+DO $bootstrap_do_545f68215d87$
+BEGIN
+  EXECUTE $bootstrap_sql_545f68215d87$CREATE OR REPLACE FUNCTION public.dispatch_courier_order(p_order_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1076,9 +1362,14 @@ BEGIN
 
   RETURN jsonb_build_object('order_id', p_order_id, 'assignment_id', v_assignment.id, 'courier_id', v_courier.id, 'dispatch_status', 'OFFERED');
 END;
-$$;
+$$$bootstrap_sql_545f68215d87$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_545f68215d87$;
 
-CREATE OR REPLACE FUNCTION public.get_courier_delivery_offers()
+DO $bootstrap_do_6b26e40cfb94$
+BEGIN
+  EXECUTE $bootstrap_sql_6b26e40cfb94$CREATE OR REPLACE FUNCTION public.get_courier_delivery_offers()
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1138,16 +1429,63 @@ BEGIN
 
   RETURN v_offers;
 END;
-$$;
+$$$bootstrap_sql_6b26e40cfb94$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b26e40cfb94$;
 
-REVOKE ALL ON FUNCTION public.create_courier_order(jsonb) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.dispatch_courier_order(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.get_courier_delivery_offers() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_courier_order(jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.dispatch_courier_order(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_courier_delivery_offers() TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 73_20260917200000_courier_offer_authority_repair.sql =====
+DO $bootstrap_do_254cacf30d0a$
+BEGIN
+  EXECUTE $bootstrap_sql_254cacf30d0a$REVOKE ALL ON FUNCTION public.create_courier_order(jsonb) FROM PUBLIC, anon$bootstrap_sql_254cacf30d0a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_254cacf30d0a$;
+
+DO $bootstrap_do_80a86004187f$
+BEGIN
+  EXECUTE $bootstrap_sql_80a86004187f$REVOKE ALL ON FUNCTION public.dispatch_courier_order(uuid) FROM PUBLIC, anon$bootstrap_sql_80a86004187f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_80a86004187f$;
+
+DO $bootstrap_do_95b16d7c98de$
+BEGIN
+  EXECUTE $bootstrap_sql_95b16d7c98de$REVOKE ALL ON FUNCTION public.get_courier_delivery_offers() FROM PUBLIC, anon$bootstrap_sql_95b16d7c98de$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_95b16d7c98de$;
+
+DO $bootstrap_do_301949373f24$
+BEGIN
+  EXECUTE $bootstrap_sql_301949373f24$GRANT EXECUTE ON FUNCTION public.create_courier_order(jsonb) TO authenticated$bootstrap_sql_301949373f24$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_301949373f24$;
+
+DO $bootstrap_do_e95a73cfcfb8$
+BEGIN
+  EXECUTE $bootstrap_sql_e95a73cfcfb8$GRANT EXECUTE ON FUNCTION public.dispatch_courier_order(uuid) TO authenticated$bootstrap_sql_e95a73cfcfb8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e95a73cfcfb8$;
+
+DO $bootstrap_do_f69b2d4cf67d$
+BEGIN
+  EXECUTE $bootstrap_sql_f69b2d4cf67d$GRANT EXECUTE ON FUNCTION public.get_courier_delivery_offers() TO authenticated$bootstrap_sql_f69b2d4cf67d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f69b2d4cf67d$;
+
+DO $bootstrap_do_f8288b68f34d$
+BEGIN
+  EXECUTE $bootstrap_sql_f8288b68f34d$NOTIFY pgrst, 'reload schema'$bootstrap_sql_f8288b68f34d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f8288b68f34d$;
+
+DO $bootstrap_do_0a8ec2d185f3$
+BEGIN
+  EXECUTE $bootstrap_sql_0a8ec2d185f3$-- ===== END BUNDLE: 73_20260917200000_courier_offer_authority_repair.sql =====
 
 -- ===== BEGIN BUNDLE: 74_20260917201000_buyer_delivery_confirmation.sql =====
 -- Authoritative buyer confirmation for delivered orders.
@@ -1189,13 +1527,35 @@ BEGIN
 
   RETURN jsonb_build_object('order_id', p_order_id, 'from_status', v_order.status, 'to_status', 'DONE');
 END;
-$$;
+$$$bootstrap_sql_0a8ec2d185f3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0a8ec2d185f3$;
 
-REVOKE ALL ON FUNCTION public.buyer_confirm_delivery(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.buyer_confirm_delivery(uuid) TO authenticated;
+DO $bootstrap_do_e02530083219$
+BEGIN
+  EXECUTE $bootstrap_sql_e02530083219$REVOKE ALL ON FUNCTION public.buyer_confirm_delivery(uuid) FROM PUBLIC, anon$bootstrap_sql_e02530083219$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e02530083219$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 74_20260917201000_buyer_delivery_confirmation.sql =====
+DO $bootstrap_do_303d063a096b$
+BEGIN
+  EXECUTE $bootstrap_sql_303d063a096b$GRANT EXECUTE ON FUNCTION public.buyer_confirm_delivery(uuid) TO authenticated$bootstrap_sql_303d063a096b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_303d063a096b$;
+
+DO $bootstrap_do_aa91ceeca3e9$
+BEGIN
+  EXECUTE $bootstrap_sql_aa91ceeca3e9$NOTIFY pgrst, 'reload schema'$bootstrap_sql_aa91ceeca3e9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aa91ceeca3e9$;
+
+DO $bootstrap_do_be39320a2e2e$
+BEGIN
+  EXECUTE $bootstrap_sql_be39320a2e2e$-- ===== END BUNDLE: 74_20260917201000_buyer_delivery_confirmation.sql =====
 
 -- ===== BEGIN BUNDLE: 75_20260917203000_direct_courier_cancellation.sql =====
 -- Direct courier bookings have a different cancellation lifecycle from marketplace orders.
@@ -1283,30 +1643,73 @@ BEGIN
     'service_type', CASE WHEN v_is_direct_courier THEN 'COURIER_DELIVERY' ELSE 'MARKETPLACE' END
   );
 END;
-$$;
+$$$bootstrap_sql_be39320a2e2e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_be39320a2e2e$;
 
-REVOKE ALL ON FUNCTION public.buyer_cancel_order(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.buyer_cancel_order(uuid, text) TO authenticated;
+DO $bootstrap_do_7f63ae3424e1$
+BEGIN
+  EXECUTE $bootstrap_sql_7f63ae3424e1$REVOKE ALL ON FUNCTION public.buyer_cancel_order(uuid, text) FROM PUBLIC, anon$bootstrap_sql_7f63ae3424e1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7f63ae3424e1$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 75_20260917203000_direct_courier_cancellation.sql =====
+DO $bootstrap_do_22a9e8ebd9be$
+BEGIN
+  EXECUTE $bootstrap_sql_22a9e8ebd9be$GRANT EXECUTE ON FUNCTION public.buyer_cancel_order(uuid, text) TO authenticated$bootstrap_sql_22a9e8ebd9be$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_22a9e8ebd9be$;
+
+DO $bootstrap_do_7a583e9917d6$
+BEGIN
+  EXECUTE $bootstrap_sql_7a583e9917d6$NOTIFY pgrst, 'reload schema'$bootstrap_sql_7a583e9917d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7a583e9917d6$;
+
+DO $bootstrap_do_00c298ef31c4$
+BEGIN
+  EXECUTE $bootstrap_sql_00c298ef31c4$-- ===== END BUNDLE: 75_20260917203000_direct_courier_cancellation.sql =====
 
 -- ===== BEGIN BUNDLE: 76_20260917210000_courier_delivery_state_machine.sql =====
 -- Direct courier state machine: all courier mutations are authorized, locked, and audited.
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS delivery_proof_url text,
-  ADD COLUMN IF NOT EXISTS delivery_notes text;
+  ADD COLUMN IF NOT EXISTS delivery_notes text$bootstrap_sql_00c298ef31c4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_00c298ef31c4$;
 
-ALTER TABLE public.order_status_history
-  ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb;
+DO $bootstrap_do_ee674a11e974$
+BEGIN
+  EXECUTE $bootstrap_sql_ee674a11e974$ALTER TABLE public.order_status_history
+  ADD COLUMN IF NOT EXISTS metadata jsonb NOT NULL DEFAULT '{}'::jsonb$bootstrap_sql_ee674a11e974$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee674a11e974$;
 
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+DO $bootstrap_do_8e3bf573495c$
+BEGIN
+  EXECUTE $bootstrap_sql_8e3bf573495c$INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('pod-images', 'pod-images', false, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
 ON CONFLICT (id) DO UPDATE SET file_size_limit = EXCLUDED.file_size_limit,
-  allowed_mime_types = EXCLUDED.allowed_mime_types;
+  allowed_mime_types = EXCLUDED.allowed_mime_types$bootstrap_sql_8e3bf573495c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8e3bf573495c$;
 
-DROP POLICY IF EXISTS "Couriers upload delivery proof images" ON storage.objects;
-CREATE POLICY "Couriers upload delivery proof images"
+DO $bootstrap_do_26cf24b17a2d$
+BEGIN
+  EXECUTE $bootstrap_sql_26cf24b17a2d$DROP POLICY IF EXISTS "Couriers upload delivery proof images" ON storage.objects$bootstrap_sql_26cf24b17a2d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_26cf24b17a2d$;
+
+DO $bootstrap_do_f8f14f192173$
+BEGIN
+  EXECUTE $bootstrap_sql_f8f14f192173$CREATE POLICY "Couriers upload delivery proof images"
 ON storage.objects FOR INSERT TO authenticated
 WITH CHECK (
   bucket_id = 'pod-images'
@@ -1314,10 +1717,21 @@ WITH CHECK (
     SELECT 1 FROM public.couriers c
     WHERE c.user_id = auth.uid() AND c.status = 'ACTIVE' AND c.registration_status = 'APPROVED'
   )
-);
+)$bootstrap_sql_f8f14f192173$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f8f14f192173$;
 
-DROP POLICY IF EXISTS "Couriers delete own delivery proof images" ON storage.objects;
-CREATE POLICY "Couriers delete own delivery proof images"
+DO $bootstrap_do_54420b25dac8$
+BEGIN
+  EXECUTE $bootstrap_sql_54420b25dac8$DROP POLICY IF EXISTS "Couriers delete own delivery proof images" ON storage.objects$bootstrap_sql_54420b25dac8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_54420b25dac8$;
+
+DO $bootstrap_do_19c36abf9d96$
+BEGIN
+  EXECUTE $bootstrap_sql_19c36abf9d96$CREATE POLICY "Couriers delete own delivery proof images"
 ON storage.objects FOR DELETE TO authenticated
 USING (
   bucket_id = 'pod-images'
@@ -1325,9 +1739,14 @@ USING (
     SELECT 1 FROM public.couriers c
     WHERE c.user_id = auth.uid() AND c.status = 'ACTIVE' AND c.registration_status = 'APPROVED'
   )
-);
+)$bootstrap_sql_19c36abf9d96$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_19c36abf9d96$;
 
-CREATE OR REPLACE FUNCTION public.courier_pickup_order(p_order_id uuid)
+DO $bootstrap_do_012d31b1324e$
+BEGIN
+  EXECUTE $bootstrap_sql_012d31b1324e$CREATE OR REPLACE FUNCTION public.courier_pickup_order(p_order_id uuid)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_order public.orders%ROWTYPE; v_courier_id uuid;
@@ -1345,9 +1764,14 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason)
   VALUES (p_order_id, 'COURIER_ACCEPTED', 'PICKED_UP', auth.uid(), 'Kurir mengambil barang');
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_012d31b1324e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_012d31b1324e$;
 
-CREATE OR REPLACE FUNCTION public.courier_start_delivery(p_order_id uuid)
+DO $bootstrap_do_16f0c55809d7$
+BEGIN
+  EXECUTE $bootstrap_sql_16f0c55809d7$CREATE OR REPLACE FUNCTION public.courier_start_delivery(p_order_id uuid)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_order public.orders%ROWTYPE; v_courier_id uuid;
@@ -1365,9 +1789,14 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason)
   VALUES (p_order_id, 'PICKED_UP', 'DELIVERING', auth.uid(), 'Kurir memulai pengantaran');
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_16f0c55809d7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_16f0c55809d7$;
 
-CREATE OR REPLACE FUNCTION public.courier_complete_delivery(p_order_id uuid, p_proof_path text, p_notes text DEFAULT NULL)
+DO $bootstrap_do_1cfe1063d57d$
+BEGIN
+  EXECUTE $bootstrap_sql_1cfe1063d57d$CREATE OR REPLACE FUNCTION public.courier_complete_delivery(p_order_id uuid, p_proof_path text, p_notes text DEFAULT NULL)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_order public.orders%ROWTYPE; v_courier_id uuid; v_from_status text;
@@ -1399,16 +1828,63 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason, metadata)
   VALUES (p_order_id, v_from_status, 'DELIVERED', auth.uid(), 'Kurir menyelesaikan pengiriman', jsonb_build_object('proof_path', p_proof_path));
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_1cfe1063d57d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1cfe1063d57d$;
 
-REVOKE ALL ON FUNCTION public.courier_pickup_order(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.courier_start_delivery(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.courier_complete_delivery(uuid, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.courier_pickup_order(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.courier_start_delivery(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.courier_complete_delivery(uuid, text, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 76_20260917210000_courier_delivery_state_machine.sql =====
+DO $bootstrap_do_5276655b56a0$
+BEGIN
+  EXECUTE $bootstrap_sql_5276655b56a0$REVOKE ALL ON FUNCTION public.courier_pickup_order(uuid) FROM PUBLIC, anon$bootstrap_sql_5276655b56a0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5276655b56a0$;
+
+DO $bootstrap_do_eb67a5e8e2b1$
+BEGIN
+  EXECUTE $bootstrap_sql_eb67a5e8e2b1$REVOKE ALL ON FUNCTION public.courier_start_delivery(uuid) FROM PUBLIC, anon$bootstrap_sql_eb67a5e8e2b1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eb67a5e8e2b1$;
+
+DO $bootstrap_do_5f6b695619e0$
+BEGIN
+  EXECUTE $bootstrap_sql_5f6b695619e0$REVOKE ALL ON FUNCTION public.courier_complete_delivery(uuid, text, text) FROM PUBLIC, anon$bootstrap_sql_5f6b695619e0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5f6b695619e0$;
+
+DO $bootstrap_do_7cc3616b80e9$
+BEGIN
+  EXECUTE $bootstrap_sql_7cc3616b80e9$GRANT EXECUTE ON FUNCTION public.courier_pickup_order(uuid) TO authenticated$bootstrap_sql_7cc3616b80e9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7cc3616b80e9$;
+
+DO $bootstrap_do_5e9080b29393$
+BEGIN
+  EXECUTE $bootstrap_sql_5e9080b29393$GRANT EXECUTE ON FUNCTION public.courier_start_delivery(uuid) TO authenticated$bootstrap_sql_5e9080b29393$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5e9080b29393$;
+
+DO $bootstrap_do_b408130583f7$
+BEGIN
+  EXECUTE $bootstrap_sql_b408130583f7$GRANT EXECUTE ON FUNCTION public.courier_complete_delivery(uuid, text, text) TO authenticated$bootstrap_sql_b408130583f7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b408130583f7$;
+
+DO $bootstrap_do_eaa3d1dcaba4$
+BEGIN
+  EXECUTE $bootstrap_sql_eaa3d1dcaba4$NOTIFY pgrst, 'reload schema'$bootstrap_sql_eaa3d1dcaba4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eaa3d1dcaba4$;
+
+DO $bootstrap_do_9b8357f187b8$
+BEGIN
+  EXECUTE $bootstrap_sql_9b8357f187b8$-- ===== END BUNDLE: 76_20260917210000_courier_delivery_state_machine.sql =====
 
 -- ===== BEGIN BUNDLE: 77_20260917213000_courier_offer_feed_runtime_repair.sql =====
 -- Runtime repair for the courier offer feed used by /courier/deliveries.
@@ -1463,12 +1939,28 @@ BEGIN
 
   RETURN v_offers;
 END;
-$$;
+$$$bootstrap_sql_9b8357f187b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9b8357f187b8$;
 
-REVOKE ALL ON FUNCTION public.get_courier_delivery_offers() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_courier_delivery_offers() TO authenticated;
+DO $bootstrap_do_b414b2d63253$
+BEGIN
+  EXECUTE $bootstrap_sql_b414b2d63253$REVOKE ALL ON FUNCTION public.get_courier_delivery_offers() FROM PUBLIC, anon$bootstrap_sql_b414b2d63253$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b414b2d63253$;
 
--- Keep the active delivery feed authoritative and independent from client-side
+DO $bootstrap_do_0ef7382aecb8$
+BEGIN
+  EXECUTE $bootstrap_sql_0ef7382aecb8$GRANT EXECUTE ON FUNCTION public.get_courier_delivery_offers() TO authenticated$bootstrap_sql_0ef7382aecb8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0ef7382aecb8$;
+
+DO $bootstrap_do_cb0745f204d5$
+BEGIN
+  EXECUTE $bootstrap_sql_cb0745f204d5$-- Keep the active delivery feed authoritative and independent from client-side
 -- orders RLS joins. Acceptance still sets orders.courier_id; this function makes
 -- the resulting active rows readable through one audited path.
 CREATE OR REPLACE FUNCTION public.get_courier_active_deliveries()
@@ -1499,12 +1991,35 @@ BEGIN
     AND o.status IN ('COURIER_ACCEPTED', 'PICKED_UP', 'DELIVERING')
   ORDER BY o.created_at DESC;
 END;
-$$;
+$$$bootstrap_sql_cb0745f204d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cb0745f204d5$;
 
-REVOKE ALL ON FUNCTION public.get_courier_active_deliveries() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_courier_active_deliveries() TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 77_20260917213000_courier_offer_feed_runtime_repair.sql =====
+DO $bootstrap_do_d7e95a138576$
+BEGIN
+  EXECUTE $bootstrap_sql_d7e95a138576$REVOKE ALL ON FUNCTION public.get_courier_active_deliveries() FROM PUBLIC, anon$bootstrap_sql_d7e95a138576$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d7e95a138576$;
+
+DO $bootstrap_do_99760914e605$
+BEGIN
+  EXECUTE $bootstrap_sql_99760914e605$GRANT EXECUTE ON FUNCTION public.get_courier_active_deliveries() TO authenticated$bootstrap_sql_99760914e605$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_99760914e605$;
+
+DO $bootstrap_do_38b80b314d8c$
+BEGIN
+  EXECUTE $bootstrap_sql_38b80b314d8c$NOTIFY pgrst, 'reload schema'$bootstrap_sql_38b80b314d8c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_38b80b314d8c$;
+
+DO $bootstrap_do_805349449259$
+BEGIN
+  EXECUTE $bootstrap_sql_805349449259$-- ===== END BUNDLE: 77_20260917213000_courier_offer_feed_runtime_repair.sql =====
 
 -- ===== BEGIN BUNDLE: 77_20260918170000_pod_delivery_proof_policy.sql =====
 -- Align POD storage access with the current orders.delivery_proof_url column.
@@ -1513,9 +2028,21 @@ NOTIFY pgrst, 'reload schema';
 -- prevents a deadlock with concurrent storage metadata access. The bucket
 -- remains private; clients must use createSignedUrl().
 
-DROP POLICY IF EXISTS "POD images: read by order parties" ON storage.objects;
-DROP POLICY IF EXISTS "POD images: read by delivery parties" ON storage.objects;
-CREATE POLICY "POD images: read by delivery parties"
+DROP POLICY IF EXISTS "POD images: read by order parties" ON storage.objects$bootstrap_sql_805349449259$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_805349449259$;
+
+DO $bootstrap_do_14bcf175742d$
+BEGIN
+  EXECUTE $bootstrap_sql_14bcf175742d$DROP POLICY IF EXISTS "POD images: read by delivery parties" ON storage.objects$bootstrap_sql_14bcf175742d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_14bcf175742d$;
+
+DO $bootstrap_do_9a1d7b4b39a9$
+BEGIN
+  EXECUTE $bootstrap_sql_9a1d7b4b39a9$CREATE POLICY "POD images: read by delivery parties"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
@@ -1540,11 +2067,28 @@ USING (
         )
     )
   )
-);
+)$bootstrap_sql_9a1d7b4b39a9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9a1d7b4b39a9$;
 
-DROP POLICY IF EXISTS "POD images: upload by courier or merchant" ON storage.objects;
-DROP POLICY IF EXISTS "Couriers upload delivery proof images" ON storage.objects;
-CREATE POLICY "Couriers upload delivery proof images"
+DO $bootstrap_do_0a04b0f7849f$
+BEGIN
+  EXECUTE $bootstrap_sql_0a04b0f7849f$DROP POLICY IF EXISTS "POD images: upload by courier or merchant" ON storage.objects$bootstrap_sql_0a04b0f7849f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0a04b0f7849f$;
+
+DO $bootstrap_do_4f1f66c6f047$
+BEGIN
+  EXECUTE $bootstrap_sql_4f1f66c6f047$DROP POLICY IF EXISTS "Couriers upload delivery proof images" ON storage.objects$bootstrap_sql_4f1f66c6f047$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4f1f66c6f047$;
+
+DO $bootstrap_do_6c17f85e06f9$
+BEGIN
+  EXECUTE $bootstrap_sql_6c17f85e06f9$CREATE POLICY "Couriers upload delivery proof images"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
@@ -1556,10 +2100,21 @@ WITH CHECK (
       AND c.status = 'ACTIVE'
       AND c.registration_status = 'APPROVED'
   )
-);
+)$bootstrap_sql_6c17f85e06f9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6c17f85e06f9$;
 
-DROP POLICY IF EXISTS "Couriers delete own delivery proof images" ON storage.objects;
-CREATE POLICY "Couriers delete own delivery proof images"
+DO $bootstrap_do_55d68068b26d$
+BEGIN
+  EXECUTE $bootstrap_sql_55d68068b26d$DROP POLICY IF EXISTS "Couriers delete own delivery proof images" ON storage.objects$bootstrap_sql_55d68068b26d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_55d68068b26d$;
+
+DO $bootstrap_do_1f5614c9a525$
+BEGIN
+  EXECUTE $bootstrap_sql_1f5614c9a525$CREATE POLICY "Couriers delete own delivery proof images"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
@@ -1571,8 +2126,21 @@ USING (
       AND c.status = 'ACTIVE'
       AND c.registration_status = 'APPROVED'
   )
-);
+)$bootstrap_sql_1f5614c9a525$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1f5614c9a525$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 77_20260918170000_pod_delivery_proof_policy.sql =====
+DO $bootstrap_do_12c35b13c130$
+BEGIN
+  EXECUTE $bootstrap_sql_12c35b13c130$NOTIFY pgrst, 'reload schema'$bootstrap_sql_12c35b13c130$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_12c35b13c130$;
 
+DO $bootstrap_do_82c58bf27d70$
+BEGIN
+  EXECUTE $bootstrap_sql_82c58bf27d70$-- ===== END BUNDLE: 77_20260918170000_pod_delivery_proof_policy.sql =====$bootstrap_sql_82c58bf27d70$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_82c58bf27d70$;

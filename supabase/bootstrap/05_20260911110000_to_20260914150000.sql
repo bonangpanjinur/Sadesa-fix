@@ -1,4 +1,10 @@
--- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_f0cc165c4a1b$
+BEGIN
+  EXECUTE $bootstrap_sql_f0cc165c4a1b$-- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
 -- DO NOT apply to an existing project with migration history.
 -- Consolidated range: 52_20260911110000_ride_authoritative_mutations.sql .. 65_20260914150000_driver_workflow_hardening.sql
 
@@ -72,9 +78,14 @@ BEGIN
 
   RETURN v_ride_id;
 END;
-$$;
+$$$bootstrap_sql_f0cc165c4a1b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f0cc165c4a1b$;
 
--- Preserve the existing signature for older clients, but bind the courier to auth.uid().
+DO $bootstrap_do_53b9b46bd2a1$
+BEGIN
+  EXECUTE $bootstrap_sql_53b9b46bd2a1$-- Preserve the existing signature for older clients, but bind the courier to auth.uid().
 CREATE OR REPLACE FUNCTION public.accept_ride(p_ride_id uuid, p_courier_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -122,9 +133,14 @@ BEGIN
   );
   RETURN true;
 END;
-$$;
+$$$bootstrap_sql_53b9b46bd2a1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_53b9b46bd2a1$;
 
-CREATE OR REPLACE FUNCTION public.cancel_ride(p_ride_id uuid, p_reason text DEFAULT 'Dibatalkan oleh penumpang')
+DO $bootstrap_do_63c86c60ba91$
+BEGIN
+  EXECUTE $bootstrap_sql_63c86c60ba91$CREATE OR REPLACE FUNCTION public.cancel_ride(p_ride_id uuid, p_reason text DEFAULT 'Dibatalkan oleh penumpang')
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -160,9 +176,14 @@ BEGIN
   END IF;
   RETURN true;
 END;
-$$;
+$$$bootstrap_sql_63c86c60ba91$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_63c86c60ba91$;
 
-CREATE OR REPLACE FUNCTION public.submit_ride_rating(
+DO $bootstrap_do_058218359d77$
+BEGIN
+  EXECUTE $bootstrap_sql_058218359d77$CREATE OR REPLACE FUNCTION public.submit_ride_rating(
   p_ride_id uuid,
   p_rating integer,
   p_comment text DEFAULT NULL
@@ -194,17 +215,64 @@ BEGIN
   END IF;
   RETURN jsonb_build_object('ride_id', p_ride_id, 'rating', p_rating);
 END;
-$$;
+$$$bootstrap_sql_058218359d77$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_058218359d77$;
 
--- All sensitive ride mutations now go through the RPCs above.
-REVOKE INSERT, UPDATE ON public.ride_requests FROM anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_ride_request(numeric, numeric, text, numeric, numeric, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.accept_ride(uuid, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.cancel_ride(uuid, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.submit_ride_rating(uuid, integer, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 52_20260911110000_ride_authoritative_mutations.sql =====
+DO $bootstrap_do_7c21a6eb5eca$
+BEGIN
+  EXECUTE $bootstrap_sql_7c21a6eb5eca$-- All sensitive ride mutations now go through the RPCs above.
+REVOKE INSERT, UPDATE ON public.ride_requests FROM anon, authenticated$bootstrap_sql_7c21a6eb5eca$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7c21a6eb5eca$;
+
+DO $bootstrap_do_d1f0dfede775$
+BEGIN
+  EXECUTE $bootstrap_sql_d1f0dfede775$GRANT EXECUTE ON FUNCTION public.create_ride_request(numeric, numeric, text, numeric, numeric, text) TO authenticated$bootstrap_sql_d1f0dfede775$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d1f0dfede775$;
+
+DO $bootstrap_do_ae54aaaa20fb$
+BEGIN
+  EXECUTE $bootstrap_sql_ae54aaaa20fb$GRANT EXECUTE ON FUNCTION public.accept_ride(uuid, uuid) TO authenticated$bootstrap_sql_ae54aaaa20fb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ae54aaaa20fb$;
+
+DO $bootstrap_do_4dd4ebd1f543$
+BEGIN
+  EXECUTE $bootstrap_sql_4dd4ebd1f543$GRANT EXECUTE ON FUNCTION public.cancel_ride(uuid, text) TO authenticated$bootstrap_sql_4dd4ebd1f543$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4dd4ebd1f543$;
+
+DO $bootstrap_do_ba1392a1a6ff$
+BEGIN
+  EXECUTE $bootstrap_sql_ba1392a1a6ff$GRANT EXECUTE ON FUNCTION public.submit_ride_rating(uuid, integer, text) TO authenticated$bootstrap_sql_ba1392a1a6ff$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ba1392a1a6ff$;
+
+DO $bootstrap_do_bcf274cd1ebf$
+BEGIN
+  EXECUTE $bootstrap_sql_bcf274cd1ebf$GRANT EXECUTE ON FUNCTION public.transition_ride_status(uuid, text) TO authenticated$bootstrap_sql_bcf274cd1ebf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bcf274cd1ebf$;
+
+DO $bootstrap_do_eb5c55fc82f1$
+BEGIN
+  EXECUTE $bootstrap_sql_eb5c55fc82f1$NOTIFY pgrst, 'reload schema'$bootstrap_sql_eb5c55fc82f1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eb5c55fc82f1$;
+
+DO $bootstrap_do_d1ac8a9e4ad6$
+BEGIN
+  EXECUTE $bootstrap_sql_d1ac8a9e4ad6$-- ===== END BUNDLE: 52_20260911110000_ride_authoritative_mutations.sql =====
 
 -- ===== BEGIN BUNDLE: 53_20260911120000_courier_booking_dispatch.sql =====
 -- Phase 2: turn the courier booking form into an authoritative order and dispatch request.
@@ -216,9 +284,14 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS package_type text,
   ADD COLUMN IF NOT EXISTS package_weight_kg numeric,
   ADD COLUMN IF NOT EXISTS courier_notes text,
-  ADD COLUMN IF NOT EXISTS scheduled_pickup boolean NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS scheduled_pickup boolean NOT NULL DEFAULT false$bootstrap_sql_d1ac8a9e4ad6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d1ac8a9e4ad6$;
 
-CREATE OR REPLACE FUNCTION public.create_courier_order(p_request jsonb)
+DO $bootstrap_do_ceb54d85063c$
+BEGIN
+  EXECUTE $bootstrap_sql_ceb54d85063c$CREATE OR REPLACE FUNCTION public.create_courier_order(p_request jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -339,23 +412,57 @@ BEGIN
     'dispatch_status', CASE WHEN v_assignment.id IS NULL THEN 'WAITING_FOR_COURIER' ELSE 'OFFERED' END
   );
 END;
-$$;
+$$$bootstrap_sql_ceb54d85063c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ceb54d85063c$;
 
-REVOKE ALL ON FUNCTION public.create_courier_order(jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_courier_order(jsonb) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 53_20260911120000_courier_booking_dispatch.sql =====
+DO $bootstrap_do_8bee0fea15ec$
+BEGIN
+  EXECUTE $bootstrap_sql_8bee0fea15ec$REVOKE ALL ON FUNCTION public.create_courier_order(jsonb) FROM PUBLIC, anon$bootstrap_sql_8bee0fea15ec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8bee0fea15ec$;
+
+DO $bootstrap_do_d82cb27705c3$
+BEGIN
+  EXECUTE $bootstrap_sql_d82cb27705c3$GRANT EXECUTE ON FUNCTION public.create_courier_order(jsonb) TO authenticated$bootstrap_sql_d82cb27705c3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d82cb27705c3$;
+
+DO $bootstrap_do_0c7e2dabe403$
+BEGIN
+  EXECUTE $bootstrap_sql_0c7e2dabe403$NOTIFY pgrst, 'reload schema'$bootstrap_sql_0c7e2dabe403$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0c7e2dabe403$;
+
+DO $bootstrap_do_747c90165de2$
+BEGIN
+  EXECUTE $bootstrap_sql_747c90165de2$-- ===== END BUNDLE: 53_20260911120000_courier_booking_dispatch.sql =====
 
 -- ===== BEGIN BUNDLE: 54_20260912202000_delivery_assignments_updated_at_compatibility.sql =====
 -- Keep delivery offer RPCs compatible with projects created before the
 -- delivery_assignments.updated_at column was introduced.
 ALTER TABLE public.delivery_assignments
-  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()$bootstrap_sql_747c90165de2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_747c90165de2$;
 
-UPDATE public.delivery_assignments
+DO $bootstrap_do_76b810798481$
+BEGIN
+  EXECUTE $bootstrap_sql_76b810798481$UPDATE public.delivery_assignments
 SET updated_at = COALESCE(updated_at, created_at, now())
-WHERE updated_at IS NULL;
--- ===== END BUNDLE: 54_20260912202000_delivery_assignments_updated_at_compatibility.sql =====
+WHERE updated_at IS NULL$bootstrap_sql_76b810798481$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_76b810798481$;
+
+DO $bootstrap_do_10cb78837dc0$
+BEGIN
+  EXECUTE $bootstrap_sql_10cb78837dc0$-- ===== END BUNDLE: 54_20260912202000_delivery_assignments_updated_at_compatibility.sql =====
 
 -- ===== BEGIN BUNDLE: 55_20260912204000_allow_expedition_handoff.sql =====
 -- Allow the merchant expedition handoff action to move an order from
@@ -428,19 +535,41 @@ BEGIN
 
   RETURN v_order;
 END;
-$$;
+$$$bootstrap_sql_10cb78837dc0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_10cb78837dc0$;
 
-GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 55_20260912204000_allow_expedition_handoff.sql =====
+DO $bootstrap_do_d74cfb529bad$
+BEGIN
+  EXECUTE $bootstrap_sql_d74cfb529bad$GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated$bootstrap_sql_d74cfb529bad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d74cfb529bad$;
+
+DO $bootstrap_do_06110510e322$
+BEGIN
+  EXECUTE $bootstrap_sql_06110510e322$NOTIFY pgrst, 'reload schema'$bootstrap_sql_06110510e322$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_06110510e322$;
+
+DO $bootstrap_do_66bf60be27d5$
+BEGIN
+  EXECUTE $bootstrap_sql_66bf60be27d5$-- ===== END BUNDLE: 55_20260912204000_allow_expedition_handoff.sql =====
 
 -- ===== BEGIN BUNDLE: 56_20260912211000_add_expedition_tracking_fields.sql =====
 -- Store the two required shipment details on the order itself.
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS expedition_name text,
-  ADD COLUMN IF NOT EXISTS tracking_number text;
+  ADD COLUMN IF NOT EXISTS tracking_number text$bootstrap_sql_66bf60be27d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_66bf60be27d5$;
 
-CREATE OR REPLACE FUNCTION public.merchant_transition_order(
+DO $bootstrap_do_61914589700c$
+BEGIN
+  EXECUTE $bootstrap_sql_61914589700c$CREATE OR REPLACE FUNCTION public.merchant_transition_order(
   p_order_id uuid,
   p_to_status text,
   p_reason text DEFAULT NULL,
@@ -505,11 +634,28 @@ BEGIN
   VALUES (p_order_id, v_from, p_to_status, auth.uid(), CASE WHEN v_payload ? 'type' THEN 'Diserahkan ke ekspedisi' ELSE NULLIF(trim(p_reason), '') END);
   RETURN v_order;
 END;
-$$;
+$$$bootstrap_sql_61914589700c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_61914589700c$;
 
-GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 56_20260912211000_add_expedition_tracking_fields.sql =====
+DO $bootstrap_do_2fd47c230a76$
+BEGIN
+  EXECUTE $bootstrap_sql_2fd47c230a76$GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated$bootstrap_sql_2fd47c230a76$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2fd47c230a76$;
+
+DO $bootstrap_do_6b6ae260bc1f$
+BEGIN
+  EXECUTE $bootstrap_sql_6b6ae260bc1f$NOTIFY pgrst, 'reload schema'$bootstrap_sql_6b6ae260bc1f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b6ae260bc1f$;
+
+DO $bootstrap_do_2f2cc2264633$
+BEGIN
+  EXECUTE $bootstrap_sql_2f2cc2264633$-- ===== END BUNDLE: 56_20260912211000_add_expedition_tracking_fields.sql =====
 
 -- ===== BEGIN BUNDLE: 57_20260912220000_buyer_order_cancellation.sql =====
 -- Authoritative buyer cancellation path.
@@ -518,9 +664,14 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS cancelled_at timestamptz,
   ADD COLUMN IF NOT EXISTS cancelled_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS cancellation_reason text,
-  ADD COLUMN IF NOT EXISTS cancellation_type text;
+  ADD COLUMN IF NOT EXISTS cancellation_type text$bootstrap_sql_2f2cc2264633$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2f2cc2264633$;
 
-CREATE OR REPLACE FUNCTION public.buyer_cancel_order(
+DO $bootstrap_do_c09eb1654b79$
+BEGIN
+  EXECUTE $bootstrap_sql_c09eb1654b79$CREATE OR REPLACE FUNCTION public.buyer_cancel_order(
   p_order_id uuid,
   p_reason text
 )
@@ -575,17 +726,50 @@ BEGIN
     'to_status', 'CANCELED'
   );
 END;
-$$;
+$$$bootstrap_sql_c09eb1654b79$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c09eb1654b79$;
 
-REVOKE ALL ON FUNCTION public.buyer_cancel_order(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.buyer_cancel_order(uuid, text) TO authenticated;
+DO $bootstrap_do_48c6cc02992e$
+BEGIN
+  EXECUTE $bootstrap_sql_48c6cc02992e$REVOKE ALL ON FUNCTION public.buyer_cancel_order(uuid, text) FROM PUBLIC, anon$bootstrap_sql_48c6cc02992e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_48c6cc02992e$;
 
--- Buyer mutations must go through scoped RPCs, never a broad row update.
-DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders;
-REVOKE UPDATE ON public.orders FROM authenticated, anon;
+DO $bootstrap_do_034efe0e2a97$
+BEGIN
+  EXECUTE $bootstrap_sql_034efe0e2a97$GRANT EXECUTE ON FUNCTION public.buyer_cancel_order(uuid, text) TO authenticated$bootstrap_sql_034efe0e2a97$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_034efe0e2a97$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 57_20260912220000_buyer_order_cancellation.sql =====
+DO $bootstrap_do_c4dfbf467224$
+BEGIN
+  EXECUTE $bootstrap_sql_c4dfbf467224$-- Buyer mutations must go through scoped RPCs, never a broad row update.
+DROP POLICY IF EXISTS "Buyers can update own pending orders" ON public.orders$bootstrap_sql_c4dfbf467224$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c4dfbf467224$;
+
+DO $bootstrap_do_32f331ab1120$
+BEGIN
+  EXECUTE $bootstrap_sql_32f331ab1120$REVOKE UPDATE ON public.orders FROM authenticated, anon$bootstrap_sql_32f331ab1120$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_32f331ab1120$;
+
+DO $bootstrap_do_8dac357ea96e$
+BEGIN
+  EXECUTE $bootstrap_sql_8dac357ea96e$NOTIFY pgrst, 'reload schema'$bootstrap_sql_8dac357ea96e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8dac357ea96e$;
+
+DO $bootstrap_do_8e4127f363ae$
+BEGIN
+  EXECUTE $bootstrap_sql_8e4127f363ae$-- ===== END BUNDLE: 57_20260912220000_buyer_order_cancellation.sql =====
 
 -- ===== BEGIN BUNDLE: 58_20260912230500_refund_shortfall_policy.sql =====
 -- Refund shortfall policy.
@@ -605,18 +789,58 @@ CREATE TABLE IF NOT EXISTS public.merchant_refund_shortfalls (
   recovered_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.merchant_refund_shortfalls ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Admins manage refund shortfalls" ON public.merchant_refund_shortfalls;
-CREATE POLICY "Admins manage refund shortfalls" ON public.merchant_refund_shortfalls
-  FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
-REVOKE ALL ON public.merchant_refund_shortfalls FROM anon, authenticated;
-GRANT SELECT ON public.merchant_refund_shortfalls TO authenticated;
+)$bootstrap_sql_8e4127f363ae$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8e4127f363ae$;
 
-CREATE INDEX IF NOT EXISTS idx_refund_shortfalls_merchant_status
-  ON public.merchant_refund_shortfalls(merchant_id, status);
+DO $bootstrap_do_b71e74087b33$
+BEGIN
+  EXECUTE $bootstrap_sql_b71e74087b33$ALTER TABLE public.merchant_refund_shortfalls ENABLE ROW LEVEL SECURITY$bootstrap_sql_b71e74087b33$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b71e74087b33$;
 
-CREATE OR REPLACE FUNCTION public.complete_refund_settlement(
+DO $bootstrap_do_9e5bae558f8e$
+BEGIN
+  EXECUTE $bootstrap_sql_9e5bae558f8e$DROP POLICY IF EXISTS "Admins manage refund shortfalls" ON public.merchant_refund_shortfalls$bootstrap_sql_9e5bae558f8e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9e5bae558f8e$;
+
+DO $bootstrap_do_b14304a2132d$
+BEGIN
+  EXECUTE $bootstrap_sql_b14304a2132d$CREATE POLICY "Admins manage refund shortfalls" ON public.merchant_refund_shortfalls
+  FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_b14304a2132d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b14304a2132d$;
+
+DO $bootstrap_do_1154bd4724c6$
+BEGIN
+  EXECUTE $bootstrap_sql_1154bd4724c6$REVOKE ALL ON public.merchant_refund_shortfalls FROM anon, authenticated$bootstrap_sql_1154bd4724c6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1154bd4724c6$;
+
+DO $bootstrap_do_b5410346afd4$
+BEGIN
+  EXECUTE $bootstrap_sql_b5410346afd4$GRANT SELECT ON public.merchant_refund_shortfalls TO authenticated$bootstrap_sql_b5410346afd4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b5410346afd4$;
+
+DO $bootstrap_do_d9c09e4f299c$
+BEGIN
+  EXECUTE $bootstrap_sql_d9c09e4f299c$CREATE INDEX IF NOT EXISTS idx_refund_shortfalls_merchant_status
+  ON public.merchant_refund_shortfalls(merchant_id, status)$bootstrap_sql_d9c09e4f299c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d9c09e4f299c$;
+
+DO $bootstrap_do_cdaeec4ef829$
+BEGIN
+  EXECUTE $bootstrap_sql_cdaeec4ef829$CREATE OR REPLACE FUNCTION public.complete_refund_settlement(
   p_settlement_id uuid, p_success boolean, p_provider_reference text DEFAULT NULL, p_error text DEFAULT NULL
 )
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -678,12 +902,35 @@ BEGIN
     'shortfall_status', CASE WHEN v_shortfall > 0 THEN 'OPEN' ELSE 'NONE' END
   );
 END;
-$$;
+$$$bootstrap_sql_cdaeec4ef829$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cdaeec4ef829$;
 
-REVOKE ALL ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) TO service_role;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 58_20260912230500_refund_shortfall_policy.sql =====
+DO $bootstrap_do_413930e7c0e5$
+BEGIN
+  EXECUTE $bootstrap_sql_413930e7c0e5$REVOKE ALL ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) FROM PUBLIC, anon, authenticated$bootstrap_sql_413930e7c0e5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_413930e7c0e5$;
+
+DO $bootstrap_do_69972f2d8ae4$
+BEGIN
+  EXECUTE $bootstrap_sql_69972f2d8ae4$GRANT EXECUTE ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) TO service_role$bootstrap_sql_69972f2d8ae4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_69972f2d8ae4$;
+
+DO $bootstrap_do_b59c3c6fd44a$
+BEGIN
+  EXECUTE $bootstrap_sql_b59c3c6fd44a$NOTIFY pgrst, 'reload schema'$bootstrap_sql_b59c3c6fd44a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b59c3c6fd44a$;
+
+DO $bootstrap_do_ce65e37b2feb$
+BEGIN
+  EXECUTE $bootstrap_sql_ce65e37b2feb$-- ===== END BUNDLE: 58_20260912230500_refund_shortfall_policy.sql =====
 
 -- ===== BEGIN BUNDLE: 59_20260912233000_village_tourism_feature_schema.sql =====
 -- Village tourism feature contract.
@@ -699,9 +946,14 @@ ALTER TABLE public.villages
   ADD COLUMN IF NOT EXISTS gallery_urls text[] NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS social_media jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS website text,
-  ADD COLUMN IF NOT EXISTS qr_code_url text;
+  ADD COLUMN IF NOT EXISTS qr_code_url text$bootstrap_sql_ce65e37b2feb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ce65e37b2feb$;
 
-CREATE TABLE IF NOT EXISTS public.tourism_packages (
+DO $bootstrap_do_ad34a7f47737$
+BEGIN
+  EXECUTE $bootstrap_sql_ad34a7f47737$CREATE TABLE IF NOT EXISTS public.tourism_packages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   village_id uuid NOT NULL REFERENCES public.villages(id) ON DELETE CASCADE,
   name text NOT NULL CHECK (length(btrim(name)) BETWEEN 2 AND 160),
@@ -717,9 +969,14 @@ CREATE TABLE IF NOT EXISTS public.tourism_packages (
   guide_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_ad34a7f47737$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ad34a7f47737$;
 
-CREATE TABLE IF NOT EXISTS public.tourism_guides (
+DO $bootstrap_do_0074463cc458$
+BEGIN
+  EXECUTE $bootstrap_sql_0074463cc458$CREATE TABLE IF NOT EXISTS public.tourism_guides (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   village_id uuid NOT NULL REFERENCES public.villages(id) ON DELETE CASCADE,
   name text NOT NULL CHECK (length(btrim(name)) BETWEEN 2 AND 160),
@@ -732,15 +989,31 @@ CREATE TABLE IF NOT EXISTS public.tourism_guides (
   is_available boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_0074463cc458$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0074463cc458$;
 
-ALTER TABLE public.tourism_packages
-  DROP CONSTRAINT IF EXISTS tourism_packages_guide_id_fkey;
-ALTER TABLE public.tourism_packages
+DO $bootstrap_do_938bb46ff00c$
+BEGIN
+  EXECUTE $bootstrap_sql_938bb46ff00c$ALTER TABLE public.tourism_packages
+  DROP CONSTRAINT IF EXISTS tourism_packages_guide_id_fkey$bootstrap_sql_938bb46ff00c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_938bb46ff00c$;
+
+DO $bootstrap_do_53a54408eebc$
+BEGIN
+  EXECUTE $bootstrap_sql_53a54408eebc$ALTER TABLE public.tourism_packages
   ADD CONSTRAINT tourism_packages_guide_id_fkey FOREIGN KEY (guide_id)
-  REFERENCES public.tourism_guides(id) ON DELETE SET NULL;
+  REFERENCES public.tourism_guides(id) ON DELETE SET NULL$bootstrap_sql_53a54408eebc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_53a54408eebc$;
 
-CREATE TABLE IF NOT EXISTS public.tourism_bookings (
+DO $bootstrap_do_4e9d55cdb4b3$
+BEGIN
+  EXECUTE $bootstrap_sql_4e9d55cdb4b3$CREATE TABLE IF NOT EXISTS public.tourism_bookings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   package_id uuid REFERENCES public.tourism_packages(id) ON DELETE SET NULL,
   village_id uuid NOT NULL REFERENCES public.villages(id) ON DELETE CASCADE,
@@ -756,9 +1029,14 @@ CREATE TABLE IF NOT EXISTS public.tourism_bookings (
   contact_phone text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_4e9d55cdb4b3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4e9d55cdb4b3$;
 
-CREATE TABLE IF NOT EXISTS public.village_events (
+DO $bootstrap_do_5323f343df13$
+BEGIN
+  EXECUTE $bootstrap_sql_5323f343df13$CREATE TABLE IF NOT EXISTS public.village_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   village_id uuid NOT NULL REFERENCES public.villages(id) ON DELETE CASCADE,
   name text NOT NULL CHECK (length(btrim(name)) BETWEEN 2 AND 160),
@@ -772,9 +1050,14 @@ CREATE TABLE IF NOT EXISTS public.village_events (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (end_date IS NULL OR end_date >= start_date)
-);
+)$bootstrap_sql_5323f343df13$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5323f343df13$;
 
-CREATE TABLE IF NOT EXISTS public.donation_campaigns (
+DO $bootstrap_do_c8e9ca9e6c74$
+BEGIN
+  EXECUTE $bootstrap_sql_c8e9ca9e6c74$CREATE TABLE IF NOT EXISTS public.donation_campaigns (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   village_id uuid NOT NULL REFERENCES public.villages(id) ON DELETE CASCADE,
   title text NOT NULL CHECK (length(btrim(title)) BETWEEN 3 AND 180),
@@ -789,9 +1072,14 @@ CREATE TABLE IF NOT EXISTS public.donation_campaigns (
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_c8e9ca9e6c74$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c8e9ca9e6c74$;
 
-CREATE TABLE IF NOT EXISTS public.donations (
+DO $bootstrap_do_677333334bcc$
+BEGIN
+  EXECUTE $bootstrap_sql_677333334bcc$CREATE TABLE IF NOT EXISTS public.donations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   campaign_id uuid NOT NULL REFERENCES public.donation_campaigns(id) ON DELETE CASCADE,
   donor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -801,86 +1089,361 @@ CREATE TABLE IF NOT EXISTS public.donations (
   status text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'CANCELLED')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_677333334bcc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_677333334bcc$;
 
-CREATE INDEX IF NOT EXISTS idx_tourism_packages_village ON public.tourism_packages(village_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_tourism_guides_village ON public.tourism_guides(village_id, name);
-CREATE INDEX IF NOT EXISTS idx_tourism_bookings_village ON public.tourism_bookings(village_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_village_events_village ON public.village_events(village_id, start_date DESC);
-CREATE INDEX IF NOT EXISTS idx_donation_campaigns_village ON public.donation_campaigns(village_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_donations_campaign ON public.donations(campaign_id, created_at DESC);
+DO $bootstrap_do_1e1598115d28$
+BEGIN
+  EXECUTE $bootstrap_sql_1e1598115d28$CREATE INDEX IF NOT EXISTS idx_tourism_packages_village ON public.tourism_packages(village_id, created_at DESC)$bootstrap_sql_1e1598115d28$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1e1598115d28$;
 
-ALTER TABLE public.tourism_packages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tourism_guides ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.tourism_bookings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.village_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.donation_campaigns ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.donations ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_0addb54bea65$
+BEGIN
+  EXECUTE $bootstrap_sql_0addb54bea65$CREATE INDEX IF NOT EXISTS idx_tourism_guides_village ON public.tourism_guides(village_id, name)$bootstrap_sql_0addb54bea65$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0addb54bea65$;
 
--- Public read paths.
-DROP POLICY IF EXISTS "Public can view active tourism packages" ON public.tourism_packages;
-CREATE POLICY "Public can view active tourism packages" ON public.tourism_packages
-  FOR SELECT USING (is_active = true);
-DROP POLICY IF EXISTS "Public can view available guides" ON public.tourism_guides;
-CREATE POLICY "Public can view available guides" ON public.tourism_guides
-  FOR SELECT USING (is_available = true);
-DROP POLICY IF EXISTS "Public can view village events" ON public.village_events;
-CREATE POLICY "Public can view village events" ON public.village_events
-  FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Public can view active campaigns" ON public.donation_campaigns;
-CREATE POLICY "Public can view active campaigns" ON public.donation_campaigns
-  FOR SELECT USING (is_active = true);
+DO $bootstrap_do_aff5c25f41e9$
+BEGIN
+  EXECUTE $bootstrap_sql_aff5c25f41e9$CREATE INDEX IF NOT EXISTS idx_tourism_bookings_village ON public.tourism_bookings(village_id, created_at DESC)$bootstrap_sql_aff5c25f41e9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aff5c25f41e9$;
 
--- Admin desa ownership helper is intentionally repeated in each policy so RLS
+DO $bootstrap_do_b2ae51e57c23$
+BEGIN
+  EXECUTE $bootstrap_sql_b2ae51e57c23$CREATE INDEX IF NOT EXISTS idx_village_events_village ON public.village_events(village_id, start_date DESC)$bootstrap_sql_b2ae51e57c23$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b2ae51e57c23$;
+
+DO $bootstrap_do_5ddd74d6b3e1$
+BEGIN
+  EXECUTE $bootstrap_sql_5ddd74d6b3e1$CREATE INDEX IF NOT EXISTS idx_donation_campaigns_village ON public.donation_campaigns(village_id, created_at DESC)$bootstrap_sql_5ddd74d6b3e1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ddd74d6b3e1$;
+
+DO $bootstrap_do_725d23cfb8b8$
+BEGIN
+  EXECUTE $bootstrap_sql_725d23cfb8b8$CREATE INDEX IF NOT EXISTS idx_donations_campaign ON public.donations(campaign_id, created_at DESC)$bootstrap_sql_725d23cfb8b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_725d23cfb8b8$;
+
+DO $bootstrap_do_52109406e9bb$
+BEGIN
+  EXECUTE $bootstrap_sql_52109406e9bb$ALTER TABLE public.tourism_packages ENABLE ROW LEVEL SECURITY$bootstrap_sql_52109406e9bb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_52109406e9bb$;
+
+DO $bootstrap_do_168681b7043e$
+BEGIN
+  EXECUTE $bootstrap_sql_168681b7043e$ALTER TABLE public.tourism_guides ENABLE ROW LEVEL SECURITY$bootstrap_sql_168681b7043e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_168681b7043e$;
+
+DO $bootstrap_do_54a5007379c6$
+BEGIN
+  EXECUTE $bootstrap_sql_54a5007379c6$ALTER TABLE public.tourism_bookings ENABLE ROW LEVEL SECURITY$bootstrap_sql_54a5007379c6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_54a5007379c6$;
+
+DO $bootstrap_do_4eb7ef7f50f2$
+BEGIN
+  EXECUTE $bootstrap_sql_4eb7ef7f50f2$ALTER TABLE public.village_events ENABLE ROW LEVEL SECURITY$bootstrap_sql_4eb7ef7f50f2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4eb7ef7f50f2$;
+
+DO $bootstrap_do_d4c83e765a7e$
+BEGIN
+  EXECUTE $bootstrap_sql_d4c83e765a7e$ALTER TABLE public.donation_campaigns ENABLE ROW LEVEL SECURITY$bootstrap_sql_d4c83e765a7e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d4c83e765a7e$;
+
+DO $bootstrap_do_6983e4933977$
+BEGIN
+  EXECUTE $bootstrap_sql_6983e4933977$ALTER TABLE public.donations ENABLE ROW LEVEL SECURITY$bootstrap_sql_6983e4933977$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6983e4933977$;
+
+DO $bootstrap_do_30f0ebc86031$
+BEGIN
+  EXECUTE $bootstrap_sql_30f0ebc86031$-- Public read paths.
+DROP POLICY IF EXISTS "Public can view active tourism packages" ON public.tourism_packages$bootstrap_sql_30f0ebc86031$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30f0ebc86031$;
+
+DO $bootstrap_do_d2509b025be8$
+BEGIN
+  EXECUTE $bootstrap_sql_d2509b025be8$CREATE POLICY "Public can view active tourism packages" ON public.tourism_packages
+  FOR SELECT USING (is_active = true)$bootstrap_sql_d2509b025be8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d2509b025be8$;
+
+DO $bootstrap_do_583c520f0ad9$
+BEGIN
+  EXECUTE $bootstrap_sql_583c520f0ad9$DROP POLICY IF EXISTS "Public can view available guides" ON public.tourism_guides$bootstrap_sql_583c520f0ad9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_583c520f0ad9$;
+
+DO $bootstrap_do_2e63b675a49a$
+BEGIN
+  EXECUTE $bootstrap_sql_2e63b675a49a$CREATE POLICY "Public can view available guides" ON public.tourism_guides
+  FOR SELECT USING (is_available = true)$bootstrap_sql_2e63b675a49a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2e63b675a49a$;
+
+DO $bootstrap_do_5952d365a7bc$
+BEGIN
+  EXECUTE $bootstrap_sql_5952d365a7bc$DROP POLICY IF EXISTS "Public can view village events" ON public.village_events$bootstrap_sql_5952d365a7bc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5952d365a7bc$;
+
+DO $bootstrap_do_ee318c989ba1$
+BEGIN
+  EXECUTE $bootstrap_sql_ee318c989ba1$CREATE POLICY "Public can view village events" ON public.village_events
+  FOR SELECT USING (true)$bootstrap_sql_ee318c989ba1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee318c989ba1$;
+
+DO $bootstrap_do_1d5e38396742$
+BEGIN
+  EXECUTE $bootstrap_sql_1d5e38396742$DROP POLICY IF EXISTS "Public can view active campaigns" ON public.donation_campaigns$bootstrap_sql_1d5e38396742$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1d5e38396742$;
+
+DO $bootstrap_do_ee3173afd485$
+BEGIN
+  EXECUTE $bootstrap_sql_ee3173afd485$CREATE POLICY "Public can view active campaigns" ON public.donation_campaigns
+  FOR SELECT USING (is_active = true)$bootstrap_sql_ee3173afd485$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee3173afd485$;
+
+DO $bootstrap_do_c469ae251d6f$
+BEGIN
+  EXECUTE $bootstrap_sql_c469ae251d6f$-- Admin desa ownership helper is intentionally repeated in each policy so RLS
 -- remains correct even when a user is assigned to more than one village.
-DROP POLICY IF EXISTS "Village admins manage tourism packages" ON public.tourism_packages;
-CREATE POLICY "Village admins manage tourism packages" ON public.tourism_packages
+DROP POLICY IF EXISTS "Village admins manage tourism packages" ON public.tourism_packages$bootstrap_sql_c469ae251d6f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c469ae251d6f$;
+
+DO $bootstrap_do_d31018705325$
+BEGIN
+  EXECUTE $bootstrap_sql_d31018705325$CREATE POLICY "Village admins manage tourism packages" ON public.tourism_packages
   FOR ALL USING (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_packages.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))
-  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_packages.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'));
-DROP POLICY IF EXISTS "Village admins manage tourism guides" ON public.tourism_guides;
-CREATE POLICY "Village admins manage tourism guides" ON public.tourism_guides
+  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_packages.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))$bootstrap_sql_d31018705325$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d31018705325$;
+
+DO $bootstrap_do_9aac7e422a13$
+BEGIN
+  EXECUTE $bootstrap_sql_9aac7e422a13$DROP POLICY IF EXISTS "Village admins manage tourism guides" ON public.tourism_guides$bootstrap_sql_9aac7e422a13$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9aac7e422a13$;
+
+DO $bootstrap_do_93ef47f3c417$
+BEGIN
+  EXECUTE $bootstrap_sql_93ef47f3c417$CREATE POLICY "Village admins manage tourism guides" ON public.tourism_guides
   FOR ALL USING (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_guides.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))
-  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_guides.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'));
-DROP POLICY IF EXISTS "Village admins manage village events" ON public.village_events;
-CREATE POLICY "Village admins manage village events" ON public.village_events
+  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_guides.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))$bootstrap_sql_93ef47f3c417$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_93ef47f3c417$;
+
+DO $bootstrap_do_3d5dae2aa291$
+BEGIN
+  EXECUTE $bootstrap_sql_3d5dae2aa291$DROP POLICY IF EXISTS "Village admins manage village events" ON public.village_events$bootstrap_sql_3d5dae2aa291$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3d5dae2aa291$;
+
+DO $bootstrap_do_8cc8bfa6cae6$
+BEGIN
+  EXECUTE $bootstrap_sql_8cc8bfa6cae6$CREATE POLICY "Village admins manage village events" ON public.village_events
   FOR ALL USING (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = village_events.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))
-  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = village_events.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'));
-DROP POLICY IF EXISTS "Village admins manage donation campaigns" ON public.donation_campaigns;
-CREATE POLICY "Village admins manage donation campaigns" ON public.donation_campaigns
+  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = village_events.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))$bootstrap_sql_8cc8bfa6cae6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8cc8bfa6cae6$;
+
+DO $bootstrap_do_017078344d81$
+BEGIN
+  EXECUTE $bootstrap_sql_017078344d81$DROP POLICY IF EXISTS "Village admins manage donation campaigns" ON public.donation_campaigns$bootstrap_sql_017078344d81$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_017078344d81$;
+
+DO $bootstrap_do_e1a974c029f8$
+BEGIN
+  EXECUTE $bootstrap_sql_e1a974c029f8$CREATE POLICY "Village admins manage donation campaigns" ON public.donation_campaigns
   FOR ALL USING (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = donation_campaigns.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))
-  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = donation_campaigns.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'));
+  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = donation_campaigns.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))$bootstrap_sql_e1a974c029f8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e1a974c029f8$;
 
-DROP POLICY IF EXISTS "Buyers view own tourism bookings" ON public.tourism_bookings;
-CREATE POLICY "Buyers view own tourism bookings" ON public.tourism_bookings FOR SELECT USING (buyer_id = auth.uid());
-DROP POLICY IF EXISTS "Buyers create tourism bookings" ON public.tourism_bookings;
-CREATE POLICY "Buyers create tourism bookings" ON public.tourism_bookings FOR INSERT WITH CHECK (buyer_id = auth.uid());
-DROP POLICY IF EXISTS "Village admins manage tourism bookings" ON public.tourism_bookings;
-CREATE POLICY "Village admins manage tourism bookings" ON public.tourism_bookings
+DO $bootstrap_do_ee29bef0815a$
+BEGIN
+  EXECUTE $bootstrap_sql_ee29bef0815a$DROP POLICY IF EXISTS "Buyers view own tourism bookings" ON public.tourism_bookings$bootstrap_sql_ee29bef0815a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee29bef0815a$;
+
+DO $bootstrap_do_da164b0365e8$
+BEGIN
+  EXECUTE $bootstrap_sql_da164b0365e8$CREATE POLICY "Buyers view own tourism bookings" ON public.tourism_bookings FOR SELECT USING (buyer_id = auth.uid())$bootstrap_sql_da164b0365e8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_da164b0365e8$;
+
+DO $bootstrap_do_4030b0536c49$
+BEGIN
+  EXECUTE $bootstrap_sql_4030b0536c49$DROP POLICY IF EXISTS "Buyers create tourism bookings" ON public.tourism_bookings$bootstrap_sql_4030b0536c49$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4030b0536c49$;
+
+DO $bootstrap_do_064a20c80d0c$
+BEGIN
+  EXECUTE $bootstrap_sql_064a20c80d0c$CREATE POLICY "Buyers create tourism bookings" ON public.tourism_bookings FOR INSERT WITH CHECK (buyer_id = auth.uid())$bootstrap_sql_064a20c80d0c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_064a20c80d0c$;
+
+DO $bootstrap_do_b8a35ac6546c$
+BEGIN
+  EXECUTE $bootstrap_sql_b8a35ac6546c$DROP POLICY IF EXISTS "Village admins manage tourism bookings" ON public.tourism_bookings$bootstrap_sql_b8a35ac6546c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b8a35ac6546c$;
+
+DO $bootstrap_do_4f0b24501e36$
+BEGIN
+  EXECUTE $bootstrap_sql_4f0b24501e36$CREATE POLICY "Village admins manage tourism bookings" ON public.tourism_bookings
   FOR ALL USING (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_bookings.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))
-  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_bookings.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'));
+  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.user_villages uv WHERE uv.village_id = tourism_bookings.village_id AND uv.user_id = auth.uid() AND uv.role = 'admin_desa'))$bootstrap_sql_4f0b24501e36$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4f0b24501e36$;
 
-DROP POLICY IF EXISTS "Public can view donations" ON public.donations;
-CREATE POLICY "Public can view donations" ON public.donations FOR SELECT USING (status = 'PAID');
-DROP POLICY IF EXISTS "Authenticated users create donations" ON public.donations;
-CREATE POLICY "Authenticated users create donations" ON public.donations FOR INSERT WITH CHECK (donor_id IS NULL OR donor_id = auth.uid());
-DROP POLICY IF EXISTS "Village admins view campaign donations" ON public.donations;
-CREATE POLICY "Village admins view campaign donations" ON public.donations FOR SELECT USING (
+DO $bootstrap_do_c3df80605dc2$
+BEGIN
+  EXECUTE $bootstrap_sql_c3df80605dc2$DROP POLICY IF EXISTS "Public can view donations" ON public.donations$bootstrap_sql_c3df80605dc2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c3df80605dc2$;
+
+DO $bootstrap_do_ed4fe3859911$
+BEGIN
+  EXECUTE $bootstrap_sql_ed4fe3859911$CREATE POLICY "Public can view donations" ON public.donations FOR SELECT USING (status = 'PAID')$bootstrap_sql_ed4fe3859911$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ed4fe3859911$;
+
+DO $bootstrap_do_471bcf0fc4da$
+BEGIN
+  EXECUTE $bootstrap_sql_471bcf0fc4da$DROP POLICY IF EXISTS "Authenticated users create donations" ON public.donations$bootstrap_sql_471bcf0fc4da$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_471bcf0fc4da$;
+
+DO $bootstrap_do_6041f1da0b64$
+BEGIN
+  EXECUTE $bootstrap_sql_6041f1da0b64$CREATE POLICY "Authenticated users create donations" ON public.donations FOR INSERT WITH CHECK (donor_id IS NULL OR donor_id = auth.uid())$bootstrap_sql_6041f1da0b64$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6041f1da0b64$;
+
+DO $bootstrap_do_e3aa215bf1b3$
+BEGIN
+  EXECUTE $bootstrap_sql_e3aa215bf1b3$DROP POLICY IF EXISTS "Village admins view campaign donations" ON public.donations$bootstrap_sql_e3aa215bf1b3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e3aa215bf1b3$;
+
+DO $bootstrap_do_c0bbe4db9a5d$
+BEGIN
+  EXECUTE $bootstrap_sql_c0bbe4db9a5d$CREATE POLICY "Village admins view campaign donations" ON public.donations FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.donation_campaigns c JOIN public.user_villages uv ON uv.village_id = c.village_id WHERE c.id = donations.campaign_id AND (public.is_admin() OR (uv.user_id = auth.uid() AND uv.role = 'admin_desa')))
-);
+)$bootstrap_sql_c0bbe4db9a5d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c0bbe4db9a5d$;
 
-GRANT SELECT ON public.tourism_packages, public.tourism_guides, public.village_events, public.donation_campaigns, public.donations TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.tourism_packages, public.tourism_guides, public.tourism_bookings, public.village_events, public.donation_campaigns, public.donations TO authenticated;
-GRANT ALL ON public.tourism_packages, public.tourism_guides, public.tourism_bookings, public.village_events, public.donation_campaigns, public.donations TO service_role;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 59_20260912233000_village_tourism_feature_schema.sql =====
+DO $bootstrap_do_e0dcb0873495$
+BEGIN
+  EXECUTE $bootstrap_sql_e0dcb0873495$GRANT SELECT ON public.tourism_packages, public.tourism_guides, public.village_events, public.donation_campaigns, public.donations TO anon$bootstrap_sql_e0dcb0873495$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e0dcb0873495$;
+
+DO $bootstrap_do_4a6b2043ff02$
+BEGIN
+  EXECUTE $bootstrap_sql_4a6b2043ff02$GRANT SELECT, INSERT, UPDATE, DELETE ON public.tourism_packages, public.tourism_guides, public.tourism_bookings, public.village_events, public.donation_campaigns, public.donations TO authenticated$bootstrap_sql_4a6b2043ff02$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4a6b2043ff02$;
+
+DO $bootstrap_do_6a68e59ac25a$
+BEGIN
+  EXECUTE $bootstrap_sql_6a68e59ac25a$GRANT ALL ON public.tourism_packages, public.tourism_guides, public.tourism_bookings, public.village_events, public.donation_campaigns, public.donations TO service_role$bootstrap_sql_6a68e59ac25a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6a68e59ac25a$;
+
+DO $bootstrap_do_2b6791b3951b$
+BEGIN
+  EXECUTE $bootstrap_sql_2b6791b3951b$NOTIFY pgrst, 'reload schema'$bootstrap_sql_2b6791b3951b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2b6791b3951b$;
+
+DO $bootstrap_do_a3bac7f7077b$
+BEGIN
+  EXECUTE $bootstrap_sql_a3bac7f7077b$-- ===== END BUNDLE: 59_20260912233000_village_tourism_feature_schema.sql =====
 
 -- ===== BEGIN BUNDLE: 60_20260912233500_remove_merchant_transition_legacy_overload.sql =====
 -- Keep one canonical merchant transition signature.
 -- The 3-argument overload could be selected by stale clients/PostgREST and
 -- bypass the expedition/self-delivery fields expected by the current UI.
-DROP FUNCTION IF EXISTS public.merchant_transition_order(uuid, text, text);
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 60_20260912233500_remove_merchant_transition_legacy_overload.sql =====
+DROP FUNCTION IF EXISTS public.merchant_transition_order(uuid, text, text)$bootstrap_sql_a3bac7f7077b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a3bac7f7077b$;
+
+DO $bootstrap_do_437ffa5689d4$
+BEGIN
+  EXECUTE $bootstrap_sql_437ffa5689d4$NOTIFY pgrst, 'reload schema'$bootstrap_sql_437ffa5689d4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_437ffa5689d4$;
+
+DO $bootstrap_do_140ea1deef1c$
+BEGIN
+  EXECUTE $bootstrap_sql_140ea1deef1c$-- ===== END BUNDLE: 60_20260912233500_remove_merchant_transition_legacy_overload.sql =====
 
 -- ===== BEGIN BUNDLE: 60_20260921190000_admin_direct_chat.sql =====
 -- Admin direct chat: admin can start a new conversation with any active merchant or courier.
@@ -888,35 +1451,89 @@ NOTIFY pgrst, 'reload schema';
 
 ALTER TABLE public.chat_conversations
   ADD COLUMN IF NOT EXISTS direct_admin_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  ADD COLUMN IF NOT EXISTS direct_target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
+  ADD COLUMN IF NOT EXISTS direct_target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE$bootstrap_sql_140ea1deef1c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_140ea1deef1c$;
 
-ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_context_type_check;
-ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_context_type_check
-  CHECK (context_type IN ('order', 'ride', 'direct'));
+DO $bootstrap_do_1cbb0fccbcd1$
+BEGIN
+  EXECUTE $bootstrap_sql_1cbb0fccbcd1$ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_context_type_check$bootstrap_sql_1cbb0fccbcd1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1cbb0fccbcd1$;
 
-ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_one_context;
-ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_one_context CHECK (
+DO $bootstrap_do_fe726b532e66$
+BEGIN
+  EXECUTE $bootstrap_sql_fe726b532e66$ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_context_type_check
+  CHECK (context_type IN ('order', 'ride', 'direct'))$bootstrap_sql_fe726b532e66$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fe726b532e66$;
+
+DO $bootstrap_do_51eac623d257$
+BEGIN
+  EXECUTE $bootstrap_sql_51eac623d257$ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_one_context$bootstrap_sql_51eac623d257$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_51eac623d257$;
+
+DO $bootstrap_do_2fada1e51c93$
+BEGIN
+  EXECUTE $bootstrap_sql_2fada1e51c93$ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_one_context CHECK (
   (context_type = 'order' AND order_id IS NOT NULL AND ride_request_id IS NULL AND merchant_id IS NULL AND direct_admin_user_id IS NULL AND direct_target_user_id IS NULL)
   OR (context_type = 'ride' AND ride_request_id IS NOT NULL AND order_id IS NULL AND merchant_id IS NULL AND direct_admin_user_id IS NULL AND direct_target_user_id IS NULL)
   OR (context_type = 'direct' AND order_id IS NULL AND ride_request_id IS NULL AND (
     (merchant_id IS NOT NULL AND direct_admin_user_id IS NULL AND direct_target_user_id IS NULL)
     OR (merchant_id IS NULL AND direct_admin_user_id IS NOT NULL AND direct_target_user_id IS NOT NULL)
   ))
-);
+)$bootstrap_sql_2fada1e51c93$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2fada1e51c93$;
 
-ALTER TABLE public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_role_check;
-ALTER TABLE public.chat_participants ADD CONSTRAINT chat_participants_role_check
-  CHECK (role IN ('admin', 'buyer', 'merchant', 'courier', 'passenger'));
+DO $bootstrap_do_6b055b6d35a1$
+BEGIN
+  EXECUTE $bootstrap_sql_6b055b6d35a1$ALTER TABLE public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_role_check$bootstrap_sql_6b055b6d35a1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b055b6d35a1$;
 
-ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_conversation_type_check;
-ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_conversation_type_check
-  CHECK (conversation_type IN ('buyer_merchant', 'buyer_courier', 'merchant_courier', 'passenger_courier', 'admin_merchant', 'admin_courier'));
+DO $bootstrap_do_f07df236c3fe$
+BEGIN
+  EXECUTE $bootstrap_sql_f07df236c3fe$ALTER TABLE public.chat_participants ADD CONSTRAINT chat_participants_role_check
+  CHECK (role IN ('admin', 'buyer', 'merchant', 'courier', 'passenger'))$bootstrap_sql_f07df236c3fe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f07df236c3fe$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_admin_direct_uidx
+DO $bootstrap_do_3a3b0252456f$
+BEGIN
+  EXECUTE $bootstrap_sql_3a3b0252456f$ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_conversation_type_check$bootstrap_sql_3a3b0252456f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3a3b0252456f$;
+
+DO $bootstrap_do_30db0dc75252$
+BEGIN
+  EXECUTE $bootstrap_sql_30db0dc75252$ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_conversation_type_check
+  CHECK (conversation_type IN ('buyer_merchant', 'buyer_courier', 'merchant_courier', 'passenger_courier', 'admin_merchant', 'admin_courier'))$bootstrap_sql_30db0dc75252$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30db0dc75252$;
+
+DO $bootstrap_do_98e8443f97bb$
+BEGIN
+  EXECUTE $bootstrap_sql_98e8443f97bb$CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_admin_direct_uidx
   ON public.chat_conversations(direct_admin_user_id, direct_target_user_id, conversation_type)
-  WHERE context_type = 'direct' AND direct_admin_user_id IS NOT NULL AND direct_target_user_id IS NOT NULL;
+  WHERE context_type = 'direct' AND direct_admin_user_id IS NOT NULL AND direct_target_user_id IS NOT NULL$bootstrap_sql_98e8443f97bb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_98e8443f97bb$;
 
-CREATE OR REPLACE FUNCTION public.get_or_create_admin_direct_chat(
+DO $bootstrap_do_74de04a1f5d5$
+BEGIN
+  EXECUTE $bootstrap_sql_74de04a1f5d5$CREATE OR REPLACE FUNCTION public.get_or_create_admin_direct_chat(
   p_target_user_id uuid,
   p_target_role text
 )
@@ -960,11 +1577,28 @@ BEGIN
   ON CONFLICT (conversation_id, user_id) DO UPDATE SET left_at = NULL, role = EXCLUDED.role;
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_74de04a1f5d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_74de04a1f5d5$;
 
-REVOKE ALL ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) TO authenticated;
--- ===== END BUNDLE: 60_20260921190000_admin_direct_chat.sql =====
+DO $bootstrap_do_476a9e25620b$
+BEGIN
+  EXECUTE $bootstrap_sql_476a9e25620b$REVOKE ALL ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) FROM PUBLIC, anon$bootstrap_sql_476a9e25620b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_476a9e25620b$;
+
+DO $bootstrap_do_6ab900dc4a29$
+BEGIN
+  EXECUTE $bootstrap_sql_6ab900dc4a29$GRANT EXECUTE ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) TO authenticated$bootstrap_sql_6ab900dc4a29$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6ab900dc4a29$;
+
+DO $bootstrap_do_de34e443c2c2$
+BEGIN
+  EXECUTE $bootstrap_sql_de34e443c2c2$-- ===== END BUNDLE: 60_20260921190000_admin_direct_chat.sql =====
 
 -- ===== BEGIN BUNDLE: 61_20260913102500_remove_legacy_quota_overloads.sql =====
 -- RPC overload cleanup.
@@ -974,15 +1608,31 @@ GRANT EXECUTE ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) TO 
 -- The old two-argument v2 function has the same effective call shape as the
 -- canonical three-argument function because p_order_id has a default. Remove
 -- it so PostgREST and PL/pgSQL cannot resolve a stale/ambiguous overload.
-DROP FUNCTION IF EXISTS public.use_merchant_quota_v2(uuid, integer);
+DROP FUNCTION IF EXISTS public.use_merchant_quota_v2(uuid, integer)$bootstrap_sql_de34e443c2c2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_de34e443c2c2$;
 
--- This older quota function was already deprecated in the application and is
+DO $bootstrap_do_c449467bed08$
+BEGIN
+  EXECUTE $bootstrap_sql_c449467bed08$-- This older quota function was already deprecated in the application and is
 -- not referenced by current source or RLS policies. Keep only the one-credit
 -- wrapper and deduct_merchant_quota(uuid, integer).
-DROP FUNCTION IF EXISTS public.use_merchant_quota(uuid, integer);
+DROP FUNCTION IF EXISTS public.use_merchant_quota(uuid, integer)$bootstrap_sql_c449467bed08$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c449467bed08$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 61_20260913102500_remove_legacy_quota_overloads.sql =====
+DO $bootstrap_do_f58e2db7039b$
+BEGIN
+  EXECUTE $bootstrap_sql_f58e2db7039b$NOTIFY pgrst, 'reload schema'$bootstrap_sql_f58e2db7039b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f58e2db7039b$;
+
+DO $bootstrap_do_0907cae640e4$
+BEGIN
+  EXECUTE $bootstrap_sql_0907cae640e4$-- ===== END BUNDLE: 61_20260913102500_remove_legacy_quota_overloads.sql =====
 
 -- ===== BEGIN BUNDLE: 62_20260913104000_expedition_provider_master.sql =====
 -- Dynamic expedition provider master.
@@ -996,51 +1646,177 @@ CREATE TABLE IF NOT EXISTS public.expedition_providers (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT expedition_providers_name_unique UNIQUE (name)
-);
+)$bootstrap_sql_0907cae640e4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0907cae640e4$;
 
-ALTER TABLE public.orders
+DO $bootstrap_do_8b5dba4c6405$
+BEGIN
+  EXECUTE $bootstrap_sql_8b5dba4c6405$ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS expedition_provider_id uuid REFERENCES public.expedition_providers(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS expedition_name_snapshot text,
   ADD COLUMN IF NOT EXISTS expedition_logo_url_snapshot text,
-  ADD COLUMN IF NOT EXISTS expedition_tracking_url_snapshot text;
+  ADD COLUMN IF NOT EXISTS expedition_tracking_url_snapshot text$bootstrap_sql_8b5dba4c6405$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8b5dba4c6405$;
 
-CREATE INDEX IF NOT EXISTS idx_expedition_providers_active_order
-  ON public.expedition_providers(is_active, sort_order, name);
-CREATE INDEX IF NOT EXISTS idx_orders_expedition_provider
-  ON public.orders(expedition_provider_id);
+DO $bootstrap_do_9b090b30fec2$
+BEGIN
+  EXECUTE $bootstrap_sql_9b090b30fec2$CREATE INDEX IF NOT EXISTS idx_expedition_providers_active_order
+  ON public.expedition_providers(is_active, sort_order, name)$bootstrap_sql_9b090b30fec2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9b090b30fec2$;
 
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+DO $bootstrap_do_56f173bab5d0$
+BEGIN
+  EXECUTE $bootstrap_sql_56f173bab5d0$CREATE INDEX IF NOT EXISTS idx_orders_expedition_provider
+  ON public.orders(expedition_provider_id)$bootstrap_sql_56f173bab5d0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_56f173bab5d0$;
+
+DO $bootstrap_do_2a0fe958892d$
+BEGIN
+  EXECUTE $bootstrap_sql_2a0fe958892d$INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('expedition-logos', 'expedition-logos', true, 2097152, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'])
 ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = 2097152,
-  allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+  allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']$bootstrap_sql_2a0fe958892d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2a0fe958892d$;
 
-ALTER TABLE public.expedition_providers ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Anyone can view active expedition providers" ON public.expedition_providers;
-CREATE POLICY "Anyone can view active expedition providers" ON public.expedition_providers
-  FOR SELECT USING (is_active = true OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage expedition providers" ON public.expedition_providers;
-CREATE POLICY "Admins manage expedition providers" ON public.expedition_providers
-  FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+DO $bootstrap_do_2115f3d0b7df$
+BEGIN
+  EXECUTE $bootstrap_sql_2115f3d0b7df$ALTER TABLE public.expedition_providers ENABLE ROW LEVEL SECURITY$bootstrap_sql_2115f3d0b7df$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2115f3d0b7df$;
 
-DROP POLICY IF EXISTS "Public can view expedition logos" ON storage.objects;
-CREATE POLICY "Public can view expedition logos" ON storage.objects
-  FOR SELECT USING (bucket_id = 'expedition-logos');
-DROP POLICY IF EXISTS "Admins upload expedition logos" ON storage.objects;
-CREATE POLICY "Admins upload expedition logos" ON storage.objects
-  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'expedition-logos' AND public.is_admin());
-DROP POLICY IF EXISTS "Admins update expedition logos" ON storage.objects;
-CREATE POLICY "Admins update expedition logos" ON storage.objects
+DO $bootstrap_do_bc6e107bc8e4$
+BEGIN
+  EXECUTE $bootstrap_sql_bc6e107bc8e4$DROP POLICY IF EXISTS "Anyone can view active expedition providers" ON public.expedition_providers$bootstrap_sql_bc6e107bc8e4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bc6e107bc8e4$;
+
+DO $bootstrap_do_7428a104c1fc$
+BEGIN
+  EXECUTE $bootstrap_sql_7428a104c1fc$CREATE POLICY "Anyone can view active expedition providers" ON public.expedition_providers
+  FOR SELECT USING (is_active = true OR public.is_admin())$bootstrap_sql_7428a104c1fc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7428a104c1fc$;
+
+DO $bootstrap_do_c794ed658069$
+BEGIN
+  EXECUTE $bootstrap_sql_c794ed658069$DROP POLICY IF EXISTS "Admins manage expedition providers" ON public.expedition_providers$bootstrap_sql_c794ed658069$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c794ed658069$;
+
+DO $bootstrap_do_b99c4a4039ea$
+BEGIN
+  EXECUTE $bootstrap_sql_b99c4a4039ea$CREATE POLICY "Admins manage expedition providers" ON public.expedition_providers
+  FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_b99c4a4039ea$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b99c4a4039ea$;
+
+DO $bootstrap_do_30cc0e4fc8c6$
+BEGIN
+  EXECUTE $bootstrap_sql_30cc0e4fc8c6$DROP POLICY IF EXISTS "Public can view expedition logos" ON storage.objects$bootstrap_sql_30cc0e4fc8c6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30cc0e4fc8c6$;
+
+DO $bootstrap_do_b4f7f65dea74$
+BEGIN
+  EXECUTE $bootstrap_sql_b4f7f65dea74$CREATE POLICY "Public can view expedition logos" ON storage.objects
+  FOR SELECT USING (bucket_id = 'expedition-logos')$bootstrap_sql_b4f7f65dea74$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b4f7f65dea74$;
+
+DO $bootstrap_do_0e4cc0706c6e$
+BEGIN
+  EXECUTE $bootstrap_sql_0e4cc0706c6e$DROP POLICY IF EXISTS "Admins upload expedition logos" ON storage.objects$bootstrap_sql_0e4cc0706c6e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0e4cc0706c6e$;
+
+DO $bootstrap_do_a66ed73d0833$
+BEGIN
+  EXECUTE $bootstrap_sql_a66ed73d0833$CREATE POLICY "Admins upload expedition logos" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'expedition-logos' AND public.is_admin())$bootstrap_sql_a66ed73d0833$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a66ed73d0833$;
+
+DO $bootstrap_do_b459cff62172$
+BEGIN
+  EXECUTE $bootstrap_sql_b459cff62172$DROP POLICY IF EXISTS "Admins update expedition logos" ON storage.objects$bootstrap_sql_b459cff62172$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b459cff62172$;
+
+DO $bootstrap_do_371fb42b61e4$
+BEGIN
+  EXECUTE $bootstrap_sql_371fb42b61e4$CREATE POLICY "Admins update expedition logos" ON storage.objects
   FOR UPDATE TO authenticated USING (bucket_id = 'expedition-logos' AND public.is_admin())
-  WITH CHECK (bucket_id = 'expedition-logos' AND public.is_admin());
-DROP POLICY IF EXISTS "Admins delete expedition logos" ON storage.objects;
-CREATE POLICY "Admins delete expedition logos" ON storage.objects
-  FOR DELETE TO authenticated USING (bucket_id = 'expedition-logos' AND public.is_admin());
+  WITH CHECK (bucket_id = 'expedition-logos' AND public.is_admin())$bootstrap_sql_371fb42b61e4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_371fb42b61e4$;
 
-GRANT SELECT ON public.expedition_providers TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.expedition_providers TO authenticated;
-GRANT ALL ON public.expedition_providers TO service_role;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 62_20260913104000_expedition_provider_master.sql =====
+DO $bootstrap_do_8f3f1d963499$
+BEGIN
+  EXECUTE $bootstrap_sql_8f3f1d963499$DROP POLICY IF EXISTS "Admins delete expedition logos" ON storage.objects$bootstrap_sql_8f3f1d963499$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8f3f1d963499$;
+
+DO $bootstrap_do_a1ce379ec275$
+BEGIN
+  EXECUTE $bootstrap_sql_a1ce379ec275$CREATE POLICY "Admins delete expedition logos" ON storage.objects
+  FOR DELETE TO authenticated USING (bucket_id = 'expedition-logos' AND public.is_admin())$bootstrap_sql_a1ce379ec275$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a1ce379ec275$;
+
+DO $bootstrap_do_0f8fe18558b9$
+BEGIN
+  EXECUTE $bootstrap_sql_0f8fe18558b9$GRANT SELECT ON public.expedition_providers TO anon$bootstrap_sql_0f8fe18558b9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0f8fe18558b9$;
+
+DO $bootstrap_do_9bdcd61102d5$
+BEGIN
+  EXECUTE $bootstrap_sql_9bdcd61102d5$GRANT SELECT, INSERT, UPDATE, DELETE ON public.expedition_providers TO authenticated$bootstrap_sql_9bdcd61102d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9bdcd61102d5$;
+
+DO $bootstrap_do_d2fa1fc71386$
+BEGIN
+  EXECUTE $bootstrap_sql_d2fa1fc71386$GRANT ALL ON public.expedition_providers TO service_role$bootstrap_sql_d2fa1fc71386$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d2fa1fc71386$;
+
+DO $bootstrap_do_effa7d4b92a7$
+BEGIN
+  EXECUTE $bootstrap_sql_effa7d4b92a7$NOTIFY pgrst, 'reload schema'$bootstrap_sql_effa7d4b92a7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_effa7d4b92a7$;
+
+DO $bootstrap_do_461f47a56789$
+BEGIN
+  EXECUTE $bootstrap_sql_461f47a56789$-- ===== END BUNDLE: 62_20260913104000_expedition_provider_master.sql =====
 
 -- ===== BEGIN BUNDLE: 63_20260913104500_expedition_provider_handoff_snapshot.sql =====
 -- Extend the canonical merchant handoff to persist provider identity and
@@ -1121,18 +1897,52 @@ BEGIN
   VALUES (p_order_id, v_from, p_to_status, auth.uid(), CASE WHEN v_payload ? 'type' THEN 'Diserahkan ke ekspedisi' ELSE NULLIF(trim(p_reason), '') END);
   RETURN v_order;
 END;
-$$;
+$$$bootstrap_sql_461f47a56789$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_461f47a56789$;
 
-GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 63_20260913104500_expedition_provider_handoff_snapshot.sql =====
+DO $bootstrap_do_e81b7311a3cf$
+BEGIN
+  EXECUTE $bootstrap_sql_e81b7311a3cf$GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated$bootstrap_sql_e81b7311a3cf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e81b7311a3cf$;
+
+DO $bootstrap_do_151ceddda028$
+BEGIN
+  EXECUTE $bootstrap_sql_151ceddda028$NOTIFY pgrst, 'reload schema'$bootstrap_sql_151ceddda028$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_151ceddda028$;
+
+DO $bootstrap_do_371c79c61757$
+BEGIN
+  EXECUTE $bootstrap_sql_371c79c61757$-- ===== END BUNDLE: 63_20260913104500_expedition_provider_handoff_snapshot.sql =====
 
 -- ===== BEGIN BUNDLE: 64_20260913105000_optional_expedition_tracking_website.sql =====
-ALTER TABLE public.expedition_providers ALTER COLUMN tracking_website DROP NOT NULL;
-ALTER TABLE public.expedition_providers DROP CONSTRAINT IF EXISTS expedition_providers_tracking_website_check;
-ALTER TABLE public.expedition_providers ADD CONSTRAINT expedition_providers_tracking_website_check CHECK (tracking_website IS NULL OR tracking_website ~ '^https?://');
+ALTER TABLE public.expedition_providers ALTER COLUMN tracking_website DROP NOT NULL$bootstrap_sql_371c79c61757$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_371c79c61757$;
 
--- Extend the canonical merchant handoff to persist provider identity and
+DO $bootstrap_do_254a05147374$
+BEGIN
+  EXECUTE $bootstrap_sql_254a05147374$ALTER TABLE public.expedition_providers DROP CONSTRAINT IF EXISTS expedition_providers_tracking_website_check$bootstrap_sql_254a05147374$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_254a05147374$;
+
+DO $bootstrap_do_1a72fd3c52f5$
+BEGIN
+  EXECUTE $bootstrap_sql_1a72fd3c52f5$ALTER TABLE public.expedition_providers ADD CONSTRAINT expedition_providers_tracking_website_check CHECK (tracking_website IS NULL OR tracking_website ~ '^https?://')$bootstrap_sql_1a72fd3c52f5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1a72fd3c52f5$;
+
+DO $bootstrap_do_2b3f371340e9$
+BEGIN
+  EXECUTE $bootstrap_sql_2b3f371340e9$-- Extend the canonical merchant handoff to persist provider identity and
 -- immutable display snapshots for historical orders.
 CREATE OR REPLACE FUNCTION public.merchant_transition_order(
   p_order_id uuid,
@@ -1210,11 +2020,28 @@ BEGIN
   VALUES (p_order_id, v_from, p_to_status, auth.uid(), CASE WHEN v_payload ? 'type' THEN 'Diserahkan ke ekspedisi' ELSE NULLIF(trim(p_reason), '') END);
   RETURN v_order;
 END;
-$$;
+$$$bootstrap_sql_2b3f371340e9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2b3f371340e9$;
 
-GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 64_20260913105000_optional_expedition_tracking_website.sql =====
+DO $bootstrap_do_4bf2a46d5a29$
+BEGIN
+  EXECUTE $bootstrap_sql_4bf2a46d5a29$GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated$bootstrap_sql_4bf2a46d5a29$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4bf2a46d5a29$;
+
+DO $bootstrap_do_946ea0e3a6c0$
+BEGIN
+  EXECUTE $bootstrap_sql_946ea0e3a6c0$NOTIFY pgrst, 'reload schema'$bootstrap_sql_946ea0e3a6c0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_946ea0e3a6c0$;
+
+DO $bootstrap_do_20a203d29c89$
+BEGIN
+  EXECUTE $bootstrap_sql_20a203d29c89$-- ===== END BUNDLE: 64_20260913105000_optional_expedition_tracking_website.sql =====
 
 -- ===== BEGIN BUNDLE: 65_20260914150000_driver_workflow_hardening.sql =====
 -- Driver workflow hardening: explicit pickup/earning contract and safe release actions.
@@ -1222,14 +2049,24 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS courier_earning_estimate integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS courier_platform_fee integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS courier_released_at timestamptz,
-  ADD COLUMN IF NOT EXISTS courier_release_reason text;
+  ADD COLUMN IF NOT EXISTS courier_release_reason text$bootstrap_sql_20a203d29c89$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_20a203d29c89$;
 
-UPDATE public.orders
+DO $bootstrap_do_e73f60edc540$
+BEGIN
+  EXECUTE $bootstrap_sql_e73f60edc540$UPDATE public.orders
 SET courier_earning_estimate = shipping_cost,
     courier_platform_fee = 0
-WHERE courier_earning_estimate = 0 AND shipping_cost > 0;
+WHERE courier_earning_estimate = 0 AND shipping_cost > 0$bootstrap_sql_e73f60edc540$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e73f60edc540$;
 
-CREATE OR REPLACE FUNCTION public.courier_release_order(p_order_id uuid, p_reason text)
+DO $bootstrap_do_a49a517044a5$
+BEGIN
+  EXECUTE $bootstrap_sql_a49a517044a5$CREATE OR REPLACE FUNCTION public.courier_release_order(p_order_id uuid, p_reason text)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -1260,12 +2097,28 @@ BEGIN
       FROM public.merchants m WHERE m.id = v_order.merchant_id AND m.user_id IS NOT NULL;
   END IF;
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_a49a517044a5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a49a517044a5$;
 
-GRANT EXECUTE ON FUNCTION public.courier_release_order(uuid, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_adef5ae6c97f$
+BEGIN
+  EXECUTE $bootstrap_sql_adef5ae6c97f$GRANT EXECUTE ON FUNCTION public.courier_release_order(uuid, text) TO authenticated$bootstrap_sql_adef5ae6c97f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_adef5ae6c97f$;
 
-CREATE OR REPLACE FUNCTION public.driver_cancel_ride(p_ride_id uuid, p_reason text)
+DO $bootstrap_do_27eaf2531b81$
+BEGIN
+  EXECUTE $bootstrap_sql_27eaf2531b81$NOTIFY pgrst, 'reload schema'$bootstrap_sql_27eaf2531b81$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_27eaf2531b81$;
+
+DO $bootstrap_do_33f1cd5b5072$
+BEGIN
+  EXECUTE $bootstrap_sql_33f1cd5b5072$CREATE OR REPLACE FUNCTION public.driver_cancel_ride(p_ride_id uuid, p_reason text)
 RETURNS public.ride_requests
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -1283,8 +2136,28 @@ BEGIN
     PERFORM public.send_notification(v_ride.passenger_id, 'Perjalanan dibatalkan driver', 'Driver membatalkan perjalanan: ' || v_reason, 'ride', '/ride/' || p_ride_id::text);
   END IF;
   RETURN v_ride;
-END; $$;
-GRANT EXECUTE ON FUNCTION public.driver_cancel_ride(uuid, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 65_20260914150000_driver_workflow_hardening.sql =====
+END; $$$bootstrap_sql_33f1cd5b5072$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_33f1cd5b5072$;
 
+DO $bootstrap_do_6b3a86e0ae39$
+BEGIN
+  EXECUTE $bootstrap_sql_6b3a86e0ae39$GRANT EXECUTE ON FUNCTION public.driver_cancel_ride(uuid, text) TO authenticated$bootstrap_sql_6b3a86e0ae39$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b3a86e0ae39$;
+
+DO $bootstrap_do_42f40378c40e$
+BEGIN
+  EXECUTE $bootstrap_sql_42f40378c40e$NOTIFY pgrst, 'reload schema'$bootstrap_sql_42f40378c40e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_42f40378c40e$;
+
+DO $bootstrap_do_c8d00d6ecd32$
+BEGIN
+  EXECUTE $bootstrap_sql_c8d00d6ecd32$-- ===== END BUNDLE: 65_20260914150000_driver_workflow_hardening.sql =====$bootstrap_sql_c8d00d6ecd32$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c8d00d6ecd32$;

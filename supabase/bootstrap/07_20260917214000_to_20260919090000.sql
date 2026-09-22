@@ -1,4 +1,10 @@
--- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_8e6fb7689117$
+BEGIN
+  EXECUTE $bootstrap_sql_8e6fb7689117$-- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
 -- DO NOT apply to an existing project with migration history.
 -- Consolidated range: 78_20260917214000_courier_earning_columns_compatibility.sql .. 91_20260919090000_merchant_ads_storage.sql
 
@@ -6,16 +12,32 @@
 -- Compatibility repair for projects where courier payout columns were not applied.
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS courier_earning_estimate integer NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS courier_platform_fee integer NOT NULL DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS courier_platform_fee integer NOT NULL DEFAULT 0$bootstrap_sql_8e6fb7689117$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8e6fb7689117$;
 
-UPDATE public.orders
+DO $bootstrap_do_f67be06c3955$
+BEGIN
+  EXECUTE $bootstrap_sql_f67be06c3955$UPDATE public.orders
 SET courier_earning_estimate = COALESCE(shipping_cost, 0),
     courier_platform_fee = 0
 WHERE courier_earning_estimate = 0
-  AND COALESCE(shipping_cost, 0) > 0;
+  AND COALESCE(shipping_cost, 0) > 0$bootstrap_sql_f67be06c3955$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f67be06c3955$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 78_20260917214000_courier_earning_columns_compatibility.sql =====
+DO $bootstrap_do_2cf6c209b3ea$
+BEGIN
+  EXECUTE $bootstrap_sql_2cf6c209b3ea$NOTIFY pgrst, 'reload schema'$bootstrap_sql_2cf6c209b3ea$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2cf6c209b3ea$;
+
+DO $bootstrap_do_6ca0348b57a0$
+BEGIN
+  EXECUTE $bootstrap_sql_6ca0348b57a0$-- ===== END BUNDLE: 78_20260917214000_courier_earning_columns_compatibility.sql =====
 
 -- ===== BEGIN BUNDLE: 79_20260918020000_merchant_courier_dispatch_repair.sql =====
 -- Repair merchant-originated courier dispatch. The previous frontend called
@@ -124,12 +146,35 @@ BEGIN
     'dispatch_status', 'OFFERED'
   );
 END;
-$$;
+$$$bootstrap_sql_6ca0348b57a0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6ca0348b57a0$;
 
-REVOKE ALL ON FUNCTION public.dispatch_merchant_order(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.dispatch_merchant_order(uuid) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 79_20260918020000_merchant_courier_dispatch_repair.sql =====
+DO $bootstrap_do_33a62f332176$
+BEGIN
+  EXECUTE $bootstrap_sql_33a62f332176$REVOKE ALL ON FUNCTION public.dispatch_merchant_order(uuid) FROM PUBLIC, anon$bootstrap_sql_33a62f332176$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_33a62f332176$;
+
+DO $bootstrap_do_688276351580$
+BEGIN
+  EXECUTE $bootstrap_sql_688276351580$GRANT EXECUTE ON FUNCTION public.dispatch_merchant_order(uuid) TO authenticated$bootstrap_sql_688276351580$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_688276351580$;
+
+DO $bootstrap_do_ce27d3ba194f$
+BEGIN
+  EXECUTE $bootstrap_sql_ce27d3ba194f$NOTIFY pgrst, 'reload schema'$bootstrap_sql_ce27d3ba194f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ce27d3ba194f$;
+
+DO $bootstrap_do_5dc1efb25cad$
+BEGIN
+  EXECUTE $bootstrap_sql_5dc1efb25cad$-- ===== END BUNDLE: 79_20260918020000_merchant_courier_dispatch_repair.sql =====
 
 -- ===== BEGIN BUNDLE: 80_20260918152000_courier_active_delivery_feed_fix.sql =====
 -- Include merchant-originated internal deliveries in the courier active feed.
@@ -166,12 +211,35 @@ BEGIN
     AND o.status IN ('COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING')
   ORDER BY o.created_at DESC;
 END;
-$$;
+$$$bootstrap_sql_5dc1efb25cad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5dc1efb25cad$;
 
-REVOKE ALL ON FUNCTION public.get_courier_active_deliveries() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_courier_active_deliveries() TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 80_20260918152000_courier_active_delivery_feed_fix.sql =====
+DO $bootstrap_do_28620ef79dee$
+BEGIN
+  EXECUTE $bootstrap_sql_28620ef79dee$REVOKE ALL ON FUNCTION public.get_courier_active_deliveries() FROM PUBLIC, anon$bootstrap_sql_28620ef79dee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_28620ef79dee$;
+
+DO $bootstrap_do_30ea8572fbbc$
+BEGIN
+  EXECUTE $bootstrap_sql_30ea8572fbbc$GRANT EXECUTE ON FUNCTION public.get_courier_active_deliveries() TO authenticated$bootstrap_sql_30ea8572fbbc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30ea8572fbbc$;
+
+DO $bootstrap_do_eb5c55fc82f1$
+BEGIN
+  EXECUTE $bootstrap_sql_eb5c55fc82f1$NOTIFY pgrst, 'reload schema'$bootstrap_sql_eb5c55fc82f1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eb5c55fc82f1$;
+
+DO $bootstrap_do_e46257bbacca$
+BEGIN
+  EXECUTE $bootstrap_sql_e46257bbacca$-- ===== END BUNDLE: 80_20260918152000_courier_active_delivery_feed_fix.sql =====
 
 -- ===== BEGIN BUNDLE: 81_20260918152300_courier_internal_order_state_machine_fix.sql =====
 -- Allow couriers to process merchant marketplace orders as well as direct
@@ -214,9 +282,14 @@ BEGIN
   VALUES (p_order_id, 'COURIER_ACCEPTED', 'PICKED_UP', auth.uid(), 'Kurir mengambil barang');
 
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_e46257bbacca$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e46257bbacca$;
 
-CREATE OR REPLACE FUNCTION public.courier_start_delivery(p_order_id uuid)
+DO $bootstrap_do_07885cd8497e$
+BEGIN
+  EXECUTE $bootstrap_sql_07885cd8497e$CREATE OR REPLACE FUNCTION public.courier_start_delivery(p_order_id uuid)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -254,9 +327,14 @@ BEGIN
   VALUES (p_order_id, v_from_status, 'DELIVERING', auth.uid(), 'Kurir memulai pengantaran');
 
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_07885cd8497e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_07885cd8497e$;
 
-CREATE OR REPLACE FUNCTION public.courier_complete_delivery(p_order_id uuid, p_proof_path text, p_notes text DEFAULT NULL)
+DO $bootstrap_do_e8d60c34e611$
+BEGIN
+  EXECUTE $bootstrap_sql_e8d60c34e611$CREATE OR REPLACE FUNCTION public.courier_complete_delivery(p_order_id uuid, p_proof_path text, p_notes text DEFAULT NULL)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -313,16 +391,63 @@ BEGIN
   VALUES (p_order_id, v_from_status, 'DELIVERED', auth.uid(), 'Kurir menyelesaikan pengiriman', jsonb_build_object('proof_path', p_proof_path));
 
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_e8d60c34e611$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e8d60c34e611$;
 
-REVOKE ALL ON FUNCTION public.courier_pickup_order(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.courier_start_delivery(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.courier_complete_delivery(uuid, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.courier_pickup_order(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.courier_start_delivery(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.courier_complete_delivery(uuid, text, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 81_20260918152300_courier_internal_order_state_machine_fix.sql =====
+DO $bootstrap_do_b96dbe59b38e$
+BEGIN
+  EXECUTE $bootstrap_sql_b96dbe59b38e$REVOKE ALL ON FUNCTION public.courier_pickup_order(uuid) FROM PUBLIC, anon$bootstrap_sql_b96dbe59b38e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b96dbe59b38e$;
+
+DO $bootstrap_do_a8ad1bb89cc4$
+BEGIN
+  EXECUTE $bootstrap_sql_a8ad1bb89cc4$REVOKE ALL ON FUNCTION public.courier_start_delivery(uuid) FROM PUBLIC, anon$bootstrap_sql_a8ad1bb89cc4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a8ad1bb89cc4$;
+
+DO $bootstrap_do_3a52c0061ff9$
+BEGIN
+  EXECUTE $bootstrap_sql_3a52c0061ff9$REVOKE ALL ON FUNCTION public.courier_complete_delivery(uuid, text, text) FROM PUBLIC, anon$bootstrap_sql_3a52c0061ff9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3a52c0061ff9$;
+
+DO $bootstrap_do_945381c23bcf$
+BEGIN
+  EXECUTE $bootstrap_sql_945381c23bcf$GRANT EXECUTE ON FUNCTION public.courier_pickup_order(uuid) TO authenticated$bootstrap_sql_945381c23bcf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_945381c23bcf$;
+
+DO $bootstrap_do_90e56c9df929$
+BEGIN
+  EXECUTE $bootstrap_sql_90e56c9df929$GRANT EXECUTE ON FUNCTION public.courier_start_delivery(uuid) TO authenticated$bootstrap_sql_90e56c9df929$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_90e56c9df929$;
+
+DO $bootstrap_do_f51479b5dcd2$
+BEGIN
+  EXECUTE $bootstrap_sql_f51479b5dcd2$GRANT EXECUTE ON FUNCTION public.courier_complete_delivery(uuid, text, text) TO authenticated$bootstrap_sql_f51479b5dcd2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f51479b5dcd2$;
+
+DO $bootstrap_do_06110510e322$
+BEGIN
+  EXECUTE $bootstrap_sql_06110510e322$NOTIFY pgrst, 'reload schema'$bootstrap_sql_06110510e322$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_06110510e322$;
+
+DO $bootstrap_do_3461934f47ef$
+BEGIN
+  EXECUTE $bootstrap_sql_3461934f47ef$-- ===== END BUNDLE: 81_20260918152300_courier_internal_order_state_machine_fix.sql =====
 
 -- ===== BEGIN BUNDLE: 82_20260918170000_refund_dispute_state_guard.sql =====
 -- Guard the refund dispute state machine.
@@ -387,11 +512,28 @@ BEGIN
 
   RETURN jsonb_build_object('id', v_refund.id, 'dispute_status', v_next_status);
 END;
-$$;
+$$$bootstrap_sql_3461934f47ef$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3461934f47ef$;
 
-REVOKE ALL ON FUNCTION public.update_refund_dispute_status(uuid, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.update_refund_dispute_status(uuid, text, text) TO authenticated;
--- ===== END BUNDLE: 82_20260918170000_refund_dispute_state_guard.sql =====
+DO $bootstrap_do_4aa1a301ebf9$
+BEGIN
+  EXECUTE $bootstrap_sql_4aa1a301ebf9$REVOKE ALL ON FUNCTION public.update_refund_dispute_status(uuid, text, text) FROM PUBLIC, anon$bootstrap_sql_4aa1a301ebf9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4aa1a301ebf9$;
+
+DO $bootstrap_do_d5b7e1cdecca$
+BEGIN
+  EXECUTE $bootstrap_sql_d5b7e1cdecca$GRANT EXECUTE ON FUNCTION public.update_refund_dispute_status(uuid, text, text) TO authenticated$bootstrap_sql_d5b7e1cdecca$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d5b7e1cdecca$;
+
+DO $bootstrap_do_553491ae67d0$
+BEGIN
+  EXECUTE $bootstrap_sql_553491ae67d0$-- ===== END BUNDLE: 82_20260918170000_refund_dispute_state_guard.sql =====
 
 -- ===== BEGIN BUNDLE: 83_20260918190000_refund_notifications.sql =====
 -- Refund notification coverage.
@@ -495,16 +637,32 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_553491ae67d0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_553491ae67d0$;
 
-DROP TRIGGER IF EXISTS refund_request_notification_trigger ON public.refund_requests;
-CREATE TRIGGER refund_request_notification_trigger
+DO $bootstrap_do_e6d8836b4a8c$
+BEGIN
+  EXECUTE $bootstrap_sql_e6d8836b4a8c$DROP TRIGGER IF EXISTS refund_request_notification_trigger ON public.refund_requests$bootstrap_sql_e6d8836b4a8c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e6d8836b4a8c$;
+
+DO $bootstrap_do_9ef8aae5dee7$
+BEGIN
+  EXECUTE $bootstrap_sql_9ef8aae5dee7$CREATE TRIGGER refund_request_notification_trigger
 AFTER INSERT OR UPDATE OF status, dispute_status, merchant_response, settlement_status
 ON public.refund_requests
 FOR EACH ROW
-EXECUTE FUNCTION public.notify_refund_request_change();
+EXECUTE FUNCTION public.notify_refund_request_change()$bootstrap_sql_9ef8aae5dee7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9ef8aae5dee7$;
 
-CREATE OR REPLACE FUNCTION public.notify_refund_settlement_change()
+DO $bootstrap_do_34b5fc10e5e6$
+BEGIN
+  EXECUTE $bootstrap_sql_34b5fc10e5e6$CREATE OR REPLACE FUNCTION public.notify_refund_settlement_change()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -541,56 +699,143 @@ BEGIN
   WHERE ur.role::text = 'admin' AND ur.user_id <> NEW.buyer_id;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_34b5fc10e5e6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_34b5fc10e5e6$;
 
-DROP TRIGGER IF EXISTS refund_settlement_notification_trigger ON public.refund_settlements;
-CREATE TRIGGER refund_settlement_notification_trigger
+DO $bootstrap_do_a6391a826cf9$
+BEGIN
+  EXECUTE $bootstrap_sql_a6391a826cf9$DROP TRIGGER IF EXISTS refund_settlement_notification_trigger ON public.refund_settlements$bootstrap_sql_a6391a826cf9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a6391a826cf9$;
+
+DO $bootstrap_do_60488b406ed5$
+BEGIN
+  EXECUTE $bootstrap_sql_60488b406ed5$CREATE TRIGGER refund_settlement_notification_trigger
 AFTER UPDATE OF status ON public.refund_settlements
 FOR EACH ROW
-EXECUTE FUNCTION public.notify_refund_settlement_change();
+EXECUTE FUNCTION public.notify_refund_settlement_change()$bootstrap_sql_60488b406ed5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_60488b406ed5$;
 
-REVOKE ALL ON FUNCTION public.notify_refund_request_change() FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.notify_refund_settlement_change() FROM PUBLIC, anon, authenticated;
--- ===== END BUNDLE: 83_20260918190000_refund_notifications.sql =====
+DO $bootstrap_do_03b2a298cd08$
+BEGIN
+  EXECUTE $bootstrap_sql_03b2a298cd08$REVOKE ALL ON FUNCTION public.notify_refund_request_change() FROM PUBLIC, anon, authenticated$bootstrap_sql_03b2a298cd08$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_03b2a298cd08$;
+
+DO $bootstrap_do_3788f62f3a35$
+BEGIN
+  EXECUTE $bootstrap_sql_3788f62f3a35$REVOKE ALL ON FUNCTION public.notify_refund_settlement_change() FROM PUBLIC, anon, authenticated$bootstrap_sql_3788f62f3a35$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3788f62f3a35$;
+
+DO $bootstrap_do_f157dbcc1292$
+BEGIN
+  EXECUTE $bootstrap_sql_f157dbcc1292$-- ===== END BUNDLE: 83_20260918190000_refund_notifications.sql =====
 
 -- ===== BEGIN BUNDLE: 84_20260918200000_cashback_promo_program.sql =====
 -- Cashback and promotion program hardening.
 -- Adds merchant-owned cashback rules and an authoritative ledger lifecycle.
 
 ALTER TABLE public.cashback_rules
-  ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE;
+  ADD COLUMN IF NOT EXISTS merchant_id uuid REFERENCES public.merchants(id) ON DELETE CASCADE$bootstrap_sql_f157dbcc1292$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f157dbcc1292$;
 
-ALTER TABLE public.cashback_transactions
+DO $bootstrap_do_f31b3fa7bbe7$
+BEGIN
+  EXECUTE $bootstrap_sql_f31b3fa7bbe7$ALTER TABLE public.cashback_transactions
   ADD COLUMN IF NOT EXISTS type text NOT NULL DEFAULT 'earn',
-  ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+  ADD COLUMN IF NOT EXISTS expires_at timestamptz$bootstrap_sql_f31b3fa7bbe7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f31b3fa7bbe7$;
 
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS cashback_balance numeric(14,2) NOT NULL DEFAULT 0;
+DO $bootstrap_do_f959089a70a2$
+BEGIN
+  EXECUTE $bootstrap_sql_f959089a70a2$ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS cashback_balance numeric(14,2) NOT NULL DEFAULT 0$bootstrap_sql_f959089a70a2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f959089a70a2$;
 
-ALTER TABLE public.cashback_transactions
-  DROP CONSTRAINT IF EXISTS cashback_transactions_status_valid;
-ALTER TABLE public.cashback_transactions
+DO $bootstrap_do_9c19fb9fbcc8$
+BEGIN
+  EXECUTE $bootstrap_sql_9c19fb9fbcc8$ALTER TABLE public.cashback_transactions
+  DROP CONSTRAINT IF EXISTS cashback_transactions_status_valid$bootstrap_sql_9c19fb9fbcc8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9c19fb9fbcc8$;
+
+DO $bootstrap_do_fd1282a8bfe0$
+BEGIN
+  EXECUTE $bootstrap_sql_fd1282a8bfe0$ALTER TABLE public.cashback_transactions
   ADD CONSTRAINT cashback_transactions_status_valid
-  CHECK (status IN ('pending', 'confirmed', 'cancelled', 'reversed', 'expired', 'redeemed'));
-ALTER TABLE public.cashback_transactions
+  CHECK (status IN ('pending', 'confirmed', 'cancelled', 'reversed', 'expired', 'redeemed'))$bootstrap_sql_fd1282a8bfe0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fd1282a8bfe0$;
+
+DO $bootstrap_do_b207c42db896$
+BEGIN
+  EXECUTE $bootstrap_sql_b207c42db896$ALTER TABLE public.cashback_transactions
   ADD CONSTRAINT cashback_transactions_type_valid
-  CHECK (type IN ('earn', 'redeem', 'expire'));
+  CHECK (type IN ('earn', 'redeem', 'expire'))$bootstrap_sql_b207c42db896$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b207c42db896$;
 
-CREATE INDEX IF NOT EXISTS cashback_rules_merchant_period_idx
-  ON public.cashback_rules (merchant_id, is_active, valid_from, valid_until);
+DO $bootstrap_do_20ff5f4d294c$
+BEGIN
+  EXECUTE $bootstrap_sql_20ff5f4d294c$CREATE INDEX IF NOT EXISTS cashback_rules_merchant_period_idx
+  ON public.cashback_rules (merchant_id, is_active, valid_from, valid_until)$bootstrap_sql_20ff5f4d294c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_20ff5f4d294c$;
 
-DROP POLICY IF EXISTS "Merchants manage own cashback rules" ON public.cashback_rules;
-CREATE POLICY "Merchants manage own cashback rules"
+DO $bootstrap_do_a593dd2cc9f0$
+BEGIN
+  EXECUTE $bootstrap_sql_a593dd2cc9f0$DROP POLICY IF EXISTS "Merchants manage own cashback rules" ON public.cashback_rules$bootstrap_sql_a593dd2cc9f0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a593dd2cc9f0$;
+
+DO $bootstrap_do_408d9ca0e60e$
+BEGIN
+  EXECUTE $bootstrap_sql_408d9ca0e60e$CREATE POLICY "Merchants manage own cashback rules"
   ON public.cashback_rules FOR ALL TO authenticated
   USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()))
-  WITH CHECK (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()));
+  WITH CHECK (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()))$bootstrap_sql_408d9ca0e60e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_408d9ca0e60e$;
 
-DROP POLICY IF EXISTS "Merchants view own cashback rules" ON public.cashback_rules;
-CREATE POLICY "Merchants view own cashback rules"
+DO $bootstrap_do_06b782b8d4ce$
+BEGIN
+  EXECUTE $bootstrap_sql_06b782b8d4ce$DROP POLICY IF EXISTS "Merchants view own cashback rules" ON public.cashback_rules$bootstrap_sql_06b782b8d4ce$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_06b782b8d4ce$;
+
+DO $bootstrap_do_96f26825bc1e$
+BEGIN
+  EXECUTE $bootstrap_sql_96f26825bc1e$CREATE POLICY "Merchants view own cashback rules"
   ON public.cashback_rules FOR SELECT TO authenticated
-  USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()));
+  USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()))$bootstrap_sql_96f26825bc1e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_96f26825bc1e$;
 
-CREATE OR REPLACE FUNCTION public.award_cashback_for_order(p_order_id uuid)
+DO $bootstrap_do_ba754b7a26ca$
+BEGIN
+  EXECUTE $bootstrap_sql_ba754b7a26ca$CREATE OR REPLACE FUNCTION public.award_cashback_for_order(p_order_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -640,9 +885,14 @@ BEGIN
   END LOOP;
   RETURN v_awarded;
 END;
-$$;
+$$$bootstrap_sql_ba754b7a26ca$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ba754b7a26ca$;
 
-CREATE OR REPLACE FUNCTION public.confirm_due_cashback()
+DO $bootstrap_do_6838f2222dba$
+BEGIN
+  EXECUTE $bootstrap_sql_6838f2222dba$CREATE OR REPLACE FUNCTION public.confirm_due_cashback()
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -669,9 +919,14 @@ BEGIN
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END;
-$$;
+$$$bootstrap_sql_6838f2222dba$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6838f2222dba$;
 
-CREATE OR REPLACE FUNCTION public.on_order_done_award_cashback()
+DO $bootstrap_do_3fabaa046ef3$
+BEGIN
+  EXECUTE $bootstrap_sql_3fabaa046ef3$CREATE OR REPLACE FUNCTION public.on_order_done_award_cashback()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -683,20 +938,72 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_3fabaa046ef3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3fabaa046ef3$;
 
-DROP TRIGGER IF EXISTS orders_cashback_award_trigger ON public.orders;
-CREATE TRIGGER orders_cashback_award_trigger
+DO $bootstrap_do_66840018b20a$
+BEGIN
+  EXECUTE $bootstrap_sql_66840018b20a$DROP TRIGGER IF EXISTS orders_cashback_award_trigger ON public.orders$bootstrap_sql_66840018b20a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_66840018b20a$;
+
+DO $bootstrap_do_dfee74e2cb32$
+BEGIN
+  EXECUTE $bootstrap_sql_dfee74e2cb32$CREATE TRIGGER orders_cashback_award_trigger
   AFTER UPDATE OF status ON public.orders
-  FOR EACH ROW EXECUTE FUNCTION public.on_order_done_award_cashback();
+  FOR EACH ROW EXECUTE FUNCTION public.on_order_done_award_cashback()$bootstrap_sql_dfee74e2cb32$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dfee74e2cb32$;
 
-REVOKE ALL ON FUNCTION public.award_cashback_for_order(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.award_cashback_for_order(uuid) TO service_role;
-REVOKE ALL ON FUNCTION public.confirm_due_cashback() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.confirm_due_cashback() TO authenticated, service_role;
-COMMENT ON FUNCTION public.award_cashback_for_order(uuid) IS 'Authoritative, idempotent cashback award invoked when an order is delivered or done.';
-COMMENT ON FUNCTION public.confirm_due_cashback() IS 'Confirms cashback after the three-day dispute window and updates buyer balance.';
--- ===== END BUNDLE: 84_20260918200000_cashback_promo_program.sql =====
+DO $bootstrap_do_e811bb6e3252$
+BEGIN
+  EXECUTE $bootstrap_sql_e811bb6e3252$REVOKE ALL ON FUNCTION public.award_cashback_for_order(uuid) FROM PUBLIC, anon, authenticated$bootstrap_sql_e811bb6e3252$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e811bb6e3252$;
+
+DO $bootstrap_do_22bc8d752d51$
+BEGIN
+  EXECUTE $bootstrap_sql_22bc8d752d51$GRANT EXECUTE ON FUNCTION public.award_cashback_for_order(uuid) TO service_role$bootstrap_sql_22bc8d752d51$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_22bc8d752d51$;
+
+DO $bootstrap_do_41e7986dc203$
+BEGIN
+  EXECUTE $bootstrap_sql_41e7986dc203$REVOKE ALL ON FUNCTION public.confirm_due_cashback() FROM PUBLIC, anon$bootstrap_sql_41e7986dc203$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_41e7986dc203$;
+
+DO $bootstrap_do_85d67d203349$
+BEGIN
+  EXECUTE $bootstrap_sql_85d67d203349$GRANT EXECUTE ON FUNCTION public.confirm_due_cashback() TO authenticated, service_role$bootstrap_sql_85d67d203349$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_85d67d203349$;
+
+DO $bootstrap_do_a9b136159c8d$
+BEGIN
+  EXECUTE $bootstrap_sql_a9b136159c8d$COMMENT ON FUNCTION public.award_cashback_for_order(uuid) IS 'Authoritative, idempotent cashback award invoked when an order is delivered or done.'$bootstrap_sql_a9b136159c8d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a9b136159c8d$;
+
+DO $bootstrap_do_975a228859f3$
+BEGIN
+  EXECUTE $bootstrap_sql_975a228859f3$COMMENT ON FUNCTION public.confirm_due_cashback() IS 'Confirms cashback after the three-day dispute window and updates buyer balance.'$bootstrap_sql_975a228859f3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_975a228859f3$;
+
+DO $bootstrap_do_c95e2ac47351$
+BEGIN
+  EXECUTE $bootstrap_sql_c95e2ac47351$-- ===== END BUNDLE: 84_20260918200000_cashback_promo_program.sql =====
 
 -- ===== BEGIN BUNDLE: 85_20260918201000_cashback_reversal_redemption.sql =====
 -- Cashback redemption and refund reversal hardening.
@@ -704,13 +1011,23 @@ COMMENT ON FUNCTION public.confirm_due_cashback() IS 'Confirms cashback after th
 -- checkout transaction once the checkout contract accepts a cashback amount.
 
 ALTER TABLE public.cashback_transactions
-  ADD COLUMN IF NOT EXISTS reversal_of uuid REFERENCES public.cashback_transactions(id) ON DELETE RESTRICT;
+  ADD COLUMN IF NOT EXISTS reversal_of uuid REFERENCES public.cashback_transactions(id) ON DELETE RESTRICT$bootstrap_sql_c95e2ac47351$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c95e2ac47351$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS cashback_reversal_once_idx
+DO $bootstrap_do_35f82148787d$
+BEGIN
+  EXECUTE $bootstrap_sql_35f82148787d$CREATE UNIQUE INDEX IF NOT EXISTS cashback_reversal_once_idx
   ON public.cashback_transactions (reversal_of)
-  WHERE reversal_of IS NOT NULL;
+  WHERE reversal_of IS NOT NULL$bootstrap_sql_35f82148787d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_35f82148787d$;
 
-CREATE OR REPLACE FUNCTION public.redeem_cashback(
+DO $bootstrap_do_d4af88befd54$
+BEGIN
+  EXECUTE $bootstrap_sql_d4af88befd54$CREATE OR REPLACE FUNCTION public.redeem_cashback(
   p_amount numeric,
   p_reference text DEFAULT NULL
 )
@@ -751,9 +1068,14 @@ BEGIN
 
   RETURN jsonb_build_object('id', v_tx_id, 'amount', p_amount, 'reference', p_reference);
 END;
-$$;
+$$$bootstrap_sql_d4af88befd54$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d4af88befd54$;
 
-CREATE OR REPLACE FUNCTION public.reverse_cashback_for_order(p_order_id uuid)
+DO $bootstrap_do_3579d43918fd$
+BEGIN
+  EXECUTE $bootstrap_sql_3579d43918fd$CREATE OR REPLACE FUNCTION public.reverse_cashback_for_order(p_order_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -790,9 +1112,14 @@ BEGIN
   END LOOP;
   RETURN v_count;
 END;
-$$;
+$$$bootstrap_sql_3579d43918fd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3579d43918fd$;
 
-CREATE OR REPLACE FUNCTION public.on_order_refunded_reverse_cashback()
+DO $bootstrap_do_3026d5ec1933$
+BEGIN
+  EXECUTE $bootstrap_sql_3026d5ec1933$CREATE OR REPLACE FUNCTION public.on_order_refunded_reverse_cashback()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -804,20 +1131,72 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_3026d5ec1933$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3026d5ec1933$;
 
-DROP TRIGGER IF EXISTS orders_cashback_reversal_trigger ON public.orders;
-CREATE TRIGGER orders_cashback_reversal_trigger
+DO $bootstrap_do_0640a35f53ec$
+BEGIN
+  EXECUTE $bootstrap_sql_0640a35f53ec$DROP TRIGGER IF EXISTS orders_cashback_reversal_trigger ON public.orders$bootstrap_sql_0640a35f53ec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0640a35f53ec$;
+
+DO $bootstrap_do_1df203cef065$
+BEGIN
+  EXECUTE $bootstrap_sql_1df203cef065$CREATE TRIGGER orders_cashback_reversal_trigger
   AFTER UPDATE OF status ON public.orders
-  FOR EACH ROW EXECUTE FUNCTION public.on_order_refunded_reverse_cashback();
+  FOR EACH ROW EXECUTE FUNCTION public.on_order_refunded_reverse_cashback()$bootstrap_sql_1df203cef065$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1df203cef065$;
 
-REVOKE ALL ON FUNCTION public.redeem_cashback(numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.redeem_cashback(numeric, text) TO authenticated;
-REVOKE ALL ON FUNCTION public.reverse_cashback_for_order(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.reverse_cashback_for_order(uuid) TO service_role;
-COMMENT ON FUNCTION public.redeem_cashback(numeric, text) IS 'Atomically consumes confirmed buyer cashback; checkout should call this inside its transaction.';
-COMMENT ON FUNCTION public.reverse_cashback_for_order(uuid) IS 'Creates an auditable reversal or cancels pending cashback when an order is refunded.';
--- ===== END BUNDLE: 85_20260918201000_cashback_reversal_redemption.sql =====
+DO $bootstrap_do_8e575dd081ad$
+BEGIN
+  EXECUTE $bootstrap_sql_8e575dd081ad$REVOKE ALL ON FUNCTION public.redeem_cashback(numeric, text) FROM PUBLIC, anon$bootstrap_sql_8e575dd081ad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8e575dd081ad$;
+
+DO $bootstrap_do_44878c1384f2$
+BEGIN
+  EXECUTE $bootstrap_sql_44878c1384f2$GRANT EXECUTE ON FUNCTION public.redeem_cashback(numeric, text) TO authenticated$bootstrap_sql_44878c1384f2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_44878c1384f2$;
+
+DO $bootstrap_do_9c53b9175a47$
+BEGIN
+  EXECUTE $bootstrap_sql_9c53b9175a47$REVOKE ALL ON FUNCTION public.reverse_cashback_for_order(uuid) FROM PUBLIC, anon, authenticated$bootstrap_sql_9c53b9175a47$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9c53b9175a47$;
+
+DO $bootstrap_do_f99c8832cd56$
+BEGIN
+  EXECUTE $bootstrap_sql_f99c8832cd56$GRANT EXECUTE ON FUNCTION public.reverse_cashback_for_order(uuid) TO service_role$bootstrap_sql_f99c8832cd56$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f99c8832cd56$;
+
+DO $bootstrap_do_41d33557a89a$
+BEGIN
+  EXECUTE $bootstrap_sql_41d33557a89a$COMMENT ON FUNCTION public.redeem_cashback(numeric, text) IS 'Atomically consumes confirmed buyer cashback; checkout should call this inside its transaction.'$bootstrap_sql_41d33557a89a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_41d33557a89a$;
+
+DO $bootstrap_do_68d808b4e010$
+BEGIN
+  EXECUTE $bootstrap_sql_68d808b4e010$COMMENT ON FUNCTION public.reverse_cashback_for_order(uuid) IS 'Creates an auditable reversal or cancels pending cashback when an order is refunded.'$bootstrap_sql_68d808b4e010$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_68d808b4e010$;
+
+DO $bootstrap_do_3a82b15bae0e$
+BEGIN
+  EXECUTE $bootstrap_sql_3a82b15bae0e$-- ===== END BUNDLE: 85_20260918201000_cashback_reversal_redemption.sql =====
 
 -- ===== BEGIN BUNDLE: 86_20260918220000_checkout_idempotency_and_payment_guard.sql =====
 -- Checkout hardening: serialize retries by buyer/key and reject unsupported
@@ -829,18 +1208,39 @@ CREATE TABLE IF NOT EXISTS public.marketplace_checkout_idempotency (
   result jsonb NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, checkout_key)
-);
+)$bootstrap_sql_3a82b15bae0e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3a82b15bae0e$;
 
-ALTER TABLE public.marketplace_checkout_idempotency ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.marketplace_checkout_idempotency FROM PUBLIC, anon, authenticated;
+DO $bootstrap_do_739402397d7f$
+BEGIN
+  EXECUTE $bootstrap_sql_739402397d7f$ALTER TABLE public.marketplace_checkout_idempotency ENABLE ROW LEVEL SECURITY$bootstrap_sql_739402397d7f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_739402397d7f$;
 
--- Keep the legacy six-argument implementation private and unambiguous. The
+DO $bootstrap_do_96d0f5dab2af$
+BEGIN
+  EXECUTE $bootstrap_sql_96d0f5dab2af$REVOKE ALL ON public.marketplace_checkout_idempotency FROM PUBLIC, anon, authenticated$bootstrap_sql_96d0f5dab2af$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_96d0f5dab2af$;
+
+DO $bootstrap_do_6baa93717975$
+BEGIN
+  EXECUTE $bootstrap_sql_6baa93717975$-- Keep the legacy six-argument implementation private and unambiguous. The
 -- seven-argument idempotent wrapper below has defaults, so leaving both names
 -- active makes a six-argument call resolve ambiguously in PostgreSQL.
 ALTER FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric)
-  RENAME TO create_marketplace_checkout_legacy;
+  RENAME TO create_marketplace_checkout_legacy$bootstrap_sql_6baa93717975$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6baa93717975$;
 
-CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
+DO $bootstrap_do_5a1c999b44fe$
+BEGIN
+  EXECUTE $bootstrap_sql_5a1c999b44fe$CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
   p_delivery_type text,
@@ -893,12 +1293,35 @@ BEGIN
   VALUES (auth.uid(), trim(p_checkout_key), v_result);
   RETURN v_result;
 END;
-$$;
+$$$bootstrap_sql_5a1c999b44fe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5a1c999b44fe$;
 
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role;
-COMMENT ON TABLE public.marketplace_checkout_idempotency IS 'Authoritative checkout results keyed per buyer to make retries safe.';
--- ===== END BUNDLE: 86_20260918220000_checkout_idempotency_and_payment_guard.sql =====
+DO $bootstrap_do_765b2a7f3ef9$
+BEGIN
+  EXECUTE $bootstrap_sql_765b2a7f3ef9$REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon$bootstrap_sql_765b2a7f3ef9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_765b2a7f3ef9$;
+
+DO $bootstrap_do_1abea9a7313d$
+BEGIN
+  EXECUTE $bootstrap_sql_1abea9a7313d$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role$bootstrap_sql_1abea9a7313d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1abea9a7313d$;
+
+DO $bootstrap_do_15e0bf1f9250$
+BEGIN
+  EXECUTE $bootstrap_sql_15e0bf1f9250$COMMENT ON TABLE public.marketplace_checkout_idempotency IS 'Authoritative checkout results keyed per buyer to make retries safe.'$bootstrap_sql_15e0bf1f9250$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_15e0bf1f9250$;
+
+DO $bootstrap_do_6f585aee9e2b$
+BEGIN
+  EXECUTE $bootstrap_sql_6f585aee9e2b$-- ===== END BUNDLE: 86_20260918220000_checkout_idempotency_and_payment_guard.sql =====
 
 -- ===== BEGIN BUNDLE: 87_20260918230000_checkout_p1_hardening.sql =====
 -- Checkout P1 hardening:
@@ -909,11 +1332,22 @@ COMMENT ON TABLE public.marketplace_checkout_idempotency IS 'Authoritative check
 -- 5) provide a scoped buyer RPC for transfer proof updates.
 
 REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric)
-  TO service_role;
+  FROM PUBLIC, anon, authenticated$bootstrap_sql_6f585aee9e2b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6f585aee9e2b$;
 
-CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
+DO $bootstrap_do_70844ae32875$
+BEGIN
+  EXECUTE $bootstrap_sql_70844ae32875$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric)
+  TO service_role$bootstrap_sql_70844ae32875$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_70844ae32875$;
+
+DO $bootstrap_do_d58873a25f69$
+BEGIN
+  EXECUTE $bootstrap_sql_d58873a25f69$CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
   p_delivery_type text,
@@ -975,14 +1409,30 @@ BEGIN
   VALUES (auth.uid(), trim(p_checkout_key), v_result);
   RETURN v_result;
 END;
-$$;
+$$$bootstrap_sql_d58873a25f69$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d58873a25f69$;
 
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text)
-  FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text)
-  TO authenticated, service_role;
+DO $bootstrap_do_b6935d6fcf84$
+BEGIN
+  EXECUTE $bootstrap_sql_b6935d6fcf84$REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text)
+  FROM PUBLIC, anon$bootstrap_sql_b6935d6fcf84$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b6935d6fcf84$;
 
--- Consume marketplace stock once when any trusted payment path marks an order PAID.
+DO $bootstrap_do_70704b5bbcb8$
+BEGIN
+  EXECUTE $bootstrap_sql_70704b5bbcb8$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text)
+  TO authenticated, service_role$bootstrap_sql_70704b5bbcb8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_70704b5bbcb8$;
+
+DO $bootstrap_do_4abcdf6ee753$
+BEGIN
+  EXECUTE $bootstrap_sql_4abcdf6ee753$-- Consume marketplace stock once when any trusted payment path marks an order PAID.
 CREATE OR REPLACE FUNCTION public.consume_marketplace_stock_on_payment()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1004,13 +1454,30 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
-DROP TRIGGER IF EXISTS trg_consume_marketplace_stock_on_payment ON public.orders;
-CREATE TRIGGER trg_consume_marketplace_stock_on_payment
-AFTER UPDATE OF payment_status ON public.orders
-FOR EACH ROW EXECUTE FUNCTION public.consume_marketplace_stock_on_payment();
+$$$bootstrap_sql_4abcdf6ee753$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4abcdf6ee753$;
 
--- Expiry workers may release only unpaid reservations. Paid stock was consumed
+DO $bootstrap_do_d7295e0ef3d5$
+BEGIN
+  EXECUTE $bootstrap_sql_d7295e0ef3d5$DROP TRIGGER IF EXISTS trg_consume_marketplace_stock_on_payment ON public.orders$bootstrap_sql_d7295e0ef3d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d7295e0ef3d5$;
+
+DO $bootstrap_do_6a0012d375b9$
+BEGIN
+  EXECUTE $bootstrap_sql_6a0012d375b9$CREATE TRIGGER trg_consume_marketplace_stock_on_payment
+AFTER UPDATE OF payment_status ON public.orders
+FOR EACH ROW EXECUTE FUNCTION public.consume_marketplace_stock_on_payment()$bootstrap_sql_6a0012d375b9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6a0012d375b9$;
+
+DO $bootstrap_do_b6160c2824c5$
+BEGIN
+  EXECUTE $bootstrap_sql_b6160c2824c5$-- Expiry workers may release only unpaid reservations. Paid stock was consumed
 -- by the trigger above and must never be released by the unpaid cleanup path.
 CREATE OR REPLACE FUNCTION public.expire_marketplace_stock_reservations(p_limit integer DEFAULT 100)
 RETURNS integer
@@ -1038,11 +1505,28 @@ BEGIN
   END LOOP;
   RETURN v_count;
 END;
-$$;
-REVOKE ALL ON FUNCTION public.expire_marketplace_stock_reservations(integer) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.expire_marketplace_stock_reservations(integer) TO service_role;
+$$$bootstrap_sql_b6160c2824c5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b6160c2824c5$;
 
--- Buyer-scoped transfer proof mutation. Direct UPDATE on orders remains revoked.
+DO $bootstrap_do_677514c49c65$
+BEGIN
+  EXECUTE $bootstrap_sql_677514c49c65$REVOKE ALL ON FUNCTION public.expire_marketplace_stock_reservations(integer) FROM PUBLIC, anon, authenticated$bootstrap_sql_677514c49c65$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_677514c49c65$;
+
+DO $bootstrap_do_78d8a9860f16$
+BEGIN
+  EXECUTE $bootstrap_sql_78d8a9860f16$GRANT EXECUTE ON FUNCTION public.expire_marketplace_stock_reservations(integer) TO service_role$bootstrap_sql_78d8a9860f16$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_78d8a9860f16$;
+
+DO $bootstrap_do_6956d5f3b943$
+BEGIN
+  EXECUTE $bootstrap_sql_6956d5f3b943$-- Buyer-scoped transfer proof mutation. Direct UPDATE on orders remains revoked.
 CREATE OR REPLACE FUNCTION public.buyer_submit_payment_proof(
   p_order_id uuid,
   p_payment_proof_url text
@@ -1079,10 +1563,28 @@ BEGIN
   WHERE id = p_order_id;
   RETURN jsonb_build_object('order_id', p_order_id, 'payment_proof_url', trim(p_payment_proof_url));
 END;
-$$;
-REVOKE ALL ON FUNCTION public.buyer_submit_payment_proof(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.buyer_submit_payment_proof(uuid, text) TO authenticated;
--- ===== END BUNDLE: 87_20260918230000_checkout_p1_hardening.sql =====
+$$$bootstrap_sql_6956d5f3b943$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6956d5f3b943$;
+
+DO $bootstrap_do_00d071b1189b$
+BEGIN
+  EXECUTE $bootstrap_sql_00d071b1189b$REVOKE ALL ON FUNCTION public.buyer_submit_payment_proof(uuid, text) FROM PUBLIC, anon$bootstrap_sql_00d071b1189b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_00d071b1189b$;
+
+DO $bootstrap_do_cc3c3b2e2473$
+BEGIN
+  EXECUTE $bootstrap_sql_cc3c3b2e2473$GRANT EXECUTE ON FUNCTION public.buyer_submit_payment_proof(uuid, text) TO authenticated$bootstrap_sql_cc3c3b2e2473$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cc3c3b2e2473$;
+
+DO $bootstrap_do_a0383a15c57a$
+BEGIN
+  EXECUTE $bootstrap_sql_a0383a15c57a$-- ===== END BUNDLE: 87_20260918230000_checkout_p1_hardening.sql =====
 
 -- ===== BEGIN BUNDLE: 88_20260918240000_secure_payment_proof_storage.sql =====
 -- Secure marketplace transfer proofs.
@@ -1091,9 +1593,14 @@ GRANT EXECUTE ON FUNCTION public.buyer_submit_payment_proof(uuid, text) TO authe
 
 UPDATE storage.buckets
 SET public = false
-WHERE id = 'payment-proofs';
+WHERE id = 'payment-proofs'$bootstrap_sql_a0383a15c57a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a0383a15c57a$;
 
-CREATE OR REPLACE FUNCTION public.can_access_payment_proof(p_object_name text)
+DO $bootstrap_do_a7eef0fbbab5$
+BEGIN
+  EXECUTE $bootstrap_sql_a7eef0fbbab5$CREATE OR REPLACE FUNCTION public.can_access_payment_proof(p_object_name text)
 RETURNS boolean
 LANGUAGE plpgsql
 STABLE
@@ -1129,9 +1636,14 @@ BEGIN
       )
   );
 END;
-$$;
+$$$bootstrap_sql_a7eef0fbbab5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a7eef0fbbab5$;
 
-CREATE OR REPLACE FUNCTION public.can_manage_payment_proof(p_object_name text)
+DO $bootstrap_do_50309c89c9f5$
+BEGIN
+  EXECUTE $bootstrap_sql_50309c89c9f5$CREATE OR REPLACE FUNCTION public.can_manage_payment_proof(p_object_name text)
 RETURNS boolean
 LANGUAGE plpgsql
 STABLE
@@ -1159,43 +1671,152 @@ BEGIN
       AND o.payment_method = 'TRANSFER'
   );
 END;
-$$;
+$$$bootstrap_sql_50309c89c9f5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_50309c89c9f5$;
 
-REVOKE ALL ON FUNCTION public.can_access_payment_proof(text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.can_manage_payment_proof(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.can_access_payment_proof(text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.can_manage_payment_proof(text) TO authenticated, service_role;
+DO $bootstrap_do_47fef2856e03$
+BEGIN
+  EXECUTE $bootstrap_sql_47fef2856e03$REVOKE ALL ON FUNCTION public.can_access_payment_proof(text) FROM PUBLIC, anon$bootstrap_sql_47fef2856e03$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_47fef2856e03$;
 
-DROP POLICY IF EXISTS "Payment proofs are publicly viewable" ON storage.objects;
-DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects;
-DROP POLICY IF EXISTS "Users can update their own payment proofs" ON storage.objects;
-DROP POLICY IF EXISTS "Users can delete their own payment proofs" ON storage.objects;
-DROP POLICY IF EXISTS "Buyer/merchant/admin can view payment proofs" ON storage.objects;
-DROP POLICY IF EXISTS "Buyer can update own payment proofs" ON storage.objects;
-DROP POLICY IF EXISTS "Buyer or admin can delete payment proofs" ON storage.objects;
-DROP POLICY IF EXISTS "Buyer merchant admin can upload payment proofs" ON storage.objects;
-DROP POLICY IF EXISTS "Payment proof owner or merchant can read" ON storage.objects;
-DROP POLICY IF EXISTS "Buyer can upload payment proof for own transfer order" ON storage.objects;
-DROP POLICY IF EXISTS "Buyer can replace own payment proof" ON storage.objects;
-DROP POLICY IF EXISTS "Buyer can delete own payment proof" ON storage.objects;
+DO $bootstrap_do_fa9260fe4f46$
+BEGIN
+  EXECUTE $bootstrap_sql_fa9260fe4f46$REVOKE ALL ON FUNCTION public.can_manage_payment_proof(text) FROM PUBLIC, anon$bootstrap_sql_fa9260fe4f46$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fa9260fe4f46$;
 
-CREATE POLICY "Payment proof owner or merchant can read"
+DO $bootstrap_do_fcca37c377f2$
+BEGIN
+  EXECUTE $bootstrap_sql_fcca37c377f2$GRANT EXECUTE ON FUNCTION public.can_access_payment_proof(text) TO authenticated, service_role$bootstrap_sql_fcca37c377f2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fcca37c377f2$;
+
+DO $bootstrap_do_f65b83e48c39$
+BEGIN
+  EXECUTE $bootstrap_sql_f65b83e48c39$GRANT EXECUTE ON FUNCTION public.can_manage_payment_proof(text) TO authenticated, service_role$bootstrap_sql_f65b83e48c39$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f65b83e48c39$;
+
+DO $bootstrap_do_1d60851150ad$
+BEGIN
+  EXECUTE $bootstrap_sql_1d60851150ad$DROP POLICY IF EXISTS "Payment proofs are publicly viewable" ON storage.objects$bootstrap_sql_1d60851150ad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1d60851150ad$;
+
+DO $bootstrap_do_234d86e13474$
+BEGIN
+  EXECUTE $bootstrap_sql_234d86e13474$DROP POLICY IF EXISTS "Authenticated users can upload payment proofs" ON storage.objects$bootstrap_sql_234d86e13474$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_234d86e13474$;
+
+DO $bootstrap_do_8da86bc8a698$
+BEGIN
+  EXECUTE $bootstrap_sql_8da86bc8a698$DROP POLICY IF EXISTS "Users can update their own payment proofs" ON storage.objects$bootstrap_sql_8da86bc8a698$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8da86bc8a698$;
+
+DO $bootstrap_do_6cda9de2d337$
+BEGIN
+  EXECUTE $bootstrap_sql_6cda9de2d337$DROP POLICY IF EXISTS "Users can delete their own payment proofs" ON storage.objects$bootstrap_sql_6cda9de2d337$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6cda9de2d337$;
+
+DO $bootstrap_do_9c55972cb00b$
+BEGIN
+  EXECUTE $bootstrap_sql_9c55972cb00b$DROP POLICY IF EXISTS "Buyer/merchant/admin can view payment proofs" ON storage.objects$bootstrap_sql_9c55972cb00b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9c55972cb00b$;
+
+DO $bootstrap_do_6a21aacc5f5a$
+BEGIN
+  EXECUTE $bootstrap_sql_6a21aacc5f5a$DROP POLICY IF EXISTS "Buyer can update own payment proofs" ON storage.objects$bootstrap_sql_6a21aacc5f5a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6a21aacc5f5a$;
+
+DO $bootstrap_do_0d76f8e15eaf$
+BEGIN
+  EXECUTE $bootstrap_sql_0d76f8e15eaf$DROP POLICY IF EXISTS "Buyer or admin can delete payment proofs" ON storage.objects$bootstrap_sql_0d76f8e15eaf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0d76f8e15eaf$;
+
+DO $bootstrap_do_d14ea9ef83ea$
+BEGIN
+  EXECUTE $bootstrap_sql_d14ea9ef83ea$DROP POLICY IF EXISTS "Buyer merchant admin can upload payment proofs" ON storage.objects$bootstrap_sql_d14ea9ef83ea$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d14ea9ef83ea$;
+
+DO $bootstrap_do_53bc8ef2ea74$
+BEGIN
+  EXECUTE $bootstrap_sql_53bc8ef2ea74$DROP POLICY IF EXISTS "Payment proof owner or merchant can read" ON storage.objects$bootstrap_sql_53bc8ef2ea74$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_53bc8ef2ea74$;
+
+DO $bootstrap_do_5ad04179453c$
+BEGIN
+  EXECUTE $bootstrap_sql_5ad04179453c$DROP POLICY IF EXISTS "Buyer can upload payment proof for own transfer order" ON storage.objects$bootstrap_sql_5ad04179453c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ad04179453c$;
+
+DO $bootstrap_do_a5c4a0c5dec6$
+BEGIN
+  EXECUTE $bootstrap_sql_a5c4a0c5dec6$DROP POLICY IF EXISTS "Buyer can replace own payment proof" ON storage.objects$bootstrap_sql_a5c4a0c5dec6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a5c4a0c5dec6$;
+
+DO $bootstrap_do_77ca3426954b$
+BEGIN
+  EXECUTE $bootstrap_sql_77ca3426954b$DROP POLICY IF EXISTS "Buyer can delete own payment proof" ON storage.objects$bootstrap_sql_77ca3426954b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_77ca3426954b$;
+
+DO $bootstrap_do_c04749409637$
+BEGIN
+  EXECUTE $bootstrap_sql_c04749409637$CREATE POLICY "Payment proof owner or merchant can read"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
   bucket_id = 'payment-proofs'
   AND public.can_access_payment_proof(name)
-);
+)$bootstrap_sql_c04749409637$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c04749409637$;
 
-CREATE POLICY "Buyer can upload payment proof for own transfer order"
+DO $bootstrap_do_c29b65c51aa6$
+BEGIN
+  EXECUTE $bootstrap_sql_c29b65c51aa6$CREATE POLICY "Buyer can upload payment proof for own transfer order"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
   bucket_id = 'payment-proofs'
   AND public.can_manage_payment_proof(name)
-);
+)$bootstrap_sql_c29b65c51aa6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c29b65c51aa6$;
 
-CREATE POLICY "Buyer can replace own payment proof"
+DO $bootstrap_do_4930bbf47ddc$
+BEGIN
+  EXECUTE $bootstrap_sql_4930bbf47ddc$CREATE POLICY "Buyer can replace own payment proof"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (
@@ -1205,21 +1826,43 @@ USING (
 WITH CHECK (
   bucket_id = 'payment-proofs'
   AND public.can_manage_payment_proof(name)
-);
+)$bootstrap_sql_4930bbf47ddc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4930bbf47ddc$;
 
-CREATE POLICY "Buyer can delete own payment proof"
+DO $bootstrap_do_3e864355ad42$
+BEGIN
+  EXECUTE $bootstrap_sql_3e864355ad42$CREATE POLICY "Buyer can delete own payment proof"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
   bucket_id = 'payment-proofs'
   AND public.can_manage_payment_proof(name)
-);
+)$bootstrap_sql_3e864355ad42$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3e864355ad42$;
 
-COMMENT ON FUNCTION public.can_access_payment_proof(text)
-IS 'Allows only the buyer, owning merchant, or admin to read a marketplace payment proof object.';
-COMMENT ON FUNCTION public.can_manage_payment_proof(text)
-IS 'Allows only the buyer who owns a TRANSFER order to create, replace, or delete its proof object.';
--- ===== END BUNDLE: 88_20260918240000_secure_payment_proof_storage.sql =====
+DO $bootstrap_do_e035e937f234$
+BEGIN
+  EXECUTE $bootstrap_sql_e035e937f234$COMMENT ON FUNCTION public.can_access_payment_proof(text)
+IS 'Allows only the buyer, owning merchant, or admin to read a marketplace payment proof object.'$bootstrap_sql_e035e937f234$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e035e937f234$;
+
+DO $bootstrap_do_8cddca97e01c$
+BEGIN
+  EXECUTE $bootstrap_sql_8cddca97e01c$COMMENT ON FUNCTION public.can_manage_payment_proof(text)
+IS 'Allows only the buyer who owns a TRANSFER order to create, replace, or delete its proof object.'$bootstrap_sql_8cddca97e01c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8cddca97e01c$;
+
+DO $bootstrap_do_0c1d8119c77c$
+BEGIN
+  EXECUTE $bootstrap_sql_0c1d8119c77c$-- ===== END BUNDLE: 88_20260918240000_secure_payment_proof_storage.sql =====
 
 -- ===== BEGIN BUNDLE: 89_20260918235900_merchant_banner_ads.sql =====
 -- Merchant paid advertising workflow
@@ -1235,9 +1878,14 @@ CREATE TABLE IF NOT EXISTS public.ad_packages (
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_0c1d8119c77c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0c1d8119c77c$;
 
-CREATE TABLE IF NOT EXISTS public.merchant_ads (
+DO $bootstrap_do_0526d53c9b9d$
+BEGIN
+  EXECUTE $bootstrap_sql_0526d53c9b9d$CREATE TABLE IF NOT EXISTS public.merchant_ads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   merchant_id UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
   package_id UUID REFERENCES public.ad_packages(id) ON DELETE SET NULL,
@@ -1259,31 +1907,109 @@ CREATE TABLE IF NOT EXISTS public.merchant_ads (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT merchant_ads_dates_valid CHECK (end_date IS NULL OR start_date IS NULL OR end_date > start_date)
-);
+)$bootstrap_sql_0526d53c9b9d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0526d53c9b9d$;
 
-CREATE INDEX IF NOT EXISTS merchant_ads_public_banner_idx
-  ON public.merchant_ads (placement_type, status, start_date, end_date, sort_order);
-CREATE INDEX IF NOT EXISTS merchant_ads_merchant_idx
-  ON public.merchant_ads (merchant_id, created_at DESC);
+DO $bootstrap_do_18f3b6a8af97$
+BEGIN
+  EXECUTE $bootstrap_sql_18f3b6a8af97$CREATE INDEX IF NOT EXISTS merchant_ads_public_banner_idx
+  ON public.merchant_ads (placement_type, status, start_date, end_date, sort_order)$bootstrap_sql_18f3b6a8af97$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_18f3b6a8af97$;
 
-ALTER TABLE public.ad_packages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.merchant_ads ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_03d206a10310$
+BEGIN
+  EXECUTE $bootstrap_sql_03d206a10310$CREATE INDEX IF NOT EXISTS merchant_ads_merchant_idx
+  ON public.merchant_ads (merchant_id, created_at DESC)$bootstrap_sql_03d206a10310$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_03d206a10310$;
 
-GRANT SELECT ON public.ad_packages TO anon, authenticated;
-GRANT SELECT ON public.merchant_ads TO anon, authenticated;
-GRANT INSERT, UPDATE, DELETE ON public.ad_packages TO authenticated;
-GRANT INSERT, UPDATE ON public.merchant_ads TO authenticated;
+DO $bootstrap_do_7b968333b97d$
+BEGIN
+  EXECUTE $bootstrap_sql_7b968333b97d$ALTER TABLE public.ad_packages ENABLE ROW LEVEL SECURITY$bootstrap_sql_7b968333b97d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7b968333b97d$;
 
-DROP POLICY IF EXISTS "Anyone can view active ad packages" ON public.ad_packages;
-CREATE POLICY "Anyone can view active ad packages" ON public.ad_packages
-  FOR SELECT USING (is_active = true OR public.is_admin());
+DO $bootstrap_do_2662a8845e48$
+BEGIN
+  EXECUTE $bootstrap_sql_2662a8845e48$ALTER TABLE public.merchant_ads ENABLE ROW LEVEL SECURITY$bootstrap_sql_2662a8845e48$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2662a8845e48$;
 
-DROP POLICY IF EXISTS "Admins manage ad packages" ON public.ad_packages;
-CREATE POLICY "Admins manage ad packages" ON public.ad_packages
-  FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+DO $bootstrap_do_1947103a4735$
+BEGIN
+  EXECUTE $bootstrap_sql_1947103a4735$GRANT SELECT ON public.ad_packages TO anon, authenticated$bootstrap_sql_1947103a4735$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1947103a4735$;
 
-DROP POLICY IF EXISTS "Anyone can view active merchant ads" ON public.merchant_ads;
-CREATE POLICY "Anyone can view active merchant ads" ON public.merchant_ads
+DO $bootstrap_do_d67e8b1ef6c2$
+BEGIN
+  EXECUTE $bootstrap_sql_d67e8b1ef6c2$GRANT SELECT ON public.merchant_ads TO anon, authenticated$bootstrap_sql_d67e8b1ef6c2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d67e8b1ef6c2$;
+
+DO $bootstrap_do_a01b492ca410$
+BEGIN
+  EXECUTE $bootstrap_sql_a01b492ca410$GRANT INSERT, UPDATE, DELETE ON public.ad_packages TO authenticated$bootstrap_sql_a01b492ca410$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a01b492ca410$;
+
+DO $bootstrap_do_12fb553fe5dc$
+BEGIN
+  EXECUTE $bootstrap_sql_12fb553fe5dc$GRANT INSERT, UPDATE ON public.merchant_ads TO authenticated$bootstrap_sql_12fb553fe5dc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_12fb553fe5dc$;
+
+DO $bootstrap_do_e4511da5e92e$
+BEGIN
+  EXECUTE $bootstrap_sql_e4511da5e92e$DROP POLICY IF EXISTS "Anyone can view active ad packages" ON public.ad_packages$bootstrap_sql_e4511da5e92e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e4511da5e92e$;
+
+DO $bootstrap_do_aed71e9cb75a$
+BEGIN
+  EXECUTE $bootstrap_sql_aed71e9cb75a$CREATE POLICY "Anyone can view active ad packages" ON public.ad_packages
+  FOR SELECT USING (is_active = true OR public.is_admin())$bootstrap_sql_aed71e9cb75a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aed71e9cb75a$;
+
+DO $bootstrap_do_0c9cedc2b6d6$
+BEGIN
+  EXECUTE $bootstrap_sql_0c9cedc2b6d6$DROP POLICY IF EXISTS "Admins manage ad packages" ON public.ad_packages$bootstrap_sql_0c9cedc2b6d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0c9cedc2b6d6$;
+
+DO $bootstrap_do_6f3944696241$
+BEGIN
+  EXECUTE $bootstrap_sql_6f3944696241$CREATE POLICY "Admins manage ad packages" ON public.ad_packages
+  FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_6f3944696241$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6f3944696241$;
+
+DO $bootstrap_do_d6f09574dee9$
+BEGIN
+  EXECUTE $bootstrap_sql_d6f09574dee9$DROP POLICY IF EXISTS "Anyone can view active merchant ads" ON public.merchant_ads$bootstrap_sql_d6f09574dee9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d6f09574dee9$;
+
+DO $bootstrap_do_77a4fdb0b812$
+BEGIN
+  EXECUTE $bootstrap_sql_77a4fdb0b812$CREATE POLICY "Anyone can view active merchant ads" ON public.merchant_ads
   FOR SELECT USING (
     (status = 'active' AND start_date <= now() AND (end_date IS NULL OR end_date >= now()))
     OR public.is_admin()
@@ -1291,10 +2017,21 @@ CREATE POLICY "Anyone can view active merchant ads" ON public.merchant_ads
       SELECT 1 FROM public.merchants m
       WHERE m.id = merchant_ads.merchant_id AND m.user_id = auth.uid()
     )
-  );
+  )$bootstrap_sql_77a4fdb0b812$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_77a4fdb0b812$;
 
-DROP POLICY IF EXISTS "Merchants submit own ads" ON public.merchant_ads;
-CREATE POLICY "Merchants submit own ads" ON public.merchant_ads
+DO $bootstrap_do_9ce25d9b7dad$
+BEGIN
+  EXECUTE $bootstrap_sql_9ce25d9b7dad$DROP POLICY IF EXISTS "Merchants submit own ads" ON public.merchant_ads$bootstrap_sql_9ce25d9b7dad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9ce25d9b7dad$;
+
+DO $bootstrap_do_5bd886c335f7$
+BEGIN
+  EXECUTE $bootstrap_sql_5bd886c335f7$CREATE POLICY "Merchants submit own ads" ON public.merchant_ads
   FOR INSERT WITH CHECK (
     status = 'pending'
     AND EXISTS (
@@ -1303,10 +2040,21 @@ CREATE POLICY "Merchants submit own ads" ON public.merchant_ads
         AND m.user_id = auth.uid()
         AND m.registration_status = 'APPROVED'
     )
-  );
+  )$bootstrap_sql_5bd886c335f7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5bd886c335f7$;
 
-DROP POLICY IF EXISTS "Merchants update own pending ads" ON public.merchant_ads;
-CREATE POLICY "Merchants update own pending ads" ON public.merchant_ads
+DO $bootstrap_do_19ad8b11678f$
+BEGIN
+  EXECUTE $bootstrap_sql_19ad8b11678f$DROP POLICY IF EXISTS "Merchants update own pending ads" ON public.merchant_ads$bootstrap_sql_19ad8b11678f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_19ad8b11678f$;
+
+DO $bootstrap_do_141a3b83ab39$
+BEGIN
+  EXECUTE $bootstrap_sql_141a3b83ab39$CREATE POLICY "Merchants update own pending ads" ON public.merchant_ads
   FOR UPDATE USING (
     public.is_admin() OR EXISTS (
       SELECT 1 FROM public.merchants m
@@ -1319,31 +2067,80 @@ CREATE POLICY "Merchants update own pending ads" ON public.merchant_ads
         WHERE m.id = merchant_ads.merchant_id AND m.user_id = auth.uid()
       )
     )
-  );
+  )$bootstrap_sql_141a3b83ab39$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_141a3b83ab39$;
 
-DROP TRIGGER IF EXISTS update_ad_packages_updated_at ON public.ad_packages;
-CREATE TRIGGER update_ad_packages_updated_at
+DO $bootstrap_do_703acf7fb619$
+BEGIN
+  EXECUTE $bootstrap_sql_703acf7fb619$DROP TRIGGER IF EXISTS update_ad_packages_updated_at ON public.ad_packages$bootstrap_sql_703acf7fb619$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_703acf7fb619$;
+
+DO $bootstrap_do_080687aca929$
+BEGIN
+  EXECUTE $bootstrap_sql_080687aca929$CREATE TRIGGER update_ad_packages_updated_at
   BEFORE UPDATE ON public.ad_packages
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_080687aca929$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_080687aca929$;
 
-DROP TRIGGER IF EXISTS update_merchant_ads_updated_at ON public.merchant_ads;
-CREATE TRIGGER update_merchant_ads_updated_at
+DO $bootstrap_do_3f04c7312c09$
+BEGIN
+  EXECUTE $bootstrap_sql_3f04c7312c09$DROP TRIGGER IF EXISTS update_merchant_ads_updated_at ON public.merchant_ads$bootstrap_sql_3f04c7312c09$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3f04c7312c09$;
+
+DO $bootstrap_do_b910c5e15125$
+BEGIN
+  EXECUTE $bootstrap_sql_b910c5e15125$CREATE TRIGGER update_merchant_ads_updated_at
   BEFORE UPDATE ON public.merchant_ads
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_b910c5e15125$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b910c5e15125$;
 
-INSERT INTO public.ad_packages (name, placement_type, description, price_per_day, max_days, is_active)
+DO $bootstrap_do_8759a039877d$
+BEGIN
+  EXECUTE $bootstrap_sql_8759a039877d$INSERT INTO public.ad_packages (name, placement_type, description, price_per_day, max_days, is_active)
 VALUES
   ('Spotlight Pencarian', 'search_top', 'Produk Anda muncul di atas hasil pencarian', 15000, 30, true),
   ('Teratas Kategori', 'category_top', 'Muncul paling atas di halaman kategori', 20000, 30, true),
   ('Banner di Atas Menu', 'home_banner', 'Banner besar di atas menu layanan halaman utama', 50000, 14, true),
   ('Produk Pilihan', 'product_recommend', 'Tampil di seksi rekomendasi produk', 10000, 30, true)
-ON CONFLICT DO NOTHING;
+ON CONFLICT DO NOTHING$bootstrap_sql_8759a039877d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8759a039877d$;
 
-COMMENT ON TABLE public.merchant_ads IS 'Paid merchant advertising submissions, approved by admin before publication.';
-COMMENT ON COLUMN public.merchant_ads.placement_type IS 'home_banner renders above the main service menu on the homepage.';
+DO $bootstrap_do_d3678a0957ea$
+BEGIN
+  EXECUTE $bootstrap_sql_d3678a0957ea$COMMENT ON TABLE public.merchant_ads IS 'Paid merchant advertising submissions, approved by admin before publication.'$bootstrap_sql_d3678a0957ea$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d3678a0957ea$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 89_20260918235900_merchant_banner_ads.sql =====
+DO $bootstrap_do_618208eea29d$
+BEGIN
+  EXECUTE $bootstrap_sql_618208eea29d$COMMENT ON COLUMN public.merchant_ads.placement_type IS 'home_banner renders above the main service menu on the homepage.'$bootstrap_sql_618208eea29d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_618208eea29d$;
+
+DO $bootstrap_do_a4e16188b3a4$
+BEGIN
+  EXECUTE $bootstrap_sql_a4e16188b3a4$NOTIFY pgrst, 'reload schema'$bootstrap_sql_a4e16188b3a4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a4e16188b3a4$;
+
+DO $bootstrap_do_78c8fab976ca$
+BEGIN
+  EXECUTE $bootstrap_sql_78c8fab976ca$-- ===== END BUNDLE: 89_20260918235900_merchant_banner_ads.sql =====
 
 -- ===== BEGIN BUNDLE: 90_20260919004500_merchant_ad_targeting.sql =====
 -- Optional targeting metadata for merchant ad planning and reporting.
@@ -1351,15 +2148,49 @@ ALTER TABLE public.merchant_ads
   ADD COLUMN IF NOT EXISTS target_area TEXT,
   ADD COLUMN IF NOT EXISTS target_category TEXT,
   ADD COLUMN IF NOT EXISTS target_start_hour SMALLINT CHECK (target_start_hour IS NULL OR target_start_hour BETWEEN 0 AND 23),
-  ADD COLUMN IF NOT EXISTS target_end_hour SMALLINT CHECK (target_end_hour IS NULL OR target_end_hour BETWEEN 0 AND 23);
+  ADD COLUMN IF NOT EXISTS target_end_hour SMALLINT CHECK (target_end_hour IS NULL OR target_end_hour BETWEEN 0 AND 23)$bootstrap_sql_78c8fab976ca$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_78c8fab976ca$;
 
-COMMENT ON COLUMN public.merchant_ads.target_area IS 'Optional village, district, or service area requested by the merchant.';
-COMMENT ON COLUMN public.merchant_ads.target_category IS 'Optional category targeting requested by the merchant.';
-COMMENT ON COLUMN public.merchant_ads.target_start_hour IS 'Optional local hour window start for future delivery targeting.';
-COMMENT ON COLUMN public.merchant_ads.target_end_hour IS 'Optional local hour window end for future delivery targeting.';
+DO $bootstrap_do_2b46a8b25aed$
+BEGIN
+  EXECUTE $bootstrap_sql_2b46a8b25aed$COMMENT ON COLUMN public.merchant_ads.target_area IS 'Optional village, district, or service area requested by the merchant.'$bootstrap_sql_2b46a8b25aed$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2b46a8b25aed$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 90_20260919004500_merchant_ad_targeting.sql =====
+DO $bootstrap_do_5b070fba6dce$
+BEGIN
+  EXECUTE $bootstrap_sql_5b070fba6dce$COMMENT ON COLUMN public.merchant_ads.target_category IS 'Optional category targeting requested by the merchant.'$bootstrap_sql_5b070fba6dce$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5b070fba6dce$;
+
+DO $bootstrap_do_05c14c5b7f83$
+BEGIN
+  EXECUTE $bootstrap_sql_05c14c5b7f83$COMMENT ON COLUMN public.merchant_ads.target_start_hour IS 'Optional local hour window start for future delivery targeting.'$bootstrap_sql_05c14c5b7f83$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_05c14c5b7f83$;
+
+DO $bootstrap_do_13dc881d2ec5$
+BEGIN
+  EXECUTE $bootstrap_sql_13dc881d2ec5$COMMENT ON COLUMN public.merchant_ads.target_end_hour IS 'Optional local hour window end for future delivery targeting.'$bootstrap_sql_13dc881d2ec5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_13dc881d2ec5$;
+
+DO $bootstrap_do_1538472d0c04$
+BEGIN
+  EXECUTE $bootstrap_sql_1538472d0c04$NOTIFY pgrst, 'reload schema'$bootstrap_sql_1538472d0c04$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1538472d0c04$;
+
+DO $bootstrap_do_f6c61d4049cf$
+BEGIN
+  EXECUTE $bootstrap_sql_f6c61d4049cf$-- ===== END BUNDLE: 90_20260919004500_merchant_ad_targeting.sql =====
 
 -- ===== BEGIN BUNDLE: 91_20260919005000_ad_performance_counters.sql =====
 -- Public-safe counters for ad performance reporting.
@@ -1371,9 +2202,14 @@ RETURNS VOID LANGUAGE SQL SECURITY DEFINER SET search_path = public AS $$
     AND status = 'active'
     AND start_date <= now()
     AND (end_date IS NULL OR end_date >= now());
-$$;
+$$$bootstrap_sql_f6c61d4049cf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f6c61d4049cf$;
 
-CREATE OR REPLACE FUNCTION public.increment_merchant_ad_click(p_ad_id UUID)
+DO $bootstrap_do_bf4c17d0c463$
+BEGIN
+  EXECUTE $bootstrap_sql_bf4c17d0c463$CREATE OR REPLACE FUNCTION public.increment_merchant_ad_click(p_ad_id UUID)
 RETURNS VOID LANGUAGE SQL SECURITY DEFINER SET search_path = public AS $$
   UPDATE public.merchant_ads
   SET click_count = click_count + 1
@@ -1381,25 +2217,69 @@ RETURNS VOID LANGUAGE SQL SECURITY DEFINER SET search_path = public AS $$
     AND status = 'active'
     AND start_date <= now()
     AND (end_date IS NULL OR end_date >= now());
-$$;
+$$$bootstrap_sql_bf4c17d0c463$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bf4c17d0c463$;
 
-CREATE OR REPLACE FUNCTION public.increment_promotion_view(p_promotion_id UUID)
+DO $bootstrap_do_71f68afc7072$
+BEGIN
+  EXECUTE $bootstrap_sql_71f68afc7072$CREATE OR REPLACE FUNCTION public.increment_promotion_view(p_promotion_id UUID)
 RETURNS VOID LANGUAGE SQL SECURITY DEFINER SET search_path = public AS $$
   UPDATE public.promotions SET view_count = view_count + 1 WHERE id = p_promotion_id;
-$$;
+$$$bootstrap_sql_71f68afc7072$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_71f68afc7072$;
 
-CREATE OR REPLACE FUNCTION public.increment_promotion_click(p_promotion_id UUID)
+DO $bootstrap_do_539c5ee74981$
+BEGIN
+  EXECUTE $bootstrap_sql_539c5ee74981$CREATE OR REPLACE FUNCTION public.increment_promotion_click(p_promotion_id UUID)
 RETURNS VOID LANGUAGE SQL SECURITY DEFINER SET search_path = public AS $$
   UPDATE public.promotions SET click_count = click_count + 1 WHERE id = p_promotion_id;
-$$;
+$$$bootstrap_sql_539c5ee74981$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_539c5ee74981$;
 
-GRANT EXECUTE ON FUNCTION public.increment_merchant_ad_view(UUID) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_merchant_ad_click(UUID) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_promotion_view(UUID) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.increment_promotion_click(UUID) TO anon, authenticated;
+DO $bootstrap_do_ea83296ae6f5$
+BEGIN
+  EXECUTE $bootstrap_sql_ea83296ae6f5$GRANT EXECUTE ON FUNCTION public.increment_merchant_ad_view(UUID) TO anon, authenticated$bootstrap_sql_ea83296ae6f5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ea83296ae6f5$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 91_20260919005000_ad_performance_counters.sql =====
+DO $bootstrap_do_2c1babe7db12$
+BEGIN
+  EXECUTE $bootstrap_sql_2c1babe7db12$GRANT EXECUTE ON FUNCTION public.increment_merchant_ad_click(UUID) TO anon, authenticated$bootstrap_sql_2c1babe7db12$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2c1babe7db12$;
+
+DO $bootstrap_do_a4a4446036bc$
+BEGIN
+  EXECUTE $bootstrap_sql_a4a4446036bc$GRANT EXECUTE ON FUNCTION public.increment_promotion_view(UUID) TO anon, authenticated$bootstrap_sql_a4a4446036bc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a4a4446036bc$;
+
+DO $bootstrap_do_18d4c07f76ad$
+BEGIN
+  EXECUTE $bootstrap_sql_18d4c07f76ad$GRANT EXECUTE ON FUNCTION public.increment_promotion_click(UUID) TO anon, authenticated$bootstrap_sql_18d4c07f76ad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_18d4c07f76ad$;
+
+DO $bootstrap_do_b16a6cba4ced$
+BEGIN
+  EXECUTE $bootstrap_sql_b16a6cba4ced$NOTIFY pgrst, 'reload schema'$bootstrap_sql_b16a6cba4ced$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b16a6cba4ced$;
+
+DO $bootstrap_do_fc9e0f727e73$
+BEGIN
+  EXECUTE $bootstrap_sql_fc9e0f727e73$-- ===== END BUNDLE: 91_20260919005000_ad_performance_counters.sql =====
 
 -- ===== BEGIN BUNDLE: 91_20260919090000_merchant_ads_storage.sql =====
 -- Storage for merchant paid-ad creatives.
@@ -1407,24 +2287,81 @@ NOTIFY pgrst, 'reload schema';
 -- financial evidence can be governed independently.
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('merchant-ads', 'merchant-ads', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO NOTHING$bootstrap_sql_fc9e0f727e73$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fc9e0f727e73$;
 
-DROP POLICY IF EXISTS "Public can view merchant ad creatives" ON storage.objects;
-CREATE POLICY "Public can view merchant ad creatives" ON storage.objects
-  FOR SELECT USING (bucket_id = 'merchant-ads');
+DO $bootstrap_do_93dd2cee10fb$
+BEGIN
+  EXECUTE $bootstrap_sql_93dd2cee10fb$DROP POLICY IF EXISTS "Public can view merchant ad creatives" ON storage.objects$bootstrap_sql_93dd2cee10fb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_93dd2cee10fb$;
 
-DROP POLICY IF EXISTS "Authenticated users can upload merchant ad creatives" ON storage.objects;
-CREATE POLICY "Authenticated users can upload merchant ad creatives" ON storage.objects
-  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'merchant-ads');
+DO $bootstrap_do_9f3418132581$
+BEGIN
+  EXECUTE $bootstrap_sql_9f3418132581$CREATE POLICY "Public can view merchant ad creatives" ON storage.objects
+  FOR SELECT USING (bucket_id = 'merchant-ads')$bootstrap_sql_9f3418132581$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9f3418132581$;
 
-DROP POLICY IF EXISTS "Authenticated users can update merchant ad creatives" ON storage.objects;
-CREATE POLICY "Authenticated users can update merchant ad creatives" ON storage.objects
-  FOR UPDATE TO authenticated USING (bucket_id = 'merchant-ads');
+DO $bootstrap_do_64df672245b0$
+BEGIN
+  EXECUTE $bootstrap_sql_64df672245b0$DROP POLICY IF EXISTS "Authenticated users can upload merchant ad creatives" ON storage.objects$bootstrap_sql_64df672245b0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_64df672245b0$;
 
-DROP POLICY IF EXISTS "Authenticated users can delete merchant ad creatives" ON storage.objects;
-CREATE POLICY "Authenticated users can delete merchant ad creatives" ON storage.objects
-  FOR DELETE TO authenticated USING (bucket_id = 'merchant-ads');
+DO $bootstrap_do_5950ce8d0c4b$
+BEGIN
+  EXECUTE $bootstrap_sql_5950ce8d0c4b$CREATE POLICY "Authenticated users can upload merchant ad creatives" ON storage.objects
+  FOR INSERT TO authenticated WITH CHECK (bucket_id = 'merchant-ads')$bootstrap_sql_5950ce8d0c4b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5950ce8d0c4b$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 91_20260919090000_merchant_ads_storage.sql =====
+DO $bootstrap_do_fcba27e59386$
+BEGIN
+  EXECUTE $bootstrap_sql_fcba27e59386$DROP POLICY IF EXISTS "Authenticated users can update merchant ad creatives" ON storage.objects$bootstrap_sql_fcba27e59386$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fcba27e59386$;
 
+DO $bootstrap_do_2c165a66f584$
+BEGIN
+  EXECUTE $bootstrap_sql_2c165a66f584$CREATE POLICY "Authenticated users can update merchant ad creatives" ON storage.objects
+  FOR UPDATE TO authenticated USING (bucket_id = 'merchant-ads')$bootstrap_sql_2c165a66f584$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2c165a66f584$;
+
+DO $bootstrap_do_865f5be5d75e$
+BEGIN
+  EXECUTE $bootstrap_sql_865f5be5d75e$DROP POLICY IF EXISTS "Authenticated users can delete merchant ad creatives" ON storage.objects$bootstrap_sql_865f5be5d75e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_865f5be5d75e$;
+
+DO $bootstrap_do_f24b9cba2ad9$
+BEGIN
+  EXECUTE $bootstrap_sql_f24b9cba2ad9$CREATE POLICY "Authenticated users can delete merchant ad creatives" ON storage.objects
+  FOR DELETE TO authenticated USING (bucket_id = 'merchant-ads')$bootstrap_sql_f24b9cba2ad9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f24b9cba2ad9$;
+
+DO $bootstrap_do_ec113170e76c$
+BEGIN
+  EXECUTE $bootstrap_sql_ec113170e76c$NOTIFY pgrst, 'reload schema'$bootstrap_sql_ec113170e76c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ec113170e76c$;
+
+DO $bootstrap_do_11de1f42854a$
+BEGIN
+  EXECUTE $bootstrap_sql_11de1f42854a$-- ===== END BUNDLE: 91_20260919090000_merchant_ads_storage.sql =====$bootstrap_sql_11de1f42854a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_11de1f42854a$;

@@ -1,4 +1,10 @@
--- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_8643cdb57e87$
+BEGIN
+  EXECUTE $bootstrap_sql_8643cdb57e87$-- DesaMart canonical bootstrap bundle; consolidated from ordered bundles.
 -- DO NOT apply to an existing project with migration history.
 -- Consolidated range: 44_20260909190000_order_transition_and_courier_offers.sql .. 51_20260911072000_refund_settlement_hardening.sql
 
@@ -7,16 +13,27 @@
 -- All order fulfillment mutations must pass through these functions.
 
 ALTER TABLE public.orders
-  DROP CONSTRAINT IF EXISTS orders_status_check;
-ALTER TABLE public.orders
+  DROP CONSTRAINT IF EXISTS orders_status_check$bootstrap_sql_8643cdb57e87$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8643cdb57e87$;
+
+DO $bootstrap_do_7f32daf57666$
+BEGIN
+  EXECUTE $bootstrap_sql_7f32daf57666$ALTER TABLE public.orders
   ADD CONSTRAINT orders_status_check CHECK (status IN (
     'NEW', 'PENDING_CONFIRMATION', 'PENDING_PAYMENT', 'PROCESSED', 'READY',
     'ASSIGNED', 'COURIER_ASSIGNED', 'COURIER_ACCEPTED', 'COURIER_REJECTED',
     'PICKED_UP', 'SENT', 'DELIVERING', 'DELIVERED', 'DONE', 'CANCELED',
     'REJECTED', 'REJECTED_BY_BUYER', 'REFUNDED'
-  ));
+  ))$bootstrap_sql_7f32daf57666$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7f32daf57666$;
 
-CREATE TABLE IF NOT EXISTS public.order_status_history (
+DO $bootstrap_do_0abee8b8bb4c$
+BEGIN
+  EXECUTE $bootstrap_sql_0abee8b8bb4c$CREATE TABLE IF NOT EXISTS public.order_status_history (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   from_status text,
@@ -25,10 +42,21 @@ CREATE TABLE IF NOT EXISTS public.order_status_history (
   reason text,
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON public.order_status_history(order_id, created_at DESC);
+)$bootstrap_sql_0abee8b8bb4c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0abee8b8bb4c$;
 
-CREATE TABLE IF NOT EXISTS public.delivery_assignments (
+DO $bootstrap_do_d7ccf32d8395$
+BEGIN
+  EXECUTE $bootstrap_sql_d7ccf32d8395$CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON public.order_status_history(order_id, created_at DESC)$bootstrap_sql_d7ccf32d8395$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d7ccf32d8395$;
+
+DO $bootstrap_do_1e57c5595b45$
+BEGIN
+  EXECUTE $bootstrap_sql_1e57c5595b45$CREATE TABLE IF NOT EXISTS public.delivery_assignments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   courier_id uuid NOT NULL REFERENCES public.couriers(id) ON DELETE CASCADE,
@@ -40,33 +68,91 @@ CREATE TABLE IF NOT EXISTS public.delivery_assignments (
   created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_delivery_assignments_courier_queue ON public.delivery_assignments(courier_id, status, offered_at DESC);
-CREATE INDEX IF NOT EXISTS idx_delivery_assignments_order ON public.delivery_assignments(order_id, created_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_delivery_assignments_active_order
-  ON public.delivery_assignments(order_id)
-  WHERE status IN ('OFFERED', 'ACCEPTED');
+)$bootstrap_sql_1e57c5595b45$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1e57c5595b45$;
 
-ALTER TABLE public.order_status_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.delivery_assignments ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Order participants read status history" ON public.order_status_history;
-CREATE POLICY "Order participants read status history" ON public.order_status_history FOR SELECT TO authenticated
+DO $bootstrap_do_35c35a371e56$
+BEGIN
+  EXECUTE $bootstrap_sql_35c35a371e56$CREATE INDEX IF NOT EXISTS idx_delivery_assignments_courier_queue ON public.delivery_assignments(courier_id, status, offered_at DESC)$bootstrap_sql_35c35a371e56$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_35c35a371e56$;
+
+DO $bootstrap_do_68506db9b923$
+BEGIN
+  EXECUTE $bootstrap_sql_68506db9b923$CREATE INDEX IF NOT EXISTS idx_delivery_assignments_order ON public.delivery_assignments(order_id, created_at DESC)$bootstrap_sql_68506db9b923$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_68506db9b923$;
+
+DO $bootstrap_do_c0f560a5513f$
+BEGIN
+  EXECUTE $bootstrap_sql_c0f560a5513f$CREATE UNIQUE INDEX IF NOT EXISTS uq_delivery_assignments_active_order
+  ON public.delivery_assignments(order_id)
+  WHERE status IN ('OFFERED', 'ACCEPTED')$bootstrap_sql_c0f560a5513f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c0f560a5513f$;
+
+DO $bootstrap_do_b77e542ce1d0$
+BEGIN
+  EXECUTE $bootstrap_sql_b77e542ce1d0$ALTER TABLE public.order_status_history ENABLE ROW LEVEL SECURITY$bootstrap_sql_b77e542ce1d0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b77e542ce1d0$;
+
+DO $bootstrap_do_4a2afa83499d$
+BEGIN
+  EXECUTE $bootstrap_sql_4a2afa83499d$ALTER TABLE public.delivery_assignments ENABLE ROW LEVEL SECURITY$bootstrap_sql_4a2afa83499d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4a2afa83499d$;
+
+DO $bootstrap_do_709361eadd40$
+BEGIN
+  EXECUTE $bootstrap_sql_709361eadd40$DROP POLICY IF EXISTS "Order participants read status history" ON public.order_status_history$bootstrap_sql_709361eadd40$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_709361eadd40$;
+
+DO $bootstrap_do_6b21fb425adb$
+BEGIN
+  EXECUTE $bootstrap_sql_6b21fb425adb$CREATE POLICY "Order participants read status history" ON public.order_status_history FOR SELECT TO authenticated
 USING (
   public.is_admin() OR
   EXISTS (SELECT 1 FROM public.orders o WHERE o.id = order_status_history.order_id AND (
     o.buyer_id = auth.uid() OR EXISTS (SELECT 1 FROM public.merchants m WHERE m.id = o.merchant_id AND m.user_id = auth.uid())
     OR EXISTS (SELECT 1 FROM public.couriers c WHERE c.id = o.courier_id AND c.user_id = auth.uid())
   ))
-);
-DROP POLICY IF EXISTS "Courier and merchant read delivery assignments" ON public.delivery_assignments;
-CREATE POLICY "Courier and merchant read delivery assignments" ON public.delivery_assignments FOR SELECT TO authenticated
+)$bootstrap_sql_6b21fb425adb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b21fb425adb$;
+
+DO $bootstrap_do_723eaa0a43f3$
+BEGIN
+  EXECUTE $bootstrap_sql_723eaa0a43f3$DROP POLICY IF EXISTS "Courier and merchant read delivery assignments" ON public.delivery_assignments$bootstrap_sql_723eaa0a43f3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_723eaa0a43f3$;
+
+DO $bootstrap_do_6f4ccfb7e1f0$
+BEGIN
+  EXECUTE $bootstrap_sql_6f4ccfb7e1f0$CREATE POLICY "Courier and merchant read delivery assignments" ON public.delivery_assignments FOR SELECT TO authenticated
 USING (
   public.is_admin() OR
   EXISTS (SELECT 1 FROM public.couriers c WHERE c.id = delivery_assignments.courier_id AND c.user_id = auth.uid()) OR
   EXISTS (SELECT 1 FROM public.orders o JOIN public.merchants m ON m.id = o.merchant_id WHERE o.id = delivery_assignments.order_id AND m.user_id = auth.uid())
-);
+)$bootstrap_sql_6f4ccfb7e1f0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6f4ccfb7e1f0$;
 
-CREATE OR REPLACE FUNCTION public.merchant_transition_order(
+DO $bootstrap_do_0c236120a322$
+BEGIN
+  EXECUTE $bootstrap_sql_0c236120a322$CREATE OR REPLACE FUNCTION public.merchant_transition_order(
   p_order_id uuid,
   p_to_status text,
   p_reason text DEFAULT NULL,
@@ -114,9 +200,14 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason)
   VALUES (p_order_id, v_from, p_to_status, auth.uid(), NULLIF(trim(p_reason), ''));
   RETURN v_order;
-END; $$;
+END; $$$bootstrap_sql_0c236120a322$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0c236120a322$;
 
-CREATE OR REPLACE FUNCTION public.merchant_offer_order_to_courier(p_order_id uuid, p_courier_id uuid)
+DO $bootstrap_do_741706a76e10$
+BEGIN
+  EXECUTE $bootstrap_sql_741706a76e10$CREATE OR REPLACE FUNCTION public.merchant_offer_order_to_courier(p_order_id uuid, p_courier_id uuid)
 RETURNS public.delivery_assignments
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_order public.orders%ROWTYPE; v_assignment public.delivery_assignments%ROWTYPE; v_merchant_id uuid;
@@ -135,9 +226,14 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, metadata)
   VALUES (p_order_id, v_order.status, 'ASSIGNED', auth.uid(), jsonb_build_object('courier_id', p_courier_id));
   RETURN v_assignment;
-END; $$;
+END; $$$bootstrap_sql_741706a76e10$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_741706a76e10$;
 
-CREATE OR REPLACE FUNCTION public.courier_respond_to_order_offer(p_assignment_id uuid, p_accept boolean, p_reason text DEFAULT NULL)
+DO $bootstrap_do_65aa695753e5$
+BEGIN
+  EXECUTE $bootstrap_sql_65aa695753e5$CREATE OR REPLACE FUNCTION public.courier_respond_to_order_offer(p_assignment_id uuid, p_accept boolean, p_reason text DEFAULT NULL)
 RETURNS public.delivery_assignments
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_assignment public.delivery_assignments%ROWTYPE; v_order public.orders%ROWTYPE; v_courier_id uuid; v_to text;
@@ -159,33 +255,108 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason, metadata)
   VALUES (v_order.id, v_order.status, v_to, auth.uid(), p_reason, jsonb_build_object('assignment_id', p_assignment_id, 'courier_id', v_courier_id));
   RETURN v_assignment;
-END; $$;
+END; $$$bootstrap_sql_65aa695753e5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_65aa695753e5$;
 
-REVOKE ALL ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.merchant_offer_order_to_courier(uuid, uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.courier_respond_to_order_offer(uuid, boolean, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.merchant_offer_order_to_courier(uuid, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.courier_respond_to_order_offer(uuid, boolean, text) TO authenticated;
--- ===== END BUNDLE: 44_20260909190000_order_transition_and_courier_offers.sql =====
+DO $bootstrap_do_67a9e3d7772a$
+BEGIN
+  EXECUTE $bootstrap_sql_67a9e3d7772a$REVOKE ALL ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) FROM PUBLIC$bootstrap_sql_67a9e3d7772a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_67a9e3d7772a$;
+
+DO $bootstrap_do_27b51be57fcf$
+BEGIN
+  EXECUTE $bootstrap_sql_27b51be57fcf$REVOKE ALL ON FUNCTION public.merchant_offer_order_to_courier(uuid, uuid) FROM PUBLIC$bootstrap_sql_27b51be57fcf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_27b51be57fcf$;
+
+DO $bootstrap_do_1ee0e444753c$
+BEGIN
+  EXECUTE $bootstrap_sql_1ee0e444753c$REVOKE ALL ON FUNCTION public.courier_respond_to_order_offer(uuid, boolean, text) FROM PUBLIC$bootstrap_sql_1ee0e444753c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1ee0e444753c$;
+
+DO $bootstrap_do_6e82fe765348$
+BEGIN
+  EXECUTE $bootstrap_sql_6e82fe765348$GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text, boolean) TO authenticated$bootstrap_sql_6e82fe765348$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6e82fe765348$;
+
+DO $bootstrap_do_518902cd9bfd$
+BEGIN
+  EXECUTE $bootstrap_sql_518902cd9bfd$GRANT EXECUTE ON FUNCTION public.merchant_offer_order_to_courier(uuid, uuid) TO authenticated$bootstrap_sql_518902cd9bfd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_518902cd9bfd$;
+
+DO $bootstrap_do_3c64e50527ae$
+BEGIN
+  EXECUTE $bootstrap_sql_3c64e50527ae$GRANT EXECUTE ON FUNCTION public.courier_respond_to_order_offer(uuid, boolean, text) TO authenticated$bootstrap_sql_3c64e50527ae$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3c64e50527ae$;
+
+DO $bootstrap_do_e1ac7341fe4e$
+BEGIN
+  EXECUTE $bootstrap_sql_e1ac7341fe4e$-- ===== END BUNDLE: 44_20260909190000_order_transition_and_courier_offers.sql =====
 
 -- ===== BEGIN BUNDLE: 44_20260909193000_order_workflow_rpc.sql =====
 -- Order workflow hardening: canonical transitions, courier offers, and self-delivery fee ledger.
 ALTER TABLE public.orders
-  DROP CONSTRAINT IF EXISTS orders_status_check;
-ALTER TABLE public.orders
+  DROP CONSTRAINT IF EXISTS orders_status_check$bootstrap_sql_e1ac7341fe4e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e1ac7341fe4e$;
+
+DO $bootstrap_do_f388fb01350a$
+BEGIN
+  EXECUTE $bootstrap_sql_f388fb01350a$ALTER TABLE public.orders
   ADD CONSTRAINT orders_status_check CHECK (status IN (
     'NEW','PENDING_CONFIRMATION','PENDING_PAYMENT','PROCESSED','READY','ASSIGNED',
     'COURIER_ASSIGNED','COURIER_ACCEPTED','COURIER_REJECTED','PICKED_UP','SENT',
     'DELIVERING','DELIVERED','DONE','CANCELED','REJECTED','REJECTED_BY_BUYER','REFUNDED'
-  ));
+  ))$bootstrap_sql_f388fb01350a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f388fb01350a$;
 
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS status_updated_at timestamptz;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS self_delivery_attempt integer NOT NULL DEFAULT 0;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS self_delivery_fee_amount numeric NOT NULL DEFAULT 0;
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS self_delivery_fee_status text NOT NULL DEFAULT 'NOT_APPLICABLE';
+DO $bootstrap_do_23acb941da44$
+BEGIN
+  EXECUTE $bootstrap_sql_23acb941da44$ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS status_updated_at timestamptz$bootstrap_sql_23acb941da44$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_23acb941da44$;
 
-CREATE TABLE IF NOT EXISTS public.order_status_history (
+DO $bootstrap_do_bba214314fe1$
+BEGIN
+  EXECUTE $bootstrap_sql_bba214314fe1$ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS self_delivery_attempt integer NOT NULL DEFAULT 0$bootstrap_sql_bba214314fe1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bba214314fe1$;
+
+DO $bootstrap_do_ec6df79c7018$
+BEGIN
+  EXECUTE $bootstrap_sql_ec6df79c7018$ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS self_delivery_fee_amount numeric NOT NULL DEFAULT 0$bootstrap_sql_ec6df79c7018$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ec6df79c7018$;
+
+DO $bootstrap_do_d75f6b277c2a$
+BEGIN
+  EXECUTE $bootstrap_sql_d75f6b277c2a$ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS self_delivery_fee_status text NOT NULL DEFAULT 'NOT_APPLICABLE'$bootstrap_sql_d75f6b277c2a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d75f6b277c2a$;
+
+DO $bootstrap_do_48edfae8a423$
+BEGIN
+  EXECUTE $bootstrap_sql_48edfae8a423$CREATE TABLE IF NOT EXISTS public.order_status_history (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   from_status text,
@@ -193,10 +364,21 @@ CREATE TABLE IF NOT EXISTS public.order_status_history (
   actor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   reason text,
   created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON public.order_status_history(order_id, created_at DESC);
+)$bootstrap_sql_48edfae8a423$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_48edfae8a423$;
 
-CREATE TABLE IF NOT EXISTS public.delivery_assignments (
+DO $bootstrap_do_6b5b13385d67$
+BEGIN
+  EXECUTE $bootstrap_sql_6b5b13385d67$CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON public.order_status_history(order_id, created_at DESC)$bootstrap_sql_6b5b13385d67$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b5b13385d67$;
+
+DO $bootstrap_do_68272c71531c$
+BEGIN
+  EXECUTE $bootstrap_sql_68272c71531c$CREATE TABLE IF NOT EXISTS public.delivery_assignments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   courier_id uuid NOT NULL REFERENCES public.couriers(id) ON DELETE CASCADE,
@@ -207,11 +389,28 @@ CREATE TABLE IF NOT EXISTS public.delivery_assignments (
   rejection_reason text,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(order_id, courier_id)
-);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_assignment_active_order ON public.delivery_assignments(order_id) WHERE status IN ('OFFERED','ACCEPTED');
-CREATE INDEX IF NOT EXISTS idx_delivery_assignment_courier ON public.delivery_assignments(courier_id, status, created_at DESC);
+)$bootstrap_sql_68272c71531c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_68272c71531c$;
 
-CREATE TABLE IF NOT EXISTS public.merchant_delivery_fee_ledger (
+DO $bootstrap_do_3638b69788d6$
+BEGIN
+  EXECUTE $bootstrap_sql_3638b69788d6$CREATE UNIQUE INDEX IF NOT EXISTS idx_delivery_assignment_active_order ON public.delivery_assignments(order_id) WHERE status IN ('OFFERED','ACCEPTED')$bootstrap_sql_3638b69788d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3638b69788d6$;
+
+DO $bootstrap_do_8ae084a741b7$
+BEGIN
+  EXECUTE $bootstrap_sql_8ae084a741b7$CREATE INDEX IF NOT EXISTS idx_delivery_assignment_courier ON public.delivery_assignments(courier_id, status, created_at DESC)$bootstrap_sql_8ae084a741b7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8ae084a741b7$;
+
+DO $bootstrap_do_1086a9412eac$
+BEGIN
+  EXECUTE $bootstrap_sql_1086a9412eac$CREATE TABLE IF NOT EXISTS public.merchant_delivery_fee_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   merchant_id uuid NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
@@ -223,23 +422,81 @@ CREATE TABLE IF NOT EXISTS public.merchant_delivery_fee_ledger (
   created_at timestamptz NOT NULL DEFAULT now(),
   paid_at timestamptz,
   UNIQUE(order_id)
-);
+)$bootstrap_sql_1086a9412eac$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1086a9412eac$;
 
-ALTER TABLE public.order_status_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.delivery_assignments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.merchant_delivery_fee_ledger ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Order parties view status history" ON public.order_status_history;
-CREATE POLICY "Order parties view status history" ON public.order_status_history FOR SELECT TO authenticated USING (
+DO $bootstrap_do_49288203cbdf$
+BEGIN
+  EXECUTE $bootstrap_sql_49288203cbdf$ALTER TABLE public.order_status_history ENABLE ROW LEVEL SECURITY$bootstrap_sql_49288203cbdf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_49288203cbdf$;
+
+DO $bootstrap_do_fe8d2673d201$
+BEGIN
+  EXECUTE $bootstrap_sql_fe8d2673d201$ALTER TABLE public.delivery_assignments ENABLE ROW LEVEL SECURITY$bootstrap_sql_fe8d2673d201$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fe8d2673d201$;
+
+DO $bootstrap_do_e4fd832c3681$
+BEGIN
+  EXECUTE $bootstrap_sql_e4fd832c3681$ALTER TABLE public.merchant_delivery_fee_ledger ENABLE ROW LEVEL SECURITY$bootstrap_sql_e4fd832c3681$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e4fd832c3681$;
+
+DO $bootstrap_do_40769e40d767$
+BEGIN
+  EXECUTE $bootstrap_sql_40769e40d767$DROP POLICY IF EXISTS "Order parties view status history" ON public.order_status_history$bootstrap_sql_40769e40d767$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_40769e40d767$;
+
+DO $bootstrap_do_e11b01f1903a$
+BEGIN
+  EXECUTE $bootstrap_sql_e11b01f1903a$CREATE POLICY "Order parties view status history" ON public.order_status_history FOR SELECT TO authenticated USING (
   EXISTS (SELECT 1 FROM public.orders o WHERE o.id = order_id AND (o.buyer_id = auth.uid() OR public.is_order_merchant(o.id) OR public.is_admin() OR public.is_order_courier(o.id)))
-);
-DROP POLICY IF EXISTS "Couriers view own assignments" ON public.delivery_assignments;
-CREATE POLICY "Couriers view own assignments" ON public.delivery_assignments FOR SELECT TO authenticated USING (
-  courier_id IN (SELECT id FROM public.couriers WHERE user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.orders o WHERE o.id = order_id AND (o.buyer_id = auth.uid() OR public.is_order_merchant(o.id) OR public.is_admin()))
-);
-DROP POLICY IF EXISTS "Merchant view own delivery fees" ON public.merchant_delivery_fee_ledger;
-CREATE POLICY "Merchant view own delivery fees" ON public.merchant_delivery_fee_ledger FOR SELECT TO authenticated USING (public.is_order_merchant(order_id) OR public.is_admin());
+)$bootstrap_sql_e11b01f1903a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e11b01f1903a$;
 
-CREATE OR REPLACE FUNCTION public.merchant_transition_order(p_order_id uuid, p_to_status text, p_reason text DEFAULT NULL)
+DO $bootstrap_do_7933e10488e7$
+BEGIN
+  EXECUTE $bootstrap_sql_7933e10488e7$DROP POLICY IF EXISTS "Couriers view own assignments" ON public.delivery_assignments$bootstrap_sql_7933e10488e7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7933e10488e7$;
+
+DO $bootstrap_do_f8c54230023b$
+BEGIN
+  EXECUTE $bootstrap_sql_f8c54230023b$CREATE POLICY "Couriers view own assignments" ON public.delivery_assignments FOR SELECT TO authenticated USING (
+  courier_id IN (SELECT id FROM public.couriers WHERE user_id = auth.uid()) OR EXISTS (SELECT 1 FROM public.orders o WHERE o.id = order_id AND (o.buyer_id = auth.uid() OR public.is_order_merchant(o.id) OR public.is_admin()))
+)$bootstrap_sql_f8c54230023b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f8c54230023b$;
+
+DO $bootstrap_do_5c2b72874d8d$
+BEGIN
+  EXECUTE $bootstrap_sql_5c2b72874d8d$DROP POLICY IF EXISTS "Merchant view own delivery fees" ON public.merchant_delivery_fee_ledger$bootstrap_sql_5c2b72874d8d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5c2b72874d8d$;
+
+DO $bootstrap_do_5ce276badefd$
+BEGIN
+  EXECUTE $bootstrap_sql_5ce276badefd$CREATE POLICY "Merchant view own delivery fees" ON public.merchant_delivery_fee_ledger FOR SELECT TO authenticated USING (public.is_order_merchant(order_id) OR public.is_admin())$bootstrap_sql_5ce276badefd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ce276badefd$;
+
+DO $bootstrap_do_8d4a8e06a239$
+BEGIN
+  EXECUTE $bootstrap_sql_8d4a8e06a239$CREATE OR REPLACE FUNCTION public.merchant_transition_order(p_order_id uuid, p_to_status text, p_reason text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_order public.orders%ROWTYPE; v_allowed boolean := false; v_fee_percent numeric := 10; v_attempt integer;
 BEGIN
@@ -271,10 +528,21 @@ BEGIN
   END IF;
   INSERT INTO public.order_status_history(order_id,from_status,to_status,actor_id,reason) VALUES(p_order_id,v_order.status,p_to_status,auth.uid(),NULLIF(trim(p_reason),''));
   RETURN jsonb_build_object('order_id',p_order_id,'from_status',v_order.status,'to_status',p_to_status);
-END; $$;
-GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid,text,text) TO authenticated;
+END; $$$bootstrap_sql_8d4a8e06a239$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8d4a8e06a239$;
 
-CREATE OR REPLACE FUNCTION public.create_delivery_offer(p_order_id uuid, p_courier_id uuid)
+DO $bootstrap_do_2ee5e29fdb30$
+BEGIN
+  EXECUTE $bootstrap_sql_2ee5e29fdb30$GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid,text,text) TO authenticated$bootstrap_sql_2ee5e29fdb30$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2ee5e29fdb30$;
+
+DO $bootstrap_do_896476e90178$
+BEGIN
+  EXECUTE $bootstrap_sql_896476e90178$CREATE OR REPLACE FUNCTION public.create_delivery_offer(p_order_id uuid, p_courier_id uuid)
 RETURNS public.delivery_assignments LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE v_order public.orders%ROWTYPE; v_assignment public.delivery_assignments%ROWTYPE;
 BEGIN
@@ -285,10 +553,21 @@ BEGIN
  INSERT INTO public.delivery_assignments(order_id,courier_id) VALUES(p_order_id,p_courier_id) RETURNING * INTO v_assignment;
  UPDATE public.orders SET status='ASSIGNED', status_updated_at=now(), updated_at=now() WHERE id=p_order_id;
  RETURN v_assignment;
-END; $$;
-GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid,uuid) TO authenticated;
+END; $$$bootstrap_sql_896476e90178$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_896476e90178$;
 
-CREATE OR REPLACE FUNCTION public.respond_delivery_offer(p_assignment_id uuid, p_accept boolean, p_reason text DEFAULT NULL)
+DO $bootstrap_do_63b178b9ec9b$
+BEGIN
+  EXECUTE $bootstrap_sql_63b178b9ec9b$GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid,uuid) TO authenticated$bootstrap_sql_63b178b9ec9b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_63b178b9ec9b$;
+
+DO $bootstrap_do_8700ec73af82$
+BEGIN
+  EXECUTE $bootstrap_sql_8700ec73af82$CREATE OR REPLACE FUNCTION public.respond_delivery_offer(p_assignment_id uuid, p_accept boolean, p_reason text DEFAULT NULL)
 RETURNS public.delivery_assignments LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE v public.delivery_assignments%ROWTYPE; v_courier public.couriers%ROWTYPE;
 BEGIN
@@ -303,13 +582,42 @@ BEGIN
  END IF;
  SELECT * INTO v FROM public.delivery_assignments WHERE id=p_assignment_id;
  RETURN v;
-END; $$;
-GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid,boolean,text) TO authenticated;
+END; $$$bootstrap_sql_8700ec73af82$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8700ec73af82$;
 
-INSERT INTO public.app_settings(key,category,value,description) VALUES('self_delivery_fee','delivery','{"percent":10}'::jsonb,'Biaya platform antar sendiri setelah kuota gratis') ON CONFLICT(key) DO NOTHING;
-UPDATE public.orders SET status_updated_at=COALESCE(status_updated_at,updated_at,created_at);
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 44_20260909193000_order_workflow_rpc.sql =====
+DO $bootstrap_do_05d6f2c19c88$
+BEGIN
+  EXECUTE $bootstrap_sql_05d6f2c19c88$GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid,boolean,text) TO authenticated$bootstrap_sql_05d6f2c19c88$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_05d6f2c19c88$;
+
+DO $bootstrap_do_4bc34d1907eb$
+BEGIN
+  EXECUTE $bootstrap_sql_4bc34d1907eb$INSERT INTO public.app_settings(key,category,value,description) VALUES('self_delivery_fee','delivery','{"percent":10}'::jsonb,'Biaya platform antar sendiri setelah kuota gratis') ON CONFLICT(key) DO NOTHING$bootstrap_sql_4bc34d1907eb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4bc34d1907eb$;
+
+DO $bootstrap_do_47548bca8c89$
+BEGIN
+  EXECUTE $bootstrap_sql_47548bca8c89$UPDATE public.orders SET status_updated_at=COALESCE(status_updated_at,updated_at,created_at)$bootstrap_sql_47548bca8c89$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_47548bca8c89$;
+
+DO $bootstrap_do_9efda0a208c4$
+BEGIN
+  EXECUTE $bootstrap_sql_9efda0a208c4$NOTIFY pgrst, 'reload schema'$bootstrap_sql_9efda0a208c4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9efda0a208c4$;
+
+DO $bootstrap_do_44036373d09d$
+BEGIN
+  EXECUTE $bootstrap_sql_44036373d09d$-- ===== END BUNDLE: 44_20260909193000_order_workflow_rpc.sql =====
 
 -- ===== BEGIN BUNDLE: 44_20260922120500_chat_sender_delete.sql =====
 -- Allow a sender (including admin direct-chat senders) to retract their own message.
@@ -346,14 +654,43 @@ BEGIN
 
   RETURN v_message;
 END;
-$$;
+$$$bootstrap_sql_44036373d09d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_44036373d09d$;
 
-REVOKE ALL ON FUNCTION public.delete_chat_message(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.delete_chat_message(uuid) TO authenticated;
-COMMENT ON FUNCTION public.delete_chat_message IS
-  'Soft-deletes a chat message only when the authenticated user is its sender.';
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 44_20260922120500_chat_sender_delete.sql =====
+DO $bootstrap_do_e0342205ed0c$
+BEGIN
+  EXECUTE $bootstrap_sql_e0342205ed0c$REVOKE ALL ON FUNCTION public.delete_chat_message(uuid) FROM PUBLIC, anon$bootstrap_sql_e0342205ed0c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e0342205ed0c$;
+
+DO $bootstrap_do_4319e1f9ae7c$
+BEGIN
+  EXECUTE $bootstrap_sql_4319e1f9ae7c$GRANT EXECUTE ON FUNCTION public.delete_chat_message(uuid) TO authenticated$bootstrap_sql_4319e1f9ae7c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4319e1f9ae7c$;
+
+DO $bootstrap_do_7d7d21112113$
+BEGIN
+  EXECUTE $bootstrap_sql_7d7d21112113$COMMENT ON FUNCTION public.delete_chat_message IS
+  'Soft-deletes a chat message only when the authenticated user is its sender.'$bootstrap_sql_7d7d21112113$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7d7d21112113$;
+
+DO $bootstrap_do_1c75b07d1d72$
+BEGIN
+  EXECUTE $bootstrap_sql_1c75b07d1d72$NOTIFY pgrst, 'reload schema'$bootstrap_sql_1c75b07d1d72$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1c75b07d1d72$;
+
+DO $bootstrap_do_5778338e895a$
+BEGIN
+  EXECUTE $bootstrap_sql_5778338e895a$-- ===== END BUNDLE: 44_20260922120500_chat_sender_delete.sql =====
 
 -- ===== BEGIN BUNDLE: 45_20260909201500_fix_delivery_offer_rpc.sql =====
 -- Fix Kurir Desa offer RPC compatibility after workflow hardening.
@@ -402,9 +739,14 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason)
   VALUES (p_order_id, v_order.status, 'ASSIGNED', auth.uid(), 'Tawaran dikirim ke kurir desa');
   RETURN v_assignment;
-END; $$;
+END; $$$bootstrap_sql_5778338e895a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5778338e895a$;
 
-CREATE OR REPLACE FUNCTION public.respond_delivery_offer(p_assignment_id uuid, p_accept boolean, p_reason text DEFAULT NULL)
+DO $bootstrap_do_5eed57717e7d$
+BEGIN
+  EXECUTE $bootstrap_sql_5eed57717e7d$CREATE OR REPLACE FUNCTION public.respond_delivery_offer(p_assignment_id uuid, p_accept boolean, p_reason text DEFAULT NULL)
 RETURNS public.delivery_assignments
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -445,13 +787,35 @@ BEGIN
     VALUES (v_order.id, v_order.status, 'ASSIGNED', auth.uid(), COALESCE(p_reason, 'Kurir menolak pesanan'));
   END IF;
   RETURN v_assignment;
-END; $$;
+END; $$$bootstrap_sql_5eed57717e7d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5eed57717e7d$;
 
-GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid, boolean, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_463d2423bce3$
+BEGIN
+  EXECUTE $bootstrap_sql_463d2423bce3$GRANT EXECUTE ON FUNCTION public.create_delivery_offer(uuid, uuid) TO authenticated$bootstrap_sql_463d2423bce3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_463d2423bce3$;
 
--- Couriers must advance their assigned orders through a server-side transition.
+DO $bootstrap_do_496629991a1d$
+BEGIN
+  EXECUTE $bootstrap_sql_496629991a1d$GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid, boolean, text) TO authenticated$bootstrap_sql_496629991a1d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_496629991a1d$;
+
+DO $bootstrap_do_bff2421317b8$
+BEGIN
+  EXECUTE $bootstrap_sql_bff2421317b8$NOTIFY pgrst, 'reload schema'$bootstrap_sql_bff2421317b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bff2421317b8$;
+
+DO $bootstrap_do_c5ed98d15365$
+BEGIN
+  EXECUTE $bootstrap_sql_c5ed98d15365$-- Couriers must advance their assigned orders through a server-side transition.
 CREATE OR REPLACE FUNCTION public.courier_transition_order(p_order_id uuid, p_to_status text)
 RETURNS public.orders
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -484,10 +848,28 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason)
   VALUES (p_order_id, v_from_status, p_to_status, auth.uid(), 'Pembaruan status oleh kurir');
   RETURN v_order;
-END; $$;
-GRANT EXECUTE ON FUNCTION public.courier_transition_order(uuid, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 45_20260909201500_fix_delivery_offer_rpc.sql =====
+END; $$$bootstrap_sql_c5ed98d15365$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c5ed98d15365$;
+
+DO $bootstrap_do_8585f92aa4be$
+BEGIN
+  EXECUTE $bootstrap_sql_8585f92aa4be$GRANT EXECUTE ON FUNCTION public.courier_transition_order(uuid, text) TO authenticated$bootstrap_sql_8585f92aa4be$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8585f92aa4be$;
+
+DO $bootstrap_do_aafd529dfbb1$
+BEGIN
+  EXECUTE $bootstrap_sql_aafd529dfbb1$NOTIFY pgrst, 'reload schema'$bootstrap_sql_aafd529dfbb1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aafd529dfbb1$;
+
+DO $bootstrap_do_f3d5da7d5fc3$
+BEGIN
+  EXECUTE $bootstrap_sql_f3d5da7d5fc3$-- ===== END BUNDLE: 45_20260909201500_fix_delivery_offer_rpc.sql =====
 
 -- ===== BEGIN BUNDLE: 45_20260911001000_payment_notification_hardening.sql =====
 -- Payment and notification worker hardening.
@@ -555,13 +937,23 @@ BEGIN
     'created_at', v_row.created_at
   );
 END;
-$$;
+$$$bootstrap_sql_f3d5da7d5fc3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f3d5da7d5fc3$;
 
-ALTER TABLE public.notification_delivery_jobs
+DO $bootstrap_do_e1358a17809f$
+BEGIN
+  EXECUTE $bootstrap_sql_e1358a17809f$ALTER TABLE public.notification_delivery_jobs
   ADD COLUMN IF NOT EXISTS locked_at timestamptz,
-  ADD COLUMN IF NOT EXISTS locked_by text;
+  ADD COLUMN IF NOT EXISTS locked_by text$bootstrap_sql_e1358a17809f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e1358a17809f$;
 
-CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
+DO $bootstrap_do_1066980b45d4$
+BEGIN
+  EXECUTE $bootstrap_sql_1066980b45d4$CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
 RETURNS public.notification_delivery_jobs
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_job public.notification_delivery_jobs%ROWTYPE;
@@ -582,9 +974,14 @@ BEGIN
   RETURNING * INTO v_job;
   IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
   RETURN v_job;
-END; $$;
+END; $$$bootstrap_sql_1066980b45d4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1066980b45d4$;
 
-CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(
+DO $bootstrap_do_8997dc54989f$
+BEGIN
+  EXECUTE $bootstrap_sql_8997dc54989f$CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(
   p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL
 )
 RETURNS public.notification_delivery_jobs
@@ -608,15 +1005,26 @@ BEGIN
       locked_at = NULL, locked_by = NULL
   WHERE id = p_job_id RETURNING * INTO v_job;
   RETURN v_job;
-END; $$;
--- ===== END BUNDLE: 45_20260911001000_payment_notification_hardening.sql =====
+END; $$$bootstrap_sql_8997dc54989f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8997dc54989f$;
+
+DO $bootstrap_do_ef7e22584c07$
+BEGIN
+  EXECUTE $bootstrap_sql_ef7e22584c07$-- ===== END BUNDLE: 45_20260911001000_payment_notification_hardening.sql =====
 
 -- ===== BEGIN BUNDLE: 46_20260909203000_remove_merchant_transition_overload.sql =====
 -- Remove the legacy 4-argument overload. PostgREST cannot reliably resolve
 -- merchant_transition_order when both 3-arg and 4-arg (with defaults) exist.
-DROP FUNCTION IF EXISTS public.merchant_transition_order(uuid, text, text, boolean);
+DROP FUNCTION IF EXISTS public.merchant_transition_order(uuid, text, text, boolean)$bootstrap_sql_ef7e22584c07$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ef7e22584c07$;
 
-CREATE OR REPLACE FUNCTION public.merchant_transition_order(p_order_id uuid, p_to_status text, p_reason text DEFAULT NULL)
+DO $bootstrap_do_af925b970898$
+BEGIN
+  EXECUTE $bootstrap_sql_af925b970898$CREATE OR REPLACE FUNCTION public.merchant_transition_order(p_order_id uuid, p_to_status text, p_reason text DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -675,11 +1083,28 @@ BEGIN
   INSERT INTO public.order_status_history(order_id, from_status, to_status, actor_id, reason)
   VALUES (p_order_id, v_order.status, p_to_status, auth.uid(), NULLIF(trim(p_reason), ''));
   RETURN jsonb_build_object('order_id', p_order_id, 'from_status', v_order.status, 'to_status', p_to_status);
-END; $$;
+END; $$$bootstrap_sql_af925b970898$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_af925b970898$;
 
-GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 46_20260909203000_remove_merchant_transition_overload.sql =====
+DO $bootstrap_do_a84e81716b93$
+BEGIN
+  EXECUTE $bootstrap_sql_a84e81716b93$GRANT EXECUTE ON FUNCTION public.merchant_transition_order(uuid, text, text) TO authenticated$bootstrap_sql_a84e81716b93$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a84e81716b93$;
+
+DO $bootstrap_do_7855ea5c2b7d$
+BEGIN
+  EXECUTE $bootstrap_sql_7855ea5c2b7d$NOTIFY pgrst, 'reload schema'$bootstrap_sql_7855ea5c2b7d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7855ea5c2b7d$;
+
+DO $bootstrap_do_e433a7e3534e$
+BEGIN
+  EXECUTE $bootstrap_sql_e433a7e3534e$-- ===== END BUNDLE: 46_20260909203000_remove_merchant_transition_overload.sql =====
 
 -- ===== BEGIN BUNDLE: 46_20260911002000_auth_role_security_hardening.sql =====
 -- Auth and user-management hardening.
@@ -733,24 +1158,75 @@ BEGIN
 
   RETURN QUERY SELECT * FROM public.user_roles WHERE user_id = p_target_user_id ORDER BY role;
 END;
-$$;
+$$$bootstrap_sql_e433a7e3534e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e433a7e3534e$;
 
-REVOKE ALL ON FUNCTION public.admin_replace_user_roles(uuid, public.app_role[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_replace_user_roles(uuid, public.app_role[]) TO authenticated, service_role;
+DO $bootstrap_do_fed0aa021fee$
+BEGIN
+  EXECUTE $bootstrap_sql_fed0aa021fee$REVOKE ALL ON FUNCTION public.admin_replace_user_roles(uuid, public.app_role[]) FROM PUBLIC, anon$bootstrap_sql_fed0aa021fee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fed0aa021fee$;
 
--- The application uses Supabase Auth's resetPasswordForEmail flow. The legacy
+DO $bootstrap_do_804e63f03ad0$
+BEGIN
+  EXECUTE $bootstrap_sql_804e63f03ad0$GRANT EXECUTE ON FUNCTION public.admin_replace_user_roles(uuid, public.app_role[]) TO authenticated, service_role$bootstrap_sql_804e63f03ad0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_804e63f03ad0$;
+
+DO $bootstrap_do_411dd91829fc$
+BEGIN
+  EXECUTE $bootstrap_sql_411dd91829fc$-- The application uses Supabase Auth's resetPasswordForEmail flow. The legacy
 -- plaintext token table must not be readable or writable through PostgREST.
-DROP POLICY IF EXISTS "Users can verify their tokens" ON public.password_reset_tokens;
-DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tokens;
-DROP POLICY IF EXISTS "Anyone can request password reset" ON public.password_reset_tokens;
-DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens;
-REVOKE ALL ON TABLE public.password_reset_tokens FROM anon, authenticated;
+DROP POLICY IF EXISTS "Users can verify their tokens" ON public.password_reset_tokens$bootstrap_sql_411dd91829fc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_411dd91829fc$;
 
--- Align the UI password-reset minimum with registration policy. The actual
+DO $bootstrap_do_f00ad377b612$
+BEGIN
+  EXECUTE $bootstrap_sql_f00ad377b612$DROP POLICY IF EXISTS "Password reset token insert" ON public.password_reset_tokens$bootstrap_sql_f00ad377b612$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f00ad377b612$;
+
+DO $bootstrap_do_17bba1335fbc$
+BEGIN
+  EXECUTE $bootstrap_sql_17bba1335fbc$DROP POLICY IF EXISTS "Anyone can request password reset" ON public.password_reset_tokens$bootstrap_sql_17bba1335fbc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_17bba1335fbc$;
+
+DO $bootstrap_do_9086953f6c4f$
+BEGIN
+  EXECUTE $bootstrap_sql_9086953f6c4f$DROP POLICY IF EXISTS "Tokens can be marked as used" ON public.password_reset_tokens$bootstrap_sql_9086953f6c4f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9086953f6c4f$;
+
+DO $bootstrap_do_c7382d1f74d8$
+BEGIN
+  EXECUTE $bootstrap_sql_c7382d1f74d8$REVOKE ALL ON TABLE public.password_reset_tokens FROM anon, authenticated$bootstrap_sql_c7382d1f74d8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c7382d1f74d8$;
+
+DO $bootstrap_do_393bb37136f2$
+BEGIN
+  EXECUTE $bootstrap_sql_393bb37136f2$-- Align the UI password-reset minimum with registration policy. The actual
 -- Supabase Auth password policy remains the server-side authority.
 COMMENT ON TABLE public.password_reset_tokens IS
-  'Legacy reset table disabled: password reset is handled by Supabase Auth; no public policies.';
--- ===== END BUNDLE: 46_20260911002000_auth_role_security_hardening.sql =====
+  'Legacy reset table disabled: password reset is handled by Supabase Auth; no public policies.'$bootstrap_sql_393bb37136f2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_393bb37136f2$;
+
+DO $bootstrap_do_8ab8b7f0e9d7$
+BEGIN
+  EXECUTE $bootstrap_sql_8ab8b7f0e9d7$-- ===== END BUNDLE: 46_20260911002000_auth_role_security_hardening.sql =====
 
 -- ===== BEGIN BUNDLE: 47_20260909210000_delivery_method_restrictions.sql =====
 -- Local ojek/kurir delivery is limited to 10 km and the merchant's
@@ -761,16 +1237,31 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS delivery_city_id text,
   ADD COLUMN IF NOT EXISTS delivery_city_name text,
   ADD COLUMN IF NOT EXISTS delivery_district_id text,
-  ADD COLUMN IF NOT EXISTS delivery_district_name text;
+  ADD COLUMN IF NOT EXISTS delivery_district_name text$bootstrap_sql_8ab8b7f0e9d7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8ab8b7f0e9d7$;
 
-ALTER TABLE public.orders
-  DROP CONSTRAINT IF EXISTS orders_delivery_type_check;
+DO $bootstrap_do_29c8184187e9$
+BEGIN
+  EXECUTE $bootstrap_sql_29c8184187e9$ALTER TABLE public.orders
+  DROP CONSTRAINT IF EXISTS orders_delivery_type_check$bootstrap_sql_29c8184187e9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_29c8184187e9$;
 
-ALTER TABLE public.orders
+DO $bootstrap_do_679f7f8d8fb9$
+BEGIN
+  EXECUTE $bootstrap_sql_679f7f8d8fb9$ALTER TABLE public.orders
   ADD CONSTRAINT orders_delivery_type_check
-  CHECK (delivery_type IN ('PICKUP', 'INTERNAL', 'EXPEDITION'));
+  CHECK (delivery_type IN ('PICKUP', 'INTERNAL', 'EXPEDITION'))$bootstrap_sql_679f7f8d8fb9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_679f7f8d8fb9$;
 
-CREATE OR REPLACE FUNCTION public.validate_delivery_method_restriction()
+DO $bootstrap_do_4a19531368af$
+BEGIN
+  EXECUTE $bootstrap_sql_4a19531368af$CREATE OR REPLACE FUNCTION public.validate_delivery_method_restriction()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -819,27 +1310,60 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_4a19531368af$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4a19531368af$;
 
-DROP TRIGGER IF EXISTS orders_validate_delivery_method ON public.orders;
-CREATE TRIGGER orders_validate_delivery_method
+DO $bootstrap_do_3c83d622d5a6$
+BEGIN
+  EXECUTE $bootstrap_sql_3c83d622d5a6$DROP TRIGGER IF EXISTS orders_validate_delivery_method ON public.orders$bootstrap_sql_3c83d622d5a6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3c83d622d5a6$;
+
+DO $bootstrap_do_e15c00ff8895$
+BEGIN
+  EXECUTE $bootstrap_sql_e15c00ff8895$CREATE TRIGGER orders_validate_delivery_method
   BEFORE INSERT OR UPDATE OF delivery_type, merchant_id, buyer_distance_km,
     delivery_city_name, delivery_district_name
   ON public.orders
   FOR EACH ROW
-  EXECUTE FUNCTION public.validate_delivery_method_restriction();
+  EXECUTE FUNCTION public.validate_delivery_method_restriction()$bootstrap_sql_e15c00ff8895$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e15c00ff8895$;
 
-GRANT EXECUTE ON FUNCTION public.validate_delivery_method_restriction() TO authenticated;
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 47_20260909210000_delivery_method_restrictions.sql =====
+DO $bootstrap_do_e4c4581c3379$
+BEGIN
+  EXECUTE $bootstrap_sql_e4c4581c3379$GRANT EXECUTE ON FUNCTION public.validate_delivery_method_restriction() TO authenticated$bootstrap_sql_e4c4581c3379$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e4c4581c3379$;
+
+DO $bootstrap_do_75d2c35fcb6e$
+BEGIN
+  EXECUTE $bootstrap_sql_75d2c35fcb6e$NOTIFY pgrst, 'reload schema'$bootstrap_sql_75d2c35fcb6e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_75d2c35fcb6e$;
+
+DO $bootstrap_do_1414d8b44649$
+BEGIN
+  EXECUTE $bootstrap_sql_1414d8b44649$-- ===== END BUNDLE: 47_20260909210000_delivery_method_restrictions.sql =====
 
 -- ===== BEGIN BUNDLE: 48_20260909230000_merchant_settings_schema_repair.sql =====
 -- Keep the merchant settings form compatible with databases created from
 -- older bootstrap bundles where classification_price was removed.
 ALTER TABLE public.merchants
-  ADD COLUMN IF NOT EXISTS classification_price text;
+  ADD COLUMN IF NOT EXISTS classification_price text$bootstrap_sql_1414d8b44649$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1414d8b44649$;
 
-DO $$
+DO $bootstrap_do_dc32c19bfcef$
+BEGIN
+  EXECUTE $bootstrap_sql_dc32c19bfcef$DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1
@@ -860,10 +1384,21 @@ BEGIN
       );
   END IF;
 END
-$$;
+$$$bootstrap_sql_dc32c19bfcef$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dc32c19bfcef$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 48_20260909230000_merchant_settings_schema_repair.sql =====
+DO $bootstrap_do_1ee1518a64ce$
+BEGIN
+  EXECUTE $bootstrap_sql_1ee1518a64ce$NOTIFY pgrst, 'reload schema'$bootstrap_sql_1ee1518a64ce$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1ee1518a64ce$;
+
+DO $bootstrap_do_5535d9bb1727$
+BEGIN
+  EXECUTE $bootstrap_sql_5535d9bb1727$-- ===== END BUNDLE: 48_20260909230000_merchant_settings_schema_repair.sql =====
 
 -- ===== BEGIN BUNDLE: 48_20260911003000_marketplace_checkout_authoritative.sql =====
 -- Authoritative marketplace checkout.
@@ -875,12 +1410,22 @@ DELETE FROM public.voucher_usages a
 USING public.voucher_usages b
 WHERE a.voucher_id = b.voucher_id
   AND a.user_id = b.user_id
-  AND a.id > b.id;
+  AND a.id > b.id$bootstrap_sql_5535d9bb1727$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5535d9bb1727$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS voucher_usages_voucher_user_unique
-  ON public.voucher_usages(voucher_id, user_id);
+DO $bootstrap_do_1fa5a20f1416$
+BEGIN
+  EXECUTE $bootstrap_sql_1fa5a20f1416$CREATE UNIQUE INDEX IF NOT EXISTS voucher_usages_voucher_user_unique
+  ON public.voucher_usages(voucher_id, user_id)$bootstrap_sql_1fa5a20f1416$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1fa5a20f1416$;
 
-CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
+DO $bootstrap_do_d6c9a32aa199$
+BEGIN
+  EXECUTE $bootstrap_sql_d6c9a32aa199$CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
   p_delivery_type text,
@@ -1121,34 +1666,84 @@ BEGIN
     'cod_service_fee', v_cod_fee
   );
 END;
-$$;
+$$$bootstrap_sql_d6c9a32aa199$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d6c9a32aa199$;
 
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) TO authenticated, service_role;
+DO $bootstrap_do_b6c67b697b71$
+BEGIN
+  EXECUTE $bootstrap_sql_b6c67b697b71$REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) FROM PUBLIC, anon$bootstrap_sql_b6c67b697b71$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b6c67b697b71$;
 
--- Prevent buyer-side forged order/order-item rows. The security-definer checkout
+DO $bootstrap_do_8a26da6d2336$
+BEGIN
+  EXECUTE $bootstrap_sql_8a26da6d2336$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) TO authenticated, service_role$bootstrap_sql_8a26da6d2336$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8a26da6d2336$;
+
+DO $bootstrap_do_e8b0f68871c2$
+BEGIN
+  EXECUTE $bootstrap_sql_e8b0f68871c2$-- Prevent buyer-side forged order/order-item rows. The security-definer checkout
 -- function remains the supported write path.
-DROP POLICY IF EXISTS "Buyers can create orders" ON public.orders;
-DROP POLICY IF EXISTS "Users can insert order items for own orders" ON public.order_items;
-REVOKE INSERT ON public.orders, public.order_items FROM authenticated, anon;
--- ===== END BUNDLE: 48_20260911003000_marketplace_checkout_authoritative.sql =====
+DROP POLICY IF EXISTS "Buyers can create orders" ON public.orders$bootstrap_sql_e8b0f68871c2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e8b0f68871c2$;
+
+DO $bootstrap_do_99e65e6f890b$
+BEGIN
+  EXECUTE $bootstrap_sql_99e65e6f890b$DROP POLICY IF EXISTS "Users can insert order items for own orders" ON public.order_items$bootstrap_sql_99e65e6f890b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_99e65e6f890b$;
+
+DO $bootstrap_do_c3a2d6b18fd3$
+BEGIN
+  EXECUTE $bootstrap_sql_c3a2d6b18fd3$REVOKE INSERT ON public.orders, public.order_items FROM authenticated, anon$bootstrap_sql_c3a2d6b18fd3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c3a2d6b18fd3$;
+
+DO $bootstrap_do_7de89c952698$
+BEGIN
+  EXECUTE $bootstrap_sql_7de89c952698$-- ===== END BUNDLE: 48_20260911003000_marketplace_checkout_authoritative.sql =====
 
 -- ===== BEGIN BUNDLE: 49_20260909240000_merchant_settings_hardening.sql =====
 -- Harden merchant settings ownership and storage paths.
 -- Merchants may edit operational/profile settings only. Approval, ownership,
 -- verification and financial ledger fields remain admin/verifikator controlled.
 
-ALTER TABLE public.merchants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.merchants ENABLE ROW LEVEL SECURITY$bootstrap_sql_7de89c952698$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7de89c952698$;
 
-DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants;
-CREATE POLICY "Merchants can update own data"
+DO $bootstrap_do_4fe288021d37$
+BEGIN
+  EXECUTE $bootstrap_sql_4fe288021d37$DROP POLICY IF EXISTS "Merchants can update own data" ON public.merchants$bootstrap_sql_4fe288021d37$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4fe288021d37$;
+
+DO $bootstrap_do_8daf390686ad$
+BEGIN
+  EXECUTE $bootstrap_sql_8daf390686ad$CREATE POLICY "Merchants can update own data"
   ON public.merchants
   FOR UPDATE
   TO authenticated
   USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (user_id = auth.uid())$bootstrap_sql_8daf390686ad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8daf390686ad$;
 
-CREATE OR REPLACE FUNCTION public.protect_merchant_control_fields()
+DO $bootstrap_do_8e0a9d6cd875$
+BEGIN
+  EXECUTE $bootstrap_sql_8e0a9d6cd875$CREATE OR REPLACE FUNCTION public.protect_merchant_control_fields()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1190,15 +1785,31 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_8e0a9d6cd875$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8e0a9d6cd875$;
 
-DROP TRIGGER IF EXISTS protect_merchant_control_fields ON public.merchants;
-CREATE TRIGGER protect_merchant_control_fields
+DO $bootstrap_do_26d26fde1da8$
+BEGIN
+  EXECUTE $bootstrap_sql_26d26fde1da8$DROP TRIGGER IF EXISTS protect_merchant_control_fields ON public.merchants$bootstrap_sql_26d26fde1da8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_26d26fde1da8$;
+
+DO $bootstrap_do_39364bf762ec$
+BEGIN
+  EXECUTE $bootstrap_sql_39364bf762ec$CREATE TRIGGER protect_merchant_control_fields
   BEFORE UPDATE ON public.merchants
   FOR EACH ROW
-  EXECUTE FUNCTION public.protect_merchant_control_fields();
+  EXECUTE FUNCTION public.protect_merchant_control_fields()$bootstrap_sql_39364bf762ec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_39364bf762ec$;
 
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+DO $bootstrap_do_a5f490d48512$
+BEGIN
+  EXECUTE $bootstrap_sql_a5f490d48512$INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'merchant-images',
   'merchant-images',
@@ -1209,10 +1820,21 @@ VALUES (
 ON CONFLICT (id) DO UPDATE
 SET public = true,
     file_size_limit = 5242880,
-    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']$bootstrap_sql_a5f490d48512$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a5f490d48512$;
 
-DROP POLICY IF EXISTS "Merchants can upload merchant images" ON storage.objects;
-CREATE POLICY "Merchants can upload merchant images"
+DO $bootstrap_do_ef51a3de040c$
+BEGIN
+  EXECUTE $bootstrap_sql_ef51a3de040c$DROP POLICY IF EXISTS "Merchants can upload merchant images" ON storage.objects$bootstrap_sql_ef51a3de040c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ef51a3de040c$;
+
+DO $bootstrap_do_b405e537291a$
+BEGIN
+  EXECUTE $bootstrap_sql_b405e537291a$CREATE POLICY "Merchants can upload merchant images"
   ON storage.objects
   FOR INSERT
   TO authenticated
@@ -1232,10 +1854,21 @@ CREATE POLICY "Merchants can upload merchant images"
           )
       )
     )
-  );
+  )$bootstrap_sql_b405e537291a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b405e537291a$;
 
-DROP POLICY IF EXISTS "Merchants can update own merchant images" ON storage.objects;
-CREATE POLICY "Merchants can update own merchant images"
+DO $bootstrap_do_3b0a83af4487$
+BEGIN
+  EXECUTE $bootstrap_sql_3b0a83af4487$DROP POLICY IF EXISTS "Merchants can update own merchant images" ON storage.objects$bootstrap_sql_3b0a83af4487$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3b0a83af4487$;
+
+DO $bootstrap_do_070884bf320a$
+BEGIN
+  EXECUTE $bootstrap_sql_070884bf320a$CREATE POLICY "Merchants can update own merchant images"
   ON storage.objects
   FOR UPDATE
   TO authenticated
@@ -1272,10 +1905,21 @@ CREATE POLICY "Merchants can update own merchant images"
           )
       )
     )
-  );
+  )$bootstrap_sql_070884bf320a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_070884bf320a$;
 
-DROP POLICY IF EXISTS "Merchants can delete own merchant images" ON storage.objects;
-CREATE POLICY "Merchants can delete own merchant images"
+DO $bootstrap_do_22fd949e4c01$
+BEGIN
+  EXECUTE $bootstrap_sql_22fd949e4c01$DROP POLICY IF EXISTS "Merchants can delete own merchant images" ON storage.objects$bootstrap_sql_22fd949e4c01$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_22fd949e4c01$;
+
+DO $bootstrap_do_14d7ae1b2412$
+BEGIN
+  EXECUTE $bootstrap_sql_14d7ae1b2412$CREATE POLICY "Merchants can delete own merchant images"
   ON storage.objects
   FOR DELETE
   TO authenticated
@@ -1295,33 +1939,77 @@ CREATE POLICY "Merchants can delete own merchant images"
           )
       )
     )
-  );
+  )$bootstrap_sql_14d7ae1b2412$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_14d7ae1b2412$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 49_20260909240000_merchant_settings_hardening.sql =====
+DO $bootstrap_do_95b35c5a8e09$
+BEGIN
+  EXECUTE $bootstrap_sql_95b35c5a8e09$NOTIFY pgrst, 'reload schema'$bootstrap_sql_95b35c5a8e09$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_95b35c5a8e09$;
+
+DO $bootstrap_do_44f87e897ac4$
+BEGIN
+  EXECUTE $bootstrap_sql_44f87e897ac4$-- ===== END BUNDLE: 49_20260909240000_merchant_settings_hardening.sql =====
 
 -- ===== BEGIN BUNDLE: 49_20260911005000_review_refund_rating_hardening.sql =====
 -- Review, refund, and courier-rating hardening.
 -- All buyer writes are moved behind ownership- and state-aware RPCs.
 
-ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS courier_rated boolean NOT NULL DEFAULT false;
-ALTER TABLE public.couriers ADD COLUMN IF NOT EXISTS rating_avg numeric NOT NULL DEFAULT 0;
-ALTER TABLE public.couriers ADD COLUMN IF NOT EXISTS rating_count integer NOT NULL DEFAULT 0;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS courier_rated boolean NOT NULL DEFAULT false$bootstrap_sql_44f87e897ac4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_44f87e897ac4$;
 
-DELETE FROM public.reviews a
+DO $bootstrap_do_b00ca63ce573$
+BEGIN
+  EXECUTE $bootstrap_sql_b00ca63ce573$ALTER TABLE public.couriers ADD COLUMN IF NOT EXISTS rating_avg numeric NOT NULL DEFAULT 0$bootstrap_sql_b00ca63ce573$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b00ca63ce573$;
+
+DO $bootstrap_do_c18b2a69c303$
+BEGIN
+  EXECUTE $bootstrap_sql_c18b2a69c303$ALTER TABLE public.couriers ADD COLUMN IF NOT EXISTS rating_count integer NOT NULL DEFAULT 0$bootstrap_sql_c18b2a69c303$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c18b2a69c303$;
+
+DO $bootstrap_do_6f9037d0c131$
+BEGIN
+  EXECUTE $bootstrap_sql_6f9037d0c131$DELETE FROM public.reviews a
 USING public.reviews b
 WHERE a.order_id = b.order_id
   AND a.product_id = b.product_id
   AND a.buyer_id = b.buyer_id
-  AND a.id > b.id;
+  AND a.id > b.id$bootstrap_sql_6f9037d0c131$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6f9037d0c131$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS reviews_one_per_order_product_buyer
-  ON public.reviews(order_id, product_id, buyer_id);
-CREATE UNIQUE INDEX IF NOT EXISTS refund_requests_one_pending_per_order
+DO $bootstrap_do_959404c7c95b$
+BEGIN
+  EXECUTE $bootstrap_sql_959404c7c95b$CREATE UNIQUE INDEX IF NOT EXISTS reviews_one_per_order_product_buyer
+  ON public.reviews(order_id, product_id, buyer_id)$bootstrap_sql_959404c7c95b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_959404c7c95b$;
+
+DO $bootstrap_do_0121064518c2$
+BEGIN
+  EXECUTE $bootstrap_sql_0121064518c2$CREATE UNIQUE INDEX IF NOT EXISTS refund_requests_one_pending_per_order
   ON public.refund_requests(order_id)
-  WHERE status IN ('PENDING', 'APPROVED');
+  WHERE status IN ('PENDING', 'APPROVED')$bootstrap_sql_0121064518c2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0121064518c2$;
 
-CREATE OR REPLACE FUNCTION public.prevent_review_identity_mutation()
+DO $bootstrap_do_1b7c61673a03$
+BEGIN
+  EXECUTE $bootstrap_sql_1b7c61673a03$CREATE OR REPLACE FUNCTION public.prevent_review_identity_mutation()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
   IF NOT public.is_admin() AND (
@@ -1339,13 +2027,30 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
-DROP TRIGGER IF EXISTS protect_review_identity ON public.reviews;
-CREATE TRIGGER protect_review_identity
-  BEFORE UPDATE ON public.reviews
-  FOR EACH ROW EXECUTE FUNCTION public.prevent_review_identity_mutation();
+$$$bootstrap_sql_1b7c61673a03$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1b7c61673a03$;
 
-CREATE TABLE IF NOT EXISTS public.courier_ratings (
+DO $bootstrap_do_b7b331b8f593$
+BEGIN
+  EXECUTE $bootstrap_sql_b7b331b8f593$DROP TRIGGER IF EXISTS protect_review_identity ON public.reviews$bootstrap_sql_b7b331b8f593$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b7b331b8f593$;
+
+DO $bootstrap_do_3a1785405626$
+BEGIN
+  EXECUTE $bootstrap_sql_3a1785405626$CREATE TRIGGER protect_review_identity
+  BEFORE UPDATE ON public.reviews
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_review_identity_mutation()$bootstrap_sql_3a1785405626$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3a1785405626$;
+
+DO $bootstrap_do_cb67bf5f4c64$
+BEGIN
+  EXECUTE $bootstrap_sql_cb67bf5f4c64$CREATE TABLE IF NOT EXISTS public.courier_ratings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   courier_id uuid NOT NULL REFERENCES public.couriers(id) ON DELETE CASCADE,
@@ -1355,16 +2060,63 @@ CREATE TABLE IF NOT EXISTS public.courier_ratings (
   tags text[] DEFAULT '{}',
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(order_id, courier_id, buyer_id)
-);
-ALTER TABLE public.courier_ratings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public can view courier ratings" ON public.courier_ratings;
-CREATE POLICY "Public can view courier ratings" ON public.courier_ratings FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Buyers can view own courier ratings" ON public.courier_ratings;
-CREATE POLICY "Buyers can view own courier ratings" ON public.courier_ratings FOR SELECT USING (buyer_id = auth.uid());
-GRANT SELECT ON public.courier_ratings TO anon, authenticated;
-REVOKE INSERT, UPDATE, DELETE ON public.courier_ratings FROM anon, authenticated;
+)$bootstrap_sql_cb67bf5f4c64$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cb67bf5f4c64$;
 
-CREATE OR REPLACE FUNCTION public.submit_order_reviews(p_order_id uuid, p_reviews jsonb)
+DO $bootstrap_do_8981eb8ec8ad$
+BEGIN
+  EXECUTE $bootstrap_sql_8981eb8ec8ad$ALTER TABLE public.courier_ratings ENABLE ROW LEVEL SECURITY$bootstrap_sql_8981eb8ec8ad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8981eb8ec8ad$;
+
+DO $bootstrap_do_82c49b86b583$
+BEGIN
+  EXECUTE $bootstrap_sql_82c49b86b583$DROP POLICY IF EXISTS "Public can view courier ratings" ON public.courier_ratings$bootstrap_sql_82c49b86b583$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_82c49b86b583$;
+
+DO $bootstrap_do_81788fa23c46$
+BEGIN
+  EXECUTE $bootstrap_sql_81788fa23c46$CREATE POLICY "Public can view courier ratings" ON public.courier_ratings FOR SELECT USING (true)$bootstrap_sql_81788fa23c46$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_81788fa23c46$;
+
+DO $bootstrap_do_ff0a7cff988c$
+BEGIN
+  EXECUTE $bootstrap_sql_ff0a7cff988c$DROP POLICY IF EXISTS "Buyers can view own courier ratings" ON public.courier_ratings$bootstrap_sql_ff0a7cff988c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ff0a7cff988c$;
+
+DO $bootstrap_do_61d27712d8b3$
+BEGIN
+  EXECUTE $bootstrap_sql_61d27712d8b3$CREATE POLICY "Buyers can view own courier ratings" ON public.courier_ratings FOR SELECT USING (buyer_id = auth.uid())$bootstrap_sql_61d27712d8b3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_61d27712d8b3$;
+
+DO $bootstrap_do_295f53a02861$
+BEGIN
+  EXECUTE $bootstrap_sql_295f53a02861$GRANT SELECT ON public.courier_ratings TO anon, authenticated$bootstrap_sql_295f53a02861$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_295f53a02861$;
+
+DO $bootstrap_do_15e80c76cdb9$
+BEGIN
+  EXECUTE $bootstrap_sql_15e80c76cdb9$REVOKE INSERT, UPDATE, DELETE ON public.courier_ratings FROM anon, authenticated$bootstrap_sql_15e80c76cdb9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_15e80c76cdb9$;
+
+DO $bootstrap_do_eee5baec31df$
+BEGIN
+  EXECUTE $bootstrap_sql_eee5baec31df$CREATE OR REPLACE FUNCTION public.submit_order_reviews(p_order_id uuid, p_reviews jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_order public.orders%ROWTYPE;
@@ -1404,9 +2156,14 @@ BEGIN
   WHERE m.id = v_order.merchant_id;
   RETURN jsonb_build_object('order_id', p_order_id, 'created', v_count);
 END;
-$$;
+$$$bootstrap_sql_eee5baec31df$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eee5baec31df$;
 
-CREATE OR REPLACE FUNCTION public.create_refund_request(
+DO $bootstrap_do_fe58be045c26$
+BEGIN
+  EXECUTE $bootstrap_sql_fe58be045c26$CREATE OR REPLACE FUNCTION public.create_refund_request(
   p_order_id uuid, p_amount integer, p_reason text, p_evidence_urls text[] DEFAULT '{}',
   p_title text DEFAULT 'Komplain Pesanan', p_category text DEFAULT 'Lainnya'
 )
@@ -1439,9 +2196,14 @@ BEGIN
   RETURNING id INTO v_id;
   RETURN jsonb_build_object('id', v_id, 'order_id', p_order_id, 'amount', p_amount);
 END;
-$$;
+$$$bootstrap_sql_fe58be045c26$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fe58be045c26$;
 
-CREATE OR REPLACE FUNCTION public.process_refund_decision(p_refund_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
+DO $bootstrap_do_be97e3cfdf33$
+BEGIN
+  EXECUTE $bootstrap_sql_be97e3cfdf33$CREATE OR REPLACE FUNCTION public.process_refund_decision(p_refund_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_refund public.refund_requests%ROWTYPE;
@@ -1465,9 +2227,14 @@ BEGIN
   END IF;
   RETURN jsonb_build_object('id', p_refund_id, 'status', v_new_status);
 END;
-$$;
+$$$bootstrap_sql_be97e3cfdf33$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_be97e3cfdf33$;
 
-CREATE OR REPLACE FUNCTION public.respond_to_refund_request(p_refund_id uuid, p_response text)
+DO $bootstrap_do_ee42ddf57e9b$
+BEGIN
+  EXECUTE $bootstrap_sql_ee42ddf57e9b$CREATE OR REPLACE FUNCTION public.respond_to_refund_request(p_refund_id uuid, p_response text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_id uuid;
 BEGIN
@@ -1484,9 +2251,14 @@ BEGIN
   SELECT id INTO v_id FROM public.refund_requests WHERE id = p_refund_id;
   RETURN jsonb_build_object('id', v_id, 'status', 'MERCHANT_RESPONDED');
 END;
-$$;
+$$$bootstrap_sql_ee42ddf57e9b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee42ddf57e9b$;
 
-CREATE OR REPLACE FUNCTION public.submit_courier_rating(
+DO $bootstrap_do_ee1a8832f797$
+BEGIN
+  EXECUTE $bootstrap_sql_ee1a8832f797$CREATE OR REPLACE FUNCTION public.submit_courier_rating(
   p_order_id uuid, p_courier_id uuid, p_rating integer, p_comment text DEFAULT NULL, p_tags text[] DEFAULT '{}'
 )
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -1508,34 +2280,132 @@ BEGIN
   UPDATE public.orders SET courier_rated = true, updated_at = now() WHERE id = p_order_id;
   RETURN jsonb_build_object('id', v_id);
 END;
-$$;
+$$$bootstrap_sql_ee1a8832f797$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee1a8832f797$;
 
-REVOKE ALL ON FUNCTION public.submit_order_reviews(uuid, jsonb) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_refund_request(uuid, integer, text, text[], text, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.process_refund_decision(uuid, boolean, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.submit_courier_rating(uuid, uuid, integer, text, text[]) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.respond_to_refund_request(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.submit_order_reviews(uuid, jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_refund_request(uuid, integer, text, text[], text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.process_refund_decision(uuid, boolean, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.submit_courier_rating(uuid, uuid, integer, text, text[]) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.respond_to_refund_request(uuid, text) TO authenticated;
+DO $bootstrap_do_f3b60c2bc756$
+BEGIN
+  EXECUTE $bootstrap_sql_f3b60c2bc756$REVOKE ALL ON FUNCTION public.submit_order_reviews(uuid, jsonb) FROM PUBLIC, anon$bootstrap_sql_f3b60c2bc756$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f3b60c2bc756$;
 
-DROP POLICY IF EXISTS "Buyers can create reviews for their orders" ON public.reviews;
-DROP POLICY IF EXISTS "Buyers can create refund requests" ON public.refund_requests;
-REVOKE INSERT ON public.reviews, public.refund_requests FROM authenticated, anon;
--- ===== END BUNDLE: 49_20260911005000_review_refund_rating_hardening.sql =====
+DO $bootstrap_do_46c21ba0982f$
+BEGIN
+  EXECUTE $bootstrap_sql_46c21ba0982f$REVOKE ALL ON FUNCTION public.create_refund_request(uuid, integer, text, text[], text, text) FROM PUBLIC, anon$bootstrap_sql_46c21ba0982f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_46c21ba0982f$;
+
+DO $bootstrap_do_b98dcdfa00db$
+BEGIN
+  EXECUTE $bootstrap_sql_b98dcdfa00db$REVOKE ALL ON FUNCTION public.process_refund_decision(uuid, boolean, text) FROM PUBLIC, anon$bootstrap_sql_b98dcdfa00db$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b98dcdfa00db$;
+
+DO $bootstrap_do_6d55616bbc2d$
+BEGIN
+  EXECUTE $bootstrap_sql_6d55616bbc2d$REVOKE ALL ON FUNCTION public.submit_courier_rating(uuid, uuid, integer, text, text[]) FROM PUBLIC, anon$bootstrap_sql_6d55616bbc2d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6d55616bbc2d$;
+
+DO $bootstrap_do_2dfbf0ccc478$
+BEGIN
+  EXECUTE $bootstrap_sql_2dfbf0ccc478$REVOKE ALL ON FUNCTION public.respond_to_refund_request(uuid, text) FROM PUBLIC, anon$bootstrap_sql_2dfbf0ccc478$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2dfbf0ccc478$;
+
+DO $bootstrap_do_f2e767b68c92$
+BEGIN
+  EXECUTE $bootstrap_sql_f2e767b68c92$GRANT EXECUTE ON FUNCTION public.submit_order_reviews(uuid, jsonb) TO authenticated$bootstrap_sql_f2e767b68c92$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f2e767b68c92$;
+
+DO $bootstrap_do_09176b81b10e$
+BEGIN
+  EXECUTE $bootstrap_sql_09176b81b10e$GRANT EXECUTE ON FUNCTION public.create_refund_request(uuid, integer, text, text[], text, text) TO authenticated$bootstrap_sql_09176b81b10e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_09176b81b10e$;
+
+DO $bootstrap_do_aa48e2dec8b0$
+BEGIN
+  EXECUTE $bootstrap_sql_aa48e2dec8b0$GRANT EXECUTE ON FUNCTION public.process_refund_decision(uuid, boolean, text) TO authenticated$bootstrap_sql_aa48e2dec8b0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aa48e2dec8b0$;
+
+DO $bootstrap_do_365c43bf4fb7$
+BEGIN
+  EXECUTE $bootstrap_sql_365c43bf4fb7$GRANT EXECUTE ON FUNCTION public.submit_courier_rating(uuid, uuid, integer, text, text[]) TO authenticated$bootstrap_sql_365c43bf4fb7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_365c43bf4fb7$;
+
+DO $bootstrap_do_5c3afbb0057d$
+BEGIN
+  EXECUTE $bootstrap_sql_5c3afbb0057d$GRANT EXECUTE ON FUNCTION public.respond_to_refund_request(uuid, text) TO authenticated$bootstrap_sql_5c3afbb0057d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5c3afbb0057d$;
+
+DO $bootstrap_do_22b885edf5a2$
+BEGIN
+  EXECUTE $bootstrap_sql_22b885edf5a2$DROP POLICY IF EXISTS "Buyers can create reviews for their orders" ON public.reviews$bootstrap_sql_22b885edf5a2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_22b885edf5a2$;
+
+DO $bootstrap_do_a80cc36b5a63$
+BEGIN
+  EXECUTE $bootstrap_sql_a80cc36b5a63$DROP POLICY IF EXISTS "Buyers can create refund requests" ON public.refund_requests$bootstrap_sql_a80cc36b5a63$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a80cc36b5a63$;
+
+DO $bootstrap_do_cb9610af1fb6$
+BEGIN
+  EXECUTE $bootstrap_sql_cb9610af1fb6$REVOKE INSERT ON public.reviews, public.refund_requests FROM authenticated, anon$bootstrap_sql_cb9610af1fb6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cb9610af1fb6$;
+
+DO $bootstrap_do_5dd053769419$
+BEGIN
+  EXECUTE $bootstrap_sql_5dd053769419$-- ===== END BUNDLE: 49_20260911005000_review_refund_rating_hardening.sql =====
 
 -- ===== BEGIN BUNDLE: 50_20260910000000_merchant_google_maps_url.sql =====
 -- Store an optional public Google Maps link for the merchant profile.
 ALTER TABLE public.merchants
-  ADD COLUMN IF NOT EXISTS google_maps_url text;
+  ADD COLUMN IF NOT EXISTS google_maps_url text$bootstrap_sql_5dd053769419$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5dd053769419$;
 
-COMMENT ON COLUMN public.merchants.google_maps_url IS
-  'Optional public URL used to open the merchant location in Google Maps';
+DO $bootstrap_do_09bc22ac2881$
+BEGIN
+  EXECUTE $bootstrap_sql_09bc22ac2881$COMMENT ON COLUMN public.merchants.google_maps_url IS
+  'Optional public URL used to open the merchant location in Google Maps'$bootstrap_sql_09bc22ac2881$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_09bc22ac2881$;
 
-NOTIFY pgrst, 'reload schema';
--- ===== END BUNDLE: 50_20260910000000_merchant_google_maps_url.sql =====
+DO $bootstrap_do_39915c29f8b8$
+BEGIN
+  EXECUTE $bootstrap_sql_39915c29f8b8$NOTIFY pgrst, 'reload schema'$bootstrap_sql_39915c29f8b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_39915c29f8b8$;
+
+DO $bootstrap_do_8fc47d335b46$
+BEGIN
+  EXECUTE $bootstrap_sql_8fc47d335b46$-- ===== END BUNDLE: 50_20260910000000_merchant_google_maps_url.sql =====
 
 -- ===== BEGIN BUNDLE: 50_20260911071000_transaction_critical_high_hardening.sql =====
 -- Server-authoritative shipping, provider recovery, and settlement hardening.
@@ -1800,13 +2670,35 @@ BEGIN
     'cod_service_fee', v_cod_fee
   );
 END;
-$$;
+$$$bootstrap_sql_8fc47d335b46$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8fc47d335b46$;
 
+DO $bootstrap_do_ee08c8a781d5$
+BEGIN
+  EXECUTE $bootstrap_sql_ee08c8a781d5$REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) FROM PUBLIC, anon$bootstrap_sql_ee08c8a781d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ee08c8a781d5$;
 
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) TO authenticated, service_role;
-REVOKE INSERT ON public.orders, public.order_items FROM anon, authenticated;
--- ===== END BUNDLE: 50_20260911071000_transaction_critical_high_hardening.sql =====
+DO $bootstrap_do_aaf945825b42$
+BEGIN
+  EXECUTE $bootstrap_sql_aaf945825b42$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric) TO authenticated, service_role$bootstrap_sql_aaf945825b42$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aaf945825b42$;
+
+DO $bootstrap_do_ae4a6e7a6c47$
+BEGIN
+  EXECUTE $bootstrap_sql_ae4a6e7a6c47$REVOKE INSERT ON public.orders, public.order_items FROM anon, authenticated$bootstrap_sql_ae4a6e7a6c47$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ae4a6e7a6c47$;
+
+DO $bootstrap_do_dc44f3450f49$
+BEGIN
+  EXECUTE $bootstrap_sql_dc44f3450f49$-- ===== END BUNDLE: 50_20260911071000_transaction_critical_high_hardening.sql =====
 
 -- ===== BEGIN BUNDLE: 51_20260911072000_refund_settlement_hardening.sql =====
 -- Refund settlement hardening.
@@ -1815,10 +2707,21 @@ REVOKE INSERT ON public.orders, public.order_items FROM anon, authenticated;
 
 ALTER TABLE public.refund_requests
   ADD COLUMN IF NOT EXISTS settlement_status text NOT NULL DEFAULT 'NOT_REQUIRED',
-  ADD COLUMN IF NOT EXISTS settlement_id uuid;
-REVOKE INSERT ON public.refund_requests FROM anon, authenticated;
+  ADD COLUMN IF NOT EXISTS settlement_id uuid$bootstrap_sql_dc44f3450f49$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dc44f3450f49$;
 
-CREATE TABLE IF NOT EXISTS public.refund_settlements (
+DO $bootstrap_do_23c513466a6b$
+BEGIN
+  EXECUTE $bootstrap_sql_23c513466a6b$REVOKE INSERT ON public.refund_requests FROM anon, authenticated$bootstrap_sql_23c513466a6b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_23c513466a6b$;
+
+DO $bootstrap_do_08414d5a4b36$
+BEGIN
+  EXECUTE $bootstrap_sql_08414d5a4b36$CREATE TABLE IF NOT EXISTS public.refund_settlements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   refund_request_id uuid NOT NULL UNIQUE REFERENCES public.refund_requests(id) ON DELETE RESTRICT,
   order_id uuid NOT NULL REFERENCES public.orders(id) ON DELETE RESTRICT,
@@ -1833,18 +2736,65 @@ CREATE TABLE IF NOT EXISTS public.refund_settlements (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz
-);
-ALTER TABLE public.refund_settlements ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Buyers can view own refund settlements" ON public.refund_settlements;
-CREATE POLICY "Buyers can view own refund settlements" ON public.refund_settlements
-  FOR SELECT USING (buyer_id = auth.uid());
-DROP POLICY IF EXISTS "Admins can manage refund settlements" ON public.refund_settlements;
-CREATE POLICY "Admins can manage refund settlements" ON public.refund_settlements
-  FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
-REVOKE ALL ON public.refund_settlements FROM anon, authenticated;
-GRANT SELECT ON public.refund_settlements TO authenticated;
+)$bootstrap_sql_08414d5a4b36$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_08414d5a4b36$;
 
-CREATE OR REPLACE FUNCTION public.process_refund_decision(p_refund_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
+DO $bootstrap_do_bbf97c1bd7f6$
+BEGIN
+  EXECUTE $bootstrap_sql_bbf97c1bd7f6$ALTER TABLE public.refund_settlements ENABLE ROW LEVEL SECURITY$bootstrap_sql_bbf97c1bd7f6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bbf97c1bd7f6$;
+
+DO $bootstrap_do_2a0847eab622$
+BEGIN
+  EXECUTE $bootstrap_sql_2a0847eab622$DROP POLICY IF EXISTS "Buyers can view own refund settlements" ON public.refund_settlements$bootstrap_sql_2a0847eab622$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2a0847eab622$;
+
+DO $bootstrap_do_aa21bb5d462c$
+BEGIN
+  EXECUTE $bootstrap_sql_aa21bb5d462c$CREATE POLICY "Buyers can view own refund settlements" ON public.refund_settlements
+  FOR SELECT USING (buyer_id = auth.uid())$bootstrap_sql_aa21bb5d462c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aa21bb5d462c$;
+
+DO $bootstrap_do_b8d720f4f627$
+BEGIN
+  EXECUTE $bootstrap_sql_b8d720f4f627$DROP POLICY IF EXISTS "Admins can manage refund settlements" ON public.refund_settlements$bootstrap_sql_b8d720f4f627$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b8d720f4f627$;
+
+DO $bootstrap_do_d8329e66144b$
+BEGIN
+  EXECUTE $bootstrap_sql_d8329e66144b$CREATE POLICY "Admins can manage refund settlements" ON public.refund_settlements
+  FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_d8329e66144b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d8329e66144b$;
+
+DO $bootstrap_do_75ce4cb3393a$
+BEGIN
+  EXECUTE $bootstrap_sql_75ce4cb3393a$REVOKE ALL ON public.refund_settlements FROM anon, authenticated$bootstrap_sql_75ce4cb3393a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_75ce4cb3393a$;
+
+DO $bootstrap_do_8711afa57ba0$
+BEGIN
+  EXECUTE $bootstrap_sql_8711afa57ba0$GRANT SELECT ON public.refund_settlements TO authenticated$bootstrap_sql_8711afa57ba0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8711afa57ba0$;
+
+DO $bootstrap_do_0583fd830594$
+BEGIN
+  EXECUTE $bootstrap_sql_0583fd830594$CREATE OR REPLACE FUNCTION public.process_refund_decision(p_refund_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_refund public.refund_requests%ROWTYPE;
@@ -1883,9 +2833,14 @@ BEGIN
     'settlement_status', CASE WHEN p_approve THEN 'PENDING' ELSE 'NOT_REQUIRED' END,
     'settlement_id', v_settlement_id);
 END;
-$$;
+$$$bootstrap_sql_0583fd830594$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0583fd830594$;
 
-CREATE OR REPLACE FUNCTION public.complete_refund_settlement(
+DO $bootstrap_do_571fe616b8d5$
+BEGIN
+  EXECUTE $bootstrap_sql_571fe616b8d5$CREATE OR REPLACE FUNCTION public.complete_refund_settlement(
   p_settlement_id uuid, p_success boolean, p_provider_reference text DEFAULT NULL, p_error text DEFAULT NULL
 )
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -1911,9 +2866,14 @@ BEGIN
   UPDATE public.merchants SET available_balance = GREATEST(0, COALESCE(available_balance, 0) - v_settlement.amount), updated_at = now() WHERE id = v_settlement.merchant_id;
   RETURN jsonb_build_object('id', p_settlement_id, 'status', 'COMPLETED');
 END;
-$$;
+$$$bootstrap_sql_571fe616b8d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_571fe616b8d5$;
 
--- PAID is terminal except for the trusted, completed refund transition.
+DO $bootstrap_do_d1869ed6ce49$
+BEGIN
+  EXECUTE $bootstrap_sql_d1869ed6ce49$-- PAID is terminal except for the trusted, completed refund transition.
 CREATE OR REPLACE FUNCTION public.prevent_paid_payment_downgrade()
 RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
 BEGIN
@@ -1923,11 +2883,42 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_d1869ed6ce49$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d1869ed6ce49$;
 
-REVOKE ALL ON FUNCTION public.process_refund_decision(uuid, boolean, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.process_refund_decision(uuid, boolean, text) TO authenticated;
-REVOKE ALL ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) TO service_role;
--- ===== END BUNDLE: 51_20260911072000_refund_settlement_hardening.sql =====
+DO $bootstrap_do_723a5ca4d416$
+BEGIN
+  EXECUTE $bootstrap_sql_723a5ca4d416$REVOKE ALL ON FUNCTION public.process_refund_decision(uuid, boolean, text) FROM PUBLIC, anon$bootstrap_sql_723a5ca4d416$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_723a5ca4d416$;
 
+DO $bootstrap_do_3032d30198f8$
+BEGIN
+  EXECUTE $bootstrap_sql_3032d30198f8$GRANT EXECUTE ON FUNCTION public.process_refund_decision(uuid, boolean, text) TO authenticated$bootstrap_sql_3032d30198f8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3032d30198f8$;
+
+DO $bootstrap_do_ca55ef090b5d$
+BEGIN
+  EXECUTE $bootstrap_sql_ca55ef090b5d$REVOKE ALL ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) FROM PUBLIC, anon, authenticated$bootstrap_sql_ca55ef090b5d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ca55ef090b5d$;
+
+DO $bootstrap_do_589ecac23658$
+BEGIN
+  EXECUTE $bootstrap_sql_589ecac23658$GRANT EXECUTE ON FUNCTION public.complete_refund_settlement(uuid, boolean, text, text) TO service_role$bootstrap_sql_589ecac23658$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_589ecac23658$;
+
+DO $bootstrap_do_9e3d12ed3805$
+BEGIN
+  EXECUTE $bootstrap_sql_9e3d12ed3805$-- ===== END BUNDLE: 51_20260911072000_refund_settlement_hardening.sql =====$bootstrap_sql_9e3d12ed3805$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9e3d12ed3805$;
