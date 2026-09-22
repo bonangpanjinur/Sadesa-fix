@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateAdminDirectConversation, getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation } from '@/lib/chat/repository';
+import { getOrCreateAdminDirectConversation, getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation, uploadChatImage, removeChatAttachment } from '@/lib/chat/repository';
 import { validateMessageBody } from '@/lib/chat/retention';
 import { getChatReconnectDelay } from '@/lib/chat/realtime';
 import type { ChatConnectionState, ChatCursor, ConversationMessage, ConversationType } from '@/lib/chat/types';
@@ -124,14 +124,21 @@ export function useConversation(options: ConversationOptions) {
     };
   }, [addMessage, catchUp, key, options, user]);
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, image?: File) => {
     if (!user || !conversationId) return { error: new Error('Percakapan belum siap') };
-    const validationError = validateMessageBody(text); if (validationError) return { error: new Error(validationError) };
+    const validationError = text.trim() ? validateMessageBody(text) : null; if (validationError || (!text.trim() && !image)) return { error: new Error(validationError || 'Pesan harus berisi teks atau gambar') };
+    let attachmentPath: string | null = null;
+    if (image) {
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(image.type) || image.size > 5 * 1024 * 1024) return { error: new Error('Gambar harus JPG, PNG, WebP, atau GIF dan berukuran maksimal 5 MB') };
+      const upload = await uploadChatImage(conversationId, user.id, image);
+      if (upload.error || !upload.path) return { error: upload.error || new Error('Gambar gagal diunggah') };
+      attachmentPath = upload.path;
+    }
     const clientMessageId = crypto.randomUUID();
-    const optimistic: ConversationMessage = { id: `local-${clientMessageId}`, conversation_id: conversationId, sender_id: user.id, receiver_id: options.receiverId, message: text.trim(), body: text.trim(), is_read: false, created_at: new Date().toISOString(), auto_delete_at: null, soft_delete_at: null, hard_delete_at: null, chat_type: options.conversationType, image_url: null, client_message_id: clientMessageId, deleted_at: null, deleted_reason: null, deliveryStatus: 'sending' };
+    const optimistic: ConversationMessage = { id: `local-${clientMessageId}`, conversation_id: conversationId, sender_id: user.id, receiver_id: options.receiverId, message: text.trim() || 'Gambar', body: text.trim(), is_read: false, created_at: new Date().toISOString(), auto_delete_at: null, soft_delete_at: null, hard_delete_at: null, chat_type: options.conversationType, image_url: null, attachment_path: attachmentPath, client_message_id: clientMessageId, deleted_at: null, deleted_reason: null, deliveryStatus: 'sending' };
     addMessage(optimistic);
-    const result = await sendConversationMessage({ ...options, conversationId, senderId: user.id, receiverId: options.receiverId, text: text.trim(), clientMessageId });
-    if (result.error || !result.message) { setMessages((current) => current.map((item) => item.id === optimistic.id ? { ...item, deliveryStatus: 'failed' } : item)); return { error: result.error || new Error('Pesan gagal dikirim') }; }
+    const result = await sendConversationMessage({ ...options, conversationId, senderId: user.id, receiverId: options.receiverId, text: text.trim(), clientMessageId, attachmentPath });
+    if (result.error || !result.message) { if (attachmentPath) await removeChatAttachment(attachmentPath); setMessages((current) => current.map((item) => item.id === optimistic.id ? { ...item, deliveryStatus: 'failed' } : item)); return { error: result.error || new Error('Pesan gagal dikirim') }; }
     addMessage(result.message); return { message: result.message };
   }, [addMessage, conversationId, options, user]);
   return { conversationId, messages, status, error, send, retry: send };
