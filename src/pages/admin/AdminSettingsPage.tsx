@@ -87,7 +87,6 @@ export default function AdminSettingsPage() {
   const registrationVillage = getSetting('registration_village')?.value as unknown as RegistrationSettings | undefined;
   const registrationMerchant = getSetting('registration_merchant')?.value as unknown as RegistrationSettings | undefined;
   const registrationCourier = getSetting('registration_courier')?.value as unknown as RegistrationSettings | undefined;
-  const merchantAutoApprove = getSetting('merchant_auto_approve')?.value as unknown as RegistrationSettings | undefined;
   const addressApi = getSetting('address_api')?.value as unknown as AddressApiSettings | undefined;
   const paymentMidtrans = getSetting('payment_midtrans')?.value as unknown as PaymentSettings | undefined;
   const paymentXendit = getSetting('payment_xendit')?.value as unknown as PaymentSettings | undefined;
@@ -186,13 +185,9 @@ export default function AdminSettingsPage() {
                     <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
                       <div>
                         <p className="font-medium text-sm">Auto-Approve Pedagang/UMKM</p>
-                        <p className="text-xs text-muted-foreground">Setujui pendaftaran merchant secara otomatis tanpa perlu verifikasi manual</p>
+                        <p className="text-xs text-muted-foreground">Aktif sementara: pendaftaran merchant langsung disetujui tanpa verifikasi manual.</p>
                       </div>
-                      <Switch
-                        checked={merchantAutoApprove?.enabled ?? false}
-                        onCheckedChange={() => handleToggleRegistration('merchant_auto_approve', merchantAutoApprove?.enabled ?? false)}
-                        disabled={saving === 'merchant_auto_approve'}
-                      />
+                      <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">Aktif</span>
                     </div>
                   </CardContent>
                 </Card>

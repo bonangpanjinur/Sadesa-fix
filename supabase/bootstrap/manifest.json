@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 307,
-  "bundle_count": 9,
+  "migration_count": 308,
+  "bundle_count": 10,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -372,6 +372,14 @@
       ],
       "sha256": "a7ad0bccc5a1bc4d89b5deaa0ceecf794e22e5102194e921250997f96f839878",
       "bytes": 6262
+    },
+    {
+      "file": "10_20260922191500_auto_approve_merchants.sql",
+      "source_files": [
+        "20260922191500_auto_approve_merchants.sql"
+      ],
+      "sha256": "cc8ee6d675bdf195a7c0e47e04abd6a41f2057c2bedd6f6aaf15477ce394d15c",
+      "bytes": 2649
     }
   ],
   "idempotent": true,

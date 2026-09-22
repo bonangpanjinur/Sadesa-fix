@@ -334,10 +334,10 @@ export default function RegisterMerchantPage() {
         return;
       }
 
-      // Auto-approve merchants on registration (direct ACC without admin approval)
-      const isAutoApproveEnabled = true;
-      const registrationStatus = 'APPROVED';
-      const merchantStatus = 'ACTIVE';
+      // Merchant registration is currently automatic: no admin approval gate.
+      // The database also enforces these values for non-frontend clients.
+      const registrationStatus = 'APPROVED' as const;
+      const merchantStatus = 'ACTIVE' as const;
       const legacySchedule = weeklySchedule[1] || weeklySchedule[openDays[0].day];
 
       const { data: merchant, error } = await supabase.from('merchants').insert({
