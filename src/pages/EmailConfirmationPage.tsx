@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
+import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { toast } from '@/hooks/use-toast';
 
 export default function EmailConfirmationPage() {
@@ -52,6 +53,11 @@ export default function EmailConfirmationPage() {
   const handleResend = async () => {
     if (!signupEmailSchema.safeParse(email).success) {
       setError('Email pendaftaran tidak ditemukan. Silakan daftar kembali.');
+      return;
+    }
+    const otpLimit = checkPersistentRateLimit(email, 'resendOtp', RATE_LIMITS.resendOtp);
+    if (!otpLimit.allowed) {
+      setError(`Batas kirim ulang tercapai. Coba lagi dalam ${Math.ceil(otpLimit.resetIn / 60000)} menit.`);
       return;
     }
     setResending(true);

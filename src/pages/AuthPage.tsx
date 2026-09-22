@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { getRedirectPathForRoles } from '@/types/auth';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
+import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -117,8 +118,18 @@ export default function AuthPage() {
           // Redirect will happen automatically via useEffect
         }
       } else {
+        const signupEmail = normalizeEmail(formData.email);
+        const otpLimit = checkPersistentRateLimit(signupEmail, 'signupOtp', RATE_LIMITS.signupOtp);
+        if (!otpLimit.allowed) {
+          toast({
+            title: 'Terlalu banyak permintaan',
+            description: `Email verifikasi dapat dikirim lagi dalam ${Math.ceil(otpLimit.resetIn / 60000)} menit.`,
+            variant: 'destructive',
+          });
+          return;
+        }
         const { data, error } = await signUp(
-          normalizeEmail(formData.email),
+          signupEmail,
           formData.password,
           formData.fullName.trim(),
         );
