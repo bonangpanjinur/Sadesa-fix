@@ -7,10 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
+import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 import { toast } from 'sonner';
-import { z } from 'zod';
-
-const emailSchema = z.string().email('Email tidak valid');
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -23,22 +21,25 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
 
-    const result = emailSchema.safeParse(email);
+    const result = signupEmailSchema.safeParse(email);
     if (!result.success) {
-      setError('Email tidak valid');
+      setError(result.error.issues[0]?.message ?? 'Email tidak valid');
       return;
     }
+
+    const normalizedEmail = normalizeEmail(email);
 
     setLoading(true);
 
     try {
       // Use Supabase built-in password reset
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) throw error;
 
+      setEmail(normalizedEmail);
       setSent(true);
       toast.success('Link reset password terkirim!');
     } catch (error: unknown) {
