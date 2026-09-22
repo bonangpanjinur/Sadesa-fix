@@ -672,7 +672,8 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
             <input
               id="chat-image-upload"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/*"
+              capture="environment"
               className="sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];
@@ -686,7 +687,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
                 setSendError(null);
               }}
             />
-            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-full" disabled={sending} onClick={() => document.getElementById('chat-image-upload')?.click()} aria-label="Kirim gambar">
+            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-full" disabled={sending} onClick={() => document.getElementById('chat-image-upload')?.click()} aria-label="Ambil foto atau pilih gambar" title="Ambil foto atau pilih gambar">
               <ImagePlus className="h-4 w-4" />
             </Button>
             <Input
