@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, RefreshCw, CheckCircle, Loader2, KeyRound } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
+import { createOtpExpiration, formatOtpTimeRemaining, getOtpExpirationKey, isOtpExpired } from '@/lib/otp';
 import { toast } from '@/hooks/use-toast';
 
 export default function EmailConfirmationPage() {
@@ -19,6 +20,21 @@ export default function EmailConfirmationPage() {
   const [verifying, setVerifying] = useState(false);
   const [resent, setResent] = useState(false);
   const [error, setError] = useState('');
+  const [expiresAt, setExpiresAt] = useState(() => {
+    try {
+      const stored = Number(window.localStorage.getItem(getOtpExpirationKey(normalizeEmail(initialEmail))));
+      return stored > Date.now() ? stored : createOtpExpiration();
+    } catch {
+      return createOtpExpiration();
+    }
+  });
+  const [now, setNow] = useState(() => Date.now());
+  const otpExpired = isOtpExpired(expiresAt, now);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const handleVerifyToken = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -30,6 +46,11 @@ export default function EmailConfirmationPage() {
     }
     if (!/^\d{6}$/.test(token)) {
       setError('Masukkan kode OTP 6 digit dari email Anda.');
+      return;
+    }
+    if (isOtpExpired(expiresAt)) {
+      setError('Kode OTP sudah kedaluwarsa. Silakan kirim ulang email verifikasi.');
+      setNow(Date.now());
       return;
     }
 
@@ -67,6 +88,13 @@ export default function EmailConfirmationPage() {
       if (resendError) throw resendError;
       setResent(true);
       setToken('');
+      const nextExpiresAt = createOtpExpiration();
+      setExpiresAt(nextExpiresAt);
+      try {
+        window.localStorage.setItem(getOtpExpirationKey(email), String(nextExpiresAt));
+      } catch {
+        // Supabase still enforces token expiration server-side.
+      }
       toast({ title: 'Email verifikasi dikirim ulang!' });
     } catch (resendError: unknown) {
       setError(resendError instanceof Error ? resendError.message : 'Gagal mengirim ulang email verifikasi.');
@@ -120,11 +148,12 @@ export default function EmailConfirmationPage() {
               aria-describedby={error ? 'verification-error' : 'verification-help'}
             />
           </div>
-          <p id="verification-help" className="text-xs text-muted-foreground">
-            Anda juga dapat langsung mengeklik link verifikasi di email.
+          <p id="verification-help" className={`text-xs ${otpExpired ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {otpExpired ? 'Kode OTP sudah kedaluwarsa. Kirim ulang email untuk mendapatkan kode baru.' : `Kode berlaku selama ${formatOtpTimeRemaining(expiresAt, now)}.`}
+            {' '}Anda juga dapat langsung mengeklik link verifikasi di email.
           </p>
           {error && <p id="verification-error" role="alert" className="text-xs text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={verifying || !email}>
+          <Button type="submit" className="w-full" disabled={verifying || !email || otpExpired}>
             {verifying ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memverifikasi...</> : 'Verifikasi OTP'}
           </Button>
         </form>

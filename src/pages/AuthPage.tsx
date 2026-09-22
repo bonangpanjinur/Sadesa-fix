@@ -11,6 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import { getRedirectPathForRoles } from '@/types/auth';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
+import { createOtpExpiration, getOtpExpirationKey } from '@/lib/otp';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -143,6 +144,11 @@ export default function AuthPage() {
           if (data?.session) {
             toast({ title: 'Akun berhasil didaftarkan.' });
           } else {
+            try {
+              window.localStorage.setItem(getOtpExpirationKey(signupEmail), String(createOtpExpiration()));
+            } catch {
+              // The verification flow remains protected by Supabase's token expiry.
+            }
             navigate('/email-confirmation', { state: { email: normalizeEmail(formData.email) } });
           }
         }
