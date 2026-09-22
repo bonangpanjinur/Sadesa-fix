@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { CartItem, Product } from '@/types';
+import type { CartItem, CartTopping, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { getProductUnavailableReason } from '@/lib/productAvailability';
 
@@ -10,7 +10,7 @@ interface CartContextType {
   toggleItemSelection: (productId: string) => void;
   selectAllItems: () => void;
   clearItemSelection: () => void;
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, toppings?: CartTopping[]) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -56,7 +56,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setSelectedItemIds(current => current.filter(id => items.some(item => item.product.id === id)));
   }, [items]);
 
-  const addToCart = useCallback((product: Product, quantity: number = 1) => {
+  const addToCart = useCallback((product: Product, quantity: number = 1, toppings: CartTopping[] = []) => {
     const reason = getProductUnavailableReason({ isActive: product.isActive, stock: product.stock, hasQuota: product.hasQuota, isMerchantOpen: product.isMerchantOpen });
     if (product.isAvailable === false || reason) {
       toast({ title: 'Tidak dapat menambahkan ke keranjang', description: reason || 'Produk tidak tersedia', variant: 'destructive' });
@@ -64,10 +64,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     const safeQuantity = Math.min(MAX_CART_QUANTITY, Math.max(1, Math.trunc(quantity) || 1));
     setItems(prev => {
-      const existingItem = prev.find(item => item.product.id === product.id);
-      if (existingItem) return prev.map(item => item.product.id === product.id ? { ...item, quantity: Math.min(MAX_CART_QUANTITY, item.quantity + safeQuantity) } : item);
+      const normalizedToppings = toppings.filter(t => t.product.id !== product.id && t.quantity > 0).map(t => ({ ...t, quantity: Math.min(MAX_CART_QUANTITY, Math.max(1, Math.trunc(t.quantity))) }));
+      const toppingKey = normalizedToppings.map(t => `${t.product.id}:${t.quantity}`).sort().join('|');
+      const existingItem = prev.find(item => item.product.id === product.id && (item.toppings || []).map(t => `${t.product.id}:${t.quantity}`).sort().join('|') === toppingKey);
+      if (existingItem) return prev.map(item => item === existingItem ? { ...item, quantity: Math.min(MAX_CART_QUANTITY, item.quantity + safeQuantity) } : item);
       setSelectedItemIds(current => current.includes(product.id) ? current : [...current, product.id]);
-      return [...prev, { product, quantity: safeQuantity }];
+      return [...prev, { product, quantity: safeQuantity, toppings: normalizedToppings.length ? normalizedToppings : undefined }];
     });
   }, []);
 
@@ -88,7 +90,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const selectAllItems = useCallback(() => setSelectedItemIds(items.map(item => item.product.id)), [items]);
   const clearItemSelection = useCallback(() => setSelectedItemIds([]), []);
   const selectedItems = items.filter(item => selectedItemIds.includes(item.product.id));
-  const getCartTotal = useCallback(() => items.reduce((total, item) => total + item.product.price * item.quantity, 0), [items]);
+  const getCartTotal = useCallback(() => items.reduce((total, item) => total + (item.product.price + (item.toppings || []).reduce((sum, topping) => sum + topping.product.price * topping.quantity, 0)) * item.quantity, 0), [items]);
   const getItemCount = useCallback(() => items.reduce((count, item) => count + item.quantity, 0), [items]);
 
   return <CartContext.Provider value={{ items, selectedItemIds, selectedItems, toggleItemSelection, selectAllItems, clearItemSelection, addToCart, removeFromCart, updateQuantity, clearCart, getCartTotal, getItemCount }}>{children}</CartContext.Provider>;

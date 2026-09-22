@@ -26,7 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { trackPageView } from '@/lib/pageViewTracker';
 import { addToRecentlyViewed } from '@/lib/recentlyViewed';
-import type { Product } from '@/types';
+import type { CartTopping, Product, ProductTopping } from '@/types';
 import { ProductReviews } from '@/components/product/ProductReviews';
 import { SimilarProducts } from '@/components/product/SimilarProducts';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
@@ -54,6 +54,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
+  const [selectedToppings, setSelectedToppings] = useState<CartTopping[]>([]);
 
   // React Query: product data with caching (P3-01)
   const { data: product = null, isLoading: productLoading } = useQuery<Product | null>({
@@ -117,6 +118,24 @@ export default function ProductDetail() {
   const hasActiveQuota = merchantResult?.hasActiveQuota ?? true;
   const loading = productLoading;
 
+  const { data: toppingOptions = [] } = useQuery<ProductTopping[]>({
+    queryKey: ['product-toppings', product?.id],
+    queryFn: async () => {
+      if (!product?.id) return [];
+      const { data, error } = await (supabase as any)
+        .from('product_toppings')
+        .select('topping_product_id, products:topping_product_id(id, name, price, stock, image_url)')
+        .eq('product_id', product.id)
+        .order('sort_order');
+      if (error) throw error;
+      return (data || []).map((row: any) => row.products).filter((item: any) => item?.id).map((item: any) => ({
+        id: item.id, name: item.name, price: Number(item.price) || 0, stock: Number(item.stock) || 0, image: item.image_url || undefined,
+      }));
+    },
+    enabled: !!product?.id,
+    staleTime: 30_000,
+  });
+
   // Get merchant operating status
   const merchantStatus = merchant 
     ? getMerchantOperatingStatus(merchant.isOpen, merchant.openTime, merchant.closeTime)
@@ -156,7 +175,7 @@ export default function ProductDetail() {
       });
       return;
     }
-    addToCart(product, quantity);
+    addToCart(product, quantity, selectedToppings);
     toast({
       title: '✅ Ditambahkan ke keranjang',
       description: `${quantity}x ${product.name}`,
@@ -179,7 +198,7 @@ export default function ProductDetail() {
       toast({ title: 'Produk tidak tersedia', description: unavailableReason, variant: 'destructive' });
       return;
     }
-    addToCart(product, quantity);
+    addToCart(product, quantity, selectedToppings);
     navigate('/checkout');
   };
 
@@ -190,6 +209,7 @@ export default function ProductDetail() {
     isMerchantOpen: merchantStatus?.isCurrentlyOpen !== false,
   });
   const canOrder = !unavailableReason;
+  const selectedToppingTotal = selectedToppings.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   return (
     <div className="mobile-shell bg-card flex flex-col min-h-screen relative">
@@ -353,6 +373,38 @@ export default function ProductDetail() {
             {product.description}
           </p>
 
+          {toppingOptions.length > 0 && (
+            <div className="mb-6 rounded-2xl border border-border bg-secondary/40 p-4">
+              <div className="mb-3">
+                <h3 className="font-bold text-sm text-foreground">Tambahkan topping</h3>
+                <p className="text-xs text-muted-foreground">Pilih dari produk yang tersedia di toko ini.</p>
+              </div>
+              <div className="space-y-2">
+                {toppingOptions.map((topping) => {
+                  const selected = selectedToppings.find((item) => item.product.id === topping.id);
+                  const unavailable = topping.stock <= 0;
+                  return (
+                    <button
+                      type="button"
+                      key={topping.id}
+                      disabled={unavailable}
+                      onClick={() => setSelectedToppings((current) => selected
+                        ? current.filter((item) => item.product.id !== topping.id)
+                        : [...current, { product: topping, quantity: 1 }])}
+                      className={`w-full flex items-center justify-between rounded-xl border p-3 text-left transition ${selected ? 'border-primary bg-primary/5' : 'border-border bg-card'} ${unavailable ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/60'}`}
+                    >
+                      <span>
+                        <span className="block text-sm font-medium">{topping.name}</span>
+                        <span className="text-xs text-muted-foreground">{unavailable ? 'Stok habis' : `Stok ${topping.stock}`}</span>
+                      </span>
+                      <span className="text-sm font-semibold text-primary">+{formatPrice(topping.price)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Reviews Section */}
           <ProductReviews merchantId={product.merchantId} />
 
@@ -390,15 +442,15 @@ export default function ProductDetail() {
             {product.originalPrice ? (
               <div>
                 <p className="text-xs line-through text-muted-foreground">
-                  {formatPrice(product.originalPrice * quantity)}
+                  {formatPrice((product.originalPrice + selectedToppingTotal) * quantity)}
                 </p>
                 <p className="text-lg font-bold text-primary">
-                  {formatPrice(product.price * quantity)}
+                  {formatPrice((product.price + selectedToppingTotal) * quantity)}
                 </p>
               </div>
             ) : (
               <p className="text-lg font-bold text-primary">
-                {formatPrice(product.price * quantity)}
+                {formatPrice((product.price + selectedToppingTotal) * quantity)}
               </p>
             )}
           </div>

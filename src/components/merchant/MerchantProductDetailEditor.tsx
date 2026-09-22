@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductVariantManager } from './ProductVariantManager';
+import { ProductToppingManager } from './ProductToppingManager';
 import { MultipleImageUpload } from './MultipleImageUpload';
 import { StockAlerts } from './StockAlerts';
 import { supabase } from '@/integrations/supabase/client';
@@ -234,10 +235,11 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
       </div>
 
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="w-full grid grid-cols-4">
+        <TabsList className="w-full grid grid-cols-5">
           <TabsTrigger value="basic">Info Dasar</TabsTrigger>
           <TabsTrigger value="images">Gambar</TabsTrigger>
           <TabsTrigger value="variants">Varian</TabsTrigger>
+          <TabsTrigger value="toppings">Topping</TabsTrigger>
           <TabsTrigger value="stock">Stok</TabsTrigger>
         </TabsList>
 
@@ -409,6 +411,10 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="toppings">
+          <ProductToppingManager productId={productId} merchantId={merchantId} />
         </TabsContent>
 
         {/* Stock Tab */}

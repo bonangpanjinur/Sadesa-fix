@@ -38,7 +38,8 @@ export default function CartPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [merchantStatuses, setMerchantStatuses] = useState<Record<string, boolean>>({});
   const [stockWarnings, setStockWarnings] = useState<Record<string, string>>({});
-  const selectedTotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const itemUnitTotal = (item: typeof items[number]) => item.product.price + (item.toppings || []).reduce((sum, topping) => sum + topping.product.price * topping.quantity, 0);
+  const selectedTotal = selectedItems.reduce((sum, item) => sum + itemUnitTotal(item) * item.quantity, 0);
 
   // Fetch merchant open/close statuses
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function CartPage() {
 
   // Validate stock in real-time
   useEffect(() => {
-    const productIds = items.map(i => i.product.id).filter(Boolean);
+    const productIds = items.flatMap(i => [i.product.id, ...(i.toppings || []).map(t => t.product.id)]).filter(Boolean);
     if (productIds.length === 0) return;
 
     const validateStock = async () => {
@@ -78,6 +79,10 @@ export default function CartPage() {
         const warnings: Record<string, string> = {};
         products.forEach((p: StockProductRow) => {
           const cartItem = items.find(i => i.product.id === p.id);
+          const toppingParent = items.find(i => (i.toppings || []).some(t => t.product.id === p.id));
+          const topping = toppingParent?.toppings?.find(t => t.product.id === p.id);
+          const requestedQuantity = topping ? topping.quantity * toppingParent!.quantity : cartItem?.quantity;
+          if (topping && (p.stock < (requestedQuantity || 0) || p.price !== topping.product.price)) warnings[p.id] = p.stock < (requestedQuantity || 0) ? `Stok topping ${p.name} hanya ${p.stock}` : `Harga topping berubah menjadi Rp ${p.price.toLocaleString('id-ID')}`;
           if (!cartItem) return;
           if (!p.is_active) {
             warnings[p.id] = 'Produk sudah tidak tersedia';
@@ -246,8 +251,9 @@ export default function CartPage() {
                           {item.product.name}
                         </h3>
                         <p className="text-primary font-bold text-sm mt-1">
-                          {formatPrice(item.product.price)}
+                          {formatPrice(itemUnitTotal(item))}
                         </p>
+                        {item.toppings?.length ? <p className="text-xs text-muted-foreground mt-1">Topping: {item.toppings.map((topping) => `${topping.product.name} (+${formatPrice(topping.product.price)})`).join(', ')}</p> : null}
                         {item.product.originalPrice && (
                           <p className="text-xs line-through text-muted-foreground">
                             {formatPrice(item.product.originalPrice)}

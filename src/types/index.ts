@@ -82,6 +82,19 @@ export interface Product {
   halal_status?: HalalStatus;
 }
 
+export interface ProductTopping {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  image?: string;
+}
+
+export interface CartTopping {
+  product: ProductTopping;
+  quantity: number;
+}
+
 export interface Tourism {
   id: string;
   villageId: string;
@@ -101,6 +114,7 @@ export interface Tourism {
 export interface CartItem {
   product: Product;
   quantity: number;
+  toppings?: CartTopping[];
 }
 
 export interface Order {

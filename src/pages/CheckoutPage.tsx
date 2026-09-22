@@ -496,7 +496,7 @@ export default function CheckoutPage() {
     try {
       checkoutKeyRef.current ??= crypto.randomUUID();
       // Validate stock before creating orders
-      const allProductIds = items.map(item => item.product.id);
+      const allProductIds = items.flatMap(item => [item.product.id, ...(item.toppings || []).map(topping => topping.product.id)]);
       const { data: currentStocks, error: stockCheckError } = await supabase
         .from('products')
         .select('id, name, stock')
@@ -514,6 +514,11 @@ export default function CheckoutPage() {
         if (!product || product.stock < item.quantity) {
           outOfStockItems.push(`${item.product.name} (tersisa: ${product?.stock ?? 0}, diminta: ${item.quantity})`);
         }
+        for (const topping of item.toppings || []) {
+          const toppingProduct = stockMap.get(topping.product.id);
+          const requested = item.quantity * topping.quantity;
+          if (!toppingProduct || toppingProduct.stock < requested) outOfStockItems.push(`${topping.product.name} (tersisa: ${toppingProduct?.stock ?? 0}, diminta: ${requested})`);
+        }
       }
 
       if (outOfStockItems.length > 0) {
@@ -528,10 +533,10 @@ export default function CheckoutPage() {
 
       const fullAddress = formatFullAddress(addressData.address);
       const { data: checkoutResult, error: checkoutError } = await supabase.rpc('create_marketplace_checkout' as never, {
-        p_items: items.map((item) => ({
-          product_id: item.product.id,
-          quantity: Math.trunc(item.quantity),
-        })),
+        p_items: items.flatMap((item) => [
+          { product_id: item.product.id, quantity: Math.trunc(item.quantity) },
+          ...(item.toppings || []).map((topping) => ({ product_id: topping.product.id, quantity: Math.trunc(item.quantity * topping.quantity) })),
+        ]),
         p_delivery: {
           name: addressData.name,
           phone: addressData.phone,
