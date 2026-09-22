@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useChatNotification } from '@/hooks/useChatNotification';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageCircle, X, Clock, ShoppingBag, User, Store, Truck, Volume2, VolumeX, AlertCircle, ImagePlus } from 'lucide-react';
+import { Send, MessageCircle, X, Clock, ShoppingBag, User, Store, Truck, Volume2, VolumeX, AlertCircle, ImagePlus, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -670,7 +670,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
           )}
           <div className="flex items-center gap-2">
             <input
-              id="chat-image-upload"
+              id="chat-camera-capture"
               type="file"
               accept="image/*"
               capture="environment"
@@ -687,7 +687,27 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
                 setSendError(null);
               }}
             />
-            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-full" disabled={sending} onClick={() => document.getElementById('chat-image-upload')?.click()} aria-label="Ambil foto atau pilih gambar" title="Ambil foto atau pilih gambar">
+            <input
+              id="chat-gallery-upload"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.currentTarget.value = '';
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { setSendError('Ukuran gambar maksimal 5 MB.'); return; }
+                if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) { setSendError('Format gambar harus JPG, PNG, WebP, atau GIF.'); return; }
+                if (imagePreview) URL.revokeObjectURL(imagePreview);
+                setImageFile(file);
+                setImagePreview(URL.createObjectURL(file));
+                setSendError(null);
+              }}
+            />
+            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-full" disabled={sending} onClick={() => document.getElementById('chat-camera-capture')?.click()} aria-label="Ambil foto dengan kamera" title="Ambil foto dengan kamera">
+              <Camera className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-full" disabled={sending} onClick={() => document.getElementById('chat-gallery-upload')?.click()} aria-label="Pilih gambar dari galeri" title="Pilih gambar dari galeri">
               <ImagePlus className="h-4 w-4" />
             </Button>
             <Input
