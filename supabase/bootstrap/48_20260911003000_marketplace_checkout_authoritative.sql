@@ -184,7 +184,8 @@ BEGIN
     IF COALESCE((v_cod_settings->>'enabled')::boolean, true) IS NOT TRUE THEN
       RAISE EXCEPTION 'COD is currently unavailable' USING ERRCODE = '22023';
     END IF;
-    v_cod_fee := COALESCE((v_cod_settings->>'service_fee')::integer, 1000);
+    -- COD remains available, but it is always free of charge.
+    v_cod_fee := 0;
   END IF;
 
   IF p_payment_method = 'COD' THEN

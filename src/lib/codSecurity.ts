@@ -19,7 +19,7 @@ interface CODSettings {
 const DEFAULT_COD_SETTINGS: CODSettings = {
   maxAmount: 75000,
   maxDistanceKm: 3,
-  serviceFee: 1000,
+  serviceFee: 0,
   confirmationTimeoutMinutes: 15,
   minTrustScore: 50,
   penaltyPoints: 50,

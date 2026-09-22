@@ -628,12 +628,11 @@ function CODSettingsForm({ initialValues, onSave, isSaving }: { initialValues?: 
   const [enabled, setEnabled] = useState(initialValues?.enabled ?? true);
   const [maxAmount, setMaxAmount] = useState(initialValues?.max_amount?.toString() || '75000');
   const [maxDistance, setMaxDistance] = useState(initialValues?.max_distance_km?.toString() || '3');
-  const [serviceFee, setServiceFee] = useState(initialValues?.service_fee?.toString() || '1000');
   const [minTrustScore, setMinTrustScore] = useState(initialValues?.min_trust_score?.toString() || '50');
   const [confirmationTimeout, setConfirmationTimeout] = useState(initialValues?.confirmation_timeout_minutes?.toString() || '15');
   const [penaltyPoints, setPenaltyPoints] = useState(initialValues?.penalty_points?.toString() || '50');
   const [successBonus, setSuccessBonus] = useState(initialValues?.success_bonus_points?.toString() || '1');
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ enabled, max_amount: parseInt(maxAmount) || 75000, max_distance_km: parseInt(maxDistance) || 3, service_fee: parseInt(serviceFee) || 1000, min_trust_score: parseInt(minTrustScore) || 50, confirmation_timeout_minutes: parseInt(confirmationTimeout) || 15, penalty_points: parseInt(penaltyPoints) || 50, success_bonus_points: parseInt(successBonus) || 1 }); };
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ enabled, max_amount: parseInt(maxAmount) || 75000, max_distance_km: parseInt(maxDistance) || 3, service_fee: 0, min_trust_score: parseInt(minTrustScore) || 50, confirmation_timeout_minutes: parseInt(confirmationTimeout) || 15, penalty_points: parseInt(penaltyPoints) || 50, success_bonus_points: parseInt(successBonus) || 1 }); };
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg"><div><p className="font-medium text-sm">Aktifkan Fitur COD</p></div><Switch checked={enabled} onCheckedChange={setEnabled} /></div>

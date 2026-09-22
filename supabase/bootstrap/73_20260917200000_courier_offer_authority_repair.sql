@@ -110,7 +110,8 @@ DECLARE
   v_distance numeric;
   v_weight numeric := COALESCE((p_request->>'weight_kg')::numeric, 1);
   v_base integer;
-  v_cod_fee integer := CASE WHEN COALESCE((p_request->>'cod')::boolean, false) THEN 2000 ELSE 0 END;
+  -- COD is intentionally free for every courier transaction.
+  v_cod_fee integer := 0;
   v_shipping integer;
 BEGIN
   IF auth.uid() IS NULL THEN
