@@ -514,6 +514,7 @@ const Index = () => {
               onDismiss={() => setShowContextualRecommendation(false)}
             />
           )}
+          {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           {enabledSections.some((section) => section.id === 'categories') && renderSection('categories')}
           {activeOrder && (
             <Dialog>
@@ -549,7 +550,7 @@ const Index = () => {
               </DialogContent>
             </Dialog>
           )}
-          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id) && section.id !== 'categories' && section.id !== 'contextual-recommendation').map((section) => (
+          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id) && section.id !== 'hero' && section.id !== 'categories' && section.id !== 'contextual-recommendation').map((section) => (
             <div key={section.id}>
               {renderSection(section.id)}
             </div>
