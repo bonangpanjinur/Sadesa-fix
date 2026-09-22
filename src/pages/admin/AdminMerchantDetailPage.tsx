@@ -26,6 +26,7 @@ import { approveMerchant, rejectMerchant, deleteMerchant } from '@/lib/adminApi'
 import { MerchantEditDialog } from '@/components/admin/MerchantEditDialog';
 import { AssignPackageDialog } from '@/components/admin/AssignPackageDialog';
 import { AdminAddProductDialog } from '@/components/admin/AdminAddProductDialog';
+import { AdminEditProductDialog, type AdminProductInput } from '@/components/admin/AdminEditProductDialog';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import { formatPrice } from '@/lib/utils';
@@ -82,6 +83,9 @@ interface ProductSummary {
   stock: number;
   is_active: boolean;
   image_url: string | null;
+  description?: string | null;
+  category?: string | null;
+  min_stock_alert?: number | null;
 }
 
 interface OrderSummary {
@@ -117,6 +121,7 @@ export default function AdminMerchantDetailPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [addProductDialogOpen, setAddProductDialogOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<AdminProductInput | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<UserProfile | null>(null);
   const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[]>([]);
   const [stats, setStats] = useState({
@@ -155,7 +160,7 @@ export default function AdminMerchantDetailPage() {
       // Fetch products
       const { data: productsData } = await supabase
         .from('products')
-        .select('id, name, price, stock, is_active, image_url')
+        .select('id, name, description, price, stock, category, is_active, image_url, min_stock_alert')
         .eq('merchant_id', id)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -616,7 +621,7 @@ export default function AdminMerchantDetailPage() {
                   </div>
                 ) : (
                   products.map((product) => (
-                    <div key={product.id} className="flex items-center justify-between p-2 border rounded-lg">
+                      <div key={product.id} className="flex items-center justify-between p-2 border rounded-lg">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 rounded-md">
                           <AvatarImage src={product.image_url || ''} />
@@ -627,9 +632,14 @@ export default function AdminMerchantDetailPage() {
                           <p className="text-xs text-muted-foreground">{formatCurrency(product.price)} • Stok: {product.stock}</p>
                         </div>
                       </div>
-                      <Badge variant={product.is_active ? 'success' : 'secondary'}>
-                        {product.is_active ? 'Aktif' : 'Nonaktif'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={product.is_active ? 'success' : 'secondary'}>
+                          {product.is_active ? 'Aktif' : 'Nonaktif'}
+                        </Badge>
+                        <Button size="sm" variant="outline" onClick={() => setEditProduct(product)}>
+                          <Edit className="h-3.5 w-3.5 mr-1" />Edit
+                        </Button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -789,6 +799,12 @@ export default function AdminMerchantDetailPage() {
         onOpenChange={setAddProductDialogOpen}
         merchantId={id || ''}
         merchantName={merchant.name}
+        onSuccess={fetchMerchantData}
+      />
+      <AdminEditProductDialog
+        open={Boolean(editProduct)}
+        onOpenChange={(open) => { if (!open) setEditProduct(null); }}
+        product={editProduct}
         onSuccess={fetchMerchantData}
       />
     </AdminLayout>

@@ -9,6 +9,21 @@ export interface RoadRoute {
   geometry: [number, number][];
 }
 
+/** Straight-line distance is the safe fallback when routing is unavailable. */
+export function haversineDistanceKm(from: RoutePoint, to: RoutePoint): number {
+  const radius = 6371;
+  const dLat = (to.lat - from.lat) * Math.PI / 180;
+  const dLng = (to.lng - from.lng) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(from.lat * Math.PI / 180) * Math.cos(to.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function isValidRoutePoint(point: RoutePoint | null | undefined): point is RoutePoint {
+  return Boolean(point && Number.isFinite(point.lat) && Number.isFinite(point.lng)
+    && point.lat >= -90 && point.lat <= 90 && point.lng >= -180 && point.lng <= 180);
+}
+
 interface OsrmRouteResponse {
   code?: string;
   routes?: Array<{
@@ -52,4 +67,25 @@ export async function getRoadRoute(
     durationMinutes: Math.max(1, Math.ceil(route.duration / 60)),
     geometry: (route.geometry?.coordinates ?? []).map(([lng, lat]) => [lat, lng]),
   };
+}
+
+/** Delivery distance follows the drivable road and never blocks checkout. */
+export async function getDeliveryDistanceKm(
+  from: RoutePoint,
+  to: RoutePoint,
+  signal?: AbortSignal,
+): Promise<{ distanceKm: number; source: 'road' | 'straight-line' }> {
+  if (!isValidRoutePoint(from) || !isValidRoutePoint(to)) {
+    throw new Error('Koordinat pengiriman tidak valid');
+  }
+  try {
+    const route = await getRoadRoute(from, to, signal);
+    if (route && Number.isFinite(route.distanceKm) && route.distanceKm > 0) {
+      return { distanceKm: route.distanceKm, source: 'road' };
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error;
+    console.warn('Road distance unavailable; using straight-line distance', error);
+  }
+  return { distanceKm: haversineDistanceKm(from, to), source: 'straight-line' };
 }

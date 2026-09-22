@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { MapPin, Loader2, LocateFixed, Navigation, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { calculateDistance } from '@/lib/codSecurity';
+import { getDeliveryDistanceKm } from '@/lib/routeCalculation';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -68,17 +68,18 @@ export function LocationPicker({
     }
   }, [externalCenter]);
 
-  // Calculate distance when location changes
+  // Calculate the drivable delivery distance. Abort old requests so a slower
+  // response for a previous pin can never overwrite the current checkout.
   useEffect(() => {
-    if (value && merchantLocation && onDistanceChange) {
-      const distance = calculateDistance(
-        value.lat,
-        value.lng,
-        merchantLocation.lat,
-        merchantLocation.lng
-      );
-      onDistanceChange(distance);
-    }
+    if (!value || !merchantLocation || !onDistanceChange) return;
+    const controller = new AbortController();
+    void getDeliveryDistanceKm(merchantLocation, value, controller.signal)
+      .then(({ distanceKm }) => onDistanceChange(distanceKm))
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        console.error('Delivery distance calculation failed:', error);
+      });
+    return () => controller.abort();
   }, [value, merchantLocation, onDistanceChange]);
 
   const handleGetCurrentLocation = useCallback(() => {
