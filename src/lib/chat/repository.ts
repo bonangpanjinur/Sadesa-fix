@@ -12,7 +12,30 @@ const normalizeMessage = (message: Record<string, unknown>): ConversationMessage
 } as ConversationMessage);
 
 export interface ConversationRequest { contextType: ChatContextType; orderId?: string; rideRequestId?: string; conversationType: ConversationType; }
-export interface SendMessageRequest extends ConversationRequest { conversationId: string; senderId: string; receiverId: string; text: string; clientMessageId: string; }
+export interface SendMessageRequest extends ConversationRequest { conversationId: string; senderId: string; receiverId: string; text: string; clientMessageId: string; attachmentPath?: string | null; }
+
+const CHAT_ATTACHMENT_BUCKET = 'chat-attachments';
+
+export async function uploadChatImage(conversationId: string, userId: string, file: File) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `${conversationId}/${userId}/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from(CHAT_ATTACHMENT_BUCKET).upload(path, file, {
+    cacheControl: '3600',
+    contentType: file.type,
+    upsert: false,
+  });
+  return { path: error ? null : path, error: error ? toChatError(error) : null };
+}
+
+export async function removeChatAttachment(path: string) {
+  const { error } = await supabase.storage.from(CHAT_ATTACHMENT_BUCKET).remove([path]);
+  return error ? toChatError(error) : null;
+}
+
+export async function getChatAttachmentUrl(path: string) {
+  const { data, error } = await supabase.storage.from(CHAT_ATTACHMENT_BUCKET).createSignedUrl(path, 60 * 60);
+  return { url: data?.signedUrl || null, error: error ? toChatError(error) : null };
+}
 
 export async function getOrCreateConversation(request: ConversationRequest) {
   const { data, error } = await supabase.rpc('get_or_create_chat_conversation', { p_context_type: request.contextType, p_order_id: request.orderId ?? null, p_ride_request_id: request.rideRequestId ?? null, p_conversation_type: request.conversationType });
@@ -99,11 +122,13 @@ export async function sendConversationMessage(request: SendMessageRequest) {
   if (!request.conversationId || !request.senderId || !request.receiverId || request.senderId === request.receiverId) {
     return { message: null, error: toChatError({ code: '22023', message: 'Peserta percakapan tidak valid' }) };
   }
-  if (!text || text.length > 4000) {
+  if ((!text && !request.attachmentPath) || text.length > 4000) {
     return { message: null, error: toChatError({ code: '22023', message: 'Pesan harus berisi 1 sampai 4000 karakter' }) };
   }
 
-  const { data, error } = await supabase.rpc('send_chat_message' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: text, p_client_message_id: request.clientMessageId } as never);
+  const { data, error } = request.attachmentPath
+    ? await supabase.rpc('send_chat_message_with_attachment' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: text, p_client_message_id: request.clientMessageId, p_attachment_path: request.attachmentPath } as never)
+    : await supabase.rpc('send_chat_message' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: text, p_client_message_id: request.clientMessageId } as never);
   if (!error && data) return { message: normalizeMessage(data as Record<string, unknown>), error: null };
   const retry = await supabase.from('chat_messages').select('*').eq('sender_id', request.senderId).eq('client_message_id', request.clientMessageId).maybeSingle();
   if (retry.data) { recordChatMetric('duplicate_retry_recovered'); return { message: normalizeMessage(retry.data as Record<string, unknown>), error: null }; }

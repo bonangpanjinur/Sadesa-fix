@@ -41,6 +41,7 @@ export interface ConversationMessage {
   hard_delete_at: string | null;
   chat_type: string | null;
   image_url: string | null;
+  attachment_path?: string | null;
   client_message_id: string | null;
   deleted_at: string | null;
   deleted_reason: string | null;

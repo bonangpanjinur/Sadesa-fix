@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useChatNotification } from '@/hooks/useChatNotification';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, MessageCircle, X, Clock, ShoppingBag, User, Store, Truck, Volume2, VolumeX, AlertCircle } from 'lucide-react';
+import { Send, MessageCircle, X, Clock, ShoppingBag, User, Store, Truck, Volume2, VolumeX, AlertCircle, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -18,6 +18,9 @@ import {
   markConversationRead,
   sendConversationMessage,
   subscribeToConversation,
+  uploadChatImage,
+  removeChatAttachment,
+  getChatAttachmentUrl,
 } from '@/lib/chat/repository';
 import type { ChatContextType, ChatCursor } from '@/lib/chat/types';
 import { useChatPresence } from '@/hooks/chat/useChatPresence';
@@ -51,6 +54,7 @@ interface ChatMessage {
   auto_delete_at: string | null;
   chat_type: string | null;
   image_url: string | null;
+  attachment_path?: string | null;
   client_message_id?: string | null;
   deleted_at?: string | null;
 }
@@ -89,6 +93,9 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
   const { playNotificationSound, isEnabled: isSoundEnabled, setIsEnabled: setIsSoundEnabled } = useChatNotification();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [autoDeleteInfo, setAutoDeleteInfo] = useState<string | null>(null);
   const [senderNames, setSenderNames] = useState<Record<string, string>>({});
@@ -109,6 +116,24 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
   const typing = useTypingIndicator(conversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const expectedConversationType = contextType === 'ride' ? 'passenger_courier' : chatType;
+
+  useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
+
+  useEffect(() => {
+    let active = true;
+    const resolveImages = async () => {
+      const pending = messages.filter((message) => message.attachment_path && !imageUrls[message.id]);
+      const resolved = await Promise.all(pending.map(async (message) => {
+        const result = await getChatAttachmentUrl(message.attachment_path!);
+        return result.url ? [message.id, result.url] as const : null;
+      }));
+      if (active && resolved.length) {
+        setImageUrls((current) => ({ ...current, ...Object.fromEntries(resolved.filter(Boolean) as [string, string][]) }));
+      }
+    };
+    void resolveImages();
+    return () => { active = false; };
+  }, [imageUrls, messages]);
 
   // Fetch order info (items + products)
   useEffect(() => {
@@ -335,14 +360,26 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
 
   const handleSend = async (messageText?: string) => {
     const text = (messageText || newMessage).trim();
-    if (!text || !user || sending) return;
+    if ((!text && !imageFile) || !user || sending) return;
     typing.setIsTyping(false);
 
     setSending(true);
     setSendError(null);
+    let uploadedPath: string | null = null;
     try {
+      if (imageFile) {
+        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(imageFile.type)) {
+          throw new Error('Format gambar harus JPG, PNG, WebP, atau GIF.');
+        }
+        if (imageFile.size > 5 * 1024 * 1024) throw new Error('Ukuran gambar maksimal 5 MB.');
+      }
       const clientMessageId = crypto.randomUUID();
       if (conversationId) {
+        if (imageFile) {
+          const upload = await uploadChatImage(conversationId, user.id, imageFile);
+          if (upload.error || !upload.path) throw upload.error || new Error('Gambar gagal diunggah.');
+          uploadedPath = upload.path;
+        }
         const { message, error } = await sendConversationMessage({
           contextType,
           orderId: contextType === 'order' ? orderId : undefined,
@@ -353,6 +390,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
           receiverId: otherUserId,
           text,
           clientMessageId,
+          attachmentPath: uploadedPath,
         });
         if (error) throw error;
         if (message) {
@@ -366,7 +404,11 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
         throw new Error('Chat conversation is not available');
       }
       if (!messageText) setNewMessage('');
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImageFile(null);
+      setImagePreview(null);
     } catch (error) {
+      if (uploadedPath) await removeChatAttachment(uploadedPath);
       console.error('Error sending message:', error);
       const message = error instanceof Error ? error.message : '';
       setSendError(
@@ -564,7 +606,12 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
                       "max-w-[85%] px-3 py-2 rounded-2xl text-sm shadow-sm",
                       isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted rounded-tl-none"
                     )}>
-                       {msg.body || msg.message}
+                       {msg.attachment_path && imageUrls[msg.id] && (
+                         <a href={imageUrls[msg.id]} target="_blank" rel="noreferrer" className="mb-1 block overflow-hidden rounded-lg">
+                           <img src={imageUrls[msg.id]} alt="Gambar yang dikirim" className="max-h-64 w-full object-cover" loading="lazy" />
+                         </a>
+                       )}
+                       {(msg.body || (!msg.attachment_path && msg.message)) && <div>{msg.body || msg.message}</div>}
                       <div className={cn(
                         "text-[9px] mt-1 flex items-center justify-end gap-1 opacity-70",
                         isMe ? "text-primary-foreground" : "text-muted-foreground"
@@ -608,7 +655,36 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
               ))}
             </div>
           )}
+          {imagePreview && (
+            <div className="mb-3 flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-2">
+              <img src={imagePreview} alt="Pratinjau gambar" className="h-14 w-14 rounded-lg object-cover" />
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{imageFile?.name}</span>
+              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => { if (imagePreview) URL.revokeObjectURL(imagePreview); setImageFile(null); setImagePreview(null); }} aria-label="Hapus gambar">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <div className="flex items-center gap-2">
+            <input
+              id="chat-image-upload"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.currentTarget.value = '';
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) { setSendError('Ukuran gambar maksimal 5 MB.'); return; }
+                if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) { setSendError('Format gambar harus JPG, PNG, WebP, atau GIF.'); return; }
+                if (imagePreview) URL.revokeObjectURL(imagePreview);
+                setImageFile(file);
+                setImagePreview(URL.createObjectURL(file));
+                setSendError(null);
+              }}
+            />
+            <Button type="button" variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-full" disabled={sending} onClick={() => document.getElementById('chat-image-upload')?.click()} aria-label="Kirim gambar">
+              <ImagePlus className="h-4 w-4" />
+            </Button>
             <Input
               placeholder="Ketik pesan..."
               value={newMessage}
@@ -622,7 +698,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
             <Button 
               size="icon" 
               className="rounded-full h-10 w-10 shrink-0" 
-              disabled={!newMessage.trim() || sending}
+              disabled={(!newMessage.trim() && !imageFile) || sending}
               onClick={() => handleSend()}
             >
               <Send className="h-4 w-4" />
