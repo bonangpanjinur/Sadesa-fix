@@ -57,6 +57,9 @@ interface ChatMessage {
   attachment_path?: string | null;
   client_message_id?: string | null;
   deleted_at?: string | null;
+  deleted_reason?: string | null;
+  soft_delete_at?: string | null;
+  hard_delete_at?: string | null;
 }
 
 interface OrderInfo {
@@ -335,8 +338,8 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
             setConnectionStatus(status === 'SUBSCRIBED' ? 'connected' : 'reconnecting');
           },
           (message) => {
-            if (!active || !message.deleted_at) return;
-            setMessages((previous) => previous.filter((item) => item.id !== message.id));
+            if (!active) return;
+            setMessages((previous) => previous.map((item) => item.id === message.id ? message as ChatMessage : item));
           },
         );
         return;
@@ -579,6 +582,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
           ) : (
             messages.map((msg, idx) => {
               const isMe = msg.sender_id === user?.id;
+              const isDeleted = Boolean(msg.deleted_at || (msg.soft_delete_at && new Date(msg.soft_delete_at) <= new Date()));
               const roleInfo = getRoleInfo(msg.sender_id);
               const showDate = idx === 0 || 
                 format(new Date(messages[idx-1].created_at), 'yyyy-MM-dd') !== format(new Date(msg.created_at), 'yyyy-MM-dd');
@@ -606,12 +610,12 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
                       "max-w-[85%] px-3 py-2 rounded-2xl text-sm shadow-sm",
                       isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted rounded-tl-none"
                     )}>
-                       {msg.attachment_path && imageUrls[msg.id] && (
+                       {!isDeleted && msg.attachment_path && imageUrls[msg.id] && (
                          <a href={imageUrls[msg.id]} target="_blank" rel="noreferrer" className="mb-1 block overflow-hidden rounded-lg">
                            <img src={imageUrls[msg.id]} alt="Gambar yang dikirim" className="max-h-64 w-full object-cover" loading="lazy" />
                          </a>
                        )}
-                       {(msg.body || (!msg.attachment_path && msg.message)) && <div>{msg.body || msg.message}</div>}
+                       {isDeleted ? <div className="italic opacity-70">Pesan dihapus</div> : ((msg.body || (!msg.attachment_path && msg.message)) && <div>{msg.body || msg.message}</div>)}
                       <div className={cn(
                         "text-[9px] mt-1 flex items-center justify-end gap-1 opacity-70",
                         isMe ? "text-primary-foreground" : "text-muted-foreground"
