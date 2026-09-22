@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getOrCreateAdminDirectConversation, getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation, uploadChatImage, removeChatAttachment } from '@/lib/chat/repository';
+import { deleteConversationMessage, getOrCreateAdminDirectConversation, getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation, uploadChatImage, removeChatAttachment } from '@/lib/chat/repository';
 import { validateMessageBody } from '@/lib/chat/retention';
 import { getChatReconnectDelay } from '@/lib/chat/realtime';
 import type { ChatConnectionState, ChatCursor, ConversationMessage, ConversationType } from '@/lib/chat/types';
@@ -141,5 +141,12 @@ export function useConversation(options: ConversationOptions) {
     if (result.error || !result.message) { if (attachmentPath) await removeChatAttachment(attachmentPath); setMessages((current) => current.map((item) => item.id === optimistic.id ? { ...item, deliveryStatus: 'failed' } : item)); return { error: result.error || new Error('Pesan gagal dikirim') }; }
     addMessage(result.message); return { message: result.message };
   }, [addMessage, conversationId, options, user]);
-  return { conversationId, messages, status, error, send, retry: send };
+  const deleteMessage = useCallback(async (message: ConversationMessage) => {
+    if (!user || message.sender_id !== user.id || message.id.startsWith('local-')) return { error: new Error('Anda hanya dapat menghapus pesan sendiri') };
+    const result = await deleteConversationMessage(message.id);
+    if (result.error || !result.message) return { error: result.error || new Error('Pesan gagal dihapus') };
+    setMessages((current) => current.map((item) => item.id === message.id ? result.message! : item));
+    return { message: result.message };
+  }, [user]);
+  return { conversationId, messages, status, error, send, retry: send, deleteMessage };
 }

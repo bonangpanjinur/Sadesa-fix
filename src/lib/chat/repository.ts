@@ -32,6 +32,14 @@ export async function removeChatAttachment(path: string) {
   return error ? toChatError(error) : null;
 }
 
+export async function deleteConversationMessage(messageId: string) {
+  const { data, error } = await supabase.rpc('delete_chat_message' as never, { p_message_id: messageId } as never);
+  if (error || !data) return { message: null, error: error ? toChatError(error) : toChatError(new Error('Pesan gagal dihapus')) };
+  const message = normalizeMessage(data as Record<string, unknown>);
+  if (message.attachment_path) await removeChatAttachment(message.attachment_path);
+  return { message, error: null };
+}
+
 export async function getChatAttachmentUrl(path: string) {
   const { data, error } = await supabase.storage.from(CHAT_ATTACHMENT_BUCKET).createSignedUrl(path, 60 * 60);
   return { url: data?.signedUrl || null, error: error ? toChatError(error) : null };
