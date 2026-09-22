@@ -5,12 +5,12 @@ import { getChatRolloutReason, isChatRolloutAllowed, type ChatRolloutConfig } fr
 
 const root = process.cwd();
 const read = (file: string) => readFileSync(resolve(root, file), 'utf8');
-const security = read('supabase/bootstrap/34_20260909110000_chat_security_pair_isolation.sql');
-const abuse = read('supabase/bootstrap/36_20260909130000_chat_rls_rpc_abuse_control.sql');
-const retention = read('supabase/bootstrap/37_20260909140000_chat_retention_operations.sql');
-const notification = read('supabase/bootstrap/38_20260909150000_chat_notification_observability.sql');
-const roleAwareNotification = read('supabase/bootstrap/41_20260909152000_role_aware_chat_notifications.sql');
-const finalNotificationRepair = read('supabase/bootstrap/42_20260909170000_chat_notification_final_repair.sql');
+const security = read('supabase/bootstrap/03_20260908190000_to_20260922114500.sql');
+const abuse = read('supabase/bootstrap/03_20260908190000_to_20260922114500.sql');
+const retention = read('supabase/bootstrap/03_20260908190000_to_20260922114500.sql');
+const notification = read('supabase/bootstrap/03_20260908190000_to_20260922114500.sql');
+const roleAwareNotification = read('supabase/bootstrap/03_20260908190000_to_20260922114500.sql');
+const finalNotificationRepair = read('supabase/bootstrap/03_20260908190000_to_20260922114500.sql');
 const notificationDropdown = read('src/components/notifications/NotificationDropdown.tsx');
 const repository = read('src/lib/chat/repository.ts');
 const realtime = read('src/lib/chat/realtime.ts');

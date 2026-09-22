@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const migrationPath = resolve(
   process.cwd(),
-  'supabase/bootstrap/34_20260909110000_chat_security_pair_isolation.sql',
+  'supabase/bootstrap/03_20260908190000_to_20260922114500.sql',
 );
 const migration = readFileSync(migrationPath, 'utf8');
 

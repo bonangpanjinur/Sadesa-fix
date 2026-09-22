@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/bootstrap/36_20260909130000_chat_rls_rpc_abuse_control.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/03_20260908190000_to_20260922114500.sql'),
   'utf8',
 );
 const repository = readFileSync(

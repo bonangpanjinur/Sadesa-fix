@@ -3,11 +3,11 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/bootstrap/35_20260909120000_chat_message_retention.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/03_20260908190000_to_20260922114500.sql'),
   'utf8',
 );
 const operationsMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/bootstrap/37_20260909140000_chat_retention_operations.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/03_20260908190000_to_20260922114500.sql'),
   'utf8',
 );
 const worker = readFileSync(
