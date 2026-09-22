@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 306,
-  "bundle_count": 8,
+  "migration_count": 307,
+  "bundle_count": 9,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -364,6 +364,14 @@
       ],
       "sha256": "1310d552b40de88b54d5c6a75fa78c7bd899dfe8cebeb683e9cda195bee53575",
       "bytes": 85193
+    },
+    {
+      "file": "09_20260922170000_dual_buyer_roles.sql",
+      "source_files": [
+        "20260922170000_dual_buyer_roles.sql"
+      ],
+      "sha256": "a7ad0bccc5a1bc4d89b5deaa0ceecf794e22e5102194e921250997f96f839878",
+      "bytes": 6262
     }
   ],
   "idempotent": true,

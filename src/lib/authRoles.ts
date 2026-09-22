@@ -13,6 +13,19 @@ export function mergeMerchantRole(
   return [...roles, 'merchant'];
 }
 
+export function mergeCourierRole(
+  roles: AppRole[],
+  hasCourierProfile: boolean,
+): AppRole[] {
+  if (!hasCourierProfile || roles.includes('courier')) return roles;
+  return [...roles, 'courier'];
+}
+
+/** Merchant and courier accounts are also marketplace buyers. */
 export function ensureBuyerFallback(roles: AppRole[]): AppRole[] {
-  return roles.length > 0 ? roles : ['buyer'];
+  if (roles.length === 0) return ['buyer'];
+  if ((roles.includes('merchant') || roles.includes('courier')) && !roles.includes('buyer')) {
+    return [...roles, 'buyer'];
+  }
+  return roles;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ensureBuyerFallback, mergeMerchantRole } from './authRoles';
+import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole } from './authRoles';
 
 describe('frontend role recovery', () => {
   it('adds merchant capability when the user owns a merchant profile', () => {
@@ -18,8 +18,14 @@ describe('frontend role recovery', () => {
     expect(mergeMerchantRole(['merchant'], true)).toEqual(['merchant']);
   });
 
+  it('recovers courier capability when a courier profile exists', () => {
+    expect(mergeCourierRole(['buyer'], true)).toEqual(['buyer', 'courier']);
+  });
+
   it('keeps buyer as the safe fallback for users with no roles', () => {
     expect(ensureBuyerFallback([])).toEqual(['buyer']);
-    expect(ensureBuyerFallback(['merchant'])).toEqual(['merchant']);
+    expect(ensureBuyerFallback(['merchant'])).toEqual(['merchant', 'buyer']);
+    expect(ensureBuyerFallback(['courier'])).toEqual(['courier', 'buyer']);
+    expect(ensureBuyerFallback(['merchant', 'buyer'])).toEqual(['merchant', 'buyer']);
   });
 });

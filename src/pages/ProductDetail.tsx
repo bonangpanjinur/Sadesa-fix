@@ -8,7 +8,6 @@ import {
   Plus,
   ShoppingCart,
   Star,
-  Store,
   MapPin,
   BadgeCheck,
   Clock,
@@ -30,6 +29,7 @@ import type { CartTopping, Product, ProductTopping } from '@/types';
 import { ProductReviews } from '@/components/product/ProductReviews';
 import { SimilarProducts } from '@/components/product/SimilarProducts';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
+import { MerchantAvatar } from '@/components/merchant/MerchantAvatar';
 import { getProductUnavailableReason } from '@/lib/productAvailability';
 
 interface MerchantInfo {
@@ -47,6 +47,17 @@ interface MerchantInfo {
   isVerified: boolean;
   halalStatus: string | null;
   slug: string | null;
+  imageUrl: string | null;
+}
+
+interface ProductToppingRow {
+  products?: {
+    id: string;
+    name: string;
+    price: number | string | null;
+    stock: number | null;
+    image_url: string | null;
+  } | null;
 }
 
 export default function ProductDetail() {
@@ -87,7 +98,7 @@ export default function ProductDetail() {
       if (!product?.merchantId) return { merchant: null, hasActiveQuota: true };
       const { data: merchantData } = await supabase
         .from('merchants')
-        .select(`id, name, phone, address, rating_avg, rating_count, badge, is_open, open_time, close_time, is_verified, halal_status, slug, villages (name)`)
+        .select(`id, name, phone, address, image_url, rating_avg, rating_count, badge, is_open, open_time, close_time, is_verified, halal_status, slug, villages (name)`)
         .eq('id', product.merchantId)
         .maybeSingle();
       if (!merchantData) return { merchant: null, hasActiveQuota: true };
@@ -106,6 +117,7 @@ export default function ProductDetail() {
         isVerified: merchantData.is_verified || false,
         halalStatus: merchantData.halal_status || null,
         slug: merchantData.slug || null,
+        imageUrl: merchantData.image_url || null,
       };
       const hasActiveQuota = await checkMerchantHasActiveQuota(merchantData.id);
       return { merchant, hasActiveQuota };
@@ -122,15 +134,23 @@ export default function ProductDetail() {
     queryKey: ['product-toppings', product?.id],
     queryFn: async () => {
       if (!product?.id) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('product_toppings')
         .select('topping_product_id, products:topping_product_id(id, name, price, stock, image_url)')
         .eq('product_id', product.id)
         .order('sort_order');
       if (error) throw error;
-      return (data || []).map((row: any) => row.products).filter((item: any) => item?.id).map((item: any) => ({
-        id: item.id, name: item.name, price: Number(item.price) || 0, stock: Number(item.stock) || 0, image: item.image_url || undefined,
-      }));
+      const rows = (data || []) as unknown as ProductToppingRow[];
+      return rows
+        .map((row) => row.products)
+        .filter((item): item is NonNullable<ProductToppingRow['products']> => Boolean(item?.id))
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: Number(item.price) || 0,
+          stock: Number(item.stock) || 0,
+          image: item.image_url || undefined,
+        }));
     },
     enabled: !!product?.id,
     staleTime: 30_000,
@@ -322,9 +342,12 @@ export default function ProductDetail() {
               className="block mb-6 p-3 bg-secondary rounded-xl border border-border hover:border-primary/30 transition group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                  <Store className="h-5 w-5 text-primary" />
-                </div>
+                <MerchantAvatar
+                  imageUrl={merchant.imageUrl}
+                  merchantName={merchant.name}
+                  className="h-10 w-10 rounded-full"
+                  iconClassName="h-5 w-5"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="font-bold text-sm text-foreground truncate group-hover:text-primary transition">

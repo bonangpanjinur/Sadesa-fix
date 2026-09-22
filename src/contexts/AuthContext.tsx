@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/auth';
-import { ensureBuyerFallback, mergeMerchantRole } from '@/lib/authRoles';
+import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole } from '@/lib/authRoles';
 
 const AUTH_CHANNEL_NAME = 'desamart_auth';
 const AUTH_INIT_TIMEOUT_MS = 8_000;
@@ -71,11 +71,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .from('user_roles')
             .select('role')
             .eq('user_id', userId),
-          // Older approved merchants can exist without the role row that the
-          // approval trigger normally creates. Read the user's own merchant
-          // profile as a frontend recovery signal for that legacy state.
+          // Older merchant/courier registrations can exist without their role
+          // rows. Read owned profiles as a frontend recovery signal for that
+          // legacy state; the database triggers remain the source of truth.
           supabase
             .from('merchants')
+            .select('id')
+            .eq('user_id', userId)
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('couriers')
             .select('id')
             .eq('user_id', userId)
             .limit(1)
@@ -85,17 +91,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'Timed out while loading user roles',
       );
 
-      const [{ data, error }, { data: merchant, error: merchantError }] = result;
+      const [
+        { data, error },
+        { data: merchant, error: merchantError },
+        { data: courier, error: courierError },
+      ] = result;
       if (error) throw error;
       if (merchantError) {
         // The role query is still authoritative. A merchant lookup failure
         // must not prevent login or turn all other roles into a fallback.
         console.warn('Unable to check merchant profile for role recovery:', merchantError);
       }
+      if (courierError) {
+        console.warn('Unable to check courier profile for role recovery:', courierError);
+      }
 
       const userRoles = (data || []).map(r => r.role as AppRole);
       if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
-      setRoles(ensureBuyerFallback(mergeMerchantRole(userRoles, Boolean(merchant))));
+      const rolesWithProfiles = mergeCourierRole(
+        mergeMerchantRole(userRoles, Boolean(merchant)),
+        Boolean(courier),
+      );
+      setRoles(ensureBuyerFallback(rolesWithProfiles));
     } catch (err) {
       console.error('Error fetching user roles:', err);
       if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
