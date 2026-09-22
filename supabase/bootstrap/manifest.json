@@ -1,7 +1,7 @@
 {
-  "source": "archive/supabase/migrations",
-  "migration_count": 211,
-  "bundle_count": 42,
+  "source": "supabase/bootstrap embedded source archive",
+  "migration_count": 306,
+  "bundle_count": 121,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260127080732.sql",
@@ -32,8 +32,8 @@
         "20260127073715_302d2dda-ebfa-4711-a1e0-71fb26487401.sql",
         "20260127080732_36fd1d8b-6207-4fed-8758-87368ec25e10.sql"
       ],
-      "sha256": "8419be0907fb45930a8de81c3e1cb7b76decabc5b6e0f7918b2c3e04bc8c651d",
-      "bytes": 91518
+      "sha256": "deeb838ff56f892e2b0f9a9417085dff268f9b2027cd550c6c50937ba03554a8",
+      "bytes": 91515
     },
     {
       "file": "02_20260127083146_to_20260203_new_q.sql",
@@ -261,17 +261,73 @@
       "bytes": 6949
     },
     {
+      "file": "100_20260920240000_to_20260920240000.sql",
+      "source_files": [
+        "20260920240000_merchant_categories_and_schedule.sql"
+      ],
+      "sha256": "2dd4e964b8a18fff091883f85e0c95168d75de2e86e393dceb9ac4e4cc53122f",
+      "bytes": 2989
+    },
+    {
+      "file": "101_20260921170000_to_20260921170000.sql",
+      "source_files": [
+        "20260921170000_order_notification_sounds.sql"
+      ],
+      "sha256": "84383a8baea434e5cfc6bc62a3026a1a6b9dd6ccac1e4afedb8224178a177aa6",
+      "bytes": 2286
+    },
+    {
+      "file": "102_20260921193000_to_20260921193000.sql",
+      "source_files": [
+        "20260921193000_admin_direct_chat.sql"
+      ],
+      "sha256": "bacd39309ab9fbc1429ee3d2513cd27dc970006fa32c6da931480d6b8a20fbe7",
+      "bytes": 5044
+    },
+    {
+      "file": "103_20260921201500_to_20260921201500.sql",
+      "source_files": [
+        "20260921201500_admin_chat_notification_link.sql"
+      ],
+      "sha256": "7384eb6e5ecd40d18e946a6e5405d2de26f40801eac83a859c3197dd6675a48a",
+      "bytes": 1882
+    },
+    {
+      "file": "104_20260922100000_to_20260922100000.sql",
+      "source_files": [
+        "20260922100000_product_toppings.sql"
+      ],
+      "sha256": "a41ab9cddd06488523990df660caf3a24ad93df40a55bc3a0fea418cf9d2a5c1",
+      "bytes": 4389
+    },
+    {
+      "file": "105_20260922160000_to_20260922160000.sql",
+      "source_files": [
+        "20260922160000_remove_cod_service_fee.sql"
+      ],
+      "sha256": "a0e7c3d4d6b19d752ea10edd0cccdf61357829ec108d018bd6cdbb96a3694a55",
+      "bytes": 1556
+    },
+    {
+      "file": "106_20260922163000_to_20260922163000.sql",
+      "source_files": [
+        "20260922163000_repair_marketplace_checkout_overload.sql"
+      ],
+      "sha256": "2ceb0f1956c31d675f9fa74c9e05d723ce4be405a6884c44c55e68125362380d",
+      "bytes": 3348
+    },
+    {
       "file": "10_20260905000000_merchant_pos_product_catalog.sql",
       "source_files": [
         "10_20260905000000_merchant_pos_product_catalog.sql"
       ],
-      "sha256": "5c07a264ca358fe1e6b4b43578593a82cb0341284fc6e0d6bce041d0d088ccdb",
-      "bytes": 4960
+      "sha256": "9facb430f644b65fd18c50aae1472d7014627799d6e43e6d7cbdc3f95d498734",
+      "bytes": 5125
     },
     {
       "file": "11_20260906000000_merchant_pos_control_plane.sql",
       "source_files": [
-        "20260906000000_merchant_pos_control_plane.sql"
+        "11_20260906000000_merchant_pos_control_plane.sql"
       ],
       "sha256": "0ee786186adbc2ea47aa0b6b57f14f046f40a99b637774b72d26b73d89733322",
       "bytes": 6987
@@ -345,8 +401,8 @@
       "source_files": [
         "20_20260907060000_pos_subscription_history_export_audit.sql"
       ],
-      "sha256": "386b7725743f3af3c416a048bd484b6c93518ea253573747515241a674bf96e2",
-      "bytes": 13346
+      "sha256": "1cec489df822bdaaabd63bba0577a4481f6efb17e02bf7383b32c6ca23efe43e",
+      "bytes": 13359
     },
     {
       "file": "21_20260907070000_pos_stock_reconciliation_alerts.sql",
@@ -377,8 +433,8 @@
       "source_files": [
         "24_20260907110000_phase4_canonical_reporting.sql"
       ],
-      "sha256": "163c7345b98fce1aeefc0030d663356f42980261e6e261d8ae13d5420a3f694f",
-      "bytes": 10524
+      "sha256": "a08b21b28a05d03740e4812d8035bc07e437b09f1c483262878a6af1f6706667",
+      "bytes": 10518
     },
     {
       "file": "25_20260907130000_phase4_debt_reconciliation.sql",
@@ -445,6 +501,14 @@
       "bytes": 1442
     },
     {
+      "file": "33_20260908190000_ride_history_earnings_contract.sql",
+      "source_files": [
+        "33_20260908190000_ride_history_earnings_contract.sql"
+      ],
+      "sha256": "8d3d650acde1d58d9a643e7bd226aff101d592f183d54e393a4c164ffbccfb02",
+      "bytes": 5199
+    },
+    {
       "file": "33_20260909100000_direct_chat_realtime.sql",
       "source_files": [
         "33_20260909100000_direct_chat_realtime.sql"
@@ -485,6 +549,126 @@
       "bytes": 6174
     },
     {
+      "file": "38_20260909150000_chat_notification_observability.sql",
+      "source_files": [
+        "38_20260909150000_chat_notification_observability.sql"
+      ],
+      "sha256": "38b376983ebd7d1fece61e041d419d8b4a0509c84d1b73edc30bfae2c4532bbc",
+      "bytes": 6838
+    },
+    {
+      "file": "39_20260909143000_chat_participant_names.sql",
+      "source_files": [
+        "39_20260909143000_chat_participant_names.sql"
+      ],
+      "sha256": "35738123368cf8f00fddc787e95c0c3cbe14b8dd10400582497dcca7eaab544e",
+      "bytes": 1728
+    },
+    {
+      "file": "40_20260909150000_dual_role_chat_context.sql",
+      "source_files": [
+        "40_20260909150000_dual_role_chat_context.sql"
+      ],
+      "sha256": "e07e63580d832ef7b6279b0946ee2228e3fd521c165e47af621441a41735ec4d",
+      "bytes": 1794
+    },
+    {
+      "file": "41_20260909152000_role_aware_chat_notifications.sql",
+      "source_files": [
+        "41_20260909152000_role_aware_chat_notifications.sql"
+      ],
+      "sha256": "d0ae903ea4db267c9067c89b8c51ee03c909f8dede709d17f41017b8587e6949",
+      "bytes": 2818
+    },
+    {
+      "file": "42_20260909170000_chat_notification_final_repair.sql",
+      "source_files": [
+        "42_20260909170000_chat_notification_final_repair.sql"
+      ],
+      "sha256": "dba86127a40692fd698326f69605ecb4f9d3ea0e1c2695256db6f861466f3be5",
+      "bytes": 7116
+    },
+    {
+      "file": "43_20260909180000_order_fulfillment_flow.sql",
+      "source_files": [
+        "43_20260909180000_order_fulfillment_flow.sql"
+      ],
+      "sha256": "2a46a96f0824251a3ba220a8fc1ae75fd156a61821077362554b552df0afaf3e",
+      "bytes": 1578
+    },
+    {
+      "file": "43_20260910200000_fix_chat_ride_deep_link.sql",
+      "source_files": [
+        "43_20260910200000_fix_chat_ride_deep_link.sql"
+      ],
+      "sha256": "03af022a749d050324d3810771be0730fbfa4d9cff3ef94e9a69386b74eca2b5",
+      "bytes": 1487
+    },
+    {
+      "file": "43_20260922114500_chat_image_attachments.sql",
+      "source_files": [
+        "43_20260922114500_chat_image_attachments.sql"
+      ],
+      "sha256": "d91c907991a7277ba818f9a7f5b1176284487becd630e2216426bd9eaee51799",
+      "bytes": 5495
+    },
+    {
+      "file": "44_20260909190000_order_transition_and_courier_offers.sql",
+      "source_files": [
+        "44_20260909190000_order_transition_and_courier_offers.sql"
+      ],
+      "sha256": "89e8e2d7c6da1f7e7d2f60ea8b40d65995d99620a07383f52ed24f11e5eb53a4",
+      "bytes": 10726
+    },
+    {
+      "file": "44_20260909193000_order_workflow_rpc.sql",
+      "source_files": [
+        "44_20260909193000_order_workflow_rpc.sql"
+      ],
+      "sha256": "b8e789abe6b29a77b6c581d57409a6b8af51a69e50a35c6ad634b08b06270a0f",
+      "bytes": 10423
+    },
+    {
+      "file": "44_20260922120500_chat_sender_delete.sql",
+      "source_files": [
+        "44_20260922120500_chat_sender_delete.sql"
+      ],
+      "sha256": "cbdec35063ace626a8f349de09627ae78ae52ccde1ff48f065d65798a8c95159",
+      "bytes": 1306
+    },
+    {
+      "file": "45_20260909201500_fix_delivery_offer_rpc.sql",
+      "source_files": [
+        "45_20260909201500_fix_delivery_offer_rpc.sql"
+      ],
+      "sha256": "3ff7948ae0a2c2c637ce1ff8819a571c7098ccb66432dec4ba8c4128232a5b69",
+      "bytes": 6158
+    },
+    {
+      "file": "45_20260911001000_payment_notification_hardening.sql",
+      "source_files": [
+        "45_20260911001000_payment_notification_hardening.sql"
+      ],
+      "sha256": "754ba3337926b3fbd44ca6e2c715c8136f374d73b19285dd1ff5b61db6bdb747",
+      "bytes": 5150
+    },
+    {
+      "file": "46_20260909203000_remove_merchant_transition_overload.sql",
+      "source_files": [
+        "46_20260909203000_remove_merchant_transition_overload.sql"
+      ],
+      "sha256": "5f58e89b067b5970e0a68934b7388225680e1f0d6ab76733e5701e2eae9275e1",
+      "bytes": 3576
+    },
+    {
+      "file": "46_20260911002000_auth_role_security_hardening.sql",
+      "source_files": [
+        "46_20260911002000_auth_role_security_hardening.sql"
+      ],
+      "sha256": "a27438dc1c4d2de4a84962de0e71cc8c78a1ede8193ea1b983458759d52b490e",
+      "bytes": 3062
+    },
+    {
       "file": "47_20260909210000_delivery_method_restrictions.sql",
       "source_files": [
         "47_20260909210000_delivery_method_restrictions.sql"
@@ -501,12 +685,28 @@
       "bytes": 757
     },
     {
+      "file": "48_20260911003000_marketplace_checkout_authoritative.sql",
+      "source_files": [
+        "48_20260911003000_marketplace_checkout_authoritative.sql"
+      ],
+      "sha256": "d4c6b1f872e921c289e871d458952bcde96e70eaf66311d609b9a39d3f74dd86",
+      "bytes": 11204
+    },
+    {
       "file": "49_20260909240000_merchant_settings_hardening.sql",
       "source_files": [
         "49_20260909240000_merchant_settings_hardening.sql"
       ],
       "sha256": "b341115254374c85dabe3381b1a5b7cf1105574a7a4a5c54f0266411eec81720",
       "bytes": 5422
+    },
+    {
+      "file": "49_20260911005000_review_refund_rating_hardening.sql",
+      "source_files": [
+        "49_20260911005000_review_refund_rating_hardening.sql"
+      ],
+      "sha256": "0672cf033139412da4d7a047aebde2eb15cf446cc451a6798eee95973e3ec08f",
+      "bytes": 12452
     },
     {
       "file": "50_20260910000000_merchant_google_maps_url.sql",
@@ -517,12 +717,444 @@
       "bytes": 310
     },
     {
+      "file": "50_20260911071000_transaction_critical_high_hardening.sql",
+      "source_files": [
+        "50_20260911071000_transaction_critical_high_hardening.sql"
+      ],
+      "sha256": "23c37f86a5a7339d7a39f1c92950c64c18cfa3408411e4bcbe28e4b226266e3f",
+      "bytes": 11506
+    },
+    {
+      "file": "51_20260911072000_refund_settlement_hardening.sql",
+      "source_files": [
+        "51_20260911072000_refund_settlement_hardening.sql"
+      ],
+      "sha256": "bb7b9a2a17c201711b740eb47ee38f7c4ddc7943dd1b336ef1922744cacd6501",
+      "bytes": 6870
+    },
+    {
+      "file": "52_20260911110000_ride_authoritative_mutations.sql",
+      "source_files": [
+        "52_20260911110000_ride_authoritative_mutations.sql"
+      ],
+      "sha256": "b54c2ba8f169dcefe7ebadcbcea57bb766a51eb56ade3ae35965dcd510ac4252",
+      "bytes": 6366
+    },
+    {
+      "file": "53_20260911120000_courier_booking_dispatch.sql",
+      "source_files": [
+        "53_20260911120000_courier_booking_dispatch.sql"
+      ],
+      "sha256": "fc8c46fccea8985c2aa52486368114b1930a3433031c66ef04a5a05ea191564a",
+      "bytes": 5962
+    },
+    {
+      "file": "54_20260912202000_delivery_assignments_updated_at_compatibility.sql",
+      "source_files": [
+        "54_20260912202000_delivery_assignments_updated_at_compatibility.sql"
+      ],
+      "sha256": "00ea37f666785708f457fdfaa903fc56f3b970f8e268c417249c6a64d75474ca",
+      "bytes": 363
+    },
+    {
+      "file": "55_20260912204000_allow_expedition_handoff.sql",
+      "source_files": [
+        "55_20260912204000_allow_expedition_handoff.sql"
+      ],
+      "sha256": "29ee5c1f168bd068241cc2fe51255f0e879d3ae7acfadb757b23bf9704cd54ab",
+      "bytes": 3089
+    },
+    {
+      "file": "56_20260912211000_add_expedition_tracking_fields.sql",
+      "source_files": [
+        "56_20260912211000_add_expedition_tracking_fields.sql"
+      ],
+      "sha256": "257b170816a7de67299ef59a909ee84b972a518613127e1b418498344d11db86",
+      "bytes": 3793
+    },
+    {
+      "file": "57_20260912220000_buyer_order_cancellation.sql",
+      "source_files": [
+        "57_20260912220000_buyer_order_cancellation.sql"
+      ],
+      "sha256": "b515bff73e8690fc8fc24d5b4ffb0267f486b542667d4b43766e4875e981fcaf",
+      "bytes": 2387
+    },
+    {
+      "file": "58_20260912230500_refund_shortfall_policy.sql",
+      "source_files": [
+        "58_20260912230500_refund_shortfall_policy.sql"
+      ],
+      "sha256": "515a8ca0229010c457022bfd3ec12e6c69184933b7ed0d7cdf4c024938f3c8d6",
+      "bytes": 4791
+    },
+    {
+      "file": "59_20260912233000_village_tourism_feature_schema.sql",
+      "source_files": [
+        "59_20260912233000_village_tourism_feature_schema.sql"
+      ],
+      "sha256": "5231e056106a8b57178920968f87059fadac702ca35d8173406676b547f92d06",
+      "bytes": 11656
+    },
+    {
+      "file": "60_20260912233500_remove_merchant_transition_legacy_overload.sql",
+      "source_files": [
+        "60_20260912233500_remove_merchant_transition_legacy_overload.sql"
+      ],
+      "sha256": "3fa15fe4e2083d27071224ff0bc1fa31cebc7553eb581bb0af304a84a511d9fb",
+      "bytes": 310
+    },
+    {
+      "file": "60_20260921190000_admin_direct_chat.sql",
+      "source_files": [
+        "60_20260921190000_admin_direct_chat.sql"
+      ],
+      "sha256": "8c1568f3144c32d85255ed8f5280584dd52786acba77a2ca17574d1c904df78c",
+      "bytes": 4469
+    },
+    {
+      "file": "61_20260913102500_remove_legacy_quota_overloads.sql",
+      "source_files": [
+        "61_20260913102500_remove_legacy_quota_overloads.sql"
+      ],
+      "sha256": "3d9d1b2c4480e1f12504a8f473e9d9d1075e44b4397277b9f839e9d57f973d27",
+      "bytes": 759
+    },
+    {
+      "file": "62_20260913104000_expedition_provider_master.sql",
+      "source_files": [
+        "62_20260913104000_expedition_provider_master.sql"
+      ],
+      "sha256": "bdfddd7108461e1abaf7255069381c9737188ca5c23602a8ff844e2e7d5563a4",
+      "bytes": 3262
+    },
+    {
+      "file": "63_20260913104500_expedition_provider_handoff_snapshot.sql",
+      "source_files": [
+        "63_20260913104500_expedition_provider_handoff_snapshot.sql"
+      ],
+      "sha256": "f4d1c6ed04f51a662eb2556c7cbbec5a4f0cbffbfc6b15f03187e6a32551a0bf",
+      "bytes": 4749
+    },
+    {
+      "file": "64_20260913105000_optional_expedition_tracking_website.sql",
+      "source_files": [
+        "64_20260913105000_optional_expedition_tracking_website.sql"
+      ],
+      "sha256": "cedbbd05516bb51d30f07f3055c807799f27a594dd5084c7dcee6a45778c15b4",
+      "bytes": 5031
+    },
+    {
+      "file": "65_20260914150000_driver_workflow_hardening.sql",
+      "source_files": [
+        "65_20260914150000_driver_workflow_hardening.sql"
+      ],
+      "sha256": "150a4ea421f6ef553a770496348d0eb5c6c500b78c6e3630e300e8d319655bb9",
+      "bytes": 4319
+    },
+    {
+      "file": "66_20260914153000_ride_driver_verification.sql",
+      "source_files": [
+        "66_20260914153000_ride_driver_verification.sql"
+      ],
+      "sha256": "25979b9c66beda4133cc4b43dcf260a4782412324d78a7bbf80993dcfa3583f1",
+      "bytes": 3712
+    },
+    {
+      "file": "67_20260915160000_unify_courier_and_ride_ratings.sql",
+      "source_files": [
+        "67_20260915160000_unify_courier_and_ride_ratings.sql"
+      ],
+      "sha256": "b6c009581ef1e4129dc0be7c3ea2f2afce35b9d5d42a334cfb6028f868117511",
+      "bytes": 3722
+    },
+    {
+      "file": "68_20260917100000_delivery_assignments_created_by_compatibility.sql",
+      "source_files": [
+        "68_20260917100000_delivery_assignments_created_by_compatibility.sql"
+      ],
+      "sha256": "4ef72638a3c212f38b5d2ff081073d0fb8d1178a4579bca625d021bdbde5bf6b",
+      "bytes": 586
+    },
+    {
+      "file": "69_20260917110000_notify_courier_delivery_offer.sql",
+      "source_files": [
+        "69_20260917110000_notify_courier_delivery_offer.sql"
+      ],
+      "sha256": "f90c24957da7a187c88a91a35236bbfca214891605c9cd9ccb59ebe42edb7111",
+      "bytes": 2687
+    },
+    {
+      "file": "69_20260917180000_order_service_type.sql",
+      "source_files": [
+        "69_20260917180000_order_service_type.sql"
+      ],
+      "sha256": "f3a4a5e182981a2f74d0a730b9c97d9feefe7a54fbae6e05b43815bb8e96b781",
+      "bytes": 953
+    },
+    {
+      "file": "70_20260917152000_offer_status_integrity.sql",
+      "source_files": [
+        "70_20260917152000_offer_status_integrity.sql"
+      ],
+      "sha256": "6250b76583d8df28c2308de084e94f2657e974897379ae8b3461e76db40ae49e",
+      "bytes": 5633
+    },
+    {
+      "file": "70_20260917190000_renew_courier_offer.sql",
+      "source_files": [
+        "70_20260917190000_renew_courier_offer.sql"
+      ],
+      "sha256": "6a1fd8c0b73f1028d4bcb23cd59adce6c879dc8edb372e791053cdf443fdbaf6",
+      "bytes": 1530
+    },
+    {
+      "file": "71_20260917193000_retry_courier_dispatch.sql",
+      "source_files": [
+        "71_20260917193000_retry_courier_dispatch.sql"
+      ],
+      "sha256": "4c8ea407151b47a9d9a6fd112637ae09a3cfdda990684ff9aaaead8acabb6dbd",
+      "bytes": 3869
+    },
+    {
+      "file": "72_20260917195000_courier_offer_feed.sql",
+      "source_files": [
+        "72_20260917195000_courier_offer_feed.sql"
+      ],
+      "sha256": "5a9349066e0037cad6d3963a211a8edebe28a2e074e8eff4bf8b2f4c8b82e2b2",
+      "bytes": 1809
+    },
+    {
       "file": "73_20260917200000_courier_offer_authority_repair.sql",
       "source_files": [
         "73_20260917200000_courier_offer_authority_repair.sql"
       ],
-      "sha256": "ec489af198336e101696c92b18fc062cd7164196fb30c9a100b936006635302e",
-      "bytes": 13395
+      "sha256": "9c678449244b0c92855a59a12c5fc58bf954f94393603517f4676102a48478ad",
+      "bytes": 13383
+    },
+    {
+      "file": "74_20260917201000_buyer_delivery_confirmation.sql",
+      "source_files": [
+        "74_20260917201000_buyer_delivery_confirmation.sql"
+      ],
+      "sha256": "93f9318ef1bbbeb38dc4cddeb8d838079d066ce4520b79e2e2b1d87239d7a6f9",
+      "bytes": 1411
+    },
+    {
+      "file": "75_20260917203000_direct_courier_cancellation.sql",
+      "source_files": [
+        "75_20260917203000_direct_courier_cancellation.sql"
+      ],
+      "sha256": "4fc5d7e6607b0657dadd37f22a6922a7323ee87acaf760540468b2bfea709fbc",
+      "bytes": 3117
+    },
+    {
+      "file": "76_20260917210000_courier_delivery_state_machine.sql",
+      "source_files": [
+        "76_20260917210000_courier_delivery_state_machine.sql"
+      ],
+      "sha256": "dae074617890d5f9a1c61bd66bdbd83f63da4c09713993015e5f5cf4662a7a8e",
+      "bytes": 6345
+    },
+    {
+      "file": "77_20260917213000_courier_offer_feed_runtime_repair.sql",
+      "source_files": [
+        "77_20260917213000_courier_offer_feed_runtime_repair.sql"
+      ],
+      "sha256": "569c456932c51455a4a095191876d837fdeba72df39d21ff68ded0778068edfa",
+      "bytes": 2916
+    },
+    {
+      "file": "77_20260918170000_pod_delivery_proof_policy.sql",
+      "source_files": [
+        "77_20260918170000_pod_delivery_proof_policy.sql"
+      ],
+      "sha256": "f58a09fa61007fd15f0d307c5e21a40325f2000790cca6240026d816cfaa6863",
+      "bytes": 2178
+    },
+    {
+      "file": "78_20260917214000_courier_earning_columns_compatibility.sql",
+      "source_files": [
+        "78_20260917214000_courier_earning_columns_compatibility.sql"
+      ],
+      "sha256": "7f4d98109f5087a36eefda091e88927c74597a4771b2462004c7adb0fa28d373",
+      "bytes": 481
+    },
+    {
+      "file": "79_20260918020000_merchant_courier_dispatch_repair.sql",
+      "source_files": [
+        "79_20260918020000_merchant_courier_dispatch_repair.sql"
+      ],
+      "sha256": "48cff30a7ad6dd1c2213ba1ce469938fca6046584a8f4f7ba1759898fac36bab",
+      "bytes": 3728
+    },
+    {
+      "file": "80_20260918152000_courier_active_delivery_feed_fix.sql",
+      "source_files": [
+        "80_20260918152000_courier_active_delivery_feed_fix.sql"
+      ],
+      "sha256": "c7ab60501a95d80a543b1828d86d796c6d011bf2dc656a2fe55f5e622117f58d",
+      "bytes": 1300
+    },
+    {
+      "file": "81_20260918152300_courier_internal_order_state_machine_fix.sql",
+      "source_files": [
+        "81_20260918152300_courier_internal_order_state_machine_fix.sql"
+      ],
+      "sha256": "62f3fe9f1cc3d59047380c7bd967113ee7a3ab4ce4fc95c681b4beabc4effee8",
+      "bytes": 5545
+    },
+    {
+      "file": "82_20260918170000_refund_dispute_state_guard.sql",
+      "source_files": [
+        "82_20260918170000_refund_dispute_state_guard.sql"
+      ],
+      "sha256": "7a12e936838e4aa47bf9ce836531cbb9b33cc124a61de8ed219f371a6500583c",
+      "bytes": 2562
+    },
+    {
+      "file": "83_20260918190000_refund_notifications.sql",
+      "source_files": [
+        "83_20260918190000_refund_notifications.sql"
+      ],
+      "sha256": "a431f42a0604faf4720df14f46d6a66e2d96d90a52ca59b93f361314703ffa34",
+      "bytes": 7163
+    },
+    {
+      "file": "84_20260918200000_cashback_promo_program.sql",
+      "source_files": [
+        "84_20260918200000_cashback_promo_program.sql"
+      ],
+      "sha256": "5cc854c9aa4b0a8f25019bea14ccba62e08754f120eedbf7cfe4628edf185aa8",
+      "bytes": 5641
+    },
+    {
+      "file": "85_20260918201000_cashback_reversal_redemption.sql",
+      "source_files": [
+        "85_20260918201000_cashback_reversal_redemption.sql"
+      ],
+      "sha256": "8d46d6a28592a073f03fd3024a8ff377b5061c1eff3cfd08b21495fc2ae8dedb",
+      "bytes": 4165
+    },
+    {
+      "file": "86_20260918220000_checkout_idempotency_and_payment_guard.sql",
+      "source_files": [
+        "86_20260918220000_checkout_idempotency_and_payment_guard.sql"
+      ],
+      "sha256": "50f9051cf6367df2c0cab4c4490c162266db7565649ab51866390c847099d987",
+      "bytes": 3438
+    },
+    {
+      "file": "87_20260918230000_checkout_p1_hardening.sql",
+      "source_files": [
+        "87_20260918230000_checkout_p1_hardening.sql"
+      ],
+      "sha256": "4ff748496e53743520103a42b74768dcc16099cdebbc87dc54569dc671658bc9",
+      "bytes": 6801
+    },
+    {
+      "file": "88_20260918240000_secure_payment_proof_storage.sql",
+      "source_files": [
+        "88_20260918240000_secure_payment_proof_storage.sql"
+      ],
+      "sha256": "a620dde02646911e35630b691d8437a4e171e8423b6d063de849a17e69e4ce0e",
+      "bytes": 4235
+    },
+    {
+      "file": "89_20260918235900_merchant_banner_ads.sql",
+      "source_files": [
+        "89_20260918235900_merchant_banner_ads.sql"
+      ],
+      "sha256": "0bc4aa7de0d974e69f6124e0b793a38c057f3919e7bf3d75b9dcd42dd80d3f8a",
+      "bytes": 5580
+    },
+    {
+      "file": "90_20260919004500_merchant_ad_targeting.sql",
+      "source_files": [
+        "90_20260919004500_merchant_ad_targeting.sql"
+      ],
+      "sha256": "384e4fec2ffd063ed3eff115c6d48df4a80fb60973e6833a5b301d889579d407",
+      "bytes": 968
+    },
+    {
+      "file": "91_20260919005000_ad_performance_counters.sql",
+      "source_files": [
+        "91_20260919005000_ad_performance_counters.sql"
+      ],
+      "sha256": "6fa6492c2954024924520d26e047239df164a33fa7c073dfb677bbbdc8fda06d",
+      "bytes": 1622
+    },
+    {
+      "file": "91_20260919090000_merchant_ads_storage.sql",
+      "source_files": [
+        "91_20260919090000_merchant_ads_storage.sql"
+      ],
+      "sha256": "d1a9d854efd0c6adcc0e7a8566bee3c4b56b46015a4ba8d100094bd8d7ebf5fb",
+      "bytes": 1291
+    },
+    {
+      "file": "92_20260919105000_merchant_ad_payment_proof_storage.sql",
+      "source_files": [
+        "92_20260919105000_merchant_ad_payment_proof_storage.sql"
+      ],
+      "sha256": "ab2e9d29cfc613e8e04c44fc37eb12ee38468b714851e3f3489f29220bb6f45c",
+      "bytes": 1263
+    },
+    {
+      "file": "93_20260920100000_admin_merchant_delete_fk_repair.sql",
+      "source_files": [
+        "93_20260920100000_admin_merchant_delete_fk_repair.sql"
+      ],
+      "sha256": "09653b4bd3c7438c95d60440cd4baa7d649355514c37fcd9927b364452a5c281",
+      "bytes": 2901
+    },
+    {
+      "file": "94_20260920110000_merchant_delete_stock_reservation_fk_repair.sql",
+      "source_files": [
+        "94_20260920110000_merchant_delete_stock_reservation_fk_repair.sql"
+      ],
+      "sha256": "539518ddcc6fb47a1bc89a88cd7381c4c8086f554ea47c3c8e86d0f761ec7113",
+      "bytes": 2356
+    },
+    {
+      "file": "95_20260918233000_to_20260918233000.sql",
+      "source_files": [
+        "20260918233000_merchant_paid_ads.sql"
+      ],
+      "sha256": "6c9430e0680e22fde4279b3cdf2e9a764cd42adac4ed5cfad1d53eaafd30aa1d",
+      "bytes": 6434
+    },
+    {
+      "file": "96_20260919123000_to_20260919123000.sql",
+      "source_files": [
+        "20260919123000_active_merchant_category.sql"
+      ],
+      "sha256": "e3f743632dde217ae758a608aae2c21803c73b13bdb3301e85e3fa9db3981527",
+      "bytes": 1573
+    },
+    {
+      "file": "97_20260920220000_to_20260920220000.sql",
+      "source_files": [
+        "20260920220000_merchant_free_trial_quota.sql"
+      ],
+      "sha256": "d8dd86ef73f5545126972b7343f27739825d31c47d4d62630d31123b31674718",
+      "bytes": 2681
+    },
+    {
+      "file": "98_20260920223000_to_20260920223000.sql",
+      "source_files": [
+        "20260920223000_free_quota_expiry_notifications.sql"
+      ],
+      "sha256": "b793b4c58b86c631b74833b97561350d333e2fdb5f8ddf2f8b90ca3632d3b638",
+      "bytes": 3688
+    },
+    {
+      "file": "99_20260920230000_to_20260920230000.sql",
+      "source_files": [
+        "20260920230000_seed_free_tier_quota_setting.sql"
+      ],
+      "sha256": "7e395aa70fba1032cdf91297e193a1c170ca8e0083683bf26f2da191cc5444de",
+      "bytes": 847
     }
   ]
 }

@@ -16,7 +16,7 @@ fi
 failed=0
 for file in "${files[@]}"; do
   if [[ "$MIGRATIONS_DIR" == "supabase/bootstrap" ]]; then
-    valid_name='^[0-9]{2}_[0-9]{8}.*\.sql$'
+    valid_name='^[0-9]+_[0-9]{8}.*\.sql$'
   else
     valid_name='^[0-9]{8}([0-9]{6})?_[a-z0-9][a-z0-9_-]*\.sql$'
   fi
@@ -32,7 +32,7 @@ for file in "${files[@]}"; do
 done
 
 if [[ "$MIGRATIONS_DIR" == "supabase/bootstrap" ]]; then
-  duplicates=$(printf '%s\n' "${files[@]}" | sed -E 's/^([0-9]{2})_.*/\1/' | sort | uniq -d || true)
+  duplicates=$(printf '%s\n' "${files[@]}" | sed -E 's/^([0-9]+)_.*/\1/' | sort | uniq -d || true)
 else
   duplicates=$(printf '%s\n' "${files[@]}" | sed -E 's/^([0-9]{8})([0-9]{6})?_.*/\1\2/' | sort | uniq -d || true)
 fi
