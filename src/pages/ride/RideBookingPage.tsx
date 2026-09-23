@@ -59,6 +59,19 @@ export default function RideBookingPage() {
   const geocodeAbort = useRef<AbortController | null>(null);
   const manualAddressRef = useRef({ pickup: false, destination: false });
 
+  const nearbyDrivers = useMemo(() => {
+    if (!pickupLocation) return drivers;
+    return [...drivers].sort((a, b) => (
+      haversineDistance(pickupLocation.lat, pickupLocation.lng, a.lat, a.lng)
+      - haversineDistance(pickupLocation.lat, pickupLocation.lng, b.lat, b.lng)
+    ));
+  }, [drivers, pickupLocation]);
+
+  const nearestDriver = nearbyDrivers[0] ?? null;
+  const nearestDriverDistance = nearestDriver && pickupLocation
+    ? haversineDistance(pickupLocation.lat, pickupLocation.lng, nearestDriver.lat, nearestDriver.lng)
+    : null;
+
   const fetchDrivers = useCallback(async () => {
     const cutoff = new Date(Date.now() - GPS_FRESHNESS_MS).toISOString();
     const { data } = await supabase.from('couriers').select('id, name, current_lat, current_lng, last_location_update')
@@ -339,7 +352,8 @@ export default function RideBookingPage() {
           center={{ lat: mapCenter[0], lng: mapCenter[1] }}
           pickupLocation={pickupLocation}
           destinationLocation={destLocation}
-          drivers={drivers}
+          drivers={nearbyDrivers}
+          nearestDriverId={nearestDriver?.id}
           route={fitPoints.length > 1 ? fitPoints : []}
           mode={mode}
           onMapClick={({ lat, lng }) => void handleMapClick(lat, lng)}
@@ -362,10 +376,19 @@ export default function RideBookingPage() {
         )}
 
         {/* Driver count */}
-        {drivers.length > 0 && (
+        {nearbyDrivers.length > 0 && (
           <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium shadow border border-border flex items-center gap-1.5">
             <Navigation className="h-3 w-3 text-primary" />
-            {drivers.length} driver
+            {nearbyDrivers.length} ojek aktif
+          </div>
+        )}
+        {nearestDriver && nearestDriverDistance != null && pickupLocation && (
+          <div className="absolute bottom-3 left-3 right-3 z-[1000] rounded-xl border border-primary/20 bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Ojek terdekat</p>
+            <div className="mt-0.5 flex items-center justify-between gap-3">
+              <span className="truncate text-sm font-semibold">🏍️ {nearestDriver.name}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{nearestDriverDistance.toFixed(2)} km dari Anda</span>
+            </div>
           </div>
         )}
       </div>

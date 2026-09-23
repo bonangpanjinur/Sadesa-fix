@@ -17,6 +17,7 @@ interface GoogleRideMapProps {
   pickupLocation: Point | null;
   destinationLocation: Point | null;
   drivers?: DriverPoint[];
+  nearestDriverId?: string;
   route?: [number, number][];
   mode: 'pickup' | 'destination';
   onMapClick: (point: Point) => void;
@@ -54,6 +55,7 @@ function OpenStreetMapRideFallback({
   route,
   mode,
   onMapClick,
+  nearestDriverId,
 }: GoogleRideMapProps) {
   return (
     <div className="relative h-full min-h-[320px] w-full">
@@ -66,7 +68,7 @@ function OpenStreetMapRideFallback({
         <OpenStreetMapViewport pickupLocation={pickupLocation} destinationLocation={destinationLocation} />
         {pickupLocation && <CircleMarker center={[pickupLocation.lat, pickupLocation.lng]} radius={11} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#10b981', fillOpacity: 1 }} />}
         {destinationLocation && <CircleMarker center={[destinationLocation.lat, destinationLocation.lng]} radius={11} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#ef4444', fillOpacity: 1 }} />}
-        {drivers.map((driver) => <CircleMarker key={driver.id} center={[driver.lat, driver.lng]} radius={8} pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#2563eb', fillOpacity: 1 }} />)}
+        {drivers.map((driver) => <CircleMarker key={driver.id} center={[driver.lat, driver.lng]} radius={driver.id === nearestDriverId ? 11 : 8} pathOptions={{ color: '#ffffff', weight: 2, fillColor: driver.id === nearestDriverId ? '#f59e0b' : '#2563eb', fillOpacity: 1 }} />)}
         {route.length > 1 && <Polyline positions={route} pathOptions={{ color: '#059669', weight: 4, opacity: 0.85 }} />}
       </MapContainer>
       <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold shadow-sm backdrop-blur">
@@ -81,6 +83,7 @@ export function GoogleRideMap({
   pickupLocation,
   destinationLocation,
   drivers = [],
+  nearestDriverId,
   route = [],
   mode,
   onMapClick,
@@ -141,20 +144,20 @@ export function GoogleRideMap({
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
 
-    const addMarker = (point: Point, color: string, title: string) => {
+    const addMarker = (point: Point, color: string, title: string, isNearest = false) => {
       const marker = new google.maps.Marker({
         map,
         position: point,
         title,
         label: { text: title === 'Pickup' ? 'P' : title === 'Tujuan' ? 'T' : 'D', color: '#ffffff', fontWeight: '700' },
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: title === 'Driver' ? 8 : 11, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 },
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: title === 'Driver' ? (isNearest ? 11 : 8) : 11, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 },
       });
       markersRef.current.push(marker);
     };
 
     if (pickupLocation) addMarker(pickupLocation, '#10b981', 'Pickup');
     if (destinationLocation) addMarker(destinationLocation, '#ef4444', 'Tujuan');
-    drivers.forEach((driver) => addMarker(driver, '#2563eb', 'Driver'));
+    drivers.forEach((driver) => addMarker(driver, driver.id === nearestDriverId ? '#f59e0b' : '#2563eb', 'Driver', driver.id === nearestDriverId));
 
     routeRef.current?.setMap(null);
     routeRef.current = route.length > 1
@@ -170,12 +173,12 @@ export function GoogleRideMap({
       map.setCenter(points[0]);
       map.setZoom(15);
     }
-  }, [destinationLocation, drivers, pickupLocation, route, status]);
+  }, [destinationLocation, drivers, nearestDriverId, pickupLocation, route, status]);
 
   return (
     <div className="relative h-full min-h-[320px] w-full">
       {status === 'error' ? (
-        <OpenStreetMapRideFallback {...{ center, pickupLocation, destinationLocation, drivers, route, mode, onMapClick }} />
+        <OpenStreetMapRideFallback {...{ center, pickupLocation, destinationLocation, drivers, nearestDriverId, route, mode, onMapClick }} />
       ) : (
         <>
           <div ref={mapElement} className="h-full min-h-[320px] w-full" />
