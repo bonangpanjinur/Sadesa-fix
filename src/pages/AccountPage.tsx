@@ -19,7 +19,6 @@ interface Profile {
   phone: string | null;
   address: string | null;
   avatar_url?: string | null;
-  selfie_url?: string | null;
   province_id?: string | null;
   province_name?: string | null;
   city_id?: string | null;
@@ -47,7 +46,7 @@ export default function AccountPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, phone, address, avatar_url, selfie_url, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
+        .select('full_name, phone, address, avatar_url, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -56,7 +55,7 @@ export default function AccountPage() {
       if (data) {
         setProfile(data);
         const complete = Boolean(
-          data.selfie_url && data.address && data.province_id && data.city_id
+          data.avatar_url && data.address && data.province_id && data.city_id
             && data.district_id && data.village_id && data.address_detail?.trim(),
         );
         setProfileRequired(!complete);
@@ -235,7 +234,6 @@ export default function AccountPage() {
                       phone: profile?.phone || null,
                       address: profile?.address || null,
                       avatar_url: profile?.avatar_url,
-                      selfie_url: profile?.selfie_url,
                       province_id: profile?.province_id,
                       province_name: profile?.province_name,
                       city_id: profile?.city_id,

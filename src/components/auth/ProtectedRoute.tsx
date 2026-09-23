@@ -71,13 +71,13 @@ export function ProtectedRoute({
     setProfileCompletionLoading(true);
     void supabase
       .from('profiles')
-      .select('address, province_id, city_id, district_id, village_id, address_detail, selfie_url')
+      .select('address, avatar_url, province_id, city_id, district_id, village_id, address_detail')
       .eq('user_id', user.id)
       .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return;
         const complete = !error && Boolean(
-          data?.selfie_url && data.address && data.province_id && data.city_id
+          data?.avatar_url && data.address && data.province_id && data.city_id
             && data.district_id && data.village_id && data.address_detail?.trim(),
         );
         setProfileComplete(complete);

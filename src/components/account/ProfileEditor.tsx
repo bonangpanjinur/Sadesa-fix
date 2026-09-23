@@ -16,7 +16,6 @@ interface ProfileEditorProps {
     phone: string | null;
     address: string | null;
     avatar_url?: string | null;
-    selfie_url?: string | null;
     province_id?: string | null;
     province_name?: string | null;
     city_id?: string | null;
@@ -27,7 +26,7 @@ interface ProfileEditorProps {
     village_name?: string | null;
     address_detail?: string | null;
   };
-  onSave: (data: { full_name: string; phone: string | null; address: string | null; avatar_url?: string | null; selfie_url?: string | null }) => void;
+  onSave: (data: { full_name: string; phone: string | null; address: string | null; avatar_url?: string | null }) => void;
   onCancel: () => void;
   forceCompletion?: boolean;
 }
@@ -35,11 +34,8 @@ interface ProfileEditorProps {
 export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false }: ProfileEditorProps) {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [uploadingSelfie, setUploadingSelfie] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatar_url || '');
-  const [selfieUrl, setSelfieUrl] = useState(initialData.selfie_url || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const selfieInputRef = useRef<HTMLInputElement>(null);
   const [fullName, setFullName] = useState(initialData.full_name || '');
   const [phone, setPhone] = useState(initialData.phone || '');
   const [phoneValid, setPhoneValid] = useState(true);
@@ -97,45 +93,12 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         .update({ avatar_url: publicUrl })
         .eq('user_id', userId);
 
-      toast({ title: 'Foto profil berhasil diperbarui' });
+      toast({ title: 'Foto profil selfie berhasil diperbarui' });
     } catch (error) {
       console.error('Avatar upload error:', error);
       toast({ title: 'Gagal mengupload foto', variant: 'destructive' });
     } finally {
       setUploadingAvatar(false);
-    }
-  };
-
-  const handleSelfieUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: 'Ukuran foto selfie maksimal 2MB', variant: 'destructive' });
-      return;
-    }
-    setUploadingSelfie(true);
-    try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const filePath = `${userId}/selfie.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('profile-images')
-        .upload(filePath, file, { upsert: true, contentType: file.type });
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(filePath);
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ selfie_url: publicUrl })
-        .eq('user_id', userId);
-      if (profileError) throw profileError;
-      setSelfieUrl(publicUrl);
-      toast({ title: 'Foto selfie berhasil ditambahkan' });
-    } catch (error) {
-      console.error('Selfie upload error:', error);
-      toast({ title: 'Gagal mengupload foto selfie', variant: 'destructive' });
-    } finally {
-      setUploadingSelfie(false);
     }
   };
 
@@ -165,10 +128,10 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       });
       return;
     }
-    if (!selfieUrl) {
+    if (!avatarUrl) {
       toast({
-        title: 'Foto selfie wajib ditambahkan',
-        description: 'Tambahkan foto selfie yang jelas untuk melanjutkan.',
+        title: 'Foto profil wajib ditambahkan',
+        description: 'Gunakan foto selfie diri sendiri yang jelas sebagai foto profil.',
         variant: 'destructive',
       });
       return;
@@ -195,7 +158,6 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           village_id: addressData.village || null,
           village_name: addressData.villageName || null,
           address_detail: addressData.detail || null,
-          selfie_url: selfieUrl,
         })
         .eq('user_id', userId);
 
@@ -206,7 +168,6 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         phone: phone.trim() || null,
         address: formattedAddress || null,
         avatar_url: avatarUrl || null,
-        selfie_url: selfieUrl,
       });
 
       toast({ title: 'Profil berhasil diperbarui' });
@@ -228,8 +189,11 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           Lengkapi alamat dan foto selfie terlebih dahulu untuk menggunakan aplikasi.
         </div>
       )}
-      {/* Avatar Upload */}
-      <div className="flex justify-center">
+      {/* Required profile photo */}
+      <div className="space-y-2">
+        <Label>Foto Profil (Selfie) <span className="text-destructive">*</span></Label>
+        <p className="text-xs text-muted-foreground">Gunakan foto selfie diri sendiri yang jelas. Maksimal 2MB.</p>
+        <div className="flex justify-center">
         <div className="relative">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-border">
             {avatarUrl ? (
@@ -260,6 +224,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           />
         </div>
       </div>
+      </div>
 
       <div className="space-y-2">
         <Label>Nama Lengkap</Label>
@@ -268,27 +233,6 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           onChange={(e) => setFullName(e.target.value)}
           placeholder="Nama lengkap"
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Foto Selfie <span className="text-destructive">*</span></Label>
-        <div className="flex items-center gap-3 rounded-lg border p-3">
-          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border bg-muted">
-            {selfieUrl ? (
-              <img src={selfieUrl} alt="Foto selfie" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">Belum ada</div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Tambahkan foto wajah Anda</p>
-            <p className="text-xs text-muted-foreground">JPG, PNG, atau WEBP maksimal 2MB</p>
-          </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => selfieInputRef.current?.click()} disabled={uploadingSelfie}>
-            {uploadingSelfie ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Pilih Foto'}
-          </Button>
-          <input ref={selfieInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleSelfieUpload} />
-        </div>
       </div>
 
       <div className="space-y-2">
@@ -324,7 +268,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         <Button
           onClick={handleSave}
           className="flex-1"
-          disabled={saving || uploadingAvatar || uploadingSelfie || (!phoneValid && !!phone)}
+          disabled={saving || uploadingAvatar || (!phoneValid && !!phone)}
         >
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Simpan'}
         </Button>
