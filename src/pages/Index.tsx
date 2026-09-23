@@ -72,6 +72,7 @@ const Index = () => {
   const { getEnabledSections } = useHomepageLayout();
   const { getHomepageCategories } = useCategories();
   const { user } = useAuth();
+  const enabledSectionIds = new Set(getEnabledSections().map((section) => section.id));
   const handleBannerView = useCallback((id: string) => { void incrementPromotionView(id); }, []);
   const handleBannerClick = useCallback((id: string) => { void incrementPromotionClick(id); }, []);
 
