@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Truck, Package, Loader2, CheckCircle, CreditCard, Wallet, AlertTriangle, ShieldCheck, Clock, Ticket } from 'lucide-react';
+import { ArrowLeft, MapPin, Truck, Package, Loader2, CheckCircle, CreditCard, AlertTriangle, Clock, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,12 +18,11 @@ import { createPaymentInvoice, isXenditEnabled } from '@/lib/paymentApi';
 import { CheckoutAddressForm, type CheckoutAddressData } from '@/components/checkout/CheckoutAddressForm';
 import { createEmptyCheckoutAddress } from '@/components/checkout/checkoutAddressDefaults';
 import { formatFullAddress } from '@/components/AddressSelector';
-import { fetchCODSettings, quickCODCheck, getBuyerCODStatus } from '@/lib/codSecurity';
-import { validatePhone, isWhatsAppFormat } from '@/lib/phoneValidation';
+import { validatePhone } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 
-type PaymentMethod = 'COD' | 'TRANSFER' | 'ONLINE';
+type PaymentMethod = 'TRANSFER' | 'ONLINE';
 
 interface MerchantOperatingInfo {
   id: string;
@@ -34,7 +33,6 @@ interface MerchantOperatingInfo {
 }
 
 interface MerchantPaymentSettings {
-  codEnabled: boolean;
   transferEnabled: boolean;
   bankName: string | null;
   bankAccountNumber: string | null;
@@ -53,7 +51,7 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
   const [retryingPayment, setRetryingPayment] = useState(false);
@@ -67,23 +65,17 @@ export default function CheckoutPage() {
   // Address state
   const [addressData, setAddressData] = useState<CheckoutAddressData>(createEmptyCheckoutAddress());
 
-  // Distance & COD state
+  // Distance state
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
 
   // Shipping settings from admin
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
-  const [codSettings, setCodSettings] = useState<Awaited<ReturnType<typeof fetchCODSettings>> | null>(null);
-  const [codStatus, setCodStatus] = useState<Awaited<ReturnType<typeof getBuyerCODStatus>> | null>(null);
-  const [codEligible, setCodEligible] = useState(true);
-  const [codReason, setCodReason] = useState<string | null>(null);
-
   // Merchant payment settings
   const [merchantPaymentSettings, setMerchantPaymentSettings] = useState<MerchantPaymentSettings & { qrisImageUrl: string | null } | null>(null);
 
-  // Check if Xendit is enabled and load COD settings
+  // Check if Xendit is enabled
   useEffect(() => {
     isXenditEnabled().then(setXenditAvailable);
-    fetchCODSettings().then(setCodSettings);
     // Load admin shipping settings
     supabase.from('app_settings').select('value').eq('key', 'shipping_base_fee').maybeSingle().then(({ data }) => {
       if (data?.value) {
@@ -98,13 +90,6 @@ export default function CheckoutPage() {
       }
     });
   }, []);
-
-  // Load buyer COD status
-  useEffect(() => {
-    if (user) {
-      getBuyerCODStatus(user.id).then(setCodStatus);
-    }
-  }, [user]);
 
   // Get merchant location state (will be loaded after merchantIds are computed)
   const [merchantLocation, setMerchantLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -135,11 +120,8 @@ export default function CheckoutPage() {
     return baseFee;
   }, [deliveryType, distanceKm, shippingSettings, subtotal]);
 
-  // COD service fee
-  const codServiceFee = paymentMethod === 'COD' && codSettings ? codSettings.serviceFee : 0;
-
   const voucherDiscount = appliedVoucher?.discount || 0;
-  const total = subtotal + shippingCost + codServiceFee - voucherDiscount;
+  const total = subtotal + shippingCost - voucherDiscount;
 
   const deliveryRestriction = useMemo(
     () => getDeliveryRestriction(
@@ -155,56 +137,6 @@ export default function CheckoutPage() {
       setDeliveryType('EXPEDITION');
     }
   }, [deliveryRestriction.requiresExpedition, deliveryType]);
-
-  // Check COD eligibility when amount or distance changes
-  useEffect(() => {
-    // Check if merchant has disabled COD
-    if (merchantPaymentSettings && !merchantPaymentSettings.codEnabled) {
-      setCodEligible(false);
-      setCodReason('Toko ini tidak menerima pembayaran COD');
-      // Switch to transfer or online
-      if (merchantPaymentSettings.transferEnabled) {
-        setPaymentMethod('TRANSFER');
-      } else if (xenditAvailable) {
-        setPaymentMethod('ONLINE');
-      }
-      return;
-    }
-
-    if (!codSettings) return;
-
-    // Check if COD is globally disabled
-    if (!codSettings.enabled) {
-      setCodEligible(false);
-      setCodReason('Fitur COD sementara tidak tersedia');
-      return;
-    }
-
-    // Check buyer COD status
-    if (codStatus && !codStatus.enabled) {
-      setCodEligible(false);
-      setCodReason('Akun Anda tidak dapat menggunakan fitur COD');
-      return;
-    }
-
-    // Quick check for amount and distance
-    const check = quickCODCheck(subtotal, distanceKm || undefined, {
-      maxAmount: codSettings.maxAmount,
-      maxDistanceKm: codSettings.maxDistanceKm,
-    });
-
-    setCodEligible(check.eligible);
-    setCodReason(check.reason);
-
-    // If COD is not eligible and currently selected, switch to transfer or online
-    if (!check.eligible && paymentMethod === 'COD') {
-      if (merchantPaymentSettings?.transferEnabled) {
-        setPaymentMethod('TRANSFER');
-      } else if (xenditAvailable) {
-        setPaymentMethod('ONLINE');
-      }
-    }
-  }, [subtotal, distanceKm, codSettings, codStatus, paymentMethod, xenditAvailable, merchantPaymentSettings]);
 
   // Group items by merchant
   const itemsByMerchant = useMemo(() => items.reduce((acc, item) => {
@@ -243,7 +175,7 @@ export default function CheckoutPage() {
       // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
       const { data } = await supabase
         .from('merchants')
-        .select('location_lat, location_lng, province, city, district, payment_cod_enabled, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
+        .select('location_lat, location_lng, province, city, district, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
         .eq('id', firstMerchantId)
         .maybeSingle();
 
@@ -281,7 +213,6 @@ export default function CheckoutPage() {
         }
 
         setMerchantPaymentSettings({
-          codEnabled: data.payment_cod_enabled ?? true,
           transferEnabled: data.payment_transfer_enabled ?? true,
           bankName,
           bankAccountNumber,
@@ -290,9 +221,7 @@ export default function CheckoutPage() {
         });
 
         // Set default payment method based on merchant settings
-        if (data.payment_cod_enabled) {
-          setPaymentMethod('COD');
-        } else if (data.payment_transfer_enabled) {
+        if (data.payment_transfer_enabled) {
           setPaymentMethod('TRANSFER');
         } else if (xenditAvailable) {
           setPaymentMethod('ONLINE');
@@ -393,11 +322,6 @@ export default function CheckoutPage() {
 
     if (!addressData.phone || !validatePhone(addressData.phone).isValid) {
       newErrors.phone = 'Nomor telepon tidak valid';
-    }
-
-    // Validate WhatsApp format for COD
-    if (paymentMethod === 'COD' && !isWhatsAppFormat(addressData.phone)) {
-      newErrors.phone = 'Untuk COD, gunakan format WhatsApp (08xxx)';
     }
 
     // Only validate address fields for delivery, not pickup
@@ -595,9 +519,7 @@ export default function CheckoutPage() {
       setSuccess(true);
       toast({
         title: paymentNeedsRecovery ? 'Pesanan dibuat, pembayaran tertunda' : 'Pesanan berhasil dibuat!',
-        description: paymentMethod === 'COD'
-          ? 'Pesanan Anda menunggu konfirmasi dari penjual'
-          : paymentNeedsRecovery
+        description: paymentNeedsRecovery
             ? 'Gunakan tombol coba lagi untuk membuat invoice pembayaran.'
             : 'Pesanan Anda telah masuk ke sistem',
       });
@@ -977,37 +899,6 @@ export default function CheckoutPage() {
             onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
             className="space-y-2"
           >
-            {/* COD Option - Based on merchant settings */}
-            {merchantPaymentSettings?.codEnabled !== false && (
-              <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                paymentMethod === 'COD' ? 'border-primary bg-primary/5' : 'border-border'
-              } ${!codEligible ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <RadioGroupItem value="COD" id="cod" disabled={!codEligible} />
-                <Wallet className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-sm">Bayar di Tempat (COD)</p>
-                    {codStatus?.isVerified && (
-                      <Badge variant="secondary" className="text-xs">
-                        <ShieldCheck className="h-3 w-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Bayar tunai saat pesanan tiba
-                    {codServiceFee > 0 && ` (+${formatPrice(codServiceFee)} biaya layanan)`}
-                  </p>
-                  {!codEligible && codReason && (
-                    <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" />
-                      {codReason}
-                    </p>
-                  )}
-                </div>
-              </label>
-            )}
-
             {/* Transfer Option - Based on merchant settings */}
             {merchantPaymentSettings?.transferEnabled !== false && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
@@ -1067,20 +958,6 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* COD Trust Score Info */}
-          {codStatus && paymentMethod === 'COD' && (
-            <div className="mt-3 p-2 bg-secondary/50 rounded-lg">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Skor Kepercayaan:</span>
-                <span className={`font-medium ${
-                  codStatus.trustScore >= 80 ? 'text-green-600' :
-                  codStatus.trustScore >= 50 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {codStatus.trustScore}/100
-                </span>
-              </div>
-            </div>
-          )}
         </motion.div>
 
         {/* Order Summary moved to top of form */}
@@ -1148,12 +1025,6 @@ export default function CheckoutPage() {
             <span className="font-bold text-primary">-{formatCurrency(voucherDiscount)}</span>
           </div>
         )}
-        {codServiceFee > 0 && (
-          <div className="flex justify-between items-center mb-1 text-sm">
-            <span className="text-muted-foreground">{t('shipping.codServiceFee')}</span>
-            <span className="font-bold">{formatCurrency(codServiceFee)}</span>
-          </div>
-        )}
         <div className="flex justify-between items-center mb-3 pt-3 border-t border-border">
           <span className="text-lg font-bold">{t('shipping.total')}</span>
           <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
@@ -1163,7 +1034,7 @@ export default function CheckoutPage() {
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              {paymentMethod === 'COD' ? 'COD (Bayar di Tempat)' : paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'Online Payment'}
+              {paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'Online Payment'}
             </span>
           </span>
         </div>

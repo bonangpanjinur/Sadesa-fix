@@ -228,7 +228,8 @@ export default function MerchantSettingsPage() {
         bank_account_number: settings.bank_account_number || null,
         bank_account_name: settings.bank_account_name || null,
         qris_image_url: qrisImageUrl || null,
-        payment_cod_enabled: settings.payment_cod_enabled,
+        // COD is temporarily disabled for marketplace checkout.
+        payment_cod_enabled: false,
         payment_transfer_enabled: settings.payment_transfer_enabled,
         notification_sound_enabled: settings.notification_sound_enabled,
         slug: settings.slug || null,
@@ -498,12 +499,11 @@ export default function MerchantSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-5 w-5" />Pengaturan Pembayaran</CardTitle>
-            <CardDescription>Kelola rekening bank dan QRIS untuk menerima pembayaran</CardDescription>
+            <CardDescription>Kelola rekening bank dan QRIS untuk menerima pembayaran non-tunai</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
               {[
-                { key: 'payment_cod_enabled', label: 'COD (Bayar di Tempat)', desc: 'Terima pembayaran tunai saat pengiriman' },
                 { key: 'payment_transfer_enabled', label: 'Transfer Bank & QRIS', desc: 'Terima pembayaran via transfer dan QRIS' },
               ].map(({ key, label, desc }) => (
                 <div key={key} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
