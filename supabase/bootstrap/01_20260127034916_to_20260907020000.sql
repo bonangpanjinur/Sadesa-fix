@@ -8124,7 +8124,10 @@ END $bootstrap_do_d184d5df4732$;
 DO $bootstrap_do_1d86e760013c$
 BEGIN
   EXECUTE $bootstrap_sql_1d86e760013c$-- 7. Update data paket default (General) sesuai permintaan user
-DELETE FROM public.transaction_packages$bootstrap_sql_1d86e760013c$;
+-- Jangan menghapus paket existing ketika bootstrap dijalankan ulang.
+-- Seed di bawah memakai ON CONFLICT DO NOTHING agar hanya menambahkan
+-- paket yang belum tersedia.
+SELECT 1$bootstrap_sql_1d86e760013c$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_1d86e760013c$;
@@ -8143,7 +8146,9 @@ END $bootstrap_do_432a8cef4696$;
 DO $bootstrap_do_b0cb45b1ae14$
 BEGIN
   EXECUTE $bootstrap_sql_b0cb45b1ae14$-- 8. Update data tier kuota default sesuai permintaan user
-DELETE FROM public.quota_tiers$bootstrap_sql_b0cb45b1ae14$;
+-- Jangan menghapus tier existing ketika bootstrap dijalankan ulang.
+-- Seed di bawah bersifat additive dan memakai ON CONFLICT DO NOTHING.
+SELECT 1$bootstrap_sql_b0cb45b1ae14$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_b0cb45b1ae14$;
@@ -8763,7 +8768,9 @@ END $bootstrap_do_58ca4c4c342a$;
 DO $bootstrap_do_7c4b78207b38$
 BEGIN
   EXECUTE $bootstrap_sql_7c4b78207b38$-- 4. Update data paket default (General)
-DELETE FROM public.transaction_packages$bootstrap_sql_7c4b78207b38$;
+-- Pertahankan paket dan subscription existing. Seed berikutnya hanya
+-- menambahkan baris yang belum ada.
+SELECT 1$bootstrap_sql_7c4b78207b38$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_7c4b78207b38$;
@@ -8782,7 +8789,9 @@ END $bootstrap_do_0c6383f39b45$;
 DO $bootstrap_do_d0e0bbeef887$
 BEGIN
   EXECUTE $bootstrap_sql_d0e0bbeef887$-- 5. Update data tier kuota default sesuai permintaan user
-DELETE FROM public.quota_tiers$bootstrap_sql_d0e0bbeef887$;
+-- Pertahankan tier existing. Seed berikutnya hanya menambahkan baris yang
+-- belum ada dan tidak mereset konfigurasi yang mungkin sudah dikustomisasi.
+SELECT 1$bootstrap_sql_d0e0bbeef887$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_d0e0bbeef887$;
@@ -8955,7 +8964,9 @@ END $bootstrap_do_0b4b2db7fef7$;
 DO $bootstrap_do_4f0ec55dfaf8$
 BEGIN
   EXECUTE $bootstrap_sql_4f0ec55dfaf8$-- 2. Bersihkan data lama dan masukkan data baru sesuai logika baru
-DELETE FROM public.transaction_packages$bootstrap_sql_4f0ec55dfaf8$;
+-- Jangan membersihkan data lama: baris ini sengaja menjadi no-op supaya
+-- subscription yang mereferensikan paket existing tetap valid saat rerun.
+SELECT 1$bootstrap_sql_4f0ec55dfaf8$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_4f0ec55dfaf8$;
