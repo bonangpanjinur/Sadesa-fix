@@ -107,6 +107,7 @@ const AdminWhatsAppPage = lazy(() => import("./pages/admin/AdminWhatsAppPage"));
 const AdminApiKeysPage = lazy(() => import("./pages/admin/AdminApiKeysPage"));
 const AdminPushNotificationPage = lazy(() => import("./pages/admin/AdminPushNotificationPage"));
 const AdminPwaDevicesPage = lazy(() => import("./pages/admin/AdminPwaDevicesPage"));
+const AdminOrderFraudBlocksPage = lazy(() => import("./pages/admin/AdminOrderFraudBlocksPage"));
 const AdminCashbackPage = lazy(() => import("./pages/admin/AdminCashbackPage"));
 const AdminIklanPage = lazy(() => import("./pages/admin/AdminIklanPage"));
 const AdminIklanLaporanPage = lazy(() => import("./pages/admin/AdminIklanLaporanPage"));
@@ -821,6 +822,11 @@ const App = () => (
               <Route path="/admin/pwa-devices" element={
                 <ProtectedRoute allowedRoles={["admin"]}>
                   <AdminPwaDevicesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/fraud-blocks" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminOrderFraudBlocksPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/push-notification" element={

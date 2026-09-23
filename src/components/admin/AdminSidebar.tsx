@@ -28,6 +28,7 @@ import {
   Settings,
   Shield,
   ShieldCheck,
+  ShieldOff,
   Smartphone,
   Store,
   Tags,
@@ -149,6 +150,7 @@ export function AdminSidebar({
       label: 'Sistem',
       items: [
         { label: 'PWA Devices', href: '/admin/pwa-devices', icon: <Smartphone className="h-4 w-4" /> },
+        { label: 'Fraud Blocks', href: '/admin/fraud-blocks', icon: <ShieldOff className="h-4 w-4" /> },
         { label: 'Backup Data', href: '/admin/backup', icon: <Database className="h-4 w-4" /> },
         { label: 'Ojek Desa', href: '/admin/rides', icon: <Activity className="h-4 w-4" /> },
         { label: 'System Logs', href: '/admin/logs', icon: <FileText className="h-4 w-4" /> },

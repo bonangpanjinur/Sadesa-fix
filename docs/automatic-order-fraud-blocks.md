@@ -24,6 +24,10 @@ IP bersama tidak langsung diblokir pada jumlah rendah. Blokir IP membutuhkan min
 
 Admin sebaiknya meninjau block yang berulang dan menggabungkannya dengan bukti pembayaran, riwayat komunikasi, nilai transaksi, dan pola pengiriman. Jalur pemulihan dapat menghapus/menonaktifkan block secara manual melalui prosedur admin yang terkontrol.
 
+## Unblock manual
+
+Admin dapat membuka blokir melalui menu **Admin Panel → Sistem → Fraud Blocks** pada route `/admin/fraud-blocks`. Halaman ini menyediakan filter block aktif/kedaluwarsa, target block, jumlah order, jumlah user, alasan otomatis, dan waktu kedaluwarsa. Tombol **Unblock** hanya tersedia untuk block aktif dan mewajibkan alasan audit minimal 10 karakter. Aksi tersebut diproses oleh RPC admin-only `unblock_order_fraud_block`, mengakhiri block dengan `blocked_until = now()` dan menyimpan alasan, admin, serta waktu unblock pada `metadata`.
+
 ## Deployment
 
 Migration canonical:
@@ -36,4 +40,10 @@ Bootstrap deployment:
 
 ```text
 supabase/bootstrap/14_20260923152000_automatic_order_fraud_blocks.sql
+```
+
+RPC unblock manual:
+
+```text
+archive/supabase/migrations/20260923153000_manual_order_fraud_unblock.sql
 ```
