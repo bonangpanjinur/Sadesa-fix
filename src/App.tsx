@@ -3,7 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useRestockNotification } from "@/hooks/useRestockNotification";
@@ -390,6 +391,27 @@ function ScrollToTop() {
   return null;
 }
 
+function RouteTransition({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const shouldReduceMotion = useReducedMotion();
+  const routeKey = `${location.pathname}${location.search}${location.hash}`;
+
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      <motion.div
+        key={routeKey}
+        className="min-h-full"
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4 }}
+        transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.22, ease: 'easeOut' }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 const App = () => (
   <SplashScreen>
     <ErrorBoundary>
@@ -413,6 +435,7 @@ const App = () => (
                 <InstallBanner />
                 <UpdatePrompt />
               <Suspense fallback={<PageLoading />}>
+              <RouteTransition>
               <Routes>
               {/* Public routes */}
               <Route path="/" element={<HomeRoute />} />
@@ -1228,8 +1251,9 @@ const App = () => (
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-            </Suspense>
+              </Routes>
+              </RouteTransition>
+              </Suspense>
             <PublicFooter />
           </BrowserRouter>
               </PWAProvider>
