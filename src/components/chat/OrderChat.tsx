@@ -600,7 +600,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
                   <div className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
                     <div className="flex items-center gap-1.5 mb-1 px-1">
                       <span className="text-[10px] font-semibold text-muted-foreground">
-                        {isMe ? 'Anda' : (chatType === 'admin_merchant' || chatType === 'admin_courier' || chatType === 'admin_user' ? 'Admin' : (senderNames[msg.sender_id] || otherUserName))}
+                        {isMe ? 'Anda' : (chatType === 'admin_merchant' || chatType === 'admin_courier' || chatType === 'admin_user' ? (senderNames[msg.sender_id] || otherUserName || 'Admin SaDesa') : (senderNames[msg.sender_id] || otherUserName))}
                       </span>
                       <span className={cn("text-[9px] px-1.5 py-0.5 rounded flex items-center font-bold uppercase tracking-wider", roleInfo.color)}>
                         {roleInfo.icon}

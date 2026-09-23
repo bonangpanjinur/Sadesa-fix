@@ -53,6 +53,15 @@ export default function BuyerChatPage() {
       );
       const buyerConversationIds = [...new Set((memberships || []).map((row) => row.conversation_id))];
       if (buyerConversationIds.length === 0) { setThreads([]); setLoading(false); return; }
+      const { data: conversationParticipants } = await supabase
+        .from('chat_participants')
+        .select('conversation_id, user_id')
+        .in('conversation_id', buyerConversationIds)
+        .neq('user_id', user.id)
+        .is('left_at', null);
+      const otherUserByConversation = new Map(
+        (conversationParticipants || []).map((participant) => [participant.conversation_id, participant.user_id]),
+      );
       const { data: messages } = await supabase
         .from('chat_messages')
         .select('*')
@@ -71,7 +80,12 @@ export default function BuyerChatPage() {
       for (const msg of messages) {
         const key = msg.conversation_id || `${msg.order_id}-${msg.chat_type}`;
         if (!threadMap.has(key)) {
-          const otherUserId = msg.sender_id === user.id ? msg.receiver_id : msg.sender_id;
+          // Resolve the other participant from the conversation membership.
+          // Message receiver_id is legacy/nullable and can point at the
+          // wrong account for direct admin conversations.
+          const otherUserId = msg.conversation_id
+            ? otherUserByConversation.get(msg.conversation_id) || (msg.sender_id === user.id ? msg.receiver_id : msg.sender_id)
+            : (msg.sender_id === user.id ? msg.receiver_id : msg.sender_id);
           threadMap.set(key, {
             orderId: msg.order_id,
             rideRequestId: null,
@@ -134,7 +148,9 @@ export default function BuyerChatPage() {
         const courier = (couriers || []).find(c => c.user_id === thread.otherUserId);
         // Buyer-facing chat identifies a merchant by the store name, never by
         // the owner's profile/account name.
-        thread.otherUserName = thread.chatType === 'buyer_merchant'
+        thread.otherUserName = thread.chatType === 'admin_user'
+          ? profile?.full_name?.trim() || 'Admin SaDesa'
+          : thread.chatType === 'buyer_merchant'
           ? merchant?.name?.trim() || profile?.full_name?.trim() || 'Penjual'
           : thread.chatType === 'passenger_courier'
             ? courier?.name?.trim() || profile?.full_name?.trim() || 'Driver'

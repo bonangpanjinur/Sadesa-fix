@@ -19,4 +19,11 @@ describe('buyer admin chat contract', () => {
     expect(orderChat).toContain("| 'admin_user';");
     expect(orderChat).toContain("chatType === 'admin_user'");
   });
+
+  it('resolves the admin name from the other conversation participant', () => {
+    expect(page).toContain(".from('chat_participants')");
+    expect(page).toContain('otherUserByConversation');
+    expect(page).toContain("profile?.full_name?.trim() || 'Admin SaDesa'");
+    expect(orderChat).toContain("senderNames[msg.sender_id] || otherUserName || 'Admin SaDesa'");
+  });
 });
