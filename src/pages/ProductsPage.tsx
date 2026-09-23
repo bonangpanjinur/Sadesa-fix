@@ -9,7 +9,7 @@ import { ProductCard } from '../components/ProductCard';
 import { Skeleton } from '../components/ui/skeleton';
 import { Button } from '../components/ui/button';
 import { fetchProducts } from '../lib/api';
-import { useUserLocation, sortByDistance } from '../hooks/useUserLocation';
+import { calculateDistance, useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
 import { FoodFilterSheet, type FoodFilters, type FoodType, defaultFoodFilters } from '../components/product/FoodFilterSheet';
 import { ProductMerchantMap } from '../components/product/ProductMerchantMap';
@@ -25,6 +25,7 @@ import type { Product } from '../types';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';
+type MapRadius = 'all' | '1' | '3' | '5' | '10';
 
 function ProductSkeleton() {
   return (
@@ -51,6 +52,7 @@ export default function ProductsPage() {
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ ...defaultFoodFilters, type: initialType });
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('products');
+  const [mapRadius, setMapRadius] = useState<MapRadius>('all');
   const { location: userLocation } = useUserLocation();
   const { data: categories = [] } = useAdminCategories();
 
@@ -106,6 +108,14 @@ export default function ProductsPage() {
     (foodFilters.halalOnly ? 1 : 0) +
     (foodFilters.maxPrice < 100000 ? 1 : 0)
   ), [foodFilters]);
+
+  const mapProducts = useMemo(() => {
+    if (mapRadius === 'all' || !userLocation) return filteredAndSortedProducts;
+    const radiusKm = Number(mapRadius);
+    return filteredAndSortedProducts.filter((product) => (
+      calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= radiusKm
+    ));
+  }, [filteredAndSortedProducts, mapRadius, userLocation]);
 
   const handleTypeChange = (type: FoodType) => {
     setFoodFilters((previous) => ({ ...previous, type }));
@@ -176,6 +186,28 @@ export default function ProductsPage() {
           </Select>
           <div className="flex items-center gap-1 text-xs text-muted-foreground"><SlidersHorizontal className="h-3.5 w-3.5" />{activeFilterCount ? `${activeFilterCount} filter aktif` : 'Filter katalog'}</div>
         </div>
+
+        {viewMode === 'map' && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Select value={foodFilters.type} onValueChange={(value) => handleTypeChange(value as FoodType)}>
+              <SelectTrigger className="h-9 rounded-xl text-xs"><PackageOpen className="mr-1.5 h-3.5 w-3.5" /><SelectValue placeholder="Kategori produk" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua kategori</SelectItem>
+                {categoryOptions.map((category) => <SelectItem key={category.slug} value={category.slug}>{category.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={mapRadius} onValueChange={(value) => setMapRadius(value as MapRadius)}>
+              <SelectTrigger className="h-9 rounded-xl text-xs"><MapPin className="mr-1.5 h-3.5 w-3.5" /><SelectValue placeholder="Jarak toko" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua jarak</SelectItem>
+                <SelectItem value="1">Terdekat, maksimal 1 km</SelectItem>
+                <SelectItem value="3">Maksimal 3 km</SelectItem>
+                <SelectItem value="5">Maksimal 5 km</SelectItem>
+                <SelectItem value="10">Maksimal 10 km</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {userLocation && sortMode === 'nearest' && !loading && (
@@ -184,7 +216,7 @@ export default function ProductsPage() {
 
       <div className="flex-1 overflow-y-auto pb-24">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 py-4">
-          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat katalog...' : viewMode === 'map' ? 'Lokasi toko merchant' : `${filteredAndSortedProducts.length} produk ditemukan`}</span><span className="text-xs text-muted-foreground">{viewMode === 'map' ? 'Pilih toko di peta' : 'Produk terbaru'}</span></div>
+          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat katalog...' : viewMode === 'map' ? 'Lokasi toko merchant' : `${filteredAndSortedProducts.length} produk ditemukan`}</span><span className="text-xs text-muted-foreground">{viewMode === 'map' ? `${mapProducts.length} produk sesuai filter` : 'Produk terbaru'}</span></div>
           {loading ? (
             <div className="grid grid-cols-2 gap-3">{Array.from({ length: 6 }).map((_, index) => <ProductSkeleton key={index} />)}</div>
           ) : isError ? (
@@ -195,7 +227,7 @@ export default function ProductsPage() {
             </div>
           ) : viewMode === 'map' ? (
             <ProductMerchantMap
-              products={filteredAndSortedProducts}
+              products={mapProducts}
               center={userLocation || { lat: -7.3274, lng: 108.2207 }}
               userLocation={userLocation}
             />
