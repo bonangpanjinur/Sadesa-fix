@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Search, Ban, CheckCircle, Eye, Filter, Download, CalendarDays, Copy,
   MoreHorizontal, ChevronLeft, ChevronRight, UserPlus, 
-  Mail, Lock, Phone, User, Shield, AlertCircle, XCircle, Settings2
+  Mail, Lock, Phone, User, Shield, AlertCircle, XCircle, Settings2, Trash2
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -34,6 +34,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -82,6 +92,7 @@ export default function AdminUsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [roleUser, setRoleUser] = useState<UserProfile | null>(null);
@@ -264,6 +275,43 @@ export default function AdminUsersPage() {
     } catch (error) {
       console.error('Error unblocking user:', error);
       toast.error('Gagal membuka blokir pengguna');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openDeleteDialog = (user: UserProfile) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setActionLoading(true);
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: selectedUser.userId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      await logAdminAction('DELETE_USER', 'user', selectedUser.userId, {
+        full_name: selectedUser.fullName,
+        roles: selectedUser.roles,
+        is_blocked: selectedUser.isBlocked,
+      }, null);
+
+      toast.success('Pengguna berhasil dihapus');
+      setDeleteDialogOpen(false);
+      setDetailDialogOpen(false);
+      setSelectedUser(null);
+      loadUsers();
+    } catch (error: unknown) {
+      console.error('Error deleting user:', error);
+      const message = error instanceof Error ? error.message : 'Gagal menghapus pengguna';
+      toast.error(message);
     } finally {
       setActionLoading(false);
     }
@@ -587,6 +635,12 @@ export default function AdminUsersPage() {
                                       <Ban className="h-4 w-4" /> Blokir Pengguna
                                     </DropdownMenuItem>
                                   )}
+                                  <DropdownMenuItem
+                                    className="gap-2 text-destructive focus:text-destructive"
+                                    onClick={() => openDeleteDialog(user)}
+                                  >
+                                    <Trash2 className="h-4 w-4" /> Hapus Pengguna
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -758,9 +812,64 @@ export default function AdminUsersPage() {
               >
                 <Settings2 className="mr-2 h-4 w-4" /> Kelola Role
               </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  if (!selectedUser) return;
+                  setDetailDialogOpen(false);
+                  openDeleteDialog(selectedUser);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> Hapus Pengguna
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete User Confirmation */}
+        <AlertDialog
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            if (!actionLoading) setDeleteDialogOpen(open);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                <Trash2 className="h-5 w-5" /> Hapus Pengguna Permanen?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Tindakan ini akan menghapus akun autentikasi dan data profil pengguna secara permanen. Data yang sudah dihapus tidak dapat dipulihkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {selectedUser && (
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+                <Avatar className="h-10 w-10 border">
+                  <AvatarImage src={selectedUser.avatarUrl || undefined} />
+                  <AvatarFallback>{selectedUser.fullName.substring(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{selectedUser.fullName}</p>
+                  <p className="truncate font-mono text-xs text-muted-foreground">{selectedUser.userId}</p>
+                </div>
+              </div>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={actionLoading}>Batal</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleDeleteUser();
+                }}
+                disabled={actionLoading}
+              >
+                {actionLoading ? 'Menghapus...' : 'Ya, Hapus Pengguna'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Add User Dialog */}
         <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
