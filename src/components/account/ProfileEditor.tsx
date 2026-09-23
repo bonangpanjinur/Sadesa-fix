@@ -91,6 +91,19 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     );
   };
 
+  const isGoogleMapsUrl = (value: string) => {
+    try {
+      const url = new URL(value);
+      return (
+        (url.protocol === 'https:' || url.protocol === 'http:') &&
+        (url.hostname === 'google.com' || url.hostname.endsWith('.google.com') || url.hostname === 'maps.app.goo.gl') &&
+        (url.hostname === 'maps.app.goo.gl' || url.pathname.startsWith('/maps'))
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -170,6 +183,14 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       toast({
         title: 'Lokasi GPS wajib diaktifkan',
         description: 'Tekan tombol Aktifkan GPS untuk menyimpan tautan Google Maps alamat Anda.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!isGoogleMapsUrl(mapsUrl)) {
+      toast({
+        title: 'URL Google Maps tidak valid',
+        description: 'Gunakan URL lokasi Google Maps yang dihasilkan dari GPS atau tautan Google Maps yang valid.',
         variant: 'destructive',
       });
       return;
@@ -299,12 +320,21 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
             <Label className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Lokasi Google Maps <span className="text-destructive">*</span></Label>
             <p className="mt-1 text-xs text-muted-foreground">GPS wajib aktif untuk mengambil lokasi alamat Anda.</p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={handleGetCurrentLocation} disabled={disabled || saving || locationLoading}>
+          <Button type="button" variant="outline" size="sm" onClick={handleGetCurrentLocation} disabled={saving || locationLoading}>
             {locationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LocateFixed className="mr-1 h-4 w-4" /> Aktifkan GPS</>}
           </Button>
         </div>
-        {mapsUrl && <p className="break-all text-xs text-green-700">Lokasi tersimpan: {mapsUrl}</p>}
-        {locationError && <p className="text-xs text-destructive">{locationError}</p>}
+        <Input
+          value={mapsUrl}
+          onChange={(event) => setMapsUrl(event.target.value)}
+          placeholder="https://www.google.com/maps?q=latitude,longitude"
+          type="url"
+          inputMode="url"
+          disabled={saving}
+          aria-label="URL lokasi Google Maps"
+        />
+        {mapsUrl && <p className="break-all text-xs text-green-700" aria-live="polite">Lokasi GPS siap disimpan: {mapsUrl}</p>}
+        {locationError && <p className="text-xs text-destructive" role="alert">{locationError}</p>}
       </div>
 
       <div className="flex gap-2 pt-2">
