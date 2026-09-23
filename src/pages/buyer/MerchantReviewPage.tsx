@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Send, Star, Store } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Loader2, Send, Star, Store, X } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,9 @@ export default function MerchantReviewPage() {
   const [productId, setProductId] = useState('');
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,11 +80,43 @@ export default function MerchantReviewPage() {
 
   const selectedOrder = useMemo(() => orders.find((order) => order.id === orderId) || null, [orders, orderId]);
   const reviewableItems = selectedOrder?.items.filter((item) => item.product_id) || [];
+  const imagePreviews = useMemo(() => imageFiles.map((file) => URL.createObjectURL(file)), [imageFiles]);
+
+  useEffect(() => () => imagePreviews.forEach((preview) => URL.revokeObjectURL(preview)), [imagePreviews]);
 
   const handleOrderChange = (value: string) => {
     setOrderId(value);
     const order = orders.find((item) => item.id === value);
     setProductId(order?.items.find((item) => item.product_id)?.product_id || '');
+  };
+
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    const validFiles = selectedFiles.filter((file) => file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024);
+    if (validFiles.length !== selectedFiles.length) toast.error('Foto harus berupa gambar dengan ukuran maksimal 5MB');
+    setImageFiles((current) => [...current, ...validFiles].slice(0, 3));
+    event.target.value = '';
+  };
+
+  const removeImage = (index: number) => setImageFiles((current) => current.filter((_, imageIndex) => imageIndex !== index));
+
+  const uploadImages = async () => {
+    if (!user || imageFiles.length === 0) return [];
+    setUploadingImages(true);
+    try {
+      const uploadedUrls: string[] = [];
+      for (const [index, file] of imageFiles.entries()) {
+        const extension = file.name.split('.').pop() || 'jpg';
+        const path = `${user.id}/merchant-review/${orderId}/${productId}/${Date.now()}-${index}.${extension}`;
+        const { error } = await supabase.storage.from('review-images').upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from('review-images').getPublicUrl(path);
+        if (data.publicUrl) uploadedUrls.push(data.publicUrl);
+      }
+      return uploadedUrls;
+    } finally {
+      setUploadingImages(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -91,17 +126,20 @@ export default function MerchantReviewPage() {
     }
 
     setSubmitting(true);
-    const { error } = await supabase.rpc('submit_order_reviews' as never, {
-      p_order_id: orderId,
-      p_reviews: [{ product_id: productId, rating, comment: comment.trim() || null, image_urls: [] }],
-    } as never);
-    setSubmitting(false);
-
-    if (error) {
+    try {
+      const imageUrls = await uploadImages();
+      const { error } = await supabase.rpc('submit_order_reviews' as never, {
+        p_order_id: orderId,
+        p_reviews: [{ product_id: productId, rating, comment: comment.trim() || null, image_urls: imageUrls }],
+      } as never);
+      if (error) throw error;
+    } catch (error) {
       console.error('Error submitting merchant review:', error);
-      toast.error('Ulasan gagal dikirim. Pastikan pesanan sudah selesai dan belum pernah diulas.');
+      toast.error('Ulasan atau foto gagal dikirim. Pastikan koneksi dan pesanan sudah selesai.');
+      setSubmitting(false);
       return;
     }
+    setSubmitting(false);
 
     toast.success('Rating dan ulasan berhasil dikirim');
     navigate(`/merchant/${merchantId}`);
@@ -165,11 +203,30 @@ export default function MerchantReviewPage() {
               <label className="mb-2 mt-5 block text-sm font-medium">Ulasan <span className="font-normal text-muted-foreground">(opsional)</span></label>
               <Textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Ceritakan pengalamanmu dengan toko ini..." rows={5} maxLength={1000} />
               <p className="mt-1 text-right text-xs text-muted-foreground">{comment.length}/1000</p>
+              <div className="mt-4 space-y-2">
+                <input ref={imageInputRef} type="file" accept="image/*" multiple onChange={handleImageSelect} className="hidden" />
+                {imagePreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={preview} className="relative">
+                        <img src={preview} alt={`Pratinjau foto ${index + 1}`} className="h-20 w-20 rounded-xl border border-border object-cover" />
+                        <button type="button" onClick={() => removeImage(index)} aria-label={`Hapus foto ${index + 1}`} className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => imageInputRef.current?.click()} disabled={imageFiles.length >= 3 || uploadingImages}>
+                  <ImagePlus className="mr-2 h-4 w-4" /> Tambah foto ({imageFiles.length}/3)
+                </Button>
+                <p className="text-xs text-muted-foreground">Maksimal 3 foto, masing-masing 5MB. Foto dapat menjadi bukti pengalaman berbelanja.</p>
+              </div>
             </div>
 
-            <Button className="w-full rounded-xl" onClick={handleSubmit} disabled={submitting || !productId}>
-              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              {submitting ? 'Mengirim...' : 'Kirim rating dan ulasan'}
+            <Button className="w-full rounded-xl" onClick={handleSubmit} disabled={submitting || uploadingImages || !productId}>
+              {submitting || uploadingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {uploadingImages ? 'Mengunggah foto...' : submitting ? 'Mengirim...' : 'Kirim rating dan ulasan'}
             </Button>
           </div>
         )}
