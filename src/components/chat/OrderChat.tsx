@@ -238,13 +238,18 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
         .in('user_id', missingIds);
 
       const nameMap: Record<string, string> = { ...senderNames };
+      const isAdminConversation = chatType === 'admin_merchant' || chatType === 'admin_courier' || chatType === 'admin_user';
 
       missingIds.forEach(id => {
         const merchant = merchants?.find(m => m.user_id === id);
         const courier = couriers?.find(c => c.user_id === id);
         const profile = profiles?.find(p => p.user_id === id);
 
-        if (merchant) {
+        if (isAdminConversation && profile?.full_name?.trim()) {
+          // Admin identity is the profile name, even if the same account also
+          // owns a merchant/courier record with a different display name.
+          nameMap[id] = profile.full_name.trim();
+        } else if (merchant) {
           nameMap[id] = merchant.name;
         } else if (courier) {
           nameMap[id] = courier.name;
@@ -259,7 +264,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
     };
 
     fetchNames();
-  }, [isOpen, senderIdsKey, senderNames]);
+  }, [chatType, isOpen, senderIdsKey, senderNames]);
 
   useEffect(() => {
     if (!isOpen || !user) return;

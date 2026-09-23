@@ -25,5 +25,6 @@ describe('buyer admin chat contract', () => {
     expect(page).toContain('otherUserByConversation');
     expect(page).toContain("profile?.full_name?.trim() || 'Admin SaDesa'");
     expect(orderChat).toContain("senderNames[msg.sender_id] || otherUserName || 'Admin SaDesa'");
+    expect(orderChat).toContain('isAdminConversation && profile?.full_name?.trim()');
   });
 });
