@@ -265,6 +265,7 @@ const SubscriptionPage = lazy(() => import("./pages/buyer/SubscriptionPage"));
 const ReviewsPage = lazy(() => import("./pages/buyer/ReviewsPage"));
 const WishlistPage = lazy(() => import("./pages/buyer/WishlistPage"));
 const MyReviewsPage = lazy(() => import("./pages/buyer/MyReviewsPage"));
+const MerchantReviewPage = lazy(() => import("./pages/buyer/MerchantReviewPage"));
 const BuyerChatPage = lazy(() => import("./pages/buyer/BuyerChatPage"));
 const FlashSalePage = lazy(() => import("./pages/buyer/FlashSalePage"));
 const ProductComparePage = lazy(() => import("./pages/buyer/ProductComparePage"));
@@ -619,6 +620,11 @@ const App = () => (
               <Route path="/orders/:orderId/review" element={
                 <ProtectedRoute>
                   <ReviewsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/merchant/:merchantId/review" element={
+                <ProtectedRoute>
+                  <MerchantReviewPage />
                 </ProtectedRoute>
               } />
               <Route path="/wishlist" element={

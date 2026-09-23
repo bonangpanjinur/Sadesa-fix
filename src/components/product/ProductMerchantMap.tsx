@@ -110,10 +110,15 @@ function MerchantPopup({ merchant, userLocation }: { merchant: MerchantPoint; us
         <p key={review.id} className="line-clamp-2 border-l-2 border-primary/20 pl-2 text-[11px] italic text-muted-foreground">“{review.comment}”</p>
       ))}
       <p className="text-xs text-muted-foreground">{merchant.productCount} produk tersedia</p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-1.5">
         <Button asChild size="sm" className="h-8 rounded-lg px-2 text-xs">
           <Link to={`/merchant/${merchant.slug || merchant.id}`}>
             Lihat toko <ExternalLink className="ml-1 h-3 w-3" />
+          </Link>
+        </Button>
+        <Button asChild type="button" size="sm" variant="outline" className="h-8 rounded-lg px-2 text-xs">
+          <Link to={`/merchant/${merchant.id}/review`}>
+            <Star className="mr-1 h-3 w-3" /> Ulas
           </Link>
         </Button>
         <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={() => openMerchantNavigation(merchant, userLocation)}>
