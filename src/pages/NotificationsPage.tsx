@@ -122,6 +122,15 @@ export default function NotificationsPage() {
     queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
   };
 
+  const openNotificationLink = (notification: Notification) => {
+    const target = resolveNotificationLink(notification, roles);
+    if (/^https?:\/\//i.test(target)) {
+      window.location.assign(target);
+      return;
+    }
+    navigate(target);
+  };
+
   const getIcon = (type: string) => {
     switch (type) {
       case 'order':
@@ -216,7 +225,7 @@ export default function NotificationsPage() {
                       markAsRead(notification.id);
                     }
                     if (notification.link || notification.deep_link || notification.type === 'chat' || notification.conversation_id || notification.data) {
-                      navigate(resolveNotificationLink(notification, roles));
+                      openNotificationLink(notification);
                     }
                   }}
                 >

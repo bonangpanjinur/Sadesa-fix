@@ -171,12 +171,13 @@ export type Database = {
         Relationships: []
       }
       broadcast_notifications: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          message: string
-          scheduled_at: string | null
+		Row: {
+			created_at: string
+			created_by: string | null
+			id: string
+			message: string
+			link: string | null
+			scheduled_at: string | null
           sent_at: string | null
           sent_count: number | null
           status: string
@@ -188,9 +189,10 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
-          id?: string
-          message: string
-          scheduled_at?: string | null
+			id?: string
+			message: string
+			link?: string | null
+			scheduled_at?: string | null
           sent_at?: string | null
           sent_count?: number | null
           status?: string
@@ -202,9 +204,10 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
-          id?: string
-          message?: string
-          scheduled_at?: string | null
+			id?: string
+			message?: string
+			link?: string | null
+			scheduled_at?: string | null
           sent_at?: string | null
           sent_count?: number | null
           status?: string

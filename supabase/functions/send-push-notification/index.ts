@@ -27,6 +27,16 @@ interface PushRequest {
   data?: Record<string, unknown>;
 }
 
+function isAllowedNotificationUrl(value: string) {
+  if (value.startsWith('/') && !value.startsWith('//')) return true;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -97,13 +107,13 @@ serve(async (req) => {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400,
       });
     }
-    if (user_ids && (!Array.isArray(user_ids) || user_ids.length > 100
-      || user_ids.some((id) => typeof id !== "string" || id.length > 80))) {
+	    if (user_ids && (!Array.isArray(user_ids) || user_ids.length > 5000
+	      || user_ids.some((id) => typeof id !== "string" || id.length > 80))) {
       return new Response(JSON.stringify({ error: "Invalid notification recipients" }), {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400,
       });
     }
-    if (typeof url === "string" && (url.length > 2048 || !url.startsWith("/"))) {
+	    if (typeof url === "string" && (url.length > 2048 || !isAllowedNotificationUrl(url))) {
       return new Response(JSON.stringify({ error: "Invalid notification URL" }), {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400,
       });

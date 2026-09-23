@@ -46,10 +46,11 @@ import { id as idLocale } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Broadcast {
-  id: string;
-  title: string;
-  message: string;
-  target_audience: string;
+	id: string;
+	title: string;
+	message: string;
+	link: string | null;
+	target_audience: string;
   target_roles: string[];
   status: string;
   sent_at: string | null;
@@ -71,12 +72,26 @@ export default function AdminBroadcastPage() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sending, setSending] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    message: '',
-    target_audience: 'ALL',
-    target_roles: [] as string[],
-  });
+	const [formData, setFormData] = useState({
+		title: '',
+		message: '',
+		link: '',
+		target_audience: 'ALL',
+		target_roles: [] as string[],
+	});
+
+	const normalizeBroadcastLink = (value: string) => {
+		const link = value.trim();
+		if (!link) return null;
+		if (link.startsWith('/') && !link.startsWith('//')) return link;
+		try {
+			const parsed = new URL(link);
+			if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.toString();
+		} catch {
+			// Invalid URLs are rejected below with a user-facing message.
+		}
+		return undefined;
+	};
 
   const fetchBroadcasts = async () => {
     try {
@@ -99,30 +114,41 @@ export default function AdminBroadcastPage() {
     fetchBroadcasts();
   }, []);
 
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      message: '',
-      target_audience: 'ALL',
+	const resetForm = () => {
+		setFormData({
+			title: '',
+			message: '',
+			link: '',
+			target_audience: 'ALL',
       target_roles: [],
     });
   };
 
-  const handleSendBroadcast = async () => {
-    if (!formData.title.trim() || !formData.message.trim()) {
-      toast.error('Judul dan pesan harus diisi');
-      return;
-    }
+	const handleSendBroadcast = async () => {
+		if (!formData.title.trim() || !formData.message.trim()) {
+			toast.error('Judul dan pesan harus diisi');
+			return;
+		}
+		if (formData.target_audience === 'ROLES' && formData.target_roles.length === 0) {
+			toast.error('Pilih minimal satu role penerima');
+			return;
+		}
+		const link = normalizeBroadcastLink(formData.link);
+		if (link === undefined) {
+			toast.error('Link harus berupa path internal (/promo) atau URL http/https yang valid');
+			return;
+		}
 
-    setSending(true);
+		setSending(true);
     try {
       // Create broadcast record
       const { data: broadcast, error: createError } = await supabase
         .from('broadcast_notifications')
         .insert({
           title: formData.title,
-          message: formData.message,
-          target_audience: formData.target_audience,
+			message: formData.message,
+			link,
+			target_audience: formData.target_audience,
           target_roles: formData.target_roles,
           status: 'SENDING',
           created_by: user?.id,
@@ -152,34 +178,64 @@ export default function AdminBroadcastPage() {
         userIds = [...new Set((roles || []).map(r => r.user_id))];
       }
 
-      // Create notifications for each user
-      if (userIds.length > 0) {
-        const notifications = userIds.map(userId => ({
-          user_id: userId,
-          title: formData.title,
-          message: formData.message,
-          type: 'broadcast',
-          link: null,
-        }));
+		// Create in-app notifications for each target user.
+		if (userIds.length > 0) {
+			const notifications = userIds.map(userId => ({
+				user_id: userId,
+				title: formData.title,
+				message: formData.message,
+				type: 'broadcast',
+				link,
+			}));
 
         const { error: notifError } = await supabase
           .from('notifications')
           .insert(notifications);
 
-        if (notifError) throw notifError;
-      }
+			if (notifError) throw notifError;
+		}
 
-      // Update broadcast status
-      await supabase
-        .from('broadcast_notifications')
-        .update({
-          status: 'SENT',
+		// Deliver browser push to the exact same audience. Inbox delivery remains
+		// successful when VAPID is unavailable or a recipient has no subscription.
+		let pushSent = 0;
+		let pushTotal = 0;
+		let pushFailed = false;
+		if (userIds.length > 0) {
+			try {
+				const { data: pushData, error: pushError } = await supabase.functions.invoke('send-push-notification', {
+					body: {
+						user_ids: userIds,
+						title: formData.title,
+						body: formData.message,
+						url: link || '/',
+					},
+				});
+				if (pushError) throw pushError;
+				const result = pushData as { success?: boolean; sent?: number; total?: number } | null;
+				pushSent = result?.sent ?? 0;
+				pushTotal = result?.total ?? 0;
+				pushFailed = result?.success === false;
+			} catch (pushError) {
+				pushFailed = true;
+				console.error('Broadcast inbox berhasil, Web Push gagal:', pushError);
+			}
+		}
+
+		// Update broadcast status
+		await supabase
+			.from('broadcast_notifications')
+			.update({
+				status: pushFailed ? 'PARTIAL' : 'SENT',
           sent_at: new Date().toISOString(),
           sent_count: userIds.length,
         })
         .eq('id', broadcast.id);
 
-      toast.success(`Notifikasi berhasil dikirim ke ${userIds.length} pengguna`);
+		toast.success(
+			pushFailed
+				? `Inbox terkirim ke ${userIds.length} pengguna; Web Push sebagian gagal`
+				: `Terkirim ke ${userIds.length} pengguna (${pushSent}/${pushTotal} perangkat push)`,
+		);
       setDialogOpen(false);
       resetForm();
       fetchBroadcasts();
@@ -206,8 +262,10 @@ export default function AdminBroadcastPage() {
     switch (status) {
       case 'SENT':
         return <Badge variant="success"><CheckCircle className="h-3 w-3 mr-1" />Terkirim</Badge>;
-      case 'SENDING':
-        return <Badge variant="warning"><Clock className="h-3 w-3 mr-1" />Mengirim</Badge>;
+		case 'SENDING':
+			return <Badge variant="warning"><Clock className="h-3 w-3 mr-1" />Mengirim</Badge>;
+		case 'PARTIAL':
+			return <Badge variant="warning"><AlertCircle className="h-3 w-3 mr-1" />Inbox terkirim, push sebagian gagal</Badge>;
       case 'DRAFT':
         return <Badge variant="secondary">Draft</Badge>;
       case 'FAILED':
@@ -326,12 +384,23 @@ export default function AdminBroadcastPage() {
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 placeholder="Isi pesan notifikasi..."
-                rows={4}
-              />
-            </div>
+					rows={4}
+				/>
+			</div>
 
-            <div>
-              <Label>Target Penerima</Label>
+			<div>
+				<Label>Link tujuan atau promo (opsional)</Label>
+				<Input
+					value={formData.link}
+					onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+					placeholder="/promo atau https://contoh.com/promo"
+					type="text"
+				/>
+				<p className="mt-1 text-xs text-muted-foreground">Penerima akan diarahkan ke link ini saat notifikasi diklik.</p>
+			</div>
+
+			<div>
+				<Label>Target Penerima</Label>
               <Select
                 value={formData.target_audience}
                 onValueChange={(value) => setFormData({ ...formData, target_audience: value })}
