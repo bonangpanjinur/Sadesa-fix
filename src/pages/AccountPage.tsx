@@ -19,6 +19,7 @@ interface Profile {
   phone: string | null;
   address: string | null;
   avatar_url?: string | null;
+  selfie_url?: string | null;
   province_id?: string | null;
   province_name?: string | null;
   city_id?: string | null;
@@ -37,6 +38,7 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [hasPartnerApplication, setHasPartnerApplication] = useState<boolean | null>(null);
   const [editing, setEditing] = useState(false);
+  const [profileRequired, setProfileRequired] = useState(false);
   const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
 
   const fetchProfile = useCallback(async () => {
@@ -45,7 +47,7 @@ export default function AccountPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, phone, address, avatar_url, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
+        .select('full_name, phone, address, avatar_url, selfie_url, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -53,6 +55,15 @@ export default function AccountPage() {
 
       if (data) {
         setProfile(data);
+        const complete = Boolean(
+          data.selfie_url && data.address && data.province_id && data.city_id
+            && data.district_id && data.village_id && data.address_detail?.trim(),
+        );
+        setProfileRequired(!complete);
+        if (!complete) setEditing(true);
+      } else {
+        setProfileRequired(true);
+        setEditing(true);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -104,6 +115,7 @@ export default function AccountPage() {
   }, [user]);
 
   const handleProfileSave = async () => {
+    setProfileRequired(false);
     setEditing(false);
     // Refetch profile from database to keep state in sync
     await fetchProfile();
@@ -223,6 +235,7 @@ export default function AccountPage() {
                       phone: profile?.phone || null,
                       address: profile?.address || null,
                       avatar_url: profile?.avatar_url,
+                      selfie_url: profile?.selfie_url,
                       province_id: profile?.province_id,
                       province_name: profile?.province_name,
                       city_id: profile?.city_id,
@@ -235,9 +248,15 @@ export default function AccountPage() {
                     }}
                     onSave={handleProfileSave}
                     onCancel={() => setEditing(false)}
+                    forceCompletion={profileRequired}
                   />
                 ) : (
                   <div className="space-y-2 text-sm">
+                    {profileRequired && (
+                      <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
+                        Lengkapi alamat dan foto selfie Anda untuk melanjutkan.
+                      </p>
+                    )}
                     {profile?.phone && (
                       <p className="text-muted-foreground">📱 {profile.phone}</p>
                     )}
