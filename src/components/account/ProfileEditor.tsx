@@ -42,6 +42,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
   });
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [gpsUnavailable, setGpsUnavailable] = useState(false);
   const [fullName, setFullName] = useState(initialData.full_name || '');
   const [phone, setPhone] = useState(initialData.phone || '');
   const [phoneValid, setPhoneValid] = useState(true);
@@ -69,6 +70,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
 
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
+      setGpsUnavailable(true);
       setLocationError('Browser ini tidak mendukung GPS. Gunakan browser versi terbaru.');
       return;
     }
@@ -77,9 +79,11 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setMapsUrl(`https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`);
+        setGpsUnavailable(false);
         setLocationLoading(false);
       },
       (error) => {
+        setGpsUnavailable(true);
         setLocationLoading(false);
         setLocationError(
           error.code === error.PERMISSION_DENIED
@@ -181,8 +185,8 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     }
     if (!mapsUrl) {
       toast({
-        title: 'Lokasi GPS wajib diaktifkan',
-        description: 'Tekan tombol Aktifkan GPS untuk menyimpan tautan Google Maps alamat Anda.',
+        title: 'Lokasi Google Maps wajib diisi',
+        description: 'Aktifkan GPS atau masukkan URL Google Maps secara manual jika GPS tidak tersedia.',
         variant: 'destructive',
       });
       return;
@@ -318,22 +322,32 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         <div className="flex items-center justify-between gap-3">
           <div>
             <Label className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Lokasi Google Maps <span className="text-destructive">*</span></Label>
-            <p className="mt-1 text-xs text-muted-foreground">GPS wajib aktif untuk mengambil lokasi alamat Anda.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Ambil otomatis dari GPS atau masukkan tautan Google Maps.</p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={handleGetCurrentLocation} disabled={saving || locationLoading}>
-            {locationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LocateFixed className="mr-1 h-4 w-4" /> Aktifkan GPS</>}
+            {locationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LocateFixed className="mr-1 h-4 w-4" /> {gpsUnavailable ? 'Coba GPS lagi' : 'Aktifkan GPS'}</>}
           </Button>
         </div>
-        <Input
-          value={mapsUrl}
-          onChange={(event) => setMapsUrl(event.target.value)}
-          placeholder="https://www.google.com/maps?q=latitude,longitude"
-          type="url"
-          inputMode="url"
-          disabled={saving}
-          aria-label="URL lokasi Google Maps"
-        />
-        {mapsUrl && <p className="break-all text-xs text-green-700" aria-live="polite">Lokasi GPS siap disimpan: {mapsUrl}</p>}
+        {(gpsUnavailable || mapsUrl) && (
+          <div className="space-y-1.5 rounded-md border border-dashed border-border bg-background/60 p-2.5">
+            <Label htmlFor="manual-google-maps-url" className="text-xs">URL Google Maps manual</Label>
+            <Input
+              id="manual-google-maps-url"
+              value={mapsUrl}
+              onChange={(event) => {
+                setMapsUrl(event.target.value);
+                setLocationError(null);
+              }}
+              placeholder="https://www.google.com/maps?q=latitude,longitude"
+              type="url"
+              inputMode="url"
+              disabled={saving}
+              aria-label="URL lokasi Google Maps manual"
+            />
+            <p className="text-[11px] leading-relaxed text-muted-foreground">Buka Google Maps, pilih lokasi, tekan Bagikan, lalu tempel tautannya di sini.</p>
+          </div>
+        )}
+        {mapsUrl && <p className="break-all text-xs text-green-700" aria-live="polite">Lokasi siap disimpan: {mapsUrl}</p>}
         {locationError && <p className="text-xs text-destructive" role="alert">{locationError}</p>}
       </div>
 
