@@ -72,6 +72,28 @@ export async function listConversationMessages(conversationId: string, limit = 5
   return { messages: (data || []).map((row) => normalizeMessage(row as Record<string, unknown>)), error: error ? toChatError(error) : null };
 }
 
+/**
+ * Read state is stored on the other participant's read cursor, not on the
+ * immutable message row. A message sent by the current user is read when the
+ * other participant's cursor has passed its creation time.
+ */
+export async function getConversationReadAt(conversationId: string) {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { readAt: null as string | null, error: toChatError(new Error('Unauthorized')) };
+  const { data, error } = await supabase
+    .from('chat_participants')
+    .select('user_id, last_read_at')
+    .eq('conversation_id', conversationId)
+    .neq('user_id', auth.user.id)
+    .is('left_at', null);
+  const readAt = (data || [])
+    .map((participant) => participant.last_read_at)
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1) || null;
+  return { readAt, error: error ? toChatError(error) : null };
+}
+
 export async function listOlderConversationMessages(conversationId: string, before: ChatCursor, limit = 50): Promise<{ messages: ConversationMessage[]; error: Error | null }> {
   const startedAt = Date.now();
   const { data, error } = await supabase

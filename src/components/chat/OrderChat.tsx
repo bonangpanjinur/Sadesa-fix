@@ -13,6 +13,7 @@ import { formatPrice } from '@/lib/utils';
 import {
   getOrCreateConversation,
   getOrCreateDirectConversation,
+  getConversationReadAt,
   listConversationMessages,
   listOlderConversationMessages,
   markConversationRead,
@@ -119,6 +120,7 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
   const presence = useChatPresence(conversationId);
   const typing = useTypingIndicator(conversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const readStateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const expectedConversationType = contextType === 'ride' ? 'passenger_courier' : chatType;
 
   useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
@@ -313,6 +315,14 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
         if (!history.error) {
           const canonicalMessages = history.messages as ChatMessage[];
           setMessages(canonicalMessages);
+          const refreshReadState = async () => {
+            const readState = await getConversationReadAt(conversationId);
+            if (!active || readState.error || !readState.readAt) return;
+            setMessages((current) => current.map((message) => message.sender_id === user.id
+              ? { ...message, is_read: message.is_read || message.created_at <= readState.readAt! }
+              : message));
+          };
+          await refreshReadState();
           const oldest = canonicalMessages[0];
           setOldestCursor(oldest ? { createdAt: oldest.created_at, id: oldest.id } : null);
           setHasOlderMessages(canonicalMessages.length >= 50);
@@ -343,6 +353,14 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
             setMessages((previous) => previous.map((item) => item.id === message.id ? message as ChatMessage : item));
           },
         );
+        readStateTimerRef.current = setInterval(() => {
+          void getConversationReadAt(conversationId).then((readState) => {
+            if (!active || readState.error || !readState.readAt) return;
+            setMessages((current) => current.map((message) => message.sender_id === user.id
+              ? { ...message, is_read: message.is_read || message.created_at <= readState.readAt! }
+              : message));
+          });
+        }, 5000);
         return;
       }
 
@@ -354,6 +372,8 @@ export function OrderChat({ orderId, contextType = 'order', conversationId: exis
     return () => {
       active = false;
       if (channel) void supabase.removeChannel(channel);
+      if (readStateTimerRef.current) clearInterval(readStateTimerRef.current);
+      readStateTimerRef.current = null;
       setConversationId(null);
     };
   }, [chatType, contextType, isOpen, orderId, existingConversationId, rideRequestId, merchantId, user, expectedConversationType, playNotificationSound]);

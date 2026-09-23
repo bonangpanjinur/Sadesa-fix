@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { deleteConversationMessage, getOrCreateAdminDirectConversation, getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation, uploadChatImage, removeChatAttachment } from '@/lib/chat/repository';
+import { deleteConversationMessage, getConversationReadAt, getOrCreateAdminDirectConversation, getOrCreateConversation, getOrCreateDirectConversation, listConversationMessages, markConversationRead, sendConversationMessage, subscribeToConversation, uploadChatImage, removeChatAttachment } from '@/lib/chat/repository';
 import { validateMessageBody } from '@/lib/chat/retention';
 import { getChatReconnectDelay } from '@/lib/chat/realtime';
 import type { ChatConnectionState, ChatCursor, ConversationMessage, ConversationType } from '@/lib/chat/types';
@@ -30,6 +30,7 @@ export function useConversation(options: ConversationOptions) {
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readStateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const cursorRef = useRef<ChatCursor | null>(null);
   const activeRef = useRef(true);
@@ -76,7 +77,15 @@ export function useConversation(options: ConversationOptions) {
       const history = await listConversationMessages(result.conversationId);
       if (!activeRef.current) return;
       if (history.error) { setStatus('offline'); setError(history.error.message); return; }
+      const applyReadState = async () => {
+        const readState = await getConversationReadAt(result.conversationId!);
+        if (!activeRef.current || readState.error || !readState.readAt) return;
+        setMessages((current) => current.map((message) => message.sender_id === user.id
+          ? { ...message, is_read: message.is_read || message.created_at <= readState.readAt! }
+          : message));
+      };
       setMessages(history.messages); cursorRef.current = cursorFrom(history.messages);
+      await applyReadState();
       const last = history.messages.at(-1); if (last) await markConversationRead(result.conversationId, last.id);
 
       let connect: () => void = () => undefined;
@@ -111,12 +120,15 @@ export function useConversation(options: ConversationOptions) {
         });
       };
       connect();
+      readStateTimerRef.current = setInterval(() => { void applyReadState(); }, 5000);
     };
     void load();
     return () => {
       activeRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
+      if (readStateTimerRef.current) clearInterval(readStateTimerRef.current);
+      readStateTimerRef.current = null;
       reconnectAttemptRef.current = 0;
       if (channelRef.current) void supabase.removeChannel(channelRef.current);
       channelRef.current = null;
