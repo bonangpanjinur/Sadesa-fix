@@ -56,6 +56,13 @@ export interface Merchant {
 
 export type HalalStatus = 'NONE' | 'PENDING_VERIFICATION' | 'VERIFIED' | 'REQUESTED';
 
+export interface MerchantReviewSummary {
+  id: string;
+  rating: number;
+  comment?: string | null;
+  createdAt?: string;
+}
+
 export interface Product {
   id: string;
   createdAt?: string;
@@ -64,6 +71,9 @@ export interface Product {
   merchantImageUrl?: string | null;
   merchantSlug?: string | null;
   merchantAddress?: string | null;
+  merchantRatingAvg?: number | null;
+  merchantRatingCount?: number | null;
+  merchantReviews?: MerchantReviewSummary[];
   merchantVillage?: string;
   name: string;
   description: string;

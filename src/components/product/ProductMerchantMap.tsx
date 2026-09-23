@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { ExternalLink, MapPin, Navigation, Search, Store } from 'lucide-react';
+import { ExternalLink, MapPin, Navigation, Search, Star, Store } from 'lucide-react';
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { calculateDistance } from '@/hooks/useUserLocation';
@@ -19,6 +19,9 @@ interface MerchantPoint {
   address?: string | null;
   imageUrl?: string | null;
   slug?: string | null;
+  ratingAvg: number;
+  ratingCount: number;
+  reviews: NonNullable<Product['merchantReviews']>;
   lat: number;
   lng: number;
   productCount: number;
@@ -98,6 +101,14 @@ function MerchantPopup({ merchant, userLocation }: { merchant: MerchantPoint; us
           <p className="text-xs text-muted-foreground">{formatDistance(merchant.distanceKm)}</p>
         </div>
       </div>
+      <div className="flex items-center gap-1 text-xs">
+        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+        <span className="font-semibold text-foreground">{merchant.ratingCount > 0 ? merchant.ratingAvg.toFixed(1) : 'Baru'}</span>
+        <span className="text-muted-foreground">({merchant.ratingCount} ulasan)</span>
+      </div>
+      {merchant.reviews.filter((review) => review.comment?.trim()).slice(0, 2).map((review) => (
+        <p key={review.id} className="line-clamp-2 border-l-2 border-primary/20 pl-2 text-[11px] italic text-muted-foreground">“{review.comment}”</p>
+      ))}
       <p className="text-xs text-muted-foreground">{merchant.productCount} produk tersedia</p>
       <div className="grid grid-cols-2 gap-2">
         <Button asChild size="sm" className="h-8 rounded-lg px-2 text-xs">
@@ -227,6 +238,9 @@ export function ProductMerchantMap({ products, center, userLocation }: ProductMe
         address: product.merchantAddress,
         imageUrl: product.merchantImageUrl,
         slug: product.merchantSlug,
+        ratingAvg: product.merchantRatingAvg || 0,
+        ratingCount: product.merchantRatingCount || 0,
+        reviews: product.merchantReviews || [],
         lat: product.locationLat,
         lng: product.locationLng,
         productCount: 1,
