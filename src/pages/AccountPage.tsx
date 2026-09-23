@@ -56,7 +56,8 @@ export default function AccountPage() {
         setProfile(data);
         const complete = Boolean(
           data.avatar_url && data.address && data.province_id && data.city_id
-            && data.district_id && data.village_id && data.address_detail?.trim(),
+            && data.district_id && data.village_id && data.address_detail?.trim()
+            && /Google Maps:\s*https:\/\/www\.google\.com\/maps\?q=/.test(data.address),
         );
         setProfileRequired(!complete);
         if (!complete) setEditing(true);
@@ -260,6 +261,16 @@ export default function AccountPage() {
                     )}
                     {profile?.address && (
                       <p className="text-muted-foreground">📍 {profile.address}</p>
+                    )}
+                    {profile?.address?.match(/https?:\/\/(?:www\.)?google\.com\/maps\?q=[^\s]+/i)?.[0] && (
+                      <a
+                        href={profile.address.match(/https?:\/\/(?:www\.)?google\.com\/maps\?q=[^\s]+/i)?.[0]}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        <MapPin className="h-3.5 w-3.5" /> Buka lokasi di Google Maps
+                      </a>
                     )}
                     {!profile?.phone && !profile?.address && (
                       <p className="text-muted-foreground italic">

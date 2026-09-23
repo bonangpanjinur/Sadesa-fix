@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Loader2, Camera, User } from 'lucide-react';
+import { Loader2, Camera, User, LocateFixed, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,6 +36,12 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatar_url || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mapsUrl, setMapsUrl] = useState(() => {
+    const match = initialData.address?.match(/https?:\/\/(?:www\.)?google\.com\/maps\?q=[^\s]+/i);
+    return match?.[0] || '';
+  });
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [fullName, setFullName] = useState(initialData.full_name || '');
   const [phone, setPhone] = useState(initialData.phone || '');
   const [phoneValid, setPhoneValid] = useState(true);
@@ -59,6 +65,30 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
 
   const handlePhoneValidation = (isValid: boolean) => {
     setPhoneValid(isValid || !phone);
+  };
+
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Browser ini tidak mendukung GPS. Gunakan browser versi terbaru.');
+      return;
+    }
+    setLocationLoading(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setMapsUrl(`https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`);
+        setLocationLoading(false);
+      },
+      (error) => {
+        setLocationLoading(false);
+        setLocationError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Izin lokasi ditolak. Aktifkan GPS dan izinkan akses lokasi di browser.'
+            : 'Lokasi tidak dapat diambil. Pastikan GPS aktif lalu coba lagi.',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,19 +166,28 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       });
       return;
     }
+    if (!mapsUrl) {
+      toast({
+        title: 'Lokasi GPS wajib diaktifkan',
+        description: 'Tekan tombol Aktifkan GPS untuk menyimpan tautan Google Maps alamat Anda.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setSaving(true);
 
     try {
       // Format the full address from the selector
       const formattedAddress = formatFullAddress(addressData);
+      const addressWithMapsUrl = `${formattedAddress}\nGoogle Maps: ${mapsUrl}`;
 
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: fullName.trim(),
           phone: phone.trim() || null,
-          address: formattedAddress || null,
+          address: addressWithMapsUrl || null,
           province_id: addressData.province || null,
           province_name: addressData.provinceName || null,
           city_id: addressData.city || null,
@@ -166,7 +205,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       onSave({
         full_name: fullName.trim(),
         phone: phone.trim() || null,
-        address: formattedAddress || null,
+        address: addressWithMapsUrl || null,
         avatar_url: avatarUrl || null,
       });
 
@@ -252,6 +291,20 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           onChange={setAddressData}
           disabled={saving}
         />
+      </div>
+
+      <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Lokasi Google Maps <span className="text-destructive">*</span></Label>
+            <p className="mt-1 text-xs text-muted-foreground">GPS wajib aktif untuk mengambil lokasi alamat Anda.</p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={handleGetCurrentLocation} disabled={disabled || saving || locationLoading}>
+            {locationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LocateFixed className="mr-1 h-4 w-4" /> Aktifkan GPS</>}
+          </Button>
+        </div>
+        {mapsUrl && <p className="break-all text-xs text-green-700">Lokasi tersimpan: {mapsUrl}</p>}
+        {locationError && <p className="text-xs text-destructive">{locationError}</p>}
       </div>
 
       <div className="flex gap-2 pt-2">
