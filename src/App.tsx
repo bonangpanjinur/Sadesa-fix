@@ -371,6 +371,25 @@ function HomeRoute() {
   return <Index />;
 }
 
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+
+  useEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      document.querySelectorAll<HTMLElement>('main, .overflow-y-auto').forEach((element) => {
+        element.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+    };
+
+    resetScroll();
+    const frame = window.requestAnimationFrame(resetScroll);
+    return () => window.cancelAnimationFrame(frame);
+  }, [pathname, search]);
+
+  return null;
+}
+
 const App = () => (
   <SplashScreen>
     <ErrorBoundary>
@@ -389,6 +408,7 @@ const App = () => (
               <NotificationOnboardingGate />
               <BrowserRouter>
                 <RedirectHandler />
+                <ScrollToTop />
                 <SEO />
                 <InstallBanner />
                 <UpdatePrompt />
