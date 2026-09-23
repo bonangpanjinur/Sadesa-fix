@@ -114,7 +114,7 @@ export default function OrderTrackingPage() {
   const orderRef = useRef<OrderDetails | null>(null);
   const fetchCourierInfoRef = useRef<((courierId: string) => Promise<void>) | null>(null);
   const [etaInfo, setEtaInfo] = useState<{ etaFormatted: string; distanceFormatted: string } | null>(null);
-  const isDirectCourier = Boolean(order?.service_type === 'COURIER_DELIVERY' || order?.pickup_address);
+  const isDirectCourier = order?.service_type === 'COURIER_DELIVERY';
   const canCancelDirectCourier = isDirectCourier && ['ASSIGNED', 'COURIER_ACCEPTED'].includes(order?.status || '');
   const copyTrackingNumber = useCallback(async (trackingNumber: string) => {
     try {

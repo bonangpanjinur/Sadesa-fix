@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bike, Phone, X, CheckCircle, MapPin, Clock, Loader2, User, Navigation, Star, MessageCircle } from 'lucide-react';
@@ -94,6 +94,7 @@ export default function RideTrackingPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [driverUserId, setDriverUserId] = useState<string | null>(null);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
+  const autoCancelAttemptedRef = useRef(false);
 
   useEffect(() => {
     const conversationId = searchParams.get('conversationId');
@@ -135,6 +136,7 @@ export default function RideTrackingPage() {
         .from('ride_requests')
         .select('*')
         .eq('id', id!)
+        .eq('passenger_id', user!.id)
         .maybeSingle();
       if (error) throw error;
       setRide(data as unknown as RideData);
@@ -144,7 +146,7 @@ export default function RideTrackingPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, fetchDriver]);
+  }, [fetchDriver, id, user]);
 
   useEffect(() => {
     if (!user || !id) return;
@@ -181,6 +183,7 @@ export default function RideTrackingPage() {
   useEffect(() => {
     if (!ride || ride.status !== 'SEARCHING') {
       setSearchCountdown(null);
+      autoCancelAttemptedRef.current = false;
       return;
     }
 
@@ -191,8 +194,10 @@ export default function RideTrackingPage() {
       const remaining = deadline - Date.now();
       if (remaining <= 0) {
         setSearchCountdown(0);
-        // Auto-cancel
-        autoCancel();
+        if (!autoCancelAttemptedRef.current) {
+          autoCancelAttemptedRef.current = true;
+          void autoCancel();
+        }
       } else {
         setSearchCountdown(Math.ceil(remaining / 1000));
       }

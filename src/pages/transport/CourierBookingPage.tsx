@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Box, CalendarDays, Check, ContactRound, Info, LocateFixed, Loader2, MapPin, Navigation, UserRound } from 'lucide-react';
+import { ArrowLeft, Box, ContactRound, Info, LocateFixed, Loader2, MapPin, Navigation, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -126,9 +126,7 @@ export default function CourierBookingPage() {
   const [packageType, setPackageType] = useState('');
   const [weight, setWeight] = useState('1');
   const [distanceBand, setDistanceBand] = useState<DistanceBand>('near');
-  const [scheduled, setScheduled] = useState(false);
   const [notes, setNotes] = useState('');
-  const [cod, setCod] = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
   const [gettingGps, setGettingGps] = useState(false);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
@@ -292,9 +290,8 @@ export default function CourierBookingPage() {
   const estimate = useMemo(() => {
     const base = distanceOptions.find((option) => option.value === distanceBand)?.price ?? 8000;
     const weightFee = Math.max(0, Number(weight || 0) - 2) * 2500;
-    const codFee = cod ? 2000 : 0;
-    return { base, weightFee, codFee, total: base + weightFee + codFee };
-  }, [cod, distanceBand, weight]);
+    return { base, weightFee, total: base + weightFee };
+  }, [distanceBand, weight]);
 
   const canContinue = Boolean(
     pickupLocation
@@ -302,8 +299,12 @@ export default function CourierBookingPage() {
     && pickupAddress.trim()
     && destinationAddress.trim()
     && recipientName.trim()
-    && recipientPhone.trim()
-    && packageType.trim(),
+    && /^\+?[0-9\s-]{8,20}$/.test(recipientPhone.trim())
+    && packageType.trim()
+    && Number(weight) > 0
+    && Number(weight) <= 50
+    && distanceKm > 0
+    && distanceKm <= 10,
   );
 
   const handleContinue = async () => {
@@ -329,9 +330,9 @@ export default function CourierBookingPage() {
           recipient_phone: recipientPhone,
           package_type: packageType,
           weight_kg: Number(weight || 1),
-          cod,
+          cod: true,
           notes,
-          scheduled,
+          scheduled: false,
         },
       } as never);
       if (error) throw error;
@@ -593,22 +594,11 @@ export default function CourierBookingPage() {
                 {distanceKm > 0 ? `${distanceKm.toFixed(1)} km · ${distanceOptions.find((option) => option.value === distanceBand)?.label}` : 'Pilih pickup dan tujuan di peta'}
               </div>
             </div>
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-border p-3 text-xs">
-              <input type="checkbox" checked={cod} onChange={(event) => setCod(event.target.checked)} className="h-4 w-4 accent-primary" />
-              <span><strong>Aktifkan COD</strong><br /><span className="text-muted-foreground">Biaya layanan COD ditambahkan ke estimasi.</span></span>
-            </label>
+            <div className="rounded-xl border border-border bg-muted/30 p-3 text-xs">
+              <strong>Pembayaran: COD</strong>
+              <p className="mt-1 text-muted-foreground">Pembayaran dilakukan saat barang diterima. Tidak ada biaya layanan COD tambahan.</p>
+            </div>
             <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan untuk kurir (opsional)" className="min-h-[70px]" />
-          </Card>
-
-          <Card className="p-4">
-            <button type="button" onClick={() => setScheduled((value) => !value)} className="flex w-full items-center gap-3 text-left">
-              <CalendarDays className="h-4 w-4 text-primary" />
-              <span className="flex-1 text-xs font-semibold">Jadwalkan pengambilan</span>
-              <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${scheduled ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40'}`}>
-                {scheduled && <Check className="h-3 w-3" />}
-              </span>
-            </button>
-            {scheduled && <p className="mt-2 pl-7 text-[10px] text-muted-foreground">Jadwal spesifik dapat dipilih saat dispatch kurir diaktifkan.</p>}
           </Card>
         </div>
 
@@ -621,7 +611,6 @@ export default function CourierBookingPage() {
             <div className="text-right text-[10px] text-muted-foreground">
               <p>Jarak {distanceOptions.find((option) => option.value === distanceBand)?.label}</p>
               {estimate.weightFee > 0 && <p>Tambahan berat Rp{estimate.weightFee.toLocaleString('id-ID')}</p>}
-              {estimate.codFee > 0 && <p>COD Rp{estimate.codFee.toLocaleString('id-ID')}</p>}
             </div>
           </div>
           <Separator className="mb-3" />
