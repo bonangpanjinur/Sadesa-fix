@@ -6,7 +6,8 @@ export type ConversationType =
   | 'merchant_courier'
   | 'passenger_courier'
   | 'admin_merchant'
-  | 'admin_courier';
+  | 'admin_courier'
+  | 'admin_user';
 
 export type ChatConnectionState = 'idle' | 'loading' | 'subscribed' | 'reconnecting' | 'offline' | 'closed' | 'expired';
 export type MessageDeliveryStatus = 'sending' | 'sent' | 'failed';

@@ -13,7 +13,7 @@ interface ConversationOptions {
   rideRequestId?: string;
   merchantId?: string;
   adminTargetUserId?: string;
-  adminTargetRole?: 'merchant' | 'courier';
+  adminTargetRole?: 'merchant' | 'courier' | 'buyer';
   receiverId: string;
 }
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Search, Ban, CheckCircle, Eye, Filter, Download, CalendarDays, Copy,
   MoreHorizontal, ChevronLeft, ChevronRight, UserPlus, 
-  Mail, Lock, Phone, User, Shield, AlertCircle, XCircle, Settings2, Trash2
+  Mail, Lock, Phone, User, Shield, AlertCircle, XCircle, Settings2, Trash2, MessageCircle
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -57,6 +57,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { logAdminAction } from '@/lib/auditLog';
+import { useNavigate } from 'react-router-dom';
 
 type AppRole = 'admin' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa' | 'buyer';
 type BadgeVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'success';
@@ -84,6 +85,7 @@ const AVAILABLE_ROLES = [
 ];
 
 export default function AdminUsersPage() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -801,6 +803,17 @@ export default function AdminUsersPage() {
 
             <DialogFooter className="gap-2 sm:gap-2">
               <Button type="button" variant="outline" onClick={() => setDetailDialogOpen(false)}>Tutup</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!selectedUser) return;
+                  setDetailDialogOpen(false);
+                  navigate(`/admin/chat?userId=${encodeURIComponent(selectedUser.userId)}`);
+                }}
+              >
+                <MessageCircle className="mr-2 h-4 w-4" /> Chat Pengguna
+              </Button>
               <Button
                 type="button"
                 variant="outline"

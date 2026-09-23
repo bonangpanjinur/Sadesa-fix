@@ -8,7 +8,7 @@ import { ConversationHeader } from './ConversationHeader';
 import { MessageComposer } from './MessageComposer';
 import { MessageList } from './MessageList';
 
-export function ConversationView({ title, subtitle, contextType, conversationType, orderId, rideRequestId, merchantId, adminTargetUserId, adminTargetRole, receiverId, onClose }: { title: string; subtitle?: string; contextType: 'order' | 'ride' | 'direct'; conversationType: ConversationType; orderId?: string; rideRequestId?: string; merchantId?: string; adminTargetUserId?: string; adminTargetRole?: 'merchant' | 'courier'; receiverId: string; onClose?: () => void }) {
+export function ConversationView({ title, subtitle, contextType, conversationType, orderId, rideRequestId, merchantId, adminTargetUserId, adminTargetRole, receiverId, onClose }: { title: string; subtitle?: string; contextType: 'order' | 'ride' | 'direct'; conversationType: ConversationType; orderId?: string; rideRequestId?: string; merchantId?: string; adminTargetUserId?: string; adminTargetRole?: 'merchant' | 'courier' | 'buyer'; receiverId: string; onClose?: () => void }) {
   const { user } = useAuth();
   const conversationOptions = useMemo(() => ({ contextType, conversationType, orderId, rideRequestId, merchantId, adminTargetUserId, adminTargetRole, receiverId }), [contextType, conversationType, orderId, rideRequestId, merchantId, adminTargetUserId, adminTargetRole, receiverId]);
   const chat = useConversation(conversationOptions); const typing = useTypingIndicator(chat.conversationId);

@@ -55,7 +55,7 @@ export async function getOrCreateDirectConversation(merchantId: string) {
   return { conversationId: typeof data === 'string' ? data : null, error: error ? toChatError(error) : null };
 }
 
-export async function getOrCreateAdminDirectConversation(targetUserId: string, targetRole: 'merchant' | 'courier') {
+export async function getOrCreateAdminDirectConversation(targetUserId: string, targetRole: 'merchant' | 'courier' | 'buyer') {
   const { data, error } = await supabase.rpc('get_or_create_admin_direct_chat' as never, {
     p_target_user_id: targetUserId,
     p_target_role: targetRole,

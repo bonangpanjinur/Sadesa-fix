@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -15,6 +16,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 
 type NotificationJob = {
   id: string;
+  recipient_id: string;
   channel: "whatsapp" | "push" | "email" | "in_app";
   template_key: string;
   payload: Record<string, unknown>;
@@ -110,8 +112,63 @@ async function sendWhatsApp(job: NotificationJob): Promise<ProviderResult> {
   return { providerMessageId };
 }
 
+async function sendPush(job: NotificationJob): Promise<ProviderResult> {
+  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
+  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
+  if (!vapidPrivateKey || !vapidPublicKey) {
+    console.warn(JSON.stringify({ event: "push_skipped", reason: "VAPID keys are not configured", job_id: job.id }));
+    return {};
+  }
+
+  const recipientId = job.recipient_id;
+  if (!recipientId) throw new Error("Push recipient is missing");
+
+  const { data: subscriptions, error: subscriptionError } = await supabase
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .eq("user_id", recipientId);
+  if (subscriptionError) throw subscriptionError;
+  if (!subscriptions?.length) return {};
+
+  webpush.setVapidDetails("mailto:admin@sadesa.id", vapidPublicKey, vapidPrivateKey);
+  const title = typeof job.payload.title === "string" ? job.payload.title.trim() : "Notifikasi Baru";
+  const body = typeof job.payload.body === "string" ? job.payload.body.trim() : "Anda memiliki notifikasi baru";
+  const url = typeof job.payload.url === "string" && job.payload.url.startsWith("/") ? job.payload.url : "/";
+  const notificationPayload = JSON.stringify({
+    title: title.slice(0, 160),
+    body: body.slice(0, 4000),
+    icon: "/branding/sadesa-favicon.png",
+    url,
+    data: job.payload.data ?? {},
+  });
+
+  let delivered = 0;
+  const errors: string[] = [];
+  for (const subscription of subscriptions) {
+    try {
+      await webpush.sendNotification({
+        endpoint: subscription.endpoint,
+        keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+      }, notificationPayload);
+      delivered++;
+    } catch (error) {
+      const statusCode = typeof error === "object" && error !== null && "statusCode" in error
+        ? Number((error as { statusCode?: unknown }).statusCode)
+        : 0;
+      if (statusCode === 404 || statusCode === 410) {
+        await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
+        continue;
+      }
+      errors.push(error instanceof Error ? error.message.slice(0, 240) : "Push provider error");
+    }
+  }
+  if (delivered === 0 && errors.length > 0) throw new Error(errors.join("; "));
+  return {};
+}
+
 async function sendJob(job: NotificationJob): Promise<ProviderResult> {
   if (job.channel === "whatsapp") return sendWhatsApp(job);
+  if (job.channel === "push") return sendPush(job);
   if (job.channel === "in_app") return {};
   throw new Error(`Unsupported notification channel: ${job.channel}`);
 }
