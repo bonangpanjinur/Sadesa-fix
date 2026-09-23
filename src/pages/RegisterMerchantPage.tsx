@@ -386,15 +386,10 @@ export default function RegisterMerchantPage() {
       );
       if (scheduleError) throw scheduleError;
 
-      // Role assignment is handled by database trigger (on_merchant_approval)
-      // when registration_status is set to 'APPROVED'.
-      // We just need to refetch roles to update the UI.
-      if (user) {
-        // Small delay to ensure trigger has finished
-        setTimeout(async () => {
-          await refetchRoles();
-        }, 1000);
-      }
+      // Database triggers assign buyer + merchant roles before the insert
+      // returns. Refresh the auth role state before navigating so
+      // ProtectedRoute does not briefly send the new merchant to /unauthorized.
+      await refetchRoles();
 
       // Clear draft on success
       localStorage.removeItem(DRAFT_KEY);

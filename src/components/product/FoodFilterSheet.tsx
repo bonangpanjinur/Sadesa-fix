@@ -15,7 +15,14 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-export type FoodType = 'all' | 'makanan' | 'minuman' | 'camilan' | 'sembako' | 'produk-desa';
+// Kept as FoodType for backwards compatibility; values now come from the
+// active categories configured by the admin.
+export type FoodType = string;
+
+export interface CategoryFilterOption {
+  slug: string;
+  name: string;
+}
 
 export interface FoodFilters {
   type: FoodType;
@@ -29,6 +36,7 @@ interface FoodFilterSheetProps {
   filters: FoodFilters;
   onFiltersChange: (filters: FoodFilters) => void;
   activeFilterCount: number;
+  categories?: CategoryFilterOption[];
 }
 
 const initialFilters: FoodFilters = {
@@ -39,7 +47,7 @@ const initialFilters: FoodFilters = {
   maxPrice: 100000,
 };
 
-export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount }: FoodFilterSheetProps) {
+export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount, categories = [] }: FoodFilterSheetProps) {
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState(filters);
 
@@ -81,17 +89,10 @@ export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount }:
             <section className="space-y-3">
               <Label className="text-sm font-semibold">Kategori produk</Label>
               <div className="grid grid-cols-2 gap-2">
-                {([
-                  ['all', 'Semua menu'],
-                  ['makanan', 'Makanan'],
-                  ['minuman', 'Minuman'],
-                  ['camilan', 'Camilan'],
-                  ['sembako', 'Sembako'],
-                  ['produk-desa', 'Produk desa'],
-                ] as const).map(([value, label]) => (
-                  <Button key={value} type="button" variant={localFilters.type === value ? 'default' : 'outline'} className="justify-start" onClick={() => update({ type: value })}>
-                    {localFilters.type === value && <Check className="mr-2 h-4 w-4" />}
-                    {label}
+                {[{ slug: 'all', name: 'Semua menu' }, ...categories].map(({ slug, name }) => (
+                  <Button key={slug} type="button" variant={localFilters.type === slug ? 'default' : 'outline'} className="justify-start" onClick={() => update({ type: slug })}>
+                    {localFilters.type === slug && <Check className="mr-2 h-4 w-4" />}
+                    {name}
                   </Button>
                 ))}
               </div>

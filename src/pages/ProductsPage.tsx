@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -12,6 +12,7 @@ import { fetchProducts } from '../lib/api';
 import { useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
 import { FoodFilterSheet, type FoodFilters, type FoodType, defaultFoodFilters } from '../components/product/FoodFilterSheet';
+import { useAdminCategories } from '../hooks/useAdminCategories';
 import {
   Select,
   SelectContent,
@@ -38,12 +39,7 @@ function normalize(value: string | undefined) {
 
 function matchesFoodType(product: Product, type: FoodType) {
   if (type === 'all') return true;
-  const haystack = `${normalize(product.category)} ${normalize(product.name)} ${normalize(product.description)}`;
-  if (type === 'produk-desa') return /produk|kriya|kerajinan|anyaman|pertanian|peternakan|desa/.test(haystack);
-  if (type === 'minuman') return /minum|kopi|teh|jus|susu|es |cokelat|cafe|latte|smoothie|drink/.test(haystack);
-  if (type === 'camilan') return /camil|snack|goreng|keripik|roti|kue|dessert|jajan/.test(haystack);
-  if (type === 'sembako') return /sembako|beras|minyak|gula|telur|bumbu/.test(haystack);
-  return !matchesFoodType(product, 'minuman') && !matchesFoodType(product, 'camilan') && !matchesFoodType(product, 'sembako');
+  return normalize(product.category) === normalize(type);
 }
 
 export default function ProductsPage() {
@@ -53,6 +49,22 @@ export default function ProductsPage() {
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ ...defaultFoodFilters, type: initialType });
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const { location: userLocation } = useUserLocation();
+  const { data: categories = [] } = useAdminCategories();
+
+  const categoryOptions = useMemo(
+    () => categories.map((category) => ({ slug: category.slug, name: category.name })),
+    [categories],
+  );
+
+  // A removed/deactivated category must not remain selected from an old URL.
+  useEffect(() => {
+    if (foodFilters.type !== 'all' && categories.length > 0 && !categories.some((category) => category.slug === foodFilters.type)) {
+      setFoodFilters((previous) => ({ ...previous, type: 'all' }));
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('type');
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [categories, foodFilters.type, searchParams, setSearchParams]);
 
   const { data: products = [], isLoading: loading, isError, refetch } = useQuery<Product[]>({
     queryKey: ['all-products'],
@@ -117,18 +129,13 @@ export default function ProductsPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari produk atau toko" aria-label="Cari produk atau toko" className="h-11 w-full rounded-2xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10" />
           </div>
-          <FoodFilterSheet filters={foodFilters} onFiltersChange={setFoodFilters} activeFilterCount={activeFilterCount} />
+          <FoodFilterSheet filters={foodFilters} onFiltersChange={setFoodFilters} activeFilterCount={activeFilterCount} categories={categoryOptions} />
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {([
-            ['all', 'Semua'],
-            ['makanan', 'Kuliner'],
-            ['produk-desa', 'Produk desa'],
-            ['sembako', 'Sembako'],
-          ] as const).map(([value, label]) => (
-            <button key={value} type="button" onClick={() => handleTypeChange(value)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95', foodFilters.type === value ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80')}>
-              {label}
+          {[{ slug: 'all', name: 'Semua' }, ...categoryOptions].map(({ slug, name }) => (
+            <button key={slug} type="button" onClick={() => handleTypeChange(slug)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95', foodFilters.type === slug ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80')}>
+              {name}
             </button>
           ))}
         </div>
