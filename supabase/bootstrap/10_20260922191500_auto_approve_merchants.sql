@@ -1,5 +1,5 @@
 -- ===== BEGIN SOURCE: 20260922191500_auto_approve_merchants.sql =====
--- Temporary policy: merchant registration is automatically approved and active.
+-- Merchant registration is automatically approved and active.
 -- Admin can still deactivate a merchant later; no manual approval is required.
 
 DO $bootstrap_do_auto_approve_merchant_function$
@@ -10,10 +10,22 @@ BEGIN
   IF TG_OP = 'INSERT' THEN
     NEW.registration_status := 'APPROVED';
     NEW.status := 'ACTIVE';
+
+    -- Every merchant is also a marketplace buyer. Keep both roles
+    -- idempotent so retries and the dual-role trigger are harmless.
+    IF NEW.user_id IS NOT NULL THEN
+      INSERT INTO public.user_roles (user_id, role)
+      VALUES (NEW.user_id, 'buyer'::public.app_role)
+      ON CONFLICT (user_id, role) DO NOTHING;
+
+      INSERT INTO public.user_roles (user_id, role)
+      VALUES (NEW.user_id, 'merchant'::public.app_role)
+      ON CONFLICT (user_id, role) DO NOTHING;
+    END IF;
   END IF;
   RETURN NEW;
 END;
-$auto_approve_merchant$ LANGUAGE plpgsql SET search_path = public$bootstrap_sql_auto_approve_merchant_function$;
+$auto_approve_merchant$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public$bootstrap_sql_auto_approve_merchant_function$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_auto_approve_merchant_function$;
@@ -38,6 +50,25 @@ BEGIN
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_auto_approve_merchant_backfill$;
+
+DO $bootstrap_do_auto_approve_merchant_roles_backfill$
+BEGIN
+  EXECUTE $bootstrap_sql_auto_approve_merchant_roles_backfill$INSERT INTO public.user_roles (user_id, role)
+  SELECT DISTINCT m.user_id, 'buyer'::public.app_role
+  FROM public.merchants m
+  WHERE m.user_id IS NOT NULL
+    AND COALESCE(m.registration_status, '') <> 'REJECTED'
+  ON CONFLICT (user_id, role) DO NOTHING$bootstrap_sql_auto_approve_merchant_roles_backfill$;
+
+  EXECUTE $bootstrap_sql_auto_approve_merchant_roles_backfill$INSERT INTO public.user_roles (user_id, role)
+  SELECT DISTINCT m.user_id, 'merchant'::public.app_role
+  FROM public.merchants m
+  WHERE m.user_id IS NOT NULL
+    AND COALESCE(m.registration_status, '') <> 'REJECTED'
+  ON CONFLICT (user_id, role) DO NOTHING$bootstrap_sql_auto_approve_merchant_roles_backfill$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_auto_approve_merchant_roles_backfill$;
 
 DO $bootstrap_do_auto_approve_merchant_hardening$
 BEGIN
