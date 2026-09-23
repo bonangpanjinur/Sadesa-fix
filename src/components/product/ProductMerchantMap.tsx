@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { ExternalLink, MapPin, Navigation, Store } from 'lucide-react';
+import { ExternalLink, MapPin, Navigation, Search, Store } from 'lucide-react';
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { calculateDistance } from '@/hooks/useUserLocation';
@@ -16,6 +16,7 @@ interface ProductMerchantMapProps {
 interface MerchantPoint {
   id: string;
   name: string;
+  address?: string | null;
   imageUrl?: string | null;
   slug?: string | null;
   lat: number;
@@ -192,6 +193,23 @@ function MapViewport({ center, points }: { center: [number, number]; points: Mer
 }
 
 export function ProductMerchantMap({ products, center, userLocation }: ProductMerchantMapProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [liveUserLocation, setLiveUserLocation] = useState(userLocation);
+
+  useEffect(() => {
+    setLiveUserLocation(userLocation);
+  }, [userLocation]);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      ({ coords }) => setLiveUserLocation({ lat: coords.latitude, lng: coords.longitude }),
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
   const merchants = useMemo<MerchantPoint[]>(() => {
     const grouped = new Map<string, MerchantPoint>();
 
@@ -206,35 +224,58 @@ export function ProductMerchantMap({ products, center, userLocation }: ProductMe
       grouped.set(product.merchantId, {
         id: product.merchantId,
         name: product.merchantName || 'Toko lokal',
+        address: product.merchantAddress,
         imageUrl: product.merchantImageUrl,
         slug: product.merchantSlug,
         lat: product.locationLat,
         lng: product.locationLng,
         productCount: 1,
         isOpen: product.isMerchantOpen,
-        distanceKm: userLocation
-          ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng)
+        distanceKm: liveUserLocation
+          ? calculateDistance(liveUserLocation.lat, liveUserLocation.lng, product.locationLat, product.locationLng)
           : Infinity,
       });
     });
 
     return [...grouped.values()].sort((a, b) => a.distanceKm - b.distanceKm);
-  }, [products, userLocation]);
+  }, [liveUserLocation, products]);
+
+  const visibleMerchants = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return merchants;
+    return merchants.filter((merchant) => `${merchant.name} ${merchant.address || ''}`.toLowerCase().includes(query));
+  }, [merchants, searchQuery]);
 
   const mapCenter: [number, number] = [center.lat, center.lng];
 
   return (
     <div className="space-y-3">
+      <div className="space-y-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Cari toko berdasarkan nama atau alamat"
+            aria-label="Cari toko berdasarkan nama atau alamat"
+            className="h-11 w-full rounded-2xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+          <Navigation className="h-3.5 w-3.5 text-primary" />
+          Jarak diperbarui otomatis dari lokasi GPS terbaru kamu
+        </div>
+      </div>
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <MapContainer center={mapCenter} zoom={13} scrollWheelZoom className="h-[390px] w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <MapViewport center={mapCenter} points={merchants} />
-          {userLocation && (
+          <MapViewport center={mapCenter} points={visibleMerchants} />
+          {liveUserLocation && (
             <Marker
-              position={[userLocation.lat, userLocation.lng]}
+              position={[liveUserLocation.lat, liveUserLocation.lng]}
               icon={L.divIcon({
                 className: 'user-location-marker-wrapper',
                 html: '<div class="user-location-marker" title="Lokasi kamu"></div>',
@@ -245,22 +286,22 @@ export function ProductMerchantMap({ products, center, userLocation }: ProductMe
               <Popup>Lokasi kamu</Popup>
             </Marker>
           )}
-          <ClusteredMerchantMarkers merchants={merchants} userLocation={userLocation} />
+          <ClusteredMerchantMarkers merchants={visibleMerchants} userLocation={liveUserLocation} />
         </MapContainer>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground"><MapPin className="h-4 w-4 text-primary" />Toko di sekitar</div>
-          <span className="text-xs text-muted-foreground">{merchants.length} toko</span>
+          <span className="text-xs text-muted-foreground">{visibleMerchants.length} dari {merchants.length} toko</span>
         </div>
-        {merchants.length === 0 ? (
+        {visibleMerchants.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            Belum ada toko dengan titik lokasi pada hasil ini.
+            {merchants.length === 0 ? 'Belum ada toko dengan titik lokasi pada hasil ini.' : 'Toko dengan nama atau alamat tersebut tidak ditemukan.'}
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
-            {merchants.map((merchant) => (
+            {visibleMerchants.map((merchant) => (
               <Link
                 key={merchant.id}
                 to={`/merchant/${merchant.slug || merchant.id}`}

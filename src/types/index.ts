@@ -63,6 +63,7 @@ export interface Product {
   merchantName: string;
   merchantImageUrl?: string | null;
   merchantSlug?: string | null;
+  merchantAddress?: string | null;
   merchantVillage?: string;
   name: string;
   description: string;
