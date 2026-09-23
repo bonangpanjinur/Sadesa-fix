@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -23,6 +23,13 @@ interface MerchantPoint {
   productCount: number;
   isOpen?: boolean;
   distanceKm: number;
+}
+
+interface MerchantCluster {
+  id: string;
+  members: MerchantPoint[];
+  lat: number;
+  lng: number;
 }
 
 function escapeHtml(value: string) {
@@ -51,6 +58,109 @@ function createMerchantIcon(merchant: MerchantPoint) {
   });
 }
 
+function createClusterIcon(count: number) {
+  return L.divIcon({
+    className: 'merchant-map-cluster-wrapper',
+    html: `<div class="merchant-map-cluster">${count}</div>`,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+function formatDistance(distanceKm: number) {
+  if (!Number.isFinite(distanceKm)) return 'Jarak tidak tersedia';
+  if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m dari kamu`;
+  return `${distanceKm.toFixed(1)} km dari kamu`;
+}
+
+function MerchantPopup({ merchant }: { merchant: MerchantPoint }) {
+  return (
+    <div className="min-w-[190px] space-y-2">
+      <div className="flex items-center gap-2">
+        {merchant.imageUrl ? (
+          <img src={merchant.imageUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
+        ) : (
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><Store className="h-4 w-4" /></div>
+        )}
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-foreground">{merchant.name}</p>
+          <p className="text-xs text-muted-foreground">{formatDistance(merchant.distanceKm)}</p>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">{merchant.productCount} produk tersedia</p>
+      <Button asChild size="sm" className="h-8 w-full rounded-lg text-xs">
+        <Link to={`/merchant/${merchant.slug || merchant.id}`}>
+          Lihat toko <ExternalLink className="ml-1 h-3 w-3" />
+        </Link>
+      </Button>
+    </div>
+  );
+}
+
+function ClusteredMerchantMarkers({ merchants }: { merchants: MerchantPoint[] }) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+
+  useEffect(() => {
+    const updateZoom = () => setZoom(map.getZoom());
+    map.on('zoomend', updateZoom);
+    return () => map.off('zoomend', updateZoom);
+  }, [map]);
+
+  const clusters = useMemo<MerchantCluster[]>(() => {
+    // Cluster radius is measured in screen pixels, so it adapts naturally to zoom.
+    const clusterRadius = 68;
+    const result: MerchantCluster[] = [];
+
+    merchants.forEach((merchant) => {
+      const point = map.project([merchant.lat, merchant.lng], zoom);
+      const matchingCluster = result.find((cluster) => {
+        const clusterPoint = map.project([cluster.lat, cluster.lng], zoom);
+        return point.distanceTo(clusterPoint) < clusterRadius;
+      });
+
+      if (matchingCluster) {
+        matchingCluster.members.push(merchant);
+        matchingCluster.lat = matchingCluster.members.reduce((sum, item) => sum + item.lat, 0) / matchingCluster.members.length;
+        matchingCluster.lng = matchingCluster.members.reduce((sum, item) => sum + item.lng, 0) / matchingCluster.members.length;
+      } else {
+        result.push({ id: merchant.id, members: [merchant], lat: merchant.lat, lng: merchant.lng });
+      }
+    });
+
+    return result;
+  }, [map, merchants, zoom]);
+
+  return (
+    <>
+      {clusters.map((cluster) => {
+        if (cluster.members.length > 1) {
+          return (
+            <Marker
+              key={`cluster-${cluster.id}`}
+              position={[cluster.lat, cluster.lng]}
+              icon={createClusterIcon(cluster.members.length)}
+              eventHandlers={{
+                click: () => map.fitBounds(
+                  L.latLngBounds(cluster.members.map((merchant) => [merchant.lat, merchant.lng] as [number, number])),
+                  { padding: [48, 48], maxZoom: 17 },
+                ),
+              }}
+            />
+          );
+        }
+
+        const merchant = cluster.members[0];
+        return (
+          <Marker key={merchant.id} position={[merchant.lat, merchant.lng]} icon={createMerchantIcon(merchant)}>
+            <Popup><MerchantPopup merchant={merchant} /></Popup>
+          </Marker>
+        );
+      })}
+    </>
+  );
+}
+
 function MapViewport({ center, points }: { center: [number, number]; points: MerchantPoint[] }) {
   const map = useMap();
 
@@ -64,12 +174,6 @@ function MapViewport({ center, points }: { center: [number, number]; points: Mer
   }, [center, map, points]);
 
   return null;
-}
-
-function formatDistance(distanceKm: number) {
-  if (!Number.isFinite(distanceKm)) return 'Jarak tidak tersedia';
-  if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} m dari kamu`;
-  return `${distanceKm.toFixed(1)} km dari kamu`;
 }
 
 export function ProductMerchantMap({ products, center, userLocation }: ProductMerchantMapProps) {
@@ -126,31 +230,7 @@ export function ProductMerchantMap({ products, center, userLocation }: ProductMe
               <Popup>Lokasi kamu</Popup>
             </Marker>
           )}
-          {merchants.map((merchant) => (
-            <Marker key={merchant.id} position={[merchant.lat, merchant.lng]} icon={createMerchantIcon(merchant)}>
-              <Popup>
-                <div className="min-w-[190px] space-y-2">
-                  <div className="flex items-center gap-2">
-                    {merchant.imageUrl ? (
-                      <img src={merchant.imageUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
-                    ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><Store className="h-4 w-4" /></div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-foreground">{merchant.name}</p>
-                      <p className="text-xs text-muted-foreground">{formatDistance(merchant.distanceKm)}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{merchant.productCount} produk tersedia</p>
-                  <Button asChild size="sm" className="h-8 w-full rounded-lg text-xs">
-                    <Link to={`/merchant/${merchant.slug || merchant.id}`}>
-                      Lihat toko <ExternalLink className="ml-1 h-3 w-3" />
-                    </Link>
-                  </Button>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+          <ClusteredMerchantMarkers merchants={merchants} />
         </MapContainer>
       </div>
 
