@@ -535,6 +535,13 @@ export default function CourierDashboardPage() {
           <CourierLocationUpdater
             courierId={courier.id}
             autoStart={courier.is_available}
+            mandatory
+            onTrackingError={() => {
+              queryClient.setQueryData<CourierData | null>(['courier-profile', user?.id], (old) =>
+                old ? { ...old, is_available: false } : old
+              );
+              toast({ title: 'GPS wajib aktif', description: 'Status Anda diubah offline karena lokasi tidak tersedia.', variant: 'destructive' });
+            }}
             onLocationUpdate={(lat, lng) => {
               queryClient.setQueryData<CourierData | null>(['courier-profile', user?.id], (old) =>
                 old ? { ...old, current_lat: lat, current_lng: lng } : old

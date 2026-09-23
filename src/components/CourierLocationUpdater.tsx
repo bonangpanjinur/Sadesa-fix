@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MapPin, Navigation, Loader2, WifiOff, CheckCircle } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -10,10 +9,12 @@ import { toast } from '@/hooks/use-toast';
 interface CourierLocationUpdaterProps {
   courierId: string;
   onLocationUpdate?: (lat: number, lng: number) => void;
+  onTrackingError?: () => void;
   autoStart?: boolean;
+  mandatory?: boolean;
 }
 
-export function CourierLocationUpdater({ courierId, onLocationUpdate, autoStart = false }: CourierLocationUpdaterProps) {
+export function CourierLocationUpdater({ courierId, onLocationUpdate, onTrackingError, autoStart = false, mandatory = false }: CourierLocationUpdaterProps) {
   const [isTracking, setIsTracking] = useState(() => {
     // Restore tracking state from localStorage
     if (typeof window !== 'undefined') {
@@ -83,6 +84,8 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate, autoStart 
       (err) => {
         setError(getGeolocationError(err));
         setLoading(false);
+        void supabase.from('couriers').update({ is_available: false }).eq('id', courierId);
+        onTrackingError?.();
       },
       {
         enableHighAccuracy: true,
@@ -126,6 +129,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate, autoStart 
         setError(getGeolocationError(err));
         setIsTracking(false);
         void supabase.from('couriers').update({ is_available: false }).eq('id', courierId);
+        onTrackingError?.();
       },
       {
         enableHighAccuracy: true,
@@ -140,7 +144,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate, autoStart 
         updateLocationToServer(locationRef.current.lat, locationRef.current.lng);
       }
     }, 30000);
-  }, [courierId, updateLocationToServer]);
+  }, [courierId, onTrackingError, updateLocationToServer]);
 
   const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
@@ -251,11 +255,20 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate, autoStart 
             </p>
           </div>
         </div>
-        <Switch
-          checked={isTracking}
-          onCheckedChange={handleToggle}
-          disabled={loading}
-        />
+        {mandatory ? (
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+            Wajib aktif saat online
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="text-xs font-medium text-primary underline underline-offset-2"
+            onClick={() => handleToggle(!isTracking)}
+            disabled={loading}
+          >
+            {isTracking ? 'Matikan' : 'Nyalakan'}
+          </button>
+        )}
       </div>
 
       {error && (

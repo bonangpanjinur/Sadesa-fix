@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { loadGoogleMaps } from '@/lib/googleMaps';
-import { CircleMarker, MapContainer, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -26,6 +26,12 @@ interface GoogleRideMapProps {
 
 const DEFAULT_CENTER = { lat: -7.3274, lng: 108.2207 };
 const hasGoogleMapsKey = Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
+const motorIcon = (isNearest = false) => L.divIcon({
+  className: 'courier-motor-marker',
+  html: `<span style="display:flex;align-items:center;justify-content:center;width:${isNearest ? 38 : 32}px;height:${isNearest ? 38 : 32}px;border-radius:9999px;background:${isNearest ? '#f59e0b' : '#2563eb'};border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:${isNearest ? 21 : 18}px">🏍️</span>`,
+  iconSize: [isNearest ? 38 : 32, isNearest ? 38 : 32],
+  iconAnchor: [isNearest ? 19 : 16, isNearest ? 19 : 16],
+});
 
 function OpenStreetMapClickHandler({ onMapClick }: { onMapClick: (point: Point) => void }) {
   useMapEvents({
@@ -68,7 +74,14 @@ function OpenStreetMapRideFallback({
         <OpenStreetMapViewport pickupLocation={pickupLocation} destinationLocation={destinationLocation} />
         {pickupLocation && <CircleMarker center={[pickupLocation.lat, pickupLocation.lng]} radius={11} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#10b981', fillOpacity: 1 }} />}
         {destinationLocation && <CircleMarker center={[destinationLocation.lat, destinationLocation.lng]} radius={11} pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#ef4444', fillOpacity: 1 }} />}
-        {drivers.map((driver) => <CircleMarker key={driver.id} center={[driver.lat, driver.lng]} radius={driver.id === nearestDriverId ? 11 : 8} pathOptions={{ color: '#ffffff', weight: 2, fillColor: driver.id === nearestDriverId ? '#f59e0b' : '#2563eb', fillOpacity: 1 }} />)}
+        {drivers.map((driver) => {
+          const isNearest = driver.id === nearestDriverId;
+          return (
+            <Marker key={driver.id} position={[driver.lat, driver.lng]} icon={motorIcon(isNearest)}>
+              <Tooltip direction="top" offset={[0, -12]}>{driver.name || 'Ojek aktif'}</Tooltip>
+            </Marker>
+          );
+        })}
         {route.length > 1 && <Polyline positions={route} pathOptions={{ color: '#059669', weight: 4, opacity: 0.85 }} />}
       </MapContainer>
       <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold shadow-sm backdrop-blur">
@@ -150,7 +163,9 @@ export function GoogleRideMap({
         position: point,
         title,
         label: { text: title === 'Pickup' ? 'P' : title === 'Tujuan' ? 'T' : 'D', color: '#ffffff', fontWeight: '700' },
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: title === 'Driver' ? (isNearest ? 11 : 8) : 11, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 },
+        icon: title === 'Driver'
+          ? { url: '/motor-icon.png', scaledSize: new google.maps.Size(isNearest ? 42 : 36, isNearest ? 42 : 36), anchor: new google.maps.Point(isNearest ? 21 : 18, isNearest ? 21 : 18) }
+          : { path: google.maps.SymbolPath.CIRCLE, scale: 11, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 },
       });
       markersRef.current.push(marker);
     };
