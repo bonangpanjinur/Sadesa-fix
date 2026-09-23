@@ -24,9 +24,13 @@ export function ProtectedRoute({
   const isPOSRoute = location.pathname === '/pos' || location.pathname.startsWith('/pos/');
   const isMerchantWorkspaceRoute = location.pathname === '/merchant'
     || location.pathname.startsWith('/merchant/');
+  const isCourierWorkspaceRoute = location.pathname === '/courier'
+    || location.pathname.startsWith('/courier/');
   const requiresApprovedMerchant = isMerchantWorkspaceRoute && location.pathname !== '/merchant';
   const requiredRoles = allowedRoles
     ?? (isPOSRoute ? posRouteRoles : isMerchantWorkspaceRoute ? ['merchant'] : undefined);
+  const routeRequiredRoles = requiredRoles
+    ?? (isCourierWorkspaceRoute ? ['courier'] : undefined);
   const [merchantAccessLoading, setMerchantAccessLoading] = useState(false);
   const [merchantAccessAllowed, setMerchantAccessAllowed] = useState(true);
   const [profileCompletionLoading, setProfileCompletionLoading] = useState(false);
@@ -90,7 +94,7 @@ export function ProtectedRoute({
   }, [location.pathname, user]);
 
   // Show loading while checking auth state
-  const waitingForRequiredRoles = (Boolean(requiredRoles?.length) && rolesLoading)
+  const waitingForRequiredRoles = (Boolean(routeRequiredRoles?.length) && rolesLoading)
     || merchantAccessLoading || profileCompletionLoading;
 
   if (authLoading || waitingForRequiredRoles) {
@@ -114,8 +118,8 @@ export function ProtectedRoute({
   }
 
   // If specific roles are required, check them
-  if (requiredRoles && requiredRoles.length > 0) {
-    if (!hasAnyRole(requiredRoles)) {
+  if (routeRequiredRoles && routeRequiredRoles.length > 0) {
+    if (!hasAnyRole(routeRequiredRoles)) {
       // User doesn't have required role - redirect to appropriate dashboard
       return <Navigate to="/unauthorized" replace />;
     }

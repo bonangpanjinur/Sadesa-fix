@@ -154,12 +154,12 @@ export default function CourierBookingPage() {
   const fetchDrivers = useCallback(async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
     if (showLoading) setDriversLoading(true);
     const { data, error } = await supabase
-      .from('couriers')
-      .select('id, name, current_lat, current_lng')
+      .from('public_couriers')
+      .select('id, name, current_lat_approx, current_lng_approx, is_available, status')
       .eq('is_available', true)
       .eq('status', 'ACTIVE')
-      .not('current_lat', 'is', null)
-      .not('current_lng', 'is', null);
+      .not('current_lat_approx', 'is', null)
+      .not('current_lng_approx', 'is', null);
 
     if (error) {
       console.error('Gagal mengambil lokasi driver:', error);
@@ -170,12 +170,12 @@ export default function CourierBookingPage() {
 
     setDriversError(null);
     const availableDrivers = (data ?? []).flatMap((driver) => {
-      if (driver.current_lat == null || driver.current_lng == null) return [];
+      if (!driver.id || driver.current_lat_approx == null || driver.current_lng_approx == null) return [];
       return [{
         id: driver.id,
-        name: driver.name,
-        lat: Number(driver.current_lat),
-        lng: Number(driver.current_lng),
+        name: driver.name || 'Ojek aktif',
+        lat: Number(driver.current_lat_approx),
+        lng: Number(driver.current_lng_approx),
       }];
     });
     setDrivers(availableDrivers);
@@ -184,48 +184,9 @@ export default function CourierBookingPage() {
 
   useEffect(() => {
     void fetchDrivers({ showLoading: true });
-
-    const channel = supabase
-      .channel('courier-availability-map')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'couriers' }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          setDrivers((current) => current.filter((driver) => driver.id !== payload.old.id));
-          return;
-        }
-
-        const updated = payload.new as {
-          id: string;
-          name: string;
-          current_lat: number | null;
-          current_lng: number | null;
-          is_available: boolean;
-          status: string;
-        };
-        const isAvailable = updated.is_available
-          && updated.status === 'ACTIVE'
-          && updated.current_lat != null
-          && updated.current_lng != null;
-
-        setDrivers((current) => {
-          const withoutUpdated = current.filter((driver) => driver.id !== updated.id);
-          if (!isAvailable) return withoutUpdated;
-          return [
-            ...withoutUpdated,
-            {
-              id: updated.id,
-              name: updated.name || 'Driver',
-              lat: Number(updated.current_lat),
-              lng: Number(updated.current_lng),
-            },
-          ];
-        });
-      })
-      .subscribe();
-
     const refreshInterval = window.setInterval(() => { void fetchDrivers(); }, 15000);
     return () => {
       window.clearInterval(refreshInterval);
-      supabase.removeChannel(channel);
     };
   }, [fetchDrivers]);
 

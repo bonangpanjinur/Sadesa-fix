@@ -36,7 +36,6 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 interface DriverMarker { id: string; lat: number; lng: number; name: string; }
-const GPS_FRESHNESS_MS = 90_000;
 
 export default function RideBookingPage() {
   const navigate = useNavigate();
@@ -73,13 +72,14 @@ export default function RideBookingPage() {
     : null;
 
   const fetchDrivers = useCallback(async () => {
-    const cutoff = new Date(Date.now() - GPS_FRESHNESS_MS).toISOString();
-    const { data } = await supabase.from('couriers').select('id, name, current_lat, current_lng, last_location_update')
+    const { data } = await supabase.from('public_couriers').select('id, name, current_lat_approx, current_lng_approx, is_available, status')
       .eq('is_available', true).eq('status', 'ACTIVE')
-      .eq('registration_status', 'APPROVED')
-      .gte('last_location_update', cutoff)
-      .not('current_lat', 'is', null).not('current_lng', 'is', null);
-    if (data) setDrivers(data.map(d => ({ id: d.id, lat: d.current_lat!, lng: d.current_lng!, name: d.name })));
+      .not('current_lat_approx', 'is', null).not('current_lng_approx', 'is', null);
+    if (data) setDrivers(data.flatMap(d => (
+      d.id && d.current_lat_approx != null && d.current_lng_approx != null
+        ? [{ id: d.id, lat: d.current_lat_approx, lng: d.current_lng_approx, name: d.name || 'Ojek aktif' }]
+        : []
+    )));
   }, []);
 
   const handleGps = useCallback(() => {
@@ -136,43 +136,10 @@ export default function RideBookingPage() {
 
   // Real-time driver position updates
   useEffect(() => {
-    const channel = supabase
-      .channel('drivers-realtime')
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'couriers',
-      }, (payload) => {
-        const updated = payload.new as Record<string, unknown>;
-        const locationIsFresh = typeof updated.last_location_update === 'string'
-          && Date.now() - new Date(updated.last_location_update).getTime() <= GPS_FRESHNESS_MS;
-        if (updated.is_available && locationIsFresh && updated.current_lat != null && updated.current_lng != null && updated.status === 'ACTIVE' && updated.registration_status === 'APPROVED') {
-          setDrivers(prev => {
-            const existing = prev.findIndex(d => d.id === updated.id);
-            const marker: DriverMarker = {
-              id: updated.id as string,
-              lat: Number(updated.current_lat),
-              lng: Number(updated.current_lng),
-              name: (updated.name as string) || 'Driver',
-            };
-            if (existing >= 0) {
-              const newList = [...prev];
-              newList[existing] = marker;
-              return newList;
-            }
-            return [...prev, marker];
-          });
-        } else {
-          setDrivers(prev => prev.filter((driver) => driver.id !== updated.id));
-        }
-      })
-      .subscribe();
-
-    // Fallback refresh every 15s
+    // Refresh the privacy-filtered public view every 15 seconds.
     const interval = setInterval(fetchDrivers, 15000);
 
     return () => {
-      supabase.removeChannel(channel);
       clearInterval(interval);
     };
   }, [fetchDrivers]);
