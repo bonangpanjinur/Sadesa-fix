@@ -224,6 +224,8 @@ export async function fetchProducts(): Promise<Product[]> {
         merchants (
           id,
           name,
+          image_url,
+          slug,
           is_open,
           open_time,
           close_time,
@@ -285,6 +287,8 @@ export async function fetchProducts(): Promise<Product[]> {
       createdAt: p.created_at,
       merchantId: p.merchant_id,
       merchantName: merchant?.name || '',
+      merchantImageUrl: merchant?.image_url || null,
+      merchantSlug: merchant?.slug || null,
       merchantVillage: merchant?.villages?.name || '',
       name: p.name,
       description: p.description || '',

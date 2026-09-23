@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal } from 'lucide-react';
+import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ProductCard } from '../components/ProductCard';
@@ -12,6 +12,7 @@ import { fetchProducts } from '../lib/api';
 import { useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
 import { FoodFilterSheet, type FoodFilters, type FoodType, defaultFoodFilters } from '../components/product/FoodFilterSheet';
+import { ProductMerchantMap } from '../components/product/ProductMerchantMap';
 import { useAdminCategories } from '../hooks/useAdminCategories';
 import {
   Select,
@@ -23,6 +24,7 @@ import {
 import type { Product } from '../types';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
+type ViewMode = 'products' | 'map';
 
 function ProductSkeleton() {
   return (
@@ -48,6 +50,7 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ ...defaultFoodFilters, type: initialType });
   const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [viewMode, setViewMode] = useState<ViewMode>('products');
   const { location: userLocation } = useUserLocation();
   const { data: categories = [] } = useAdminCategories();
 
@@ -140,6 +143,27 @@ export default function ProductsPage() {
           ))}
         </div>
 
+        <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1" role="tablist" aria-label="Tampilan katalog">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'products'}
+            onClick={() => setViewMode('products')}
+            className={cn('flex h-9 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition', viewMode === 'products' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+          >
+            <PackageOpen className="h-3.5 w-3.5" /> Produk
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'map'}
+            onClick={() => setViewMode('map')}
+            className={cn('flex h-9 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition', viewMode === 'map' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+          >
+            <MapIcon className="h-3.5 w-3.5" /> Toko di Maps
+          </button>
+        </div>
+
         <div className="mt-3 flex items-center gap-2">
           <Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
             <SelectTrigger className="h-9 flex-1 rounded-xl text-xs"><ArrowUpDown className="mr-1.5 h-3.5 w-3.5" /><SelectValue /></SelectTrigger>
@@ -160,7 +184,7 @@ export default function ProductsPage() {
 
       <div className="flex-1 overflow-y-auto pb-24">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 py-4">
-          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat katalog...' : `${filteredAndSortedProducts.length} produk ditemukan`}</span><span className="text-xs text-muted-foreground">Produk terbaru</span></div>
+          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat katalog...' : viewMode === 'map' ? 'Lokasi toko merchant' : `${filteredAndSortedProducts.length} produk ditemukan`}</span><span className="text-xs text-muted-foreground">{viewMode === 'map' ? 'Pilih toko di peta' : 'Produk terbaru'}</span></div>
           {loading ? (
             <div className="grid grid-cols-2 gap-3">{Array.from({ length: 6 }).map((_, index) => <ProductSkeleton key={index} />)}</div>
           ) : isError ? (
@@ -169,6 +193,12 @@ export default function ProductsPage() {
               <p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">Periksa koneksi internetmu lalu coba lagi.</p>
               <Button type="button" variant="outline" size="sm" onClick={() => refetch()} className="mt-4 rounded-full">Coba lagi</Button>
             </div>
+          ) : viewMode === 'map' ? (
+            <ProductMerchantMap
+              products={filteredAndSortedProducts}
+              center={userLocation || { lat: -7.3274, lng: 108.2207 }}
+              userLocation={userLocation}
+            />
           ) : filteredAndSortedProducts.length === 0 ? (
             <div className="py-12 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div><p className="font-semibold text-foreground">Produk belum ditemukan</p><p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">Coba ganti kata kunci atau kurangi filter katalog.</p></div>
           ) : (

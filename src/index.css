@@ -49,6 +49,61 @@
   background: hsl(var(--secondary)) !important;
 }
 
+.merchant-map-marker-wrapper,
+.user-location-marker-wrapper {
+  background: transparent;
+  border: 0;
+}
+
+.merchant-map-marker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: max-content;
+  max-width: 150px;
+  padding: 3px 7px 3px 3px;
+  border: 2px solid hsl(var(--card));
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  box-shadow: 0 3px 10px hsl(var(--foreground) / 0.2);
+  color: hsl(var(--primary-foreground));
+  transform: translateY(-50%);
+}
+
+.merchant-map-marker__image,
+.merchant-map-marker__fallback {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: hsl(var(--card));
+  color: hsl(var(--primary));
+  font-size: 13px;
+  font-weight: 800;
+  object-fit: cover;
+}
+
+.merchant-map-marker__label {
+  overflow: hidden;
+  max-width: 102px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.user-location-marker {
+  width: 18px;
+  height: 18px;
+  border: 3px solid hsl(var(--card));
+  border-radius: 999px;
+  background: hsl(var(--info));
+  box-shadow: 0 0 0 5px hsl(var(--info) / 0.25), 0 2px 8px hsl(var(--foreground) / 0.25);
+}
+
 /* ============================================
    DESA WISATA & UMKM DESIGN SYSTEM
    Inspired by Indonesian village nature & warmth

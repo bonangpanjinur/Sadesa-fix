@@ -61,6 +61,8 @@ export interface Product {
   createdAt?: string;
   merchantId: string;
   merchantName: string;
+  merchantImageUrl?: string | null;
+  merchantSlug?: string | null;
   merchantVillage?: string;
   name: string;
   description: string;
