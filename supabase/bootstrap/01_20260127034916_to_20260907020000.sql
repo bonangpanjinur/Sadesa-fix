@@ -16258,7 +16258,8 @@ BEGIN
   WHERE c.user_id IS NOT NULL
     AND c.registration_status = 'APPROVED'
     AND c.status = 'ACTIVE'
-    AND c.is_available = true;
+    AND c.is_available = true
+    AND c.last_location_update >= now() - interval '90 seconds';
 
   RETURN NEW;
 END;

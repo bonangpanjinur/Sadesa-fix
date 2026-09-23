@@ -104,6 +104,7 @@ BEGIN
     AND registration_status = 'APPROVED'
     AND status = 'ACTIVE'
     AND is_available = true
+    AND last_location_update >= now() - interval '90 seconds'
   FOR SHARE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Courier identity is invalid or unavailable' USING ERRCODE = '42501';

@@ -223,6 +223,16 @@ export default function CourierDashboardPage() {
     setUpdatingStatus(true);
 
     try {
+      if (checked) {
+        if (!navigator.geolocation) throw new Error('Perangkat ini tidak mendukung GPS');
+        await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 15_000,
+            maximumAge: 0,
+          });
+        });
+      }
       const { error } = await supabase
         .from('couriers')
         .update({ is_available: checked })
@@ -524,6 +534,7 @@ export default function CourierDashboardPage() {
         >
           <CourierLocationUpdater
             courierId={courier.id}
+            autoStart={courier.is_available}
             onLocationUpdate={(lat, lng) => {
               queryClient.setQueryData<CourierData | null>(['courier-profile', user?.id], (old) =>
                 old ? { ...old, current_lat: lat, current_lng: lng } : old

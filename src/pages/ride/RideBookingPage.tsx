@@ -36,6 +36,7 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 }
 
 interface DriverMarker { id: string; lat: number; lng: number; name: string; }
+const GPS_FRESHNESS_MS = 90_000;
 
 export default function RideBookingPage() {
   const navigate = useNavigate();
@@ -59,8 +60,11 @@ export default function RideBookingPage() {
   const manualAddressRef = useRef({ pickup: false, destination: false });
 
   const fetchDrivers = useCallback(async () => {
-    const { data } = await supabase.from('couriers').select('id, name, current_lat, current_lng')
+    const cutoff = new Date(Date.now() - GPS_FRESHNESS_MS).toISOString();
+    const { data } = await supabase.from('couriers').select('id, name, current_lat, current_lng, last_location_update')
       .eq('is_available', true).eq('status', 'ACTIVE')
+      .eq('registration_status', 'APPROVED')
+      .gte('last_location_update', cutoff)
       .not('current_lat', 'is', null).not('current_lng', 'is', null);
     if (data) setDrivers(data.map(d => ({ id: d.id, lat: d.current_lat!, lng: d.current_lng!, name: d.name })));
   }, []);
@@ -127,7 +131,9 @@ export default function RideBookingPage() {
         table: 'couriers',
       }, (payload) => {
         const updated = payload.new as Record<string, unknown>;
-        if (updated.is_available && updated.current_lat && updated.current_lng && updated.status === 'ACTIVE') {
+        const locationIsFresh = typeof updated.last_location_update === 'string'
+          && Date.now() - new Date(updated.last_location_update).getTime() <= GPS_FRESHNESS_MS;
+        if (updated.is_available && locationIsFresh && updated.current_lat != null && updated.current_lng != null && updated.status === 'ACTIVE' && updated.registration_status === 'APPROVED') {
           setDrivers(prev => {
             const existing = prev.findIndex(d => d.id === updated.id);
             const marker: DriverMarker = {
@@ -143,6 +149,8 @@ export default function RideBookingPage() {
             }
             return [...prev, marker];
           });
+        } else {
+          setDrivers(prev => prev.filter((driver) => driver.id !== updated.id));
         }
       })
       .subscribe();

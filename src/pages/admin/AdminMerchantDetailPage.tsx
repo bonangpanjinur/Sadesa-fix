@@ -24,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { approveMerchant, rejectMerchant, deleteMerchant } from '@/lib/adminApi';
 import { MerchantEditDialog } from '@/components/admin/MerchantEditDialog';
+import { MerchantOperatingHoursCard } from '@/components/merchant/MerchantOperatingHoursCard';
 import { AssignPackageDialog } from '@/components/admin/AssignPackageDialog';
 import { AdminAddProductDialog } from '@/components/admin/AdminAddProductDialog';
 import { AdminEditProductDialog, type AdminProductInput } from '@/components/admin/AdminEditProductDialog';
@@ -516,7 +517,9 @@ export default function AdminMerchantDetailPage() {
       </div>
 
       {/* Tabs Content */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
+        <div className="min-w-0">
+          <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Ikhtisar</TabsTrigger>
           <TabsTrigger value="products">Produk</TabsTrigger>
@@ -753,7 +756,10 @@ export default function AdminMerchantDetailPage() {
             </Card>
           </div>
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        </div>
+        <MerchantOperatingHoursCard merchantId={merchant.id} />
+      </div>
 
       {/* Dialogs */}
       <MerchantEditDialog

@@ -77,4 +77,15 @@ EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
 END $bootstrap_do_auto_approve_merchant_hardening$;
 
+
+-- Keep the INSERT policy compatible with the auto-approval trigger. Public users
+-- may only submit PENDING rows; admins may create merchants directly.
+DO $bootstrap_do_auto_approve_insert_policy$
+BEGIN
+  EXECUTE $bootstrap_sql_auto_approve_insert_policy$DROP POLICY IF EXISTS "Anyone can register merchant" ON public.merchants$bootstrap_sql_auto_approve_insert_policy$;
+  EXECUTE $bootstrap_sql_auto_approve_insert_policy$CREATE POLICY "Anyone can register merchant" ON public.merchants FOR INSERT TO authenticated WITH CHECK (registration_status = 'PENDING' OR public.is_admin())$bootstrap_sql_auto_approve_insert_policy$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_auto_approve_insert_policy$;
+
 -- ===== END SOURCE: 20260922191500_auto_approve_merchants.sql =====

@@ -73,6 +73,8 @@ interface CourierMapProps {
   selfDeliveryLabel?: string;
 }
 
+const GPS_FRESHNESS_MS = 90_000;
+
 function MapUpdater({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
@@ -140,7 +142,10 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
       if (courierId) {
         query = query.eq('id', courierId);
       } else if (showAllCouriers) {
-        query = query.eq('is_available', true);
+        query = query.eq('is_available', true)
+          .eq('status', 'ACTIVE')
+          .eq('registration_status', 'APPROVED')
+          .gte('last_location_update', new Date(Date.now() - GPS_FRESHNESS_MS).toISOString());
       }
 
       const { data, error } = await query;
@@ -252,8 +257,13 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
             current_lng: number | null;
             last_location_update: string | null;
             is_available: boolean;
+            status: string;
+            registration_status: string;
           };
-          if (updated.current_lat && updated.current_lng) {
+          const locationIsFresh = updated.last_location_update
+            ? Date.now() - new Date(updated.last_location_update).getTime() <= GPS_FRESHNESS_MS
+            : false;
+          if (updated.current_lat != null && updated.current_lng != null && (!showAllCouriers || (updated.is_available && updated.status === 'ACTIVE' && locationIsFresh))) {
             setCouriers((prev) =>
               prev.map((c) =>
                 c.id === updated.id
@@ -261,6 +271,8 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
                   : c
               )
             );
+          } else if (showAllCouriers) {
+            setCouriers((prev) => prev.filter((courier) => courier.id !== updated.id));
           }
         }
       )

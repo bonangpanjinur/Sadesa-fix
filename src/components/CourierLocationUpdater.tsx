@@ -10,9 +10,10 @@ import { toast } from '@/hooks/use-toast';
 interface CourierLocationUpdaterProps {
   courierId: string;
   onLocationUpdate?: (lat: number, lng: number) => void;
+  autoStart?: boolean;
 }
 
-export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierLocationUpdaterProps) {
+export function CourierLocationUpdater({ courierId, onLocationUpdate, autoStart = false }: CourierLocationUpdaterProps) {
   const [isTracking, setIsTracking] = useState(() => {
     // Restore tracking state from localStorage
     if (typeof window !== 'undefined') {
@@ -27,6 +28,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
   const watchIdRef = useRef<number | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const sharedChannelRef = useRef<RealtimeChannel | null>(null);
   const locationRef = useRef<{ lat: number; lng: number } | null>(null);
   const isInitialMount = useRef(true);
 
@@ -38,6 +40,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
           current_lat: lat,
           current_lng: lng,
           last_location_update: new Date().toISOString(),
+          is_available: true,
         })
         .eq('id', courierId);
 
@@ -95,6 +98,10 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
         channelRef.current = channel;
       }
     });
+    const sharedChannel = supabase.channel('courier-locations');
+    sharedChannel.subscribe((status: string) => {
+      if (status === 'SUBSCRIBED') sharedChannelRef.current = sharedChannel;
+    });
 
     // Watch position for real-time updates
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -105,15 +112,20 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
 
         // Broadcast via websocket (no DB write)
         if (channelRef.current) {
+          const payload = { id: courierId, lat: latitude, lng: longitude, timestamp: new Date().toISOString() };
           channelRef.current.send({
             type: 'broadcast',
             event: 'location-update',
-            payload: { id: courierId, lat: latitude, lng: longitude, timestamp: new Date().toISOString() },
+            payload,
           });
+          sharedChannelRef.current?.send({ type: 'broadcast', event: 'location-update', payload });
         }
       },
       (err) => {
         console.error('Watch position error:', err);
+        setError(getGeolocationError(err));
+        setIsTracking(false);
+        void supabase.from('couriers').update({ is_available: false }).eq('id', courierId);
       },
       {
         enableHighAccuracy: true,
@@ -130,7 +142,7 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
     }, 30000);
   }, [courierId, updateLocationToServer]);
 
-  const stopTracking = () => {
+  const stopTracking = useCallback(() => {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
@@ -145,13 +157,18 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
+    if (sharedChannelRef.current) {
+      supabase.removeChannel(sharedChannelRef.current);
+      sharedChannelRef.current = null;
+    }
 
     setIsTracking(false);
+    void supabase.from('couriers').update({ is_available: false }).eq('id', courierId);
     localStorage.removeItem(`courier-tracking-${courierId}`);
     toast({
       title: 'Tracking dinonaktifkan',
     });
-  };
+  }, [courierId]);
 
   const handleToggle = (checked: boolean) => {
     if (checked) {
@@ -174,6 +191,15 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
   }, [isTracking, startTracking]);
 
   useEffect(() => {
+    if (autoStart && !isTracking && !loading) {
+      localStorage.setItem(`courier-tracking-${courierId}`, 'true');
+      startTracking();
+    } else if (!autoStart && isTracking) {
+      stopTracking();
+    }
+  }, [autoStart, courierId, isTracking, loading, startTracking, stopTracking]);
+
+  useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
@@ -183,6 +209,9 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate }: CourierL
       }
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
+      }
+      if (sharedChannelRef.current) {
+        supabase.removeChannel(sharedChannelRef.current);
       }
     };
   }, []);

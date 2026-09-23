@@ -1,807 +1,159 @@
-import { useState, useEffect } from 'react';
-import { Clock, Save, Plus, Check, X, Shield } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, Clock, ImagePlus, Loader2, MapPin, Plus, Save, Shield, Store, User } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import {
-  fetchProvinces,
-  fetchRegencies,
-  fetchDistricts,
-  fetchVillages,
-  Region,
-} from '@/lib/addressApi';
+import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages, type Region } from '@/lib/addressApi';
 import { AdminLocationPicker } from './AdminLocationPicker';
 import { getAvailableMerchantUsers, type MerchantUser } from '@/lib/adminApi';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 
-interface MerchantAddDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-}
+interface MerchantAddDialogProps { open: boolean; onOpenChange: (open: boolean) => void; onSuccess: () => void; }
+type ScheduleDay = { open_time: string; close_time: string; is_closed: boolean };
+type WeeklySchedule = Record<number, ScheduleDay>;
 
-interface VillageData {
-  id: string;
-  name: string;
-  district: string;
-  regency: string;
-  subdistrict: string | null;
-}
+const DAYS = [
+  { day: 1, label: 'Senin' }, { day: 2, label: 'Selasa' }, { day: 3, label: 'Rabu' },
+  { day: 4, label: 'Kamis' }, { day: 5, label: 'Jumat' }, { day: 6, label: 'Sabtu' }, { day: 0, label: 'Minggu' },
+];
+const createSchedule = (): WeeklySchedule => Object.fromEntries(DAYS.map(({ day }) => [day, { open_time: '08:00', close_time: '21:00', is_closed: false }])) as WeeklySchedule;
 
-export function MerchantAddDialog({
-  open,
-  onOpenChange,
-  onSuccess,
-}: MerchantAddDialogProps) {
-  const [loading, setLoading] = useState(false);
+const initialForm = {
+  name: '', user_id: '', phone: '', address: '', province_code: '', province_name: '', regency_code: '', regency_name: '',
+  district_code: '', district_name: '', village_code: '', village_name: '', village_id: '', business_description: '',
+  is_open: false, image_url: null as string | null, cover_image_url: null as string | null, location_lat: null as number | null,
+  location_lng: null as number | null, verifikator_code: '',
+};
+
+export function MerchantAddDialog({ open, onOpenChange, onSuccess }: MerchantAddDialogProps) {
   const { data: categories = [], isLoading: categoriesLoading } = useAdminCategories();
-  
-  // Address data states
+  const [formData, setFormData] = useState(initialForm);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [schedule, setSchedule] = useState<WeeklySchedule>(createSchedule);
   const [provinces, setProvinces] = useState<Region[]>([]);
   const [regencies, setRegencies] = useState<Region[]>([]);
   const [districts, setDistricts] = useState<Region[]>([]);
-  const [apiVillages, setApiVillages] = useState<Region[]>([]);
-  const [dbVillages, setDbVillages] = useState<VillageData[]>([]);
-  
-  // Loading states
-  const [loadingProvinces, setLoadingProvinces] = useState(false);
-  const [loadingRegencies, setLoadingRegencies] = useState(false);
-  const [loadingDistricts, setLoadingDistricts] = useState(false);
-  const [loadingVillages, setLoadingVillages] = useState(false);
-  
+  const [villages, setVillages] = useState<Region[]>([]);
   const [availableUsers, setAvailableUsers] = useState<MerchantUser[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingAddress, setLoadingAddress] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [verifikatorName, setVerifikatorName] = useState<string | null>(null);
+  const [verifikatorValid, setVerifikatorValid] = useState<boolean | null>(null);
 
-  // Verifikator validation state
-  const [isValidatingCode, setIsValidatingCode] = useState(false);
-  const [tradeGroupName, setTradeGroupName] = useState<string | null>(null);
-  const [isCodeValid, setIsCodeValid] = useState<boolean | null>(null);
-  const [debouncedCode, setDebouncedCode] = useState('');
+  const selectedCategories = useMemo(() => categories.filter((category) => selectedCategoryIds.includes(category.id)), [categories, selectedCategoryIds]);
+  const update = <K extends keyof typeof initialForm>(key: K, value: (typeof initialForm)[K]) => setFormData((current) => ({ ...current, [key]: value }));
 
-  const [formData, setFormData] = useState({
-    name: '',
-    user_id: '',
-    phone: '',
-    province_code: '',
-    province_name: '',
-    regency_code: '',
-    regency_name: '',
-    district_code: '',
-    district_name: '',
-    village_code: '',
-    village_name: '',
-    address: '',
-    open_time: '08:00',
-    close_time: '17:00',
-    business_category: 'kuliner',
-    business_description: '',
-    is_open: true,
-    status: 'ACTIVE',
-    registration_status: 'APPROVED',
-    village_id: '', // Linked village ID if exists
-    badge: 'none',
-    order_mode: 'ADMIN_ASSISTED',
-    is_verified: false,
-    image_url: '',
-    location_lat: null as number | null,
-    location_lng: null as number | null,
-    verifikator_code: '',
-  });
-
-  // Load provinces and available users on dialog open
   useEffect(() => {
-    if (open) {
-      loadProvinces();
-      loadAvailableUsers();
-    }
+    if (!open) return;
+    setFormData(initialForm);
+    setSelectedCategoryIds([]);
+    setSchedule(createSchedule());
+    setVerifikatorName(null);
+    setVerifikatorValid(null);
+    void (async () => {
+      setLoadingUsers(true);
+      try { setProvinces(await fetchProvinces()); setAvailableUsers(await getAvailableMerchantUsers()); }
+      catch { toast.error('Gagal memuat data awal formulir merchant'); }
+      finally { setLoadingUsers(false); }
+    })();
   }, [open]);
 
-  // Debounce effect for verifikator code
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedCode(formData.verifikator_code);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [formData.verifikator_code]);
-
-  useEffect(() => {
-    if (debouncedCode) {
-      validateVerifikatorCode(debouncedCode);
-    } else {
-      setTradeGroupName(null);
-      setIsCodeValid(null);
-    }
-  }, [debouncedCode]);
-
-  const validateVerifikatorCode = async (code: string) => {
-    if (!code) {
-      setTradeGroupName(null);
-      setIsCodeValid(null);
-      return;
-    }
-
-    setIsValidatingCode(true);
+  const handleProvince = async (code: string) => {
+    const selected = provinces.find((item) => item.code === code); if (!selected) return;
+    setFormData((current) => ({ ...current, province_code: code, province_name: selected.name, regency_code: '', regency_name: '', district_code: '', district_name: '', village_code: '', village_name: '', village_id: '' }));
+    setRegencies([]); setDistricts([]); setVillages([]); setLoadingAddress(true);
+    try { setRegencies(await fetchRegencies(code)); } catch { toast.error('Gagal memuat kabupaten/kota'); } finally { setLoadingAddress(false); }
+  };
+  const handleRegency = async (code: string) => {
+    const selected = regencies.find((item) => item.code === code); if (!selected) return;
+    setFormData((current) => ({ ...current, regency_code: code, regency_name: selected.name, district_code: '', district_name: '', village_code: '', village_name: '', village_id: '' }));
+    setDistricts([]); setVillages([]); setLoadingAddress(true);
+    try { setDistricts(await fetchDistricts(code)); } catch { toast.error('Gagal memuat kecamatan'); } finally { setLoadingAddress(false); }
+  };
+  const handleDistrict = async (code: string) => {
+    const selected = districts.find((item) => item.code === code); if (!selected) return;
+    setFormData((current) => ({ ...current, district_code: code, district_name: selected.name, village_code: '', village_name: '', village_id: '' }));
+    setVillages([]); setLoadingAddress(true);
     try {
-      const { data, error } = await supabase
-        .from('verifikator_codes')
-        .select('trade_group')
-        .eq('code', code)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setTradeGroupName(data.trade_group);
-        setIsCodeValid(true);
-      } else {
-        setTradeGroupName(null);
-        setIsCodeValid(false);
-      }
-    } catch (error) {
-      console.error('Error validating code:', error);
-      setIsCodeValid(false);
-    } finally {
-      setIsValidatingCode(false);
-    }
+      const apiVillages = await fetchVillages(code); setVillages(apiVillages);
+      const { data } = await supabase.from('villages').select('id, name').eq('district', selected.name).eq('regency', formData.regency_name).eq('is_active', true);
+      setVillages(apiVillages.map((v) => ({ ...v, id: (data || []).find((db) => db.name.toLowerCase() === v.name.toLowerCase())?.id })));
+    } catch { toast.error('Gagal memuat desa/kelurahan'); } finally { setLoadingAddress(false); }
+  };
+  const handleVillage = (code: string) => {
+    const selected = villages.find((item) => item.code === code); if (!selected) return;
+    setFormData((current) => ({ ...current, village_code: code, village_name: selected.name, village_id: (selected as Region & { id?: string }).id || '' }));
   };
 
-  const loadAvailableUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const users = await getAvailableMerchantUsers();
-      setAvailableUsers(users);
-    } catch (error) {
-      console.error('Error loading available users:', error);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  const loadProvinces = async () => {
-    setLoadingProvinces(true);
-    try {
-      const data = await fetchProvinces();
-      setProvinces(data);
-    } catch (error) {
-      console.error('Error loading provinces:', error);
-      toast.error('Gagal memuat data provinsi');
-    } finally {
-      setLoadingProvinces(false);
-    }
-  };
-
-  const handleProvinceChange = async (code: string) => {
-    const selected = provinces.find(p => p.code === code);
-    if (!selected) return;
-
-    setFormData({
-      ...formData,
-      province_code: code,
-      province_name: selected.name,
-      regency_code: '',
-      regency_name: '',
-      district_code: '',
-      district_name: '',
-      village_code: '',
-      village_name: '',
-      village_id: '',
-    });
-
-    setRegencies([]);
-    setDistricts([]);
-    setApiVillages([]);
-    setDbVillages([]);
-
-    setLoadingRegencies(true);
-    try {
-      const data = await fetchRegencies(code);
-      setRegencies(data);
-    } catch (error) {
-      console.error('Error loading regencies:', error);
-      toast.error('Gagal memuat data kabupaten/kota');
-    } finally {
-      setLoadingRegencies(false);
-    }
-  };
-
-  const handleRegencyChange = async (code: string) => {
-    const selected = regencies.find(r => r.code === code);
-    if (!selected) return;
-
-    setFormData({
-      ...formData,
-      regency_code: code,
-      regency_name: selected.name,
-      district_code: '',
-      district_name: '',
-      village_code: '',
-      village_name: '',
-      village_id: '',
-    });
-
-    setDistricts([]);
-    setApiVillages([]);
-    setDbVillages([]);
-
-    setLoadingDistricts(true);
-    try {
-      const data = await fetchDistricts(code);
-      setDistricts(data);
-    } catch (error) {
-      console.error('Error loading districts:', error);
-      toast.error('Gagal memuat data kecamatan');
-    } finally {
-      setLoadingDistricts(false);
-    }
-  };
-
-  const handleDistrictChange = async (code: string) => {
-    const selected = districts.find(d => d.code === code);
-    if (!selected) return;
-
-    setFormData({
-      ...formData,
-      district_code: code,
-      district_name: selected.name,
-      village_code: '',
-      village_name: '',
-      village_id: '',
-    });
-
-    setApiVillages([]);
-    setDbVillages([]);
-
-    setLoadingVillages(true);
-    try {
-      // Fetch API villages
-      const apiData = await fetchVillages(code);
-      setApiVillages(apiData);
-
-      // Fetch DB villages that match this location
-      const { data: dbData, error } = await supabase
-        .from('villages')
-        .select('id, name, district, regency, subdistrict')
-        .eq('district', selected.name)
-        .eq('regency', formData.regency_name)
-        .eq('is_active', true);
-
-      if (error) throw error;
-      setDbVillages(dbData || []);
-    } catch (error) {
-      console.error('Error loading villages:', error);
-      toast.error('Gagal memuat data kelurahan');
-    } finally {
-      setLoadingVillages(false);
-    }
-  };
-
-  const handleVillageChange = (code: string) => {
-    const selected = apiVillages.find(v => v.code === code);
-    if (!selected) return;
-
-    // Try to find matching village in database
-    const matchingDbVillage = dbVillages.find(
-      v => v.name.toLowerCase() === selected.name.toLowerCase()
-    );
-
-    setFormData({
-      ...formData,
-      village_code: code,
-      village_name: selected.name,
-      village_id: matchingDbVillage?.id || '', // Link to village if exists
-    });
+  const validateCode = async (value: string) => {
+    const code = value.trim().toUpperCase(); update('verifikator_code', code);
+    if (!code) { setVerifikatorValid(null); setVerifikatorName(null); return; }
+    const { data, error } = await supabase.from('verifikator_codes').select('trade_group').eq('code', code).eq('is_active', true).maybeSingle();
+    setVerifikatorValid(!error && Boolean(data)); setVerifikatorName(data?.trade_group || null);
   };
 
   const handleSubmit = async () => {
-    // Validation
-    if (!formData.name.trim()) {
-      toast.error('Nama merchant wajib diisi');
-      return;
-    }
-
-    if (formData.verifikator_code && isCodeValid === false) {
-      toast.error('Kode verifikator tidak valid. Silakan cek kembali atau kosongkan.');
-      return;
-    }
-
-    if (!formData.phone.trim()) {
-      toast.error('Nomor telepon wajib diisi');
-      return;
-    }
-
-    if (!formData.province_code) {
-      toast.error('Provinsi wajib dipilih');
-      return;
-    }
-
-    if (!formData.regency_code) {
-      toast.error('Kabupaten/Kota wajib dipilih');
-      return;
-    }
-
-    if (!formData.district_code) {
-      toast.error('Kecamatan wajib dipilih');
-      return;
-    }
-
-    if (!formData.village_code) {
-      toast.error('Kelurahan/Desa wajib dipilih');
-      return;
-    }
-
+    const openDays = DAYS.filter(({ day }) => !schedule[day].is_closed);
+    if (!formData.name.trim()) return toast.error('Nama merchant wajib diisi');
+    if (!formData.phone.trim()) return toast.error('Nomor telepon wajib diisi');
+    if (selectedCategories.length === 0) return toast.error('Pilih minimal satu kategori usaha');
+    if (openDays.length === 0) return toast.error('Pilih minimal satu hari operasional');
+    if (!formData.province_code || !formData.regency_code || !formData.district_code || !formData.village_code) return toast.error('Lokasi usaha wajib dilengkapi');
+    if (formData.verifikator_code && verifikatorValid !== true) return toast.error('Kode verifikator tidak valid');
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('merchants')
-        .insert({
-          name: formData.name,
-          // user_id is automatically handled by Supabase Trigger (on_merchant_signup) if null
-          user_id: (formData.user_id === 'none_value' || !formData.user_id) ? null : formData.user_id,
-          phone: formData.phone || null,
-          address: formData.address || null,
-          open_time: formData.open_time,
-          close_time: formData.close_time,
-          business_category: formData.business_category,
-          business_description: formData.business_description || null,
-          is_open: formData.is_open,
-          status: formData.status,
-          registration_status: formData.registration_status,
-          village_id: formData.village_id || null,
-          province: formData.province_name,
-          city: formData.regency_name,
-          district: formData.district_name,
-          subdistrict: formData.village_name,
-          registered_at: new Date().toISOString(),
-          order_mode: formData.order_mode,
-          badge: formData.badge === 'none' ? null : formData.badge,
-          is_verified: formData.is_verified,
-          image_url: formData.image_url || null,
-          location_lat: formData.location_lat,
-          location_lng: formData.location_lng,
-          verifikator_code: formData.verifikator_code || null,
-          trade_group: tradeGroupName || null,
-        });
-
-      if (error) throw error;
-
-      // Assign both buyer and merchant roles to user if linked
-      const linkedUserId = (formData.user_id === 'none_value' || !formData.user_id) ? null : formData.user_id;
-      if (linkedUserId) {
-        // Assign buyer role
-        await supabase.from('user_roles').upsert(
-          { user_id: linkedUserId, role: 'buyer' },
-          { onConflict: 'user_id,role' }
-        );
-        // Assign merchant role
-        await supabase.from('user_roles').upsert(
-          { user_id: linkedUserId, role: 'merchant' },
-          { onConflict: 'user_id,role' }
-        );
+      const legacy = schedule[1] || schedule[openDays[0].day];
+      const { data: merchant, error } = await supabase.from('merchants').insert({
+        name: formData.name.trim(), user_id: formData.user_id || null, phone: formData.phone.trim(), address: formData.address.trim() || null,
+        province: formData.province_name, city: formData.regency_name, district: formData.district_name, subdistrict: formData.village_name,
+        village_id: formData.village_id || null, business_category: selectedCategories[0].slug, business_description: formData.business_description.trim() || null,
+        open_time: legacy.open_time, close_time: legacy.close_time, is_open: formData.is_open, status: 'ACTIVE',
+        // The database auto-approval trigger changes this to APPROVED; PENDING keeps compatibility with older deployed policies.
+        registration_status: 'PENDING', order_mode: 'ADMIN_ASSISTED', image_url: formData.image_url, cover_image_url: formData.cover_image_url,
+        location_lat: formData.location_lat, location_lng: formData.location_lng, verifikator_code: formData.verifikator_code || null,
+        trade_group: verifikatorName,
+        registered_at: new Date().toISOString(),
+      }).select('id').single();
+      if (error || !merchant) throw error || new Error('Merchant tidak berhasil dibuat');
+      const { error: categoryError } = await supabase.from('merchant_categories').insert(selectedCategories.map((category) => ({ merchant_id: merchant.id, category_id: category.id })));
+      if (categoryError) throw categoryError;
+      const { error: scheduleError } = await supabase.from('merchant_operating_hours').insert(DAYS.map(({ day }) => ({ merchant_id: merchant.id, day_of_week: day, ...schedule[day] })));
+      if (scheduleError) throw scheduleError;
+      if (formData.user_id) {
+        await supabase.from('user_roles').upsert([{ user_id: formData.user_id, role: 'buyer' }, { user_id: formData.user_id, role: 'merchant' }], { onConflict: 'user_id,role' });
       }
-
-      toast.success('Merchant baru berhasil ditambahkan');
-      onSuccess();
-      onOpenChange(false);
-      
-      // Reset form
-      setFormData({
-        name: '',
-        user_id: '',
-        phone: '',
-        province_code: '',
-        province_name: '',
-        regency_code: '',
-        regency_name: '',
-        district_code: '',
-        district_name: '',
-        village_code: '',
-        village_name: '',
-        address: '',
-        open_time: '08:00',
-        close_time: '17:00',
-        business_category: 'kuliner',
-        business_description: '',
-        is_open: true,
-        status: 'ACTIVE',
-        registration_status: 'APPROVED',
-        village_id: '',
-        badge: 'none',
-        order_mode: 'ADMIN_ASSISTED',
-        is_verified: false,
-        image_url: '',
-        location_lat: null,
-        location_lng: null,
-        verifikator_code: '',
-      });
-      setTradeGroupName(null);
-      setIsCodeValid(null);
+      toast.success('Merchant baru berhasil ditambahkan'); onSuccess(); onOpenChange(false);
     } catch (error) {
       console.error('Error adding merchant:', error);
-      toast.error('Gagal menambahkan merchant');
-    } finally {
-      setLoading(false);
-    }
+      const message = error instanceof Error ? error.message : 'Gagal menambahkan merchant';
+      toast.error(message.includes('duplicate') || message.includes('unique') ? 'Merchant dengan data tersebut sudah ada.' : message);
+    } finally { setLoading(false); }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Tambah Merchant Baru
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {/* Basic Information */}
-          <div className="border-b pb-4">
-            <h3 className="font-semibold text-sm mb-3">Informasi Dasar</h3>
-            
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="space-y-2">
-                <Label>URL Gambar Merchant</Label>
-                <Input
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Mode Pesanan</Label>
-                <Select
-                  value={formData.order_mode}
-                  onValueChange={(v) => setFormData({ ...formData, order_mode: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ADMIN_ASSISTED">Dibantu Admin</SelectItem>
-                    <SelectItem value="SELF">Mandiri</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="space-y-2">
-                <Label>Badge Merchant</Label>
-                <Select
-                  value={formData.badge}
-                  onValueChange={(v) => setFormData({ ...formData, badge: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Tanpa Badge</SelectItem>
-                    <SelectItem value="VERIFIED">Verified</SelectItem>
-                    <SelectItem value="POPULAR">Popular</SelectItem>
-                    <SelectItem value="NEW">New</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-4 pt-8">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={formData.is_verified}
-                    onCheckedChange={(v) => setFormData({ ...formData, is_verified: v })}
-                  />
-                  <Label>Terverifikasi</Label>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nama Merchant *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Nama toko/usaha"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="user_id">Pemilik (User Merchant)</Label>
-                <Select
-                  value={formData.user_id}
-                  onValueChange={(v) => setFormData({ ...formData, user_id: v })}
-                  disabled={loadingUsers}
-                >
-                  <SelectTrigger id="user_id">
-                    <SelectValue placeholder={loadingUsers ? "Memuat user..." : "Pilih pemilik (opsional)"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none_value">-- Belum Ada Pemilik --</SelectItem>
-                    {availableUsers.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.full_name || 'Tanpa Nama'} ({user.phone || user.user_id.slice(0, 8)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Nomor Telepon *</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="08xxxxxxxxxx"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Status Merchant</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(v) => setFormData({ ...formData, status: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ACTIVE">Aktif</SelectItem>
-                    <SelectItem value="INACTIVE">Nonaktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Kategori Bisnis</Label>
-                <Select
-                  disabled={categoriesLoading || categories.length === 0}
-                  value={formData.business_category}
-                  onValueChange={(v) => setFormData({ ...formData, business_category: v })}
-                >
-                  <SelectTrigger id="category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.slug} value={category.slug}>
-                        {category.icon ? `${category.icon} ` : ''}{category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2 mt-4">
-              <Label>Deskripsi Bisnis</Label>
-              <Textarea
-                value={formData.business_description}
-                onChange={(e) => setFormData({ ...formData, business_description: e.target.value })}
-                placeholder="Deskripsi singkat tentang usaha"
-                rows={2}
-              />
-            </div>
-          </div>
-
-          {/* Location Information */}
-          <div className="border-b pb-4">
-            <h3 className="font-semibold text-sm mb-3">Lokasi & Alamat</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Provinsi *</Label>
-                <Select
-                  value={formData.province_code}
-                  onValueChange={handleProvinceChange}
-                  disabled={loadingProvinces}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingProvinces ? "Memuat..." : "Pilih Provinsi"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {provinces.map((p) => (
-                      <SelectItem key={p.code} value={p.code}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Kabupaten/Kota *</Label>
-                <Select
-                  value={formData.regency_code}
-                  onValueChange={handleRegencyChange}
-                  disabled={!formData.province_code || loadingRegencies}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingRegencies ? "Memuat..." : "Pilih Kabupaten/Kota"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regencies.map((r) => (
-                      <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="space-y-2">
-                <Label>Kecamatan *</Label>
-                <Select
-                  value={formData.district_code}
-                  onValueChange={handleDistrictChange}
-                  disabled={!formData.regency_code || loadingDistricts}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingDistricts ? "Memuat..." : "Pilih Kecamatan"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districts.map((d) => (
-                      <SelectItem key={d.code} value={d.code}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Kelurahan/Desa *</Label>
-                <Select
-                  value={formData.village_code}
-                  onValueChange={handleVillageChange}
-                  disabled={!formData.district_code || loadingVillages}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingVillages ? "Memuat..." : "Pilih Kelurahan/Desa"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apiVillages.map((v) => (
-                      <SelectItem key={v.code} value={v.code}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2 mt-4">
-              <Label>Alamat Lengkap</Label>
-              <Textarea
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Nama jalan, nomor rumah, dll"
-                rows={2}
-              />
-            </div>
-
-            {/* Map Location Picker */}
-            <div className="mt-4">
-              <AdminLocationPicker
-                value={formData.location_lat && formData.location_lng ? { lat: formData.location_lat, lng: formData.location_lng } : null}
-                onChange={(loc) => setFormData({ ...formData, location_lat: loc.lat, location_lng: loc.lng })}
-              />
-            </div>
-          </div>
-
-          {/* Verifikator Code */}
-          <div className="border-b pb-4">
-            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Verifikator
-            </h3>
-            <div className="space-y-2">
-              <Label>Kode Verifikator / Kelompok Dagang</Label>
-              <div className="relative">
-                <Input
-                  value={formData.verifikator_code}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData({ ...formData, verifikator_code: val });
-                    if (!val) {
-                      setIsCodeValid(null);
-                      setTradeGroupName(null);
-                    }
-                  }}
-                  placeholder="Masukkan kode verifikator"
-                  className={isCodeValid === false ? "border-destructive pr-10" : isCodeValid === true ? "border-success pr-10" : "pr-10"}
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {isValidatingCode ? (
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  ) : isCodeValid === true ? (
-                    <Check className="h-4 w-4 text-success" />
-                  ) : isCodeValid === false ? (
-                    <X className="h-4 w-4 text-destructive" />
-                  ) : null}
-                </div>
-              </div>
-              
-              {isCodeValid === true && tradeGroupName && (
-                <p className="text-xs text-success font-medium flex items-center gap-1">
-                  <Check className="h-3 w-3" />
-                  Terhubung ke: {tradeGroupName}
-                </p>
-              )}
-              
-              {isCodeValid === false && (
-                <p className="text-xs text-destructive font-medium flex items-center gap-1">
-                  <X className="h-3 w-3" />
-                  Kode tidak valid atau tidak aktif
-                </p>
-              )}
-
-              <p className="text-xs text-muted-foreground">
-                Pastikan kode valid untuk menghubungkan merchant dengan kelompok dagang yang tepat
-              </p>
-            </div>
-          </div>
-
-          {/* Operational Information */}
-          <div>
-            <h3 className="font-semibold text-sm mb-3">Operasional</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Jam Buka
-                </Label>
-                <Input
-                  type="time"
-                  value={formData.open_time}
-                  onChange={(e) => setFormData({ ...formData, open_time: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Jam Tutup
-                </Label>
-                <Input
-                  type="time"
-                  value={formData.close_time}
-                  onChange={(e) => setFormData({ ...formData, close_time: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 mt-4">
-              <Switch
-                checked={formData.is_open}
-                onCheckedChange={(v) => setFormData({ ...formData, is_open: v })}
-              />
-              <Label>Toko sedang buka</Label>
-            </div>
-          </div>
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Store className="h-5 w-5 text-primary" />Tambah Merchant</DialogTitle><DialogDescription>Lengkapi data merchant seperti formulir pendaftaran agar merchant siap dikelola.</DialogDescription></DialogHeader>
+        <div className="space-y-6 py-2">
+          <section className="space-y-4 rounded-lg border p-4"><h3 className="font-semibold flex items-center gap-2"><Store className="h-4 w-4" />Informasi Usaha</h3>
+            <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Nama Usaha *</Label><Input value={formData.name} onChange={(e) => update('name', e.target.value)} placeholder="Contoh: Warung Berkah" /></div><div className="space-y-2"><Label>Nomor WhatsApp *</Label><Input value={formData.phone} onChange={(e) => update('phone', e.target.value)} placeholder="08xxxxxxxxxx" /></div></div>
+            <div className="space-y-2"><Label>Kategori Usaha *</Label><div className="grid gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">{categoriesLoading ? <p className="text-sm text-muted-foreground">Memuat kategori...</p> : categories.map((category) => <label key={category.id} className="flex items-center gap-2 rounded border bg-background p-2 text-sm"><Checkbox checked={selectedCategoryIds.includes(category.id)} onCheckedChange={(checked) => setSelectedCategoryIds((current) => checked ? [...new Set([...current, category.id])] : current.filter((id) => id !== category.id))} />{category.icon ? `${category.icon} ` : ''}{category.name}</label>)}</div></div>
+            <div className="space-y-2"><Label>Deskripsi Usaha</Label><Textarea value={formData.business_description} onChange={(e) => update('business_description', e.target.value)} rows={3} placeholder="Ceritakan usaha merchant..." /></div>
+            <div className="grid gap-4 sm:grid-cols-2"><div><Label className="mb-2 block">Foto Profil</Label><ImageUpload bucket="merchant-images" path="profiles/admin-new" value={formData.image_url} onChange={(url) => update('image_url', url)} aspectRatio="square" placeholder="Upload foto merchant" /></div><div><Label className="mb-2 block">Foto Sampul</Label><ImageUpload bucket="merchant-images" path="covers/admin-new" value={formData.cover_image_url} onChange={(url) => update('cover_image_url', url)} aspectRatio="wide" placeholder="Upload foto sampul" /></div></div>
+          </section>
+          <section className="space-y-4 rounded-lg border p-4"><h3 className="font-semibold flex items-center gap-2"><Clock className="h-4 w-4" />Jadwal Operasional Mingguan</h3><p className="text-xs text-muted-foreground">Atur jam masuk dan tutup untuk setiap hari. Hari yang ditutup tidak menerima pesanan.</p><div className="space-y-2">{DAYS.map(({ day, label }) => { const item = schedule[day]; return <div key={day} className="grid items-center gap-2 rounded-md bg-muted/30 p-2 sm:grid-cols-[100px_1fr_1fr_auto]"><span className="text-sm font-medium">{label}</span><Input type="time" value={item.open_time} disabled={item.is_closed} onChange={(e) => setSchedule((current) => ({ ...current, [day]: { ...item, open_time: e.target.value } }))} aria-label={`Jam buka ${label}`} /><Input type="time" value={item.close_time} disabled={item.is_closed} onChange={(e) => setSchedule((current) => ({ ...current, [day]: { ...item, close_time: e.target.value } }))} aria-label={`Jam tutup ${label}`} /><label className="flex items-center gap-2 text-xs"><Checkbox checked={item.is_closed} onCheckedChange={(checked) => setSchedule((current) => ({ ...current, [day]: { ...item, is_closed: Boolean(checked) } }))} />Tutup</label></div>; })}</div></section>
+          <section className="space-y-4 rounded-lg border p-4"><h3 className="font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" />Lokasi Usaha</h3><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Provinsi *</Label><Select value={formData.province_code} onValueChange={handleProvince}><SelectTrigger><SelectValue placeholder="Pilih provinsi" /></SelectTrigger><SelectContent>{provinces.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Kabupaten/Kota *</Label><Select value={formData.regency_code} onValueChange={handleRegency} disabled={!formData.province_code || loadingAddress}><SelectTrigger><SelectValue placeholder="Pilih kabupaten/kota" /></SelectTrigger><SelectContent>{regencies.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Kecamatan *</Label><Select value={formData.district_code} onValueChange={handleDistrict} disabled={!formData.regency_code || loadingAddress}><SelectTrigger><SelectValue placeholder="Pilih kecamatan" /></SelectTrigger><SelectContent>{districts.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Desa/Kelurahan *</Label><Select value={formData.village_code} onValueChange={handleVillage} disabled={!formData.district_code || loadingAddress}><SelectTrigger><SelectValue placeholder="Pilih desa/kelurahan" /></SelectTrigger><SelectContent>{villages.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div></div><Textarea value={formData.address} onChange={(e) => update('address', e.target.value)} placeholder="Alamat lengkap (jalan, nomor rumah, patokan)" rows={2} /><AdminLocationPicker value={formData.location_lat !== null && formData.location_lng !== null ? { lat: formData.location_lat, lng: formData.location_lng } : null} onChange={(location) => setFormData((current) => ({ ...current, location_lat: location.lat, location_lng: location.lng }))} /></section>
+          <section className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"><div className="space-y-2"><Label className="flex items-center gap-2"><User className="h-4 w-4" />Hubungkan Pemilik (opsional)</Label><Select value={formData.user_id || 'none'} onValueChange={(value) => update('user_id', value === 'none' ? '' : value)} disabled={loadingUsers}><SelectTrigger><SelectValue placeholder={loadingUsers ? 'Memuat user...' : 'Pilih user merchant'} /></SelectTrigger><SelectContent><SelectItem value="none">Tanpa pemilik</SelectItem>{availableUsers.map((user) => <SelectItem key={user.user_id} value={user.user_id}>{user.full_name || 'Tanpa nama'}{user.phone ? ` — ${user.phone}` : ''}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label className="flex items-center gap-2"><Shield className="h-4 w-4" />Kode Verifikator (opsional)</Label><Input value={formData.verifikator_code} onChange={(e) => void validateCode(e.target.value)} placeholder="Kode referral/verifikator" />{verifikatorValid === true && <p className="text-xs text-success flex items-center gap-1"><Check className="h-3 w-3" />{verifikatorName || 'Kode valid'}</p>}</div></section>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Batal
-          </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            <Save className="h-4 w-4 mr-2" />
-            {loading ? 'Menyimpan...' : 'Simpan Merchant'}
-          </Button>
-        </DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Batal</Button><Button onClick={() => void handleSubmit()} disabled={loading || categoriesLoading}><Save className="mr-2 h-4 w-4" />{loading ? 'Menyimpan...' : 'Simpan Merchant'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

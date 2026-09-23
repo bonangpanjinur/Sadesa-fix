@@ -334,10 +334,11 @@ export default function RegisterMerchantPage() {
         return;
       }
 
-      // Merchant registration is currently automatic: no admin approval gate.
-      // The database also enforces these values for non-frontend clients.
-      const registrationStatus = 'APPROVED' as const;
-      const merchantStatus = 'ACTIVE' as const;
+      // The database auto-approval trigger promotes new registrations to
+      // APPROVED/ACTIVE. Submit PENDING here so the public INSERT policy
+      // remains strict and the trigger is the single source of truth.
+      const registrationStatus = 'PENDING' as const;
+      const merchantStatus = 'INACTIVE' as const;
       const legacySchedule = weeklySchedule[1] || weeklySchedule[openDays[0].day];
 
       const { data: merchant, error } = await supabase.from('merchants').insert({
