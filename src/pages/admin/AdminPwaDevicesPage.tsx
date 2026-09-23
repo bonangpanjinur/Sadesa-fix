@@ -17,7 +17,7 @@ export default function AdminPwaDevicesPage() {
   const loadDevices = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.from('pwa_device_sessions' as never)
-      .select('id,user_id,tenant_id,device_id,device_name,device_type,platform,status,last_seen_at,last_sync_at,revoked_at,created_at,updated_at')
+      .select('id,user_id,tenant_id,device_id,device_name,device_type,platform,ip_address,status,last_seen_at,last_sync_at,revoked_at,created_at,updated_at')
       .order('last_seen_at', { ascending: false });
     if (error) {
       reportObservability('device', 'admin_device_list_failed', 'error', {}, error);
@@ -51,7 +51,7 @@ export default function AdminPwaDevicesPage() {
           {loading ? <div className="py-12 text-center text-muted-foreground">Memuat perangkat...</div> : devices.length === 0 ? <div className="py-12 text-center text-muted-foreground">Belum ada perangkat PWA terdaftar.</div> : devices.map((device) => (
             <div key={device.id} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted"><Smartphone className="h-5 w-5 text-muted-foreground" /></div>
-              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{device.device_name}</p><Badge variant={device.status === 'active' ? 'success' : device.status === 'revoked' ? 'destructive' : 'warning'}>{device.status}</Badge><Badge variant="outline">{device.device_type}</Badge></div><p className="mt-1 text-xs text-muted-foreground">User {device.user_id.slice(0, 8)} · {device.platform || 'platform tidak diketahui'}</p><p className="text-xs text-muted-foreground">Last seen {new Date(device.last_seen_at).toLocaleString('id-ID')} · Sync {device.last_sync_at ? new Date(device.last_sync_at).toLocaleString('id-ID') : 'belum ada'}</p></div>
+              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{device.device_name}</p><Badge variant={device.status === 'active' ? 'success' : device.status === 'revoked' ? 'destructive' : 'warning'}>{device.status}</Badge><Badge variant="outline">{device.device_type}</Badge></div><p className="mt-1 text-xs text-muted-foreground">User {device.user_id.slice(0, 8)} · {device.platform || 'platform tidak diketahui'} · IP {device.ip_address || 'tidak tercatat'}</p><p className="text-xs text-muted-foreground">Last seen {new Date(device.last_seen_at).toLocaleString('id-ID')} · Sync {device.last_sync_at ? new Date(device.last_sync_at).toLocaleString('id-ID') : 'belum ada'}</p></div>
               {device.status !== 'revoked' && <Button variant="destructive" size="sm" onClick={() => void revoke(device)} disabled={revoking === device.id}><ShieldOff className="mr-2 h-4 w-4" />{revoking === device.id ? 'Mencabut...' : 'Revoke session'}</Button>}
             </div>
           ))}
