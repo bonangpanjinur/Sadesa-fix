@@ -156,9 +156,24 @@ export async function sendConversationMessage(request: SendMessageRequest) {
     return { message: null, error: toChatError({ code: '22023', message: 'Pesan harus berisi 1 sampai 4000 karakter' }) };
   }
 
+  // The recipient must come from the canonical conversation membership. Some
+  // legacy inbox rows can carry a stale receiver_id, which makes the RPC
+  // reject an otherwise valid message with HTTP 400.
+  const { data: participants, error: participantError } = await supabase
+    .from('chat_participants')
+    .select('user_id')
+    .eq('conversation_id', request.conversationId)
+    .neq('user_id', request.senderId)
+    .is('left_at', null);
+  if (participantError) return { message: null, error: toChatError(participantError) };
+  const receiverId = participants?.[0]?.user_id;
+  if (!receiverId || receiverId === request.senderId) {
+    return { message: null, error: toChatError({ code: '42501', message: 'Penerima bukan participant aktif' }) };
+  }
+
   const { data, error } = request.attachmentPath
-    ? await supabase.rpc('send_chat_message_with_attachment' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: text, p_client_message_id: request.clientMessageId, p_attachment_path: request.attachmentPath } as never)
-    : await supabase.rpc('send_chat_message' as never, { p_conversation_id: request.conversationId, p_receiver_id: request.receiverId, p_body: text, p_client_message_id: request.clientMessageId } as never);
+    ? await supabase.rpc('send_chat_message_with_attachment' as never, { p_conversation_id: request.conversationId, p_receiver_id: receiverId, p_body: text, p_client_message_id: request.clientMessageId, p_attachment_path: request.attachmentPath } as never)
+    : await supabase.rpc('send_chat_message' as never, { p_conversation_id: request.conversationId, p_receiver_id: receiverId, p_body: text, p_client_message_id: request.clientMessageId } as never);
   if (!error && data) return { message: normalizeMessage(data as Record<string, unknown>), error: null };
   const retry = await supabase.from('chat_messages').select('*').eq('sender_id', request.senderId).eq('client_message_id', request.clientMessageId).maybeSingle();
   if (retry.data) { recordChatMetric('duplicate_retry_recovered'); return { message: normalizeMessage(retry.data as Record<string, unknown>), error: null }; }
@@ -168,7 +183,10 @@ export async function sendConversationMessage(request: SendMessageRequest) {
       message: error.message,
       details: error.details,
       hint: error.hint,
+      status: (error as { status?: number }).status,
       conversationId: request.conversationId,
+      senderId: request.senderId,
+      receiverId,
     });
   }
   return { message: null, error: error ? toChatError(error) : toChatError(new Error('Pesan belum terkirim')) };

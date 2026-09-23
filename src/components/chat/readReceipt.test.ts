@@ -20,4 +20,11 @@ describe('chat read receipt contract', () => {
     expect(legacy).toContain('getConversationReadAt(conversationId)');
     expect(canonical).toContain('getConversationReadAt(result.conversationId!)');
   });
+
+  it('resolves the send recipient from canonical conversation membership', () => {
+    const repository = read('src/lib/chat/repository.ts');
+    expect(repository).toContain(".from('chat_participants')");
+    expect(repository).toContain(".neq('user_id', request.senderId)");
+    expect(repository).toContain('p_receiver_id: receiverId');
+  });
 });
