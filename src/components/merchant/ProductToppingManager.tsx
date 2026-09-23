@@ -6,6 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 type Candidate = { id: string; name: string; price: number; stock: number };
+type ProductRow = { id: string; name: string; price: number | string | null; stock: number | string | null };
+type ToppingLinkRow = { topping_product_id: string };
 
 export function ProductToppingManager({ productId, merchantId }: { productId: string; merchantId: string }) {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -17,13 +19,15 @@ export function ProductToppingManager({ productId, merchantId }: { productId: st
     let active = true;
     (async () => {
       const [{ data: products, error: productsError }, { data: links, error: linksError }] = await Promise.all([
-        (supabase as any).from('products').select('id, name, price, stock').eq('merchant_id', merchantId).eq('is_active', true).neq('id', productId).order('name'),
-        (supabase as any).from('product_toppings').select('topping_product_id').eq('product_id', productId).order('sort_order'),
+        supabase.from('products').select('id, name, price, stock').eq('merchant_id', merchantId).eq('is_active', true).neq('id', productId).order('name'),
+        supabase.from('product_toppings').select('topping_product_id').eq('product_id', productId).order('sort_order'),
       ]);
       if (!active) return;
       if (productsError || linksError) toast.error('Gagal memuat pengaturan topping');
-      setCandidates((products || []).map((item: any) => ({ id: item.id, name: item.name, price: Number(item.price) || 0, stock: Number(item.stock) || 0 })));
-      setSelected((links || []).map((item: any) => item.topping_product_id));
+      const productRows = (products || []) as ProductRow[];
+      const toppingLinkRows = (links || []) as ToppingLinkRow[];
+      setCandidates(productRows.map((item) => ({ id: item.id, name: item.name, price: Number(item.price) || 0, stock: Number(item.stock) || 0 })));
+      setSelected(toppingLinkRows.map((item) => item.topping_product_id));
       setLoading(false);
     })();
     return () => { active = false; };
@@ -31,10 +35,9 @@ export function ProductToppingManager({ productId, merchantId }: { productId: st
 
   const save = async () => {
     setSaving(true);
-    const db = supabase as any;
-    const { error: deleteError } = await db.from('product_toppings').delete().eq('product_id', productId);
+    const { error: deleteError } = await supabase.from('product_toppings').delete().eq('product_id', productId);
     if (!deleteError && selected.length > 0) {
-      const { error } = await db.from('product_toppings').insert(selected.map((toppingProductId, index) => ({ product_id: productId, topping_product_id: toppingProductId, sort_order: index })));
+      const { error } = await supabase.from('product_toppings').insert(selected.map((toppingProductId, index) => ({ product_id: productId, topping_product_id: toppingProductId, sort_order: index })));
       if (error) toast.error('Gagal menyimpan topping');
       else toast.success('Topping produk disimpan');
     } else if (deleteError) toast.error('Gagal menyimpan topping');
