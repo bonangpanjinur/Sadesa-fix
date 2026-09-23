@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { ExternalLink, MapPin, Store } from 'lucide-react';
+import { ExternalLink, MapPin, Navigation, Store } from 'lucide-react';
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { calculateDistance } from '@/hooks/useUserLocation';
@@ -73,7 +73,17 @@ function formatDistance(distanceKm: number) {
   return `${distanceKm.toFixed(1)} km dari kamu`;
 }
 
-function MerchantPopup({ merchant }: { merchant: MerchantPoint }) {
+function openMerchantNavigation(merchant: MerchantPoint, userLocation?: { lat: number; lng: number } | null) {
+  const params = new URLSearchParams({
+    api: '1',
+    destination: `${merchant.lat},${merchant.lng}`,
+    travelmode: 'driving',
+  });
+  if (userLocation) params.set('origin', `${userLocation.lat},${userLocation.lng}`);
+  window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener,noreferrer');
+}
+
+function MerchantPopup({ merchant, userLocation }: { merchant: MerchantPoint; userLocation?: { lat: number; lng: number } | null }) {
   return (
     <div className="min-w-[190px] space-y-2">
       <div className="flex items-center gap-2">
@@ -88,16 +98,21 @@ function MerchantPopup({ merchant }: { merchant: MerchantPoint }) {
         </div>
       </div>
       <p className="text-xs text-muted-foreground">{merchant.productCount} produk tersedia</p>
-      <Button asChild size="sm" className="h-8 w-full rounded-lg text-xs">
-        <Link to={`/merchant/${merchant.slug || merchant.id}`}>
-          Lihat toko <ExternalLink className="ml-1 h-3 w-3" />
-        </Link>
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button asChild size="sm" className="h-8 rounded-lg px-2 text-xs">
+          <Link to={`/merchant/${merchant.slug || merchant.id}`}>
+            Lihat toko <ExternalLink className="ml-1 h-3 w-3" />
+          </Link>
+        </Button>
+        <Button type="button" size="sm" variant="outline" className="h-8 rounded-lg px-2 text-xs" onClick={() => openMerchantNavigation(merchant, userLocation)}>
+          <Navigation className="mr-1 h-3 w-3" /> Rute
+        </Button>
+      </div>
     </div>
   );
 }
 
-function ClusteredMerchantMarkers({ merchants }: { merchants: MerchantPoint[] }) {
+function ClusteredMerchantMarkers({ merchants, userLocation }: { merchants: MerchantPoint[]; userLocation?: { lat: number; lng: number } | null }) {
   const map = useMap();
   const [zoom, setZoom] = useState(() => map.getZoom());
 
@@ -153,7 +168,7 @@ function ClusteredMerchantMarkers({ merchants }: { merchants: MerchantPoint[] })
         const merchant = cluster.members[0];
         return (
           <Marker key={merchant.id} position={[merchant.lat, merchant.lng]} icon={createMerchantIcon(merchant)}>
-            <Popup><MerchantPopup merchant={merchant} /></Popup>
+            <Popup><MerchantPopup merchant={merchant} userLocation={userLocation} /></Popup>
           </Marker>
         );
       })}
@@ -230,7 +245,7 @@ export function ProductMerchantMap({ products, center, userLocation }: ProductMe
               <Popup>Lokasi kamu</Popup>
             </Marker>
           )}
-          <ClusteredMerchantMarkers merchants={merchants} />
+          <ClusteredMerchantMarkers merchants={merchants} userLocation={userLocation} />
         </MapContainer>
       </div>
 
