@@ -4,86 +4,75 @@ import { Button } from '@/components/ui/button';
 import { usePWA } from '@/hooks/usePWA';
 import { Link } from 'react-router-dom';
 
+const DISMISS_KEY = 'pwa-install-dismissed';
+const DISMISS_DAYS = 7;
+
 export function InstallBanner() {
   const { canInstall, isInstalled, installApp } = usePWA();
   const [dismissed, setDismissed] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    // Check if user has dismissed the banner before
-    const wasDismissed = localStorage.getItem('pwa-install-dismissed');
-    if (wasDismissed) {
-      const dismissedDate = new Date(wasDismissed);
-      const daysSinceDismissed = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
-      // Show again after 7 days
-      if (daysSinceDismissed < 7) {
-        setDismissed(true);
+    try {
+      const dismissedAt = localStorage.getItem(DISMISS_KEY);
+      if (dismissedAt) {
+        const daysSinceDismissed = (Date.now() - new Date(dismissedAt).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceDismissed < DISMISS_DAYS) setDismissed(true);
       }
+    } catch {
+      // Storage can be unavailable in private browsing; the prompt remains usable.
     }
 
-    // Delay showing banner
-    const timer = setTimeout(() => {
-      setShowBanner(true);
-    }, 10000); // 10 seconds
-
-    return () => clearTimeout(timer);
+    // Do not compete with the first meaningful interaction or first paint.
+    const timer = window.setTimeout(() => setShowBanner(true), 10000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleDismiss = () => {
     setDismissed(true);
-    localStorage.setItem('pwa-install-dismissed', new Date().toISOString());
+    try {
+      localStorage.setItem(DISMISS_KEY, new Date().toISOString());
+    } catch {
+      // Ignore storage errors; this dismissal still applies for the current visit.
+    }
   };
 
   const handleInstall = async () => {
     const success = await installApp();
-    if (success) {
-      handleDismiss();
-    }
+    if (success) handleDismiss();
   };
 
-  // Don't show if already installed, dismissed, or not ready
-  if (isInstalled || dismissed || !showBanner) {
-    return null;
-  }
+  if (isInstalled || dismissed || !showBanner) return null;
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 max-w-[480px] mx-auto z-50 animate-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-card border border-border rounded-2xl shadow-lg p-4">
+    <aside
+      aria-label="Ajakan memasang aplikasi SaDesa"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-40 px-4 sm:bottom-5"
+    >
+      <div className="pointer-events-auto mx-auto max-w-[min(31rem,calc(100vw-2rem))] rounded-2xl border border-border bg-card p-4 shadow-lg">
         <div className="flex items-start gap-3">
-          <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Smartphone className="h-6 w-6 text-primary" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <Smartphone className="h-6 w-6 text-primary" aria-hidden="true" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground text-sm">Install Aplikasi SaDesa</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Akses lebih cepat langsung dari homescreen
-            </p>
-            <div className="flex gap-2 mt-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold text-foreground">Install Aplikasi SaDesa</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Akses lebih cepat langsung dari homescreen</p>
+            <div className="mt-3 flex gap-2">
               {canInstall ? (
-                <Button size="sm" onClick={handleInstall} className="text-xs h-8">
-                  <Download className="h-3.5 w-3.5 mr-1.5" />
-                  Install
+                <Button size="sm" onClick={handleInstall} className="h-9 text-xs">
+                  <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" /> Install
                 </Button>
               ) : (
-                <Link to="/install">
-                  <Button size="sm" className="text-xs h-8">
-                    Cara Install
-                  </Button>
-                </Link>
+                <Button asChild size="sm" className="h-9 text-xs"><Link to="/install">Cara Install</Link></Button>
               )}
-              <Button size="sm" variant="ghost" onClick={handleDismiss} className="text-xs h-8">
-                Nanti
-              </Button>
+              <Button size="sm" variant="ghost" onClick={handleDismiss} className="h-9 text-xs">Nanti</Button>
             </div>
           </div>
-          <button
-            onClick={handleDismiss}
-            className="text-muted-foreground hover:text-foreground transition p-1"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <Button type="button" variant="ghost" size="icon" onClick={handleDismiss} className="h-8 w-8 shrink-0 text-muted-foreground" aria-label="Tutup prompt instalasi">
+            <X className="h-4 w-4" aria-hidden="true" />
+          </Button>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }

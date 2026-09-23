@@ -77,8 +77,8 @@ export function Header() {
       >
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><MapPin className="h-4 w-4" /></span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Alamat pengantaran</span>
-          <span className="block truncate text-[11px] font-bold leading-tight text-foreground">
+          <span className="block text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Alamat pengantaran</span>
+          <span className="block truncate text-xs font-bold leading-tight text-foreground">
             {locationLoading ? 'Mencari lokasi...' : selectedAddress?.address || userLocation?.district || 'Pilih alamat pengantaran'}
           </span>
         </span>

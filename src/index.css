@@ -290,9 +290,14 @@
   
   @media (min-width: 768px) {
     .mobile-shell {
+      max-width: 960px;
       border-left: 1px solid hsl(var(--border));
       border-right: 1px solid hsl(var(--border));
       box-shadow: var(--shadow-lg);
+    }
+
+    .mobile-shell main .grid-cols-2 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   

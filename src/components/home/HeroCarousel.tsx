@@ -32,6 +32,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   const slideCount = slides.length;
 
@@ -39,6 +40,14 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
     if (slideCount === 0) return;
     setCurrentIndex((prev) => Math.min(prev, slideCount - 1));
   }, [slideCount]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateMotionPreference = () => setReducedMotion(mediaQuery.matches);
+    updateMotionPreference();
+    mediaQuery.addEventListener('change', updateMotionPreference);
+    return () => mediaQuery.removeEventListener('change', updateMotionPreference);
+  }, []);
 
   const nextSlide = useCallback(() => {
     setDirection(1);
@@ -57,11 +66,11 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
 
   // Auto-play
   useEffect(() => {
-    if (slideCount <= 1 || isPaused) return;
+    if (slideCount <= 1 || isPaused || reducedMotion) return;
     
     const interval = setInterval(nextSlide, autoPlayInterval);
     return () => clearInterval(interval);
-  }, [nextSlide, autoPlayInterval, slideCount, isPaused]);
+  }, [nextSlide, autoPlayInterval, slideCount, isPaused, reducedMotion]);
 
   const viewedSlideId = slides[currentIndex]?.id;
   useEffect(() => {
@@ -143,7 +152,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
           initial="enter"
           animate="center"
           exit="exit"
-          transition={{
+          transition={reducedMotion ? { duration: 0 } : {
             x: { type: 'spring', stiffness: 300, damping: 30 },
             opacity: { duration: 0.2 },
           }}
@@ -155,7 +164,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
               alt={currentSlide.title}
               initial={{ scale: 1.08 }}
               animate={{ scale: 1 }}
-              transition={{ duration: autoPlayInterval / 1000, ease: 'linear' }}
+              transition={{ duration: reducedMotion ? 0 : autoPlayInterval / 1000, ease: 'linear' }}
               className="h-full w-full object-cover"
             />
             {slideCount > 1 && (
@@ -169,7 +178,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
                       'h-1.5 w-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                       index === currentIndex ? 'w-5 bg-primary' : 'bg-primary/35 hover:bg-primary/60'
                     )}
-                    aria-label={`Go to slide ${index + 1}`}
+                    aria-label={`Buka slide ${index + 1}`}
                   />
                 ))}
               </div>
@@ -213,7 +222,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
         </>
       )}
 
-      {slideCount > 1 && !isPaused && (
+      {slideCount > 1 && !isPaused && !reducedMotion && (
         <motion.div
           key={`progress-${currentIndex}`}
           className="absolute bottom-0 left-0 z-10 h-1 bg-accent"

@@ -136,6 +136,7 @@ const Index = () => {
       fetchVillages()
     ),
     staleTime: 60_000,
+    enabled: enabledSectionIds.has('villages'),
   });
 
   const {
@@ -149,6 +150,7 @@ const Index = () => {
       fetchTourism()
     ),
     staleTime: 60_000,
+    enabled: enabledSectionIds.has('popular_tourism'),
   });
 
   const {
@@ -229,7 +231,7 @@ const Index = () => {
   );
 
   const getProductDistance = (product: Product) => {
-    if (!userLocation || product.locationLat == null || product.locationLng == null) return undefined;
+    if (!userLocation || userLocation.source === 'default' || product.locationLat == null || product.locationLng == null) return undefined;
     return calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng);
   };
 
@@ -310,7 +312,18 @@ const Index = () => {
         ) : null;
       
       case 'promo':
-        return null;
+        if (!newestProducts.some((product) => product.isPromo)) return null;
+        return (
+          <section className="mx-4 mt-8 rounded-[1.65rem] border border-red-100 bg-red-50/60 px-5 py-4" aria-labelledby="promo-title">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Harga pilihan untuk Anda hari ini.</p>
+              </div>
+              <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products">Lihat promo</Link></Button>
+            </div>
+          </section>
+        );
       
       case 'recommendations':
         if (productsLoading) return <ProductGridSkeleton count={6} />;
@@ -323,7 +336,7 @@ const Index = () => {
               </div>
               <div>
                 <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
-                <p className="text-[10px] text-muted-foreground">Temukan pilihan yang baru hadir di SaDesa.</p>
+                <p className="text-xs text-muted-foreground">Temukan pilihan yang baru hadir di SaDesa.</p>
               </div>
               <Link to="/products" className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline">Lihat semua <ChevronRight className="h-3 w-3" /></Link>
             </div>
@@ -412,12 +425,13 @@ const Index = () => {
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto pb-32">
         <>
+          <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           {enabledSections.some((section) => section.id === 'categories') && renderSection('categories')}
           {activeOrder && (
             <Dialog>
               <DialogTrigger asChild>
-                <button type="button" className="fixed bottom-24 right-4 z-20 flex items-center gap-2 rounded-full border border-primary/20 bg-white px-3 py-2 text-left shadow-[0_12px_28px_-12px_hsl(4_78%_47%_/_0.55)] transition hover:-translate-y-0.5 hover:border-primary/40 sm:right-7">
+                <button type="button" className="fixed bottom-[calc(10.5rem+env(safe-area-inset-bottom))] right-4 z-20 flex items-center gap-2 rounded-full border border-primary/20 bg-white px-3 py-2 text-left shadow-[0_12px_28px_-12px_hsl(4_78%_47%_/_0.55)] transition hover:-translate-y-0.5 hover:border-primary/40 sm:bottom-40 sm:right-7">
                   <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     {['ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT'].includes(activeOrder.status) ? <Truck className="h-4 w-4" /> : <Receipt className="h-4 w-4" />}
                     <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500" />
@@ -463,14 +477,9 @@ const Index = () => {
               <p className="text-sm text-muted-foreground max-w-[280px] mb-6">
                 Temukan kuliner, produk UMKM, dan layanan ojek di sekitar Anda.
               </p>
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => navigate('/shops')} className="rounded-full">
-                  <Store className="h-4 w-4 mr-2" /> Lihat Toko
-                </Button>
-                <Button onClick={() => navigate('/shops')} className="rounded-full">
-                  <Store className="h-4 w-4 mr-2" /> Kuliner & UMKM
-                </Button>
-              </div>
+              <Button onClick={() => navigate('/shops')} className="rounded-full">
+                <Store className="mr-2 h-4 w-4" /> Jelajahi Kuliner & UMKM
+              </Button>
             </div>
           )}
         </>
