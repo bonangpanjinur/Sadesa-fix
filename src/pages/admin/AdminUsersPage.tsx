@@ -723,8 +723,8 @@ export default function AdminUsersPage() {
             if (!open) setSelectedUser(null);
           }}
         >
-          <DialogContent className="sm:max-w-[520px]">
-            <DialogHeader>
+          <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-[520px] flex-col overflow-hidden p-4 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+            <DialogHeader className="shrink-0">
               <DialogTitle className="flex items-center gap-3">
                 <Avatar className="h-11 w-11 border">
                   <AvatarImage src={selectedUser?.avatarUrl || undefined} />
@@ -740,7 +740,7 @@ export default function AdminUsersPage() {
             </DialogHeader>
 
             {selectedUser && (
-              <div className="space-y-4 py-2">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-2 pr-1">
                 <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground">{selectedUser.fullName}</p>
@@ -801,11 +801,12 @@ export default function AdminUsersPage() {
               </div>
             )}
 
-            <DialogFooter className="gap-2 sm:gap-2">
-              <Button type="button" variant="outline" onClick={() => setDetailDialogOpen(false)}>Tutup</Button>
+            <DialogFooter className="shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-2">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setDetailDialogOpen(false)}>Tutup</Button>
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   if (!selectedUser) return;
                   setDetailDialogOpen(false);
