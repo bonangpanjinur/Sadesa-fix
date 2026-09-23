@@ -58,7 +58,10 @@ export default function BuyerChatPage() {
         .select('*')
         .in('conversation_id', buyerConversationIds)
         .is('deleted_at', null)
-        .in('chat_type', ['buyer_merchant', 'buyer_courier', 'passenger_courier'])
+        // Admin direct conversations use the canonical `admin_user` type.
+        // Keep them in the buyer inbox so a message sent by an admin is not
+        // silently discarded before the thread can be rendered.
+        .in('chat_type', ['buyer_merchant', 'buyer_courier', 'passenger_courier', 'admin_user'])
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -322,6 +325,7 @@ export default function BuyerChatPage() {
       {selectedThread && (
         <OrderChat
           orderId={selectedThread.orderId || undefined}
+          conversationId={selectedThread.conversationId}
           contextType={selectedThread.rideRequestId ? 'ride' : selectedThread.orderId ? 'order' : 'direct'}
           rideRequestId={selectedThread.rideRequestId || undefined}
           merchantId={selectedThread.merchantId || undefined}
