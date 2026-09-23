@@ -19,7 +19,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 export async function isPushSupported(): Promise<boolean> {
-  return 'serviceWorker' in navigator && 'PushManager' in window;
+  return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
 }
 
 export async function getPushPermission(): Promise<NotificationPermission> {
@@ -30,12 +30,9 @@ export async function getPushPermission(): Promise<NotificationPermission> {
 }
 
 export async function requestPushPermission(): Promise<boolean> {
-  if (!('Notification' in window)) {
-    return false;
-  }
-
-  const permission = await Notification.requestPermission();
-  return permission === 'granted';
+  if (!('Notification' in window) || Notification.permission === 'denied') return false;
+  if (Notification.permission === 'granted') return true;
+  return (await Notification.requestPermission()) === 'granted';
 }
 
 export async function subscribeToPush(userId: string): Promise<boolean> {
@@ -45,21 +42,20 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
       return false;
     }
 
-    const permission = await requestPushPermission();
-    if (!permission) {
-      
-      return false;
+    // Never prompt again after Block/Denied. A browser permission prompt is
+    // allowed only after the caller's explicit user gesture.
+    const permission = await getPushPermission();
+    if (permission === 'denied') return false;
+    if (permission === 'default' && !(await requestPushPermission())) return false;
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      });
     }
-
-    // Register service worker
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    await navigator.serviceWorker.ready;
-
-    // Subscribe to push
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
-    });
 
     const subscriptionJson = subscription.toJSON();
 
@@ -134,7 +130,7 @@ export async function getSubscriptionStatus(userId: string): Promise<boolean> {
 
 // Show local notification (for testing)
 export function showLocalNotification(title: string, options?: NotificationOptions) {
-  if (Notification.permission === 'granted') {
+  if ('Notification' in window && Notification.permission === 'granted') {
     new Notification(title, options);
   }
 }

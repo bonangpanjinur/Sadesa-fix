@@ -14,6 +14,7 @@ import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { SEO } from "@/components/SEO";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
+import { NotificationOnboardingGate } from "@/components/notifications/NotificationOnboardingGate";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { SplashScreen } from "@/components/SplashScreen";
@@ -384,6 +385,7 @@ const App = () => (
               <OfflineIndicator />
               <RestockNotificationHandler />
               <ObservabilityBootstrap />
+              <NotificationOnboardingGate />
               <BrowserRouter>
                 <RedirectHandler />
                 <SEO />
