@@ -183,15 +183,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       });
       return;
     }
-    if (!mapsUrl) {
-      toast({
-        title: 'Lokasi Google Maps wajib diisi',
-        description: 'Aktifkan GPS atau masukkan URL Google Maps secara manual jika GPS tidak tersedia.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (!isGoogleMapsUrl(mapsUrl)) {
+    if (mapsUrl && !isGoogleMapsUrl(mapsUrl)) {
       toast({
         title: 'URL Google Maps tidak valid',
         description: 'Gunakan URL lokasi Google Maps yang dihasilkan dari GPS atau tautan Google Maps yang valid.',
@@ -205,7 +197,9 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     try {
       // Format the full address from the selector
       const formattedAddress = formatFullAddress(addressData);
-      const addressWithMapsUrl = `${formattedAddress}\nGoogle Maps: ${mapsUrl}`;
+      const addressWithMapsUrl = mapsUrl
+        ? `${formattedAddress}\nGoogle Maps: ${mapsUrl}`
+        : formattedAddress;
 
       const { error } = await supabase
         .from('profiles')
@@ -321,15 +315,14 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <Label className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Lokasi Google Maps <span className="text-destructive">*</span></Label>
-            <p className="mt-1 text-xs text-muted-foreground">Ambil otomatis dari GPS atau masukkan tautan Google Maps.</p>
+            <Label className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Lokasi Google Maps <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+            <p className="mt-1 text-xs text-muted-foreground">Ambil otomatis dari GPS atau masukkan tautan Google Maps. Boleh dikosongkan.</p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={handleGetCurrentLocation} disabled={saving || locationLoading}>
             {locationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LocateFixed className="mr-1 h-4 w-4" /> {gpsUnavailable ? 'Coba GPS lagi' : 'Aktifkan GPS'}</>}
           </Button>
         </div>
-        {(gpsUnavailable || mapsUrl) && (
-          <div className="space-y-1.5 rounded-md border border-dashed border-border bg-background/60 p-2.5">
+        <div className="space-y-1.5 rounded-md border border-dashed border-border bg-background/60 p-2.5">
             <Label htmlFor="manual-google-maps-url" className="text-xs">URL Google Maps manual</Label>
             <Input
               id="manual-google-maps-url"
@@ -345,8 +338,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
               aria-label="URL lokasi Google Maps manual"
             />
             <p className="text-[11px] leading-relaxed text-muted-foreground">Buka Google Maps, pilih lokasi, tekan Bagikan, lalu tempel tautannya di sini.</p>
-          </div>
-        )}
+        </div>
         {mapsUrl && <p className="break-all text-xs text-green-700" aria-live="polite">Lokasi siap disimpan: {mapsUrl}</p>}
         {locationError && <p className="text-xs text-destructive" role="alert">{locationError}</p>}
       </div>

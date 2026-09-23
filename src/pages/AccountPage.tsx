@@ -56,8 +56,7 @@ export default function AccountPage() {
         setProfile(data);
         const complete = Boolean(
           data.avatar_url && data.address && data.province_id && data.city_id
-            && data.district_id && data.village_id && data.address_detail?.trim()
-            && /Google Maps:\s*https:\/\/www\.google\.com\/maps\?q=/.test(data.address),
+            && data.district_id && data.village_id && data.address_detail?.trim(),
         );
         setProfileRequired(!complete);
         if (!complete) setEditing(true);

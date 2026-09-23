@@ -82,8 +82,7 @@ export function ProtectedRoute({
         if (cancelled) return;
         const complete = !error && Boolean(
           data?.avatar_url && data.address && data.province_id && data.city_id
-            && data.district_id && data.village_id && data.address_detail?.trim()
-            && /Google Maps:\s*https:\/\/www\.google\.com\/maps\?q=/.test(data.address),
+            && data.district_id && data.village_id && data.address_detail?.trim(),
         );
         setProfileComplete(complete);
         setProfileCompletionLoading(false);
