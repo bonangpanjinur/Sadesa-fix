@@ -97,6 +97,7 @@ const AdminFinancePage = lazy(() => import("./pages/admin/AdminFinancePage"));
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
 const AdminBroadcastPage = lazy(() => import("./pages/admin/AdminBroadcastPage"));
 const AdminRolesPage = lazy(() => import("./pages/admin/AdminRolesPage"));
+const AdminVerifikatorTeamsPage = lazy(() => import("./pages/admin/AdminVerifikatorTeamsPage"));
 const AdminBackupPage = lazy(() => import("./pages/admin/AdminBackupPage"));
 const AdminCategoriesPage = lazy(() => import("./pages/admin/AdminCategoriesPage"));
 const AdminVerifikatorWithdrawalsPage = lazy(() => import("./pages/admin/AdminVerifikatorWithdrawalsPage"));
@@ -819,6 +820,11 @@ const App = () => (
               <Route path="/admin/roles" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminRolesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/verifikator-teams" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminVerifikatorTeamsPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/backup" element={

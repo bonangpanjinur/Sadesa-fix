@@ -140,6 +140,7 @@ export function AdminSidebar({
       items: [
         { label: 'Pengguna', href: '/admin/users', icon: <Users className="h-4 w-4" /> },
         { label: 'Role & Permission', href: '/admin/roles', icon: <Shield className="h-4 w-4" /> },
+        { label: 'Tim Verifikator', href: '/admin/verifikator-teams', icon: <Users className="h-4 w-4" /> },
         { label: 'Sertifikasi Halal', href: '/admin/halal', icon: <ShieldCheck className="h-4 w-4" /> },
         { label: 'Regulasi Halal', href: '/admin/halal-regulation', icon: <FileText className="h-4 w-4" /> },
         { label: 'Audit Log', href: '/admin/audit-log', icon: <Shield className="h-4 w-4" /> },
