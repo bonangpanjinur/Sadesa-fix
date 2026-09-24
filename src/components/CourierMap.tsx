@@ -53,7 +53,6 @@ const destinationIcon = new L.Icon({
 
 interface CourierLocation {
   id: string;
-  name: string;
   lat: number;
   lng: number;
   lastUpdate: string;
@@ -135,7 +134,7 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
     try {
       let query = supabase
         .from('couriers')
-        .select('id, name, current_lat, current_lng, last_location_update, is_available')
+        .select('id, current_lat, current_lng, last_location_update, is_available')
         .not('current_lat', 'is', null)
         .not('current_lng', 'is', null);
 
@@ -153,7 +152,6 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
 
       const locations: CourierLocation[] = (data || []).map((c) => ({
         id: c.id,
-        name: c.name,
         lat: c.current_lat!,
         lng: c.current_lng!,
         lastUpdate: c.last_location_update || '',
@@ -180,15 +178,14 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
         if (!courierId) { setLoading(false); return; }
         const { data } = await supabase
           .from('merchants')
-          .select('id, name, location_lat, location_lng')
+          .select('id, location_lat, location_lng')
           .eq('id', courierId)
           .maybeSingle();
         
         if (data?.location_lat && data?.location_lng) {
           setCouriers([{
             id: data.id,
-            name: selfDeliveryLabel,
-            lat: data.location_lat,
+                lat: data.location_lat,
             lng: data.location_lng,
             lastUpdate: new Date().toISOString(),
             isAvailable: true,
@@ -207,7 +204,6 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
             if (prev.length === 0) {
               return [{
                 id: data.id,
-                name: selfDeliveryLabel,
                 lat: data.lat,
                 lng: data.lng,
                 lastUpdate: data.timestamp,
@@ -293,19 +289,6 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
   if (couriers.length > 0) fitPoints.push([couriers[0].lat, couriers[0].lng]);
   if (hasDestination) fitPoints.push([destinationLat!, destinationLng!]);
 
-  const formatLastUpdate = (dateStr: string) => {
-    if (!dateStr) return 'Tidak diketahui';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Baru saja';
-    if (diffMins < 60) return `${diffMins} menit lalu`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} jam lalu`;
-    return date.toLocaleDateString('id-ID');
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center bg-muted rounded-xl" style={{ height }}>
@@ -336,15 +319,8 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
 
         {/* Courier markers */}
         {couriers.map((courier) => (
-          <Marker key={courier.id} position={[courier.lat, courier.lng]} icon={courierIcon} title={courier.name}>
-            <Popup>
-              <div className="text-sm">
-                <p className="font-bold">🏍️ {courier.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">Status: {courier.isAvailable ? 'Tersedia' : 'Tidak Tersedia'}</p>
-                <p className="text-xs text-muted-foreground mt-1">Update: {formatLastUpdate(courier.lastUpdate)}</p>
-              </div>
-            </Popup>
-          </Marker>
+          // Public map markers reveal location only; identity appears in the assigned-ride panel.
+          <Marker key={courier.id} position={[courier.lat, courier.lng]} icon={courierIcon} />
         ))}
 
         {/* Destination marker */}

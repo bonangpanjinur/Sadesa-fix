@@ -35,7 +35,7 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-interface DriverMarker { id: string; lat: number; lng: number; name: string; }
+interface DriverMarker { id: string; lat: number; lng: number; }
 
 export default function RideBookingPage() {
   const navigate = useNavigate();
@@ -72,12 +72,12 @@ export default function RideBookingPage() {
     : null;
 
   const fetchDrivers = useCallback(async () => {
-    const { data } = await supabase.from('public_couriers').select('id, name, current_lat_approx, current_lng_approx, is_available, status')
+    const { data } = await supabase.from('public_couriers').select('id, current_lat_approx, current_lng_approx, is_available, status')
       .eq('is_available', true).eq('status', 'ACTIVE')
       .not('current_lat_approx', 'is', null).not('current_lng_approx', 'is', null);
     if (data) setDrivers(data.flatMap(d => (
       d.id && d.current_lat_approx != null && d.current_lng_approx != null
-        ? [{ id: d.id, lat: d.current_lat_approx, lng: d.current_lng_approx, name: d.name || 'Ojek aktif' }]
+        ? [{ id: d.id, lat: d.current_lat_approx, lng: d.current_lng_approx }]
         : []
     )));
   }, []);
@@ -351,9 +351,9 @@ export default function RideBookingPage() {
         )}
         {nearestDriver && nearestDriverDistance != null && pickupLocation && (
           <div className="absolute bottom-3 left-3 right-3 z-[1000] rounded-xl border border-primary/20 bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Ojek terdekat</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Ojek terdekat tersedia</p>
             <div className="mt-0.5 flex items-center justify-between gap-3">
-              <span className="truncate text-sm font-semibold">🏍️ {nearestDriver.name}</span>
+              <span className="truncate text-sm font-semibold">🏍️ Driver tersedia</span>
               <span className="shrink-0 text-xs text-muted-foreground">{nearestDriverDistance.toFixed(2)} km dari Anda</span>
             </div>
           </div>

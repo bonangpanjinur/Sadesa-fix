@@ -26,7 +26,7 @@ type ContactPickerNavigator = Navigator & {
     select: (properties: Array<'name' | 'tel'>, options?: { multiple?: boolean }) => Promise<DeviceContact[]>;
   };
 };
-type AvailableDriver = { id: string; name: string; lat: number; lng: number };
+type AvailableDriver = { id: string; lat: number; lng: number };
 
 const distanceOptions: Array<{ value: DistanceBand; label: string; price: number }> = [
   { value: 'near', label: '0–3 km', price: 8000 },
@@ -153,7 +153,7 @@ export default function CourierBookingPage() {
     if (showLoading) setDriversLoading(true);
     const { data, error } = await supabase
       .from('public_couriers')
-      .select('id, name, current_lat_approx, current_lng_approx, is_available, status')
+      .select('id, current_lat_approx, current_lng_approx, is_available, status')
       .eq('is_available', true)
       .eq('status', 'ACTIVE')
       .not('current_lat_approx', 'is', null)
@@ -171,7 +171,6 @@ export default function CourierBookingPage() {
       if (!driver.id || driver.current_lat_approx == null || driver.current_lng_approx == null) return [];
       return [{
         id: driver.id,
-        name: driver.name || 'Ojek aktif',
         lat: Number(driver.current_lat_approx),
         lng: Number(driver.current_lng_approx),
       }];
@@ -437,7 +436,7 @@ export default function CourierBookingPage() {
                   {pickupLocation && <Marker position={[pickupLocation.lat, pickupLocation.lng]} icon={pickupIcon} />}
                   {destinationLocation && <Marker position={[destinationLocation.lat, destinationLocation.lng]} icon={destinationIcon} />}
                   {nearbyDrivers.map((driver) => (
-                    <Marker key={driver.id} position={[driver.lat, driver.lng]} icon={driverIcon} title={driver.name} />
+                    <Marker key={driver.id} position={[driver.lat, driver.lng]} icon={driverIcon} />
                   ))}
                   {pickupLocation && destinationLocation && (
                     roadRoute?.geometry.length ? (

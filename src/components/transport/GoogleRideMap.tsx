@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { loadGoogleMaps } from '@/lib/googleMaps';
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -9,7 +9,6 @@ type Point = { lat: number; lng: number };
 
 interface DriverPoint extends Point {
   id: string;
-  name: string;
 }
 
 interface GoogleRideMapProps {
@@ -77,9 +76,7 @@ function OpenStreetMapRideFallback({
         {drivers.map((driver) => {
           const isNearest = driver.id === nearestDriverId;
           return (
-            <Marker key={driver.id} position={[driver.lat, driver.lng]} icon={motorIcon(isNearest)}>
-              <Tooltip direction="top" offset={[0, -12]}>{driver.name || 'Ojek aktif'}</Tooltip>
-            </Marker>
+            <Marker key={driver.id} position={[driver.lat, driver.lng]} icon={motorIcon(isNearest)} />
           );
         })}
         {route.length > 1 && <Polyline positions={route} pathOptions={{ color: '#059669', weight: 4, opacity: 0.85 }} />}
@@ -161,8 +158,10 @@ export function GoogleRideMap({
       const marker = new google.maps.Marker({
         map,
         position: point,
-        title,
-        label: { text: title === 'Pickup' ? 'P' : title === 'Tujuan' ? 'T' : 'D', color: '#ffffff', fontWeight: '700' },
+        ...(title === 'Driver' ? {} : {
+          title,
+          label: { text: title === 'Pickup' ? 'P' : 'T', color: '#ffffff', fontWeight: '700' },
+        }),
         icon: title === 'Driver'
           ? { url: '/motor-icon.png', scaledSize: new google.maps.Size(isNearest ? 42 : 36, isNearest ? 42 : 36), anchor: new google.maps.Point(isNearest ? 21 : 18, isNearest ? 21 : 18) }
           : { path: google.maps.SymbolPath.CIRCLE, scale: 11, fillColor: color, fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 },
