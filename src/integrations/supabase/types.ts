@@ -2210,6 +2210,7 @@ export type Database = {
           address: string | null
           address_detail: string | null
           avatar_url: string | null
+          ktp_number: string | null
           block_reason: string | null
           blocked_at: string | null
           blocked_by: string | null
@@ -2239,6 +2240,7 @@ export type Database = {
           address?: string | null
           address_detail?: string | null
           avatar_url?: string | null
+          ktp_number?: string | null
           block_reason?: string | null
           blocked_at?: string | null
           blocked_by?: string | null
@@ -2268,6 +2270,7 @@ export type Database = {
           address?: string | null
           address_detail?: string | null
           avatar_url?: string | null
+          ktp_number?: string | null
           block_reason?: string | null
           blocked_at?: string | null
           blocked_by?: string | null

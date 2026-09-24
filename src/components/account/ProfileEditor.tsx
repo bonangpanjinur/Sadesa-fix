@@ -117,6 +117,11 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'File harus berupa foto', variant: 'destructive' });
+      return;
+    }
+
     if (file.size > 2 * 1024 * 1024) {
       toast({ title: 'Ukuran file maksimal 2MB', variant: 'destructive' });
       return;
@@ -124,7 +129,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
 
     setUploadingAvatar(true);
     try {
-      const ext = file.name.split('.').pop();
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const filePath = `${userId}/avatar.${ext}`;
 
       const { error: uploadError } = await supabase.storage
@@ -140,10 +145,12 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       setAvatarUrl(publicUrl);
 
       // Update profile immediately
-      await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({ avatar_url: publicUrl })
         .eq('user_id', userId);
+
+      if (profileError) throw profileError;
 
       toast({ title: 'Foto profil selfie berhasil diperbarui' });
     } catch (error) {
