@@ -145,11 +145,19 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       setAvatarUrl(publicUrl);
 
       // Update profile immediately
-      const { error: profileError } = await supabase
+      const { data: updatedProfiles, error: profileError } = await supabase
         .from('profiles')
-        .upsert({ user_id: userId, avatar_url: publicUrl }, { onConflict: 'user_id' });
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', userId)
+        .select('user_id');
 
       if (profileError) throw profileError;
+      if (!updatedProfiles?.length) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({ user_id: userId, avatar_url: publicUrl });
+        if (insertError) throw insertError;
+      }
 
       toast({ title: 'Foto profil selfie berhasil diperbarui' });
     } catch (error) {
@@ -237,10 +245,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         ? `${formattedAddress}\nGoogle Maps: ${mapsUrl}`
         : formattedAddress || null;
 
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: userId,
+      const profilePayload = {
           full_name: fullName.trim(),
           phone: phone.trim() || null,
           ktp_number: ktpNumber.trim() || null,
@@ -254,9 +259,20 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           village_id: hasCompleteAddress ? addressData.village : null,
           village_name: hasCompleteAddress ? addressData.villageName : null,
           address_detail: hasCompleteAddress ? addressData.detail : null,
-        }, { onConflict: 'user_id' });
+      };
+      const { data: updatedProfiles, error } = await supabase
+        .from('profiles')
+        .update(profilePayload)
+        .eq('user_id', userId)
+        .select('user_id');
 
       if (error) throw error;
+      if (!updatedProfiles?.length) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({ user_id: userId, ...profilePayload });
+        if (insertError) throw insertError;
+      }
 
       onSave({
         full_name: fullName.trim(),

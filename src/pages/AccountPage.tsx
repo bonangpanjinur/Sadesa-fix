@@ -30,7 +30,6 @@ interface Profile {
   village_id?: string | null;
   village_name?: string | null;
   address_detail?: string | null;
-  village?: string | null;
   ktp_number?: string | null;
 }
 
@@ -48,25 +47,40 @@ export default function AccountPage() {
   const [courierProfileRequired, setCourierProfileRequired] = useState(false);
   const [merchantProfileRequired, setMerchantProfileRequired] = useState(false);
   const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
-  const profileAddress = profile?.address_detail?.trim()
-    ? [
-        profile.address_detail,
-        profile.village_name,
-        profile.district_name,
-        profile.city_name,
-        profile.province_name,
-      ].filter(Boolean).join(', ')
-    : profile?.address;
+  const profileAddress = profile?.address || (
+    profile?.address_detail?.trim()
+      ? [
+          profile.address_detail,
+          profile.village_name,
+          profile.district_name,
+          profile.city_name,
+          profile.province_name,
+        ].filter(Boolean).join(', ')
+      : null
+  );
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      const primaryResult = await supabase
         .from('profiles')
-        .select('full_name, phone, address, avatar_url, ktp_number, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail, village')
+        .select('full_name, phone, address, avatar_url, ktp_number, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      let data = primaryResult.data as Profile | null;
+      let error = primaryResult.error;
+      if (error) {
+        console.warn('Extended profile fields unavailable, retrying with compatibility fields:', error);
+        const fallbackResult = await supabase
+          .from('profiles')
+          .select('full_name, phone, address, avatar_url')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        data = fallbackResult.data as Profile | null;
+        error = fallbackResult.error;
+      }
 
       if (error) throw error;
 
