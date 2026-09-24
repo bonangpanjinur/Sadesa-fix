@@ -1,11 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export const COURIER_DOCUMENT_BUCKET = 'courier-documents';
+type DocumentKind = 'ktp' | 'photo' | 'vehicle';
 
 /**
  * The database should store a storage object path, but older registrations may
- * contain a Supabase public/signed URL. Convert both formats to a bucket path
- * before asking Storage for a new signed URL.
+ * contain a Supabase public/signed URL or only a legacy filename/UUID.
  */
 export function normalizeCourierDocumentPath(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -15,12 +15,9 @@ export function normalizeCourierDocumentPath(value: string | null | undefined): 
 
   try {
     const url = new URL(trimmed);
-    const marker = `/storage/v1/object/`;
-    const markerIndex = url.pathname.indexOf(marker);
+    const markerIndex = url.pathname.indexOf('/storage/v1/object/');
     if (markerIndex < 0) return trimmed;
-
-    const objectPath = url.pathname.slice(markerIndex + marker.length);
-    const segments = objectPath.split('/');
+    const segments = url.pathname.slice(markerIndex + '/storage/v1/object/'.length).split('/');
     const bucketIndex = segments.findIndex((segment) => segment === COURIER_DOCUMENT_BUCKET);
     if (bucketIndex < 0 || bucketIndex === segments.length - 1) return trimmed;
     return segments.slice(bucketIndex + 1).map(decodeURIComponent).join('/');
@@ -29,19 +26,40 @@ export function normalizeCourierDocumentPath(value: string | null | undefined): 
   }
 }
 
-export async function createCourierDocumentSignedUrl(value: string | null | undefined): Promise<string | null> {
-  const path = normalizeCourierDocumentPath(value);
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
+function documentPathCandidates(
+  value: string | null | undefined,
+  userId?: string | null,
+  kind?: DocumentKind,
+): string[] {
+  const normalized = normalizeCourierDocumentPath(value);
+  if (!normalized) return [];
 
-  const { data, error } = await supabase.storage
-    .from(COURIER_DOCUMENT_BUCKET)
-    .createSignedUrl(path, 10 * 60);
-  if (error) {
-    console.warn('Unable to create courier document signed URL', { path, message: error.message });
-    return null;
+  const candidates = [normalized];
+  // A few early registrations stored only the generated filename/UUID. Try the
+  // current namespace and the two historical folder layouts before giving up.
+  if (userId && kind && !normalized.includes('/')) {
+    candidates.unshift(`${userId}/${kind}/${normalized}`, `${kind}/${normalized}`);
   }
-  return data?.signedUrl || null;
+  return [...new Set(candidates)];
+}
+
+export async function createCourierDocumentSignedUrl(
+  value: string | null | undefined,
+  userId?: string | null,
+  kind?: DocumentKind,
+): Promise<string | null> {
+  const normalized = normalizeCourierDocumentPath(value);
+  if (!normalized) return null;
+  if (normalized.startsWith('http')) return normalized;
+
+  for (const path of documentPathCandidates(value, userId, kind)) {
+    const { data, error } = await supabase.storage
+      .from(COURIER_DOCUMENT_BUCKET)
+      .createSignedUrl(path, 10 * 60);
+    if (!error && data?.signedUrl) return data.signedUrl;
+    if (error) console.warn('Unable to create courier document signed URL', { path, message: error.message });
+  }
+  return null;
 }
 
 export async function removeCourierDocuments(paths: Array<string | null | undefined>): Promise<void> {

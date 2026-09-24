@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bike, Check, X, MoreHorizontal, Edit, Trash2, RefreshCw, UserCheck, Eye } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -349,17 +349,21 @@ function AdminCourierDocumentsDialog({
   const [urls, setUrls] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(false);
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!courier) return;
     setLoading(true);
     const [ktp, photo, vehicle] = await Promise.all([
-      createCourierDocumentSignedUrl(courier.ktp_image_url),
-      createCourierDocumentSignedUrl(courier.photo_url),
-      createCourierDocumentSignedUrl(courier.vehicle_image_url),
+      createCourierDocumentSignedUrl(courier.ktp_image_url, courier.user_id, 'ktp'),
+      createCourierDocumentSignedUrl(courier.photo_url, courier.user_id, 'photo'),
+      createCourierDocumentSignedUrl(courier.vehicle_image_url, courier.user_id, 'vehicle'),
     ]);
     setUrls({ ktp, photo, vehicle });
     setLoading(false);
-  };
+  }, [courier]);
+
+  useEffect(() => {
+    if (open && courier) void loadDocuments();
+  }, [open, courier, loadDocuments]);
 
   return (
     <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (next) void loadDocuments(); }}>

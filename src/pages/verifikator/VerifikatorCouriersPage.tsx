@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Bike, Check, Eye, FileText, MoreHorizontal, X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { VerifikatorLayout } from '@/components/verifikator/VerifikatorLayout';
@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 
 interface CourierReviewRow {
   id: string;
+  user_id: string | null;
   name: string;
   phone: string;
   email: string | null;
@@ -54,7 +55,7 @@ export default function VerifikatorCouriersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('couriers')
-        .select('id, name, phone, email, city, district, address, ktp_number, ktp_image_url, photo_url, vehicle_type, vehicle_plate, vehicle_image_url, registration_status, status, rejection_reason, registered_at, village_id, villages(name)')
+        .select('id, user_id, name, phone, email, city, district, address, ktp_number, ktp_image_url, photo_url, vehicle_type, vehicle_plate, vehicle_image_url, registration_status, status, rejection_reason, registered_at, village_id, villages(name)')
         .order('registered_at', { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as CourierReviewRow[];
@@ -154,17 +155,21 @@ function CourierDetailDialog({ courier, open, onOpenChange }: { courier: Courier
   const [urls, setUrls] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(false);
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!courier) return;
     setLoading(true);
     const [ktp, photo, vehicle] = await Promise.all([
-      createCourierDocumentSignedUrl(courier.ktp_image_url),
-      createCourierDocumentSignedUrl(courier.photo_url),
-      createCourierDocumentSignedUrl(courier.vehicle_image_url),
+      createCourierDocumentSignedUrl(courier.ktp_image_url, courier.user_id, 'ktp'),
+      createCourierDocumentSignedUrl(courier.photo_url, courier.user_id, 'photo'),
+      createCourierDocumentSignedUrl(courier.vehicle_image_url, courier.user_id, 'vehicle'),
     ]);
     setUrls({ ktp, photo, vehicle });
     setLoading(false);
-  };
+  }, [courier]);
+
+  useEffect(() => {
+    if (open && courier) void loadDocuments();
+  }, [open, courier, loadDocuments]);
 
   return <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (next) void loadDocuments(); }}>
     <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Detail Verifikasi Ojek</DialogTitle><DialogDescription>{courier?.name} • KTP {courier?.ktp_number}</DialogDescription></DialogHeader>
