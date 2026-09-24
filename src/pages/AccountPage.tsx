@@ -30,12 +30,16 @@ interface Profile {
   village_id?: string | null;
   village_name?: string | null;
   address_detail?: string | null;
+  village?: string | null;
   ktp_number?: string | null;
 }
 
 export default function AccountPage() {
   const navigate = useNavigate();
   const { user, signOut, loading: authLoading, isAdmin, isVerifikator, isMerchant, isCourier, isAdminDesa } = useAuth();
+  const fallbackName = user?.user_metadata?.full_name?.trim()
+    || user?.email?.split('@')[0]?.replace(/[._-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+    || 'Pengguna';
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasPartnerApplication, setHasPartnerApplication] = useState<boolean | null>(null);
@@ -44,6 +48,15 @@ export default function AccountPage() {
   const [courierProfileRequired, setCourierProfileRequired] = useState(false);
   const [merchantProfileRequired, setMerchantProfileRequired] = useState(false);
   const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
+  const profileAddress = profile?.address_detail?.trim()
+    ? [
+        profile.address_detail,
+        profile.village_name,
+        profile.district_name,
+        profile.city_name,
+        profile.province_name,
+      ].filter(Boolean).join(', ')
+    : profile?.address;
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -51,7 +64,7 @@ export default function AccountPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, phone, address, avatar_url, ktp_number, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
+        .select('full_name, phone, address, avatar_url, ktp_number, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail, village')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -59,18 +72,16 @@ export default function AccountPage() {
 
       if (data) {
         setProfile(data);
-        const complete = Boolean(
-          data.avatar_url && data.address && data.province_id && data.city_id
-            && data.district_id && data.village_id && data.address_detail?.trim(),
-        );
+        // Foto profil adalah rekomendasi, bukan syarat akses akun atau route.
+        const complete = Boolean(data.full_name?.trim());
         setProfileRequired(!complete);
         const courierIncomplete = Boolean(
-          isCourier && (!data.avatar_url || !data.phone || !isValidIndonesianPhone(data.phone)),
+          isCourier && (!data.phone || !isValidIndonesianPhone(data.phone)),
         );
         setCourierProfileRequired(courierIncomplete);
         if (courierIncomplete) setEditing(true);
         const merchantIncomplete = Boolean(
-          isMerchant && (!data.avatar_url || !data.phone || !isValidIndonesianPhone(data.phone) || !isValidKtpNumber(data.ktp_number)),
+          isMerchant && (!data.phone || !isValidIndonesianPhone(data.phone) || !isValidKtpNumber(data.ktp_number)),
         );
         setMerchantProfileRequired(merchantIncomplete);
         if (merchantIncomplete) setEditing(true);
@@ -229,7 +240,7 @@ export default function AccountPage() {
                   </div>
                   <div className="flex-1">
                     <h2 className="font-bold text-lg text-foreground">
-                      {profile?.full_name || 'Pengguna'}
+                      {profile?.full_name?.trim() || fallbackName}
                     </h2>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
                   </div>
@@ -247,7 +258,7 @@ export default function AccountPage() {
                   <ProfileEditor
                     userId={user.id}
                     initialData={{
-                      full_name: profile?.full_name || '',
+                      full_name: profile?.full_name || fallbackName,
                       phone: profile?.phone || null,
                       address: profile?.address || null,
                       avatar_url: profile?.avatar_url,
@@ -273,21 +284,21 @@ export default function AccountPage() {
                     {(profileRequired || courierProfileRequired || merchantProfileRequired) && (
                       <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
                         {merchantProfileRequired
-                          ? 'Untuk bekerja sebagai merchant, tambahkan foto profil akun, nomor KTP, dan nomor WhatsApp aktif.'
+                          ? 'Lengkapi nomor KTP dan WhatsApp aktif untuk mengoptimalkan fitur merchant. Foto profil tetap opsional.'
                           : courierProfileRequired
-                          ? 'Untuk bekerja sebagai kurir, tambahkan foto profil dan nomor WhatsApp aktif.'
-                          : 'Lengkapi alamat atau tambahkan foto profil jika Anda ingin menggunakan fitur yang membutuhkannya.'}
+                          ? 'Tambahkan nomor WhatsApp aktif untuk mengoptimalkan fitur kurir. Foto profil tetap opsional.'
+                          : 'Profil Anda belum lengkap. Tambahkan alamat atau foto profil kapan saja, tanpa mengunci akses menu.'}
                       </p>
                     )}
                     {profile?.phone && (
                       <p className="text-muted-foreground">📱 {profile.phone}</p>
                     )}
-                    {profile?.address && (
-                      <p className="text-muted-foreground">📍 {profile.address}</p>
+                    {profileAddress && (
+                      <p className="text-muted-foreground">📍 {profileAddress}</p>
                     )}
-                    {profile?.address?.match(/https?:\/\/(?:www\.)?google\.com\/maps\?q=[^\s]+/i)?.[0] && (
+                    {profileAddress?.match(/https?:\/\/(?:www\.)?google\.com\/maps\?q=[^\s]+/i)?.[0] && (
                       <a
-                        href={profile.address.match(/https?:\/\/(?:www\.)?google\.com\/maps\?q=[^\s]+/i)?.[0]}
+                        href={profileAddress.match(/https?:\/\/(?:www\.)?google\.com\/maps\?q=[^\s]+/i)?.[0]}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
@@ -295,7 +306,7 @@ export default function AccountPage() {
                         <MapPin className="h-3.5 w-3.5" /> Buka lokasi di Google Maps
                       </a>
                     )}
-                    {!profile?.phone && !profile?.address && (
+                    {!profile?.phone && !profileAddress && (
                       <p className="text-muted-foreground italic">
                         Lengkapi profil Anda untuk checkout lebih cepat
                       </p>

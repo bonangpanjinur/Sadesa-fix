@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building, Store, Bike, ArrowRight, CheckCircle, Users, Shield } from 'lucide-react';
+import { Building, Store, Bike, ArrowRight, CheckCircle, Users, Shield, Camera } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { getSettingByKey } from '@/lib/adminApi';
@@ -45,6 +45,16 @@ export default function RegisterPage() {
                Pilih cara bergabung sebagai mitra Kuliner atau Ojek di SaDesa
             </p>
           </motion.div>
+
+          <div className="mb-6 flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100">
+            <Camera className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-semibold">Siapkan foto selfie sebelum mendaftar</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-800/80 dark:text-amber-200/80">
+                Foto diri diperlukan pada proses verifikasi mitra agar pendaftaran lebih cepat. Anda dapat menyiapkannya saat mengisi formulir.
+              </p>
+            </div>
+          </div>
 
           {/* Registration Options */}
           <div className="space-y-4">

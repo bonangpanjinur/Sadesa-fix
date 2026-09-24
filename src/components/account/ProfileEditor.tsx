@@ -147,8 +147,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       // Update profile immediately
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('user_id', userId);
+        .upsert({ user_id: userId, avatar_url: publicUrl }, { onConflict: 'user_id' });
 
       if (profileError) throw profileError;
 
@@ -197,28 +196,10 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       return;
     }
 
-    if (requireCourierProfile && !avatarUrl) {
-      toast({
-        title: 'Foto profil wajib ditambahkan',
-        description: 'Tambahkan foto profil yang jelas agar pelanggan dapat mengenali kurir.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     if (requireMerchantProfile && !isValidKtpNumber(ktpNumber)) {
       toast({
         title: 'Nomor KTP wajib diisi',
         description: 'Masukkan 16 digit nomor KTP pemilik akun merchant.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (requireMerchantProfile && !avatarUrl) {
-      toast({
-        title: 'Foto profil akun wajib ditambahkan',
-        description: 'Unggah foto profil pemilik akun, bukan foto toko.',
         variant: 'destructive',
       });
       return;
@@ -258,7 +239,8 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
 
       const { error } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          user_id: userId,
           full_name: fullName.trim(),
           phone: phone.trim() || null,
           ktp_number: ktpNumber.trim() || null,
@@ -272,8 +254,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           village_id: hasCompleteAddress ? addressData.village : null,
           village_name: hasCompleteAddress ? addressData.villageName : null,
           address_detail: hasCompleteAddress ? addressData.detail : null,
-        })
-        .eq('user_id', userId);
+        }, { onConflict: 'user_id' });
 
       if (error) throw error;
 
@@ -302,16 +283,16 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       {forceCompletion && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
           {requireCourierProfile
-            ? 'Foto profil dan nomor WhatsApp aktif wajib untuk menggunakan fitur kerja kurir.'
+            ? 'Nomor WhatsApp aktif membantu pelanggan menghubungi Anda. Foto selfie dianjurkan, tetapi tidak wajib.'
             : requireMerchantProfile
-              ? 'Foto profil akun, nomor KTP, dan nomor WhatsApp aktif wajib untuk menggunakan fitur kerja merchant.'
-            : 'Lengkapi alamat atau tambahkan foto selfie kapan saja jika fitur tertentu membutuhkannya.'}
+              ? 'Nomor KTP dan WhatsApp membantu proses merchant. Foto selfie dianjurkan, tetapi tidak wajib.'
+            : 'Lengkapi profil secara bertahap. Foto selfie dianjurkan untuk membangun kepercayaan, tetapi tetap opsional.'}
         </div>
       )}
       {/* Optional profile photo */}
       <div className="space-y-2">
-        <Label>Foto Profil {(requireCourierProfile || requireMerchantProfile) && <span className="text-destructive">*</span>}{!(requireCourierProfile || requireMerchantProfile) && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
-        <p className="text-xs text-muted-foreground">{requireCourierProfile || requireMerchantProfile ? 'Gunakan foto profil akun yang jelas, bukan foto toko. Maksimal 2MB.' : 'Tambahkan foto diri yang jelas bila Anda nyaman. Maksimal 2MB.'}</p>
+        <Label>Foto Profil <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+        <p className="text-xs text-muted-foreground">Gunakan foto diri yang jelas, bukan foto toko. Foto dapat ditambahkan atau dilewati kapan saja. Maksimal 2MB.</p>
         <div className="flex justify-center">
         <div className="relative">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-border">
