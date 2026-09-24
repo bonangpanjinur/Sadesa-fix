@@ -59,10 +59,8 @@ export default function AccountPage() {
             && data.district_id && data.village_id && data.address_detail?.trim(),
         );
         setProfileRequired(!complete);
-        if (!complete) setEditing(true);
       } else {
         setProfileRequired(true);
-        setEditing(true);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -252,7 +250,7 @@ export default function AccountPage() {
                   <div className="space-y-2 text-sm">
                     {profileRequired && (
                       <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
-                        Lengkapi alamat dan foto selfie Anda untuk melanjutkan.
+                        Lengkapi alamat atau tambahkan foto profil jika Anda ingin menggunakan fitur yang membutuhkannya.
                       </p>
                     )}
                     {profile?.phone && (

@@ -167,18 +167,16 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       return;
     }
 
-    if (!addressData.province || !addressData.city || !addressData.district || !addressData.village || !addressData.detail.trim()) {
+    const hasAnyAddressValue = Boolean(
+      addressData.province || addressData.city || addressData.district || addressData.village || addressData.detail.trim(),
+    );
+    const hasCompleteAddress = Boolean(
+      addressData.province && addressData.city && addressData.district && addressData.village && addressData.detail.trim(),
+    );
+    if (hasAnyAddressValue && !hasCompleteAddress) {
       toast({
-        title: 'Alamat lengkap wajib diisi',
-        description: 'Pilih wilayah hingga desa/kelurahan dan isi detail alamat.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    if (!avatarUrl) {
-      toast({
-        title: 'Foto profil wajib ditambahkan',
-        description: 'Gunakan foto selfie diri sendiri yang jelas sebagai foto profil.',
+        title: 'Alamat belum lengkap',
+        description: 'Lengkapi wilayah hingga desa/kelurahan, atau kosongkan alamat untuk menyimpannya nanti.',
         variant: 'destructive',
       });
       return;
@@ -196,10 +194,10 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
 
     try {
       // Format the full address from the selector
-      const formattedAddress = formatFullAddress(addressData);
-      const addressWithMapsUrl = mapsUrl
+      const formattedAddress = hasCompleteAddress ? formatFullAddress(addressData) : '';
+      const addressWithMapsUrl = formattedAddress && mapsUrl
         ? `${formattedAddress}\nGoogle Maps: ${mapsUrl}`
-        : formattedAddress;
+        : formattedAddress || null;
 
       const { error } = await supabase
         .from('profiles')
@@ -207,15 +205,15 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           full_name: fullName.trim(),
           phone: phone.trim() || null,
           address: addressWithMapsUrl || null,
-          province_id: addressData.province || null,
-          province_name: addressData.provinceName || null,
-          city_id: addressData.city || null,
-          city_name: addressData.cityName || null,
-          district_id: addressData.district || null,
-          district_name: addressData.districtName || null,
-          village_id: addressData.village || null,
-          village_name: addressData.villageName || null,
-          address_detail: addressData.detail || null,
+          province_id: hasCompleteAddress ? addressData.province : null,
+          province_name: hasCompleteAddress ? addressData.provinceName : null,
+          city_id: hasCompleteAddress ? addressData.city : null,
+          city_name: hasCompleteAddress ? addressData.cityName : null,
+          district_id: hasCompleteAddress ? addressData.district : null,
+          district_name: hasCompleteAddress ? addressData.districtName : null,
+          village_id: hasCompleteAddress ? addressData.village : null,
+          village_name: hasCompleteAddress ? addressData.villageName : null,
+          address_detail: hasCompleteAddress ? addressData.detail : null,
         })
         .eq('user_id', userId);
 
@@ -224,7 +222,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       onSave({
         full_name: fullName.trim(),
         phone: phone.trim() || null,
-        address: addressWithMapsUrl || null,
+          address: addressWithMapsUrl,
         avatar_url: avatarUrl || null,
       });
 
@@ -244,13 +242,13 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     <div className="space-y-4">
       {forceCompletion && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
-          Lengkapi alamat dan foto selfie terlebih dahulu untuk menggunakan aplikasi.
+          Lengkapi alamat atau tambahkan foto selfie kapan saja jika fitur tertentu membutuhkannya.
         </div>
       )}
-      {/* Required profile photo */}
+      {/* Optional profile photo */}
       <div className="space-y-2">
-        <Label>Foto Profil (Selfie) <span className="text-destructive">*</span></Label>
-        <p className="text-xs text-muted-foreground">Gunakan foto selfie diri sendiri yang jelas. Maksimal 2MB.</p>
+        <Label>Foto Profil (Selfie) <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+        <p className="text-xs text-muted-foreground">Tambahkan foto diri yang jelas bila Anda nyaman. Maksimal 2MB.</p>
         <div className="flex justify-center">
         <div className="relative">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-border">

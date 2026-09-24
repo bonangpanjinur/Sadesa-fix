@@ -33,8 +33,6 @@ export function ProtectedRoute({
     ?? (isCourierWorkspaceRoute ? ['courier'] : undefined);
   const [merchantAccessLoading, setMerchantAccessLoading] = useState(false);
   const [merchantAccessAllowed, setMerchantAccessAllowed] = useState(true);
-  const [profileCompletionLoading, setProfileCompletionLoading] = useState(false);
-  const [profileComplete, setProfileComplete] = useState(true);
 
   useEffect(() => {
     if (!requiresApprovedMerchant || !user || rolesLoading || !roles.includes('merchant')) {
@@ -65,36 +63,9 @@ export function ProtectedRoute({
     };
   }, [location.pathname, requiresApprovedMerchant, roles, rolesLoading, user]);
 
-  useEffect(() => {
-    if (!user || location.pathname === '/account') {
-      setProfileCompletionLoading(false);
-      setProfileComplete(true);
-      return;
-    }
-    let cancelled = false;
-    setProfileCompletionLoading(true);
-    void supabase
-      .from('profiles')
-      .select('address, avatar_url, province_id, city_id, district_id, village_id, address_detail')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        const complete = !error && Boolean(
-          data?.avatar_url && data.address && data.province_id && data.city_id
-            && data.district_id && data.village_id && data.address_detail?.trim(),
-        );
-        setProfileComplete(complete);
-        setProfileCompletionLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [location.pathname, user]);
-
   // Show loading while checking auth state
   const waitingForRequiredRoles = (Boolean(routeRequiredRoles?.length) && rolesLoading)
-    || merchantAccessLoading || profileCompletionLoading;
+    || merchantAccessLoading;
 
   if (authLoading || waitingForRequiredRoles) {
     return (
@@ -110,10 +81,6 @@ export function ProtectedRoute({
   // Redirect to auth if not logged in
   if (!user) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
-  }
-
-  if (location.pathname !== '/account' && !profileComplete) {
-    return <Navigate to="/account" state={{ from: location, reason: 'profile_incomplete' }} replace />;
   }
 
   // If specific roles are required, check them
