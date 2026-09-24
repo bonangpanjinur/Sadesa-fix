@@ -10,6 +10,20 @@ import { toast } from '@/hooks/use-toast';
 import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 import { isValidKtpNumber, normalizeKtpNumber } from '@/lib/identityValidation';
 
+function getProfileSaveErrorMessage(error: unknown): string {
+  const details = error as { code?: string; message?: string; details?: string } | null;
+  switch (details?.code) {
+    case '23505':
+      return 'Nomor KTP sudah digunakan oleh akun lain.';
+    case '42501':
+      return 'Sesi akun tidak memiliki izin memperbarui profil. Silakan masuk ulang.';
+    case 'PGRST204':
+      return 'Struktur database profil belum diperbarui. Hubungi administrator.';
+    default:
+      return details?.message || details?.details || 'Periksa data profil lalu coba lagi.';
+  }
+}
+
 interface ProfileEditorProps {
   userId: string;
   initialData: {
@@ -296,9 +310,15 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
 
       toast({ title: 'Profil berhasil diperbarui' });
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error updating profile:', {
+        code: (error as { code?: string })?.code,
+        message: (error as { message?: string })?.message,
+        details: (error as { details?: string })?.details,
+        hint: (error as { hint?: string })?.hint,
+      });
       toast({
         title: 'Gagal memperbarui profil',
+        description: getProfileSaveErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
