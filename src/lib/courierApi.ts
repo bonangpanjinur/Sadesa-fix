@@ -12,6 +12,35 @@ interface AssignCourierResult {
   candidates_count?: number;
 }
 
+export interface AuthorizedCourierContact {
+  id: string;
+  user_id: string | null;
+  name: string;
+  phone: string;
+  vehicle_type: string;
+  vehicle_plate: string | null;
+  photo_url: string;
+  rating_avg: number | null;
+  rating_count: number | null;
+  current_lat: number | null;
+  current_lng: number | null;
+}
+
+/** Read driver contact data through the scoped RPC, never from couriers directly. */
+export async function getAuthorizedCourierContact(
+  courierId: string,
+  context: { orderId?: string; rideId?: string } = {},
+): Promise<AuthorizedCourierContact | null> {
+  const { data, error } = await supabase.rpc('get_courier_contact' as never, {
+    p_courier_id: courierId,
+    p_order_id: context.orderId ?? null,
+    p_ride_id: context.rideId ?? null,
+  } as never);
+  if (error || !data) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as AuthorizedCourierContact | undefined) ?? null;
+}
+
 export async function autoAssignCourier(
   orderId: string,
   merchantLat?: number,

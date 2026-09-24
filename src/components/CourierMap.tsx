@@ -133,18 +133,14 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
   const fetchCouriers = useCallback(async () => {
     try {
       let query = supabase
-        .from('couriers')
-        .select('id, current_lat, current_lng, last_location_update, is_available')
-        .not('current_lat', 'is', null)
-        .not('current_lng', 'is', null);
+        .from('public_couriers')
+        .select('id, current_lat_approx, current_lng_approx, is_available');
 
       if (courierId) {
         query = query.eq('id', courierId);
       } else if (showAllCouriers) {
         query = query.eq('is_available', true)
-          .eq('status', 'ACTIVE')
-          .eq('registration_status', 'APPROVED')
-          .gte('last_location_update', new Date(Date.now() - GPS_FRESHNESS_MS).toISOString());
+          .eq('status', 'ACTIVE');
       }
 
       const { data, error } = await query;
@@ -152,11 +148,11 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
 
       const locations: CourierLocation[] = (data || []).map((c) => ({
         id: c.id,
-        lat: c.current_lat!,
-        lng: c.current_lng!,
-        lastUpdate: c.last_location_update || '',
+        lat: c.current_lat_approx!,
+        lng: c.current_lng_approx!,
+        lastUpdate: '',
         isAvailable: c.is_available,
-      }));
+      })).filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng));
 
       setCouriers(locations);
 

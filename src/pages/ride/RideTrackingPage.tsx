@@ -31,6 +31,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
+import { getAuthorizedCourierContact } from '@/lib/courierApi';
 
 interface RideData {
   id: string;
@@ -119,16 +120,12 @@ export default function RideTrackingPage() {
   }, [ride]);
 
   const fetchDriver = useCallback(async (driverId: string) => {
-    const { data } = await supabase
-      .from('couriers')
-      .select('name, phone, vehicle_type, vehicle_plate, photo_url, user_id, rating_avg, rating_count')
-      .eq('id', driverId)
-      .maybeSingle();
+    const data = await getAuthorizedCourierContact(driverId, { rideId: id });
     if (data) {
       setDriver(data);
       if (data.user_id) setDriverUserId(data.user_id);
     }
-  }, []);
+  }, [id]);
 
   const fetchRide = useCallback(async () => {
     try {

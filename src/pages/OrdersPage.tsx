@@ -29,6 +29,7 @@ import { OrderDetailSheet } from "@/components/order/OrderDetailSheet";
 import { CourierRatingDialog } from "@/components/buyer/CourierRatingDialog";
 import { getBuyerTransactionKind } from "@/lib/buyerTransaction";
 import { getDeliveryFlow } from "@/lib/deliveryFlow";
+import { getAuthorizedCourierContact } from "@/lib/courierApi";
 
 interface BuyerOrderItem {
   id: string;
@@ -349,12 +350,8 @@ const OrdersPage = () => {
   const handleContactCourier = async (event: React.MouseEvent, order: BuyerOrder) => {
     event.stopPropagation();
     if (!order.courier_id) return toast({ title: 'Kurir belum tersedia', variant: 'destructive' });
-    const { data: courier, error } = await supabase
-      .from('couriers')
-      .select('user_id, name')
-      .eq('id', order.courier_id)
-      .maybeSingle();
-    if (error || !courier?.user_id) {
+    const courier = await getAuthorizedCourierContact(order.courier_id, { orderId: order.id });
+    if (!courier?.user_id) {
       toast({ title: 'Chat kurir belum tersedia', description: 'Kurir belum memiliki akun chat aktif.', variant: 'destructive' });
       return;
     }

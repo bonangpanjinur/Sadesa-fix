@@ -33,6 +33,7 @@ import { useReorder } from '@/hooks/useReorder';
 import { useChatUnread } from '@/hooks/useChatUnread';
 import { getExpeditionLabel } from '@/lib/expeditionTracking';
 import { canBuyerContactCourier, canBuyerTrackCourier } from '@/lib/deliveryVisibility';
+import { getAuthorizedCourierContact } from '@/lib/courierApi';
 
 interface OrderDetails {
   id: string;
@@ -203,13 +204,9 @@ export default function OrderTrackingPage() {
   }, [orderId, user, navigate]);
 
   const fetchCourierInfo = useCallback(async (courierId: string) => {
-    const { data: courierData, error: courierError } = await supabase
-      .from('couriers')
-      .select('id, name, phone, vehicle_type, current_lat, current_lng')
-      .eq('id', courierId)
-      .maybeSingle();
+    const courierData = await getAuthorizedCourierContact(courierId, { orderId });
 
-    if (!courierError && courierData) {
+    if (courierData) {
       setCourier(courierData);
       // Calculate initial ETA if courier has GPS and order has delivery coords
       const currentOrder = orderRef.current;
@@ -222,7 +219,7 @@ export default function OrderTrackingPage() {
         setEtaInfo({ etaFormatted: estimate.etaFormatted, distanceFormatted: estimate.distanceFormatted });
       }
     }
-  }, []);
+  }, [orderId]);
 
   fetchCourierInfoRef.current = fetchCourierInfo;
 
@@ -416,8 +413,8 @@ export default function OrderTrackingPage() {
                   aria-label="Chat kurir"
                   title="Chat kurir"
                   onClick={() => {
-                    supabase.from('couriers').select('user_id').eq('id', order.courier_id!).maybeSingle().then(({ data }) => {
-                      if (data?.user_id) setChatOpen({ type: 'buyer_courier', userId: data.user_id, name: courier.name });
+                    void getAuthorizedCourierContact(order.courier_id!, { orderId: order.id }).then((data) => {
+                      if (data?.user_id) setChatOpen({ type: 'buyer_courier', userId: data.user_id, name: data.name });
                     });
                   }}
                 >
