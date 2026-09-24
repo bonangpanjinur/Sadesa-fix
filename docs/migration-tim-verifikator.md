@@ -16,7 +16,7 @@ Struktur baru menggunakan lima lapisan:
 4. **`verifikator_codes.team_id`** menghubungkan kode referral ke tim, sementara `verifikator_id` lama tetap dipertahankan sebagai pemilik atau koordinator.
 5. **`verification_cases`** dan **`verification_case_events`** mengelola antrean, assignment, keputusan, eskalasi, dan audit log.
 
-Workspace frontend tersedia pada route `/verifikator/team`. Halaman tersebut menampilkan ringkasan tim, antrean kasus, anggota, scope wilayah, tombol claim kasus, dan aksi review dasar yang memanggil RPC terproteksi.
+Workspace frontend tersedia pada route `/verifikator/team`. Halaman tersebut menampilkan ringkasan tim, antrean kasus, anggota, scope wilayah, tombol claim kasus, dan aksi review dasar yang memanggil RPC terproteksi. Tab **Analitik individu** menghitung total kasus per anggota, kasus selesai, kasus berjalan, kasus lewat SLA, tingkat penyelesaian SLA, approval rate, rata-rata waktu penyelesaian, dan kasus yang belum memiliki assignment. Metrik individu dihitung berdasarkan `assigned_to`, sedangkan waktu penyelesaian menggunakan selisih `reviewed_at - submitted_at`.
 
 Relasi utamanya adalah:
 
