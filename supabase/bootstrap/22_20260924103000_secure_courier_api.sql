@@ -2,6 +2,15 @@
 -- Public consumers must use public_couriers (masked/approximate fields) or the
 -- scoped RPC below for an active order/ride they are authorized to view.
 
+-- Keep this migration safe when deployed after an older bootstrap that does
+-- not yet contain the courier assignment/rating columns used by the RPC.
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS courier_id uuid REFERENCES public.couriers(id);
+
+ALTER TABLE public.couriers
+  ADD COLUMN IF NOT EXISTS rating_avg numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS rating_count integer NOT NULL DEFAULT 0;
+
 DROP POLICY IF EXISTS "Public can view approved couriers" ON public.couriers;
 
 CREATE OR REPLACE FUNCTION public.get_courier_contact(
@@ -51,7 +60,7 @@ AS $$
           AND o.id = p_order_id
           AND o.buyer_id = auth.uid()
           AND o.courier_id = c.id
-          AND o.status NOT IN ('CANCELLED')
+          AND o.status NOT IN ('CANCELED', 'CANCELLED')
       )
       OR EXISTS (
         SELECT 1
@@ -60,7 +69,7 @@ AS $$
           AND r.id = p_ride_id
           AND r.passenger_id = auth.uid()
           AND r.driver_id = c.id
-          AND r.status NOT IN ('CANCELLED')
+          AND r.status NOT IN ('CANCELED', 'CANCELLED')
       )
       OR EXISTS (
         SELECT 1
