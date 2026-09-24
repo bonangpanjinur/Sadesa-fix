@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
-import { ArrowLeft, Bike, Upload, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Bike, Upload, Check, AlertCircle, Tag, CheckCircle, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,9 @@ export default function RegisterCourierPage() {
   const [formData, setFormData] = useState<Partial<CourierFormData>>({ vehicleType: 'motor' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [addressData, setAddressData] = useState<AddressData>(createEmptyAddressData());
+  const [referralCode, setReferralCode] = useState('');
+  const [referralInfo, setReferralInfo] = useState<{ isValid: boolean; tradeGroup: string; isLoading: boolean }>({ isValid: false, tradeGroup: '', isLoading: false });
+  const [matchedVillageId, setMatchedVillageId] = useState<string | null>(null);
   
   // Files
   const [ktpFile, setKtpFile] = useState<File | null>(null);
@@ -50,6 +53,32 @@ export default function RegisterCourierPage() {
     checkEnabled();
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const code = referralCode.trim().toUpperCase();
+      if (!code) {
+        setReferralInfo({ isValid: false, tradeGroup: '', isLoading: false });
+        return;
+      }
+      if (code.length < 3) return;
+      setReferralInfo(prev => ({ ...prev, isLoading: true }));
+      const { data, error } = await supabase.from('verifikator_codes')
+        .select('trade_group, max_usage, usage_count').eq('code', code).eq('is_active', true).maybeSingle();
+      const exhausted = !!data?.max_usage && data.usage_count >= data.max_usage;
+      setReferralInfo({ isValid: !error && !!data && !exhausted, tradeGroup: data?.trade_group || '', isLoading: false });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [referralCode]);
+
+  useEffect(() => {
+    const findVillage = async () => {
+      if (!addressData.villageName) { setMatchedVillageId(null); return; }
+      const { data } = await supabase.from('villages').select('id').eq('subdistrict', addressData.villageName).eq('is_active', true).maybeSingle();
+      setMatchedVillageId(data?.id || null);
+    };
+    void findVillage();
+  }, [addressData.villageName]);
+
   const handleFileChange = (type: 'ktp' | 'photo' | 'vehicle', file: File | null) => {
     if (type === 'ktp') setKtpFile(file);
     if (type === 'photo') setPhotoFile(file);
@@ -63,6 +92,7 @@ export default function RegisterCourierPage() {
       if (!formData.name || formData.name.length < 3) newErrors.name = 'Nama minimal 3 karakter';
       if (!formData.phone || formData.phone.length < 10) newErrors.phone = 'Nomor HP minimal 10 digit';
       if (!formData.ktpNumber || formData.ktpNumber.length !== 16) newErrors.ktpNumber = 'Nomor KTP harus 16 digit';
+      if (referralCode.trim() && (!referralInfo.isValid || referralInfo.isLoading)) newErrors.referralCode = 'Kode referral tidak valid atau masih diperiksa';
     }
     
     if (currentStep === 2) {
@@ -128,6 +158,8 @@ export default function RegisterCourierPage() {
         ktp_image_url: ktpUrl,
         photo_url: photoUrl,
         vehicle_image_url: vehicleUrl,
+        village_id: matchedVillageId,
+        verifikator_code: referralCode.trim() ? referralCode.trim().toUpperCase() : null,
         registration_status: 'PENDING',
         status: 'INACTIVE',
       });
@@ -226,6 +258,15 @@ export default function RegisterCourierPage() {
             <div className="space-y-2">
               <Label htmlFor="vehiclePlate">Nomor Plat Kendaraan</Label>
               <Input id="vehiclePlate" value={formData.vehiclePlate || ''} onChange={(e) => setFormData(prev => ({ ...prev, vehiclePlate: e.target.value.toUpperCase() }))} placeholder="B 1234 XYZ" />
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border bg-card p-3">
+              <div className="flex items-center gap-2"><Tag className="h-4 w-4 text-primary" /><Label htmlFor="referralCode">Kode Referral Verifikator (Opsional)</Label></div>
+              <Input id="referralCode" value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())} placeholder="Masukkan kode dari verifikator" className="uppercase" maxLength={32} />
+              {referralInfo.isLoading && <p className="flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Memeriksa kode...</p>}
+              {!referralInfo.isLoading && referralInfo.isValid && <p className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle className="h-3 w-3" />Kode valid{referralInfo.tradeGroup ? ` untuk ${referralInfo.tradeGroup}` : ''}. Pendaftaran akan diverifikasi verifikator ini.</p>}
+              {errors.referralCode && <p className="text-xs text-destructive">{errors.referralCode}</p>}
+              {!referralCode && <p className="text-xs text-muted-foreground">Tanpa kode, pendaftaran diproses oleh admin.</p>}
             </div>
           </div>
         )}

@@ -3,6 +3,12 @@
 -- active trade groups. Approval mutations go through a narrow RPC so a
 -- verifikator cannot edit identity, payout, or operational fields.
 
+ALTER TABLE public.couriers
+  ADD COLUMN IF NOT EXISTS verifikator_code text;
+
+CREATE INDEX IF NOT EXISTS idx_couriers_verifikator_code
+  ON public.couriers(verifikator_code);
+
 DROP POLICY IF EXISTS "Verifikator can manage couriers" ON public.couriers;
 
 DROP POLICY IF EXISTS "Verifikators can review assigned couriers" ON public.couriers;
@@ -11,13 +17,22 @@ ON public.couriers
 FOR SELECT TO authenticated
 USING (
   public.is_verifikator()
-  AND EXISTS (
-    SELECT 1
-    FROM public.trade_groups AS tg
-    WHERE tg.verifikator_id = auth.uid()
-      AND tg.is_active = true
-      AND tg.village_id IS NOT NULL
-      AND tg.village_id = couriers.village_id
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM public.trade_groups AS tg
+      WHERE tg.verifikator_id = auth.uid()
+        AND tg.is_active = true
+        AND tg.village_id IS NOT NULL
+        AND tg.village_id = couriers.village_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.verifikator_codes AS vc
+      WHERE vc.code = couriers.verifikator_code
+        AND vc.verifikator_id = auth.uid()
+        AND vc.is_active = true
+    )
   )
 );
 
@@ -54,13 +69,22 @@ BEGIN
   END IF;
 
   SELECT public.is_admin() INTO v_is_admin;
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.trade_groups AS tg
-    WHERE tg.verifikator_id = auth.uid()
-      AND tg.is_active = true
-      AND tg.village_id IS NOT NULL
-      AND tg.village_id = v_courier.village_id
+  SELECT (
+    EXISTS (
+      SELECT 1
+      FROM public.trade_groups AS tg
+      WHERE tg.verifikator_id = auth.uid()
+        AND tg.is_active = true
+        AND tg.village_id IS NOT NULL
+        AND tg.village_id = v_courier.village_id
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM public.verifikator_codes AS vc
+      WHERE vc.code = v_courier.verifikator_code
+        AND vc.verifikator_id = auth.uid()
+        AND vc.is_active = true
+    )
   ) INTO v_is_assigned_verifikator;
 
   IF NOT COALESCE(v_is_admin, false) AND NOT v_is_assigned_verifikator THEN
@@ -107,8 +131,8 @@ ON storage.objects
 FOR INSERT TO authenticated
 WITH CHECK (
   bucket_id = 'courier-documents'
-  AND (storage.foldername(name))[1] = auth.uid()::text
-  AND (storage.foldername(name))[2] IN ('ktp', 'photo', 'vehicle')
+  AND (storage.foldername(storage.objects.name))[1] = auth.uid()::text
+  AND (storage.foldername(storage.objects.name))[2] IN ('ktp', 'photo', 'vehicle')
 );
 
 DROP POLICY IF EXISTS "Admins can view all courier documents" ON storage.objects;
@@ -123,10 +147,21 @@ USING (
     OR EXISTS (
       SELECT 1
       FROM public.couriers AS c
-      JOIN public.trade_groups AS tg ON tg.village_id = c.village_id
-      WHERE c.user_id::text = (storage.foldername(name))[1]
-        AND tg.verifikator_id = auth.uid()
-        AND tg.is_active = true
+      WHERE c.user_id::text = (storage.foldername(storage.objects.name))[1]
+        AND (
+          EXISTS (
+            SELECT 1 FROM public.trade_groups AS tg
+            WHERE tg.village_id = c.village_id
+              AND tg.verifikator_id = auth.uid()
+              AND tg.is_active = true
+          )
+          OR EXISTS (
+            SELECT 1 FROM public.verifikator_codes AS vc
+            WHERE vc.code = c.verifikator_code
+              AND vc.verifikator_id = auth.uid()
+              AND vc.is_active = true
+          )
+        )
     )
   )
 );
