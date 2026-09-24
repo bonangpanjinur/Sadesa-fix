@@ -44,10 +44,11 @@ export default function VerifikatorMerchantsPage() {
   const { data: merchants = [], isLoading: loading } = useQuery<MerchantRow[]>({
     queryKey: ['verifikator-merchants', user?.id],
     queryFn: async () => {
-      const { data: codes } = await supabase
-        .from('verifikator_codes')
-        .select('code, trade_group')
-        .eq('verifikator_id', user!.id);
+        const { data: codes } = await supabase
+          .from('verifikator_codes')
+          .select('code, trade_group')
+          .eq('verifikator_id', user!.id)
+          .eq('is_active', true);
 
       if (!codes || codes.length === 0) return [];
 

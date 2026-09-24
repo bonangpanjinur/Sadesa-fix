@@ -39,18 +39,17 @@ export function VerifikatorSidebar() {
           .eq('registration_status', 'PENDING');
         setPendingMerchants(count || 0);
       }
-      const { data: groups } = await supabase
-        .from('trade_groups')
-        .select('village_id')
+      const { data: courierCodes } = await supabase
+        .from('verifikator_codes')
+        .select('code')
         .eq('verifikator_id', user.id)
-        .eq('is_active', true)
-        .not('village_id', 'is', null);
-      const villageIds = (groups || []).map(group => group.village_id).filter(Boolean) as string[];
-      if (villageIds.length > 0) {
+        .eq('is_active', true);
+      const codeValues = (courierCodes || []).map(item => item.code);
+      if (codeValues.length > 0) {
         const { count } = await supabase
           .from('couriers')
           .select('*', { count: 'exact', head: true })
-          .in('village_id', villageIds)
+          .in('verifikator_code', codeValues)
           .eq('registration_status', 'PENDING');
         setPendingCouriers(count || 0);
       } else {
