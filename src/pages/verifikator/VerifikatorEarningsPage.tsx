@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
-import { TrendingUp, Wallet, Clock, CheckCircle, XCircle, ArrowDownToLine, History } from 'lucide-react';
+import { TrendingUp, Wallet, Clock, CheckCircle, XCircle, ArrowDownToLine, History, Bike, Store, Database, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -50,9 +50,21 @@ interface Withdrawal {
   created_at: string;
 }
 
+interface CourierEarning {
+  id: string;
+  courier_id: string;
+  amount: number;
+  type: string;
+  status: string;
+  created_at: string;
+  courier?: { name: string; verifikator_code: string | null };
+}
+
 interface EarningsData {
   earnings: Earning[];
+  courierEarnings: CourierEarning[];
   withdrawals: Withdrawal[];
+  codes: Array<{ code: string; trade_group: string; usage_count: number; is_active: boolean }>;
 }
 
 const BANKS = [
@@ -72,7 +84,7 @@ export default function VerifikatorEarningsPage() {
   const { data, isLoading: loading } = useQuery<EarningsData>({
     queryKey: ['verifikator-earnings', user?.id],
     queryFn: async () => {
-      const [earningsRes, withdrawalsRes] = await Promise.all([
+      const [earningsRes, withdrawalsRes, codesRes, couriersByIdRes] = await Promise.all([
         supabase
           .from('verifikator_earnings')
           .select('*, merchant:merchants(name), package:transaction_packages(name)')
@@ -83,10 +95,39 @@ export default function VerifikatorEarningsPage() {
           .select('*')
           .eq('verifikator_id', user!.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('verifikator_codes')
+          .select('code, trade_group, usage_count, is_active')
+          .eq('verifikator_id', user!.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('couriers')
+          .select('id, name, verifikator_code')
+          .eq('verifikator_id', user!.id),
       ]);
+      const codes = codesRes.data || [];
+      const codeValues = codes.map(code => code.code);
+      const couriersByCodeRes = codeValues.length
+        ? await supabase.from('couriers').select('id, name, verifikator_code').in('verifikator_code', codeValues)
+        : { data: [] };
+      const courierMap = new Map<string, { id: string; name: string; verifikator_code: string | null }>();
+      [...(couriersByIdRes.data || []), ...(couriersByCodeRes.data || [])].forEach(courier => courierMap.set(courier.id, courier));
+      const courierIds = [...courierMap.keys()];
+      const courierEarningsRes = courierIds.length
+        ? await supabase
+          .from('courier_earnings')
+          .select('id, courier_id, amount, type, status, created_at')
+          .in('courier_id', courierIds)
+          .order('created_at', { ascending: false })
+        : { data: [] };
       return {
         earnings: earningsRes.data || [],
+        courierEarnings: (courierEarningsRes.data || []).map(earning => ({
+          ...earning,
+          courier: courierMap.get(earning.courier_id),
+        })),
         withdrawals: withdrawalsRes.data || [],
+        codes,
       };
     },
     enabled: !!user,
@@ -94,7 +135,12 @@ export default function VerifikatorEarningsPage() {
   });
 
   const earnings = data?.earnings ?? [];
+  const courierEarnings = data?.courierEarnings ?? [];
   const withdrawals = data?.withdrawals ?? [];
+  const codes = data?.codes ?? [];
+  const merchantFeeTotal = earnings.reduce((sum, earning) => sum + earning.commission_amount, 0);
+  const courierFeeTotal = courierEarnings.reduce((sum, earning) => sum + earning.amount, 0);
+  const generatedFeeTotal = merchantFeeTotal + courierFeeTotal;
 
   const pendingBalance = earnings.filter(e => e.status === 'PENDING').reduce((sum, e) => sum + e.commission_amount, 0);
   const paidBalance = earnings.filter(e => e.status === 'PAID').reduce((sum, e) => sum + e.commission_amount, 0);
@@ -200,6 +246,33 @@ export default function VerifikatorEarningsPage() {
         </Card>
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <Card className="border-primary/20 bg-primary/5 lg:col-span-1">
+          <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="h-4 w-4 text-primary" />Total fee terlapor</CardTitle></CardHeader>
+          <CardContent><p className="text-3xl font-bold">{formatPrice(generatedFeeTotal)}</p><p className="text-xs text-muted-foreground mt-1">Gabungan komisi pedagang dan fee ojek</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Store className="h-4 w-4 text-emerald-600" />Dari pedagang</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-bold">{formatPrice(merchantFeeTotal)}</p><p className="text-xs text-muted-foreground mt-1">{earnings.length} catatan komisi · subscription/penjualan</p></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Bike className="h-4 w-4 text-orange-600" />Dari ojek</CardTitle></CardHeader>
+          <CardContent><p className="text-2xl font-bold">{formatPrice(courierFeeTotal)}</p><p className="text-xs text-muted-foreground mt-1">{courierEarnings.length} catatan fee · courier terhubung</p></CardContent>
+        </Card>
+      </div>
+
+      <Card className="mb-6">
+        <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Database className="h-5 w-5 text-primary" />Struktur relasi kode verifikator</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border bg-muted/30 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">verifikator_codes</p><p className="mt-1 font-mono text-sm">code → verifikator_id</p><p className="mt-1 text-xs text-muted-foreground">{codes.length} kode milik Anda</p></div>
+            <div className="rounded-lg border bg-muted/30 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">merchants</p><p className="mt-1 font-mono text-sm">verifikator_code</p><p className="mt-1 text-xs text-muted-foreground">Komisi tercatat di verifikator_earnings</p></div>
+            <div className="rounded-lg border bg-muted/30 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">couriers</p><p className="mt-1 font-mono text-sm">verifikator_id / code</p><p className="mt-1 text-xs text-muted-foreground">Fee dibaca dari courier_earnings</p></div>
+          </div>
+          <div className="flex items-start gap-2 text-sm text-muted-foreground"><Link2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><p><strong className="text-foreground">Alur laporan:</strong> kode menghubungkan pedagang dan ojek ke verifikator; nilai pedagang berasal dari <code>commission_amount</code>, sedangkan nilai ojek berasal dari <code>courier_earnings.amount</code>. Saldo tarik tetap hanya memakai komisi verifikator.</p></div>
+        </CardContent>
+      </Card>
+
       <div className="mb-6">
         <Button onClick={() => setShowWithdrawDialog(true)} disabled={availableBalance < 10000} className="gap-2">
           <ArrowDownToLine className="h-4 w-4" />
@@ -214,6 +287,9 @@ export default function VerifikatorEarningsPage() {
         <TabsList>
           <TabsTrigger value="earnings" className="gap-2">
             <TrendingUp className="h-4 w-4" /> Riwayat Komisi
+          </TabsTrigger>
+          <TabsTrigger value="courier-earnings" className="gap-2">
+            <Bike className="h-4 w-4" /> Fee Ojek
           </TabsTrigger>
           <TabsTrigger value="withdrawals" className="gap-2">
             <History className="h-4 w-4" /> Riwayat Withdrawal
@@ -254,6 +330,30 @@ export default function VerifikatorEarningsPage() {
                       </TableRow>
                     ))}
                   </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="courier-earnings">
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Rincian Fee Ojek</CardTitle></CardHeader>
+            <CardContent>
+              {courierEarnings.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">Belum ada fee ojek dari courier yang terhubung dengan kode Anda.</div>
+              ) : (
+                <Table>
+                  <TableHeader><TableRow><TableHead>Tanggal</TableHead><TableHead>Nama Ojek</TableHead><TableHead>Jenis</TableHead><TableHead className="text-right">Fee</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableBody>{courierEarnings.map(earning => (
+                    <TableRow key={earning.id}>
+                      <TableCell>{format(new Date(earning.created_at), 'dd MMM yyyy', { locale: id })}</TableCell>
+                      <TableCell className="font-medium">{earning.courier?.name || '-'}</TableCell>
+                      <TableCell>{earning.type || 'DELIVERY'}</TableCell>
+                      <TableCell className="text-right font-medium text-success">+{formatPrice(earning.amount)}</TableCell>
+                      <TableCell>{getStatusBadge(earning.status)}</TableCell>
+                    </TableRow>
+                  ))}</TableBody>
                 </Table>
               )}
             </CardContent>
