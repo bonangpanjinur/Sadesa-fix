@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 309,
-  "bundle_count": 12,
+  "migration_count": 310,
+  "bundle_count": 13,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -396,6 +396,14 @@
       ],
       "sha256": "9580ebbb32aa4b5d4589b642b2be4986baff61665e76b826f9bbd5580fe7ac70",
       "bytes": 623
+    },
+    {
+      "file": "29_20260924140000_profile_ktp_column.sql",
+      "source_files": [
+        "29_20260924140000_profile_ktp_column.sql"
+      ],
+      "sha256": "c2a3fd31b6542333929f24d284d03cbefc4dad0a62db54f0522b83a5c6f61237",
+      "bytes": 891
     }
   ],
   "idempotent": true,
