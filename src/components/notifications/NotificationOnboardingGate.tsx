@@ -13,9 +13,9 @@ import {
 type OnboardingStatus = 'checking' | 'ready' | 'unsupported' | 'default' | 'denied' | 'subscribe-failed';
 
 /**
- * Blocks authenticated application content until this browser has an active
- * Sadesa push subscription. The browser permission prompt is only reached from
- * the explicit button click in this component.
+ * Optional notification onboarding panel. It must not be mounted globally as
+ * a blocking gate; users can continue using the app without push permission.
+ * The browser permission prompt is only reached from an explicit button click.
  */
 export function NotificationOnboardingGate() {
   const { user, loading: authLoading } = useAuth();
