@@ -29,6 +29,7 @@ interface Profile {
   district_name?: string | null;
   village_id?: string | null;
   village_name?: string | null;
+  village?: string | null;
   address_detail?: string | null;
   ktp_number?: string | null;
 }
@@ -51,7 +52,7 @@ export default function AccountPage() {
     profile?.address_detail?.trim()
       ? [
           profile.address_detail,
-          profile.village_name,
+          profile.village_name || profile.village,
           profile.district_name,
           profile.city_name,
           profile.province_name,
@@ -65,11 +66,12 @@ export default function AccountPage() {
     try {
       const primaryResult = await supabase
         .from('profiles')
-        .select('full_name, phone, address, avatar_url, ktp_number, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
+        .select('*')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      let data = primaryResult.data as Profile | null;
+      let data = (primaryResult.data?.[0] || null) as Profile | null;
       let error = primaryResult.error;
       if (error) {
         console.warn('Extended profile fields unavailable, retrying with compatibility fields:', error);
@@ -77,8 +79,9 @@ export default function AccountPage() {
           .from('profiles')
           .select('full_name, phone, address, avatar_url')
           .eq('user_id', user.id)
-          .maybeSingle();
-        data = fallbackResult.data as Profile | null;
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        data = (fallbackResult.data?.[0] || null) as Profile | null;
         error = fallbackResult.error;
       }
 
@@ -283,7 +286,7 @@ export default function AccountPage() {
                       district_id: profile?.district_id,
                       district_name: profile?.district_name,
                       village_id: profile?.village_id,
-                      village_name: profile?.village_name,
+                      village_name: profile?.village_name || profile?.village,
                       address_detail: profile?.address_detail,
                       ktp_number: profile?.ktp_number,
                     }}
