@@ -17,6 +17,8 @@ Rincian fee ojek dapat dilihat pada tab **Fee Ojek**, dengan tanggal, nama couri
 
 Dashboard juga menyediakan filter **Mulai tanggal** dan **Sampai tanggal**. Filter menggunakan `created_at` pada `verifikator_earnings` dan `courier_earnings`, berlaku pada total fee, jumlah catatan, dan kedua tabel laporan. Jika tanggal mulai lebih besar dari tanggal akhir, dashboard menampilkan validasi dan tidak menghitung catatan periode tersebut. Kartu saldo tersedia dan riwayat withdrawal tetap merepresentasikan saldo operasional saat ini.
 
+Dashboard juga menyediakan grafik **Tren pendapatan** dengan pilihan agregasi harian atau bulanan. Grafik menggabungkan `commission_amount` dari pedagang dan `amount` dari ojek. Panel **Ringkasan komisi** dapat diganti antara kategori wilayah—menggunakan `district` lalu fallback ke `city`—atau status komisi (`PENDING`, `PAID`, `APPROVED`, dan `REJECTED`). Kedua visualisasi mengikuti filter tanggal aktif.
+
 ## Struktur `verifikator_codes`
 
 | Kolom | Tipe | Keterangan |

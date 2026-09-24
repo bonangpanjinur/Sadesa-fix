@@ -19,6 +19,7 @@ import { TrendingUp, Wallet, Clock, CheckCircle, XCircle, ArrowDownToLine, Histo
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface Earning {
   id: string;
@@ -31,7 +32,7 @@ interface Earning {
   status: string;
   created_at: string;
   paid_at: string | null;
-  merchant?: { name: string };
+  merchant?: { name: string; district?: string | null; city?: string | null; registration_status?: string | null };
   package?: { name: string };
   source_type?: string;
   buyer_role?: string | null;
@@ -57,7 +58,7 @@ interface CourierEarning {
   type: string;
   status: string;
   created_at: string;
-  courier?: { name: string; verifikator_code: string | null };
+  courier?: { name: string; verifikator_code: string | null; district?: string | null; city?: string | null; registration_status?: string | null; status?: string | null };
 }
 
 interface EarningsData {
@@ -77,6 +78,8 @@ export default function VerifikatorEarningsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
+  const [trendMode, setTrendMode] = useState<'daily' | 'monthly'>('daily');
+  const [breakdownMode, setBreakdownMode] = useState<'region' | 'status'>('region');
   const [withdrawForm, setWithdrawForm] = useState({
     amount: '', bank_name: '', account_number: '', account_holder: '',
   });
@@ -89,7 +92,7 @@ export default function VerifikatorEarningsPage() {
       const [earningsRes, withdrawalsRes, codesRes, couriersByIdRes] = await Promise.all([
         supabase
           .from('verifikator_earnings')
-          .select('*, merchant:merchants(name), package:transaction_packages(name)')
+          .select('*, merchant:merchants(name, district, city, registration_status), package:transaction_packages(name)')
           .eq('verifikator_id', user!.id)
           .order('created_at', { ascending: false }),
         supabase
@@ -104,15 +107,15 @@ export default function VerifikatorEarningsPage() {
           .order('created_at', { ascending: false }),
         supabase
           .from('couriers')
-          .select('id, name, verifikator_code')
+          .select('id, name, verifikator_code, district, city, registration_status, status')
           .eq('verifikator_id', user!.id),
       ]);
       const codes = codesRes.data || [];
       const codeValues = codes.map(code => code.code);
       const couriersByCodeRes = codeValues.length
-        ? await supabase.from('couriers').select('id, name, verifikator_code').in('verifikator_code', codeValues)
+        ? await supabase.from('couriers').select('id, name, verifikator_code, district, city, registration_status, status').in('verifikator_code', codeValues)
         : { data: [] };
-      const courierMap = new Map<string, { id: string; name: string; verifikator_code: string | null }>();
+      const courierMap = new Map<string, { id: string; name: string; verifikator_code: string | null; district?: string | null; city?: string | null; registration_status?: string | null; status?: string | null }>();
       [...(couriersByIdRes.data || []), ...(couriersByCodeRes.data || [])].forEach(courier => courierMap.set(courier.id, courier));
       const courierIds = [...courierMap.keys()];
       const courierEarningsRes = courierIds.length
@@ -150,6 +153,35 @@ export default function VerifikatorEarningsPage() {
   const merchantFeeTotal = filteredEarnings.reduce((sum, earning) => sum + earning.commission_amount, 0);
   const courierFeeTotal = filteredCourierEarnings.reduce((sum, earning) => sum + earning.amount, 0);
   const generatedFeeTotal = merchantFeeTotal + courierFeeTotal;
+  const trendMap = new Map<string, number>();
+  const addTrendValue = (createdAt: string, amount: number) => {
+    const period = trendMode === 'monthly' ? format(new Date(createdAt), 'yyyy-MM') : format(new Date(createdAt), 'yyyy-MM-dd');
+    trendMap.set(period, (trendMap.get(period) || 0) + amount);
+  };
+  filteredEarnings.forEach(earning => addTrendValue(earning.created_at, earning.commission_amount));
+  filteredCourierEarnings.forEach(earning => addTrendValue(earning.created_at, earning.amount));
+  const trendData = [...trendMap.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([period, total]) => ({
+    period: format(new Date(`${period}${trendMode === 'monthly' ? '-01' : ''}T00:00:00`), trendMode === 'monthly' ? 'MMM yyyy' : 'dd MMM', { locale: id }),
+    total,
+  }));
+  const breakdownMap = new Map<string, number>();
+  const addBreakdownValue = (category: string | null | undefined, amount: number) => {
+    const key = category?.trim() || (breakdownMode === 'region' ? 'Wilayah tidak tersedia' : 'Status tidak tersedia');
+    breakdownMap.set(key, (breakdownMap.get(key) || 0) + amount);
+  };
+  filteredEarnings.forEach(earning => addBreakdownValue(
+    breakdownMode === 'region' ? earning.merchant?.district || earning.merchant?.city : earning.status,
+    earning.commission_amount,
+  ));
+  filteredCourierEarnings.forEach(earning => addBreakdownValue(
+    breakdownMode === 'region' ? earning.courier?.district || earning.courier?.city : earning.status,
+    earning.amount,
+  ));
+  const statusLabel = (status: string) => ({ PENDING: 'Menunggu', PAID: 'Dibayar', APPROVED: 'Disetujui', REJECTED: 'Ditolak' }[status] || status);
+  const breakdownData = [...breakdownMap.entries()].sort(([, left], [, right]) => right - left).map(([category, total]) => ({
+    category: breakdownMode === 'status' ? statusLabel(category) : category,
+    total,
+  }));
 
   const pendingBalance = earnings.filter(e => e.status === 'PENDING').reduce((sum, e) => sum + e.commission_amount, 0);
   const paidBalance = earnings.filter(e => e.status === 'PAID').reduce((sum, e) => sum + e.commission_amount, 0);
@@ -305,6 +337,56 @@ export default function VerifikatorEarningsPage() {
         </CardContent>
       </Card>
 
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 mb-6">
+        <Card className="xl:col-span-3">
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div><CardTitle className="text-lg">Tren pendapatan</CardTitle><p className="text-sm text-muted-foreground mt-1">Gabungan komisi pedagang dan fee ojek</p></div>
+              <Select value={trendMode} onValueChange={value => setTrendMode(value as 'daily' | 'monthly')}>
+                <SelectTrigger className="w-full sm:w-[150px]" aria-label="Periode grafik tren"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="daily">Harian</SelectItem><SelectItem value="monthly">Bulanan</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {trendData.length === 0 ? <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Belum ada data pada periode yang dipilih.</div> : (
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={trendData} margin={{ top: 8, right: 12, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={value => formatPrice(Number(value))} width={82} />
+                  <Tooltip formatter={value => formatPrice(Number(value))} labelClassName="font-medium" />
+                  <Line type="monotone" dataKey="total" name="Pendapatan" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div><CardTitle className="text-lg">Ringkasan komisi</CardTitle><p className="text-sm text-muted-foreground mt-1">Kelompokkan berdasarkan wilayah atau status</p></div>
+              <Select value={breakdownMode} onValueChange={value => setBreakdownMode(value as 'region' | 'status')}>
+                <SelectTrigger className="w-full sm:w-[150px]" aria-label="Kategori ringkasan komisi"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="region">Wilayah</SelectItem><SelectItem value="status">Status komisi</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {breakdownData.length === 0 ? <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">Belum ada data pada periode yang dipilih.</div> : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={breakdownData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="category" tick={{ fontSize: 10 }} interval={0} angle={breakdownData.length > 3 ? -25 : 0} textAnchor={breakdownData.length > 3 ? 'end' : 'middle'} height={breakdownData.length > 3 ? 58 : 30} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={value => formatPrice(Number(value))} width={82} />
+                  <Tooltip formatter={value => formatPrice(Number(value))} />
+                  <Bar dataKey="total" name="Komisi" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
       <div className="mb-6">
         <Button onClick={() => setShowWithdrawDialog(true)} disabled={availableBalance < 10000} className="gap-2">
           <ArrowDownToLine className="h-4 w-4" />
