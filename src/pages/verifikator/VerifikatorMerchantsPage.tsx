@@ -189,7 +189,7 @@ export default function VerifikatorMerchantsPage() {
   const filters = [
     {
       key: 'registration_status',
-      label: 'Status',
+      label: 'Status Verifikasi',
       options: [
         { value: 'PENDING', label: 'Menunggu' },
         { value: 'APPROVED', label: 'Disetujui' },

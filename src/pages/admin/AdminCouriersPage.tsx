@@ -260,7 +260,7 @@ export default function AdminCouriersPage() {
   const filters = [
     {
       key: 'registration_status',
-      label: 'Status Registrasi',
+      label: 'Status Verifikasi',
       options: [
         { value: 'PENDING', label: 'Menunggu' },
         { value: 'APPROVED', label: 'Disetujui' },
