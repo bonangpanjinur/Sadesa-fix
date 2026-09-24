@@ -5,6 +5,7 @@ import { useUserRoles } from '@/hooks/useUserRoles';
 import type { AppRole } from '@/types/auth';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -33,6 +34,8 @@ export function ProtectedRoute({
     ?? (isCourierWorkspaceRoute ? ['courier'] : undefined);
   const [merchantAccessLoading, setMerchantAccessLoading] = useState(false);
   const [merchantAccessAllowed, setMerchantAccessAllowed] = useState(true);
+  const [courierProfileLoading, setCourierProfileLoading] = useState(false);
+  const [courierProfileComplete, setCourierProfileComplete] = useState(true);
 
   useEffect(() => {
     if (!requiresApprovedMerchant || !user || rolesLoading || !roles.includes('merchant')) {
@@ -63,9 +66,35 @@ export function ProtectedRoute({
     };
   }, [location.pathname, requiresApprovedMerchant, roles, rolesLoading, user]);
 
+  useEffect(() => {
+    const mustCheckCourierProfile = isCourierWorkspaceRoute && roles.includes('courier') && Boolean(user);
+    if (!mustCheckCourierProfile || rolesLoading) {
+      setCourierProfileLoading(false);
+      setCourierProfileComplete(true);
+      return;
+    }
+
+    let cancelled = false;
+    setCourierProfileLoading(true);
+    void supabase
+      .from('profiles')
+      .select('avatar_url, phone')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setCourierProfileComplete(!error && Boolean(data?.avatar_url && data.phone && isValidIndonesianPhone(data.phone)));
+        setCourierProfileLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCourierWorkspaceRoute, roles, rolesLoading, user]);
+
   // Show loading while checking auth state
   const waitingForRequiredRoles = (Boolean(routeRequiredRoles?.length) && rolesLoading)
-    || merchantAccessLoading;
+    || merchantAccessLoading || courierProfileLoading;
 
   if (authLoading || waitingForRequiredRoles) {
     return (
@@ -81,6 +110,10 @@ export function ProtectedRoute({
   // Redirect to auth if not logged in
   if (!user) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  }
+
+  if (isCourierWorkspaceRoute && !courierProfileComplete) {
+    return <Navigate to="/account" state={{ from: location, reason: 'courier_profile_incomplete' }} replace />;
   }
 
   // If specific roles are required, check them

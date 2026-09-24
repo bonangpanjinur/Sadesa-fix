@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ProfileEditor } from '@/components/account/ProfileEditor';
+import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 
 interface Profile {
   full_name: string;
@@ -38,6 +39,7 @@ export default function AccountPage() {
   const [hasPartnerApplication, setHasPartnerApplication] = useState<boolean | null>(null);
   const [editing, setEditing] = useState(false);
   const [profileRequired, setProfileRequired] = useState(false);
+  const [courierProfileRequired, setCourierProfileRequired] = useState(false);
   const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
 
   const fetchProfile = useCallback(async () => {
@@ -59,15 +61,22 @@ export default function AccountPage() {
             && data.district_id && data.village_id && data.address_detail?.trim(),
         );
         setProfileRequired(!complete);
+        const courierIncomplete = Boolean(
+          isCourier && (!data.avatar_url || !data.phone || !isValidIndonesianPhone(data.phone)),
+        );
+        setCourierProfileRequired(courierIncomplete);
+        if (courierIncomplete) setEditing(true);
       } else {
         setProfileRequired(true);
+        setCourierProfileRequired(isCourier);
+        if (isCourier) setEditing(true);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [isCourier, user]);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -244,13 +253,16 @@ export default function AccountPage() {
                     }}
                     onSave={handleProfileSave}
                     onCancel={() => setEditing(false)}
-                    forceCompletion={profileRequired}
+                    forceCompletion={profileRequired || courierProfileRequired}
+                    requireCourierProfile={courierProfileRequired}
                   />
                 ) : (
                   <div className="space-y-2 text-sm">
-                    {profileRequired && (
+                    {(profileRequired || courierProfileRequired) && (
                       <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
-                        Lengkapi alamat atau tambahkan foto profil jika Anda ingin menggunakan fitur yang membutuhkannya.
+                        {courierProfileRequired
+                          ? 'Untuk bekerja sebagai kurir, tambahkan foto profil dan nomor WhatsApp aktif.'
+                          : 'Lengkapi alamat atau tambahkan foto profil jika Anda ingin menggunakan fitur yang membutuhkannya.'}
                       </p>
                     )}
                     {profile?.phone && (

@@ -29,9 +29,10 @@ interface ProfileEditorProps {
   onSave: (data: { full_name: string; phone: string | null; address: string | null; avatar_url?: string | null }) => void;
   onCancel: () => void;
   forceCompletion?: boolean;
+  requireCourierProfile?: boolean;
 }
 
-export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false }: ProfileEditorProps) {
+export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false, requireCourierProfile = false }: ProfileEditorProps) {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatar_url || '');
@@ -167,6 +168,24 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       return;
     }
 
+    if (requireCourierProfile && !phone.trim()) {
+      toast({
+        title: 'Nomor WhatsApp wajib diisi',
+        description: 'Gunakan nomor WhatsApp yang aktif agar pelanggan dan sistem dapat menghubungi Anda.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (requireCourierProfile && !avatarUrl) {
+      toast({
+        title: 'Foto profil wajib ditambahkan',
+        description: 'Tambahkan foto profil yang jelas agar pelanggan dapat mengenali kurir.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const hasAnyAddressValue = Boolean(
       addressData.province || addressData.city || addressData.district || addressData.village || addressData.detail.trim(),
     );
@@ -242,13 +261,15 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     <div className="space-y-4">
       {forceCompletion && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
-          Lengkapi alamat atau tambahkan foto selfie kapan saja jika fitur tertentu membutuhkannya.
+          {requireCourierProfile
+            ? 'Foto profil dan nomor WhatsApp aktif wajib untuk menggunakan fitur kerja kurir.'
+            : 'Lengkapi alamat atau tambahkan foto selfie kapan saja jika fitur tertentu membutuhkannya.'}
         </div>
       )}
       {/* Optional profile photo */}
       <div className="space-y-2">
-        <Label>Foto Profil (Selfie) <span className="font-normal text-muted-foreground">(opsional)</span></Label>
-        <p className="text-xs text-muted-foreground">Tambahkan foto diri yang jelas bila Anda nyaman. Maksimal 2MB.</p>
+        <Label>Foto Profil {requireCourierProfile && <span className="text-destructive">*</span>}{!requireCourierProfile && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
+        <p className="text-xs text-muted-foreground">{requireCourierProfile ? 'Gunakan foto diri yang jelas agar mudah dikenali pelanggan. Maksimal 2MB.' : 'Tambahkan foto diri yang jelas bila Anda nyaman. Maksimal 2MB.'}</p>
         <div className="flex justify-center">
         <div className="relative">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-border">
@@ -292,7 +313,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       </div>
 
       <div className="space-y-2">
-        <Label>No. Telepon</Label>
+        <Label>No. WhatsApp {requireCourierProfile && <span className="text-destructive">*</span>}{!requireCourierProfile && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
         <PhoneInput
           value={phone}
           onChange={setPhone}
