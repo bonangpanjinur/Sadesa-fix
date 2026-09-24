@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bell, RotateCcw, ShieldAlert, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,10 @@ export function NotificationOnboardingGate() {
   const { user, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<OnboardingStatus>('checking');
   const [busy, setBusy] = useState(false);
+  const operationRef = useRef(0);
 
   const checkStatus = useCallback(async () => {
+    const operationId = ++operationRef.current;
     if (!user) {
       setStatus('ready');
       return;
@@ -30,12 +32,14 @@ export function NotificationOnboardingGate() {
 
     setStatus('checking');
     const supported = await isPushSupported();
+    if (operationId !== operationRef.current) return;
     if (!supported) {
       setStatus('unsupported');
       return;
     }
 
     const permission = await getPushPermission();
+    if (operationId !== operationRef.current) return;
     if (permission === 'denied') {
       setStatus('denied');
       return;
@@ -46,6 +50,7 @@ export function NotificationOnboardingGate() {
     }
 
     const subscribed = await getSubscriptionStatus(user.id);
+    if (operationId !== operationRef.current) return;
     setStatus(subscribed ? 'ready' : 'subscribe-failed');
   }, [user]);
 
@@ -56,9 +61,11 @@ export function NotificationOnboardingGate() {
 
   const handleEnable = async () => {
     if (!user || busy) return;
+    const operationId = ++operationRef.current;
     setBusy(true);
     try {
       const subscribed = await subscribeToPush(user.id);
+      if (operationId !== operationRef.current) return;
       if (subscribed) {
         setStatus('ready');
       } else {
@@ -66,7 +73,7 @@ export function NotificationOnboardingGate() {
         setStatus(permission === 'denied' ? 'denied' : 'subscribe-failed');
       }
     } finally {
-      setBusy(false);
+      if (operationId === operationRef.current) setBusy(false);
     }
   };
 
