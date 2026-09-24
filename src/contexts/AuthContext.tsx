@@ -60,65 +60,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const broadcastRef = useRef<BroadcastChannel | null>(null);
   const rolesRequestRef = useRef(0);
   const activeUserIdRef = useRef<string | null>(null);
+  const rolesInFlightRef = useRef(new Map<string, Promise<void>>());
 
   const fetchUserRoles = useCallback(async (userId: string) => {
+    const inFlight = rolesInFlightRef.current.get(userId);
+    if (inFlight) {
+      await inFlight;
+      return;
+    }
+
     const requestId = ++rolesRequestRef.current;
     activeUserIdRef.current = userId;
-    try {
+    const request = (async () => {
       setRolesLoading(true);
-      const result = await withTimeout(
-        Promise.all([
-          supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', userId),
-          // Older merchant/courier registrations can exist without their role
-          // rows. Read owned profiles as a frontend recovery signal for that
-          // legacy state; the database triggers remain the source of truth.
-          supabase
-            .from('merchants')
-            .select('id')
-            .eq('user_id', userId)
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from('couriers')
-            .select('id')
-            .eq('user_id', userId)
-            .limit(1)
-            .maybeSingle(),
-        ]),
+      const { data, error } = await withTimeout(
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId),
         AUTH_INIT_TIMEOUT_MS,
         'Timed out while loading user roles',
       );
 
-      const [
-        { data, error },
-        { data: merchant, error: merchantError },
-        { data: courier, error: courierError },
-      ] = result;
       if (error) throw error;
-      if (merchantError) {
-        // The role query is still authoritative. A merchant lookup failure
-        // must not prevent login or turn all other roles into a fallback.
-        console.warn('Unable to check merchant profile for role recovery:', merchantError);
-      }
-      if (courierError) {
-        console.warn('Unable to check courier profile for role recovery:', courierError);
-      }
-
       const userRoles = (data || []).map(r => r.role as AppRole);
+
+      if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
+      // The authoritative role result is enough to finish auth initialization.
+      // Legacy profile recovery below may enrich this list, but must not keep
+      // route guards and the whole application in a loading state.
+      setRoles(ensureBuyerFallback(userRoles));
+      setRolesLoading(false);
+
+      // These checks only repair legacy accounts which were created before
+      // role rows were guaranteed. They must never block authentication.
+      const [merchantResult, courierResult] = await Promise.all([
+        withTimeout(
+          supabase.from('merchants').select('id').eq('user_id', userId).limit(1).maybeSingle(),
+          3_000,
+          'Timed out while checking merchant profile for role recovery',
+        ).catch((error: unknown) => ({ data: null, error })),
+        withTimeout(
+          supabase.from('couriers').select('id').eq('user_id', userId).limit(1).maybeSingle(),
+          3_000,
+          'Timed out while checking courier profile for role recovery',
+        ).catch((error: unknown) => ({ data: null, error })),
+      ]);
+      if (merchantResult.error) console.warn('Unable to check merchant profile for role recovery:', merchantResult.error);
+      if (courierResult.error) console.warn('Unable to check courier profile for role recovery:', courierResult.error);
+
       if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
       const rolesWithProfiles = mergeCourierRole(
-        mergeMerchantRole(userRoles, Boolean(merchant)),
-        Boolean(courier),
+        mergeMerchantRole(userRoles, Boolean(merchantResult.data)),
+        Boolean(courierResult.data),
       );
       setRoles(ensureBuyerFallback(rolesWithProfiles));
+    })();
+    rolesInFlightRef.current.set(userId, request);
+
+    try {
+      await request;
     } catch (err) {
-      console.error('Error fetching user roles:', err);
+      console.warn('Unable to load user roles; using buyer fallback:', err);
       if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
       setRoles(['buyer']);
     } finally {
+      if (rolesInFlightRef.current.get(userId) === request) rolesInFlightRef.current.delete(userId);
       if (requestId === rolesRequestRef.current && activeUserIdRef.current === userId) {
         setRolesLoading(false);
       }
