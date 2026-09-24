@@ -89,15 +89,21 @@ export default function RegisterCourierPage() {
 
   const handleSubmit = async () => {
     if (!validateStep(3)) return;
+
+    if (!user) {
+      toast.error('Anda harus login untuk mendaftar');
+      navigate('/auth');
+      return;
+    }
     
     setLoading(true);
     try {
       const uploadFile = async (file: File, folder: string): Promise<string> => {
         const fileName = `${Date.now()}-${file.name}`;
-        const { data, error } = await supabase.storage.from('courier-documents').upload(`${folder}/${fileName}`, file);
+        const path = `${user.id}/${folder}/${fileName}`;
+        const { data, error } = await supabase.storage.from('courier-documents').upload(path, file);
         if (error) throw error;
-        const { data: urlData } = supabase.storage.from('courier-documents').getPublicUrl(data.path);
-        return urlData.publicUrl;
+        return data.path;
       };
 
       const [ktpUrl, photoUrl, vehicleUrl] = await Promise.all([
@@ -105,12 +111,6 @@ export default function RegisterCourierPage() {
         uploadFile(photoFile!, 'photo'),
         uploadFile(vehicleFile!, 'vehicle'),
       ]);
-
-      if (!user) {
-        toast.error('Anda harus login untuk mendaftar');
-        navigate('/auth');
-        return;
-      }
 
       const { error } = await supabase.from('couriers').insert({
         user_id: user.id,
@@ -133,7 +133,7 @@ export default function RegisterCourierPage() {
       });
 
       if (error) throw error;
-      toast.success('Pendaftaran berhasil! Menunggu verifikasi admin.');
+      toast.success('Pendaftaran berhasil! Menunggu verifikasi verifikator atau admin.');
       navigate('/');
     } catch (error) {
       console.error('Error registering courier:', error);

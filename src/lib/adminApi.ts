@@ -358,6 +358,28 @@ export async function rejectCourier(id: string, reason: string): Promise<boolean
   return true;
 }
 
+/**
+ * Review a courier through the scoped database function. Unlike the legacy
+ * admin-only helpers above, this is safe for assigned verifikators because the
+ * database validates the village scope and only changes approval fields.
+ */
+export async function reviewCourier(
+  id: string,
+  decision: 'APPROVED' | 'REJECTED',
+  reason?: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('review_courier' as never, {
+    p_courier_id: id,
+    p_decision: decision,
+    p_reason: reason ?? null,
+  } as never);
+  if (error) {
+    console.error('Error reviewing courier:', error);
+    return false;
+  }
+  return data === true;
+}
+
 // App settings
 export async function fetchAppSettings(): Promise<AppSetting[]> {
   const { data, error } = await supabase

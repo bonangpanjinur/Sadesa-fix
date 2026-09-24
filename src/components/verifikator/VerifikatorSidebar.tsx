@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  LayoutDashboard, Store, ChevronLeft, ClipboardCheck,
+  LayoutDashboard, Store, Bike, ChevronLeft, ClipboardCheck,
   Wallet, BarChart3, TrendingUp, Calendar, Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ export function VerifikatorSidebar() {
   const location = useLocation();
   const { user } = useAuth();
   const [pendingMerchants, setPendingMerchants] = useState(0);
+  const [pendingCouriers, setPendingCouriers] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -28,15 +29,32 @@ export function VerifikatorSidebar() {
         .from('verifikator_codes')
         .select('code')
         .eq('verifikator_id', user.id)
-        .limit(1);
+        .limit(100);
 
       if (codes && codes.length > 0) {
         const { count } = await supabase
           .from('merchants')
           .select('*', { count: 'exact', head: true })
-          .eq('verifikator_code', codes[0].code)
+          .in('verifikator_code', codes.map(code => code.code))
           .eq('registration_status', 'PENDING');
         setPendingMerchants(count || 0);
+      }
+      const { data: groups } = await supabase
+        .from('trade_groups')
+        .select('village_id')
+        .eq('verifikator_id', user.id)
+        .eq('is_active', true)
+        .not('village_id', 'is', null);
+      const villageIds = (groups || []).map(group => group.village_id).filter(Boolean) as string[];
+      if (villageIds.length > 0) {
+        const { count } = await supabase
+          .from('couriers')
+          .select('*', { count: 'exact', head: true })
+          .in('village_id', villageIds)
+          .eq('registration_status', 'PENDING');
+        setPendingCouriers(count || 0);
+      } else {
+        setPendingCouriers(0);
       }
     };
     fetchPending();
@@ -45,6 +63,7 @@ export function VerifikatorSidebar() {
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard',       href: '/verifikator',               icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Merchant',        href: '/verifikator/merchants',     icon: <Store className="h-4 w-4" />, badge: pendingMerchants },
+    { label: 'Ojek',             href: '/verifikator/couriers',      icon: <Bike className="h-4 w-4" />, badge: pendingCouriers },
     { label: 'Laporan Kas',     href: '/verifikator/kas-report',    icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Pendapatan',      href: '/verifikator/earnings',      icon: <Wallet className="h-4 w-4" /> },
     { label: 'Laporan Ekonomi', href: '/verifikator/ekonomi',       icon: <TrendingUp className="h-4 w-4" /> },

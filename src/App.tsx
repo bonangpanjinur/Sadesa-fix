@@ -136,6 +136,7 @@ const CourierBookingPage = lazy(() => import("./pages/transport/CourierBookingPa
 // Verifikator Pages
 const VerifikatorDashboardPage = lazy(() => import("./pages/verifikator/VerifikatorDashboardPage"));
 const VerifikatorMerchantsPage = lazy(() => import("./pages/verifikator/VerifikatorMerchantsPage"));
+const VerifikatorCouriersPage = lazy(() => import("./pages/verifikator/VerifikatorCouriersPage"));
 const VerifikatorEarningsPage = lazy(() => import("./pages/verifikator/VerifikatorEarningsPage"));
 const VerifikatorKasReportPage = lazy(() => import("./pages/verifikator/VerifikatorKasReportPage"));
 const VerifikatorEkonomiPage = lazy(() => import("./pages/verifikator/VerifikatorEkonomiPage"));
@@ -916,6 +917,11 @@ const App = () => (
               <Route path="/verifikator/merchants" element={
                 <ProtectedRoute allowedRoles={['verifikator', 'admin']}>
                   <VerifikatorMerchantsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/verifikator/couriers" element={
+                <ProtectedRoute allowedRoles={['verifikator', 'admin']}>
+                  <VerifikatorCouriersPage />
                 </ProtectedRoute>
               } />
               <Route path="/verifikator/ekonomi" element={
