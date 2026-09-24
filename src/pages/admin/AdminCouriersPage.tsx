@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bike, Check, X, MoreHorizontal, Edit, Trash2, RefreshCw, UserCheck } from 'lucide-react';
+import { Bike, Check, X, MoreHorizontal, Edit, Trash2, RefreshCw, UserCheck, Eye } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DataTable } from '@/components/admin/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,6 +29,9 @@ interface CourierRow {
   province: string;
   address: string;
   ktp_number: string;
+  ktp_image_url: string;
+  photo_url: string;
+  vehicle_image_url: string;
   vehicle_type: string;
   vehicle_plate: string | null;
   registration_status: string;
@@ -47,6 +51,7 @@ export default function AdminCouriersPage() {
   const queryClient = useQueryClient();
   const [selectedCourier, setSelectedCourier] = useState<CourierRow | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
 
   const fetchCouriersData = async (): Promise<CourierRow[]> => {
     const { data, error } = await supabase
@@ -54,6 +59,7 @@ export default function AdminCouriersPage() {
       .select(`id, name, phone, email, city, district, subdistrict, province, address,
         ktp_number, vehicle_type, vehicle_plate, registration_status,
         status, is_available, registered_at, last_location_update, village_id, user_id,
+        ktp_image_url, photo_url, vehicle_image_url,
         villages(name)`)
       .order('registered_at', { ascending: false });
     if (error) throw error;
@@ -229,6 +235,9 @@ export default function AdminCouriersPage() {
             <DropdownMenuItem onClick={() => { setSelectedCourier(item); setEditDialogOpen(true); }}>
               <Edit className="h-4 w-4 mr-2 text-blue-500" />Edit Data
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { setSelectedCourier(item); setDocumentsOpen(true); }}>
+              <Eye className="h-4 w-4 mr-2 text-primary" />Lihat Dokumen
+            </DropdownMenuItem>
             {item.registration_status === 'PENDING' && (
               <>
                 <DropdownMenuItem onClick={() => handleApprove(item.id)} className="text-emerald-600 focus:text-emerald-600">
@@ -318,6 +327,64 @@ export default function AdminCouriersPage() {
           onSuccess={fetchCouriers}
         />
       )}
+      <AdminCourierDocumentsDialog
+        courier={selectedCourier}
+        open={documentsOpen}
+        onOpenChange={setDocumentsOpen}
+      />
     </AdminLayout>
+  );
+}
+
+async function createAdminDocumentUrl(path: string | null | undefined) {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const { data, error } = await supabase.storage.from('courier-documents').createSignedUrl(path, 10 * 60);
+  return error ? null : data?.signedUrl || null;
+}
+
+function AdminCourierDocumentsDialog({
+  courier,
+  open,
+  onOpenChange,
+}: {
+  courier: CourierRow | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [urls, setUrls] = useState<Record<string, string | null>>({});
+  const [loading, setLoading] = useState(false);
+
+  const loadDocuments = async () => {
+    if (!courier) return;
+    setLoading(true);
+    const [ktp, photo, vehicle] = await Promise.all([
+      createAdminDocumentUrl(courier.ktp_image_url),
+      createAdminDocumentUrl(courier.photo_url),
+      createAdminDocumentUrl(courier.vehicle_image_url),
+    ]);
+    setUrls({ ktp, photo, vehicle });
+    setLoading(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (next) void loadDocuments(); }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Dokumen Kurir/Ojek</DialogTitle>
+          <DialogDescription>{courier?.name || '-'} • Dokumen hanya dapat diakses admin</DialogDescription>
+        </DialogHeader>
+        {loading ? <p className="text-sm text-muted-foreground">Memuat dokumen privat...</p> : (
+          <div className="grid gap-4 md:grid-cols-3">
+            {([['KTP', urls.ktp], ['Foto diri', urls.photo], ['Kendaraan', urls.vehicle]] as const).map(([label, url]) => (
+              <div key={label} className="space-y-2">
+                <p className="text-sm font-medium">{label}</p>
+                {url ? <img src={url} alt={`${label} ${courier?.name || ''}`} className="aspect-video w-full rounded-lg border object-cover" /> : <div className="flex aspect-video items-center justify-center rounded-lg border bg-muted text-xs text-muted-foreground">Dokumen tidak tersedia</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
