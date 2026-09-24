@@ -12,6 +12,7 @@
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
+    "types": ["node", "google.maps"],
     "noEmit": true,
     "noFallthroughCasesInSwitch": false,
     "noImplicitAny": false,

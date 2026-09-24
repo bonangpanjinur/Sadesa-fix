@@ -19,7 +19,7 @@ import { CheckoutAddressForm, type CheckoutAddressData } from '@/components/chec
 import { createEmptyCheckoutAddress } from '@/components/checkout/checkoutAddressDefaults';
 import { formatFullAddress } from '@/components/AddressSelector';
 import { validatePhone } from '@/lib/phoneValidation';
-import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
+import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
@@ -30,6 +30,7 @@ interface MerchantOperatingInfo {
   isOpen: boolean;
   openTime: string | null;
   closeTime: string | null;
+  weeklySchedule: OperatingDaySchedule[];
 }
 
 interface MerchantPaymentSettings {
@@ -246,12 +247,19 @@ export default function CheckoutPage() {
       setOperatingHoursLoading(true);
       setOperatingHoursError(null);
       try {
-        const { data, error } = await supabase
-          .from('merchants')
-          .select('id, name, is_open, open_time, close_time')
-          .in('id', ids);
+        const [{ data, error }, { data: weeklySchedule, error: scheduleError }] = await Promise.all([
+          supabase
+            .from('merchants')
+            .select('id, name, is_open, open_time, close_time')
+            .in('id', ids),
+          supabase
+            .from('merchant_operating_hours')
+            .select('merchant_id, day_of_week, open_time, close_time, is_closed')
+            .in('merchant_id', ids),
+        ]);
 
         if (error) throw error;
+        if (scheduleError) throw scheduleError;
 
         if (data && !cancelled) {
           const info: Record<string, MerchantOperatingInfo> = {};
@@ -262,6 +270,9 @@ export default function CheckoutPage() {
               isOpen: m.is_open,
               openTime: m.open_time,
               closeTime: m.close_time,
+              weeklySchedule: (weeklySchedule ?? [])
+                .filter(schedule => schedule.merchant_id === m.id)
+                .map(({ merchant_id: _merchantId, ...schedule }) => schedule),
             };
           });
           setMerchantOperatingInfo(info);
@@ -281,7 +292,7 @@ export default function CheckoutPage() {
   // Get closed merchants
   const closedMerchants = useMemo(() => {
     return Object.values(merchantOperatingInfo).filter(m => {
-      const status = getMerchantOperatingStatus(m.isOpen, m.openTime, m.closeTime);
+      const status = getMerchantOperatingStatus(m.isOpen, m.openTime, m.closeTime, m.weeklySchedule);
       return !status.isCurrentlyOpen;
     });
   }, [merchantOperatingInfo]);
@@ -676,7 +687,7 @@ export default function CheckoutPage() {
                 </h4>
                 <div className="space-y-2">
                   {closedMerchants.map(m => {
-                    const status = getMerchantOperatingStatus(m.isOpen, m.openTime, m.closeTime);
+                    const status = getMerchantOperatingStatus(m.isOpen, m.openTime, m.closeTime, m.weeklySchedule);
                     return (
                       <div key={m.id} className="flex items-center justify-between">
                         <div>
