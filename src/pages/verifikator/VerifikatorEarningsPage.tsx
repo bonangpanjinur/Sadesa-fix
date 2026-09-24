@@ -80,6 +80,8 @@ export default function VerifikatorEarningsPage() {
   const [withdrawForm, setWithdrawForm] = useState({
     amount: '', bank_name: '', account_number: '', account_holder: '',
   });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const { data, isLoading: loading } = useQuery<EarningsData>({
     queryKey: ['verifikator-earnings', user?.id],
@@ -138,8 +140,15 @@ export default function VerifikatorEarningsPage() {
   const courierEarnings = data?.courierEarnings ?? [];
   const withdrawals = data?.withdrawals ?? [];
   const codes = data?.codes ?? [];
-  const merchantFeeTotal = earnings.reduce((sum, earning) => sum + earning.commission_amount, 0);
-  const courierFeeTotal = courierEarnings.reduce((sum, earning) => sum + earning.amount, 0);
+  const hasInvalidDateRange = Boolean(startDate && endDate && startDate > endDate);
+  const isWithinDateRange = (createdAt: string) => {
+    const date = format(new Date(createdAt), 'yyyy-MM-dd');
+    return (!startDate || date >= startDate) && (!endDate || date <= endDate);
+  };
+  const filteredEarnings = hasInvalidDateRange ? [] : earnings.filter(earning => isWithinDateRange(earning.created_at));
+  const filteredCourierEarnings = hasInvalidDateRange ? [] : courierEarnings.filter(earning => isWithinDateRange(earning.created_at));
+  const merchantFeeTotal = filteredEarnings.reduce((sum, earning) => sum + earning.commission_amount, 0);
+  const courierFeeTotal = filteredCourierEarnings.reduce((sum, earning) => sum + earning.amount, 0);
   const generatedFeeTotal = merchantFeeTotal + courierFeeTotal;
 
   const pendingBalance = earnings.filter(e => e.status === 'PENDING').reduce((sum, e) => sum + e.commission_amount, 0);
@@ -204,6 +213,29 @@ export default function VerifikatorEarningsPage() {
 
   return (
     <VerifikatorLayout title="Pendapatan Komisi" subtitle="Kelola pendapatan dan withdrawal Anda">
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="font-medium">Filter periode laporan</p>
+              <p className="text-sm text-muted-foreground">Total fee dan tabel laporan akan mengikuti tanggal yang dipilih.</p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="space-y-1">
+                <Label htmlFor="earnings-start-date">Mulai tanggal</Label>
+                <Input id="earnings-start-date" type="date" value={startDate} onChange={event => setStartDate(event.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="earnings-end-date">Sampai tanggal</Label>
+                <Input id="earnings-end-date" type="date" value={endDate} onChange={event => setEndDate(event.target.value)} />
+              </div>
+              <Button type="button" variant="outline" onClick={() => { setStartDate(''); setEndDate(''); }} disabled={!startDate && !endDate}>Reset</Button>
+            </div>
+          </div>
+          {hasInvalidDateRange && <p className="mt-3 text-sm text-destructive">Tanggal mulai tidak boleh lebih besar dari tanggal akhir.</p>}
+          {!hasInvalidDateRange && (startDate || endDate) && <p className="mt-3 text-xs text-muted-foreground">Menampilkan {filteredEarnings.length} komisi pedagang dan {filteredCourierEarnings.length} fee ojek.</p>}
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
           <CardContent className="p-4">
@@ -253,11 +285,11 @@ export default function VerifikatorEarningsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Store className="h-4 w-4 text-emerald-600" />Dari pedagang</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{formatPrice(merchantFeeTotal)}</p><p className="text-xs text-muted-foreground mt-1">{earnings.length} catatan komisi · subscription/penjualan</p></CardContent>
+          <CardContent><p className="text-2xl font-bold">{formatPrice(merchantFeeTotal)}</p><p className="text-xs text-muted-foreground mt-1">{filteredEarnings.length} catatan komisi · subscription/penjualan</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-base"><Bike className="h-4 w-4 text-orange-600" />Dari ojek</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{formatPrice(courierFeeTotal)}</p><p className="text-xs text-muted-foreground mt-1">{courierEarnings.length} catatan fee · courier terhubung</p></CardContent>
+          <CardContent><p className="text-2xl font-bold">{formatPrice(courierFeeTotal)}</p><p className="text-xs text-muted-foreground mt-1">{filteredCourierEarnings.length} catatan fee · courier terhubung</p></CardContent>
         </Card>
       </div>
 
@@ -300,9 +332,9 @@ export default function VerifikatorEarningsPage() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Riwayat Komisi</CardTitle></CardHeader>
             <CardContent>
-              {earnings.length === 0 ? (
+              {filteredEarnings.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  Belum ada riwayat komisi. Komisi akan masuk ketika referral Anda melakukan transaksi, membeli kuota, atau membeli produk admin.
+                  {earnings.length === 0 ? 'Belum ada riwayat komisi. Komisi akan masuk ketika referral Anda melakukan transaksi, membeli kuota, atau membeli produk admin.' : 'Tidak ada komisi pada rentang tanggal yang dipilih.'}
                 </div>
               ) : (
                 <Table>
@@ -317,7 +349,7 @@ export default function VerifikatorEarningsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {earnings.map(earning => (
+                    {filteredEarnings.map(earning => (
                       <TableRow key={earning.id}>
                         <TableCell>{format(new Date(earning.created_at), 'dd MMM yyyy', { locale: id })}</TableCell>
                         <TableCell className="font-medium">{earning.merchant?.name || '-'}</TableCell>
@@ -340,12 +372,12 @@ export default function VerifikatorEarningsPage() {
           <Card>
             <CardHeader><CardTitle className="text-lg">Rincian Fee Ojek</CardTitle></CardHeader>
             <CardContent>
-              {courierEarnings.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">Belum ada fee ojek dari courier yang terhubung dengan kode Anda.</div>
+              {filteredCourierEarnings.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">{courierEarnings.length === 0 ? 'Belum ada fee ojek dari courier yang terhubung dengan kode Anda.' : 'Tidak ada fee ojek pada rentang tanggal yang dipilih.'}</div>
               ) : (
                 <Table>
                   <TableHeader><TableRow><TableHead>Tanggal</TableHead><TableHead>Nama Ojek</TableHead><TableHead>Jenis</TableHead><TableHead className="text-right">Fee</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                  <TableBody>{courierEarnings.map(earning => (
+                  <TableBody>{filteredCourierEarnings.map(earning => (
                     <TableRow key={earning.id}>
                       <TableCell>{format(new Date(earning.created_at), 'dd MMM yyyy', { locale: id })}</TableCell>
                       <TableCell className="font-medium">{earning.courier?.name || '-'}</TableCell>

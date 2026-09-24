@@ -15,6 +15,8 @@ Halaman **Pendapatan** verifikator sekarang menampilkan ringkasan fee yang beras
 
 Rincian fee ojek dapat dilihat pada tab **Fee Ojek**, dengan tanggal, nama courier, jenis fee, nominal, dan status. Data courier dibatasi menggunakan `couriers.verifikator_id` atau kode aktif yang cocok dengan `verifikator_codes.verifikator_id`.
 
+Dashboard juga menyediakan filter **Mulai tanggal** dan **Sampai tanggal**. Filter menggunakan `created_at` pada `verifikator_earnings` dan `courier_earnings`, berlaku pada total fee, jumlah catatan, dan kedua tabel laporan. Jika tanggal mulai lebih besar dari tanggal akhir, dashboard menampilkan validasi dan tidak menghitung catatan periode tersebut. Kartu saldo tersedia dan riwayat withdrawal tetap merepresentasikan saldo operasional saat ini.
+
 ## Struktur `verifikator_codes`
 
 | Kolom | Tipe | Keterangan |
