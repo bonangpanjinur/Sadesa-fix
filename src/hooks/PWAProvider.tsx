@@ -162,17 +162,13 @@ function usePWAController(): PWAContextValue {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    const hadController = Boolean(navigator.serviceWorker?.controller);
-    let hasReloadedForControllerChange = false;
     let updateCheckTimer: ReturnType<typeof setInterval> | null = null;
 
     const handleControllerChange = () => {
-      // Do not reload the first page load that becomes PWA-controlled. On later
-      // activations, reload immediately so mobile standalone windows use the
-      // newly precached application shell instead of the old document.
-      if (!hadController || hasReloadedForControllerChange) return;
-      hasReloadedForControllerChange = true;
-      window.location.reload();
+      // A worker update must not interrupt an active form, checkout, chat, or
+      // admin operation. The explicit UpdatePrompt button calls updateApp()
+      // when the user is ready to reload.
+      setStatus((prev) => ({ ...prev, isUpdateAvailable: true }));
     };
 
     const handleVisibilityChange = () => {

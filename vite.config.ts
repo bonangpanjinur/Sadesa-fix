@@ -20,7 +20,9 @@ export default defineConfig(() => ({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
+      // Do not force-reload active sessions when a deployment publishes a new
+      // worker. The in-app UpdatePrompt lets the user choose the right moment.
+      registerType: 'prompt',
       includeAssets: [
         'favicon.ico',
         'branding/sadesa-favicon.png',
