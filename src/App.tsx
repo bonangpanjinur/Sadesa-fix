@@ -92,6 +92,7 @@ const AdminHalalRegulationPage = lazy(() => import("./pages/admin/AdminHalalRegu
 const AdminTransactionQuotaPage = lazy(() => import("./pages/admin/AdminTransactionQuotaPage"));
 const AdminFreeQuotaPage = lazy(() => import("./pages/admin/AdminFreeQuotaPage"));
 const AdminVerifikatorCommissionsPage = lazy(() => import("./pages/admin/AdminVerifikatorCommissionsPage"));
+const AdminVerifierCommercePage = lazy(() => import("./pages/admin/AdminVerifierCommercePage"));
 const AdminFinancePage = lazy(() => import("./pages/admin/AdminFinancePage"));
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
 const AdminBroadcastPage = lazy(() => import("./pages/admin/AdminBroadcastPage"));
@@ -125,6 +126,7 @@ const CourierRidesPage = lazy(() => import("./pages/courier/CourierRidesPage"));
 const CourierDeliveryPage = lazy(() => import("./pages/courier/CourierDeliveryPage"));
 const CourierPerformaPage = lazy(() => import("./pages/courier/CourierPerformaPage"));
 const CourierSlipPage = lazy(() => import("./pages/courier/CourierSlipPage"));
+const DriverStorePage = lazy(() => import("./pages/StorePage").then(({ DriverStorePage }) => ({ default: DriverStorePage })));
 
 // Ride Pages
 const RideBookingPage = lazy(() => import("./pages/ride/RideBookingPage"));
@@ -158,6 +160,7 @@ const MerchantVouchersPage = lazy(() => import("./pages/merchant/MerchantVoucher
 const MerchantScheduledPromoPage = lazy(() => import("./pages/merchant/MerchantScheduledPromoPage"));
 const MerchantVisitorStatsPage = lazy(() => import("./pages/merchant/MerchantVisitorStatsPage"));
 const MerchantChatPage = lazy(() => import("./pages/merchant/MerchantChatPage"));
+const MerchantStorePage = lazy(() => import("./pages/StorePage").then(({ MerchantStorePage }) => ({ default: MerchantStorePage })));
 const MerchantRefundsPage = lazy(() => import("./pages/merchant/MerchantRefundsPage"));
 const MerchantPOSSubscribePage = lazy(() => import("./pages/merchant/MerchantPOSSubscribePage"));
 const MerchantDuesPage = lazy(() => import("./pages/merchant/MerchantDuesPage"));
@@ -589,6 +592,11 @@ const App = () => (
                   <CourierSlipPage />
                 </ProtectedRoute>
               } />
+              <Route path="/courier/store" element={
+                <ProtectedRoute>
+                  <DriverStorePage />
+                </ProtectedRoute>
+              } />
               
               {/* Ride routes */}
               <Route path="/ride" element={
@@ -784,6 +792,11 @@ const App = () => (
               <Route path="/admin/verifikator-commissions" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminVerifikatorCommissionsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/verifier-commerce" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminVerifierCommercePage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/finance" element={
@@ -1053,6 +1066,11 @@ const App = () => (
               <Route path="/merchant/chat" element={
                 <ProtectedRoute>
                   <MerchantChatPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/merchant/store" element={
+                <ProtectedRoute>
+                  <MerchantStorePage />
                 </ProtectedRoute>
               } />
               <Route path="/merchant/pos/subscribe" element={

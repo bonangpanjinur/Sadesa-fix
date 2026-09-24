@@ -33,6 +33,9 @@ interface Earning {
   paid_at: string | null;
   merchant?: { name: string };
   package?: { name: string };
+  source_type?: string;
+  buyer_role?: string | null;
+  description?: string | null;
 }
 
 interface Withdrawal {
@@ -223,7 +226,7 @@ export default function VerifikatorEarningsPage() {
             <CardContent>
               {earnings.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  Belum ada riwayat komisi. Komisi akan masuk ketika merchant binaan Anda membeli paket transaksi.
+                  Belum ada riwayat komisi. Komisi akan masuk ketika referral Anda melakukan transaksi, membeli kuota, atau membeli produk admin.
                 </div>
               ) : (
                 <Table>
@@ -231,7 +234,7 @@ export default function VerifikatorEarningsPage() {
                     <TableRow>
                       <TableHead>Tanggal</TableHead>
                       <TableHead>Pedagang</TableHead>
-                      <TableHead>Paket</TableHead>
+                      <TableHead>Sumber</TableHead>
                       <TableHead className="text-right">Harga Paket</TableHead>
                       <TableHead className="text-right">Komisi</TableHead>
                       <TableHead>Status</TableHead>
@@ -242,7 +245,7 @@ export default function VerifikatorEarningsPage() {
                       <TableRow key={earning.id}>
                         <TableCell>{format(new Date(earning.created_at), 'dd MMM yyyy', { locale: id })}</TableCell>
                         <TableCell className="font-medium">{earning.merchant?.name || '-'}</TableCell>
-                        <TableCell>{earning.package?.name || '-'}</TableCell>
+                        <TableCell>{earning.source_type === 'ADMIN_PRODUCT_DRIVER' ? 'Produk admin · Driver' : earning.source_type === 'ADMIN_PRODUCT_MERCHANT' ? 'Produk admin · Merchant' : earning.source_type === 'QUOTA_SALE' ? 'Penjualan kuota' : earning.source_type === 'TRANSACTION' ? 'Transaksi' : earning.package?.name || '-'}</TableCell>
                         <TableCell className="text-right">{formatPrice(earning.package_amount)}</TableCell>
                         <TableCell className="text-right font-medium text-success">
                           +{formatPrice(earning.commission_amount)} ({earning.commission_percent}%)

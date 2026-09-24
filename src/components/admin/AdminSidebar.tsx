@@ -104,6 +104,7 @@ export function AdminSidebar({
         { label: 'Master Ekspedisi', href: '/admin/expeditions', icon: <Truck className="h-4 w-4" /> },
         { label: 'Kasir POS', href: '/admin/pos', icon: <Receipt className="h-4 w-4" /> },
         { label: 'Paket Kuota Marketplace', href: '/admin/transaction-quota', icon: <Package className="h-4 w-4" /> },
+        { label: 'Toko & Komisi Referral', href: '/admin/verifier-commerce', icon: <Store className="h-4 w-4" /> },
         { label: 'Merchant Tier Gratis', href: '/admin/free-quota', icon: <Clock3 className="h-4 w-4" /> },
         { label: 'Kategori Produk', href: '/admin/categories', icon: <Tags className="h-4 w-4" /> },
         { label: 'Dispute Center', href: '/admin/disputes', icon: <FileText className="h-4 w-4" /> },
