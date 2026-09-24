@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TicketCheck, Store, TrendingUp, Wallet, Copy, Calendar, Check, X, Plus, Settings, ChevronRight, Users, Bell, FileText, Send, Megaphone } from 'lucide-react';
+import { TicketCheck, Store, TrendingUp, Wallet, Copy, Share2, Calendar, Check, X, Plus, Settings, ChevronRight, Users, Bell, FileText, Send, Megaphone } from 'lucide-react';
 import { GroupAnnouncementDialog } from '@/components/verifikator/GroupAnnouncementDialog';
 import { VerifikatorLayout } from '@/components/verifikator/VerifikatorLayout';
 import { StatsCard } from '@/components/admin/StatsCard';
@@ -412,6 +412,17 @@ export default function VerifikatorDashboardPage() {
     }
   };
 
+  const copyReferralLink = async () => {
+    if (!codeInfo) return;
+    const link = `${window.location.origin}/register?ref=${encodeURIComponent(codeInfo.code)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success('Link referral berhasil disalin');
+    } catch {
+      toast.error('Link referral tidak dapat disalin otomatis');
+    }
+  };
+
   const openEditDialog = () => {
     if (group) {
       setGroupName(group.name);
@@ -448,7 +459,7 @@ export default function VerifikatorDashboardPage() {
             </div>
             <CardTitle>Buat Kelompok Dagang Anda</CardTitle>
             <CardDescription>
-              Sebagai verifikator, Anda mengelola satu kelompok dagang dengan satu kode referral untuk merchant
+              Sebagai verifikator, Anda mengelola satu kelompok dagang dengan satu kode referral untuk pedagang dan ojek
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -463,7 +474,7 @@ export default function VerifikatorDashboardPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Buat Kelompok Dagang</DialogTitle>
-              <DialogDescription>Satu kelompok dagang = satu kode referral untuk merchant</DialogDescription>
+              <DialogDescription>Satu kode referral dapat dipakai pedagang maupun ojek</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -517,7 +528,7 @@ export default function VerifikatorDashboardPage() {
                 <p className="text-sm text-muted-foreground">{group.description || 'Kelompok dagang Anda'}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-3">
               <div className="flex items-center gap-2 bg-secondary px-4 py-2 rounded-lg">
                 <TicketCheck className="h-4 w-4 text-muted-foreground" />
                 <code className="font-mono font-bold">{codeInfo.code}</code>
@@ -525,6 +536,9 @@ export default function VerifikatorDashboardPage() {
                   <Copy className="h-3 w-3" />
                 </Button>
               </div>
+              <Button variant="outline" size="sm" onClick={() => void copyReferralLink()}>
+                <Share2 className="mr-2 h-4 w-4" />Bagikan link
+              </Button>
               <Button variant="outline" size="icon" onClick={() => setAnnouncementOpen(true)} title="Pengumuman">
                 <Megaphone className="h-4 w-4" />
               </Button>

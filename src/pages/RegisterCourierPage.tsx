@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { ArrowLeft, Bike, Upload, Check, AlertCircle, Tag, CheckCircle, Loader2 } from 'lucide-react';
 import { z } from 'zod';
@@ -29,6 +29,7 @@ type CourierFormData = z.infer<typeof courierSchema>;
 
 export default function RegisterCourierPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [isEnabled, setIsEnabled] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export default function RegisterCourierPage() {
   const [formData, setFormData] = useState<Partial<CourierFormData>>({ vehicleType: 'motor' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [addressData, setAddressData] = useState<AddressData>(createEmptyAddressData());
-  const [referralCode, setReferralCode] = useState('');
+  const [referralCode, setReferralCode] = useState(() => searchParams.get('ref')?.trim().toUpperCase() || '');
   const [referralInfo, setReferralInfo] = useState<{ isValid: boolean; tradeGroup: string; isLoading: boolean }>({ isValid: false, tradeGroup: '', isLoading: false });
   const [matchedVillageId, setMatchedVillageId] = useState<string | null>(null);
   

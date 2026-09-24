@@ -53,8 +53,8 @@ export default function AuthPage() {
     if (authLoading || rolesLoading) return;
     
     if (user && roles.length > 0) {
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
-      const redirectPath = from || getRedirectPathForRoles(roles);
+      const from = (location.state as { from?: { pathname: string; search?: string } })?.from;
+      const redirectPath = from ? `${from.pathname}${from.search || ''}` : getRedirectPathForRoles(roles);
       navigate(redirectPath, { replace: true });
     }
   }, [user, roles, authLoading, rolesLoading, navigate, location]);

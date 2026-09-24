@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Building, Store, Bike, ArrowRight, CheckCircle, Users, Shield, Camera } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -7,6 +7,8 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { getSettingByKey } from '@/lib/adminApi';
 
 export default function RegisterPage() {
+  const [searchParams] = useSearchParams();
+  const referralSearch = searchParams.get('ref') ? `?ref=${encodeURIComponent(searchParams.get('ref')!.trim().toUpperCase())}` : '';
   const [courierEnabled, setCourierEnabled] = useState<boolean | null>(null);
   const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
 
@@ -102,7 +104,7 @@ export default function RegisterPage() {
               transition={{ delay: 0.2 }}
             >
               <Link
-                to="/register/merchant"
+                to={`/register/merchant${referralSearch}`}
                 className="block bg-card rounded-2xl border border-border p-5 hover:border-accent/50 hover:shadow-lg transition-all group"
               >
                 <div className="flex items-start gap-4">
@@ -140,7 +142,7 @@ export default function RegisterPage() {
                 transition={{ delay: 0.3 }}
               >
                 <Link
-                  to="/register/courier"
+                  to={`/register/courier${referralSearch}`}
                   className="block bg-card rounded-2xl border border-border p-5 hover:border-primary/50 hover:shadow-lg transition-all group"
                 >
                   <div className="flex items-start gap-4">

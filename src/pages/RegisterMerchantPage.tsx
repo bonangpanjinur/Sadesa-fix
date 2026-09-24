@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -80,6 +80,7 @@ interface DraftData {
 
 export default function RegisterMerchantPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, refetchRoles } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
@@ -114,7 +115,7 @@ export default function RegisterMerchantPage() {
     description: '',
     isLoading: false,
   });
-  const [referralCode, setReferralCode] = useState('');
+  const [referralCode, setReferralCode] = useState(() => searchParams.get('ref')?.trim().toUpperCase() || '');
 
   const { register, handleSubmit, setValue, watch, getValues, trigger, formState: { errors } } = useForm<MerchantFormData>({
     resolver: zodResolver(merchantSchema),
@@ -190,7 +191,7 @@ export default function RegisterMerchantPage() {
       if (draft.closeTime) setValue('closeTime', draft.closeTime);
       if (draft.weeklySchedule) setWeeklySchedule(draft.weeklySchedule);
       if (draft.addressDetail) setValue('addressDetail', draft.addressDetail);
-      if (draft.referralCode) setReferralCode(draft.referralCode);
+      if (draft.referralCode) setReferralCode((current) => current || draft.referralCode.toUpperCase());
       if (draft.merchantLocation) setMerchantLocation(draft.merchantLocation);
       if (draft.halalStatus) setHalalStatus(draft.halalStatus as 'NONE' | 'PENDING_VERIFICATION' | 'REQUESTED');
       if (draft.halalCertUrl) setHalalCertUrl(draft.halalCertUrl);

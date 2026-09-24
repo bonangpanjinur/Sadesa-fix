@@ -562,6 +562,8 @@ export type Database = {
           vehicle_image_url: string
           vehicle_plate: string | null
           vehicle_type: string
+          verifikator_code: string | null
+          verifikator_id: string | null
           village_id: string | null
         }
         Insert: {
@@ -600,6 +602,8 @@ export type Database = {
           vehicle_image_url: string
           vehicle_plate?: string | null
           vehicle_type?: string
+          verifikator_code?: string | null
+          verifikator_id?: string | null
           village_id?: string | null
         }
         Update: {
@@ -638,6 +642,8 @@ export type Database = {
           vehicle_image_url?: string
           vehicle_plate?: string | null
           vehicle_type?: string
+          verifikator_code?: string | null
+          verifikator_id?: string | null
           village_id?: string | null
         }
         Relationships: [
