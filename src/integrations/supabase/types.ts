@@ -538,6 +538,7 @@ export type Database = {
           created_at: string
           current_lat: number | null
           current_lng: number | null
+          date_of_birth: string | null
           district: string
           email: string | null
           id: string
@@ -575,6 +576,7 @@ export type Database = {
           created_at?: string
           current_lat?: number | null
           current_lng?: number | null
+          date_of_birth?: string | null
           district: string
           email?: string | null
           id?: string
@@ -612,6 +614,7 @@ export type Database = {
           created_at?: string
           current_lat?: number | null
           current_lng?: number | null
+          date_of_birth?: string | null
           district?: string
           email?: string | null
           id?: string

@@ -18,6 +18,7 @@ const courierSchema = z.object({
   name: z.string().min(3, 'Nama minimal 3 karakter').max(100),
   phone: z.string().min(10, 'Nomor HP minimal 10 digit').max(15),
   email: z.string().email('Email tidak valid').optional().or(z.literal('')),
+  dateOfBirth: z.string().min(1, 'Tanggal lahir wajib diisi'),
   ktpNumber: z.string().length(16, 'Nomor KTP harus 16 digit'),
   vehicleType: z.enum(['motor', 'mobil', 'sepeda']),
   vehiclePlate: z.string().optional(),
@@ -92,6 +93,16 @@ export default function RegisterCourierPage() {
     if (currentStep === 1) {
       if (!formData.name || formData.name.length < 3) newErrors.name = 'Nama minimal 3 karakter';
       if (!formData.phone || formData.phone.length < 10) newErrors.phone = 'Nomor HP minimal 10 digit';
+      if (!formData.dateOfBirth) {
+        newErrors.dateOfBirth = 'Tanggal lahir wajib diisi';
+      } else {
+        const birthDate = new Date(`${formData.dateOfBirth}T00:00:00`);
+        const today = new Date();
+        const minimumBirthDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+        if (Number.isNaN(birthDate.getTime()) || birthDate > minimumBirthDate) {
+          newErrors.dateOfBirth = 'Pendaftar ojek harus berusia minimal 18 tahun';
+        }
+      }
       if (!formData.ktpNumber || formData.ktpNumber.length !== 16) newErrors.ktpNumber = 'Nomor KTP harus 16 digit';
       if (referralCode.trim() && (!referralInfo.isValid || referralInfo.isLoading)) newErrors.referralCode = 'Kode referral tidak valid atau masih diperiksa';
     }
@@ -154,6 +165,7 @@ export default function RegisterCourierPage() {
         name: formData.name,
         phone: formData.phone,
         email: formData.email || user.email || null,
+        date_of_birth: formData.dateOfBirth,
         ktp_number: formData.ktpNumber,
         vehicle_type: formData.vehicleType,
         vehicle_plate: formData.vehiclePlate || null,
@@ -249,6 +261,13 @@ export default function RegisterCourierPage() {
               <Label htmlFor="ktpNumber">Nomor KTP *</Label>
               <Input id="ktpNumber" value={formData.ktpNumber || ''} onChange={(e) => setFormData(prev => ({ ...prev, ktpNumber: e.target.value.replace(/\D/g, '').slice(0, 16) }))} placeholder="16 digit nomor KTP" maxLength={16} />
               {errors.ktpNumber && <p className="text-xs text-destructive">{errors.ktpNumber}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Tanggal Lahir *</Label>
+              <Input id="dateOfBirth" type="date" value={formData.dateOfBirth || ''} onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))} max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().slice(0, 10)} />
+              <p className="text-xs text-muted-foreground">Pendaftar harus berusia minimal 18 tahun.</p>
+              {errors.dateOfBirth && <p className="text-xs text-destructive">{errors.dateOfBirth}</p>}
             </div>
 
             <div className="space-y-2">
