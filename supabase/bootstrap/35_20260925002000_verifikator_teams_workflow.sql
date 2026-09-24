@@ -106,7 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_verification_case_events_case_time ON public.veri
 CREATE INDEX IF NOT EXISTS idx_verification_case_events_actor_time ON public.verification_case_events(actor_id, created_at DESC);
 
 CREATE OR REPLACE FUNCTION public.is_active_verifikator_team_member(p_team_id uuid, p_roles text[] DEFAULT NULL)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, row_security = off AS $$
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public SET row_security = off AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.verifikator_team_members tm
     WHERE tm.team_id = p_team_id AND tm.user_id = auth.uid() AND tm.is_active = true
@@ -115,7 +115,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, r
 $$;
 
 CREATE OR REPLACE FUNCTION public.team_has_village_scope(p_team_id uuid, p_village_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, row_security = off AS $$
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public SET row_security = off AS $$
   SELECT p_village_id IS NULL OR EXISTS (
     SELECT 1 FROM public.verifikator_team_scopes ts
     WHERE ts.team_id = p_team_id AND ts.village_id = p_village_id AND ts.is_active = true
@@ -192,7 +192,7 @@ DROP TRIGGER IF EXISTS trg_ensure_courier_verification_case ON public.couriers;
 CREATE TRIGGER trg_ensure_courier_verification_case AFTER INSERT OR UPDATE OF registration_status, verifikator_team_id ON public.couriers FOR EACH ROW EXECUTE FUNCTION public.ensure_verification_case();
 
 CREATE OR REPLACE FUNCTION public.claim_verification_case(p_case_id uuid)
-RETURNS public.verification_cases LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, row_security = off AS $$
+RETURNS public.verification_cases LANGUAGE plpgsql SECURITY DEFINER SET search_path = public SET row_security = off AS $$
 DECLARE v_case public.verification_cases;
 BEGIN
   SELECT * INTO v_case FROM public.verification_cases WHERE id = p_case_id FOR UPDATE;
@@ -206,7 +206,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.review_verification_case(p_case_id uuid, p_decision text, p_reason text DEFAULT NULL)
-RETURNS public.verification_cases LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, row_security = off AS $$
+RETURNS public.verification_cases LANGUAGE plpgsql SECURITY DEFINER SET search_path = public SET row_security = off AS $$
 DECLARE v_case public.verification_cases; v_previous_status text;
 BEGIN
   IF p_decision NOT IN ('READY_FOR_APPROVAL','APPROVED','REJECTED','NEED_REVISION','ESCALATED') THEN RAISE EXCEPTION 'Invalid verification decision' USING ERRCODE = '22023'; END IF;
