@@ -95,9 +95,11 @@ export default function VerifikatorEarningsPage() {
 
   const pendingBalance = earnings.filter(e => e.status === 'PENDING').reduce((sum, e) => sum + e.commission_amount, 0);
   const paidBalance = earnings.filter(e => e.status === 'PAID').reduce((sum, e) => sum + e.commission_amount, 0);
-  const totalWithdrawn = withdrawals.filter(w => ['APPROVED', 'COMPLETED', 'PENDING'].includes(w.status)).reduce((sum, w) => sum + w.amount, 0);
   const pendingWithdrawal = withdrawals.filter(w => w.status === 'PENDING').reduce((sum, w) => sum + w.amount, 0);
-  const availableBalance = paidBalance - totalWithdrawn;
+  // New earnings are created as PENDING and become PAID only after admin
+  // approves a withdrawal. Therefore PENDING is the withdrawable balance;
+  // subtract active withdrawal requests to prevent duplicate requests.
+  const availableBalance = Math.max(0, pendingBalance - pendingWithdrawal);
 
   const withdrawMutation = useMutation({
     mutationFn: async () => {

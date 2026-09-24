@@ -193,6 +193,10 @@ export default function AdminTransactionQuotaPage() {
   // Package handlers
   const handlePackageSubmit = async () => {
     try {
+      if (!Number.isFinite(packageFormData.group_commission_percent) || packageFormData.group_commission_percent < 0 || packageFormData.group_commission_percent > 100) {
+        toast.error('Komisi verifikator harus berada di antara 0% sampai 100%');
+        return;
+      }
       if (editingPackage) {
         const { error } = await supabase
           .from('transaction_packages')
@@ -737,8 +741,8 @@ export default function AdminTransactionQuotaPage() {
                   <Input id="pkg-validity" type="number" value={packageFormData.validity_days} onChange={(e) => setPackageFormData({ ...packageFormData, validity_days: parseInt(e.target.value) })} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pkg-commission">Komisi Kas (%)</Label>
-                  <Input id="pkg-commission" type="number" value={packageFormData.group_commission_percent} onChange={(e) => setPackageFormData({ ...packageFormData, group_commission_percent: parseInt(e.target.value) })} />
+                  <Label htmlFor="pkg-commission">Komisi Verifikator (%)</Label>
+                  <Input id="pkg-commission" type="number" min="0" max="100" step="0.01" value={packageFormData.group_commission_percent} onChange={(e) => setPackageFormData({ ...packageFormData, group_commission_percent: Number(e.target.value) })} />
                 </div>
               </div>
               <div className="space-y-2">
