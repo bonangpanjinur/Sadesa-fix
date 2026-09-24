@@ -8,6 +8,7 @@ import { PhoneInput } from '@/components/ui/PhoneInput';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { isValidIndonesianPhone } from '@/lib/phoneValidation';
+import { isValidKtpNumber, normalizeKtpNumber } from '@/lib/identityValidation';
 
 interface ProfileEditorProps {
   userId: string;
@@ -25,14 +26,16 @@ interface ProfileEditorProps {
     village_id?: string | null;
     village_name?: string | null;
     address_detail?: string | null;
+    ktp_number?: string | null;
   };
-  onSave: (data: { full_name: string; phone: string | null; address: string | null; avatar_url?: string | null }) => void;
+  onSave: (data: { full_name: string; phone: string | null; address: string | null; avatar_url?: string | null; ktp_number?: string | null }) => void;
   onCancel: () => void;
   forceCompletion?: boolean;
   requireCourierProfile?: boolean;
+  requireMerchantProfile?: boolean;
 }
 
-export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false, requireCourierProfile = false }: ProfileEditorProps) {
+export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false, requireCourierProfile = false, requireMerchantProfile = false }: ProfileEditorProps) {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatar_url || '');
@@ -46,6 +49,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
   const [gpsUnavailable, setGpsUnavailable] = useState(false);
   const [fullName, setFullName] = useState(initialData.full_name || '');
   const [phone, setPhone] = useState(initialData.phone || '');
+  const [ktpNumber, setKtpNumber] = useState(initialData.ktp_number || '');
   const [phoneValid, setPhoneValid] = useState(true);
   const [addressData, setAddressData] = useState<AddressData>(() => {
     // Initialize with stored address components if available
@@ -177,10 +181,37 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       return;
     }
 
+    if (requireMerchantProfile && !phone.trim()) {
+      toast({
+        title: 'Nomor WhatsApp wajib diisi',
+        description: 'Gunakan nomor WhatsApp yang aktif agar pelanggan dan sistem dapat menghubungi Anda.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (requireCourierProfile && !avatarUrl) {
       toast({
         title: 'Foto profil wajib ditambahkan',
         description: 'Tambahkan foto profil yang jelas agar pelanggan dapat mengenali kurir.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (requireMerchantProfile && !isValidKtpNumber(ktpNumber)) {
+      toast({
+        title: 'Nomor KTP wajib diisi',
+        description: 'Masukkan 16 digit nomor KTP pemilik akun merchant.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (requireMerchantProfile && !avatarUrl) {
+      toast({
+        title: 'Foto profil akun wajib ditambahkan',
+        description: 'Unggah foto profil pemilik akun, bukan foto toko.',
         variant: 'destructive',
       });
       return;
@@ -223,6 +254,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         .update({
           full_name: fullName.trim(),
           phone: phone.trim() || null,
+          ktp_number: ktpNumber.trim() || null,
           address: addressWithMapsUrl || null,
           province_id: hasCompleteAddress ? addressData.province : null,
           province_name: hasCompleteAddress ? addressData.provinceName : null,
@@ -241,8 +273,9 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       onSave({
         full_name: fullName.trim(),
         phone: phone.trim() || null,
-          address: addressWithMapsUrl,
+        address: addressWithMapsUrl,
         avatar_url: avatarUrl || null,
+        ktp_number: ktpNumber.trim() || null,
       });
 
       toast({ title: 'Profil berhasil diperbarui' });
@@ -263,13 +296,15 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
           {requireCourierProfile
             ? 'Foto profil dan nomor WhatsApp aktif wajib untuk menggunakan fitur kerja kurir.'
+            : requireMerchantProfile
+              ? 'Foto profil akun, nomor KTP, dan nomor WhatsApp aktif wajib untuk menggunakan fitur kerja merchant.'
             : 'Lengkapi alamat atau tambahkan foto selfie kapan saja jika fitur tertentu membutuhkannya.'}
         </div>
       )}
       {/* Optional profile photo */}
       <div className="space-y-2">
-        <Label>Foto Profil {requireCourierProfile && <span className="text-destructive">*</span>}{!requireCourierProfile && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
-        <p className="text-xs text-muted-foreground">{requireCourierProfile ? 'Gunakan foto diri yang jelas agar mudah dikenali pelanggan. Maksimal 2MB.' : 'Tambahkan foto diri yang jelas bila Anda nyaman. Maksimal 2MB.'}</p>
+        <Label>Foto Profil {(requireCourierProfile || requireMerchantProfile) && <span className="text-destructive">*</span>}{!(requireCourierProfile || requireMerchantProfile) && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
+        <p className="text-xs text-muted-foreground">{requireCourierProfile || requireMerchantProfile ? 'Gunakan foto profil akun yang jelas, bukan foto toko. Maksimal 2MB.' : 'Tambahkan foto diri yang jelas bila Anda nyaman. Maksimal 2MB.'}</p>
         <div className="flex justify-center">
         <div className="relative">
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-border">
@@ -313,7 +348,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       </div>
 
       <div className="space-y-2">
-        <Label>No. WhatsApp {requireCourierProfile && <span className="text-destructive">*</span>}{!requireCourierProfile && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
+        <Label>No. WhatsApp {(requireCourierProfile || requireMerchantProfile) && <span className="text-destructive">*</span>}{!(requireCourierProfile || requireMerchantProfile) && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
         <PhoneInput
           value={phone}
           onChange={setPhone}
@@ -321,6 +356,23 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           disabled={saving}
         />
       </div>
+
+      {requireMerchantProfile && (
+        <div className="space-y-2">
+          <Label htmlFor="ktp-number">Nomor KTP <span className="text-destructive">*</span></Label>
+          <Input
+            id="ktp-number"
+            value={ktpNumber}
+            onChange={(event) => setKtpNumber(normalizeKtpNumber(event.target.value))}
+            placeholder="16 digit nomor KTP"
+            inputMode="numeric"
+            maxLength={16}
+            autoComplete="off"
+            disabled={saving}
+          />
+          <p className="text-xs text-muted-foreground">Nomor KTP pemilik akun merchant, bukan nomor identitas toko.</p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label>Alamat</Label>

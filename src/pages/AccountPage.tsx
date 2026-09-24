@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ProfileEditor } from '@/components/account/ProfileEditor';
 import { isValidIndonesianPhone } from '@/lib/phoneValidation';
+import { isValidKtpNumber } from '@/lib/identityValidation';
 
 interface Profile {
   full_name: string;
@@ -29,6 +30,7 @@ interface Profile {
   village_id?: string | null;
   village_name?: string | null;
   address_detail?: string | null;
+  ktp_number?: string | null;
 }
 
 export default function AccountPage() {
@@ -40,6 +42,7 @@ export default function AccountPage() {
   const [editing, setEditing] = useState(false);
   const [profileRequired, setProfileRequired] = useState(false);
   const [courierProfileRequired, setCourierProfileRequired] = useState(false);
+  const [merchantProfileRequired, setMerchantProfileRequired] = useState(false);
   const showVillageRegistration = import.meta.env.VITE_ENABLE_VILLAGE_REGISTRATION === 'true';
 
   const fetchProfile = useCallback(async () => {
@@ -48,7 +51,7 @@ export default function AccountPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('full_name, phone, address, avatar_url, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
+        .select('full_name, phone, address, avatar_url, ktp_number, province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -66,17 +69,24 @@ export default function AccountPage() {
         );
         setCourierProfileRequired(courierIncomplete);
         if (courierIncomplete) setEditing(true);
+        const merchantIncomplete = Boolean(
+          isMerchant && (!data.avatar_url || !data.phone || !isValidIndonesianPhone(data.phone) || !isValidKtpNumber(data.ktp_number)),
+        );
+        setMerchantProfileRequired(merchantIncomplete);
+        if (merchantIncomplete) setEditing(true);
       } else {
         setProfileRequired(true);
         setCourierProfileRequired(isCourier);
         if (isCourier) setEditing(true);
+        setMerchantProfileRequired(isMerchant);
+        if (isMerchant) setEditing(true);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
     }
-  }, [isCourier, user]);
+  }, [isCourier, isMerchant, user]);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -250,17 +260,21 @@ export default function AccountPage() {
                       village_id: profile?.village_id,
                       village_name: profile?.village_name,
                       address_detail: profile?.address_detail,
+                      ktp_number: profile?.ktp_number,
                     }}
                     onSave={handleProfileSave}
                     onCancel={() => setEditing(false)}
-                    forceCompletion={profileRequired || courierProfileRequired}
+                    forceCompletion={profileRequired || courierProfileRequired || merchantProfileRequired}
                     requireCourierProfile={courierProfileRequired}
+                    requireMerchantProfile={merchantProfileRequired}
                   />
                 ) : (
                   <div className="space-y-2 text-sm">
-                    {(profileRequired || courierProfileRequired) && (
+                    {(profileRequired || courierProfileRequired || merchantProfileRequired) && (
                       <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
-                        {courierProfileRequired
+                        {merchantProfileRequired
+                          ? 'Untuk bekerja sebagai merchant, tambahkan foto profil akun, nomor KTP, dan nomor WhatsApp aktif.'
+                          : courierProfileRequired
                           ? 'Untuk bekerja sebagai kurir, tambahkan foto profil dan nomor WhatsApp aktif.'
                           : 'Lengkapi alamat atau tambahkan foto profil jika Anda ingin menggunakan fitur yang membutuhkannya.'}
                       </p>
