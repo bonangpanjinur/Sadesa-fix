@@ -3690,6 +3690,15 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_chats: { Args: never; Returns: undefined }
+      create_verifikator_trade_group: {
+        Args: {
+          p_code: string
+          p_description?: string | null
+          p_monthly_fee?: number
+          p_name: string
+        }
+        Returns: string
+      }
       decrement_stock: {
         Args: { p_product_id: string; p_quantity: number }
         Returns: undefined

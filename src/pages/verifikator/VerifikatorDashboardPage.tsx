@@ -204,22 +204,19 @@ export default function VerifikatorDashboardPage() {
   // Mutation: setup kelompok baru
   const setupMutation = useMutation({
     mutationFn: async () => {
-      if (!groupName.trim() || !referralCode.trim()) throw new Error('Nama kelompok dan kode referral wajib diisi');
-      const { error: groupError } = await supabase.from('trade_groups').insert({
-        name: groupName.trim(),
-        code: referralCode.toUpperCase(),
-        description: groupDescription.trim() || null,
-        monthly_fee: parseInt(monthlyFee) || 10000,
-        verifikator_id: user?.id,
-      }).select().single();
-      if (groupError) throw groupError;
+      const name = groupName.trim();
+      const code = referralCode.trim().toUpperCase();
+      const fee = Number.parseInt(monthlyFee, 10);
+      if (!name || !code) throw new Error('Nama kelompok dan kode referral wajib diisi');
+      if (!Number.isInteger(fee) || fee < 0) throw new Error('Iuran kas harus berupa angka 0 atau lebih');
 
-      const { error: codeError } = await supabase.from('verifikator_codes').insert({
-        code: referralCode.toUpperCase(),
-        trade_group: groupName.trim(),
-        verifikator_id: user?.id,
+      const { error } = await supabase.rpc('create_verifikator_trade_group', {
+        p_name: name,
+        p_code: code,
+        p_description: groupDescription.trim() || null,
+        p_monthly_fee: fee,
       });
-      if (codeError) throw codeError;
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Kelompok dagang berhasil dibuat');
