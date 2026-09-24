@@ -2,7 +2,7 @@
 
 ## Status rancangan
 
-Dokumen ini adalah **migration design dan draft SQL**, bukan migration yang sudah dijalankan ke database. Migration sebaiknya dijalankan setelah nama wilayah, anggota tim, dan aturan approval disepakati. Ketika siap diterapkan, SQL ini dapat dipindahkan menjadi bundle baru di `supabase/bootstrap` dengan urutan setelah migration verifikator terakhir.
+Dokumen ini sekarang menjadi **rancangan sekaligus kontrak implementasi**. Migration aktif berada pada `supabase/bootstrap/35_20260925002000_verifikator_teams_workflow.sql`. SQL sudah dibuat idempotent, tetapi penerapan ke database tetap harus melalui pipeline deployment Supabase yang digunakan proyek. Seed anggota, tim, dan scope wilayah tetap memerlukan data operasional yang disepakati oleh admin.
 
 Rancangan mempertahankan kolom lama seperti `verifikator_id` dan `verifikator_code` agar data existing tetap kompatibel. Lapisan baru menambahkan kepemilikan tim, keanggotaan, scope wilayah, antrean kasus, assignment, dan audit trail.
 
@@ -15,6 +15,8 @@ Struktur baru menggunakan lima lapisan:
 3. **`verifikator_team_scopes`** menyimpan desa atau wilayah yang boleh dikelola tim.
 4. **`verifikator_codes.team_id`** menghubungkan kode referral ke tim, sementara `verifikator_id` lama tetap dipertahankan sebagai pemilik atau koordinator.
 5. **`verification_cases`** dan **`verification_case_events`** mengelola antrean, assignment, keputusan, eskalasi, dan audit log.
+
+Workspace frontend tersedia pada route `/verifikator/team`. Halaman tersebut menampilkan ringkasan tim, antrean kasus, anggota, scope wilayah, tombol claim kasus, dan aksi review dasar yang memanggil RPC terproteksi.
 
 Relasi utamanya adalah:
 
