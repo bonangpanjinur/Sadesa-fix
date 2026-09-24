@@ -17,6 +17,7 @@ import { CourierEditDialog } from '@/components/admin/CourierEditDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { approveCourier, rejectCourier } from '@/lib/adminApi';
+import { createCourierDocumentSignedUrl } from '@/lib/courierDocuments';
 
 interface CourierRow {
   id: string;
@@ -336,13 +337,6 @@ export default function AdminCouriersPage() {
   );
 }
 
-async function createAdminDocumentUrl(path: string | null | undefined) {
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
-  const { data, error } = await supabase.storage.from('courier-documents').createSignedUrl(path, 10 * 60);
-  return error ? null : data?.signedUrl || null;
-}
-
 function AdminCourierDocumentsDialog({
   courier,
   open,
@@ -359,9 +353,9 @@ function AdminCourierDocumentsDialog({
     if (!courier) return;
     setLoading(true);
     const [ktp, photo, vehicle] = await Promise.all([
-      createAdminDocumentUrl(courier.ktp_image_url),
-      createAdminDocumentUrl(courier.photo_url),
-      createAdminDocumentUrl(courier.vehicle_image_url),
+      createCourierDocumentSignedUrl(courier.ktp_image_url),
+      createCourierDocumentSignedUrl(courier.photo_url),
+      createCourierDocumentSignedUrl(courier.vehicle_image_url),
     ]);
     setUrls({ ktp, photo, vehicle });
     setLoading(false);

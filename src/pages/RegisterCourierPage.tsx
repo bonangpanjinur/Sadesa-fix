@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { getSettingByKey } from '@/lib/adminApi';
+import { removeCourierDocuments } from '@/lib/courierDocuments';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddressSelector, AddressData, createEmptyAddressData } from '@/components/AddressSelector';
@@ -127,20 +128,26 @@ export default function RegisterCourierPage() {
     }
     
     setLoading(true);
+    const uploadedPaths: string[] = [];
     try {
       const uploadFile = async (file: File, folder: string): Promise<string> => {
-        const fileName = `${Date.now()}-${file.name}`;
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const fileName = `${Date.now()}-${crypto.randomUUID()}-${safeName}`;
         const path = `${user.id}/${folder}/${fileName}`;
-        const { data, error } = await supabase.storage.from('courier-documents').upload(path, file);
+        const { data, error } = await supabase.storage.from('courier-documents').upload(path, file, {
+          contentType: file.type,
+          upsert: false,
+        });
         if (error) throw error;
+        uploadedPaths.push(data.path);
         return data.path;
       };
 
-      const [ktpUrl, photoUrl, vehicleUrl] = await Promise.all([
-        uploadFile(ktpFile!, 'ktp'),
-        uploadFile(photoFile!, 'photo'),
-        uploadFile(vehicleFile!, 'vehicle'),
-      ]);
+      // Upload sequentially so a partial failure can deterministically clean
+      // up every object created before the database insert.
+      const ktpUrl = await uploadFile(ktpFile!, 'ktp');
+      const photoUrl = await uploadFile(photoFile!, 'photo');
+      const vehicleUrl = await uploadFile(vehicleFile!, 'vehicle');
 
       const { error } = await supabase.from('couriers').insert({
         user_id: user.id,
@@ -169,6 +176,7 @@ export default function RegisterCourierPage() {
       navigate('/');
     } catch (error) {
       console.error('Error registering courier:', error);
+      await removeCourierDocuments(uploadedPaths);
       toast.error('Gagal mendaftar. Silakan coba lagi.');
     } finally {
       setLoading(false);

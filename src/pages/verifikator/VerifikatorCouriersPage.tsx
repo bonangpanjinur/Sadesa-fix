@@ -14,6 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { reviewCourier } from '@/lib/adminApi';
+import { createCourierDocumentSignedUrl } from '@/lib/courierDocuments';
 import { toast } from 'sonner';
 
 interface CourierReviewRow {
@@ -36,12 +37,6 @@ interface CourierReviewRow {
   registered_at: string | null;
   village_id: string | null;
   villages?: { name: string } | null;
-}
-
-async function createDocumentUrl(path: string | null | undefined) {
-  if (!path || path.startsWith('http')) return path || null;
-  const { data, error } = await supabase.storage.from('courier-documents').createSignedUrl(path, 10 * 60);
-  return error ? null : data?.signedUrl || null;
 }
 
 export default function VerifikatorCouriersPage() {
@@ -163,9 +158,9 @@ function CourierDetailDialog({ courier, open, onOpenChange }: { courier: Courier
     if (!courier) return;
     setLoading(true);
     const [ktp, photo, vehicle] = await Promise.all([
-      createDocumentUrl(courier.ktp_image_url),
-      createDocumentUrl(courier.photo_url),
-      createDocumentUrl(courier.vehicle_image_url),
+      createCourierDocumentSignedUrl(courier.ktp_image_url),
+      createCourierDocumentSignedUrl(courier.photo_url),
+      createCourierDocumentSignedUrl(courier.vehicle_image_url),
     ]);
     setUrls({ ktp, photo, vehicle });
     setLoading(false);
