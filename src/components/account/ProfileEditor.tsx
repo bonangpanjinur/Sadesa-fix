@@ -145,14 +145,20 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       setAvatarUrl(publicUrl);
 
       // Update profile immediately
-      const { data: updatedProfiles, error: profileError } = await supabase
+      const { data: existingProfiles, error: lookupError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl })
+        .select('id')
         .eq('user_id', userId)
-        .select('user_id');
+        .limit(1);
+      if (lookupError) throw lookupError;
 
-      if (profileError) throw profileError;
-      if (!updatedProfiles?.length) {
+      if (existingProfiles?.length) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: publicUrl })
+          .eq('user_id', userId);
+        if (profileError) throw profileError;
+      } else {
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({ user_id: userId, avatar_url: publicUrl });
@@ -260,14 +266,20 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           village_name: hasCompleteAddress ? addressData.villageName : null,
           address_detail: hasCompleteAddress ? addressData.detail : null,
       };
-      const { data: updatedProfiles, error } = await supabase
+      const { data: existingProfiles, error: lookupError } = await supabase
         .from('profiles')
-        .update(profilePayload)
+        .select('id')
         .eq('user_id', userId)
-        .select('user_id');
+        .limit(1);
+      if (lookupError) throw lookupError;
 
-      if (error) throw error;
-      if (!updatedProfiles?.length) {
+      if (existingProfiles?.length) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(profilePayload)
+          .eq('user_id', userId);
+        if (error) throw error;
+      } else {
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({ user_id: userId, ...profilePayload });
