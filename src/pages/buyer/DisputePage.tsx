@@ -128,9 +128,10 @@ export default function DisputePage() {
           toast({ title: `${file.name} terlalu besar`, variant: 'destructive' });
           continue;
         }
-        const ext = file.name.split('.').pop();
-        const path = `${user.id}/${orderId}-${Date.now()}.${ext}`;
-        const { data } = await supabase.storage.from('payment-proofs').upload(path, file);
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `disputes/${user.id}/${orderId}/${crypto.randomUUID()}.${ext}`;
+        const { data, error } = await supabase.storage.from('payment-proofs').upload(path, file);
+        if (error) throw error;
         if (data) {
           const { data: urlData } = supabase.storage.from('payment-proofs').getPublicUrl(path);
           uploaded.push(urlData?.publicUrl || path);

@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 311,
-  "bundle_count": 14,
+  "migration_count": 312,
+  "bundle_count": 15,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -412,6 +412,14 @@
       ],
       "sha256": "d04fdd3d28b5f60722c2dbfe9e53c024aa9162cbb8ee6df5e0dc1f52268ab19b",
       "bytes": 48332
+    },
+    {
+      "file": "45_20260925230000_merchant_review_refund_input_hardening.sql",
+      "source_files": [
+        "20260925230000_merchant_review_refund_input_hardening.sql"
+      ],
+      "sha256": "5d8de90db3c0d1049e396cf464799a901a3caca481061b4f730a429999523d33",
+      "bytes": 6257
     }
   ],
   "idempotent": true,

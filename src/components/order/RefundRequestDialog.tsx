@@ -83,9 +83,8 @@ export function RefundRequestDialog({
       // Upload images if any
       const evidenceUrls: string[] = [];
       for (const file of images) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `refund-evidence/${fileName}`;
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const filePath = `refund-evidence/${user.id}/${orderId}/${crypto.randomUUID()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('public_assets')
