@@ -51,9 +51,11 @@ export default function POSKategoriPage() {
       if (!form.name.trim()) throw new Error('Nama kategori wajib diisi');
       const payload = { name: form.name.trim(), parent_id: form.parent_id || null, sort_order: form.sort_order, tenant_id: tenant.id };
       if (editing) {
-        await supabase.from('pos_categories' as never).update(payload).eq('id', editing.id);
+        const { error } = await supabase.from('pos_categories' as never).update(payload).eq('id', editing.id);
+        if (error) throw error;
       } else {
-        await supabase.from('pos_categories' as never).insert(payload);
+        const { error } = await supabase.from('pos_categories' as never).insert(payload);
+        if (error) throw error;
       }
     },
     onSuccess: () => {
@@ -66,7 +68,8 @@ export default function POSKategoriPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await supabase.from('pos_categories' as never).delete().eq('id', id);
+      const { error } = await supabase.from('pos_categories' as never).delete().eq('id', id);
+      if (error) throw error;
     },
     onSuccess: () => {
       toast.success('Kategori dihapus');

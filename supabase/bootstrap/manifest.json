@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 312,
-  "bundle_count": 15,
+  "migration_count": 230,
+  "bundle_count": 16,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -420,6 +420,14 @@
       ],
       "sha256": "5d8de90db3c0d1049e396cf464799a901a3caca481061b4f730a429999523d33",
       "bytes": 6257
+    },
+    {
+      "file": "46_20260925234500_pos_table_menu_settings_hardening.sql",
+      "source_files": [
+        "20260925234500_pos_table_menu_settings_hardening.sql"
+      ],
+      "sha256": "94e49836fdc2d27e416bc86926520c769155212cb83072c2885569c2e2b56982",
+      "bytes": 8020
     }
   ],
   "idempotent": true,

@@ -181,10 +181,12 @@ export default function POSMejaPage() {
         notes: form.notes || null,
       };
       if (editItem) {
-        await supabase.from('pos_tables' as never).update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editItem.id);
+        const { error } = await supabase.from('pos_tables' as never).update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editItem.id);
+        if (error) throw error;
         toast.success('Meja berhasil diperbarui');
       } else {
-        await supabase.from('pos_tables' as never).insert(payload);
+        const { error } = await supabase.from('pos_tables' as never).insert(payload);
+        if (error) throw error;
         toast.success('Meja berhasil ditambahkan');
       }
       setDialogOpen(false);
@@ -220,7 +222,8 @@ export default function POSMejaPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await supabase.from('pos_tables' as never).update({ is_active: false }).eq('id', deleteTarget.id);
+      const { error } = await supabase.from('pos_tables' as never).update({ is_active: false }).eq('id', deleteTarget.id);
+      if (error) throw error;
       toast.success('Meja dihapus');
       setDeleteDialog(false);
       fetchAll();
