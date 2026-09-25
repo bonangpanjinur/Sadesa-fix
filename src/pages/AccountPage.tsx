@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   User, Settings, HelpCircle, LogIn, LogOut, Store, ChevronRight, Edit, Heart, 
@@ -15,6 +15,7 @@ import { toast } from '@/hooks/use-toast';
 import { ProfileEditor } from '@/components/account/ProfileEditor';
 import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 import { isValidKtpNumber } from '@/lib/identityValidation';
+import { ServiceProviderRegistration } from '@/components/account/ServiceProviderRegistration';
 
 interface Profile {
   full_name: string;
@@ -36,6 +37,7 @@ interface Profile {
 
 export default function AccountPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, signOut, loading: authLoading, isAdmin, isVerifikator, isMerchant, isCourier, isAdminDesa } = useAuth();
   const fallbackName = user?.user_metadata?.full_name?.trim()
     || user?.email?.split('@')[0]?.replace(/[._-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
@@ -332,6 +334,8 @@ export default function AccountPage() {
                 )}
               </div>
 
+              {/* Pendaftaran penyedia jasa berada di Akun karena merupakan pengajuan role akun. */}
+              <ServiceProviderRegistration userId={user.id} openOnMount={searchParams.get('provider') === '1'} />
               {/* Onboarding partner untuk buyer baru */}
               {user && hasPartnerApplication === false && !isMerchant && !isCourier && !isAdmin && !isAdminDesa && !isVerifikator && (
                 <section className="mb-6 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-accent/10 p-4">

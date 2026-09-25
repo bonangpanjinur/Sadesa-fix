@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRoles } from '@/hooks/useUserRoles';
@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { Armchair, CarFront, Check, ChevronRight, CircleDollarSign, FileClock, GraduationCap, Hammer, HeartPulse, Leaf, MessageCircle, Search, Send, ShieldCheck, Star, Trees, Truck, Wallet, Wrench } from 'lucide-react';
+import { Armchair, CarFront, ChevronRight, CircleDollarSign, FileClock, GraduationCap, Hammer, HeartPulse, Leaf, MessageCircle, Search, Send, ShieldCheck, Star, Trees, Truck, Wallet, Wrench } from 'lucide-react';
 
 const db = supabase as unknown as { from: typeof supabase.from; rpc: typeof supabase.rpc };
 const iconMap: Record<string, typeof Wrench> = { Tv: Leaf, CarFront, Hammer, Trees, Truck, Armchair, HeartPulse, GraduationCap, Wrench };
@@ -30,7 +30,6 @@ const demoCategories = [
 
 type Category = typeof demoCategories[number];
 type Provider = { id: string; provider_id: string; provider_name: string; headline: string; bio: string | null; village: string | null; min_price: number; rating: number; review_count: number; is_verified: boolean; service_skills?: { subcategory_id: string; service_subcategories?: { name: string; category_id: string } }[] };
-type ProviderApplication = { id: string; provider_id: string; provider_name: string; headline: string; bio: string | null; village: string | null; phone: string | null; min_price: number; verification_status: string; verification_note: string | null; verifikator_code: string | null; service_skills?: { subcategory_id: string }[] };
 const money = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 
 export default function ServicesPage() {
@@ -39,28 +38,11 @@ export default function ServicesPage() {
   const navigate = useNavigate();
   const isAdmin = roles.includes('admin');
   const isBuyer = roles.includes('buyer');
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [showOffer, setShowOffer] = useState(false);
-  const [showPost, setShowPost] = useState(false);
-  const [codeValidationError, setCodeValidationError] = useState('');
   const [offer, setOffer] = useState({ title: '', description: '', location: '', price: '', service_type: 'JOB', rental_start_at: '', rental_end_at: '', rental_deposit: '', rental_late_fee_per_day: '', handover_condition: '' });
-  const [post, setPost] = useState({ name: '', headline: '', bio: '', village: '', phone: '', min_price: '', referralCode: '', skills: [] as string[] });
-
-  const { data: providerApplication, refetch: refetchProviderApplication } = useQuery<ProviderApplication | null>({
-    queryKey: ['service-provider-application', user?.id],
-    enabled: Boolean(user),
-    queryFn: async () => {
-      const { data, error } = await db.from('service_profiles')
-        .select('id,provider_id,provider_name,headline,bio,village,phone,min_price,verification_status,verification_note,verifikator_code,service_skills(subcategory_id)')
-        .eq('provider_id', user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ProviderApplication | null;
-    },
-  });
 
   const { data: categories = demoCategories } = useQuery<Category[]>({ queryKey: ['service-categories'], queryFn: async () => { const { data, error } = await db.from('service_categories').select('id,name,slug,icon,subcategories:service_subcategories(id,name)').eq('is_active', true).order('sort_order'); return error || !data?.length ? demoCategories : (data as Category[]).map((category) => ({ ...category, subcategories: Array.isArray(category.subcategories) ? category.subcategories : [] })); }, staleTime: 300000 });
   const { data: providers = [], isLoading } = useQuery<Provider[]>({ queryKey: ['service-providers'], queryFn: async () => { const { data, error } = await db.from('service_profiles').select('*,service_skills(subcategory_id,service_subcategories(name,category_id))').eq('is_active', true).order('rating', { ascending: false }); return error ? [] : data || []; }, staleTime: 60000 });
@@ -68,25 +50,8 @@ export default function ServicesPage() {
 
   function startProviderFlow() {
     if (!user) return navigate('/auth');
-    setCodeValidationError('');
-    if (providerApplication?.verification_status === 'PENDING') {
-      toast.info('Pendaftaran Anda sedang menunggu verifikasi. Anda dapat memperbarui data aplikasi.');
-    }
-    if (providerApplication) {
-      setPost({
-        name: providerApplication.provider_name,
-        headline: providerApplication.headline,
-        bio: providerApplication.bio || '',
-        village: providerApplication.village || '',
-        phone: providerApplication.phone || '',
-        min_price: String(providerApplication.min_price || ''),
-        referralCode: providerApplication.verifikator_code || '',
-        skills: providerApplication.service_skills?.map((skill) => skill.subcategory_id) || [],
-      });
-    }
-    setShowPost(true);
+    navigate('/account?provider=1');
   }
-
   async function createOffer() {
     if (!user) return navigate('/auth');
     if (!isBuyer) return toast.error('Gunakan akun pembeli untuk menghubungi penyedia jasa.');
@@ -104,36 +69,9 @@ export default function ServicesPage() {
     toast.success('Permintaan terkirim. Harga akan ditetapkan setelah penyedia mengirim penawaran dan Anda menyetujuinya.'); setShowOffer(false); setOffer({ title: '', description: '', location: '', price: '', service_type: 'JOB', rental_start_at: '', rental_end_at: '', rental_deposit: '', rental_late_fee_per_day: '', handover_condition: '' }); navigate('/services/requests');
   }
 
-  async function publishProfile() {
-    if (!user) return toast.error('Silakan masuk terlebih dahulu untuk mendaftar sebagai penyedia jasa.');
-    const minPrice = Number(post.min_price || 0);
-    if (post.name.trim().length < 2 || post.headline.trim().length < 3 || post.phone.trim().length < 8 || !post.skills.length || !Number.isFinite(minPrice) || minPrice < 0) return toast.error('Nama, judul, nomor telepon valid, harga minimum, dan minimal satu keahlian wajib diisi.');
-    const referralCode = post.referralCode.trim().toUpperCase();
-    if (referralCode && !/^[A-Z0-9_-]{3,32}$/.test(referralCode)) return toast.error('Format kode referral tidak valid.');
-    setCodeValidationError('');
-    const { error } = await db.rpc('service_publish_profile', {
-      p_provider_name: post.name,
-      p_headline: post.headline,
-      p_bio: post.bio,
-      p_village: post.village,
-      p_phone: post.phone.trim(),
-      p_min_price: minPrice,
-      p_subcategory_ids: post.skills,
-      p_verifikator_code: referralCode || null,
-    });
-    if (error) {
-      if (error.message?.toLowerCase().includes('referral code')) setCodeValidationError(error.message);
-      return toast.error(error.message || 'Pendaftaran provider jasa gagal dikirim.');
-    }
-    toast.success(referralCode ? 'Pendaftaran terkirim ke antrean verifikator pemilik kode.' : 'Pendaftaran terkirim dan menunggu verifikasi admin.');
-    setShowPost(false);
-    await refetchProviderApplication();
-    queryClient.invalidateQueries({ queryKey: ['service-providers'] });
-  }
-
   const selectedCategoryName = categories.find((category) => category.id === selectedCategory)?.name;
   return <div className="mobile-shell min-h-screen bg-background pb-32"><Header /><main className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-6">
-    <section className="relative overflow-hidden rounded-[1.5rem] bg-[linear-gradient(135deg,#12372a,#1f6a4d_60%,#e2a83b)] p-5 text-white shadow-xl sm:rounded-[2rem] sm:p-9"><div className="relative z-10 max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-200">SaDesa Jasa · marketplace lokal</p><h1 className="mt-2 max-w-2xl font-heading text-2xl font-black leading-tight tracking-tight sm:text-5xl">Keahlian warga, solusi dekat rumah.</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-50 sm:text-base">Cari penyedia jasa tepercaya, kirim kebutuhan, sepakati harga, lalu biarkan admin menjaga pembayaran sampai pekerjaan selesai.</p><div className="mt-5 grid gap-2 sm:flex sm:flex-wrap sm:gap-3"><Button onClick={startProviderFlow} className="w-full justify-center rounded-full bg-amber-400 px-5 font-bold text-emerald-950 hover:bg-amber-300 sm:w-auto"><Wrench className="mr-2 h-4 w-4" />{providerApplication?.verification_status === 'VERIFIED' ? 'Kelola profil jasa' : providerApplication ? 'Lihat / perbarui pendaftaran' : 'Daftar sebagai penyedia'}</Button><Button asChild variant="outline" className="w-full justify-center rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:w-auto"><Link to="/services/requests"><FileClock className="mr-2 h-4 w-4" />Request saya</Link></Button><Button asChild variant="outline" className="w-full justify-center rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:w-auto"><Link to="/services/provider-history"><Wallet className="mr-2 h-4 w-4" />Riwayat provider</Link></Button></div><div className="mt-5 grid max-w-xl grid-cols-3 gap-2 text-[10px] sm:mt-6 sm:text-xs"><div className="rounded-2xl bg-white/10 p-3"><b className="block text-amber-200">01</b>Cari jasa</div><div className="rounded-2xl bg-white/10 p-3"><b className="block text-amber-200">02</b>Sepakati detail</div><div className="rounded-2xl bg-white/10 p-3"><b className="block text-amber-200">03</b>Bayar aman</div></div></div><div className="pointer-events-none absolute -right-12 -top-20 h-72 w-72 rounded-full border-[28px] border-white/10" /></section>
+    <section className="relative overflow-hidden rounded-[1.5rem] bg-[linear-gradient(135deg,#12372a,#1f6a4d_60%,#e2a83b)] p-5 text-white shadow-xl sm:rounded-[2rem] sm:p-9"><div className="relative z-10 max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-200">SaDesa Jasa · marketplace lokal</p><h1 className="mt-2 max-w-2xl font-heading text-2xl font-black leading-tight tracking-tight sm:text-5xl">Keahlian warga, solusi dekat rumah.</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-50 sm:text-base">Cari penyedia jasa tepercaya, kirim kebutuhan, sepakati harga, lalu biarkan admin menjaga pembayaran sampai pekerjaan selesai.</p><div className="mt-5 grid gap-2 sm:flex sm:flex-wrap sm:gap-3"><Button onClick={startProviderFlow} className="w-full justify-center rounded-full bg-amber-400 px-5 font-bold text-emerald-950 hover:bg-amber-300 sm:w-auto"><Wrench className="mr-2 h-4 w-4" />Daftar sebagai penyedia</Button><Button asChild variant="outline" className="w-full justify-center rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:w-auto"><Link to="/services/requests"><FileClock className="mr-2 h-4 w-4" />Request saya</Link></Button><Button asChild variant="outline" className="w-full justify-center rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:w-auto"><Link to="/services/provider-history"><Wallet className="mr-2 h-4 w-4" />Riwayat provider</Link></Button></div><div className="mt-5 grid max-w-xl grid-cols-3 gap-2 text-[10px] sm:mt-6 sm:text-xs"><div className="rounded-2xl bg-white/10 p-3"><b className="block text-amber-200">01</b>Cari jasa</div><div className="rounded-2xl bg-white/10 p-3"><b className="block text-amber-200">02</b>Sepakati detail</div><div className="rounded-2xl bg-white/10 p-3"><b className="block text-amber-200">03</b>Bayar aman</div></div></div><div className="pointer-events-none absolute -right-12 -top-20 h-72 w-72 rounded-full border-[28px] border-white/10" /></section>
     <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3.5 text-sm text-emerald-950 sm:mt-6 sm:p-4"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" /><div><b>Alur aman untuk semua pihak</b><p className="mt-1 text-emerald-900/75">Dana dititipkan ke admin, penyedia mulai bekerja setelah pembayaran diverifikasi, dan pencairan dilakukan setelah pekerjaan dikonfirmasi.</p></div></div></div>
     <div className="mt-5 grid gap-5 sm:mt-6 sm:gap-6 lg:grid-cols-[240px_1fr]"><aside className="min-w-0">
       <div className="mb-2 flex items-center justify-between">
@@ -150,6 +88,5 @@ export default function ServicesPage() {
     </main><BottomNav />
 
     <Dialog open={showOffer} onOpenChange={setShowOffer}><DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl"><DialogHeader><DialogTitle>Ajukan kebutuhan ke {selectedProvider?.provider_name}</DialogTitle><DialogDescription>Budget awal bersifat opsional dan bukan harga final. Harga baru disepakati setelah penyedia mengirim penawaran dan Anda menyetujuinya.</DialogDescription></DialogHeader><div className="space-y-3"><Input maxLength={120} placeholder="Judul kebutuhan" value={offer.title} onChange={(e) => setOffer({ ...offer, title: e.target.value })} /><Textarea maxLength={4000} placeholder="Jelaskan pekerjaan yang dibutuhkan..." value={offer.description} onChange={(e) => setOffer({ ...offer, description: e.target.value })} /><Input maxLength={250} placeholder="Lokasi pekerjaan" value={offer.location} onChange={(e) => setOffer({ ...offer, location: e.target.value })} /><label className="text-sm font-semibold">Jenis layanan<select className="mt-1 w-full rounded-md border bg-background p-2" value={offer.service_type} onChange={(e) => setOffer({ ...offer, service_type: e.target.value })}><option value="JOB">Jasa pekerjaan</option><option value="RENTAL" disabled>Penyewaan (belum tersedia)</option></select></label><Input type="number" min="0" step="1000" placeholder="Budget awal (opsional)" value={offer.price} onChange={(e) => setOffer({ ...offer, price: e.target.value })} />{offer.service_type === 'RENTAL' && <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-sm font-semibold text-amber-950">Detail penyewaan</p><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Mulai<input type="datetime-local" className="mt-1 w-full rounded-md border p-2" value={offer.rental_start_at} onChange={(e) => setOffer({ ...offer, rental_start_at: e.target.value })} /></label><label className="text-sm">Selesai<input type="datetime-local" className="mt-1 w-full rounded-md border p-2" value={offer.rental_end_at} onChange={(e) => setOffer({ ...offer, rental_end_at: e.target.value })} /></label></div><div className="grid gap-3 sm:grid-cols-2"><Input type="number" min="0" step="1000" placeholder="Deposit (Rp)" value={offer.rental_deposit} onChange={(e) => setOffer({ ...offer, rental_deposit: e.target.value })} /><Input type="number" min="0" step="1000" placeholder="Denda per hari (Rp)" value={offer.rental_late_fee_per_day} onChange={(e) => setOffer({ ...offer, rental_late_fee_per_day: e.target.value })} /></div><Textarea maxLength={1000} placeholder="Kondisi aset saat serah-terima" value={offer.handover_condition} onChange={(e) => setOffer({ ...offer, handover_condition: e.target.value })} /></div>}</div><DialogFooter><Button onClick={createOffer} className="w-full rounded-full bg-emerald-700"><Send className="mr-2 h-4 w-4" />Kirim permintaan</Button></DialogFooter></DialogContent></Dialog>
-    <Dialog open={showPost} onOpenChange={setShowPost}><DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-xl"><DialogHeader><DialogTitle>{providerApplication ? 'Perbarui pendaftaran penyedia jasa' : 'Daftar sebagai Penyedia Jasa'}</DialogTitle><DialogDescription>Daftar menggunakan akun Anda. Profil baru tampil di katalog setelah diverifikasi admin atau verifikator melalui kode referral.</DialogDescription></DialogHeader><div className="space-y-4">{providerApplication?.verification_status === 'PENDING' && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Pendaftaran Anda sedang menunggu verifikasi.</div>}{providerApplication?.verification_status === 'REJECTED' && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Pendaftaran sebelumnya ditolak: {providerApplication.verification_note || 'Silakan perbaiki data dan kirim kembali.'}</div>}<Input maxLength={100} placeholder="Nama penyedia / nama usaha" value={post.name} onChange={(e) => setPost({ ...post, name: e.target.value })} /><Input maxLength={120} placeholder="Judul layanan, mis. Teknisi elektronik panggilan" value={post.headline} onChange={(e) => setPost({ ...post, headline: e.target.value })} /><Input type="tel" maxLength={30} placeholder="Nomor telepon aktif" value={post.phone} onChange={(e) => setPost({ ...post, phone: e.target.value })} /><Textarea maxLength={2000} placeholder="Pengalaman, layanan, dan area yang dilayani" value={post.bio} onChange={(e) => setPost({ ...post, bio: e.target.value })} /><Input maxLength={150} placeholder="Desa / area layanan" value={post.village} onChange={(e) => setPost({ ...post, village: e.target.value })} /><Input type="number" min="0" step="1000" placeholder="Harga minimum jasa (Rp)" value={post.min_price} onChange={(e) => setPost({ ...post, min_price: e.target.value })} /><div><p className="mb-2 text-sm font-bold">Keahlian yang ditawarkan</p><div className="grid gap-3 sm:grid-cols-2">{categories.flatMap((category) => (category.subcategories ?? []).map((sub) => <label key={sub.id} className={`cursor-pointer rounded-2xl border p-3 text-sm transition ${post.skills.includes(sub.id) ? 'border-emerald-500 bg-emerald-50 font-bold' : 'border-border bg-white'}`}><input type="checkbox" className="mr-2 accent-emerald-700" checked={post.skills.includes(sub.id)} onChange={(e) => setPost({ ...post, skills: e.target.checked ? [...post.skills, sub.id] : post.skills.filter((id) => id !== sub.id) })} />{sub.name}</label>))}</div></div><div className="space-y-2"><label htmlFor="service-referral-code" className="text-sm font-semibold">Kode referral verifikator (opsional)</label><Input id="service-referral-code" maxLength={32} autoCapitalize="characters" placeholder="Masukkan kode milik verifikator" value={post.referralCode} onChange={(e) => { setCodeValidationError(''); setPost({ ...post, referralCode: e.target.value.toUpperCase() }); }} /><p className="text-xs text-muted-foreground">Jika diisi, pendaftaran masuk ke antrean verifikator pemilik kode. Tanpa kode, admin akan memverifikasi.</p>{codeValidationError && <p className="text-sm text-destructive">{codeValidationError}</p>}</div></div><DialogFooter><Button onClick={() => void publishProfile()} className="w-full rounded-full bg-emerald-700">Kirim pendaftaran untuk verifikasi</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }

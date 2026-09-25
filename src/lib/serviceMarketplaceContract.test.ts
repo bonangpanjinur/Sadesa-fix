@@ -7,6 +7,8 @@ const migration = readFileSync(
   'utf8',
 );
 const servicesPage = readFileSync(resolve(process.cwd(), 'src/pages/ServicesPage.tsx'), 'utf8');
+const accountPage = readFileSync(resolve(process.cwd(), 'src/pages/AccountPage.tsx'), 'utf8');
+const providerRegistration = readFileSync(resolve(process.cwd(), 'src/components/account/ServiceProviderRegistration.tsx'), 'utf8');
 const requesterPage = readFileSync(resolve(process.cwd(), 'src/pages/ServiceRequestsPage.tsx'), 'utf8');
 const providerPage = readFileSync(resolve(process.cwd(), 'src/pages/ServiceProviderHistoryPage.tsx'), 'utf8');
 const adminPage = readFileSync(resolve(process.cwd(), 'src/pages/admin/AdminServicesPage.tsx'), 'utf8');
@@ -14,7 +16,7 @@ const disputesPage = readFileSync(resolve(process.cwd(), 'src/pages/admin/AdminS
 
 describe('service marketplace transaction contract', () => {
   it('publishes profiles atomically and requires verification before booking', () => {
-    expect(servicesPage).toContain("rpc('service_publish_profile'");
+    expect(providerRegistration).toContain("rpc('service_publish_profile'");
     expect(migration).toContain("verification_status = 'PENDING'");
     expect(migration).toContain("verification_status = 'VERIFIED'");
     expect(migration).toContain('REVOKE INSERT, UPDATE, DELETE ON public.service_profiles FROM authenticated');
@@ -27,8 +29,9 @@ describe('service marketplace transaction contract', () => {
     );
     const verifierPage = readFileSync(resolve(process.cwd(), 'src/pages/verifikator/VerifikatorServiceProvidersPage.tsx'), 'utf8');
     const appRouter = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
-    expect(servicesPage).toContain('p_verifikator_code: referralCode || null');
-    expect(servicesPage).toContain('service-provider-application');
+    expect(providerRegistration).toContain('p_verifikator_code: referralCode || null');
+    expect(accountPage).toContain('ServiceProviderRegistration');
+    expect(providerRegistration).toContain("queryKey: ['service-provider-application', userId]");
     expect(onboardingMigration).toContain('CREATE OR REPLACE FUNCTION public.service_publish_profile(');
     expect(onboardingMigration).toContain('IF auth.uid() IS NULL THEN RAISE EXCEPTION');
     expect(onboardingMigration).toContain('Referral code is invalid or inactive');
