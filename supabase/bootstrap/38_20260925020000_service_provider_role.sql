@@ -30,8 +30,8 @@ GRANT EXECUTE ON FUNCTION public.activate_service_provider() TO authenticated;
 DROP POLICY IF EXISTS "providers manage own profile" ON public.service_profiles;
 CREATE POLICY "providers manage own profile" ON public.service_profiles
 FOR ALL
-USING (provider_id = auth.uid() AND public.has_role(auth.uid(), 'service_provider') OR public.is_admin(auth.uid()))
-WITH CHECK (provider_id = auth.uid() AND public.has_role(auth.uid(), 'service_provider') OR public.is_admin(auth.uid()));
+USING (provider_id = auth.uid() AND public.has_role(auth.uid(), 'service_provider') OR public.is_admin())
+WITH CHECK (provider_id = auth.uid() AND public.has_role(auth.uid(), 'service_provider') OR public.is_admin());
 
 DROP POLICY IF EXISTS "requesters create requests" ON public.service_requests;
 CREATE POLICY "requesters create requests" ON public.service_requests

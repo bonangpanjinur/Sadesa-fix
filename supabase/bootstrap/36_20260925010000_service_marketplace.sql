@@ -142,23 +142,23 @@ alter table public.service_messages enable row level security;
 alter table public.service_payment_proofs enable row level security;
 alter table public.service_payouts enable row level security;
 
-create policy "active service categories are public" on public.service_categories for select using (is_active or public.is_admin(auth.uid()));
-create policy "active service subcategories are public" on public.service_subcategories for select using (is_active or public.is_admin(auth.uid()));
-create policy "service profiles are public" on public.service_profiles for select using (is_active or provider_id = auth.uid() or public.is_admin(auth.uid()));
-create policy "providers manage own profile" on public.service_profiles for all using (provider_id = auth.uid() or public.is_admin(auth.uid())) with check (provider_id = auth.uid() or public.is_admin(auth.uid()));
+create policy "active service categories are public" on public.service_categories for select using (is_active or public.is_admin());
+create policy "active service subcategories are public" on public.service_subcategories for select using (is_active or public.is_admin());
+create policy "service profiles are public" on public.service_profiles for select using (is_active or provider_id = auth.uid() or public.is_admin());
+create policy "providers manage own profile" on public.service_profiles for all using (provider_id = auth.uid() or public.is_admin()) with check (provider_id = auth.uid() or public.is_admin());
 create policy "skills are public" on public.service_skills for select using (true);
-create policy "providers manage own skills" on public.service_skills for all using (exists (select 1 from public.service_profiles p where p.id = profile_id and (p.provider_id = auth.uid() or public.is_admin(auth.uid())))) with check (exists (select 1 from public.service_profiles p where p.id = profile_id and (p.provider_id = auth.uid() or public.is_admin(auth.uid()))));
-create policy "participants read requests" on public.service_requests for select using (requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin(auth.uid()));
+create policy "providers manage own skills" on public.service_skills for all using (exists (select 1 from public.service_profiles p where p.id = profile_id and (p.provider_id = auth.uid() or public.is_admin()))) with check (exists (select 1 from public.service_profiles p where p.id = profile_id and (p.provider_id = auth.uid() or public.is_admin())));
+create policy "participants read requests" on public.service_requests for select using (requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin());
 create policy "requesters create requests" on public.service_requests for insert with check (requester_id = auth.uid());
-create policy "participants update requests" on public.service_requests for update using (requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin(auth.uid())) with check (requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin(auth.uid()));
-create policy "participants read messages" on public.service_messages for select using (exists (select 1 from public.service_requests r where r.id = request_id and (r.requester_id = auth.uid() or r.provider_id = auth.uid() or public.is_admin(auth.uid()))));
+create policy "participants update requests" on public.service_requests for update using (requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin()) with check (requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin());
+create policy "participants read messages" on public.service_messages for select using (exists (select 1 from public.service_requests r where r.id = request_id and (r.requester_id = auth.uid() or r.provider_id = auth.uid() or public.is_admin())));
 create policy "participants send messages" on public.service_messages for insert with check (sender_id = auth.uid() and exists (select 1 from public.service_requests r where r.id = request_id and (r.requester_id = auth.uid() or r.provider_id = auth.uid())));
-create policy "participants manage payment proofs" on public.service_payment_proofs for select using (uploaded_by = auth.uid() or exists (select 1 from public.service_requests r where r.id = request_id and (r.requester_id = auth.uid() or r.provider_id = auth.uid())) or public.is_admin(auth.uid()));
+create policy "participants manage payment proofs" on public.service_payment_proofs for select using (uploaded_by = auth.uid() or exists (select 1 from public.service_requests r where r.id = request_id and (r.requester_id = auth.uid() or r.provider_id = auth.uid())) or public.is_admin());
 create policy "requesters upload payment proofs" on public.service_payment_proofs for insert with check (uploaded_by = auth.uid() and exists (select 1 from public.service_requests r where r.id = request_id and r.requester_id = auth.uid()));
-create policy "admins manage payment proofs" on public.service_payment_proofs for update using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
-create policy "participants read payouts" on public.service_payouts for select using (exists (select 1 from public.service_requests r where r.id = request_id and (r.requester_id = auth.uid() or r.provider_id = auth.uid())) or public.is_admin(auth.uid()));
-create policy "admins manage payouts" on public.service_payouts for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+create policy "admins manage payment proofs" on public.service_payment_proofs for update using (public.is_admin()) with check (public.is_admin());
+create policy "participants read payouts" on public.service_payouts for select using (exists (select 1 from public.service_requests r where r.id = request_id and (r.requester_id = auth.uid() or r.provider_id = auth.uid())) or public.is_admin());
+create policy "admins manage payouts" on public.service_payouts for all using (public.is_admin()) with check (public.is_admin());
 
 -- Admin-only category editing is intentionally guarded by the existing is_admin helper.
-create policy "admins manage service categories" on public.service_categories for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
-create policy "admins manage service subcategories" on public.service_subcategories for all using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
+create policy "admins manage service categories" on public.service_categories for all using (public.is_admin()) with check (public.is_admin());
+create policy "admins manage service subcategories" on public.service_subcategories for all using (public.is_admin()) with check (public.is_admin());

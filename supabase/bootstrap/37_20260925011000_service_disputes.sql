@@ -21,7 +21,7 @@ create index if not exists idx_service_disputes_status on public.service_dispute
 create index if not exists idx_service_disputes_participants on public.service_disputes(requester_id, provider_id);
 
 alter table public.service_disputes enable row level security;
-create policy "participants read service disputes" on public.service_disputes for select using (opened_by = auth.uid() or requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin(auth.uid()));
+create policy "participants read service disputes" on public.service_disputes for select using (opened_by = auth.uid() or requester_id = auth.uid() or provider_id = auth.uid() or public.is_admin());
 create policy "participants create service disputes" on public.service_disputes for insert with check ((opened_by = auth.uid()) and (requester_id = auth.uid() or provider_id = auth.uid()));
-create policy "admins manage service disputes" on public.service_disputes for update using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
-create policy "admins delete service disputes" on public.service_disputes for delete using (public.is_admin(auth.uid()));
+create policy "admins manage service disputes" on public.service_disputes for update using (public.is_admin()) with check (public.is_admin());
+create policy "admins delete service disputes" on public.service_disputes for delete using (public.is_admin());
