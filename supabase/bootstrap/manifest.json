@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 310,
-  "bundle_count": 13,
+  "migration_count": 311,
+  "bundle_count": 14,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -404,6 +404,14 @@
       ],
       "sha256": "c2a3fd31b6542333929f24d284d03cbefc4dad0a62db54f0522b83a5c6f61237",
       "bytes": 891
+    },
+    {
+      "file": "40_20260925100000_service_transaction_state_machine.sql",
+      "source_files": [
+        "40_20260925100000_service_transaction_state_machine.sql"
+      ],
+      "sha256": "d04fdd3d28b5f60722c2dbfe9e53c024aa9162cbb8ee6df5e0dc1f52268ab19b",
+      "bytes": 48332
     }
   ],
   "idempotent": true,
