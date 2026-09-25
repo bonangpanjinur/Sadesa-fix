@@ -206,7 +206,7 @@ const Index = () => {
   ), [products]);
   const promoProducts = useMemo(() => (
     products
-      .filter((product) => product.isPromo && product.isAvailable !== false)
+      .filter((product) => product.isPromo === true)
       .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
       .slice(0, 6)
   ), [products]);

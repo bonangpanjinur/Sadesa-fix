@@ -280,10 +280,13 @@ export async function fetchProducts(): Promise<Product[]> {
       ? Number(merchant.location_lng) 
       : (merchant?.villages?.location_lng ? Number(merchant.villages.location_lng) : null);
     
-    // Calculate discounted price
-    const hasDiscount = p.is_promo && p.discount_percent > 0;
+    // Normalize promo fields from Supabase before rendering merchant promos.
+    // This keeps the label visible even when the API returns boolean/numeric values as strings.
+    const isPromo = p.is_promo === true || p.is_promo === 'true' || p.is_promo === 1 || p.is_promo === '1';
+    const discountPercent = Number(p.discount_percent || 0);
+    const hasDiscount = isPromo && discountPercent > 0;
     const discountedPrice = hasDiscount 
-      ? Math.round(p.price - (p.price * p.discount_percent / 100))
+      ? Math.round(p.price - (p.price * discountPercent / 100))
       : p.price;
 
     return {
@@ -307,12 +310,12 @@ export async function fetchProducts(): Promise<Product[]> {
       description: p.description || '',
       price: discountedPrice,
       originalPrice: hasDiscount ? p.price : undefined,
-      discountPercent: hasDiscount ? p.discount_percent : undefined,
+      discountPercent: hasDiscount ? discountPercent : undefined,
       stock: p.stock,
       image: productImages[p.id] || p.image_url || productKeripik,
       category: p.category as Product['category'],
       isActive: p.is_active,
-      isPromo: p.is_promo,
+      isPromo,
       isAvailable,
       isMerchantOpen,
       hasQuota,
