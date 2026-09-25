@@ -12,7 +12,7 @@ import { logAdminAction } from '@/lib/auditLog';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const db = supabase as any;
+const db = supabase as unknown as { from: typeof supabase.from; rpc: typeof supabase.rpc };
 type Dispute = { id: string; request_id: string; requester_id: string; provider_id: string; reason: string; amount: number | null; evidence_urls: string[]; status: string; admin_note: string | null; resolution: string | null; created_at: string; request?: { title: string; description: string; location: string; status: string; agreed_price: number | null; provider_payout: number | null } };
 const statusMeta: Record<string, { label: string; tone: 'default' | 'secondary' | 'destructive' | 'outline' }> = { OPEN: { label: 'Terbuka', tone: 'destructive' }, IN_REVIEW: { label: 'Sedang ditinjau', tone: 'secondary' }, WAITING_PARTIES: { label: 'Menunggu pihak', tone: 'outline' }, REFUND_APPROVED: { label: 'Refund disetujui', tone: 'default' }, RELEASE_APPROVED: { label: 'Pencairan disetujui', tone: 'default' }, RESOLVED: { label: 'Selesai', tone: 'default' }, CLOSED: { label: 'Ditutup', tone: 'secondary' }, REJECTED: { label: 'Ditolak', tone: 'destructive' } };
 const money = (value: number | null | undefined) => formatPrice(Number(value || 0));
@@ -44,11 +44,7 @@ export default function AdminServiceDisputesPage() {
   async function saveDecision() {
     if (!selected || !decision || !note.trim()) return toast.error('Catatan keputusan wajib diisi agar riwayat mediasi jelas.');
     setSaving(true);
-    const isResolution = ['REFUND_APPROVED', 'RELEASE_APPROVED', 'RESOLVED', 'REJECTED', 'CLOSED'].includes(decision);
-    const { error } = await db.from('service_disputes').update({ status: decision, admin_note: note.trim(), resolution: isResolution ? note.trim() : selected.resolution, resolved_at: isResolution ? new Date().toISOString() : null }).eq('id', selected.id);
-    if (!error && decision === 'REFUND_APPROVED') await db.from('service_requests').update({ status: 'REFUNDED' }).eq('id', selected.request_id);
-    if (!error && decision === 'RELEASE_APPROVED') await db.from('service_requests').update({ status: 'WAITING_CONFIRMATION' }).eq('id', selected.request_id);
-    if (!error && decision === 'RESOLVED') await db.from('service_requests').update({ status: 'COMPLETED' }).eq('id', selected.request_id);
+    const { error } = await db.rpc('service_admin_decide_dispute', { p_dispute_id: selected.id, p_decision: decision, p_note: note.trim() });
     if (error) toast.error(error.message || 'Gagal menyimpan keputusan');
     else { await logAdminAction('RESOLVE_SERVICE_DISPUTE', 'service_dispute', selected.id, { status: selected.status }, { status: decision, note: note.trim() }); toast.success('Keputusan sengketa berhasil disimpan.'); setSelected(null); setDecision(''); setNote(''); await load(); }
     setSaving(false);

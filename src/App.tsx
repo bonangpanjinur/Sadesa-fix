@@ -121,6 +121,7 @@ const AdminSEOPage = lazy(() => import("./pages/admin/AdminSEOPage"));
 const AdminExpeditionProvidersPage = lazy(() => import("./pages/admin/AdminExpeditionProvidersPage"));
 const BuyerSupportPage = lazy(() => import("./pages/buyer/BuyerSupportPage"));
 const ServicesPage = lazy(() => import("./pages/ServicesPage"));
+const ServiceRequestsPage = lazy(() => import("./pages/ServiceRequestsPage"));
 const ServiceProviderHistoryPage = lazy(() => import("./pages/ServiceProviderHistoryPage"));
 
 // Courier Pages
@@ -494,6 +495,7 @@ const App = () => (
               <Route path="/file-handler" element={<PwaFileHandlerPage />} />
               <Route path="/protocol-handler" element={<PwaProtocolHandlerPage />} />
               <Route path="/services" element={<ServicesPage />} />
+              <Route path="/services/requests" element={<ServiceRequestsPage />} />
               <Route path="/services/provider-history" element={<ServiceProviderHistoryPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/pricing" element={<PricingPage />} />

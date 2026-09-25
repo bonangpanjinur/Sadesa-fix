@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { logAdminAction } from '@/lib/auditLog';
 
-const db = supabase as any;
+const db = supabase as unknown as { from: typeof supabase.from; rpc: typeof supabase.rpc };
 const feePercent = 5;
 
 type Proof = {
@@ -40,6 +40,7 @@ type Payout = {
   released_at: string | null;
   request?: { title: string; location: string; status: string; provider_id: string; provider_payout: number | null };
 };
+type ReadyRequest = { id: string; title: string; location: string; status: string; provider_id: string; provider_payout: number | null; agreed_price: number | null; platform_fee: number; transfer_fee: number };
 
 const money = (value: number | null | undefined) => formatPrice(Number(value || 0));
 const shortId = (id: string) => id.slice(0, 8).toUpperCase();
@@ -89,16 +90,25 @@ export default function AdminServicesPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadData = useCallback(async (refresh = false) => {
-    refresh ? setRefreshing(true) : setLoading(true);
-    const [proofResult, payoutResult] = await Promise.all([
+    if (refresh) setRefreshing(true); else setLoading(true);
+    const [proofResult, payoutResult, readyResult] = await Promise.all([
       db.from('service_payment_proofs').select('*,request:service_requests(id,title,description,location,agreed_price,platform_fee,transfer_fee,provider_payout,status,provider_id,requester_id)').order('created_at', { ascending: false }),
       db.from('service_payouts').select('*,request:service_requests(title,location,status,provider_id,provider_payout)').order('status', { ascending: true }).order('created_at', { ascending: false }),
+      db.from('service_requests').select('id,title,location,status,provider_id,provider_payout,agreed_price,platform_fee,transfer_fee').in('status', ['WAITING_CONFIRMATION', 'COMPLETED']).eq('requester_completed', true).eq('provider_completed', true),
     ]);
-    if (proofResult.error || payoutResult.error) {
+    if (proofResult.error || payoutResult.error || readyResult.error) {
       toast.error('Gagal memuat escrow jasa. Pastikan migrasi database sudah diterapkan.');
     } else {
       setProofs(proofResult.data || []);
-      setPayouts(payoutResult.data || []);
+      const existing = payoutResult.data || [];
+      const existingIds = new Set(existing.map((payout: Payout) => payout.request_id));
+      const candidates = (readyResult.data || []).filter((request: ReadyRequest) => !existingIds.has(request.id)).map((request: ReadyRequest) => {
+        const gross = Number(request.agreed_price || request.provider_payout || 0);
+        const platform = Number(request.platform_fee || Math.round(gross * feePercent / 100));
+        const transfer = Number(request.transfer_fee || 0);
+        return { id: request.id, request_id: request.id, gross_amount: gross, platform_fee: platform, transfer_fee: transfer, net_amount: Math.max(0, gross - platform - transfer), status: 'PENDING', note: null, created_at: new Date().toISOString(), released_at: null, request } as Payout;
+      });
+      setPayouts([...candidates, ...existing]);
     }
     setLoading(false); setRefreshing(false);
   }, []);
@@ -114,10 +124,7 @@ export default function AdminServicesPage() {
     if (!selectedProof) return;
     setActionLoading(true);
     const status = approved ? 'VERIFIED' : 'REJECTED';
-    const { error } = await db.from('service_payment_proofs').update({ status, admin_note: note.trim() || null, verified_at: approved ? new Date().toISOString() : null }).eq('id', selectedProof.id);
-    if (!error && selectedProof.request) {
-      await db.from('service_requests').update({ status: approved ? 'APPROVED_TO_START' : 'WAITING_PAYMENT' }).eq('id', selectedProof.request_id);
-    }
+    const { error } = await db.rpc('service_admin_review_payment', { p_proof_id: selectedProof.id, p_approved: approved, p_note: note.trim() || null });
     if (error) toast.error(error.message || 'Gagal memproses bukti transfer');
     else {
       await logAdminAction(approved ? 'VERIFY_SERVICE_PAYMENT' : 'REJECT_SERVICE_PAYMENT', 'service_payment_proof', selectedProof.id, { status: selectedProof.status }, { status, note: note.trim() || null });
@@ -131,15 +138,11 @@ export default function AdminServicesPage() {
     if (!selectedPayout || !selectedPayout.request) return;
     setActionLoading(true);
     const gross = Number(selectedPayout.gross_amount || selectedPayout.request.provider_payout || 0);
-    const platform = Number(selectedPayout.platform_fee || Math.round(gross * feePercent / 100));
-    const transfer = Number(selectedPayout.transfer_fee || 0);
-    const net = Math.max(0, gross - platform - transfer);
-    const { error } = await db.from('service_payouts').update({ gross_amount: gross, platform_fee: platform, transfer_fee: transfer, net_amount: net, status: 'RELEASED', released_at: new Date().toISOString(), note: note.trim() || null }).eq('id', selectedPayout.id);
-    if (!error) await db.from('service_requests').update({ status: 'COMPLETED' }).eq('id', selectedPayout.request_id);
+    const { error } = await db.rpc('service_admin_release_payout', { p_request_id: selectedPayout.request_id, p_note: note.trim() || null });
     if (error) toast.error(error.message || 'Gagal mencairkan dana');
     else {
-      await logAdminAction('RELEASE_SERVICE_PAYOUT', 'service_payout', selectedPayout.id, { status: 'PENDING' }, { status: 'RELEASED', net_amount: net });
-      toast.success(`Dana ${money(net)} ditandai cair ke penyedia.`); setSelectedPayout(null); setNote(''); await loadData(true);
+      await logAdminAction('RELEASE_SERVICE_PAYOUT', 'service_payout', selectedPayout.id, { status: 'PENDING' }, { status: 'RELEASED', request_id: selectedPayout.request_id });
+      toast.success(`Dana ${money(gross)} diproses untuk pencairan ke penyedia.`); setSelectedPayout(null); setNote(''); await loadData(true);
     }
     setActionLoading(false);
   }
