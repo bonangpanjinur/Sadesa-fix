@@ -14,12 +14,14 @@ const SCRIPT_CACHE = 'sadesa-script-cache-v1';
 const IMAGE_CACHE = 'sadesa-image-cache-v1';
 
 function isPublicImage(url: URL): boolean {
+  const isPublicStorage = url.hostname.includes('supabase')
+    && /\/storage\/v1\/(?:object|render\/image)\/public\/(product-images|tourism-images|profile-images|merchant-images|merchant-gallery|village-images)\//i.test(url.pathname);
+  if (isPublicStorage) return true;
   if (url.origin !== self.location.origin) return false;
   return url.pathname.startsWith('/assets/')
     || url.pathname.startsWith('/branding/')
     || url.pathname === '/motor-icon.png'
-    || url.pathname === '/motor-icon_original.png'
-    || /\/storage\/v1\/object\/public\/(product-images|tourism-images|profile-images|merchant-images|merchant-gallery|village-images)\//i.test(url.pathname);
+    || url.pathname === '/motor-icon_original.png';
 }
 
 async function putInCache(cacheName: string, request: Request, response: Response): Promise<Response> {

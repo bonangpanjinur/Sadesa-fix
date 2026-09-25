@@ -8,6 +8,7 @@ interface OptimizedImageProps {
   className?: string;
   width?: number;
   height?: number;
+  transformWidth?: number;
   fallback?: string;
   lazy?: boolean;
   blur?: boolean;
@@ -25,12 +26,31 @@ const aspectRatioClasses = {
   auto: '',
 };
 
+function optimizeSupabaseImage(src: string, requestedWidth: number): string {
+  try {
+    const url = new URL(src, window.location.origin);
+    const match = url.pathname.match(/^\/storage\/v1\/object\/public\/(.+)$/);
+    if (!match || !url.hostname.includes('supabase')) return src;
+
+    url.pathname = `/storage/v1/render/image/public/${match[1]}`;
+    url.search = '';
+    url.searchParams.set('width', String(Math.min(Math.max(Math.round(requestedWidth), 160), 1280)));
+    url.searchParams.set('quality', '75');
+    url.searchParams.set('format', 'webp');
+    url.searchParams.set('resize', 'cover');
+    return url.toString();
+  } catch {
+    return src;
+  }
+}
+
 export function OptimizedImage({
   src,
   alt,
   className,
   width,
   height,
+  transformWidth,
   fallback = '/placeholder.svg',
   lazy = true,
   blur = true,
@@ -41,6 +61,7 @@ export function OptimizedImage({
 }: OptimizedImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [useOriginalSrc, setUseOriginalSrc] = useState(false);
   const [isInView, setIsInView] = useState(!lazy);
   const imgRef = useRef<HTMLDivElement>(null);
 
@@ -73,11 +94,16 @@ export function OptimizedImage({
   };
 
   const handleError = () => {
+    if (!useOriginalSrc) {
+      setUseOriginalSrc(true);
+      return;
+    }
     setHasError(true);
     onError?.();
   };
 
-  const imageSrc = hasError ? fallback : src;
+  const optimizedSrc = optimizeSupabaseImage(src, transformWidth ?? width ?? 640);
+  const imageSrc = hasError ? fallback : useOriginalSrc ? src : optimizedSrc;
   const objectFitClass = {
     cover: 'object-cover',
     contain: 'object-contain',
@@ -95,16 +121,16 @@ export function OptimizedImage({
       )}
       style={{ width, height }}
     >
-      {/* Blur placeholder */}
       {blur && !isLoaded && (
         <div className="absolute inset-0 bg-muted animate-pulse" />
       )}
 
-      {/* Actual image */}
       {isInView && (
         <img
           src={imageSrc}
           alt={alt}
+          width={width}
+          height={height}
           loading={lazy ? 'lazy' : 'eager'}
           decoding="async"
           onLoad={handleLoad}
@@ -120,7 +146,6 @@ export function OptimizedImage({
   );
 }
 
-// Preload critical images
 export function preloadImage(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -130,7 +155,6 @@ export function preloadImage(src: string): Promise<void> {
   });
 }
 
-// Hook for lazy loading multiple images
 export function useImagePreloader(imageSrcs: string[]) {
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);

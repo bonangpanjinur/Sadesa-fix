@@ -4,13 +4,13 @@ import { isWithinOperatingHours } from './merchantOperatingHours';
 import { getProductUnavailableReason } from './productAvailability';
 
 // Import local images as fallbacks
-import heroVillage from '../assets/hero-village.jpg';
-import villageBojong from '../assets/village-bojong.jpg';
-import villageSukamaju from '../assets/village-sukamaju.jpg';
-import productKeripik from '../assets/product-keripik.jpg';
-import productKopi from '../assets/product-kopi.jpg';
-import productAnyaman from '../assets/product-anyaman.jpg';
-import productSambal from '../assets/product-sambal.jpg';
+import heroVillage from '../assets/hero-village.webp';
+import villageBojong from '../assets/village-bojong.webp';
+import villageSukamaju from '../assets/village-sukamaju.webp';
+import productKeripik from '../assets/product-keripik.webp';
+import productKopi from '../assets/product-kopi.webp';
+import productAnyaman from '../assets/product-anyaman.webp';
+import productSambal from '../assets/product-sambal.webp';
 
 export const heroImage = heroVillage;
 

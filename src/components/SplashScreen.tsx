@@ -40,7 +40,7 @@ export function SplashScreen({ children }: SplashScreenProps) {
           }`}
         >
           <img
-            src="/branding/sadesa-logo.png"
+            src="/branding/sadesa-logo.webp"
             alt="SaDesa"
             className="w-[min(86vw,420px)] object-contain"
           />

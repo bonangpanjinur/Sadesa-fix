@@ -69,6 +69,7 @@ export function SimilarProducts({ currentProductId, category, merchantId }: Prop
                 src={p.image_url || ''}
                 alt={p.name}
                 className="w-full h-full"
+                transformWidth={320}
                 aspectRatio="auto"
                 lazy
               />

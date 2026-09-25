@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 // Import fallback images
-import heroVillage from '@/assets/hero-village.jpg';
-import villageBojong from '@/assets/village-bojong.jpg';
-import villageSukamaju from '@/assets/village-sukamaju.jpg';
+import heroVillage from '@/assets/hero-village.webp';
+import villageBojong from '@/assets/village-bojong.webp';
+import villageSukamaju from '@/assets/village-sukamaju.webp';
 
 export interface BannerSlide {
   id: string;

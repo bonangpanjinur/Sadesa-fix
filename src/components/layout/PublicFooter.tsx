@@ -16,7 +16,7 @@ export function PublicFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
           <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-foreground">
-            <img src={settings.logoUrl || '/branding/sadesa-logo.png'} alt={settings.siteName} className="h-7 w-auto max-w-[120px] object-contain" />
+            <img src={settings.logoUrl || '/branding/sadesa-logo.webp'} alt={settings.siteName} className="h-7 w-auto max-w-[120px] object-contain" />
             <span>{settings.siteName}</span>
           </Link>
           <p className="max-w-md text-xs leading-relaxed">{settings.siteTagline}</p>
