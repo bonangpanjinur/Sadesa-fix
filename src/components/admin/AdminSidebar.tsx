@@ -108,6 +108,7 @@ export function AdminSidebar({
         { label: 'Merchant Tier Gratis', href: '/admin/free-quota', icon: <Clock3 className="h-4 w-4" /> },
         { label: 'Kategori Produk', href: '/admin/categories', icon: <Tags className="h-4 w-4" /> },
         { label: 'Dispute Center', href: '/admin/disputes', icon: <FileText className="h-4 w-4" /> },
+        { label: 'Sengketa Jasa', href: '/admin/service-disputes', icon: <ShieldCheck className="h-4 w-4" /> },
       ],
     },
     {
