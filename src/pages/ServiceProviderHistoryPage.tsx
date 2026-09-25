@@ -30,6 +30,14 @@ type ServiceRequest = {
   requester_completed: boolean;
   provider_completed: boolean;
   requester_budget: number | null;
+  service_type: 'JOB' | 'RENTAL';
+  rental_start_at: string | null;
+  rental_end_at: string | null;
+  rental_deposit: number;
+  rental_late_fee_per_day: number;
+  handover_condition: string | null;
+  payment_due_at: string | null;
+  completion_due_at: string | null;
   status: string;
   created_at: string;
 };
@@ -64,7 +72,7 @@ function ServiceProviderHistoryContent() {
     queryKey: ['service-provider-history', user?.id, refreshKey],
     enabled: Boolean(user),
     queryFn: async () => {
-      const { data: requests, error: requestError } = await db.from('service_requests').select('id,title,description,location,agreed_price,requester_budget,platform_fee,transfer_fee,provider_payout,requester_approved,requester_completed,provider_completed,status,created_at').eq('provider_id', user!.id).order('created_at', { ascending: false });
+      const { data: requests, error: requestError } = await db.from('service_requests').select('id,title,description,location,agreed_price,requester_budget,platform_fee,transfer_fee,provider_payout,requester_approved,requester_completed,provider_completed,service_type,rental_start_at,rental_end_at,rental_deposit,rental_late_fee_per_day,handover_condition,payment_due_at,completion_due_at,status,created_at').eq('provider_id', user!.id).order('created_at', { ascending: false });
       if (requestError) throw requestError;
       const requestIds = (requests || []).map((request: ServiceRequest) => request.id);
       if (requestIds.length === 0) return { requests: [], payouts: [], proofs: [], messages: [] };
