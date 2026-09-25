@@ -35,12 +35,12 @@ BEGIN
   END IF;
 
   SELECT CASE
-    WHEN (value->>'percent') ~ '^[0-9]+(\\.[0-9]+)?$' THEN (value->>'percent')::numeric
+    WHEN (value->>'percent') ~ '^[0-9]+([.][0-9]+)?$' THEN (value->>'percent')::numeric
     ELSE 5
   END
   INTO v_fee_percent
   FROM public.app_settings
-  WHERE key = 'platform_fee';
+  WHERE key = 'service_platform_fee';
   v_fee_percent := greatest(0, least(100, coalesce(v_fee_percent, 5)));
 
   UPDATE public.service_requests SET
@@ -65,6 +65,6 @@ IS 'Provider price proposal with server-side minimum tariff and admin platform f
 -- Ensure the existing admin settings have safe defaults for the services flow.
 INSERT INTO public.app_settings (key, value, category, description)
 VALUES
-  ('platform_fee', '{"percent": 5}'::jsonb, 'payment', 'Fee platform untuk transaksi jasa dan order'),
+  ('service_platform_fee', '{"percent": 5}'::jsonb, 'payment', 'Fee platform khusus transaksi jasa'),
   ('admin_payment_info', '{"bank_name":"", "bank_account_number":"", "bank_account_name":"", "qris_image_url":""}'::jsonb, 'payment', 'Rekening admin untuk pembayaran manual')
 ON CONFLICT (key) DO NOTHING;

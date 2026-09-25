@@ -20,6 +20,24 @@ describe('service marketplace transaction contract', () => {
     expect(migration).toContain('REVOKE INSERT, UPDATE, DELETE ON public.service_profiles FROM authenticated');
   });
 
+  it('registers providers from their existing account and routes referrals to scoped verifiers', () => {
+    const onboardingMigration = readFileSync(
+      resolve(process.cwd(), 'supabase/bootstrap/43_20260925130000_service_payment_proof_isolation.sql'),
+      'utf8',
+    );
+    const verifierPage = readFileSync(resolve(process.cwd(), 'src/pages/verifikator/VerifikatorServiceProvidersPage.tsx'), 'utf8');
+    const appRouter = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+    expect(servicesPage).toContain('p_verifikator_code: referralCode || null');
+    expect(servicesPage).toContain('service-provider-application');
+    expect(onboardingMigration).toContain('CREATE OR REPLACE FUNCTION public.service_publish_profile(');
+    expect(onboardingMigration).toContain('IF auth.uid() IS NULL THEN RAISE EXCEPTION');
+    expect(onboardingMigration).toContain('Referral code is invalid or inactive');
+    expect(onboardingMigration).toContain('code.verifikator_id = auth.uid()');
+    expect(onboardingMigration).toContain("VALUES (v_profile.provider_id, 'service_provider')");
+    expect(verifierPage).toContain("'service_admin_review_provider'");
+    expect(appRouter).toContain('path="/verifikator/service-providers"');
+  });
+
   it('keeps requester budget separate from the mutually accepted final price', () => {
     expect(migration).toContain('requester_budget numeric(14,2)');
     expect(migration).toContain("INSERT INTO public.service_requests");
@@ -37,7 +55,12 @@ describe('service marketplace transaction contract', () => {
     );
     expect(financeMigration).toContain('v_profile.min_price');
     expect(financeMigration).toContain('Price cannot be below provider minimum tariff');
-    expect(financeMigration).toContain("WHERE key = 'platform_fee'");
+    expect(financeMigration).toContain("WHERE key = 'service_platform_fee'");
+    const serviceFinanceMigration = readFileSync(
+      resolve(process.cwd(), 'supabase/bootstrap/43_20260925130000_service_payment_proof_isolation.sql'),
+      'utf8',
+    );
+    expect(serviceFinanceMigration).toContain("WHERE key = 'service_platform_fee'");
     expect(financeMigration).toContain('p_agreed_price * v_fee_percent / 100');
   });
 
@@ -54,5 +77,21 @@ describe('service marketplace transaction contract', () => {
     expect(migration).toContain("status = 'COMPLETED', external_reference = trim(p_external_reference)");
     expect(migration).toContain("status = 'REFUNDED', admin_note = coalesce");
     expect(disputesPage).toContain("rpc('service_admin_record_refund'");
+  });
+
+  it('binds proof objects to the requester and uses a dedicated fee key', () => {
+    const hardeningMigration = readFileSync(
+      resolve(process.cwd(), 'supabase/bootstrap/43_20260925130000_service_payment_proof_isolation.sql'),
+      'utf8',
+    );
+    expect(hardeningMigration).toContain('can_manage_service_payment_proof');
+    expect(hardeningMigration).toContain('request.requester_id = auth.uid()');
+    expect(hardeningMigration).toContain('v_path_request_id <> p_request_id');
+    expect(hardeningMigration).toContain('proof.proof_path = p_object_name');
+    expect(hardeningMigration).toContain('idx_service_payment_proofs_active_transfer_reference');
+    expect(hardeningMigration).toContain("WHERE key = 'service_platform_fee'");
+    expect(hardeningMigration).toContain('Payout was already released with a different transfer reference');
+    expect(adminPage).toContain("['service_platform_fee', 'admin_payment_info']");
+    expect(adminPage).not.toContain("key: 'platform_fee'");
   });
 });

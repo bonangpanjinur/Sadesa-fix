@@ -24,8 +24,17 @@ describe('service marketplace enhancement contract', () => {
     expect(migration).toContain('rental_end_at');
     expect(migration).toContain('rental_deposit');
     expect(migration).toContain('rental_late_fee_per_day');
-    expect(servicesPage).toContain("p_service_type: offer.service_type");
+    expect(servicesPage).toContain("p_service_type: 'JOB'");
+    expect(servicesPage).toContain('Penyewaan (belum tersedia)');
     expect(requesterPage).toContain("request.service_type === 'RENTAL'");
+  });
+
+  it('blocks new rental requests on the database until deposit settlement and returns are implemented', () => {
+    const hardeningMigration = readFileSync(
+      resolve(process.cwd(), 'supabase/bootstrap/43_20260925130000_service_payment_proof_isolation.sql'),
+      'utf8',
+    );
+    expect(hardeningMigration).toContain("IF p_service_type <> 'JOB' THEN RAISE EXCEPTION 'Rental requests are temporarily unavailable");
   });
 
   it('emits in-app notifications from transaction events', () => {

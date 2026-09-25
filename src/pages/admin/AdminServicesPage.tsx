@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { logAdminAction } from '@/lib/auditLog';
+import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 
 const db = supabase as unknown as { from: typeof supabase.from; rpc: typeof supabase.rpc };
 type Proof = {
@@ -20,6 +21,7 @@ type Proof = {
   amount: number;
   transfer_reference: string | null;
   proof_url: string | null;
+  proof_path?: string | null;
   status: 'PENDING' | 'VERIFIED' | 'REJECTED';
   admin_note: string | null;
   created_at: string;
@@ -89,10 +91,10 @@ function ServiceFinanceSettings() {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.from('app_settings').select('key,value').in('key', ['platform_fee', 'admin_payment_info']);
+      const { data } = await supabase.from('app_settings').select('key,value').in('key', ['service_platform_fee', 'admin_payment_info']);
       for (const item of data || []) {
         const value = item.value as Record<string, unknown>;
-        if (item.key === 'platform_fee' && typeof value.percent === 'number') setFeePercent(String(value.percent));
+        if (item.key === 'service_platform_fee' && typeof value.percent === 'number') setFeePercent(String(value.percent));
         if (item.key === 'admin_payment_info') {
           setBankName(String(value.bank_name || ''));
           setAccountNumber(String(value.bank_account_number || ''));
@@ -109,7 +111,7 @@ function ServiceFinanceSettings() {
     if (!bankName.trim() || !accountNumber.trim() || !accountName.trim()) return toast.error('Lengkapi bank, nomor rekening, dan nama pemilik rekening.');
     setSaving(true);
     const { error } = await supabase.from('app_settings').upsert([
-      { key: 'platform_fee', value: { percent: fee }, category: 'payment', description: 'Fee platform transaksi jasa' },
+      { key: 'service_platform_fee', value: { percent: fee }, category: 'payment', description: 'Fee platform transaksi jasa' },
       { key: 'admin_payment_info', value: { bank_name: bankName.trim(), bank_account_number: accountNumber.trim(), bank_account_name: accountName.trim(), qris_image_url: qrisUrl.trim() }, category: 'payment', description: 'Rekening admin untuk pembayaran jasa manual' },
     ], { onConflict: 'key' });
     setSaving(false);
@@ -128,6 +130,8 @@ export default function AdminServicesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProof, setSelectedProof] = useState<Proof | null>(null);
+  const [selectedProofUrl, setSelectedProofUrl] = useState<string | null>(null);
+  const [loadingProofUrl, setLoadingProofUrl] = useState(false);
   const [selectedPayout, setSelectedPayout] = useState<Payout | null>(null);
   const [note, setNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -155,6 +159,17 @@ export default function AdminServicesPage() {
   const readyPayouts = useMemo(() => payouts.filter((payout) => payout.status === 'PENDING' && ['WAITING_CONFIRMATION', 'COMPLETED'].includes(payout.request?.status || '')), [payouts]);
   const heldFunds = proofs.filter((proof) => proof.status === 'VERIFIED').reduce((sum, proof) => sum + Number(proof.amount || 0), 0);
   const totalFees = payouts.reduce((sum, payout) => sum + Number(payout.platform_fee || 0), 0);
+
+  async function openProof(proof: Proof) {
+    setSelectedProof(proof);
+    setSelectedProofUrl(null);
+    setLoadingProofUrl(true);
+    setNote('');
+    const signedUrl = await getPaymentProofSignedUrl(proof.proof_path || proof.proof_url);
+    setSelectedProofUrl(signedUrl);
+    setLoadingProofUrl(false);
+    if (!signedUrl) toast.error('Bukti tidak dapat dibuka. Path mungkin sudah tidak tersedia atau akses ditolak.');
+  }
 
   async function verifyProof(approved: boolean) {
     if (!selectedProof) return;
@@ -212,14 +227,14 @@ export default function AdminServicesPage() {
 
     <Card><CardHeader className="flex-row items-center justify-between space-y-0"><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-700" />Kontrol escrow jasa</CardTitle><Button variant="outline" size="sm" onClick={() => void loadData(true)} disabled={refreshing} className="gap-2"><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />Segarkan</Button></CardHeader><CardContent>
       {loading ? <AdminStatePanel type="loading" title="Memuat escrow jasa" description="Mengambil bukti transfer dan antrean pencairan." /> : <Tabs defaultValue="proofs"><TabsList className="mb-4"><TabsTrigger value="proofs">Bukti transfer <Badge variant="secondary" className="ml-2">{pendingProofs.length}</Badge></TabsTrigger><TabsTrigger value="payouts">Pencairan <Badge variant="secondary" className="ml-2">{readyPayouts.length}</Badge></TabsTrigger><TabsTrigger value="providers">Provider <Badge variant="secondary" className="ml-2">{providerProfiles.length}</Badge></TabsTrigger><TabsTrigger value="all">Riwayat</TabsTrigger><TabsTrigger value="report">Laporan bulanan</TabsTrigger></TabsList>
-        <TabsContent value="proofs"><div className="space-y-3">{pendingProofs.length === 0 ? <AdminStatePanel type="empty" title="Tidak ada bukti transfer tertunda" description="Semua bukti transfer sudah ditangani." /> : pendingProofs.map((proof) => <div key={proof.id} className="flex flex-col gap-4 rounded-xl border p-4 lg:flex-row lg:items-center"><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><Badge variant="warning">PENDING</Badge><span className="font-semibold">{proof.request?.title || `Request #${shortId(proof.request_id)}`}</span></div><p className="mt-1 text-sm text-muted-foreground">{proof.request?.location || '-'} · Transfer {money(proof.amount)}</p><p className="mt-1 text-xs text-muted-foreground">Ref: {proof.transfer_reference || '-'} · {new Date(proof.created_at).toLocaleString('id-ID')}</p></div><Button onClick={() => { setSelectedProof(proof); setNote(''); }} className="gap-2"><Eye className="h-4 w-4" />Review bukti</Button></div>)}</div></TabsContent>
+        <TabsContent value="proofs"><div className="space-y-3">{pendingProofs.length === 0 ? <AdminStatePanel type="empty" title="Tidak ada bukti transfer tertunda" description="Semua bukti transfer sudah ditangani." /> : pendingProofs.map((proof) => <div key={proof.id} className="flex flex-col gap-4 rounded-xl border p-4 lg:flex-row lg:items-center"><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><Badge variant="warning">PENDING</Badge><span className="font-semibold">{proof.request?.title || `Request #${shortId(proof.request_id)}`}</span></div><p className="mt-1 text-sm text-muted-foreground">{proof.request?.location || '-'} · Transfer {money(proof.amount)}</p><p className="mt-1 text-xs text-muted-foreground">Ref: {proof.transfer_reference || '-'} · {new Date(proof.created_at).toLocaleString('id-ID')}</p></div><Button onClick={() => void openProof(proof)} className="gap-2"><Eye className="h-4 w-4" />Review bukti</Button></div>)}</div></TabsContent>
         <TabsContent value="payouts"><div className="space-y-3">{readyPayouts.length === 0 ? <AdminStatePanel type="empty" title="Belum ada pencairan siap diproses" description="Pencairan tersedia setelah pekerjaan mencapai tahap konfirmasi selesai." /> : readyPayouts.map((payout) => <div key={payout.id} className="flex flex-col gap-4 rounded-xl border p-4 lg:flex-row lg:items-center"><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline">SIAP CAIR</Badge><span className="font-semibold">{payout.request?.title || `Request #${shortId(payout.request_id)}`}</span></div><p className="mt-1 text-sm text-muted-foreground">{payout.request?.location || '-'} · Gross {money(payout.gross_amount)}</p><p className="mt-1 text-xs text-muted-foreground">Fee {money(payout.platform_fee)} · Transfer {money(payout.transfer_fee)} · Bersih <b className="text-foreground">{money(payout.net_amount)}</b></p></div><Button onClick={() => { setSelectedPayout(payout); setNote(''); }} className="gap-2 bg-emerald-700 hover:bg-emerald-800"><Wallet className="h-4 w-4" />Cairkan dana</Button></div>)}</div></TabsContent>
         <TabsContent value="providers"><div className="space-y-3">{providerProfiles.length === 0 ? <AdminStatePanel type="empty" title="Tidak ada provider menunggu verifikasi" description="Profil baru akan muncul di sini sebelum ditampilkan ke publik." /> : providerProfiles.map((profile) => <div key={profile.id} className="rounded-xl border p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="flex-1"><div className="flex items-center gap-2"><Wrench className="h-4 w-4 text-emerald-700" /><p className="font-semibold">{profile.provider_name} · {profile.headline}</p></div><p className="mt-1 text-sm text-muted-foreground">{profile.village || 'Area layanan belum diisi'} · Mulai {money(profile.min_price)}</p><p className="mt-2 text-sm">{profile.bio || 'Tidak ada deskripsi.'}</p><p className="mt-2 text-xs text-muted-foreground">Keahlian: {profile.service_skills?.map((skill) => skill.service_subcategories?.[0]?.name).filter(Boolean).join(', ') || 'Belum terhubung'}</p></div><Badge variant="secondary">MENUNGGU REVIEW</Badge></div><div className="mt-3 flex flex-col gap-2 sm:flex-row"><Textarea value={providerNotes[profile.id] || ''} onChange={(event) => setProviderNotes((notes) => ({ ...notes, [profile.id]: event.target.value }))} placeholder="Catatan review / alasan jika ditolak" maxLength={1000} className="min-h-10 sm:flex-1" /><Button onClick={() => void reviewProvider(profile, 'VERIFIED')} disabled={actionLoading} className="gap-2"><Check className="h-4 w-4" />Verifikasi</Button><Button variant="destructive" onClick={() => void reviewProvider(profile, 'REJECTED')} disabled={actionLoading || (providerNotes[profile.id] || '').trim().length < 3} className="gap-2"><X className="h-4 w-4" />Tolak</Button></div></div>)}</div></TabsContent>
         <TabsContent value="all"><div className="space-y-3">{payouts.length === 0 ? <AdminStatePanel type="empty" title="Belum ada riwayat payout" description="Riwayat akan muncul setelah transaksi jasa memiliki payout." /> : payouts.map((payout) => <div key={payout.id} className="flex items-center justify-between rounded-xl border p-4"><div><p className="font-semibold">{payout.request?.title || `Request #${shortId(payout.request_id)}`}</p><p className="text-xs text-muted-foreground">{money(payout.net_amount)} ke penyedia · {payout.request?.status || '-'}</p>{payout.external_transfer_reference && <p className="text-xs text-muted-foreground">Referensi transfer: {payout.external_transfer_reference}</p>}</div><Badge variant={payout.status === 'RELEASED' ? 'default' : 'secondary'}>{payout.status}</Badge></div>)}</div></TabsContent>
         <TabsContent value="report"><MonthlyReport proofs={proofs} payouts={payouts} /></TabsContent>
       </Tabs>}</CardContent></Card>
 
-    {selectedProof && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true"><Card className="w-full max-w-xl"><CardHeader><CardTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-emerald-700" />Review bukti transfer</CardTitle></CardHeader><CardContent className="space-y-4"><div className="rounded-xl bg-muted/50 p-4"><p className="font-semibold">{selectedProof.request?.title || `Request #${shortId(selectedProof.request_id)}`}</p><p className="mt-1 text-sm text-muted-foreground">Nominal transfer: <b className="text-foreground">{money(selectedProof.amount)}</b></p><p className="text-sm text-muted-foreground">Referensi: {selectedProof.transfer_reference || '-'}</p>{selectedProof.proof_url && <a href={selectedProof.proof_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-primary underline">Buka bukti transfer <Eye className="h-4 w-4" /></a>}</div><Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Catatan admin, wajib diisi jika menolak" maxLength={1000} /><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setSelectedProof(null)} disabled={actionLoading}>Batal</Button><Button variant="destructive" onClick={() => void verifyProof(false)} disabled={actionLoading || !note.trim()}><X className="mr-2 h-4 w-4" />Tolak</Button><Button onClick={() => void verifyProof(true)} disabled={actionLoading}><Check className="mr-2 h-4 w-4" />Verifikasi</Button></div></CardContent></Card></div>}
+    {selectedProof && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true"><Card className="w-full max-w-xl"><CardHeader><CardTitle className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-emerald-700" />Review bukti transfer</CardTitle></CardHeader><CardContent className="space-y-4"><div className="rounded-xl bg-muted/50 p-4"><p className="font-semibold">{selectedProof.request?.title || `Request #${shortId(selectedProof.request_id)}`}</p><p className="mt-1 text-sm text-muted-foreground">Nominal transfer: <b className="text-foreground">{money(selectedProof.amount)}</b></p><p className="text-sm text-muted-foreground">Referensi: {selectedProof.transfer_reference || '-'}</p>{loadingProofUrl ? <p className="mt-3 text-sm text-muted-foreground">Menyiapkan tautan bukti aman...</p> : selectedProofUrl ? <a href={selectedProofUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-primary underline">Buka bukti transfer <Eye className="h-4 w-4" /></a> : <p className="mt-3 text-sm text-destructive">Bukti privat tidak tersedia untuk dibuka.</p>}</div><Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Catatan admin, wajib diisi jika menolak" maxLength={1000} /><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => { setSelectedProof(null); setSelectedProofUrl(null); }} disabled={actionLoading}>Batal</Button><Button variant="destructive" onClick={() => void verifyProof(false)} disabled={actionLoading || !note.trim()}><X className="mr-2 h-4 w-4" />Tolak</Button><Button onClick={() => void verifyProof(true)} disabled={actionLoading}><Check className="mr-2 h-4 w-4" />Verifikasi</Button></div></CardContent></Card></div>}
     {selectedPayout && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true"><Card className="w-full max-w-xl"><CardHeader><CardTitle className="flex items-center gap-2"><CircleDollarSign className="h-5 w-5 text-emerald-700" />Catat transfer payout manual</CardTitle></CardHeader><CardContent className="space-y-4"><div className="rounded-xl bg-emerald-50 p-4"><p className="font-semibold">{selectedPayout.request?.title || `Request #${shortId(selectedPayout.request_id)}`}</p><p className="mt-1 text-xs text-emerald-900">Lakukan transfer di kanal bank/gateway terlebih dahulu. Formulir ini hanya mencatat transfer yang sudah berhasil.</p><div className="mt-3 grid grid-cols-3 gap-2 text-sm"><div><p className="text-muted-foreground">Gross</p><b>{money(selectedPayout.gross_amount)}</b></div><div><p className="text-muted-foreground">Fee platform</p><b>{money(selectedPayout.platform_fee)}</b></div><div><p className="text-muted-foreground">Diteruskan</p><b className="text-emerald-700">{money(selectedPayout.net_amount)}</b></div></div></div><Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Nomor referensi transfer aktual (wajib)" maxLength={200} /><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setSelectedPayout(null)} disabled={actionLoading}>Batal</Button><Button onClick={() => void releasePayout()} disabled={actionLoading || note.trim().length < 3} className="bg-emerald-700 hover:bg-emerald-800"><Wallet className="mr-2 h-4 w-4" />Catat transfer selesai</Button></div></CardContent></Card></div>}
   </AdminLayout>;
 }
