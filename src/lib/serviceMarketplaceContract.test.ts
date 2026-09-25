@@ -57,6 +57,15 @@ describe('service marketplace transaction contract', () => {
     expect(servicesPage).toContain('canRegisterProvider');
   });
 
+  it('keeps service discovery, provider onboarding, and rental requests distinct', () => {
+    expect(servicesPage).toContain('categoryGroups');
+    expect(servicesPage).toContain("p_service_type: offer.service_type");
+    expect(servicesPage).toContain('Penyewaan barang / perlengkapan');
+    expect(servicesPage).toContain("selectedCategoryIsRental ? 'Ajukan sewa' : 'Ajukan jasa'");
+    expect(providerRegistration).toContain('providerGroups');
+    expect(providerRegistration).toContain('Keahlian yang ditawarkan');
+  });
+
   it('keeps requester budget separate from the mutually accepted final price', () => {
     expect(migration).toContain('requester_budget numeric(14,2)');
     expect(migration).toContain("INSERT INTO public.service_requests");

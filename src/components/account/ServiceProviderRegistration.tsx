@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Clock3, Send, Wrench, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock3, Send, Wrench, XCircle, Home, CarFront, HeartPulse, Package } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +12,21 @@ import { toast } from 'sonner';
 const db = supabase as unknown as { from: typeof supabase.from; rpc: typeof supabase.rpc };
 
 const fallbackCategories = [
-  { id: 'elektronik', name: 'Jasa Elektronik', subcategories: [{ id: 'tv', name: 'Perbaikan televisi' }, { id: 'kulkas', name: 'Perbaikan kulkas' }, { id: 'pompa', name: 'Servis pompa air' }] },
-  { id: 'bengkel', name: 'Jasa Bengkel Kendaraan', subcategories: [{ id: 'motor', name: 'Servis motor' }, { id: 'mobil', name: 'Servis mobil' }, { id: 'oli', name: 'Ganti oli' }] },
-  { id: 'kebun', name: 'Jasa Kebun', subcategories: [{ id: 'rumput', name: 'Potong rumput' }, { id: 'pohon', name: 'Tebang pohon' }, { id: 'taman', name: 'Pembuatan taman' }] },
-  { id: 'pertukangan', name: 'Jasa Pertukangan', subcategories: [{ id: 'kayu', name: 'Tukang kayu' }, { id: 'plafon', name: 'Pemasangan plafon' }, { id: 'cat', name: 'Pengecatan rumah' }] },
-  { id: 'pendidikan', name: 'Jasa Pendidikan', subcategories: [{ id: 'les', name: 'Les anak sekolah' }, { id: 'ngaji', name: 'Mengaji' }, { id: 'komputer', name: 'Les komputer' }] },
+  { id: 'elektronik', slug: 'elektronik', name: 'Jasa Elektronik', subcategories: [{ id: 'tv', name: 'Perbaikan televisi' }, { id: 'kulkas', name: 'Perbaikan kulkas' }, { id: 'pompa', name: 'Servis pompa air' }] },
+  { id: 'bengkel', slug: 'bengkel-kendaraan', name: 'Jasa Bengkel Kendaraan', subcategories: [{ id: 'motor', name: 'Servis motor' }, { id: 'mobil', name: 'Servis mobil' }, { id: 'oli', name: 'Ganti oli' }] },
+  { id: 'kebun', slug: 'kebun', name: 'Jasa Kebun', subcategories: [{ id: 'rumput', name: 'Potong rumput' }, { id: 'pohon', name: 'Tebang pohon' }, { id: 'taman', name: 'Pembuatan taman' }] },
+  { id: 'pertukangan', slug: 'pertukangan', name: 'Jasa Pertukangan', subcategories: [{ id: 'kayu', name: 'Tukang kayu' }, { id: 'plafon', name: 'Pemasangan plafon' }, { id: 'cat', name: 'Pengecatan rumah' }] },
+  { id: 'pendidikan', slug: 'pendidikan', name: 'Jasa Pendidikan', subcategories: [{ id: 'les', name: 'Les anak sekolah' }, { id: 'ngaji', name: 'Mengaji' }, { id: 'komputer', name: 'Les komputer' }] },
 ];
 
-type Category = { id: string; name: string; subcategories: { id: string; name: string }[] };
+type Category = { id: string; slug?: string; name: string; subcategories: { id: string; name: string }[] };
+const providerGroups = [
+  { id: 'home', label: 'Rumah & perbaikan', hint: 'Pekerjaan teknis, rumah, elektronik, dan kebun.', icon: Home, keywords: ['elektronik', 'bengkel', 'kebun', 'pertukangan'] },
+  { id: 'personal', label: 'Personal & edukasi', hint: 'Perawatan diri, kesehatan, dan pendampingan belajar.', icon: HeartPulse, keywords: ['pendidikan', 'kesehatan', 'perawatan'] },
+  { id: 'rental', label: 'Sewa perlengkapan', hint: 'Barang atau perlengkapan yang disewakan berdasarkan periode.', icon: Package, keywords: ['sewa'] },
+  { id: 'mobility', label: 'Kendaraan & logistik', hint: 'Angkutan, pengiriman, dan layanan kendaraan.', icon: CarFront, keywords: ['angkut', 'pengiriman', 'kendaraan'] },
+] as const;
+const providerGroupFor = (name: string) => providerGroups.find((group) => group.keywords.some((keyword) => name.toLowerCase().includes(keyword))) || providerGroups[0];
 type ProviderApplication = {
   provider_name: string;
   headline: string;
@@ -137,7 +144,7 @@ export function ServiceProviderRegistration({ userId, openOnMount = false }: Pro
       </CardContent>
     </Card>
 
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-xl"><DialogHeader><DialogTitle>{application ? 'Perbarui pendaftaran penyedia jasa' : 'Daftar sebagai penyedia jasa'}</DialogTitle><DialogDescription>Pengajuan ini memakai akun Anda dan akan diverifikasi sebelum profil tampil di katalog.</DialogDescription></DialogHeader>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-xl"><DialogHeader><DialogTitle>{application ? 'Perbarui pendaftaran penyedia jasa' : 'Daftar sebagai penyedia jasa'}</DialogTitle><DialogDescription>Isi data dasar, pilih kelompok keahlian, lalu kirim untuk diverifikasi sebelum profil tampil di katalog.</DialogDescription></DialogHeader>
       <div className="space-y-4">
         {status === 'PENDING' && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Pendaftaran sedang menunggu verifikasi. Anda tetap dapat memperbarui data jika diperlukan.</div>}
         {status === 'REJECTED' && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">Pendaftaran sebelumnya ditolak. Perbaiki data sesuai catatan lalu kirim kembali.</div>}
@@ -147,7 +154,7 @@ export function ServiceProviderRegistration({ userId, openOnMount = false }: Pro
         <Textarea maxLength={2000} placeholder="Pengalaman, layanan, dan area yang dilayani" value={post.bio} onChange={(e) => setPost({ ...post, bio: e.target.value })} />
         <Input maxLength={150} placeholder="Desa / area layanan" value={post.village} onChange={(e) => setPost({ ...post, village: e.target.value })} />
         <Input type="number" min="0" step="1000" placeholder="Harga minimum jasa (Rp)" value={post.min_price} onChange={(e) => setPost({ ...post, min_price: e.target.value })} />
-        <div><p className="mb-2 text-sm font-bold">Keahlian yang ditawarkan</p><div className="grid gap-3 sm:grid-cols-2">{categories.flatMap((category) => category.subcategories.map((sub) => <label key={sub.id} className={`cursor-pointer rounded-2xl border p-3 text-sm transition ${post.skills.includes(sub.id) ? 'border-emerald-500 bg-emerald-50 font-bold' : 'border-border bg-white'}`}><input type="checkbox" className="mr-2 accent-emerald-700" checked={post.skills.includes(sub.id)} onChange={(e) => setPost({ ...post, skills: e.target.checked ? [...post.skills, sub.id] : post.skills.filter((id) => id !== sub.id) })} />{sub.name}</label>))}</div></div>
+        <div className="space-y-3"><div><p className="text-sm font-bold">Keahlian yang ditawarkan</p><p className="mt-1 text-xs text-muted-foreground">Pilih satu atau beberapa keahlian. Kelompokkan layanan agar pelanggan mudah menemukan Anda.</p></div>{providerGroups.map((group) => { const Icon = group.icon; const groupCategories = categories.filter((category) => providerGroupFor(category.name).id === group.id); if (!groupCategories.length) return null; return <div key={group.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-3"><div className="mb-2 flex items-start gap-2"><span className="rounded-xl bg-white p-2 text-emerald-700"><Icon className="h-4 w-4" /></span><div><p className="text-sm font-bold text-emerald-950">{group.label}</p><p className="text-[11px] text-emerald-900/70">{group.hint}</p></div></div><div className="grid gap-2 sm:grid-cols-2">{groupCategories.flatMap((category) => category.subcategories.map((sub) => <label key={sub.id} className={`cursor-pointer rounded-xl border bg-white p-3 text-sm transition ${post.skills.includes(sub.id) ? 'border-emerald-500 bg-emerald-100 font-bold' : 'border-border hover:border-emerald-300'}`}><input type="checkbox" className="mr-2 accent-emerald-700" checked={post.skills.includes(sub.id)} onChange={(e) => setPost({ ...post, skills: e.target.checked ? [...post.skills, sub.id] : post.skills.filter((id) => id !== sub.id) })} />{sub.name}</label>))}</div></div>})}</div>
         <div className="space-y-2"><label htmlFor="service-referral-code" className="text-sm font-semibold">Kode referral verifikator (opsional)</label><Input id="service-referral-code" maxLength={32} placeholder="Masukkan kode milik verifikator" value={post.referralCode} onChange={(e) => { setReferralError(''); setPost({ ...post, referralCode: e.target.value.toUpperCase() }); }} /><p className="text-xs text-muted-foreground">Dengan kode, pengajuan masuk ke antrean verifikator tersebut. Tanpa kode, admin yang memverifikasi.</p>{referralError && <p className="text-sm text-destructive">{referralError}</p>}</div>
       </div>
       <DialogFooter><Button onClick={() => void submit()} className="w-full rounded-full bg-emerald-700"><Send className="mr-2 h-4 w-4" />Kirim pendaftaran untuk verifikasi</Button></DialogFooter>
