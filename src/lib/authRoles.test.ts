@@ -26,6 +26,7 @@ describe('frontend role recovery', () => {
     expect(ensureBuyerFallback([])).toEqual(['buyer']);
     expect(ensureBuyerFallback(['merchant'])).toEqual(['merchant', 'buyer']);
     expect(ensureBuyerFallback(['courier'])).toEqual(['courier', 'buyer']);
+    expect(ensureBuyerFallback(['service_provider'])).toEqual(['service_provider', 'buyer']);
     expect(ensureBuyerFallback(['merchant', 'buyer'])).toEqual(['merchant', 'buyer']);
   });
 });

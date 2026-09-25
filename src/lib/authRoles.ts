@@ -21,10 +21,10 @@ export function mergeCourierRole(
   return [...roles, 'courier'];
 }
 
-/** Merchant and courier accounts are also marketplace buyers. */
+/** Merchant, courier, and service provider accounts are also marketplace buyers. */
 export function ensureBuyerFallback(roles: AppRole[]): AppRole[] {
   if (roles.length === 0) return ['buyer'];
-  if ((roles.includes('merchant') || roles.includes('courier')) && !roles.includes('buyer')) {
+  if ((roles.includes('merchant') || roles.includes('courier') || roles.includes('service_provider')) && !roles.includes('buyer')) {
     return [...roles, 'buyer'];
   }
   return roles;

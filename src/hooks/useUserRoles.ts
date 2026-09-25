@@ -16,6 +16,7 @@ export function useUserRoles() {
     isMerchant,
     isCourier,
     isAdminDesa,
+    isServiceProvider,
     refetchRoles,
   } = useAuth();
 
@@ -30,6 +31,7 @@ export function useUserRoles() {
     isMerchant,
     isCourier,
     isAdminDesa,
+    isServiceProvider,
     refetch: refetchRoles,
   };
 }

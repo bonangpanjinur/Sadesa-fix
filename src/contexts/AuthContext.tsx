@@ -46,6 +46,7 @@ interface AuthContextType {
   isMerchant: boolean;
   isCourier: boolean;
   isAdminDesa: boolean;
+  isServiceProvider: boolean;
   refetchRoles: () => Promise<void>;
 }
 
@@ -280,6 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isMerchant = hasRole('merchant');
   const isCourier = hasRole('courier');
   const isAdminDesa = hasRole('admin_desa');
+  const isServiceProvider = hasRole('service_provider');
 
   return (
     <AuthContext.Provider
@@ -299,6 +301,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isMerchant,
         isCourier,
         isAdminDesa,
+        isServiceProvider,
         refetchRoles,
       }}
     >

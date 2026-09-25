@@ -1,6 +1,6 @@
 // Auth and Role types
 
-export type AppRole = 'admin' | 'buyer' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa';
+export type AppRole = 'admin' | 'buyer' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa' | 'service_provider';
 
 export interface UserWithRoles {
   id: string;
@@ -53,10 +53,16 @@ export const ROLE_CONFIGS: Record<AppRole, RoleConfig> = {
     redirectPath: '/',
     allowedPaths: ['/', '/products', '/product/*', '/tourism', '/tourism/*', '/cart', '/checkout', '/orders', '/orders/*', '/account', '/explore', '/search'],
   },
+  service_provider: {
+    role: 'service_provider',
+    label: 'Penyedia Jasa',
+    redirectPath: '/services',
+    allowedPaths: ['/services', '/services/*'],
+  },
 };
 
 // Priority order for role-based redirect (higher priority roles redirect first)
-export const ROLE_PRIORITY: AppRole[] = ['admin', 'admin_desa', 'verifikator', 'merchant', 'courier', 'buyer'];
+export const ROLE_PRIORITY: AppRole[] = ['admin', 'admin_desa', 'verifikator', 'merchant', 'courier', 'service_provider', 'buyer'];
 
 export function getRedirectPathForRoles(roles: AppRole[]): string {
   for (const role of ROLE_PRIORITY) {
