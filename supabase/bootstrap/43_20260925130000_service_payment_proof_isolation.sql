@@ -5,6 +5,30 @@ ALTER TABLE public.service_payment_proofs
   ADD COLUMN IF NOT EXISTS proof_path text,
   ADD COLUMN IF NOT EXISTS normalized_transfer_reference text;
 
+-- Ensure columns used by this bundle's RPCs exist even when the preceding
+-- state-machine and rental bundles have not yet been applied to this database.
+ALTER TABLE public.service_profiles
+  ADD COLUMN IF NOT EXISTS verification_status text NOT NULL DEFAULT 'PENDING'
+    CHECK (verification_status IN ('PENDING', 'VERIFIED', 'REJECTED')),
+  ADD COLUMN IF NOT EXISTS verification_note text,
+  ADD COLUMN IF NOT EXISTS verified_by uuid REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS verified_at timestamptz,
+  ADD COLUMN IF NOT EXISTS verifikator_code text;
+
+UPDATE public.service_profiles
+SET verification_status = CASE WHEN is_verified THEN 'VERIFIED' ELSE 'PENDING' END
+WHERE verification_status = 'PENDING' AND is_verified = true;
+
+ALTER TABLE public.service_requests
+  ADD COLUMN IF NOT EXISTS requester_budget numeric(14,2)
+    CHECK (requester_budget IS NULL OR requester_budget >= 0),
+  ADD COLUMN IF NOT EXISTS service_type text NOT NULL DEFAULT 'JOB',
+  ADD COLUMN IF NOT EXISTS rental_start_at timestamptz,
+  ADD COLUMN IF NOT EXISTS rental_end_at timestamptz,
+  ADD COLUMN IF NOT EXISTS rental_deposit numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS rental_late_fee_per_day numeric(14,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS handover_condition text;
+
 -- Preserve historical rows without allowing pre-existing duplicate references to
 -- prevent deployment. Ambiguous active references remain visible in the legacy
 -- column and are rejected by the RPC when reused.
@@ -223,6 +247,10 @@ REVOKE ALL ON FUNCTION public.service_submit_payment_proof(uuid, numeric, text, 
 GRANT EXECUTE ON FUNCTION public.service_submit_payment_proof(uuid, numeric, text, text) TO authenticated;
 
 -- A completed payout retry is idempotent only when it repeats the same transfer reference.
+-- Keep this bundle independently runnable when an earlier state-machine bundle was skipped.
+ALTER TABLE public.service_payouts
+  ADD COLUMN IF NOT EXISTS external_transfer_reference text;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_service_payouts_released_transfer_reference
   ON public.service_payouts (upper(regexp_replace(trim(external_transfer_reference), '\s+', '', 'g')))
   WHERE status = 'RELEASED' AND nullif(trim(external_transfer_reference), '') IS NOT NULL;
@@ -401,7 +429,13 @@ CREATE POLICY "verified active service profiles are public" ON public.service_pr
   );
 
 -- Replace instant role activation/profile publishing with application submission.
-REVOKE ALL ON FUNCTION public.activate_service_provider() FROM PUBLIC, authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.activate_service_provider()') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.activate_service_provider() FROM PUBLIC, authenticated';
+  END IF;
+END;
+$$;
 DROP FUNCTION IF EXISTS public.service_publish_profile(text, text, text, text, numeric, uuid[]);
 CREATE OR REPLACE FUNCTION public.service_publish_profile(
   p_provider_name text,
