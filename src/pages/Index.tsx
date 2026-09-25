@@ -213,7 +213,7 @@ const Index = () => {
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
-  // Tiga layanan inti harus selalu tersedia di tampilan awal.
+  // Layanan kuliner dan transportasi menjadi menu utama sementara fitur jasa disembunyikan.
   // Data admin tetap dipakai untuk label/style, tetapi tidak boleh menghilangkan dua layanan utama
   // jika konfigurasi kategori belum termuat atau salah satu kategori dinonaktifkan.
   const configuredCategories = getHomepageCategories();
@@ -221,13 +221,6 @@ const Index = () => {
     configuredCategories.find((category) => category.id === categoryId)
       || PRIMARY_HOME_CATEGORIES.find((category) => category.id === categoryId),
   ).filter(Boolean);
-  visibleCategories.push({
-    id: 'jasa',
-    name: 'SaDesa Jasa',
-    icon: 'wrench',
-    colorClass: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    route: '/services',
-  });
 
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
@@ -280,7 +273,7 @@ const Index = () => {
               <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">Layanan utama</p>
               <h2 className="mt-1 font-heading text-[1.08rem] font-extrabold tracking-[-0.02em] text-foreground">Mau makan apa hari ini?</h2>
             </div>
-            <div className="relative grid grid-cols-3 gap-2.5 sm:gap-3">
+            <div className="relative grid grid-cols-2 gap-3">
               {visibleCategories.map((category) => (
                 <CategoryIcon key={category.id} {...category} />
               ))}
