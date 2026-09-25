@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useRestockNotification } from "@/hooks/useRestockNotification";
@@ -298,7 +297,10 @@ function stringifyQueryKey(queryKey: readonly unknown[]) {
 }
 
 function shouldRetryQuery(failureCount: number, error: unknown): boolean {
-  if (failureCount >= 2) return false;
+  // One bounded retry is enough for transient network failures. Repeating a
+  // failed request three times makes a slow/offline screen feel hung and can
+  // amplify Supabase outages across every mounted query.
+  if (failureCount >= 1) return false;
   if (!error || typeof error !== 'object') return true;
   const candidate = error as { status?: unknown; code?: unknown };
   const status = typeof candidate.status === 'number' ? candidate.status : null;
@@ -403,24 +405,10 @@ function ScrollToTop() {
 }
 
 function RouteTransition({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  const shouldReduceMotion = useReducedMotion();
-  const routeKey = `${location.pathname}${location.search}${location.hash}`;
-
-  return (
-    <AnimatePresence initial={false} mode="wait">
-      <motion.div
-        key={routeKey}
-        className="min-h-full"
-        initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={shouldReduceMotion ? undefined : { opacity: 0, y: -4 }}
-        transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.22, ease: 'easeOut' }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
-  );
+  // Page-level motion remains lazy-loaded with the page that uses it. Keeping
+  // route transitions as a plain wrapper avoids shipping framer-motion on
+  // every initial navigation.
+  return <div className="min-h-full">{children}</div>;
 }
 
 const App = () => (

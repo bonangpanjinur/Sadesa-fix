@@ -4,8 +4,10 @@ interface SplashScreenProps {
   children: ReactNode;
 }
 
-const SPLASH_MINIMUM_TIME = 1100;
-const SPLASH_EXIT_TIME = 420;
+// The splash is a visual fallback, not an artificial startup gate. Keep it
+// short so slow auth/API requests do not turn into a blank 1.5s screen.
+const SPLASH_MINIMUM_TIME = 240;
+const SPLASH_EXIT_TIME = 220;
 
 export function SplashScreen({ children }: SplashScreenProps) {
   const [visible, setVisible] = useState(true);

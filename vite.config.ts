@@ -28,8 +28,6 @@ export default defineConfig(() => ({
         'branding/sadesa-favicon.png',
         'branding/sadesa-icon-192.png',
         'branding/sadesa-icon-512.png',
-        'screenshots/sadesa-home-wide.jpg',
-        'screenshots/sadesa-home-narrow.jpg',
         'robots.txt',
       ],
       manifest: {
@@ -137,43 +135,23 @@ export default defineConfig(() => ({
           }
         ]
       },
-      workbox: {
-        navigateFallbackDenylist: [/^\/~oauth/],
+      // This project uses injectManifest, so precache/runtime options must be
+      // configured here (the `workbox` block is only used by generateSW).
+      injectManifest: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,woff2}'],
-        runtimeCaching: [
-          {
-            // Cache only public storefront images; never cache private documents,
-            // payment proofs, courier documents, or chat attachments.
-            urlPattern: /\/storage\/v1\/object\/public\/(product-images|tourism-images|profile-images|merchant-images|merchant-gallery|village-images)\//i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'local-storage-cache',
-              expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 30
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            // Cache data wilayah dari edge function (jarang berubah)
-            urlPattern: /\/functions\/v1\/wilayah-proxy.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wilayah-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 7
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
+        // Precache only the app shell. The previous `**/*.js` pattern also
+        // downloaded every admin/merchant/POS route on first visit, producing
+        // a 346-entry / ~6.3 MB install. Lazy route chunks, images, and other
+        // non-critical scripts are cached on demand below.
+        globPatterns: [
+          '**/*.{css,html,ico,svg,woff2}',
+          'assets/index-*.js',
+          'assets/react-vendor-*.js',
+          'assets/data-router-vendor-*.js',
+          'assets/supabase-vendor-*.js',
+          'assets/ui-vendor-*.js',
+          'assets/utility-vendor-*.js',
+        ],
       }
     }),
   ],
