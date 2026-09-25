@@ -498,6 +498,7 @@ const App = () => (
               <Route path="/services/requests" element={<ServiceRequestsPage />} />
               <Route path="/services/provider-history" element={<ServiceProviderHistoryPage />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/contact" element={<HelpPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />
