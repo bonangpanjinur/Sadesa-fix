@@ -5,9 +5,13 @@ import { useCart } from '@/contexts/CartContext';
 import { formatPrice } from '@/lib/utils';
 
 export function FloatingCartButton() {
-  const { items, getItemCount, getCartTotal } = useCart();
-  const itemCount = getItemCount();
-  const subtotal = getCartTotal();
+  const { items, selectedItems } = useCart();
+  const itemCount = items.length;
+  const selectedCount = selectedItems.length;
+  const subtotal = selectedItems.reduce(
+    (total, item) => total + (item.product.price + (item.toppings || []).reduce((sum, topping) => sum + topping.product.price * topping.quantity, 0)) * item.quantity,
+    0,
+  );
 
   if (itemCount === 0) return null;
 
@@ -17,7 +21,7 @@ export function FloatingCartButton() {
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0, opacity: 0 }}
-        className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-4 z-20 sm:bottom-24"
+        className="fixed bottom-[var(--floating-cart-bottom)] right-4 z-20 sm:bottom-24"
       >
         <Link
           to="/cart"
@@ -30,8 +34,8 @@ export function FloatingCartButton() {
             </span>
           </div>
           <div className="border-l border-primary-foreground/30 pl-3">
-            <p className="text-[10px] opacity-80">Total</p>
-            <p className="font-bold text-sm">{formatPrice(subtotal)}</p>
+            <p className="text-[10px] opacity-80">{selectedCount > 0 ? `${selectedCount} item dipilih` : 'Pilih item di keranjang'}</p>
+            <p className="font-bold text-sm">{selectedCount > 0 ? formatPrice(subtotal) : 'Buka keranjang'}</p>
           </div>
         </Link>
       </motion.div>

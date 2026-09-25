@@ -442,7 +442,7 @@ const Index = () => {
       <Header />
 
       {/* Scrollable Content */}
-      <main className="flex-1 overflow-y-auto pb-32">
+      <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
@@ -464,7 +464,7 @@ const Index = () => {
           {activeOrder && (
             <Dialog>
               <DialogTrigger asChild>
-                <button type="button" className="fixed bottom-[calc(10.5rem+env(safe-area-inset-bottom))] right-4 z-20 flex items-center gap-2 rounded-full border border-primary/20 bg-white px-3 py-2 text-left shadow-[0_12px_28px_-12px_hsl(4_78%_47%_/_0.55)] transition hover:-translate-y-0.5 hover:border-primary/40 sm:bottom-40 sm:right-7">
+                <button type="button" className="fixed bottom-[calc(var(--bottom-nav-space)+4.25rem)] right-4 z-20 flex items-center gap-2 rounded-full border border-primary/20 bg-white px-3 py-2 text-left shadow-[0_12px_28px_-12px_hsl(4_78%_47%_/_0.55)] transition hover:-translate-y-0.5 hover:border-primary/40 sm:bottom-40 sm:right-7">
                   <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     {['ASSIGNED', 'PICKED_UP', 'DELIVERING', 'SENT'].includes(activeOrder.status) ? <Truck className="h-4 w-4" /> : <Receipt className="h-4 w-4" />}
                     <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500" />

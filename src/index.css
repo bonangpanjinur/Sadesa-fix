@@ -343,6 +343,8 @@
     background: hsl(var(--background));
     position: relative;
     overflow-x: clip;
+    --bottom-nav-space: calc(5.25rem + env(safe-area-inset-bottom));
+    --floating-cart-bottom: calc(var(--bottom-nav-space) + 0.75rem);
   }
 
   /* Keep buyer-facing screens visually anchored to the home experience:
@@ -362,6 +364,11 @@
   .mobile-action-safe {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
+
+  /* One shared offset keeps floating actions above the same bottom-nav footprint. */
+  .mobile-shell main {
+    padding-bottom: var(--bottom-nav-space);
+  }
   
   @media (min-width: 768px) {
     .mobile-shell {
@@ -369,6 +376,8 @@
       border-left: 1px solid hsl(var(--border));
       border-right: 1px solid hsl(var(--border));
       box-shadow: var(--shadow-lg);
+      --bottom-nav-space: 5.5rem;
+      --floating-cart-bottom: 6rem;
     }
 
     .mobile-shell main .grid-cols-2 {
