@@ -54,7 +54,7 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
     <Link
       to={route || getHomepageCategoryHref({ id, name, icon, colorClass })}
       className={cn(
-        'group relative min-h-[132px] min-w-0 overflow-hidden rounded-[1.35rem] border p-4 shadow-[0_16px_34px_-22px_hsl(var(--foreground)/0.65)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_38px_-18px_hsl(var(--foreground)/0.6)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        'group relative min-h-[138px] min-w-0 overflow-hidden rounded-[1.25rem] border p-3 shadow-[0_16px_34px_-22px_hsl(var(--foreground)/0.65)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_38px_-18px_hsl(var(--foreground)/0.6)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:min-h-[146px] sm:p-4',
         isTransport
           ? 'border-[hsl(160_84%_26%)] bg-[linear-gradient(145deg,hsl(160_72%_40%),hsl(160_84%_26%))] text-primary-foreground'
           : 'border-[#c2410c] bg-[linear-gradient(145deg,#f97316,#ea580c)] text-white',
@@ -64,21 +64,21 @@ export function CategoryIcon({ id, name, icon, colorClass, route }: CategoryIcon
       <div className="pointer-events-none absolute -inset-y-8 -left-1/2 w-1/3 -skew-x-12 -translate-x-full bg-white/25 opacity-0 blur-md transition duration-500 group-hover:translate-x-[420%] group-hover:opacity-100" />
       <div 
         className={cn(
-          'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition duration-200 group-hover:scale-110 group-hover:-rotate-3 group-active:scale-95',
+          'relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm transition duration-200 group-hover:scale-110 group-hover:-rotate-3 group-active:scale-95 sm:h-12 sm:w-12 sm:rounded-2xl',
           isTransport
             ? 'border-primary-foreground/20 bg-primary-foreground/15 text-primary-foreground'
             : 'border-white/20 bg-white/15 text-white',
         )}
       >
-        <Icon className="relative h-6 w-6 stroke-[2.1] transition-transform duration-200 group-hover:scale-105" />
+        <Icon className="relative h-5 w-5 stroke-[2.1] transition-transform duration-200 group-hover:scale-105 sm:h-6 sm:w-6" />
       </div>
       <span className="relative min-w-0 flex-1 self-end pb-0.5 text-left">
-        <span className="block truncate font-heading text-[15px] font-bold leading-tight">{displayName}</span>
-        <span className="mt-1 block text-[10px] leading-tight text-white/75">
+        <span className="block line-clamp-2 font-heading text-[12px] font-bold leading-tight sm:text-[15px]">{displayName}</span>
+        <span className="mt-1 block line-clamp-2 text-[9px] leading-tight text-white/75 sm:text-[10px]">
           {description}
         </span>
       </span>
-      <ArrowRight className="absolute bottom-4 right-4 h-4 w-4 shrink-0 text-white/85 transition-transform duration-200 group-hover:translate-x-1 group-active:translate-x-0" />
+      <ArrowRight className="absolute bottom-3 right-3 h-3.5 w-3.5 shrink-0 text-white/85 transition-transform duration-200 group-hover:translate-x-1 group-active:translate-x-0 sm:bottom-4 sm:right-4 sm:h-4 sm:w-4" />
     </Link>
   );
 }
