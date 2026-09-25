@@ -1,7 +1,7 @@
 # Audit End-to-End `/services`
 
-**Tanggal audit:** 25 September 2026  
-**Repository:** `bonangpanjinur/Sadesa-fix`  
+**Tanggal audit:** 25 September 2026
+**Repository:** `bonangpanjinur/Sadesa-fix`
 **Cakupan:** alur, UI/UX, alur bisnis, pendaftaran penyedia dan penyewaan jasa, checkout, pembayaran, escrow, payout, dispute, RLS, serta validasi build/lint/test.
 
 ## Ringkasan eksekutif
@@ -202,3 +202,9 @@ Acceptance criteria minimum yang belum ada:
 ## Batasan audit
 
 Audit ini berbasis source repository dan validasi build/lint/test lokal. Tidak dilakukan login browser, query ke database live, pengujian RLS dengan anon/authenticated key, upload file ke storage, webhook payment, atau transfer/refund aktual. Karena itu, status deployment migration dan policy live harus diverifikasi di staging sebelum go-live.
+
+## Pembaruan implementasi setelah audit
+
+Temuan pada audit di atas menggambarkan repository sebelum hardening marketplace jasa digabungkan. PR [#3](https://github.com/bonangpanjinur/Sadesa-fix/pull/3) telah merged ke `main`. Perubahan tersebut menambahkan halaman request buyer dan riwayat provider, percakapan, persetujuan harga, upload bukti pembayaran, konfirmasi pekerjaan, pembukaan sengketa, review provider oleh admin, serta RPC state machine dan pencatatan payout/refund berbasis referensi transfer aktual. Rincian kontrak terkini terdapat pada [panduan API escrow jasa](api-service-escrow-disputes.md).
+
+Pembayaran, payout, dan refund tetap melibatkan transfer eksternal secara manual; aplikasi tidak menjalankan payment gateway untuk transaksi jasa. Alur khusus penyewaan seperti jadwal, deposit, serah-terima, dan pengembalian barang juga belum tersedia. Addendum ini memperbarui status implementasi kode, bukan hasil audit staging: penerapan migration dan pengujian RLS terhadap Supabase tetap perlu dilakukan sebelum fitur diaktifkan di production.
