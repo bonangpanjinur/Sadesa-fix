@@ -482,12 +482,12 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/register/merchant" element={
-                <ProtectedRoute>
+                <ProtectedRoute exclusiveRegistration>
                   <RegisterMerchantPage />
                 </ProtectedRoute>
               } />
               <Route path="/register/courier" element={
-                <ProtectedRoute>
+                <ProtectedRoute exclusiveRegistration>
                   <RegisterCourierPage />
                 </ProtectedRoute>
               } />
@@ -497,7 +497,11 @@ const App = () => (
               <Route path="/protocol-handler" element={<PwaProtocolHandlerPage />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/services/requests" element={<ServiceRequestsPage />} />
-              <Route path="/services/provider-history" element={<ServiceProviderHistoryPage />} />
+              <Route path="/services/provider-history" element={
+                <ProtectedRoute allowedRoles={['service_provider']}>
+                  <ServiceProviderHistoryPage />
+                </ProtectedRoute>
+              } />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/contact" element={<HelpPage />} />
               <Route path="/pricing" element={<PricingPage />} />

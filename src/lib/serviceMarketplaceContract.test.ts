@@ -41,6 +41,22 @@ describe('service marketplace transaction contract', () => {
     expect(appRouter).toContain('path="/verifikator/service-providers"');
   });
 
+  it('allows only one business role per account and exposes a provider dashboard', () => {
+    const exclusiveRolesMigration = readFileSync(
+      resolve(process.cwd(), 'supabase/bootstrap/44_20260925220000_exclusive_business_roles.sql'),
+      'utf8',
+    );
+    const protectedRoute = readFileSync(resolve(process.cwd(), 'src/components/auth/ProtectedRoute.tsx'), 'utf8');
+    expect(exclusiveRolesMigration).toContain('assert_exclusive_business_role');
+    expect(exclusiveRolesMigration).toContain("p_requested_role NOT IN ('merchant', 'courier', 'service_provider')");
+    expect(exclusiveRolesMigration).toContain('You may only register the account currently signed in');
+    expect(exclusiveRolesMigration).toContain('trg_exclusive_merchant_role');
+    expect(exclusiveRolesMigration).toContain('trg_exclusive_courier_role');
+    expect(protectedRoute).toContain('exclusiveRegistration');
+    expect(accountPage).toContain('Dashboard Penyedia Jasa');
+    expect(servicesPage).toContain('canRegisterProvider');
+  });
+
   it('keeps requester budget separate from the mutually accepted final price', () => {
     expect(migration).toContain('requester_budget numeric(14,2)');
     expect(migration).toContain("INSERT INTO public.service_requests");

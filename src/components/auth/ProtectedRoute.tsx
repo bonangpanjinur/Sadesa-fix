@@ -10,12 +10,14 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: AppRole[];
   redirectTo?: string;
+  exclusiveRegistration?: boolean;
 }
 
 export function ProtectedRoute({ 
   children, 
   allowedRoles,
-  redirectTo = '/auth' 
+  redirectTo = '/auth',
+  exclusiveRegistration = false,
 }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
   const { roles, loading: rolesLoading, hasAnyRole } = useUserRoles();
@@ -31,6 +33,7 @@ export function ProtectedRoute({
     ?? (isPOSRoute ? posRouteRoles : isMerchantWorkspaceRoute ? ['merchant'] : undefined);
   const routeRequiredRoles = requiredRoles
     ?? (isCourierWorkspaceRoute ? ['courier'] : undefined);
+  const registeredBusinessRole = roles.find((role) => ['merchant', 'courier', 'service_provider'].includes(role));
   const [merchantAccessLoading, setMerchantAccessLoading] = useState(false);
   const [merchantAccessAllowed, setMerchantAccessAllowed] = useState(true);
 
@@ -81,6 +84,15 @@ export function ProtectedRoute({
   // Redirect to auth if not logged in
   if (!user) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  }
+
+  if (exclusiveRegistration && registeredBusinessRole) {
+    const destination = registeredBusinessRole === 'merchant'
+      ? '/merchant'
+      : registeredBusinessRole === 'courier'
+        ? '/courier'
+        : '/services/provider-history';
+    return <Navigate to={destination} replace state={{ from: location, reason: 'business_role_already_registered' }} />;
   }
 
   // If specific roles are required, check them

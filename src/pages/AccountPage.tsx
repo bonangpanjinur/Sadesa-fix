@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { 
   User, Settings, HelpCircle, LogIn, LogOut, Store, ChevronRight, Edit, Heart, 
   Bell, LayoutDashboard, Shield, CheckCircle, Bike, Building2, MapPin, Star, Clock,
-  MessageCircle, Package, Wallet, RefreshCw
+  MessageCircle, Package, Wallet, RefreshCw, Wrench
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -38,13 +38,14 @@ interface Profile {
 export default function AccountPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, signOut, loading: authLoading, isAdmin, isVerifikator, isMerchant, isCourier, isAdminDesa } = useAuth();
+  const { user, signOut, loading: authLoading, isAdmin, isVerifikator, isMerchant, isCourier, isAdminDesa, isServiceProvider } = useAuth();
   const fallbackName = user?.user_metadata?.full_name?.trim()
     || user?.email?.split('@')[0]?.replace(/[._-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
     || 'Pengguna';
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasPartnerApplication, setHasPartnerApplication] = useState<boolean | null>(null);
+  const [hasServiceApplication, setHasServiceApplication] = useState(false);
   const [editing, setEditing] = useState(false);
   const [profileRequired, setProfileRequired] = useState(false);
   const [courierProfileRequired, setCourierProfileRequired] = useState(false);
@@ -134,25 +135,30 @@ export default function AccountPage() {
         return;
       }
 
-      const [merchantResult, courierResult] = await Promise.all([
+      const [merchantResult, courierResult, serviceResult] = await Promise.all([
         supabase.from('merchants').select('id').eq('user_id', user.id).limit(1),
         supabase.from('couriers').select('id').eq('user_id', user.id).limit(1),
+        supabase.from('service_profiles').select('id').eq('provider_id', user.id).limit(1),
       ]);
 
       if (!cancelled) {
-        if (merchantResult.error || courierResult.error) {
+        if (merchantResult.error || courierResult.error || serviceResult.error) {
           setHasPartnerApplication(true);
           return;
         }
         setHasPartnerApplication(
           (merchantResult.data?.length ?? 0) > 0 || (courierResult.data?.length ?? 0) > 0,
         );
+        setHasServiceApplication((serviceResult.data?.length ?? 0) > 0);
       }
     };
 
     checkPartnerApplication().catch((error) => {
       console.error('Error checking partner application:', error);
-      if (!cancelled) setHasPartnerApplication(true);
+      if (!cancelled) {
+        setHasPartnerApplication(true);
+        setHasServiceApplication(true);
+      }
     });
 
     return () => {
@@ -219,6 +225,14 @@ export default function AccountPage() {
         path: '/courier',
         icon: <Bike className="h-5 w-5" />,
         color: 'bg-primary/10 text-primary border-primary/20',
+      });
+    }
+    if (isServiceProvider) {
+      buttons.push({
+        label: 'Dashboard Penyedia Jasa',
+        path: '/services/provider-history',
+        icon: <Wrench className="h-5 w-5" />,
+        color: 'bg-emerald-50 text-emerald-800 border-emerald-200',
       });
     }
 
@@ -335,9 +349,9 @@ export default function AccountPage() {
               </div>
 
               {/* Pendaftaran penyedia jasa berada di Akun karena merupakan pengajuan role akun. */}
-              <ServiceProviderRegistration userId={user.id} openOnMount={searchParams.get('provider') === '1'} />
+              {!isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && <ServiceProviderRegistration userId={user.id} openOnMount={searchParams.get('provider') === '1'} />}
               {/* Onboarding partner untuk buyer baru */}
-              {user && hasPartnerApplication === false && !isMerchant && !isCourier && !isAdmin && !isAdminDesa && !isVerifikator && (
+              {user && hasPartnerApplication === false && !hasServiceApplication && !isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && (
                 <section className="mb-6 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-accent/10 p-4">
                   <div className="mb-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Peluang di Sadesa</p>
@@ -434,7 +448,7 @@ export default function AccountPage() {
           )}
           
           {/* Pendaftaran desa wisata disembunyikan sementara; route dan fiturnya tetap dipertahankan. */}
-          {showVillageRegistration && user && !isMerchant && !isAdminDesa && !isAdmin && !isVerifikator && !isCourier && (
+          {showVillageRegistration && user && !hasServiceApplication && !isMerchant && !isAdminDesa && !isAdmin && !isVerifikator && !isCourier && !isServiceProvider && (
             <div 
               onClick={() => navigate('/register')}
               className="bg-gradient-to-r from-primary to-brand-dark rounded-2xl p-5 mb-6 text-primary-foreground relative overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
