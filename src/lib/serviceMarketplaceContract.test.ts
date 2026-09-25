@@ -30,6 +30,17 @@ describe('service marketplace transaction contract', () => {
     expect(providerPage).toContain("rpc('service_provider_propose_price'");
   });
 
+  it('enforces provider minimum tariff and reads the admin fee policy server-side', () => {
+    const financeMigration = readFileSync(
+      resolve(process.cwd(), 'supabase/bootstrap/42_20260925120000_service_finance_controls.sql'),
+      'utf8',
+    );
+    expect(financeMigration).toContain('v_profile.min_price');
+    expect(financeMigration).toContain('Price cannot be below provider minimum tariff');
+    expect(financeMigration).toContain("WHERE key = 'platform_fee'");
+    expect(financeMigration).toContain('p_agreed_price * v_fee_percent / 100');
+  });
+
   it('requires both completion, verified payment, and an actual payout transfer reference', () => {
     expect(migration).toContain('v_request.requester_completed AND v_request.provider_completed');
     expect(migration).toContain('Actual bank transfer reference is required');

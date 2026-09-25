@@ -5,6 +5,7 @@ import { AdminStatePanel } from '@/components/admin/AdminPagePrimitives';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -76,6 +77,47 @@ function MonthlyReport({ proofs, payouts }: { proofs: Proof[]; payouts: Payout[]
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Total transaksi jasa</p><p className="mt-1 text-xl font-bold">{money(report.totalTransactions)}</p><p className="text-xs text-muted-foreground">{report.paid.length} transaksi dibayar</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Potongan fee admin</p><p className="mt-1 text-xl font-bold text-emerald-700">{money(report.platformFee)}</p><p className="text-xs text-muted-foreground">Fee platform bulan ini</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Biaya transfer</p><p className="mt-1 text-xl font-bold">{money(report.transferFee)}</p><p className="text-xs text-muted-foreground">Dibebankan pada payout</p></CardContent></Card><Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Diteruskan ke penyedia</p><p className="mt-1 text-xl font-bold">{money(report.providerNet)}</p><p className="text-xs text-muted-foreground">Gross payout {money(report.gross)}</p></CardContent></Card></div>
     {report.paid.length === 0 ? <AdminStatePanel type="empty" title="Belum ada transaksi pada bulan ini" description="Pilih bulan lain atau tunggu bukti transfer terverifikasi." /> : <div className="overflow-x-auto rounded-xl border"><table className="w-full min-w-[720px] text-sm"><thead className="bg-muted/40 text-left"><tr><th className="p-3 font-semibold">Tanggal</th><th className="p-3 font-semibold">Pekerjaan</th><th className="p-3 text-right font-semibold">Transaksi</th><th className="p-3 text-right font-semibold">Fee admin</th><th className="p-3 text-right font-semibold">Bersih penyedia</th><th className="p-3 font-semibold">Status</th></tr></thead><tbody>{report.paid.map((proof) => { const payout = report.monthPayouts.find((item) => item.request_id === proof.request_id); return <tr key={proof.id} className="border-t"><td className="p-3 text-muted-foreground">{new Date(proof.created_at).toLocaleDateString('id-ID')}</td><td className="p-3"><p className="font-medium">{proof.request?.title || `Request #${shortId(proof.request_id)}`}</p><p className="text-xs text-muted-foreground">#{shortId(proof.request_id)}</p></td><td className="p-3 text-right font-medium">{money(proof.amount)}</td><td className="p-3 text-right">{money(payout?.platform_fee)}</td><td className="p-3 text-right">{money(payout?.net_amount)}</td><td className="p-3"><Badge variant={payout?.status === 'RELEASED' ? 'default' : 'secondary'}>{payout?.status || 'DANA DITAHAN'}</Badge></td></tr>; })}</tbody></table></div>}
   </div>;
+}
+
+function ServiceFinanceSettings() {
+  const [feePercent, setFeePercent] = useState('5');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [qrisUrl, setQrisUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase.from('app_settings').select('key,value').in('key', ['platform_fee', 'admin_payment_info']);
+      for (const item of data || []) {
+        const value = item.value as Record<string, unknown>;
+        if (item.key === 'platform_fee' && typeof value.percent === 'number') setFeePercent(String(value.percent));
+        if (item.key === 'admin_payment_info') {
+          setBankName(String(value.bank_name || ''));
+          setAccountNumber(String(value.bank_account_number || ''));
+          setAccountName(String(value.bank_account_name || ''));
+          setQrisUrl(String(value.qris_image_url || ''));
+        }
+      }
+    })();
+  }, []);
+
+  async function save() {
+    const fee = Number(feePercent);
+    if (!Number.isFinite(fee) || fee < 0 || fee > 100) return toast.error('Fee jasa harus di antara 0–100%.');
+    if (!bankName.trim() || !accountNumber.trim() || !accountName.trim()) return toast.error('Lengkapi bank, nomor rekening, dan nama pemilik rekening.');
+    setSaving(true);
+    const { error } = await supabase.from('app_settings').upsert([
+      { key: 'platform_fee', value: { percent: fee }, category: 'payment', description: 'Fee platform transaksi jasa' },
+      { key: 'admin_payment_info', value: { bank_name: bankName.trim(), bank_account_number: accountNumber.trim(), bank_account_name: accountName.trim(), qris_image_url: qrisUrl.trim() }, category: 'payment', description: 'Rekening admin untuk pembayaran jasa manual' },
+    ], { onConflict: 'key' });
+    setSaving(false);
+    if (error) toast.error(error.message || 'Pengaturan jasa gagal disimpan.');
+    else toast.success('Fee dan rekening pembayaran jasa tersimpan.');
+  }
+
+  return <Card className="mb-6"><CardHeader><CardTitle>Pengaturan keuangan jasa</CardTitle><p className="text-sm text-muted-foreground">Fee ini dipakai server saat provider mengirim penawaran baru. Rekening ditampilkan kepada buyer saat pembayaran manual.</p></CardHeader><CardContent className="space-y-4"><div className="grid gap-3 sm:grid-cols-4"><div><label className="text-sm font-medium">Fee platform (%)</label><Input type="number" min="0" max="100" step="0.01" value={feePercent} onChange={(event) => setFeePercent(event.target.value)} /></div><div><label className="text-sm font-medium">Nama bank</label><Input value={bankName} onChange={(event) => setBankName(event.target.value)} placeholder="BCA / BRI / ..." /></div><div><label className="text-sm font-medium">Nomor rekening</label><Input value={accountNumber} onChange={(event) => setAccountNumber(event.target.value)} /></div><div><label className="text-sm font-medium">Nama pemilik</label><Input value={accountName} onChange={(event) => setAccountName(event.target.value)} /></div></div><div className="flex flex-col gap-3 sm:flex-row sm:items-end"><div className="flex-1"><label className="text-sm font-medium">URL QRIS (opsional)</label><Input value={qrisUrl} onChange={(event) => setQrisUrl(event.target.value)} placeholder="https://..." /></div><Button onClick={() => void save()} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan pengaturan'}</Button></div></CardContent></Card>;
 }
 
 export default function AdminServicesPage() {
@@ -165,6 +207,8 @@ export default function AdminServicesPage() {
       <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Siap dicairkan</p><p className="mt-1 text-2xl font-bold">{readyPayouts.length}</p><p className="text-xs text-muted-foreground">Pekerjaan selesai</p></CardContent></Card>
       <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Fee platform</p><p className="mt-1 text-2xl font-bold">{money(totalFees)}</p><p className="text-xs text-muted-foreground">Akumulasi payout</p></CardContent></Card>
     </div>
+
+    <ServiceFinanceSettings />
 
     <Card><CardHeader className="flex-row items-center justify-between space-y-0"><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-700" />Kontrol escrow jasa</CardTitle><Button variant="outline" size="sm" onClick={() => void loadData(true)} disabled={refreshing} className="gap-2"><RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />Segarkan</Button></CardHeader><CardContent>
       {loading ? <AdminStatePanel type="loading" title="Memuat escrow jasa" description="Mengambil bukti transfer dan antrean pencairan." /> : <Tabs defaultValue="proofs"><TabsList className="mb-4"><TabsTrigger value="proofs">Bukti transfer <Badge variant="secondary" className="ml-2">{pendingProofs.length}</Badge></TabsTrigger><TabsTrigger value="payouts">Pencairan <Badge variant="secondary" className="ml-2">{readyPayouts.length}</Badge></TabsTrigger><TabsTrigger value="providers">Provider <Badge variant="secondary" className="ml-2">{providerProfiles.length}</Badge></TabsTrigger><TabsTrigger value="all">Riwayat</TabsTrigger><TabsTrigger value="report">Laporan bulanan</TabsTrigger></TabsList>
