@@ -94,6 +94,7 @@ const AdminFreeQuotaPage = lazy(() => import("./pages/admin/AdminFreeQuotaPage")
 const AdminVerifikatorCommissionsPage = lazy(() => import("./pages/admin/AdminVerifikatorCommissionsPage"));
 const AdminVerifierCommercePage = lazy(() => import("./pages/admin/AdminVerifierCommercePage"));
 const AdminFinancePage = lazy(() => import("./pages/admin/AdminFinancePage"));
+const AdminServicesPage = lazy(() => import("./pages/admin/AdminServicesPage"));
 const AdminBannersPage = lazy(() => import("./pages/admin/AdminBannersPage"));
 const AdminBroadcastPage = lazy(() => import("./pages/admin/AdminBroadcastPage"));
 const AdminRolesPage = lazy(() => import("./pages/admin/AdminRolesPage"));
@@ -118,6 +119,8 @@ const AdminSupportTicketsPage = lazy(() => import("./pages/admin/AdminSupportTic
 const AdminSEOPage = lazy(() => import("./pages/admin/AdminSEOPage"));
 const AdminExpeditionProvidersPage = lazy(() => import("./pages/admin/AdminExpeditionProvidersPage"));
 const BuyerSupportPage = lazy(() => import("./pages/buyer/BuyerSupportPage"));
+const ServicesPage = lazy(() => import("./pages/ServicesPage"));
+const ServiceProviderHistoryPage = lazy(() => import("./pages/ServiceProviderHistoryPage"));
 
 // Courier Pages
 const CourierHistoryPage = lazy(() => import("./pages/courier/CourierHistoryPage"));
@@ -489,6 +492,8 @@ const App = () => (
               <Route path="/share-target" element={<PwaShareTargetPage />} />
               <Route path="/file-handler" element={<PwaFileHandlerPage />} />
               <Route path="/protocol-handler" element={<PwaProtocolHandlerPage />} />
+              <Route path="/services" element={<ServicesPage />} />
+              <Route path="/services/provider-history" element={<ServiceProviderHistoryPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
@@ -804,6 +809,11 @@ const App = () => (
               <Route path="/admin/finance" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminFinancePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/services" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminServicesPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/banners" element={
