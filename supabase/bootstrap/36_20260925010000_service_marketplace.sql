@@ -121,7 +121,7 @@ insert into public.service_categories (name, slug, description, icon, sort_order
 on conflict (slug) do nothing;
 
 insert into public.service_subcategories (category_id, name, slug, sort_order)
-select c.id, v.name, v.slug, v.sort_order from public.service_categories c cross join (values
+ select c.id, v.name, v.slug, v.sort_order from public.service_categories c join (values
  ('elektronik','Perbaikan televisi','perbaikan-televisi',1),('elektronik','Perbaikan kulkas','perbaikan-kulkas',2),('elektronik','Perbaikan kipas angin','perbaikan-kipas-angin',3),('elektronik','Servis pompa air','servis-pompa-air',4),
  ('bengkel-kendaraan','Servis motor','servis-motor',1),('bengkel-kendaraan','Servis mobil','servis-mobil',2),('bengkel-kendaraan','Ganti oli','ganti-oli',3),('bengkel-kendaraan','Tambal ban panggilan','tambal-ban-panggilan',4),('bengkel-kendaraan','Servis sepeda panggilan','servis-sepeda-panggilan',5),
  ('pertukangan','Tukang kayu','tukang-kayu',1),('pertukangan','Tukang rumah','tukang-rumah',2),('pertukangan','Pemasangan plafon','pemasangan-plafon',3),('pertukangan','Pengecatan rumah','pengecatan-rumah',4),('pertukangan','Perbaikan atap','perbaikan-atap',5),('pertukangan','Pembuatan kusen pintu & jendela','pembuatan-kusen',6),
@@ -130,7 +130,7 @@ select c.id, v.name, v.slug, v.sort_order from public.service_categories c cross
  ('sewa','Sewa motor','sewa-motor',1),('sewa','Sewa mobil','sewa-mobil',2),('sewa','Sewa PlayStation','sewa-playstation',3),('sewa','Sewa kamera','sewa-kamera',4),('sewa','Sewa kursi & meja hajatan','sewa-kursi-meja',5),('sewa','Sewa tenda','sewa-tenda',6),('sewa','Sewa sound system','sewa-sound-system',7),('sewa','Sewa perlengkapan masak','sewa-perlengkapan-masak',8),
  ('kesehatan-perawatan','Pijat tradisional','pijat-tradisional',1),('kesehatan-perawatan','Pangkas rambut','pangkas-rambut',2),
  ('pendidikan','Les anak sekolah','les-anak-sekolah',1),('pendidikan','Mengaji','mengaji',2),('pendidikan','Les komputer','les-komputer',3),('pendidikan','Pelatihan keterampilan','pelatihan-keterampilan',4)
-) as v(category_slug,name,slug,sort_order) on c.slug=v.category_slug
+ ) as v(category_slug,name,slug,sort_order) on c.slug=v.category_slug
 on conflict (category_id, slug) do nothing;
 
 alter table public.service_categories enable row level security;
