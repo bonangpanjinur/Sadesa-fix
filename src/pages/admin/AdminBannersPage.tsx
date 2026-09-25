@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Image, Plus, Trash2, Edit, MoreHorizontal, Eye, EyeOff, ArrowUp, ArrowDown } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ interface Banner {
 }
 
 export default function AdminBannersPage() {
+  const queryClient = useQueryClient();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -63,13 +65,14 @@ export default function AdminBannersPage() {
 
       if (error) throw error;
       setBanners(data || []);
+      await queryClient.invalidateQueries({ queryKey: ['homepage-banners'] });
     } catch (error) {
       console.error('Error fetching banners:', error);
       toast.error('Gagal memuat banner');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     void fetchBanners();
@@ -216,6 +219,7 @@ export default function AdminBannersPage() {
         const failed = results.find((result) => result.error);
         if (failed?.error) throw failed.error;
       setBanners(newBanners);
+      await queryClient.invalidateQueries({ queryKey: ['homepage-banners'] });
     } catch {
       toast.error('Gagal mengubah urutan');
     }

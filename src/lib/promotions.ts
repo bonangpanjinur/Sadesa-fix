@@ -74,6 +74,7 @@ export async function fetchActiveHomepageAds(): Promise<MerchantAd[]> {
 
 // Fetch active promotions by type
 export async function fetchPromotions(type?: Promotion['type']): Promise<Promotion[]> {
+  const now = new Date().toISOString();
   let query = supabase
     .from('promotions')
     .select('*')
@@ -81,6 +82,16 @@ export async function fetchPromotions(type?: Promotion['type']): Promise<Promoti
 
   if (type) {
     query = query.eq('type', type);
+  }
+
+  // RLS hides unpublished promotions for public users, but admins can read
+  // every row. Keep the homepage behavior identical for all logged-in roles.
+  if (type === 'banner') {
+    query = query
+      .eq('is_active', true)
+      .eq('is_approved', true)
+      .lte('start_date', now)
+      .or(`end_date.is.null,end_date.gte.${now}`);
   }
 
   const { data, error } = await query;
