@@ -204,6 +204,12 @@ const Index = () => {
       })
       .slice(0, 6)
   ), [products]);
+  const promoProducts = useMemo(() => (
+    products
+      .filter((product) => product.isPromo && product.isAvailable !== false)
+      .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
+      .slice(0, 6)
+  ), [products]);
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
@@ -313,7 +319,7 @@ const Index = () => {
         ) : null;
       
       case 'promo':
-        if (!newestProducts.some((product) => product.isPromo)) return null;
+        if (promoProducts.length === 0) return null;
         return (
           <section className="mx-4 mt-8 rounded-[1.65rem] border border-red-100 bg-red-50/60 px-5 py-4" aria-labelledby="promo-title">
             <div className="flex items-center justify-between gap-3">
@@ -322,6 +328,18 @@ const Index = () => {
                 <p className="mt-1 text-xs text-muted-foreground">Harga pilihan untuk Anda hari ini.</p>
               </div>
               <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products">Lihat promo</Link></Button>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3.5">
+              {promoProducts.map((product, idx) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  index={idx}
+                  showCategoryBadge
+                  distanceKm={getProductDistance(product)}
+                  deliveryEta={getDeliveryEta(getProductDistance(product))}
+                />
+              ))}
             </div>
           </section>
         );
