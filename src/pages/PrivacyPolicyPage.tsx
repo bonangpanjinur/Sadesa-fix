@@ -189,6 +189,19 @@ export default function PrivacyPolicyPage() {
               </a>
             </section>
 
+            <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 not-prose dark:border-emerald-900 dark:bg-emerald-950/30">
+              <h2 className="mb-2 text-base font-semibold text-foreground">Permintaan Penghapusan Akun dan Data</h2>
+              <p className="leading-6">
+                Anda dapat mengajukan penghapusan akun dan data terkait melalui halaman khusus kami.
+              </p>
+              <Link
+                to="/account-deletion"
+                className="mt-3 inline-flex font-medium text-emerald-700 hover:underline dark:text-emerald-300"
+              >
+                Ajukan penghapusan akun dan data
+              </Link>
+            </section>
+
             <p className="border-t border-border pt-5">
               Dengan menggunakan SaDesa, Anda mengakui telah membaca kebijakan ini. Baca juga{' '}
               <Link to="/terms" className="font-medium text-emerald-700 hover:underline dark:text-emerald-300">

@@ -63,6 +63,7 @@ const InstallPage = lazy(() => import("./pages/InstallPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const AccountDeletionPage = lazy(() => import("./pages/AccountDeletionPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const EmailConfirmationPage = lazy(() => import("./pages/EmailConfirmationPage"));
 const RecentlyViewedPage = lazy(() => import("./pages/buyer/RecentlyViewedPage"));
@@ -507,6 +508,8 @@ const App = () => (
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/account-deletion" element={<AccountDeletionPage />} />
+              <Route path="/delete-account" element={<AccountDeletionPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
