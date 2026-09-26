@@ -506,6 +506,7 @@ const App = () => (
               <Route path="/contact" element={<HelpPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />

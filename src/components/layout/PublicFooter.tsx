@@ -23,6 +23,10 @@ export function PublicFooter() {
           {settings.companyLegalName && <p className="text-xs font-medium text-foreground">Dimiliki dan dioperasikan oleh {settings.companyLegalName}</p>}
         </div>
         <div className="text-xs sm:text-right">
+          <div className="mb-2 flex gap-3 sm:justify-end">
+            <Link to="/privacy-policy" className="hover:text-foreground hover:underline">Kebijakan Privasi</Link>
+            <Link to="/terms" className="hover:text-foreground hover:underline">Syarat & Ketentuan</Link>
+          </div>
           <p>© {new Date().getFullYear()} {settings.companyLegalName || settings.siteName}</p>
           <p className="mt-1">Seluruh hak cipta dilindungi.</p>
         </div>
