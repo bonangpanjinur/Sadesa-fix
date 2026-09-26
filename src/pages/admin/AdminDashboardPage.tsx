@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Store, MapPin, Bike, Clock, CheckCheck, X, Calendar, RefreshCw, Target, CheckCircle2, CreditCard, ShoppingBag, TrendingUp, Activity, AlertTriangle } from 'lucide-react';
+import { Store, MapPin, Bike, Clock, CheckCheck, X, Calendar, RefreshCw, Target, CheckCircle2, CreditCard, ShoppingBag, TrendingUp, Activity, AlertTriangle, Users } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { ApprovalCard } from '@/components/admin/ApprovalCard';
@@ -101,6 +101,21 @@ export default function AdminDashboardPage() {
     staleTime: 30_000,
   });
 
+  const { data: totalUsers = 0, isLoading: usersLoading } = useQuery<number>({
+    queryKey: ['admin-total-users'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('profiles')
+        .select('user_id', { count: 'exact', head: true });
+      if (error) {
+        console.warn('Gagal memuat jumlah pengguna:', error.message);
+        return 0;
+      }
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
+
   const { data: orders = [], isLoading: ordersLoading } = useQuery<OrderData[]>({
     queryKey: ['admin-orders-chart', dateRange],
     queryFn: async () => {
@@ -155,12 +170,13 @@ export default function AdminDashboardPage() {
     staleTime: 60_000,
   });
 
-  const loading = merchantsLoading || villagesLoading || couriersLoading || ordersLoading || posBusinessMetricsLoading;
+  const loading = merchantsLoading || villagesLoading || couriersLoading || usersLoading || ordersLoading || posBusinessMetricsLoading;
 
   const loadData = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-pending-merchants'] });
     queryClient.invalidateQueries({ queryKey: ['admin-pending-villages'] });
     queryClient.invalidateQueries({ queryKey: ['admin-pending-couriers'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-total-users'] });
     queryClient.invalidateQueries({ queryKey: ['admin-orders-chart', dateRange] });
     queryClient.invalidateQueries({ queryKey: ['admin-pos-business-metrics'] });
   };
@@ -390,6 +406,12 @@ export default function AdminDashboardPage() {
               <span className="text-xs text-muted-foreground">Metrik periode: {dateRange === '7days' ? '7' : dateRange === '14days' ? '14' : '30'} hari</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <StatsCard
+                title="Total pengguna"
+                value={totalUsers}
+                description="Jumlah akun pengguna yang memiliki profil di SaDesa."
+                icon={<Users className="h-5 w-5" />}
+              />
               <StatsCard
                 title="North Star: merchant aktif"
                 value={realtimeStats.activeMerchants}
