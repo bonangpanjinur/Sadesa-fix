@@ -132,5 +132,49 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
+  "tab_strip": {
+    "home_tab": {
+      "scope": "/",
+      "icons": [
+        {
+          "src": "branding/sadesa-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  },
+  "note_taking": {
+    "new_note_url": "/?new_note=1"
+  },
+  "widgets": [
+    {
+      "name": "Ringkasan SaDesa",
+      "short_name": "SaDesa",
+      "description": "Ringkasan cepat aktivitas marketplace SaDesa",
+      "tag": "sadesa-summary",
+      "template": "sadesa-summary",
+      "ms_ac_template": "widgets/sadesa-summary-template.json",
+      "data": "widgets/sadesa-summary-data.json",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "widgets/sadesa-widget-preview.png",
+          "sizes": "480x270",
+          "label": "Widget ringkasan SaDesa"
+        }
+      ],
+      "icons": [
+        {
+          "src": "branding/sadesa-icon-192.png",
+          "sizes": "192x192"
+        }
+      ],
+      "auth": false,
+      "update": 86400
+    }
   ]
 }

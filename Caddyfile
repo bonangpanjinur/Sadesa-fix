@@ -46,4 +46,7 @@
     try_files {path} /index.html
     file_server
   }
+
+  @service_worker path /sw.js /service-worker.js
+  header @service_worker Cache-Control "no-cache, no-store, must-revalidate"
 }
