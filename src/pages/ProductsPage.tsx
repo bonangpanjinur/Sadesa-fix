@@ -52,7 +52,7 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
   const name = normalize(category?.name);
   const isFood = ['makanan', 'minuman', 'kuliner'].includes(slug) || /makanan|minuman|kuliner/.test(name);
 
-  if (slug === 'belanja') {
+  if (slug === 'belanja' || slug === 'kelontongan') {
     return {
       title: 'Belanja',
       description: 'Temukan kebutuhan harian dan produk lokal dari toko sekitar.',
@@ -133,10 +133,13 @@ function normalize(value: string | undefined) {
 
 function getCategoryFilterSlugs(type: FoodType, categories: ProductCategory[]) {
   if (type === 'all') return null;
+  if (normalize(type) === 'belanja') {
+    const groceryCategory = getCategoryBySlug(categories, 'kelontongan');
+    return groceryCategory ? [groceryCategory.slug, ...getCategoryDescendantSlugs(categories, groceryCategory.id)] : ['kelontongan'];
+  }
   const selected = getCategoryBySlug(categories, type);
   if (selected) return [selected.slug, ...getCategoryDescendantSlugs(categories, selected.id)];
   if (normalize(type) === 'kuliner') return ['makanan', 'minuman', 'kuliner'];
-  if (normalize(type) === 'belanja') return ['sembako', 'kelontongan', 'sayuran', 'buah', 'rumah-tangga', 'elektronik'];
   if (normalize(type) === 'pertanian') return ['pertanian', 'bibit', 'benih', 'pupuk', 'pestisida', 'pakan', 'alat-tani', 'hasil-tani'];
   return [normalize(type)];
 }
@@ -331,7 +334,7 @@ export default function ProductsPage() {
       { slug: 'kuliner', name: 'Makanan & Minuman' },
       { slug: 'belanja', name: 'Belanja' },
       { slug: 'pertanian', name: 'Pertanian' },
-      ...parentCategories.map((category) => ({ slug: category.slug, name: category.name })),
+      ...parentCategories.filter((category) => category.slug !== 'kelontongan').map((category) => ({ slug: category.slug, name: category.name })),
     ];
     return Array.from(new Map(options.map((option) => [option.slug, option])).values());
   }, [parentCategories]);
