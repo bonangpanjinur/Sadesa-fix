@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal, ArrowLeft, ChevronRight, Grid2X2, Heart } from 'lucide-react';
+import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal, ArrowLeft, ChevronRight, Grid2X2 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ProductCard } from '../components/ProductCard';
@@ -24,8 +24,8 @@ import {
 } from '../components/ui/select';
 import type { Product } from '../types';
 import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, sortProductCategories, type ProductCategory } from '../lib/productCategories';
-import { useCart } from '../contexts/CartContext';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
+import { WishlistButton } from '../components/WishlistButton';
 import { fetchBannerPromotions, type Promotion } from '../lib/promotions';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
@@ -125,13 +125,16 @@ function getDeliveryEta(distanceKm?: number) {
 }
 
 function FoodMerchantRow({ product, userLocation }: { product: Product; userLocation: { lat: number; lng: number } | null }) {
-  const distance = userLocation && product.locationLat != null && product.locationLng != null
-    ? `${calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng).toFixed(1)} km`
-    : 'Lokasi dekat';
+  const distanceKm = userLocation && product.locationLat != null && product.locationLng != null
+    ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng)
+    : undefined;
+  const distance = distanceKm == null ? 'Jarak belum tersedia' : distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`;
+  const rating = product.merchantRatingAvg != null ? `★ ${product.merchantRatingAvg.toFixed(1)}` : 'Rating belum tersedia';
+  const reviewCount = product.merchantRatingCount != null && product.merchantRatingCount > 0 ? ` (${product.merchantRatingCount}+)` : '';
   return <Link to={`/products?merchant=${product.merchantId}`} className="flex items-center gap-3 rounded-2xl border border-[#edf0eb] bg-white p-2.5 shadow-[0_7px_20px_-18px_rgba(12,62,38,0.5)] transition hover:border-[#b9d9b9]">
-    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#eef4e9]"><OptimizedImage src={product.image} alt={product.merchantName} className="h-full w-full object-cover" aspectRatio="auto" lazy /></div>
-    <div className="min-w-0 flex-1"><p className="truncate text-[13px] font-bold text-[#18372a]">{product.merchantName}</p><p className="mt-0.5 text-[11px] text-[#7d887f]">★ {(product.merchantRatingAvg || 4.7).toFixed(1)} ({product.merchantRatingCount || 90}+)</p><p className="mt-0.5 truncate text-[10px] text-[#8a938d]">Aneka menu · {distance} · 20–30 menit</p></div>
-    <Heart className="mr-1 h-4 w-4 shrink-0 text-[#e35a5a]" />
+    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#eef4e9]"><OptimizedImage src={product.merchantImageUrl || product.image} alt={product.merchantName} className="h-full w-full object-cover" aspectRatio="auto" lazy /></div>
+    <div className="min-w-0 flex-1"><p className="truncate text-[13px] font-bold text-[#18372a]">{product.merchantName}</p><p className="mt-0.5 text-[11px] text-[#7d887f]">{rating}{reviewCount}</p><p className="mt-0.5 truncate text-[10px] text-[#8a938d]">Aneka menu · {distance} · {getDeliveryEta(distanceKm) || 'Estimasi belum tersedia'}</p></div>
+    <WishlistButton productId={product.id} size="sm" className="mr-1 shrink-0 bg-transparent text-[#e35a5a] hover:bg-[#fff1f1] hover:text-[#d43f3f]" />
   </Link>;
 }
 
