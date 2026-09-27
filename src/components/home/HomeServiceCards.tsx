@@ -39,7 +39,7 @@ const services = [
   {
     name: 'Belanja',
     description: 'Kebutuhan harian dan produk lokal',
-    href: '/shops',
+    href: '/products?type=belanja',
     image: shoppingImage,
     icon: ShoppingBag,
     palette: {

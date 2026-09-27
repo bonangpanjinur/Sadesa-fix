@@ -40,6 +40,15 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
   const name = normalize(category?.name);
   const isFood = ['makanan', 'minuman', 'kuliner'].includes(slug) || /makanan|minuman|kuliner/.test(name);
 
+  if (slug === 'belanja') {
+    return {
+      title: 'Belanja',
+      description: 'Temukan kebutuhan harian dan produk lokal dari toko sekitar.',
+      placeholder: 'Cari kebutuhan harian, produk, atau toko',
+      filterTitle: 'Filter belanja',
+      isFood: false,
+    };
+  }
   if (isFood) {
     return {
       title: 'Makanan & Minuman',
@@ -92,6 +101,7 @@ function normalize(value: string | undefined) {
 function matchesFoodType(product: Product, type: FoodType) {
   if (type === 'all') return true;
   if (normalize(type) === 'kuliner') return ['makanan', 'minuman', 'kuliner'].includes(normalize(product.category));
+  if (normalize(type) === 'belanja') return ['sembako', 'kelontongan', 'sayuran', 'buah', 'rumah-tangga', 'elektronik'].includes(normalize(product.category));
   return normalize(product.category) === normalize(type);
 }
 
@@ -126,7 +136,7 @@ export default function ProductsPage() {
 
   // A removed/deactivated category must not remain selected from an old URL.
   useEffect(() => {
-    const isVirtualCategory = foodFilters.type === 'kuliner';
+    const isVirtualCategory = ['kuliner', 'belanja'].includes(foodFilters.type);
     if (foodFilters.type !== 'all' && !isVirtualCategory && categories.length > 0 && !categories.some((category) => category.slug === foodFilters.type)) {
       setFoodFilters((previous) => ({ ...previous, type: 'all' }));
       const nextParams = new URLSearchParams(searchParams);
@@ -227,7 +237,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[{ slug: 'all', name: 'Semua' }, { slug: 'kuliner', name: 'Makanan & Minuman' }, ...categoryOptions].map(({ slug, name }) => (
+          {[{ slug: 'all', name: 'Semua' }, { slug: 'kuliner', name: 'Makanan & Minuman' }, { slug: 'belanja', name: 'Belanja' }, ...categoryOptions].map(({ slug, name }) => (
             <button key={slug} type="button" onClick={() => handleTypeChange(slug)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95', foodFilters.type === slug ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80')}>
               {name}
             </button>
@@ -275,6 +285,7 @@ export default function ProductsPage() {
               <SelectContent>
                 <SelectItem value="all">Semua kategori</SelectItem>
                 <SelectItem value="kuliner">Makanan & Minuman</SelectItem>
+                <SelectItem value="belanja">Belanja</SelectItem>
                 {categoryOptions.map((category) => <SelectItem key={category.slug} value={category.slug}>{category.name}</SelectItem>)}
               </SelectContent>
             </Select>
