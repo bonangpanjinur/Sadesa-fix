@@ -1,4 +1,4 @@
-import { Bike, ShoppingBag, UtensilsCrossed, Wrench } from 'lucide-react';
+import { Bike, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const services = [
@@ -29,21 +29,12 @@ const services = [
       title: 'text-[#8a5a00]',
     },
   },
-  {
-    name: 'Jasa',
-    href: '/services',
-    icon: Wrench,
-    palette: {
-      icon: 'bg-[#44a31b] text-white shadow-[0_6px_14px_-6px_#44a31b]',
-      title: 'text-[#015730]',
-    },
-  },
 ];
 
 export function HomeServiceCards() {
   return (
     <section className="mx-4" aria-label="Pilih layanan SaDesa">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {services.map(({ name, href, icon: Icon, palette }) => (
           <Link
             key={name}
