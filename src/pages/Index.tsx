@@ -1,11 +1,11 @@
 import { useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, UtensilsCrossed, Receipt, Truck } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, Receipt, Truck, ArrowRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
-import { CategoryIcon } from '@/components/CategoryIcon';
+import { HomeServiceCards } from '@/components/home/HomeServiceCards';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
@@ -17,12 +17,12 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
-import { CarouselSkeleton, ProductGridSkeleton, HeroSkeleton } from '@/components/home/HomeSkeletons';
+import { CarouselSkeleton, ProductGridSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance, calculateDistance } from '@/hooks/useUserLocation';
-import { useCategories } from '@/hooks/useCategories';
-import { PRIMARY_HOME_CATEGORIES } from '@/lib/homeCategories';
+import promoFoodImage from '@/assets/home/promo-food-optimized.jpg';
+import heroVillageImage from '@/assets/hero-village.jpg';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -63,6 +63,29 @@ function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
   );
 }
 
+function HomePromoCard() {
+  return (
+    <Link
+      to="/products"
+      className="group relative mx-4 mt-4 flex min-h-[10.25rem] overflow-hidden rounded-[1.45rem] bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:min-h-[12rem]"
+      aria-label="Promo spesial: Makan enak lebih hemat"
+    >
+      <img src={promoFoodImage} alt="Hidangan ayam goreng dan nasi" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.025]" />
+      <span className="absolute inset-0 bg-gradient-to-r from-[#015730] via-[#015730]/95 to-[#0c7749]/20" />
+      <span className="relative z-10 flex w-[67%] flex-col items-start justify-center px-4 py-4 text-white sm:px-6 sm:py-5">
+        <span className="rounded-full bg-[#E31019] px-3 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white shadow-sm">Promo spesial</span>
+        <span className="mt-2 font-serif text-[1.6rem] font-bold leading-[0.95] tracking-[-0.03em] sm:text-3xl">Makan Enak<br /><span className="text-[#70c83d]">Lebih Hemat</span></span>
+        <span className="mt-1.5 max-w-[16rem] text-[10px] leading-snug text-white/90 sm:text-xs">Diskon menu favorit dari warung sekitar kamu.</span>
+        <span className="mt-2.5 inline-flex items-center gap-2 rounded-full bg-[#44a31b] px-3.5 py-1.5 text-[10px] font-bold text-white shadow-md sm:text-xs">Lihat Promo <ArrowRight className="h-3.5 w-3.5" /></span>
+      </span>
+      <span className="absolute right-3 top-3 z-10 flex h-14 w-14 rotate-6 flex-col items-center justify-center rounded-full bg-[#E31019] text-center text-white shadow-md ring-2 ring-white/80 sm:right-5 sm:top-4 sm:h-16 sm:w-16">
+        <span className="text-[8px] font-bold sm:text-[9px]">Diskon s.d.</span>
+        <span className="font-serif text-base font-black leading-none sm:text-lg">50%</span>
+      </span>
+    </Link>
+  );
+}
+
 const Index = () => {
   // Sementara fokus publik diarahkan ke kuliner dan ojek. Data, route, dan
   // pengaturan desa wisata tetap dipertahankan agar bisa diaktifkan kembali.
@@ -70,7 +93,6 @@ const Index = () => {
   const navigate = useNavigate();
   
   const { getEnabledSections } = useHomepageLayout();
-  const { getHomepageCategories } = useCategories();
   const { user } = useAuth();
   const enabledSectionIds = new Set(getEnabledSections().map((section) => section.id));
   const handleBannerView = useCallback((id: string) => { void incrementPromotionView(id); }, []);
@@ -156,9 +178,6 @@ const Index = () => {
 
   const {
     data: bannerSlides = [],
-    isLoading: bannersLoading,
-    isError: bannersError,
-    refetch: refetchBanners,
   } = useQuery<BannerSlide[]>({
     queryKey: ['homepage-banners'],
     queryFn: withErrorLog('hero', 'homepage-banners', { staleTime: 120_000 }, async () => {
@@ -213,15 +232,6 @@ const Index = () => {
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
-  // Layanan kuliner dan transportasi menjadi menu utama sementara fitur jasa disembunyikan.
-  // Data admin tetap dipakai untuk label/style, tetapi tidak boleh menghilangkan dua layanan utama
-  // jika konfigurasi kategori belum termuat atau salah satu kategori dinonaktifkan.
-  const configuredCategories = getHomepageCategories();
-  const visibleCategories = ['kuliner', 'ojek'].map((categoryId) =>
-    configuredCategories.find((category) => category.id === categoryId)
-      || PRIMARY_HOME_CATEGORIES.find((category) => category.id === categoryId),
-  ).filter(Boolean);
-
   // Build sections in order based on admin settings
   const enabledSections = getEnabledSections();
   const sectionPriority: Record<string, number> = {
@@ -252,34 +262,11 @@ const Index = () => {
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
       case 'hero':
-        if (bannersLoading && bannerSlides.length === 0) return <HeroSkeleton />;
-        if (bannersError && bannerSlides.length === 0)
-          return (
-            <SectionError
-              compact
-              title="Banner gagal dimuat"
-              message="Promo unggulan tidak dapat ditampilkan saat ini."
-              onRetry={() => refetchBanners()}
-            />
-          );
-        return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} onView={handleBannerView} onClick={handleBannerClick} />;
+        if (bannerSlides.length > 0) return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} onView={handleBannerView} onClick={handleBannerClick} />;
+        return <HomePromoCard />;
       
       case 'categories':
-        return (
-          <section className="relative mx-4 mt-5 overflow-hidden rounded-[1.65rem] border border-orange-100 bg-[linear-gradient(135deg,hsl(42_100%_98%),hsl(12_100%_96%))] px-5 py-5 shadow-[0_18px_42px_-28px_hsl(4_78%_47%_/_0.55)]" aria-label="Layanan utama">
-            <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-[hsl(43_96%_55%_/_0.18)]" />
-            <div className="pointer-events-none absolute -bottom-16 -left-10 h-32 w-32 rounded-full bg-[hsl(4_78%_47%_/_0.08)]" />
-            <div className="relative mb-3">
-              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">Layanan utama</p>
-              <h2 className="mt-1 font-heading text-[1.08rem] font-extrabold tracking-[-0.02em] text-foreground">Mau makan apa hari ini?</h2>
-            </div>
-            <div className="relative grid grid-cols-2 gap-3">
-              {visibleCategories.map((category) => (
-                <CategoryIcon key={category.id} {...category} />
-              ))}
-            </div>
-          </section>
-        );
+        return <HomeServiceCards />;
 
       case 'popular_tourism':
         if (tourismLoading) return <CarouselSkeleton count={3} />;
@@ -445,8 +432,15 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
+          <section className="relative mx-4 mb-3 mt-6 overflow-hidden" aria-label="Kenali layanan SaDesa">
+            <img src={heroVillageImage} alt="" aria-hidden="true" className="pointer-events-none absolute -right-9 -top-12 h-[11rem] w-[15rem] rounded-full object-cover opacity-35 [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_72%)] sm:h-[14rem] sm:w-[20rem]" />
+            <div className="relative z-10 max-w-[19rem] pb-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#E31019]">Mau apa hari ini?</p>
+              <h2 className="mt-1 font-serif text-[2.05rem] font-bold leading-[0.99] tracking-[-0.045em] text-slate-950 sm:text-[2.5rem]">Semua Ada<br />di <span className="text-[#015730]">Sadesa</span><span className="text-[#E31019]">.</span></h2>
+            </div>
+          </section>
+          <HomeServiceCards />
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
-          {enabledSections.some((section) => section.id === 'categories') && renderSection('categories')}
           {activeOrder && (
             <Dialog>
               <DialogTrigger asChild>

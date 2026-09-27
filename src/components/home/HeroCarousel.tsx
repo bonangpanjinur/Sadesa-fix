@@ -79,14 +79,22 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
 
   if (slides.length === 0) {
     return (
-      <section className="mx-5 mt-5 flex h-[10.5rem] items-center justify-center rounded-[1.5rem] bg-muted sm:mx-6">
-        <p className="text-muted-foreground text-sm">No banners available</p>
+      <section className="mx-4 mt-4 flex h-20 items-center justify-center rounded-[1.5rem] bg-emerald-50 text-emerald-800 sm:mx-5">
+        <p className="text-xs font-semibold">Promo pilihan untuk warga sekitar</p>
       </section>
     );
   }
 
   const currentSlide = slides[currentIndex];
   const slideImage = currentSlide.image || fallbackImages[currentIndex % fallbackImages.length];
+  const promoCopy = (
+    <div className="max-w-[15rem] sm:max-w-md">
+      <span className="inline-flex rounded-full bg-[#E31019] px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-wide text-white">Promo spesial</span>
+      <h2 className="mt-1.5 line-clamp-2 font-serif text-[1.35rem] font-bold leading-[0.98] tracking-[-0.025em] text-white sm:text-2xl">{currentSlide.title}</h2>
+      {currentSlide.subtitle && <p className="mt-1 line-clamp-2 text-[9px] leading-snug text-white/85 sm:text-xs">{currentSlide.subtitle}</p>}
+      {currentSlide.linkUrl && <span className="mt-2 inline-flex h-7 items-center gap-1.5 rounded-full bg-[#44a31b] px-3 text-[9px] font-bold text-white shadow-sm sm:h-8 sm:px-4 sm:text-[10px]">Lihat promo <ChevronRight className="h-3 w-3" /></span>}
+    </div>
+  );
 
   const variants = {
     enter: (direction: number) => ({
@@ -103,38 +111,12 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
     }),
   };
 
-  const slideContent = (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={{
-        hidden: {},
-        visible: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
-      }}
-    >
-      <motion.h2 className="max-w-[min(78vw,520px)] font-heading text-[1.35rem] font-extrabold leading-[1.1] tracking-[-0.025em] text-foreground sm:text-2xl" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
-        {currentSlide.title}
-      </motion.h2>
-      {currentSlide.subtitle && (
-        <motion.p className="mt-2 max-w-[min(78vw,520px)] text-[0.78rem] font-medium leading-[1.4] text-muted-foreground sm:text-sm" variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }} transition={{ duration: 0.25 }}>
-          {currentSlide.subtitle}
-        </motion.p>
-      )}
-      {currentSlide.linkUrl && (
-          <motion.span className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-extrabold text-primary-foreground transition hover:bg-primary/90" variants={{ hidden: { opacity: 0, scale: 0.96 }, visible: { opacity: 1, scale: 1 } }} transition={{ duration: 0.22 }}>
-          Lihat Sekarang
-          <ChevronRight className="h-3.5 w-3.5" />
-        </motion.span>
-      )}
-    </motion.div>
-  );
-
   return (
     <section
       role="region"
       aria-roledescription="carousel"
       aria-label="Promo pilihan SaDesa"
-      className="group relative mx-4 mt-5 overflow-hidden rounded-[1.65rem] border border-border/60 bg-card shadow-[0_14px_32px_-20px_hsl(var(--primary)/0.35)] sm:mx-6"
+      className="group relative mx-4 mt-4 overflow-hidden rounded-[1.45rem] border border-[#015730]/15 bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:mx-5"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={(event) => {
@@ -158,39 +140,35 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
           }}
           className="relative"
         >
-          <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+          <div className="relative aspect-[2.25/1] w-full overflow-hidden bg-[#015730] sm:aspect-[2.8/1]">
             <motion.img
               src={slideImage}
               alt={currentSlide.title}
               initial={{ scale: 1.08 }}
               animate={{ scale: 1 }}
               transition={{ duration: reducedMotion ? 0 : autoPlayInterval / 1000, ease: 'linear' }}
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#015730] via-[#015730]/90 to-[#0c7749]/15" />
+            {currentSlide.linkUrl ? (
+              <Link to={currentSlide.linkUrl} onClick={() => onClick?.(currentSlide.id)} className="absolute inset-y-0 left-0 z-[1] flex w-[70%] items-center px-4 py-3 text-white sm:w-[64%] sm:px-6">
+                {promoCopy}
+              </Link>
+            ) : (
+              <div className="absolute inset-y-0 left-0 z-[1] flex w-[70%] items-center px-4 py-3 text-white sm:w-[64%] sm:px-6">{promoCopy}</div>
+            )}
             {slideCount > 1 && (
-              <div className="absolute bottom-3.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1.5 backdrop-blur-sm">
+              <div className="absolute bottom-2 left-1/2 z-[2] flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white/80 px-2 py-1 backdrop-blur-sm">
                 {slides.map((_, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => goToSlide(index)}
-                    className={cn(
-                      'h-1.5 w-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                      index === currentIndex ? 'w-5 bg-primary' : 'bg-primary/35 hover:bg-primary/60'
-                    )}
+                    className={cn('h-1.5 w-1.5 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b]', index === currentIndex ? 'w-4 bg-[#44a31b]' : 'bg-slate-400/60 hover:bg-slate-500')}
                     aria-label={`Buka slide ${index + 1}`}
                   />
                 ))}
               </div>
-            )}
-          </div>
-          <div className="bg-card px-5 py-4 sm:px-6">
-            {currentSlide.linkUrl ? (
-              <Link to={currentSlide.linkUrl} className="block" onClick={() => onClick?.(currentSlide.id)}>
-                {slideContent}
-              </Link>
-            ) : (
-              <div>{slideContent}</div>
             )}
           </div>
         </motion.div>
@@ -204,7 +182,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             variant="ghost"
             size="icon"
             onClick={prevSlide}
-            className="absolute left-3 top-[28%] z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/70 bg-white/85 text-primary backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-white/70 bg-white/85 text-emerald-800 backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label="Previous slide"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -214,7 +192,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             variant="ghost"
             size="icon"
             onClick={nextSlide}
-            className="absolute right-3 top-[28%] z-10 h-10 w-10 -translate-y-1/2 rounded-full border border-white/70 bg-white/85 text-primary backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-white/70 bg-white/85 text-emerald-800 backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label="Next slide"
           >
             <ChevronRight className="h-5 w-5" />
