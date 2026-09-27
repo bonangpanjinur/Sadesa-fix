@@ -58,7 +58,7 @@ export function CheckoutAddressForm({
   const isUpdatingFromMap = useRef(false);
   const [showSavedAddresses, setShowSavedAddresses] = useState(false);
   const { addresses: savedAddresses, loading: savedAddressesLoading } = useSavedAddresses();
-  const { address: profileAddress } = useProfileAddress();
+  const { address: profileAddress, loading: profileAddressLoading } = useProfileAddress();
 
   // Computed: is address complete?
   const isAddressComplete = !!(value.address.province && value.address.city && value.address.district && value.address.village);
@@ -71,30 +71,44 @@ export function CheckoutAddressForm({
 
     const autoPopulate = async () => {
       try {
-        const defaultAddr = savedAddresses.find(a => a.is_default) || (savedAddresses.length > 0 ? savedAddresses[0] : null);
+        let selectedAddressId: string | undefined;
+        try {
+          const selected = JSON.parse(localStorage.getItem('sadesa-selected-address') || 'null') as { id?: string } | null;
+          selectedAddressId = selected?.id;
+        } catch {
+          selectedAddressId = undefined;
+        }
+
+        const selectedSavedAddress = selectedAddressId && selectedAddressId !== 'profile'
+          ? savedAddresses.find((address) => address.id === selectedAddressId)
+          : null;
+        const defaultAddress = savedAddresses.find((address) => address.is_default) || null;
+        const preferredAddress = selectedAddressId === 'profile'
+          ? profileAddress
+          : selectedSavedAddress || defaultAddress || profileAddress || savedAddresses[0] || null;
         
-        if (defaultAddr) {
+        if (preferredAddress) {
           const addrData: AddressData = {
-            province: defaultAddr.province_id || '',
-            provinceName: defaultAddr.province_name || '',
-            city: defaultAddr.city_id || '',
-            cityName: defaultAddr.city_name || '',
-            district: defaultAddr.district_id || '',
-            districtName: defaultAddr.district_name || '',
-            village: defaultAddr.village_id || '',
-            villageName: defaultAddr.village_name || '',
-            detail: defaultAddr.address_detail || '',
+            province: preferredAddress.province_id || '',
+            provinceName: preferredAddress.province_name || '',
+            city: preferredAddress.city_id || '',
+            cityName: preferredAddress.city_name || '',
+            district: preferredAddress.district_id || '',
+            districtName: preferredAddress.district_name || '',
+            village: preferredAddress.village_id || '',
+            villageName: preferredAddress.village_name || '',
+            detail: preferredAddress.address_detail || '',
           };
-
-          const loc = defaultAddr.lat && defaultAddr.lng ? { lat: defaultAddr.lat, lng: defaultAddr.lng } : null;
-
+          const loc = preferredAddress.lat && preferredAddress.lng
+            ? { lat: preferredAddress.lat, lng: preferredAddress.lng }
+            : null;
           onChange({
-            name: defaultAddr.recipient_name,
-            phone: defaultAddr.phone,
+            name: preferredAddress.recipient_name,
+            phone: preferredAddress.phone,
             address: addrData,
             location: loc,
-            fullAddress: defaultAddr.full_address || formatFullAddress(addrData),
-            detailAddress: defaultAddr.address_detail || '',
+            fullAddress: preferredAddress.full_address || formatFullAddress(addrData),
+            detailAddress: preferredAddress.address_detail || '',
           });
 
           if (loc) {
@@ -161,10 +175,10 @@ export function CheckoutAddressForm({
       }
     };
 
-    if (!savedAddressesLoading) {
+    if (!savedAddressesLoading && !profileAddressLoading) {
       autoPopulate();
     }
-  }, [user, profileLoaded, savedAddressesLoading, savedAddresses, onChange, value, getCoordinatesFromAddress]);
+  }, [user, profileLoaded, savedAddressesLoading, profileAddressLoading, savedAddresses, profileAddress, onChange, value, getCoordinatesFromAddress]);
 
   useEffect(() => {
     if (isUpdatingFromMap.current) {
@@ -247,6 +261,25 @@ export function CheckoutAddressForm({
   };
 
   const handleSelectSavedAddress = useCallback(async (address: SavedAddress) => {
+    localStorage.setItem('sadesa-selected-address', JSON.stringify({
+      id: address.id,
+      label: address.label,
+      address: address.full_address || formatFullAddress({
+        province: address.province_id || '',
+        provinceName: address.province_name || '',
+        city: address.city_id || '',
+        cityName: address.city_name || '',
+        district: address.district_id || '',
+        districtName: address.district_name || '',
+        village: address.village_id || '',
+        villageName: address.village_name || '',
+        detail: address.address_detail || '',
+      }),
+      lat: address.lat,
+      lng: address.lng,
+    }));
+    window.dispatchEvent(new Event('sadesa-address-selected'));
+
     const addressData: AddressData = {
       province: address.province_id || '',
       provinceName: address.province_name || '',
