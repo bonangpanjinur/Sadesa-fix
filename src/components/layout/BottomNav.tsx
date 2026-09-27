@@ -116,7 +116,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
   return (
     <>
       <FloatingCartButton />
-      <nav ref={ref} aria-label="Navigasi utama" className="safe-area-bottom fixed bottom-0 left-0 right-0 z-30 mx-auto flex max-w-[480px] justify-around rounded-t-[1.5rem] border border-b-0 border-slate-100 bg-white/95 px-2 pt-2 shadow-[0_12px_30px_-14px_rgba(20,45,35,0.28)] backdrop-blur-xl sm:bottom-3 sm:left-3 sm:right-3 sm:rounded-[1.5rem] sm:border-b sm:pb-1">
+      <nav ref={ref} aria-label="Navigasi utama" className="safe-area-bottom fixed bottom-0 left-0 right-0 z-30 mx-auto flex max-w-[480px] justify-around rounded-t-[1.25rem] border border-b-0 border-slate-100 bg-white/95 px-2 py-1.5 shadow-[0_12px_30px_-14px_rgba(20,45,35,0.28)] backdrop-blur-xl sm:bottom-3 sm:left-3 sm:right-3 sm:rounded-[1.25rem] sm:border-b">
         {navItems.map(({ path, icon: Icon, label }) => {
         const isActive = location.pathname === path;
         const badgeCount = getBadgeCount(path);
@@ -126,8 +126,8 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
             key={path}
             to={path}
             className={cn(
-              'group relative flex min-w-12 flex-1 flex-col items-center gap-0.5 rounded-[0.8rem] px-1 py-1 transition-all duration-200',
-              'text-[10px] font-medium',
+              'group relative flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[0.8rem] px-1.5 py-2 transition-all duration-200',
+              'text-[10px] font-medium whitespace-nowrap',
               isActive
                 ? 'bg-[#eaf5e1] text-[#015730] shadow-sm ring-1 ring-[#cfe5c1]'
                 : 'text-slate-500 hover:bg-[#f0f8e9] hover:text-[#015730]'
@@ -139,11 +139,11 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
               isActive ? 'w-7 opacity-100' : 'w-0 opacity-0'
             )} />
             <span className={cn(
-              'flex h-6 w-10 items-center justify-center rounded-lg transition-all duration-200',
+              'flex h-5 w-5 shrink-0 items-center justify-center rounded-md transition-all duration-200',
               isActive ? 'bg-white/90' : 'group-hover:bg-[#e0f0d5]'
             )}>
               <Icon className={cn(
-                'h-[1.15rem] w-[1.15rem] stroke-[2.15] transition-transform duration-200',
+                'h-4 w-4 stroke-[2.15] transition-transform duration-200',
                 isActive && 'scale-110'
               )} />
             </span>
