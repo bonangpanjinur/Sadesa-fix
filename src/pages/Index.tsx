@@ -21,7 +21,6 @@ import { CarouselSkeleton, ProductGridSkeleton } from '@/components/home/HomeSke
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance, calculateDistance } from '@/hooks/useUserLocation';
-import heroVillageImage from '@/assets/hero-village.jpg';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -401,13 +400,6 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
-          <section className="relative mx-4 mb-3 mt-6 overflow-hidden" aria-label="Kenali layanan SaDesa">
-            <img src={heroVillageImage} alt="" aria-hidden="true" className="pointer-events-none absolute -right-9 -top-12 h-[11rem] w-[15rem] rounded-full object-cover opacity-35 [mask-image:radial-gradient(ellipse_at_center,black_10%,transparent_72%)] sm:h-[14rem] sm:w-[20rem]" />
-            <div className="relative z-10 max-w-[19rem] pb-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#E31019]">Mau apa hari ini?</p>
-              <h2 className="mt-1 font-serif text-[2.05rem] font-bold leading-[0.99] tracking-[-0.045em] text-slate-950 sm:text-[2.5rem]">Semua Ada<br />di <span className="text-[#015730]">Sadesa</span><span className="text-[#E31019]">.</span></h2>
-            </div>
-          </section>
           <HomeServiceCards />
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           {activeOrder && (
