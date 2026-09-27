@@ -57,12 +57,20 @@ export default function PaymentConfirmationPage() {
         return;
       }
 
-      // Fetch merchant name and payment info
-      const { data: merchantData } = await supabase
-        .from('merchants')
-        .select('name, bank_name, bank_account_number, bank_account_name, qris_image_url')
-        .eq('id', orderData.merchant_id)
-        .maybeSingle();
+      // These reads are independent once the order has resolved. Running them
+      // together removes one network round trip from the payment screen.
+      const [{ data: merchantData }, { data: adminSettings }] = await Promise.all([
+        supabase
+          .from('merchants')
+          .select('name, bank_name, bank_account_number, bank_account_name, qris_image_url')
+          .eq('id', orderData.merchant_id)
+          .maybeSingle(),
+        supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'admin_payment_info')
+          .maybeSingle(),
+      ]);
 
       setOrder({
         ...orderData,
@@ -75,14 +83,8 @@ export default function PaymentConfirmationPage() {
       let bankAccountName = merchantData?.bank_account_name || '';
       let qrisImageUrl = merchantData?.qris_image_url || null;
 
-      // If merchant has no bank info, get admin defaults
+      // Use admin defaults only for missing merchant fields.
       if (!bankName || !bankAccountNumber) {
-        const { data: adminSettings } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', 'admin_payment_info')
-          .maybeSingle();
-
         if (adminSettings?.value) {
           const adminPayment = adminSettings.value as Record<string, string>;
           if (!bankName) bankName = adminPayment.bank_name || '';

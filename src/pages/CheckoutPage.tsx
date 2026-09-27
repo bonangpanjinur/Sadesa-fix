@@ -50,7 +50,6 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
   const [xenditAvailable, setXenditAvailable] = useState(false);
@@ -168,8 +167,10 @@ export default function CheckoutPage() {
   const [operatingHoursLoading, setOperatingHoursLoading] = useState(false);
   const [operatingHoursError, setOperatingHoursError] = useState<Error | null>(null);
 
-  // Load merchant location and payment settings
+  // Load merchant location and payment settings once per merchant. The
+  // provider availability check must not refetch this whole block.
   useEffect(() => {
+    let cancelled = false;
     const fetchMerchantData = async () => {
       if (!firstMerchantId) return;
 
@@ -181,12 +182,13 @@ export default function CheckoutPage() {
         .maybeSingle();
 
       if (data) {
-        if (data.location_lat && data.location_lng) {
+        if (data.location_lat && data.location_lng && !cancelled) {
           setMerchantLocation({
             lat: Number(data.location_lat),
             lng: Number(data.location_lng),
           });
         }
+        if (cancelled) return;
         setMerchantRegion({
           cityName: data.city ?? null,
           districtName: data.district ?? null,
@@ -213,6 +215,7 @@ export default function CheckoutPage() {
           }
         }
 
+        if (cancelled) return;
         setMerchantPaymentSettings({
           transferEnabled: data.payment_transfer_enabled ?? true,
           bankName,
@@ -221,17 +224,22 @@ export default function CheckoutPage() {
           qrisImageUrl,
         });
 
-        // Set default payment method based on merchant settings
-        if (data.payment_transfer_enabled) {
-          setPaymentMethod('TRANSFER');
-        } else if (xenditAvailable) {
-          setPaymentMethod('ONLINE');
-        }
       }
     };
 
     fetchMerchantData();
-  }, [firstMerchantId, xenditAvailable]);
+    return () => { cancelled = true; };
+  }, [firstMerchantId]);
+
+  useEffect(() => {
+    if (!merchantPaymentSettings) return;
+    setPaymentMethod((current) => {
+      if (merchantPaymentSettings.transferEnabled) {
+        return current === 'ONLINE' && xenditAvailable ? current : 'TRANSFER';
+      }
+      return xenditAvailable ? 'ONLINE' : current;
+    });
+  }, [merchantPaymentSettings, xenditAvailable]);
 
   useEffect(() => {
     let cancelled = false;
@@ -505,7 +513,6 @@ export default function CheckoutPage() {
       if (paymentMethod === 'ONLINE' && xenditAvailable) {
         try {
           const invoice = await createPaymentInvoice({ orderId: authoritativeOrderId });
-          setInvoiceUrl(invoice.invoice_url);
           window.location.href = invoice.invoice_url;
           return;
         } catch (paymentError) {

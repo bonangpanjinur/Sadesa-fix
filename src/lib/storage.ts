@@ -142,9 +142,13 @@ export async function compressImage(file: File, maxWidth: number = 1200, quality
         'image/jpeg',
         quality
       );
+      URL.revokeObjectURL(img.src);
     };
 
-    img.onerror = () => resolve(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      resolve(file);
+    };
     img.src = URL.createObjectURL(file);
   });
 }
