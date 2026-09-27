@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
 import { HomeServiceCards } from '@/components/home/HomeServiceCards';
+import { ProductCategoryCards } from '@/components/home/ProductCategoryCards';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
@@ -400,6 +401,7 @@ const Index = () => {
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           <HomeServiceCards />
+          <ProductCategoryCards />
           {activeOrder && (
             <Dialog>
               <DialogTrigger asChild>
