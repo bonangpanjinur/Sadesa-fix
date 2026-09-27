@@ -1,4 +1,4 @@
-export type ObservabilityDomain = 'payment' | 'upload' | 'realtime' | 'webhook' | 'pos_webhook' | 'offline_sync' | 'device' | 'navigation' | 'inventory' | 'subscription' | 'data' | 'application';
+export type ObservabilityDomain = 'payment' | 'upload' | 'realtime' | 'webhook' | 'pos_webhook' | 'offline_sync' | 'device' | 'navigation' | 'inventory' | 'subscription' | 'security' | 'data' | 'application';
 export type ObservabilityLevel = 'info' | 'warn' | 'error';
 export type ObservabilityValue = string | number | boolean | null;
 

@@ -7,13 +7,15 @@ import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 const AUTH_CHANNEL_NAME = 'desamart_auth';
 const AUTH_INIT_TIMEOUT_MS = 8_000;
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      window.setTimeout(() => reject(new Error(message)), timeoutMs);
-    }),
-  ]);
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  });
 }
 
 interface AuthUser {

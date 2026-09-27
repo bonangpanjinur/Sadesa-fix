@@ -119,8 +119,7 @@ export function ContextualRecommendation({ products = [], sponsoredAds = [], use
             linkUrl: typeof value.linkUrl === 'string' && value.linkUrl ? value.linkUrl : '/register/courier',
           });
         }
-      })
-      .catch(() => undefined);
+      }, () => undefined);
     return () => { active = false; };
   }, []);
 

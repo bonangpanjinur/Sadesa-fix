@@ -136,7 +136,9 @@ function ClusteredMerchantMarkers({ merchants, userLocation }: { merchants: Merc
   useEffect(() => {
     const updateZoom = () => setZoom(map.getZoom());
     map.on('zoomend', updateZoom);
-    return () => map.off('zoomend', updateZoom);
+    return () => {
+      map.off('zoomend', updateZoom);
+    };
   }, [map]);
 
   const clusters = useMemo<MerchantCluster[]>(() => {

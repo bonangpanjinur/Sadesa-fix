@@ -72,12 +72,13 @@ export function Header() {
     ? profileAddress
     : selectedSavedAddress || (selectedAddress?.id ? null : selectedAddress);
   const activeAddress = manuallySelectedAddress || defaultSavedAddress || profileAddress || firstSavedAddress;
+  const selectedAddressFallback = activeAddress && 'address' in activeAddress ? activeAddress.address : '';
   const activeAddressText = activeAddress?.full_address || [
     activeAddress?.address_detail,
     activeAddress?.village_name,
     activeAddress?.district_name,
     activeAddress?.city_name,
-  ].filter(Boolean).join(', ') || activeAddress?.address || '';
+  ].filter(Boolean).join(', ') || selectedAddressFallback || '';
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
