@@ -266,7 +266,9 @@ export async function fetchProducts(options: FetchProductsOptions = {}): Promise
 
   if (error) {
     console.error('Error fetching products:', error);
-    return [];
+    // Let React Query expose a real error state instead of making a network or
+    // database failure look like an empty catalogue.
+    throw error;
   }
 
 

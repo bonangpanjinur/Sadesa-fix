@@ -197,9 +197,10 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, dis
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={index < 12 ? { opacity: 0, y: 20 } : false}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
+      transition={{ duration: 0.3, delay: index < 12 ? index * 0.025 : 0 }}
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '0 260px' }}
     >
       <Link to={`/product/${product.id}`} className="block">
         {CardContent}

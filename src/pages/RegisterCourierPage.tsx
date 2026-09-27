@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { getSettingByKey } from '@/lib/adminApi';
 import { removeCourierDocuments } from '@/lib/courierDocuments';
+import { validateUploadFile } from '@/lib/fileValidation';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddressSelector, AddressData, createEmptyAddressData } from '@/components/AddressSelector';
@@ -83,6 +84,13 @@ export default function RegisterCourierPage() {
   }, [addressData.villageName]);
 
   const handleFileChange = (type: 'ktp' | 'photo' | 'vehicle', file: File | null) => {
+    if (file) {
+      const validation = validateUploadFile(file);
+      if ('error' in validation) {
+        toast.error(validation.error);
+        return;
+      }
+    }
     if (type === 'ktp') setKtpFile(file);
     if (type === 'photo') setPhotoFile(file);
     if (type === 'vehicle') setVehicleFile(file);
@@ -142,6 +150,22 @@ export default function RegisterCourierPage() {
     setLoading(true);
     const uploadedPaths: string[] = [];
     try {
+      // Reject duplicate active applications before uploading three documents.
+      const { data: existingCourier, error: existingError } = await supabase
+        .from('couriers')
+        .select('id, registration_status')
+        .eq('user_id', user.id)
+        .in('registration_status', ['PENDING', 'APPROVED'])
+        .limit(1)
+        .maybeSingle();
+      if (existingError) throw existingError;
+      if (existingCourier) {
+        toast.info(existingCourier.registration_status === 'APPROVED'
+          ? 'Akun Anda sudah terdaftar sebagai kurir.'
+          : 'Pendaftaran kurir Anda masih menunggu verifikasi.');
+        navigate('/courier');
+        return;
+      }
       const uploadFile = async (file: File, folder: string): Promise<string> => {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const fileName = `${Date.now()}-${crypto.randomUUID()}-${safeName}`;
@@ -155,11 +179,13 @@ export default function RegisterCourierPage() {
         return data.path;
       };
 
-      // Upload sequentially so a partial failure can deterministically clean
-      // up every object created before the database insert.
-      const ktpUrl = await uploadFile(ktpFile!, 'ktp');
-      const photoUrl = await uploadFile(photoFile!, 'photo');
-      const vehicleUrl = await uploadFile(vehicleFile!, 'vehicle');
+      // The files are independent. Upload in parallel to remove two network
+      // round trips while retaining cleanup for every completed upload.
+      const [ktpUrl, photoUrl, vehicleUrl] = await Promise.all([
+        uploadFile(ktpFile!, 'ktp'),
+        uploadFile(photoFile!, 'photo'),
+        uploadFile(vehicleFile!, 'vehicle'),
+      ]);
 
       const { error } = await supabase.from('couriers').insert({
         user_id: user.id,

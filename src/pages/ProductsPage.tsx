@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -113,6 +113,7 @@ export default function ProductsPage() {
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('products');
   const [mapRadius, setMapRadius] = useState<MapRadius>('all');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const { location: userLocation } = useUserLocation();
   const { data: categories = [] } = useAdminCategories();
 
@@ -147,13 +148,14 @@ export default function ProductsPage() {
 
   const { data: products = [], isLoading: loading, isError, refetch } = useQuery<Product[]>({
     queryKey: ['all-products'],
-    queryFn: () => fetchProducts(),
+    // Product cards do not render merchant review bodies on this route.
+    queryFn: () => fetchProducts({ includeReviews: false, cacheKey: 'catalog-products' }),
     staleTime: 120_000,
   });
 
   const filteredAndSortedProducts = useMemo(() => {
     let result = products.filter((product) => {
-      const query = normalize(searchQuery);
+      const query = normalize(deferredSearchQuery);
       const haystack = `${normalize(product.name)} ${normalize(product.description)} ${normalize(product.merchantName)} ${normalize(product.category)}`;
       if (query && !haystack.includes(query)) return false;
       if (!matchesFoodType(product, foodFilters.type)) return false;
@@ -173,7 +175,7 @@ export default function ProductsPage() {
       case 'newest': result = [...result].sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
     }
     return result;
-  }, [products, searchQuery, foodFilters, sortMode, userLocation]);
+  }, [products, deferredSearchQuery, foodFilters, sortMode, userLocation]);
 
   const activeFilterCount = useMemo(() => (
     (foodFilters.type !== 'all' ? 1 : 0) +

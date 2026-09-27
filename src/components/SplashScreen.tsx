@@ -4,8 +4,10 @@ interface SplashScreenProps {
   children: ReactNode;
 }
 
-const SPLASH_MINIMUM_TIME = 1100;
-const SPLASH_EXIT_TIME = 420;
+// Keep the brand moment short without holding the first usable screen hostage.
+// The previous 1.52s gate was visible on every cold navigation.
+const SPLASH_MINIMUM_TIME = 350;
+const SPLASH_EXIT_TIME = 250;
 
 export function SplashScreen({ children }: SplashScreenProps) {
   const [visible, setVisible] = useState(true);
@@ -25,7 +27,7 @@ export function SplashScreen({ children }: SplashScreenProps) {
     <>
       <div
         aria-hidden={!visible}
-        className={`fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#fffaf4] transition-opacity duration-[420ms] ${
+        className={`fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#fffaf4] transition-opacity duration-[250ms] ${
           visible ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       >
