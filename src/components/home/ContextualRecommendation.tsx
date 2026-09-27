@@ -155,7 +155,7 @@ export function ContextualRecommendation({ products = [], sponsoredAds = [], use
       : content.description;
 
   return (
-    <section className={`relative mx-4 mt-4 overflow-hidden rounded-2xl border border-orange-100 bg-gradient-to-r ${content.tone} px-3.5 py-3 shadow-[0_12px_28px_-22px_hsl(4_78%_47%_/_0.55)]`} aria-label="Rekomendasi sesuai waktu">
+    <section className={`relative mx-4 mt-3 overflow-hidden rounded-xl border border-orange-100 bg-gradient-to-r ${content.tone} px-3 py-2.5 shadow-[0_12px_28px_-22px_hsl(4_78%_47%_/_0.55)]`} aria-label="Rekomendasi sesuai waktu">
       <div className="pointer-events-none absolute -right-5 -top-8 h-20 w-20 rounded-full bg-white/70" />
       <div className="relative flex items-center gap-3">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${content.iconTone}`} aria-hidden="true">

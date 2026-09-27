@@ -36,7 +36,7 @@ import type { Product, Village, Tourism } from '@/types';
 
 function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
   return (
-    <section className="mx-4 mt-8 overflow-hidden rounded-[1.65rem] border border-emerald-100 bg-[linear-gradient(135deg,hsl(152_61%_97%),hsl(43_100%_97%))] px-5 py-5 shadow-[0_18px_40px_-28px_hsl(152_61%_35%_/_0.5)]" aria-label="Ajakan menjadi mitra merchant">
+    <section className="mx-4 mt-6 overflow-hidden rounded-[1.35rem] border border-emerald-100 bg-[linear-gradient(135deg,hsl(152_61%_97%),hsl(43_100%_97%))] px-4 py-4 shadow-[0_18px_40px_-28px_hsl(152_61%_35%_/_0.5)]" aria-label="Ajakan menjadi mitra merchant">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
           <Store className="h-5 w-5" />
@@ -254,8 +254,8 @@ const Index = () => {
             />
           );
         return popularTourism.length > 0 ? (
-          <section className="mt-9 px-5">
-            <div className="flex justify-between items-center mb-3">
+          <section className="mt-6 px-5">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-foreground">
                   <Flame className="h-4 w-4" />
@@ -283,15 +283,14 @@ const Index = () => {
       case 'promo':
         if (promoProducts.length === 0) return null;
         return (
-          <section className="mx-4 mt-8 rounded-[1.65rem] border border-red-100 bg-red-50/60 px-5 py-4" aria-labelledby="promo-title">
+          <section className="mx-4 mt-5 rounded-[1.35rem] border border-red-100 bg-red-50/60 px-4 py-3" aria-labelledby="promo-title">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Harga pilihan untuk Anda hari ini.</p>
               </div>
               <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products">Lihat promo</Link></Button>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3.5">
+            <div className="mt-3 grid grid-cols-2 gap-3">
               {promoProducts.map((product, idx) => (
                 <ProductCard
                   key={product.id}
@@ -310,19 +309,18 @@ const Index = () => {
         if (productsLoading) return <ProductGridSkeleton count={6} />;
         if (productsError) return <MerchantJoinCard onRetry={() => refetchProducts()} />;
         return (
-          <section className="mx-4 mt-8 rounded-[1.65rem] border border-orange-100 bg-white px-5 py-5 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
-            <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
+          <section className="mx-4 mt-5 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
+            <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div>
                 <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
-                <p className="text-xs text-muted-foreground">Temukan pilihan yang baru hadir di SaDesa.</p>
               </div>
               <Link to="/products" className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline">Lihat semua <ChevronRight className="h-3 w-3" /></Link>
             </div>
             {newestProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3.5 pb-2">
+              <div className="grid grid-cols-2 gap-3 pb-1">
                   {newestProducts.map((product, idx) => (
                     <ProductCard
                       key={product.id}
@@ -364,8 +362,8 @@ const Index = () => {
             />
           );
         return sortedVillages.length > 0 ? (
-          <section className="mt-8 px-5 pb-8">
-            <div className="flex items-center mb-3">
+          <section className="mt-6 px-5 pb-6">
+            <div className="mb-2 flex items-center">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary">
                   <MapPin className="h-4 w-4" />

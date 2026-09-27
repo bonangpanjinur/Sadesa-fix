@@ -102,7 +102,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
       role="region"
       aria-roledescription="carousel"
       aria-label="Promo pilihan SaDesa"
-      className="group relative mx-4 mt-4 overflow-hidden rounded-[1.45rem] border border-[#015730]/15 bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:mx-5"
+      className="group relative mx-4 mt-3 overflow-hidden rounded-[1.25rem] border border-[#015730]/15 bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:mx-5"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={(event) => {
@@ -126,7 +126,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
           }}
           className="relative"
         >
-          <div className="relative aspect-[2.25/1] w-full overflow-hidden bg-[#015730] sm:aspect-[2.8/1]">
+          <div className="relative aspect-[2.6/1] w-full overflow-hidden bg-[#015730] sm:aspect-[3/1]">
             {currentSlide.image && (
               <motion.img
                 src={currentSlide.image}
