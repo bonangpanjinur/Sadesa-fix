@@ -5,6 +5,7 @@ export interface AdminCategory {
   id: string;
   slug: string;
   name: string;
+  parent_id: string | null;
   icon: string | null;
   description?: string | null;
   sort_order?: number | null;
@@ -15,7 +16,7 @@ export const ADMIN_CATEGORIES_QUERY_KEY = ['admin-categories', 'active'] as cons
 async function fetchActiveAdminCategories(): Promise<AdminCategory[]> {
   const { data, error } = await supabase
     .from('categories')
-    .select('id, slug, name, icon, description, sort_order')
+    .select('id, slug, name, parent_id, icon, description, sort_order')
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });

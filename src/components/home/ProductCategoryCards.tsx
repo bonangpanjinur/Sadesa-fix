@@ -29,8 +29,9 @@ function getCategoryIcon(slug: string, icon?: string | null) {
 
 export function ProductCategoryCards() {
   const { data: categories = [], isLoading } = useAdminCategories();
+  const parentCategories = categories.filter((category) => !category.parent_id);
 
-  if (isLoading || categories.length === 0) return null;
+  if (isLoading || parentCategories.length === 0) return null;
 
   return (
     <section className="mx-4 mt-4" aria-labelledby="product-categories-title">
@@ -39,7 +40,7 @@ export function ProductCategoryCards() {
         <Link to="/products" className="text-[10px] font-bold text-primary hover:underline">Lihat semua</Link>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-        {categories.map((category) => {
+        {parentCategories.map((category) => {
           const Icon = getCategoryIcon(category.slug, category.icon);
           return (
             <Link

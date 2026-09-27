@@ -30,6 +30,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  parent_id: string | null;
   icon: string | null;
   description: string | null;
   sort_order: number;
@@ -47,6 +48,7 @@ export default function AdminCategoriesPage() {
   const [form, setForm] = useState({
     name: '',
     slug: '',
+    parent_id: '',
     icon: '',
     description: '',
     is_active: true,
@@ -90,6 +92,7 @@ export default function AdminCategoriesPage() {
       setForm({
         name: category.name,
         slug: category.slug,
+        parent_id: category.parent_id || '',
         icon: category.icon || '',
         description: category.description || '',
         is_active: category.is_active,
@@ -99,6 +102,7 @@ export default function AdminCategoriesPage() {
       setForm({
         name: '',
         slug: '',
+        parent_id: '',
         icon: '',
         description: '',
         is_active: true,
@@ -127,6 +131,7 @@ export default function AdminCategoriesPage() {
           .update({
             name: form.name,
             slug,
+            parent_id: form.parent_id || null,
             icon: form.icon || null,
             description: form.description || null,
             is_active: form.is_active,
@@ -143,6 +148,7 @@ export default function AdminCategoriesPage() {
           .insert({
             name: form.name,
             slug,
+            parent_id: form.parent_id || null,
             icon: form.icon || null,
             description: form.description || null,
             is_active: form.is_active,
@@ -235,6 +241,7 @@ export default function AdminCategoriesPage() {
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Icon</TableHead>
                   <TableHead>Nama</TableHead>
+                  <TableHead>Induk</TableHead>
                   <TableHead>Slug</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -247,7 +254,14 @@ export default function AdminCategoriesPage() {
                       <GripVertical className="h-4 w-4 cursor-grab" />
                     </TableCell>
                     <TableCell className="text-2xl">{category.icon || '📦'}</TableCell>
-                    <TableCell className="font-medium">{category.name}</TableCell>
+                    <TableCell className={`font-medium ${category.parent_id ? 'pl-8' : ''}`}>
+                      {category.parent_id && <span className="mr-1 text-muted-foreground">↳</span>}
+                      {category.name}
+                      {category.parent_id && <Badge variant="secondary" className="ml-2 text-[10px]">Subkategori</Badge>}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {categories.find((parent) => parent.id === category.parent_id)?.name || '—'}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{category.slug}</TableCell>
                     <TableCell>
                       <Switch
@@ -317,6 +331,23 @@ export default function AdminCategoriesPage() {
                 onChange={(e) => setForm(prev => ({ ...prev, slug: e.target.value }))}
                 placeholder="Otomatis dari nama"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Kategori Induk</Label>
+              <select
+                value={form.parent_id}
+                onChange={(e) => setForm(prev => ({ ...prev, parent_id: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Kategori utama (tanpa induk)</option>
+                {categories
+                  .filter((category) => !category.parent_id && category.id !== editingCategory?.id)
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+              </select>
+              <p className="text-xs text-muted-foreground">Pilih induk jika ini adalah subkategori produk.</p>
             </div>
 
             <div className="space-y-2">
