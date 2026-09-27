@@ -163,9 +163,25 @@ export default function RegisterCourierPage() {
         toast.info(existingCourier.registration_status === 'APPROVED'
           ? 'Akun Anda sudah terdaftar sebagai kurir.'
           : 'Pendaftaran kurir Anda masih menunggu verifikasi.');
-        navigate('/courier');
+        if (existingCourier.registration_status === 'APPROVED') navigate('/courier');
         return;
       }
+
+      // Match the database's exclusive-business-role trigger before uploading
+      // private documents. This avoids a late insert rejection for users who
+      // already have a merchant or service-provider application.
+      const { error: roleCheckError } = await supabase.rpc(
+        'assert_exclusive_business_role' as never,
+        { p_user_id: user.id, p_requested_role: 'courier' } as never,
+      );
+      if (roleCheckError) {
+        if (roleCheckError.message.toLowerCase().includes('already registered as')) {
+          toast.error('Akun ini sudah memiliki pendaftaran bisnis lain. Satu akun hanya dapat memiliki satu jenis akun bisnis.');
+          return;
+        }
+        throw roleCheckError;
+      }
+
       const uploadFile = async (file: File, folder: string): Promise<string> => {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const fileName = `${Date.now()}-${crypto.randomUUID()}-${safeName}`;
@@ -179,13 +195,20 @@ export default function RegisterCourierPage() {
         return data.path;
       };
 
-      // The files are independent. Upload in parallel to remove two network
-      // round trips while retaining cleanup for every completed upload.
-      const [ktpUrl, photoUrl, vehicleUrl] = await Promise.all([
+      // Wait for every upload to settle so the catch handler can clean up all
+      // files that succeeded, even when one parallel upload fails early.
+      const uploadResults = await Promise.allSettled([
         uploadFile(ktpFile!, 'ktp'),
         uploadFile(photoFile!, 'photo'),
         uploadFile(vehicleFile!, 'vehicle'),
       ]);
+      const failedUpload = uploadResults.find((result) => result.status === 'rejected');
+      if (failedUpload?.status === 'rejected') throw failedUpload.reason;
+      const [ktpResult, photoResult, vehicleResult] = uploadResults;
+      if (ktpResult.status !== 'fulfilled' || photoResult.status !== 'fulfilled' || vehicleResult.status !== 'fulfilled') {
+        throw new Error('Dokumen kurir belum berhasil diunggah seluruhnya.');
+      }
+      const [ktpUrl, photoUrl, vehicleUrl] = [ktpResult.value, photoResult.value, vehicleResult.value];
 
       const { error } = await supabase.from('couriers').insert({
         user_id: user.id,
@@ -216,7 +239,23 @@ export default function RegisterCourierPage() {
     } catch (error) {
       console.error('Error registering courier:', error);
       await removeCourierDocuments(uploadedPaths);
-      toast.error('Gagal mendaftar. Silakan coba lagi.');
+      const errorMessage = error && typeof error === 'object' && 'message' in error
+        ? String(error.message)
+        : '';
+      const normalizedError = errorMessage.toLowerCase();
+      if (normalizedError.includes('already registered as')) {
+        toast.error('Akun ini sudah memiliki pendaftaran bisnis lain. Satu akun hanya dapat memiliki satu jenis akun bisnis.');
+      } else if (normalizedError.includes('row-level security') || normalizedError.includes('permission denied')) {
+        toast.error('Izin pendaftaran atau upload dokumen ditolak. Muat ulang halaman; jika berulang, hubungi admin.');
+      } else if (normalizedError.includes('bucket') || normalizedError.includes('storage')) {
+        toast.error('Dokumen gagal diunggah. Periksa koneksi dan coba lagi.');
+      } else if (normalizedError.includes('duplicate key') || normalizedError.includes('unique constraint')) {
+        toast.error('Nomor KTP atau akun ini sudah pernah terdaftar. Periksa data atau hubungi admin.');
+      } else if (normalizedError.includes('minimal 18 tahun') || normalizedError.includes('tanggal lahir')) {
+        toast.error('Pendaftaran mensyaratkan tanggal lahir yang valid dan usia minimal 18 tahun.');
+      } else {
+        toast.error('Pendaftaran gagal disimpan. Periksa data dan koneksi, lalu coba lagi.');
+      }
     } finally {
       setLoading(false);
     }
