@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart, MapPin, ChevronDown, LocateFixed, Search } from 'lucide-react';
+import { ShoppingCart, MapPin, ChevronDown, LocateFixed, Search, X } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
 import { useCart } from '@/contexts/CartContext';
@@ -30,6 +30,8 @@ export function Header() {
   const { getItemCount } = useCart();
   const cartCount = getItemCount();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const popupSearchRef = useRef<HTMLInputElement>(null);
   const isHome = route.pathname === '/';
   const [selectedAddress, setSelectedAddress] = useState<SelectedAddressSummary | null>(() => {
     try {
@@ -63,6 +65,16 @@ export function Header() {
     return () => window.removeEventListener('sadesa-addresses-updated', syncAddresses);
   }, [refetchSavedAddresses]);
 
+  useEffect(() => {
+    if (!searchOpen) return;
+    popupSearchRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSearchOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchOpen]);
+
   const defaultSavedAddress = savedAddresses.find((address) => address.is_default) || null;
   const firstSavedAddress = savedAddresses[0] || null;
   const selectedSavedAddress = selectedAddress?.id && selectedAddress.id !== 'profile'
@@ -83,11 +95,12 @@ export function Header() {
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = searchQuery.trim();
+    setSearchOpen(false);
     navigate(query ? `/products?q=${encodeURIComponent(query)}` : '/products');
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-emerald-50 bg-white/95 px-4 pb-2.5 pt-2.5 backdrop-blur-xl sm:px-5 sm:pb-3 sm:pt-3">
+    <header className={`sticky top-0 border-b border-emerald-50 bg-white/95 px-4 pb-2.5 pt-2.5 backdrop-blur-xl sm:px-5 sm:pb-3 sm:pt-3 ${searchOpen ? 'z-[60]' : 'z-40'}`}>
       <div className="flex min-h-10 items-center justify-between gap-3">
         <Link to="/" className="flex min-w-0 items-center gap-2">
           <img
@@ -145,11 +158,71 @@ export function Header() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#015730]" aria-hidden="true" />
             <input
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              readOnly
+              onClick={() => setSearchOpen(true)}
+              onFocus={() => setSearchOpen(true)}
               aria-label="Cari makanan, barang, jasa, atau tujuan"
+              aria-expanded={searchOpen}
+              aria-haspopup="dialog"
               placeholder="Cari makanan, barang, jasa..."
-              className="h-[3.5rem] w-full rounded-full border border-[#d9ebd0] bg-white pl-9 pr-3 text-[12px] text-slate-800 shadow-[0_7px_20px_-12px_rgba(1,87,48,0.25)] outline-none transition placeholder:text-slate-500 focus:border-[#44a31b] focus:ring-4 focus:ring-[#44a31b]/15 sm:pl-10 sm:pr-4 sm:text-sm"
+              className="h-[3.5rem] w-full cursor-text rounded-full border border-[#d9ebd0] bg-white pl-9 pr-3 text-[12px] text-slate-800 shadow-[0_7px_20px_-12px_rgba(1,87,48,0.25)] outline-none transition placeholder:text-slate-500 focus:border-[#44a31b] focus:ring-4 focus:ring-[#44a31b]/15 sm:pl-10 sm:pr-4 sm:text-sm"
             />
+            {searchOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Tutup pencarian"
+                  onClick={() => setSearchOpen(false)}
+                  className="fixed inset-0 z-0 h-screen w-screen cursor-default bg-slate-950/20 backdrop-blur-[2px]"
+                />
+                <div
+                  role="dialog"
+                  aria-label="Pencarian SaDesa"
+                  className="absolute right-0 top-[calc(100%+0.65rem)] z-10 w-[min(92vw,28rem)] rounded-[1.35rem] border border-[#dcebd6] bg-white p-3 text-left shadow-[0_18px_50px_-20px_rgba(1,87,48,0.55)]"
+                >
+                  <div className="mb-2 flex items-center justify-between px-1">
+                    <div>
+                      <p className="text-sm font-bold text-[#173d2c]">Cari di SaDesa</p>
+                      <p className="text-[11px] text-[#557365]">Temukan makanan, barang, jasa, atau tujuan</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSearchOpen(false)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-[#557365] transition hover:bg-[#edf7e6] hover:text-[#015730]"
+                      aria-label="Tutup"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#015730]" aria-hidden="true" />
+                    <input
+                      ref={popupSearchRef}
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      aria-label="Masukkan pencarian"
+                      placeholder="Cari makanan, barang, jasa, atau tujuan..."
+                      className="h-12 w-full rounded-full border border-[#b8d9a6] bg-[#fbfef9] pl-11 pr-4 text-sm text-slate-800 outline-none ring-4 ring-[#44a31b]/10 transition focus:border-[#44a31b] focus:ring-[#44a31b]/20"
+                    />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 px-1">
+                    {['Makanan', 'Belanja', 'Jasa', 'Ojek'].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => { setSearchQuery(item); popupSearchRef.current?.focus(); }}
+                        className="rounded-full border border-[#d9ebd0] bg-[#f5faef] px-3 py-1.5 text-[11px] font-semibold text-[#28633e] transition hover:border-[#44a31b] hover:bg-[#edf7e6]"
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="submit" className="mt-3 h-10 w-full rounded-full bg-[#015730] text-xs font-bold text-white transition hover:bg-[#014a29]">
+                    Tampilkan hasil pencarian
+                  </button>
+                </div>
+              </>
+            )}
           </form>
         )}
       </div>
