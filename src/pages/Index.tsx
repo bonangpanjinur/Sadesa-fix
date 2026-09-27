@@ -398,8 +398,8 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
-          <HomeServiceCards />
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
+          <HomeServiceCards />
           {activeOrder && (
             <Dialog>
               <DialogTrigger asChild>
