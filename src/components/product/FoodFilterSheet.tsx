@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { defaultFoodFilters } from './foodFilters';
-import type { CategoryFilterOption, FoodFilters } from './foodFilters';
+import type { CategoryFilterOption, FoodFilters, FoodType } from './foodFilters';
 export type { CategoryFilterOption, FoodFilters, FoodType } from './foodFilters';
 
 interface FoodFilterSheetProps {
@@ -26,6 +26,7 @@ interface FoodFilterSheetProps {
   title?: string;
   description?: string;
   showHalal?: boolean;
+  resetType?: FoodType;
 }
 
 export function FoodFilterSheet({
@@ -36,6 +37,7 @@ export function FoodFilterSheet({
   title = 'Filter katalog',
   description = 'Temukan produk lokal yang paling sesuai dengan kebutuhanmu.',
   showHalal = true,
+  resetType = 'all',
 }: FoodFilterSheetProps) {
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState(filters);
@@ -50,8 +52,9 @@ export function FoodFilterSheet({
   };
 
   const reset = () => {
-    setLocalFilters(defaultFoodFilters);
-    onFiltersChange(defaultFoodFilters);
+    const nextFilters = { ...defaultFoodFilters, type: resetType };
+    setLocalFilters(nextFilters);
+    onFiltersChange(nextFilters);
   };
 
   return (
