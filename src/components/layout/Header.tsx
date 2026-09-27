@@ -206,7 +206,7 @@ export function Header() {
                     />
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 px-1">
-                    {['Makanan', 'Belanja', 'Jasa', 'Ojek'].map((item) => (
+                    {['Makanan', 'Belanja', 'Jasa'].map((item) => (
                       <button
                         key={item}
                         type="button"
