@@ -73,6 +73,19 @@ export function getCategoryDescendantSlugs(categories: ProductCategory[], catego
   return descendants;
 }
 
+/** Resolve Belanja to the canonical Kelontongan category, with legacy fallback. */
+export function getShoppingCategorySlugs(categories: ProductCategory[]): string[] {
+  const root = ['kelontongan', 'sembako']
+    .map((slug) => categories.find((category) => category.slug === slug))
+    .find(Boolean);
+
+  if (root) return [root.slug, ...getCategoryDescendantSlugs(categories, root.id)];
+
+  const legacySlugs = ['kelontongan', 'sembako', 'sayuran', 'buah', 'rumah-tangga', 'elektronik'];
+  const configuredSlugs = legacySlugs.filter((slug) => categories.some((category) => category.slug === slug));
+  return configuredSlugs.length ? configuredSlugs : ['kelontongan', 'sembako'];
+}
+
 export function getInitialProductCategory(categories: ProductCategory[]) {
   return getLeafCategories(categories)[0]?.slug || sortProductCategories(categories)[0]?.slug || '';
 }

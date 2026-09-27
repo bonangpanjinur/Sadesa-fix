@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionCategory, getCategoryTemplate } from './categoryContracts';
+import { getShoppingCategorySlugs, type ProductCategory } from './productCategories';
+
+const category = (slug: string, id = slug, parent_id: string | null = null): ProductCategory => ({
+  id,
+  slug,
+  name: slug,
+  parent_id,
+  icon: null,
+});
 
 describe('category listing and workflow contracts', () => {
   it('resolves category aliases without changing the shared ledger boundary', () => {
@@ -20,5 +29,21 @@ describe('category listing and workflow contracts', () => {
     expect(canTransitionCategory('food', 'pending', 'completed')).toBe(false);
     expect(canTransitionCategory('rental', 'pending', 'returned')).toBe(false);
     expect(canTransitionCategory('service', 'completed', 'pending')).toBe(false);
+  });
+
+  it('maps Belanja to Kelontongan and includes its descendants', () => {
+    expect(getShoppingCategorySlugs([
+      category('kelontongan'),
+      category('sembako'),
+      category('beras', 'beras', 'kelontongan'),
+    ])).toEqual(['kelontongan', 'beras']);
+  });
+
+  it('falls back to the legacy Sembako category when Kelontongan is absent', () => {
+    expect(getShoppingCategorySlugs([category('sembako')])).toEqual(['sembako']);
+  });
+
+  it('keeps the catalog usable while categories are still loading', () => {
+    expect(getShoppingCategorySlugs([])).toEqual(['kelontongan', 'sembako']);
   });
 });

@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import type { Product } from '../types';
-import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, sortProductCategories, type ProductCategory } from '../lib/productCategories';
+import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, getShoppingCategorySlugs, sortProductCategories, type ProductCategory } from '../lib/productCategories';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { WishlistButton } from '../components/WishlistButton';
 import { useCart } from '../contexts/CartContext';
@@ -134,8 +134,7 @@ function normalize(value: string | undefined) {
 function getCategoryFilterSlugs(type: FoodType, categories: ProductCategory[]) {
   if (type === 'all') return null;
   if (normalize(type) === 'belanja') {
-    const groceryCategory = getCategoryBySlug(categories, 'kelontongan');
-    return groceryCategory ? [groceryCategory.slug, ...getCategoryDescendantSlugs(categories, groceryCategory.id)] : ['kelontongan'];
+    return getShoppingCategorySlugs(categories);
   }
   const selected = getCategoryBySlug(categories, type);
   if (selected) return [selected.slug, ...getCategoryDescendantSlugs(categories, selected.id)];
