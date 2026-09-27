@@ -129,11 +129,11 @@ export function Header() {
         </div>
       </div>
 
-      <div className={`mt-2 flex items-stretch gap-2 ${isHome ? 'max-[360px]:flex-col' : ''}`}>
+      <div className="mt-2 flex items-stretch gap-2">
         <button
           type="button"
           onClick={() => navigate('/addresses?select=1')}
-          className={`group relative flex min-h-[3.5rem] min-w-0 items-center gap-2 overflow-hidden rounded-[1.15rem] border border-[#e4ece1] bg-gradient-to-r from-white via-white to-[#f5faef] px-2.5 py-2 text-left shadow-[0_8px_22px_-18px_rgba(1,87,48,0.38)] transition duration-200 hover:border-[#b8d9a6] hover:shadow-[0_12px_26px_-18px_rgba(1,87,48,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b]/50 ${isHome ? 'flex-[1.08]' : 'w-full'}`}
+          className={`group relative flex min-h-[3.5rem] min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-[1.15rem] border border-[#e4ece1] bg-gradient-to-r from-white via-white to-[#f5faef] px-2.5 py-2 text-left shadow-[0_8px_22px_-18px_rgba(1,87,48,0.38)] transition duration-200 hover:border-[#b8d9a6] hover:shadow-[0_12px_26px_-18px_rgba(1,87,48,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b]/50`}
           aria-label="Pilih lokasi pengantaran"
         >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem] bg-[#015730] text-white shadow-[0_5px_12px_-6px_rgba(1,87,48,0.7)] transition-transform duration-200 group-hover:scale-[1.04]"><MapPin className="h-4 w-4 fill-white/15 stroke-white" /></span>
@@ -154,19 +154,17 @@ export function Header() {
         </button>
 
         {isHome && (
-          <form onSubmit={submitSearch} className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#015730]" aria-hidden="true" />
-            <input
-              value={searchQuery}
-              readOnly
+          <form onSubmit={submitSearch} className="relative w-[3.5rem] shrink-0">
+            <button
+              type="button"
               onClick={() => setSearchOpen(true)}
-              onFocus={() => setSearchOpen(true)}
-              aria-label="Cari makanan, barang, jasa, atau tujuan"
+              aria-label="Buka pencarian makanan, barang, jasa, atau tujuan"
               aria-expanded={searchOpen}
               aria-haspopup="dialog"
-              placeholder="Cari makanan, barang, jasa..."
-              className="h-[3.5rem] w-full cursor-text rounded-full border border-[#d9ebd0] bg-white pl-9 pr-3 text-[12px] text-slate-800 shadow-[0_7px_20px_-12px_rgba(1,87,48,0.25)] outline-none transition placeholder:text-slate-500 focus:border-[#44a31b] focus:ring-4 focus:ring-[#44a31b]/15 sm:pl-10 sm:pr-4 sm:text-sm"
-            />
+              className="flex h-[3.5rem] w-[3.5rem] items-center justify-center rounded-full border border-[#d9ebd0] bg-white text-[#015730] shadow-[0_7px_20px_-12px_rgba(1,87,48,0.25)] outline-none transition hover:border-[#44a31b] hover:bg-[#f5faef] focus-visible:border-[#44a31b] focus-visible:ring-4 focus-visible:ring-[#44a31b]/15"
+            >
+              <Search className="h-[19px] w-[19px]" aria-hidden="true" />
+            </button>
             {searchOpen && (
               <>
                 <button
