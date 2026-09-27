@@ -44,6 +44,7 @@ interface CatalogProfile {
   filterTitle: string;
   isFood: boolean;
   isShopping: boolean;
+  isAgriculture: boolean;
 }
 
 function getCatalogProfile(category?: { slug: string; name: string }, requestedSlug?: string): CatalogProfile {
@@ -59,6 +60,18 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
       filterTitle: 'Filter belanja',
       isFood: false,
       isShopping: true,
+      isAgriculture: false,
+    };
+  }
+  if (slug === 'pertanian' || /pertanian|agri/.test(name)) {
+    return {
+      title: 'Pertanian',
+      description: 'Temukan bibit, pupuk, pakan, alat tani, dan hasil pertanian dari penjual sekitar.',
+      placeholder: 'Cari bibit, pupuk, pakan, alat tani, atau toko',
+      filterTitle: 'Filter pertanian',
+      isFood: false,
+      isShopping: false,
+      isAgriculture: true,
     };
   }
   if (isFood) {
@@ -69,6 +82,7 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
       filterTitle: 'Filter makanan & minuman',
       isFood: true,
       isShopping: false,
+      isAgriculture: false,
     };
   }
   if (slug === 'sembako') {
@@ -79,6 +93,7 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
       filterTitle: 'Filter sembako',
       isFood: false,
       isShopping: true,
+      isAgriculture: false,
     };
   }
   if (category) {
@@ -89,6 +104,7 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
       filterTitle: `Filter ${category.name.toLowerCase()}`,
       isFood: false,
       isShopping: false,
+      isAgriculture: false,
     };
   }
   return {
@@ -98,6 +114,7 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
     filterTitle: 'Filter katalog',
     isFood: false,
     isShopping: false,
+    isAgriculture: false,
   };
 }
 
@@ -120,6 +137,7 @@ function getCategoryFilterSlugs(type: FoodType, categories: ProductCategory[]) {
   if (selected) return [selected.slug, ...getCategoryDescendantSlugs(categories, selected.id)];
   if (normalize(type) === 'kuliner') return ['makanan', 'minuman', 'kuliner'];
   if (normalize(type) === 'belanja') return ['sembako', 'kelontongan', 'sayuran', 'buah', 'rumah-tangga', 'elektronik'];
+  if (normalize(type) === 'pertanian') return ['pertanian', 'bibit', 'benih', 'pupuk', 'pestisida', 'pakan', 'alat-tani', 'hasil-tani'];
   return [normalize(type)];
 }
 
@@ -135,7 +153,7 @@ function getDeliveryEta(distanceKm?: number) {
   return '30–45 menit';
 }
 
-function FoodMerchantRow({ product, userLocation, catalogType }: { product: Product; userLocation: { lat: number; lng: number } | null; catalogType: 'kuliner' | 'belanja' }) {
+function FoodMerchantRow({ product, userLocation, catalogType }: { product: Product; userLocation: { lat: number; lng: number } | null; catalogType: 'kuliner' | 'belanja' | 'pertanian' }) {
   const distanceKm = userLocation && product.locationLat != null && product.locationLng != null
     ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng)
     : undefined;
@@ -171,12 +189,12 @@ function FlashSaleReminder({ sale }: { sale: FlashSale }) {
   </Link>;
 }
 
-function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch, filters, onFiltersChange, activeFilterCount, userLocation, locationLoading, onRefreshLocation, categoryOptions, foodCategories, foodBanner, nearbyRadius, onNearbyRadiusChange, sortMode, onSortChange, viewMode, onViewModeChange, mapRadius, onMapRadiusChange, mapProducts, onResetFilters, flashSales, catalogType, catalogTitle, searchPlaceholder, filterTitle, filterDescription, showHalal, filterFoodOnly, filterRoot }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void; filters: FoodFilters; onFiltersChange: (filters: FoodFilters) => void; activeFilterCount: number; userLocation: { lat: number; lng: number; source?: string } | null; locationLoading: boolean; onRefreshLocation: () => void; categoryOptions: { slug: string; name: string }[]; foodCategories: ProductCategory[]; foodBanner: Promotion | null; nearbyRadius: FoodRadius; onNearbyRadiusChange: (radius: FoodRadius) => void; sortMode: SortMode; onSortChange: (mode: SortMode) => void; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; mapRadius: MapRadius; onMapRadiusChange: (radius: MapRadius) => void; mapProducts: Product[]; onResetFilters: () => void; flashSales: FlashSale[]; catalogType: 'kuliner' | 'belanja'; catalogTitle: string; searchPlaceholder: string; filterTitle: string; filterDescription: string; showHalal: boolean; filterFoodOnly: boolean; filterRoot: FoodType; }) {
+function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch, filters, onFiltersChange, activeFilterCount, userLocation, locationLoading, onRefreshLocation, categoryOptions, foodCategories, foodBanner, nearbyRadius, onNearbyRadiusChange, sortMode, onSortChange, viewMode, onViewModeChange, mapRadius, onMapRadiusChange, mapProducts, onResetFilters, flashSales, catalogType, catalogTitle, searchPlaceholder, filterTitle, filterDescription, showHalal, filterFoodOnly, filterRoot }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void; filters: FoodFilters; onFiltersChange: (filters: FoodFilters) => void; activeFilterCount: number; userLocation: { lat: number; lng: number; source?: string } | null; locationLoading: boolean; onRefreshLocation: () => void; categoryOptions: { slug: string; name: string }[]; foodCategories: ProductCategory[]; foodBanner: Promotion | null; nearbyRadius: FoodRadius; onNearbyRadiusChange: (radius: FoodRadius) => void; sortMode: SortMode; onSortChange: (mode: SortMode) => void; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; mapRadius: MapRadius; onMapRadiusChange: (radius: MapRadius) => void; mapProducts: Product[]; onResetFilters: () => void; flashSales: FlashSale[]; catalogType: 'kuliner' | 'belanja' | 'pertanian'; catalogTitle: string; searchPlaceholder: string; filterTitle: string; filterDescription: string; showHalal: boolean; filterFoodOnly: boolean; filterRoot: FoodType; }) {
   const { getItemCount } = useCart();
   const cartCount = getItemCount();
   const hasActiveDiscoveryFilters = Boolean(searchQuery.trim() || activeFilterCount || nearbyRadius !== 'all' || sortMode !== 'newest');
-  const itemLabel = catalogType === 'belanja' ? 'produk' : 'menu';
-  const locationLabel = catalogType === 'belanja' ? 'toko' : 'warung';
+  const itemLabel = catalogType === 'kuliner' ? 'menu' : 'produk';
+  const locationLabel = catalogType === 'kuliner' ? 'warung' : 'toko';
   const merchants = Array.from(new Map(filteredProducts.map((product) => [product.merchantId, product])).values())
     .map((product) => ({
       product,
@@ -196,7 +214,9 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
     const distance = calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng);
     return closest == null ? distance : Math.min(closest, distance);
   }, undefined);
-  const merchantSectionTitle = catalogType === 'belanja' ? (closestMerchantDistanceKm != null && closestMerchantDistanceKm <= 10 ? 'Toko di sekitar' : 'Toko pilihan') : (closestMerchantDistanceKm != null && closestMerchantDistanceKm <= 10 ? 'Warung di sekitar' : 'Warung pilihan');
+  const merchantSectionTitle = catalogType === 'kuliner'
+    ? (closestMerchantDistanceKm != null && closestMerchantDistanceKm <= 10 ? 'Warung di sekitar' : 'Warung pilihan')
+    : (closestMerchantDistanceKm != null && closestMerchantDistanceKm <= 10 ? 'Toko di sekitar' : 'Toko pilihan');
   return <div className="min-h-screen bg-[#f8fbf7] pb-28 text-[#18372a]">
     <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-[#edf1eb] bg-white/95 px-5 py-3 backdrop-blur-xl"><button type="button" onClick={onBack} aria-label="Kembali" className="flex h-9 w-9 items-center justify-center rounded-full text-[#18372a] transition hover:bg-[#eef6e9] active:scale-90"><ArrowLeft className="h-5 w-5" /></button><h1 className="text-[17px] font-extrabold">{catalogTitle}</h1><Link to="/cart" aria-label="Keranjang" className="relative ml-auto flex h-10 w-10 items-center justify-center rounded-full border border-[#d2e9c3] bg-[#edf7e6] text-[#015730] transition hover:bg-[#dff1d4]"><ShoppingCart className="h-[19px] w-[19px]" />{cartCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E31019] px-1 text-[10px] font-bold text-white ring-2 ring-white">{cartCount > 9 ? '9+' : cartCount}</span>}</Link></header>
     <main className="space-y-5 px-5 pt-3">
@@ -206,7 +226,7 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
       <div className="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={`Subkategori ${catalogTitle.toLowerCase()}`}><button type="button" onClick={() => onCategoryChange('all')} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === 'all' ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border', activeType === 'all' ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}><Grid2X2 className="h-[18px] w-[18px]" /></span>Semua</button>{foodCategories.map((category) => <button key={category.id} type="button" onClick={() => onCategoryChange(category.slug)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === category.slug ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border text-lg', activeType === category.slug ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}>{category.icon || '🍽️'}</span>{category.name}</button>)}</div>
       <div className="grid grid-cols-2 gap-2">
         <Select value={sortMode} onValueChange={(value) => onSortChange(value as SortMode)}><SelectTrigger className="h-9 rounded-xl text-xs"><ArrowUpDown className="mr-1.5 h-3.5 w-3.5" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="newest">Terbaru</SelectItem>{userLocation && <SelectItem value="nearest">Terdekat dari saya</SelectItem>}<SelectItem value="cheapest">Harga terendah</SelectItem><SelectItem value="expensive">Harga tertinggi</SelectItem></SelectContent></Select>
-        <div className="grid grid-cols-2 rounded-xl bg-[#e9f2e5] p-1" role="tablist" aria-label={`Tampilan katalog ${catalogTitle.toLowerCase()}`}><button type="button" role="tab" aria-selected={viewMode === 'products'} onClick={() => onViewModeChange('products')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'products' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>{catalogType === 'belanja' ? 'Produk' : 'Menu'}</button><button type="button" role="tab" aria-selected={viewMode === 'map'} onClick={() => onViewModeChange('map')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'map' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>Maps</button></div>
+        <div className="grid grid-cols-2 rounded-xl bg-[#e9f2e5] p-1" role="tablist" aria-label={`Tampilan katalog ${catalogTitle.toLowerCase()}`}><button type="button" role="tab" aria-selected={viewMode === 'products'} onClick={() => onViewModeChange('products')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'products' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>{catalogType === 'kuliner' ? 'Menu' : 'Produk'}</button><button type="button" role="tab" aria-selected={viewMode === 'map'} onClick={() => onViewModeChange('map')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'map' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>Maps</button></div>
       </div>
       {viewMode === 'map' && <div className="flex items-center gap-2 rounded-xl border border-[#e4eae2] bg-white px-3 py-2 text-xs"><MapPin className="h-3.5 w-3.5 text-[#0b7549]" /><span>Radius peta</span><Select value={mapRadius} onValueChange={(value) => onMapRadiusChange(value as MapRadius)}><SelectTrigger className="ml-auto h-7 w-[150px] border-0 p-0 text-xs shadow-none"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua jarak</SelectItem><SelectItem value="1">Maks. 1 km</SelectItem><SelectItem value="3">Maks. 3 km</SelectItem><SelectItem value="5">Maks. 5 km</SelectItem><SelectItem value="10">Maks. 10 km</SelectItem></SelectContent></Select></div>}
       {viewMode === 'map' && !loading && !isError ? <ProductMerchantMap products={mapProducts} center={userLocation || { lat: -7.3274, lng: 108.2207 }} userLocation={userLocation} /> : loading ? <div className="grid grid-cols-2 gap-3">{Array.from({ length: 4 }).map((_, index) => <ProductSkeleton key={index} />)}</div> : isError ? <div className="rounded-2xl bg-white px-5 py-10 text-center shadow-sm"><p className="font-semibold">{itemLabel[0].toUpperCase() + itemLabel.slice(1)} belum dapat dimuat</p><Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3 rounded-full">Coba lagi</Button></div> : <>
@@ -259,6 +279,18 @@ export default function ProductsPage() {
       || (categories as ProductCategory[]).find((category) => /belanja|sembako|kelontongan/i.test(`${category.slug} ${category.name}`) && !category.parent_id),
     [categories],
   );
+  const agricultureRootCategory = useMemo(
+    () => (categories as ProductCategory[]).find((category) => ['pertanian', 'agri'].includes(category.slug) && !category.parent_id)
+      || (categories as ProductCategory[]).find((category) => /pertanian|agri/i.test(`${category.slug} ${category.name}`) && !category.parent_id),
+    [categories],
+  );
+  const agricultureCategories = useMemo(() => {
+    const all = categories as ProductCategory[];
+    const children = agricultureRootCategory ? getCategoryChildren(all, agricultureRootCategory.id) : [];
+    if (children.length) return children;
+    const agriculturePattern = /bibit|benih|pupuk|pestisida|pakan|ternak|ikan|alat[- ]tani|pertanian|perkebunan|hasil[- ]tani/i;
+    return sortProductCategories(all.filter((category) => !category.parent_id && agriculturePattern.test(`${category.slug} ${category.name}`))).slice(0, 8);
+  }, [categories, agricultureRootCategory]);
   const shoppingCategories = useMemo(() => {
     const all = categories as ProductCategory[];
     const children = shoppingRootCategory ? getCategoryChildren(all, shoppingRootCategory.id) : [];
@@ -293,7 +325,7 @@ export default function ProductsPage() {
     () => getCatalogProfile(profileCategory, foodFilters.type),
     [profileCategory, foodFilters.type],
   );
-  const catalogCategories = catalogProfile.isFood ? foodCategories : shoppingCategories;
+  const catalogCategories = catalogProfile.isFood ? foodCategories : catalogProfile.isAgriculture ? agricultureCategories : shoppingCategories;
   const catalogCategoryOptions = useMemo(
     () => catalogCategories.map((category) => ({ slug: category.slug, name: getCategoryDisplayLabel(categories as ProductCategory[], category) })),
     [catalogCategories, categories],
@@ -322,7 +354,7 @@ export default function ProductsPage() {
 
   // A removed/deactivated category must not remain selected from an old URL.
   useEffect(() => {
-    const isVirtualCategory = ['kuliner', 'belanja'].includes(foodFilters.type);
+    const isVirtualCategory = ['kuliner', 'belanja', 'pertanian'].includes(foodFilters.type);
     if (foodFilters.type !== 'all' && !isVirtualCategory && categories.length > 0 && !categories.some((category) => category.slug === foodFilters.type)) {
       setFoodFilters((previous) => ({ ...previous, type: 'all' }));
       const nextParams = new URLSearchParams(searchParams);
@@ -396,7 +428,7 @@ export default function ProductsPage() {
   };
   const resetDiscoveryFilters = () => {
     setSearchQuery('');
-    setFoodFilters({ ...defaultFoodFilters, type: catalogProfile.isFood ? 'kuliner' : 'belanja' });
+    setFoodFilters({ ...defaultFoodFilters, type: catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja' });
     setNearbyRadius('all');
     setSortMode('newest');
     setViewMode('products');
@@ -407,15 +439,15 @@ export default function ProductsPage() {
   const subCategoryOptions = selectedParentCategory ? getCategoryChildren(categories as ProductCategory[], selectedParentCategory.id) : [];
   const activeTopCategory = getCategoryParent(categories as ProductCategory[], selectedCategory || null)?.slug || foodFilters.type;
 
-  if (catalogProfile.isFood || catalogProfile.isShopping) {
+  if (catalogProfile.isFood || catalogProfile.isShopping || catalogProfile.isAgriculture) {
     return (
       <FoodCatalogView
         products={products}
         filteredProducts={filteredAndSortedProducts}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        onCategoryChange={(type) => handleTypeChange(type === 'all' ? (catalogProfile.isFood ? 'kuliner' : 'belanja') : type)}
-        activeType={foodFilters.type === (catalogProfile.isFood ? 'kuliner' : 'belanja') ? 'all' : foodFilters.type}
+        onCategoryChange={(type) => handleTypeChange(type === 'all' ? (catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja') : type)}
+        activeType={foodFilters.type === (catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja') ? 'all' : foodFilters.type}
         onBack={() => window.history.length > 1 ? window.history.back() : window.location.assign('/')}
         loading={loading}
         isError={isError}
@@ -440,14 +472,14 @@ export default function ProductsPage() {
         mapProducts={mapProducts}
         onResetFilters={resetDiscoveryFilters}
         flashSales={flashSales}
-        catalogType={catalogProfile.isFood ? 'kuliner' : 'belanja'}
+        catalogType={catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja'}
         catalogTitle={catalogProfile.title}
         searchPlaceholder={catalogProfile.placeholder}
         filterTitle={catalogProfile.filterTitle}
         filterDescription={catalogProfile.description}
         showHalal={catalogProfile.isFood}
         filterFoodOnly
-        filterRoot={catalogProfile.isFood ? 'kuliner' : 'belanja'}
+        filterRoot={catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja'}
       />
     );
   }
