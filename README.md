@@ -1,5 +1,5 @@
 # SaDesa - Marketplace UMKM & Desa Wisata
- 
+
 SaDesa adalah marketplace UMKM dan destinasi wisata desa di Indonesia.
 
 ## Tech Stack
@@ -33,6 +33,12 @@ Set the three public Supabase variables in `.env`: `VITE_SUPABASE_URL`, `VITE_SU
 The repository is a Vite SPA; it does **not** contain a Node/Express application server. Database, authentication, storage, realtime, and API calls run through Supabase. Payment and privileged operations run through Supabase Edge Functions. Deploying the SPA to Railway does not automatically deploy Edge Functions; deploy and configure those functions separately with the Supabase CLI or Supabase dashboard.
 
 Server-only variables such as `SUPABASE_SERVICE_ROLE_KEY`, Xendit secret keys, callback tokens, database passwords, and private signing keys must never use the `VITE_` prefix and must never be included in the frontend build. Configure them only in the Supabase Edge Function environment. Review `supabase/functions` and the P0/P1 migration documentation before enabling payment production traffic.
+
+## Service Marketplace
+
+The service marketplace supports verified provider profiles, buyer requests and price negotiation, manual payment-proof review, work-completion confirmation, disputes, and admin payout/refund reconciliation. Transaction state changes are validated by database RPCs; direct browser writes to protected transaction tables are not permitted. Bank transfers and refunds are performed outside the application and recorded with their actual transfer references. A service payment gateway is not integrated yet.
+
+For the data model, RPC parameters, lifecycle, security rules, and deployment requirements, see the [service marketplace API and escrow guide](docs/api-service-escrow-disputes.md). The current application routes are `/services`, `/services/requests`, `/services/provider-history`, `/admin/services`, and `/admin/service-disputes`. Apply the service bootstrap migrations in manifest order through the controlled staging/production workflow; merging frontend and SQL files does not apply migrations to a live Supabase project.
 
 ## Railway Deployment
 
