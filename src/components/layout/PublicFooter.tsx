@@ -7,7 +7,7 @@ export function PublicFooter() {
   const location = useLocation();
   const { settings } = useWhitelabel();
 
-  if (PRIVATE_ROUTE_PREFIXES.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))) {
+  if (location.pathname === '/' || PRIVATE_ROUTE_PREFIXES.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))) {
     return null;
   }
 

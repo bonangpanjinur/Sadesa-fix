@@ -81,18 +81,23 @@ export function Header() {
       <button
         type="button"
         onClick={() => navigate('/addresses?select=1')}
-        className="group mt-3 flex min-h-[3.75rem] w-full items-center gap-3 rounded-[1.5rem] border border-[#dbeed1] bg-[#f2f8ee] px-4 py-2.5 text-left transition hover:border-[#44a31b]/50 hover:bg-[#eaf5e1]"
+        className="group relative mt-3 flex min-h-[4.05rem] w-full items-center gap-3 overflow-hidden rounded-[1.35rem] border border-[#e4ece1] bg-gradient-to-r from-white via-white to-[#f5faef] px-3.5 py-2.5 text-left shadow-[0_8px_22px_-18px_rgba(1,87,48,0.38)] transition duration-200 hover:border-[#b8d9a6] hover:shadow-[0_12px_26px_-18px_rgba(1,87,48,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b]/50"
         aria-label="Pilih lokasi pengantaran"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#44a31b] text-white shadow-sm"><MapPin className="h-[1.15rem] w-[1.15rem] fill-[#015730] stroke-white" /></span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.9rem] bg-[#015730] text-white shadow-[0_5px_12px_-6px_rgba(1,87,48,0.7)] transition-transform duration-200 group-hover:scale-[1.04]"><MapPin className="h-[1.15rem] w-[1.15rem] fill-white/15 stroke-white" /></span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[11px] font-medium text-slate-500">Alamat Pengantaran</span>
-          <span className="block truncate text-sm font-bold leading-tight text-slate-900">
+          <span className="mb-0.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.13em] text-[#557365]">
+            Alamat pengantaran
+            <span className="h-1 w-1 rounded-full bg-[#44a31b]" />
+          </span>
+          <span className="block truncate text-[13px] font-semibold leading-snug tracking-[-0.01em] text-[#173d2c] sm:text-sm">
             {locationLoading ? 'Mencari lokasi...' : selectedAddress?.address || userLocation?.district || 'Pilih alamat pengantaran'}
           </span>
         </span>
-        {!selectedAddress && !userLocation && !locationLoading && <span className="hidden items-center gap-1 text-[9px] font-bold text-emerald-700 sm:flex"><LocateFixed className="h-3 w-3" />Pilih</span>}
-        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-slate-600 transition-transform group-hover:translate-y-0.5" />
+        {!selectedAddress && !userLocation && !locationLoading && <span className="hidden items-center gap-1 text-[9px] font-semibold text-[#557365] sm:flex"><LocateFixed className="h-3 w-3" />Pilih alamat</span>}
+        <span className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e5eee0] bg-white/90 text-[#015730] shadow-sm transition-all group-hover:border-[#b8d9a6] group-hover:bg-[#edf7e6]">
+          <ChevronDown className="h-4 w-4 transition-transform duration-200 group-hover:translate-y-0.5" />
+        </span>
       </button>
 
       {isHome && (
