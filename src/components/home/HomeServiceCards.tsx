@@ -9,7 +9,7 @@ const services = [
   {
     name: 'Makanan & Minuman',
     description: 'Pesan favorit dari warung sekitar',
-    href: '/products',
+    href: '/products?type=kuliner',
     image: foodImage,
     icon: UtensilsCrossed,
     palette: {

@@ -20,5 +20,7 @@ export function normalizeCategorySlug(value: string | null | undefined): string 
 }
 
 export function getHomepageCategoryHref(category: HomepageCategory): string {
-  return category.route || `/products?category=${encodeURIComponent(category.id)}`;
+  if (category.route) return category.route;
+  const productType = category.id === 'kuliner' ? 'kuliner' : category.id === 'kriya' ? 'kerajinan' : category.id;
+  return `/products?type=${encodeURIComponent(productType)}`;
 }

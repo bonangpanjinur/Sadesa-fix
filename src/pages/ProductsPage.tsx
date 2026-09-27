@@ -35,8 +35,8 @@ interface CatalogProfile {
   isFood: boolean;
 }
 
-function getCatalogProfile(category?: { slug: string; name: string }): CatalogProfile {
-  const slug = normalize(category?.slug);
+function getCatalogProfile(category?: { slug: string; name: string }, requestedSlug?: string): CatalogProfile {
+  const slug = normalize(requestedSlug || category?.slug);
   const name = normalize(category?.name);
   const isFood = ['makanan', 'minuman', 'kuliner'].includes(slug) || /makanan|minuman|kuliner/.test(name);
 
@@ -91,6 +91,7 @@ function normalize(value: string | undefined) {
 
 function matchesFoodType(product: Product, type: FoodType) {
   if (type === 'all') return true;
+  if (normalize(type) === 'kuliner') return ['makanan', 'minuman', 'kuliner'].includes(normalize(product.category));
   return normalize(product.category) === normalize(type);
 }
 
@@ -114,8 +115,8 @@ export default function ProductsPage() {
     [categories, foodFilters.type],
   );
   const catalogProfile = useMemo(
-    () => getCatalogProfile(selectedCategory),
-    [selectedCategory],
+    () => getCatalogProfile(selectedCategory, foodFilters.type),
+    [selectedCategory, foodFilters.type],
   );
   useEffect(() => {
     if (!catalogProfile.isFood && foodFilters.halalOnly) {
@@ -125,7 +126,8 @@ export default function ProductsPage() {
 
   // A removed/deactivated category must not remain selected from an old URL.
   useEffect(() => {
-    if (foodFilters.type !== 'all' && categories.length > 0 && !categories.some((category) => category.slug === foodFilters.type)) {
+    const isVirtualCategory = foodFilters.type === 'kuliner';
+    if (foodFilters.type !== 'all' && !isVirtualCategory && categories.length > 0 && !categories.some((category) => category.slug === foodFilters.type)) {
       setFoodFilters((previous) => ({ ...previous, type: 'all' }));
       const nextParams = new URLSearchParams(searchParams);
       nextParams.delete('type');
@@ -181,9 +183,18 @@ export default function ProductsPage() {
 
   const handleTypeChange = (type: FoodType) => {
     setFoodFilters((previous) => ({ ...previous, type }));
-    if (type === 'all') searchParams.delete('type');
-    else searchParams.set('type', type);
-    setSearchParams(searchParams);
+    const nextParams = new URLSearchParams(searchParams);
+    if (type === 'all') nextParams.delete('type');
+    else nextParams.set('type', type);
+    setSearchParams(nextParams);
+  };
+
+  const handleFiltersChange = (nextFilters: FoodFilters) => {
+    setFoodFilters(nextFilters);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextFilters.type === 'all') nextParams.delete('type');
+    else nextParams.set('type', nextFilters.type);
+    setSearchParams(nextParams, { replace: true });
   };
 
   return (
@@ -206,7 +217,7 @@ export default function ProductsPage() {
           </div>
           <FoodFilterSheet
             filters={foodFilters}
-            onFiltersChange={setFoodFilters}
+            onFiltersChange={handleFiltersChange}
             activeFilterCount={activeFilterCount}
             categories={categoryOptions}
             title={catalogProfile.filterTitle}
@@ -216,7 +227,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[{ slug: 'all', name: 'Semua' }, ...categoryOptions].map(({ slug, name }) => (
+          {[{ slug: 'all', name: 'Semua' }, { slug: 'kuliner', name: 'Makanan & Minuman' }, ...categoryOptions].map(({ slug, name }) => (
             <button key={slug} type="button" onClick={() => handleTypeChange(slug)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95', foodFilters.type === slug ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80')}>
               {name}
             </button>
@@ -263,6 +274,7 @@ export default function ProductsPage() {
               <SelectTrigger className="h-9 rounded-xl text-xs"><PackageOpen className="mr-1.5 h-3.5 w-3.5" /><SelectValue placeholder="Kategori produk" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua kategori</SelectItem>
+                <SelectItem value="kuliner">Makanan & Minuman</SelectItem>
                 {categoryOptions.map((category) => <SelectItem key={category.slug} value={category.slug}>{category.name}</SelectItem>)}
               </SelectContent>
             </Select>
