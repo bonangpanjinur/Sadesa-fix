@@ -24,7 +24,6 @@ import { toast } from 'sonner';
 // Halaman yang memiliki SEO konfigurasi / Pages with SEO configuration
 const PREDEFINED_PAGES = [
   { path: '/',                slug: 'homepage',         label: 'Beranda' },
-  { path: '/explore',         slug: 'explore',          label: 'Jelajahi Produk' },
   { path: '/tourism',         slug: 'tourism',          label: 'Wisata Desa' },
   { path: '/shops',           slug: 'shops',            label: 'Daftar Toko' },
   { path: '/products',        slug: 'products',         label: 'Semua Produk' },

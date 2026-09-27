@@ -117,7 +117,6 @@ const COMMON_PAGES = [
   { path: '/', label: 'Beranda' },
   { path: '/products', label: 'Produk' },
   { path: '/tourism', label: 'Wisata' },
-  { path: '/explore', label: 'Explore' },
   { path: '/shops', label: 'Toko' },
   { path: '/search', label: 'Pencarian' },
   { path: '/auth', label: 'Login' },

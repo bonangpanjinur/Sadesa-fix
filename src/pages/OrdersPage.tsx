@@ -940,7 +940,7 @@ const OrdersPage = () => {
                     ? "Yuk mulai belanja dan temukan produk terbaik!"
                     : `Tidak ada pesanan dengan status "${TAB_FILTERS.find(t => t.value === activeTab)?.label || activeTab}"`}
                 </p>
-                <Button className="rounded-full px-6" onClick={() => navigate("/explore")}>
+                <Button className="rounded-full px-6" onClick={() => navigate("/products")}>
                   <ShoppingBag className="w-4 h-4 mr-2" /> Mulai Belanja
                 </Button>
               </div>

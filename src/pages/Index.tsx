@@ -390,7 +390,7 @@ const Index = () => {
           );
         return sortedVillages.length > 0 ? (
           <section className="mt-8 px-5 pb-8">
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center mb-3">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary">
                   <MapPin className="h-4 w-4" />
@@ -403,13 +403,6 @@ const Index = () => {
                   </p>
                 </div>
               </div>
-              <Link 
-                to="/explore"
-                className="text-[10px] text-primary font-bold hover:underline flex items-center gap-0.5"
-              >
-                Semua
-                <ChevronRight className="h-3 w-3" />
-              </Link>
             </div>
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
               {sortedVillages.map((village) => (

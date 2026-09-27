@@ -10,7 +10,7 @@ import { FloatingCartButton } from './FloatingCartButton';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Beranda' },
-  { path: '/explore', icon: Search, label: 'Jelajah' },
+  { path: '/products', icon: Search, label: 'Jelajah' },
   { path: '/orders', icon: Receipt, label: 'Pesanan' },
   { path: '/account', icon: User, label: 'Akun' },
 ];

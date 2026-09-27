@@ -37,7 +37,6 @@ const TourismDetail = lazy(() => import("./pages/TourismDetail"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const PaymentConfirmationPage = lazy(() => import("./pages/PaymentConfirmationPage"));
-const ExplorePage = lazy(() => import("./pages/ExplorePage"));
 const SearchResultsPage = lazy(() => import("./pages/SearchResultsPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
@@ -463,7 +462,6 @@ const App = () => (
               <Route path="/village/:id" element={<VillageDetailPage />} />
               <Route path="/merchant/:slugOrId" element={<MerchantSlugResolver />} />
               <Route path="/shops" element={<ShopsPage />} />
-              <Route path="/explore" element={<ExplorePage />} />
               <Route path="/search" element={<SearchResultsPage />} />
               <Route path="/auth" element={<AuthPage />} />
               {/* T-04: Redirect alias URL login yang umum */}
