@@ -243,7 +243,10 @@ export default function RegisterCourierPage() {
         ? String(error.message)
         : '';
       const normalizedError = errorMessage.toLowerCase();
-      if (normalizedError.includes('already registered as')) {
+      if (normalizedError.includes('invalid input value for enum app_role')
+        && normalizedError.includes('service_provider')) {
+        toast.error('Sistem pendaftaran perlu diperbarui oleh admin. Data Anda belum tersimpan; silakan coba lagi setelah pembaruan selesai.');
+      } else if (normalizedError.includes('already registered as')) {
         toast.error('Akun ini sudah memiliki pendaftaran bisnis lain. Satu akun hanya dapat memiliki satu jenis akun bisnis.');
       } else if (normalizedError.includes('row-level security') || normalizedError.includes('permission denied')) {
         toast.error('Izin pendaftaran atau upload dokumen ditolak. Muat ulang halaman; jika berulang, hubungi admin.');

@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 231,
-  "bundle_count": 17,
+  "migration_count": 232,
+  "bundle_count": 18,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -436,6 +436,14 @@
       ],
       "sha256": "6c5ccd937f45627007b8dbc149e8e7aafd6d01af4a2a7244943d193ddfa00d84",
       "bytes": 9492
+    },
+    {
+      "file": "49_20260927163500_repair_service_provider_app_role_enum.sql",
+      "source_files": [
+        "20260927163500_add_service_provider_app_role_enum.sql"
+      ],
+      "sha256": "f12c43e4864f3ddffa192f21188a04e88ea707ff0faff973a1b1ba6c6b6dc3ec",
+      "bytes": 568
     }
   ],
   "idempotent": true,
