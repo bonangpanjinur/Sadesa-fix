@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import type { Product } from '../types';
+import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, sortProductCategories, type ProductCategory } from '../lib/productCategories';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';
@@ -99,11 +100,18 @@ function normalize(value: string | undefined) {
   return (value || '').toLowerCase().trim();
 }
 
-function matchesFoodType(product: Product, type: FoodType) {
+function getCategoryFilterSlugs(type: FoodType, categories: ProductCategory[]) {
+  if (type === 'all') return null;
+  const selected = getCategoryBySlug(categories, type);
+  if (selected) return [selected.slug, ...getCategoryDescendantSlugs(categories, selected.id)];
+  if (normalize(type) === 'kuliner') return ['makanan', 'minuman', 'kuliner'];
+  if (normalize(type) === 'belanja') return ['sembako', 'kelontongan', 'sayuran', 'buah', 'rumah-tangga', 'elektronik'];
+  return [normalize(type)];
+}
+
+function matchesFoodType(product: Product, type: FoodType, categories: ProductCategory[]) {
   if (type === 'all') return true;
-  if (normalize(type) === 'kuliner') return ['makanan', 'minuman', 'kuliner'].includes(normalize(product.category));
-  if (normalize(type) === 'belanja') return ['sembako', 'kelontongan', 'sayuran', 'buah', 'rumah-tangga', 'elektronik'].includes(normalize(product.category));
-  return normalize(product.category) === normalize(type);
+  return getCategoryFilterSlugs(type, categories)?.includes(normalize(product.category)) ?? false;
 }
 
 export default function ProductsPage() {
@@ -119,16 +127,33 @@ export default function ProductsPage() {
   const { data: categories = [] } = useAdminCategories();
 
   const categoryOptions = useMemo(
-    () => categories.map((category) => ({ slug: category.slug, name: category.name })),
+    () => sortProductCategories(categories as ProductCategory[]).map((category) => ({ slug: category.slug, name: getCategoryDisplayLabel(categories as ProductCategory[], category) })),
     [categories],
   );
+  const parentCategories = useMemo(
+    () => sortProductCategories((categories as ProductCategory[]).filter((category) => !category.parent_id)),
+    [categories],
+  );
+  const topCategoryOptions = useMemo(() => {
+    const options = [
+      { slug: 'all', name: 'Semua' },
+      { slug: 'kuliner', name: 'Makanan & Minuman' },
+      { slug: 'belanja', name: 'Belanja' },
+      ...parentCategories.map((category) => ({ slug: category.slug, name: category.name })),
+    ];
+    return Array.from(new Map(options.map((option) => [option.slug, option])).values());
+  }, [parentCategories]);
   const selectedCategory = useMemo(
     () => categories.find((category) => category.slug === foodFilters.type),
     [categories, foodFilters.type],
   );
+  const profileCategory = useMemo(
+    () => getCategoryParent(categories as ProductCategory[], selectedCategory || null) || selectedCategory,
+    [categories, selectedCategory],
+  );
   const catalogProfile = useMemo(
-    () => getCatalogProfile(selectedCategory, foodFilters.type),
-    [selectedCategory, foodFilters.type],
+    () => getCatalogProfile(profileCategory, foodFilters.type),
+    [profileCategory, foodFilters.type],
   );
   useEffect(() => {
     if (!catalogProfile.isFood && foodFilters.halalOnly) {
@@ -159,7 +184,7 @@ export default function ProductsPage() {
       const query = normalize(deferredSearchQuery);
       const haystack = `${normalize(product.name)} ${normalize(product.description)} ${normalize(product.merchantName)} ${normalize(product.category)}`;
       if (query && !haystack.includes(query)) return false;
-      if (!matchesFoodType(product, foodFilters.type)) return false;
+      if (!matchesFoodType(product, foodFilters.type, categories as ProductCategory[])) return false;
       if (foodFilters.openNow && product.isMerchantOpen === false) return false;
       if (foodFilters.promoOnly && !product.isPromo) return false;
       if (foodFilters.halalOnly && product.halal_status !== 'VERIFIED') return false;
@@ -176,7 +201,7 @@ export default function ProductsPage() {
       case 'newest': result = [...result].sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
     }
     return result;
-  }, [products, deferredSearchQuery, foodFilters, sortMode, userLocation]);
+  }, [products, deferredSearchQuery, foodFilters, sortMode, userLocation, categories]);
 
   const activeFilterCount = useMemo(() => (
     (foodFilters.type !== 'all' ? 1 : 0) +
@@ -209,6 +234,9 @@ export default function ProductsPage() {
     else nextParams.set('type', nextFilters.type);
     setSearchParams(nextParams, { replace: true });
   };
+  const selectedParentCategory = getCategoryParent(categories as ProductCategory[], selectedCategory || null) || selectedCategory;
+  const subCategoryOptions = selectedParentCategory ? getCategoryChildren(categories as ProductCategory[], selectedParentCategory.id) : [];
+  const activeTopCategory = getCategoryParent(categories as ProductCategory[], selectedCategory || null)?.slug || foodFilters.type;
 
   return (
     <div className="mobile-shell flex min-h-screen flex-col bg-background">
@@ -240,12 +268,24 @@ export default function ProductsPage() {
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {[{ slug: 'all', name: 'Semua' }, { slug: 'kuliner', name: 'Makanan & Minuman' }, { slug: 'belanja', name: 'Belanja' }, ...categoryOptions].map(({ slug, name }) => (
-            <button key={slug} type="button" onClick={() => handleTypeChange(slug)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95', foodFilters.type === slug ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80')}>
+          {topCategoryOptions.map(({ slug, name }) => (
+            <button key={slug} type="button" onClick={() => handleTypeChange(slug)} className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition active:scale-95', activeTopCategory === slug ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-secondary text-secondary-foreground hover:bg-secondary/80')}>
               {name}
             </button>
           ))}
         </div>
+        {subCategoryOptions.length > 0 && (
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={`Subkategori ${selectedParentCategory?.name}`}>
+            <button type="button" onClick={() => handleTypeChange(selectedParentCategory?.slug || 'all')} className={cn('shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition', foodFilters.type === selectedParentCategory?.slug ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40')}>
+              Semua {selectedParentCategory?.name}
+            </button>
+            {subCategoryOptions.map((category) => (
+              <button key={category.id} type="button" onClick={() => handleTypeChange(category.slug)} className={cn('shrink-0 rounded-full border px-3 py-1 text-[11px] font-medium transition', foodFilters.type === category.slug ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40')}>
+                {category.icon ? `${category.icon} ` : ''}{category.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1" role="tablist" aria-label="Tampilan katalog">
           <button
@@ -330,7 +370,7 @@ export default function ProductsPage() {
           ) : filteredAndSortedProducts.length === 0 ? (
             <div className="py-12 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div><p className="font-semibold text-foreground">Produk belum ditemukan</p><p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">Coba ganti kata kunci atau kurangi filter katalog.</p></div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">{filteredAndSortedProducts.map((product, index) => <ProductCard key={product.id} product={product} index={index} showCategoryBadge />)}</div>
+            <div className="grid grid-cols-2 gap-3">{filteredAndSortedProducts.map((product, index) => <ProductCard key={product.id} product={product} index={index} showCategoryBadge categoryLabel={getCategoryDisplayLabel(categories as ProductCategory[], getCategoryBySlug(categories as ProductCategory[], product.category) || { id: '', name: product.category, slug: product.category, parent_id: null, icon: null })} />)}</div>
           )}
         </motion.div>
       </div>

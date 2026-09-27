@@ -20,6 +20,7 @@ interface ProductCardProps {
   product: ProductWithSales;
   index?: number;
   showCategoryBadge?: boolean;
+  categoryLabel?: string;
   distanceKm?: number;
   deliveryEta?: string;
   flashSaleOverride?: ProductFlashSale | null;
@@ -37,7 +38,7 @@ const categoryLabels: Record<string, { label: string; className: string }> = {
 
 const defaultCategoryStyle = { className: 'bg-muted text-muted-foreground' };
 
-export function ProductCard({ product, index = 0, showCategoryBadge = false, distanceKm, deliveryEta, flashSaleOverride }: ProductCardProps) {
+export function ProductCard({ product, index = 0, showCategoryBadge = false, categoryLabel, distanceKm, deliveryEta, flashSaleOverride }: ProductCardProps) {
   const { addToCart } = useCart();
   const { flashSale: fetchedFlashSale } = useProductFlashSale(product.id, flashSaleOverride === undefined);
   const flashSale = flashSaleOverride === undefined ? fetchedFlashSale : flashSaleOverride;
@@ -103,7 +104,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, dis
         ) : null}
         {showCategoryBadge && (
           <span className={cn("text-[8px] font-medium px-1.5 py-0.5 rounded", categoryInfo.className)}>
-            {categoryInfo.label}
+            {categoryLabel || categoryInfo.label}
           </span>
         )}
         {product.halal_status === 'VERIFIED' && (

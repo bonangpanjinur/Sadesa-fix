@@ -61,6 +61,18 @@ export function getLeafCategories(categories: ProductCategory[]) {
   return sortProductCategories(categories.filter((category) => !parentIds.has(category.id)));
 }
 
+export function getCategoryDescendantSlugs(categories: ProductCategory[], categoryId: string): string[] {
+  const descendants: string[] = [];
+  const append = (parentId: string) => {
+    categories.filter((category) => category.parent_id === parentId).forEach((category) => {
+      descendants.push(category.slug);
+      append(category.id);
+    });
+  };
+  append(categoryId);
+  return descendants;
+}
+
 export function getInitialProductCategory(categories: ProductCategory[]) {
   return getLeafCategories(categories)[0]?.slug || sortProductCategories(categories)[0]?.slug || '';
 }
