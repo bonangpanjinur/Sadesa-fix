@@ -6,7 +6,6 @@ import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
 import { HomeServiceCards } from '@/components/home/HomeServiceCards';
-import { ProductCategoryCards } from '@/components/home/ProductCategoryCards';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
@@ -119,7 +118,7 @@ const Index = () => {
   } = useQuery<Product[]>({
     queryKey: ['homepage-products'],
     queryFn: withErrorLog('products', 'homepage-products', { staleTime: 60_000 }, () =>
-      fetchProducts()
+      fetchProducts({ limit: 48, includeReviews: false, cacheKey: 'homepage-products' })
     ),
     staleTime: 60_000,
   });
@@ -255,7 +254,7 @@ const Index = () => {
             />
           );
         return popularTourism.length > 0 ? (
-          <section className="mt-6 px-5">
+            <section className="px-5">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-foreground">
@@ -284,7 +283,7 @@ const Index = () => {
       case 'promo':
         if (promoProducts.length === 0) return null;
         return (
-          <section className="mx-4 mt-5 rounded-[1.35rem] border border-red-100 bg-red-50/60 px-4 py-3" aria-labelledby="promo-title">
+          <section className="mx-4 rounded-[1.35rem] border border-red-100 bg-red-50/60 px-4 py-3" aria-labelledby="promo-title">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
@@ -310,7 +309,7 @@ const Index = () => {
         if (productsLoading) return <ProductGridSkeleton count={6} />;
         if (productsError) return <MerchantJoinCard onRetry={() => refetchProducts()} />;
         return (
-          <section className="mx-4 mt-5 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
+          <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
             <div className="mb-3 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
                 <Sparkles className="h-4 w-4" />
@@ -363,7 +362,7 @@ const Index = () => {
             />
           );
         return sortedVillages.length > 0 ? (
-          <section className="mt-6 px-5 pb-6">
+          <section className="px-5 pb-6">
             <div className="mb-2 flex items-center">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary">
@@ -400,8 +399,8 @@ const Index = () => {
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
-          <HomeServiceCards />
-          <ProductCategoryCards />
+          <div className="space-y-5">
+            <HomeServiceCards />
           {activeOrder && (
             <Dialog>
               <DialogTrigger asChild>
@@ -456,6 +455,7 @@ const Index = () => {
               </Button>
             </div>
           )}
+          </div>
         </>
       </main>
 

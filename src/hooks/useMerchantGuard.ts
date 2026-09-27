@@ -33,6 +33,7 @@ export function useMerchantGuard(): MerchantGuardResult {
           .from('merchants')
           .select('id, name, registration_status')
           .eq('user_id', user.id)
+          .eq('status', 'ACTIVE')
           .maybeSingle();
 
         if (!data || data.registration_status !== 'APPROVED') {

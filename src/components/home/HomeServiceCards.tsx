@@ -42,7 +42,7 @@ const services = [
 
 export function HomeServiceCards() {
   return (
-    <section className="mx-4 mt-1" aria-label="Pilih layanan SaDesa">
+    <section className="mx-4" aria-label="Pilih layanan SaDesa">
       <div className="grid grid-cols-4 gap-2">
         {services.map(({ name, href, icon: Icon, palette }) => (
           <Link

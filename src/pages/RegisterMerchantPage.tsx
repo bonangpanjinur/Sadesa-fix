@@ -335,6 +335,21 @@ export default function RegisterMerchantPage() {
         return;
       }
 
+      const { data: existingMerchant, error: existingMerchantError } = await supabase
+        .from('merchants')
+        .select('id, registration_status')
+        .eq('user_id', user.id)
+        .in('registration_status', ['PENDING', 'APPROVED'])
+        .maybeSingle();
+      if (existingMerchantError) throw existingMerchantError;
+      if (existingMerchant) {
+        toast.info(existingMerchant.registration_status === 'APPROVED'
+          ? 'Akun Anda sudah memiliki toko aktif.'
+          : 'Pendaftaran toko Anda masih menunggu persetujuan.');
+        navigate('/merchant', { replace: true });
+        return;
+      }
+
       // The database auto-approval trigger promotes new registrations to
       // APPROVED/ACTIVE. Submit PENDING here so the public INSERT policy
       // remains strict and the trigger is the single source of truth.

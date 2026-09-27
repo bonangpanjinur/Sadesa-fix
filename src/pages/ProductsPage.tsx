@@ -147,7 +147,7 @@ export default function ProductsPage() {
 
   const { data: products = [], isLoading: loading, isError, refetch } = useQuery<Product[]>({
     queryKey: ['all-products'],
-    queryFn: fetchProducts,
+    queryFn: () => fetchProducts(),
     staleTime: 120_000,
   });
 

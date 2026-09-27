@@ -209,19 +209,21 @@ export async function checkMerchantHasActiveQuota(merchantId: string): Promise<b
   }
 }
 
-// Fetch products from database (include all, with availability status and location)
-export async function fetchProducts(): Promise<Product[]> {
-  const cached = getCached<Product[]>('products');
-  if (cached) return cached;
+interface FetchProductsOptions {
+  limit?: number;
+  includeReviews?: boolean;
+  cacheKey?: string;
+}
 
-  // Quota lookup and the product query are independent — fire both at once.
-  const [merchantsWithQuota, { data, error }] = await Promise.all([
-    getMerchantsWithActiveQuota(),
-    supabase
-      .from('products')
-      .select(`
-        *,
-        merchants (
+// Fetch products from database (include availability status and location).
+// Homepage callers can request a smaller payload because review details are not
+// rendered in product cards.
+export async function fetchProducts(options: FetchProductsOptions = {}): Promise<Product[]> {
+  const { limit = 200, includeReviews = true, cacheKey = 'products' } = options;
+  const cached = getCached<Product[]>(cacheKey);
+  if (cached) return cached;
+  const merchantFields = includeReviews
+    ? `
           id,
           name,
           image_url,
@@ -235,15 +237,31 @@ export async function fetchProducts(): Promise<Product[]> {
           close_time,
           location_lat,
           location_lng,
-          villages (
-            name,
-            location_lat,
-            location_lng
-          )
-        )
-      `)
+          villages (name, location_lat, location_lng)
+        `
+    : `
+          id,
+          name,
+          image_url,
+          slug,
+          address,
+          rating_avg,
+          rating_count,
+          is_open,
+          open_time,
+          close_time,
+          location_lat,
+          location_lng,
+          villages (name, location_lat, location_lng)
+        `;
+  // Quota lookup and the product query are independent — fire both at once.
+  const [merchantsWithQuota, { data, error }] = await Promise.all([
+    getMerchantsWithActiveQuota(),
+    supabase
+      .from('products')
+      .select(`*, merchants (${merchantFields})`)
       .order('created_at', { ascending: false })
-      .limit(200),
+      .limit(limit),
   ]);
 
   if (error) {
@@ -326,7 +344,7 @@ export async function fetchProducts(): Promise<Product[]> {
     };
   });
 
-  setCache('products', mappedProducts);
+  setCache(cacheKey, mappedProducts);
   return mappedProducts;
 }
 
