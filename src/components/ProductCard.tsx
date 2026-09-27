@@ -71,7 +71,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, dis
   const CardContent = (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm",
+        "group relative flex h-full flex-col overflow-hidden rounded-lg border border-border/70 bg-card shadow-sm",
         "cursor-pointer transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
       )}
     >
@@ -135,14 +135,14 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, dis
         />
       </div>
       
-      <div className={cn("p-3", !isAvailable && "opacity-60")}>
-        <div className="mb-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
+      <div className={cn("flex min-h-[9.25rem] flex-1 flex-col p-3", !isAvailable && "opacity-60")}>
+        <div className="mb-0.5 h-4 truncate text-[10px] text-muted-foreground">
           {product.merchantName}
         </div>
-        <h3 className="min-h-[2.5em] font-heading text-xs font-semibold leading-snug text-card-foreground line-clamp-2">
+        <h3 className="h-[2.5em] overflow-hidden font-heading text-xs font-semibold leading-snug text-card-foreground line-clamp-2">
           {product.name}
         </h3>
-        <div className="flex justify-between items-center mt-1.5">
+        <div className="mt-auto flex min-h-[2.75rem] items-center justify-between">
             <div className="flex flex-col">
               {originalPrice && isAvailable && (
                 <span className="text-[9px] text-muted-foreground line-through">
@@ -174,8 +174,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, dis
             </Button>
           )}
         </div>
-        {(distanceKm != null || deliveryEta || product.isMerchantOpen === false) && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+        <div className="mt-2 flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
             {distanceKm != null && (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3 text-primary" />
@@ -189,8 +188,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, dis
               </span>
             )}
             {product.isMerchantOpen === false && <span className="font-medium text-destructive">Tutup</span>}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -5,11 +5,6 @@ import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
-// Import fallback images
-import heroVillage from '@/assets/hero-village.jpg';
-import villageBojong from '@/assets/village-bojong.jpg';
-import villageSukamaju from '@/assets/village-sukamaju.jpg';
-
 export interface BannerSlide {
   id: string;
   title: string;
@@ -25,8 +20,6 @@ interface HeroCarouselProps {
   onView?: (slideId: string) => void;
   onClick?: (slideId: string) => void;
 }
-
-const fallbackImages = [heroVillage, villageBojong, villageSukamaju];
 
 export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -78,21 +71,14 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
   }, [viewedSlideId, onView]);
 
   if (slides.length === 0) {
-    return (
-      <section className="mx-4 mt-4 flex h-20 items-center justify-center rounded-[1.5rem] bg-emerald-50 text-emerald-800 sm:mx-5">
-        <p className="text-xs font-semibold">Promo pilihan untuk warga sekitar</p>
-      </section>
-    );
+    return null;
   }
 
   const currentSlide = slides[currentIndex];
-  const slideImage = currentSlide.image || fallbackImages[currentIndex % fallbackImages.length];
   const promoCopy = (
     <div className="max-w-[15rem] sm:max-w-md">
-      <span className="inline-flex rounded-full bg-[#E31019] px-2.5 py-1 text-[8px] font-extrabold uppercase tracking-wide text-white">Promo spesial</span>
-      <h2 className="mt-1.5 line-clamp-2 font-serif text-[1.35rem] font-bold leading-[0.98] tracking-[-0.025em] text-white sm:text-2xl">{currentSlide.title}</h2>
+      <h2 className="line-clamp-2 font-serif text-[1.35rem] font-bold leading-[0.98] tracking-[-0.025em] text-white sm:text-2xl">{currentSlide.title}</h2>
       {currentSlide.subtitle && <p className="mt-1 line-clamp-2 text-[9px] leading-snug text-white/85 sm:text-xs">{currentSlide.subtitle}</p>}
-      {currentSlide.linkUrl && <span className="mt-2 inline-flex h-7 items-center gap-1.5 rounded-full bg-[#44a31b] px-3 text-[9px] font-bold text-white shadow-sm sm:h-8 sm:px-4 sm:text-[10px]">Lihat promo <ChevronRight className="h-3 w-3" /></span>}
     </div>
   );
 
@@ -141,14 +127,16 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
           className="relative"
         >
           <div className="relative aspect-[2.25/1] w-full overflow-hidden bg-[#015730] sm:aspect-[2.8/1]">
-            <motion.img
-              src={slideImage}
-              alt={currentSlide.title}
-              initial={{ scale: 1.08 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: reducedMotion ? 0 : autoPlayInterval / 1000, ease: 'linear' }}
-              className="absolute inset-0 h-full w-full object-cover"
-            />
+            {currentSlide.image && (
+              <motion.img
+                src={currentSlide.image}
+                alt={currentSlide.title}
+                initial={{ scale: 1.08 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: reducedMotion ? 0 : autoPlayInterval / 1000, ease: 'linear' }}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-r from-[#015730] via-[#015730]/90 to-[#0c7749]/15" />
             {currentSlide.linkUrl ? (
               <Link to={currentSlide.linkUrl} onClick={() => onClick?.(currentSlide.id)} className="absolute inset-y-0 left-0 z-[1] flex w-[70%] items-center px-4 py-3 text-white sm:w-[64%] sm:px-6">

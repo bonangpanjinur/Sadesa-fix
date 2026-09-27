@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, Receipt, Truck, ArrowRight } from 'lucide-react';
+import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, Receipt, Truck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -21,7 +21,6 @@ import { CarouselSkeleton, ProductGridSkeleton } from '@/components/home/HomeSke
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance, calculateDistance } from '@/hooks/useUserLocation';
-import promoFoodImage from '@/assets/home/promo-food-optimized.jpg';
 import heroVillageImage from '@/assets/hero-village.jpg';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,29 +59,6 @@ function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
         </div>
       </div>
     </section>
-  );
-}
-
-function HomePromoCard() {
-  return (
-    <Link
-      to="/products"
-      className="group relative mx-4 mt-4 flex min-h-[10.25rem] overflow-hidden rounded-[1.45rem] bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:min-h-[12rem]"
-      aria-label="Promo spesial: Makan enak lebih hemat"
-    >
-      <img src={promoFoodImage} alt="Hidangan ayam goreng dan nasi" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.025]" />
-      <span className="absolute inset-0 bg-gradient-to-r from-[#015730] via-[#015730]/95 to-[#0c7749]/20" />
-      <span className="relative z-10 flex w-[67%] flex-col items-start justify-center px-4 py-4 text-white sm:px-6 sm:py-5">
-        <span className="rounded-full bg-[#E31019] px-3 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white shadow-sm">Promo spesial</span>
-        <span className="mt-2 font-serif text-[1.6rem] font-bold leading-[0.95] tracking-[-0.03em] sm:text-3xl">Makan Enak<br /><span className="text-[#70c83d]">Lebih Hemat</span></span>
-        <span className="mt-1.5 max-w-[16rem] text-[10px] leading-snug text-white/90 sm:text-xs">Diskon menu favorit dari warung sekitar kamu.</span>
-        <span className="mt-2.5 inline-flex items-center gap-2 rounded-full bg-[#44a31b] px-3.5 py-1.5 text-[10px] font-bold text-white shadow-md sm:text-xs">Lihat Promo <ArrowRight className="h-3.5 w-3.5" /></span>
-      </span>
-      <span className="absolute right-3 top-3 z-10 flex h-14 w-14 rotate-6 flex-col items-center justify-center rounded-full bg-[#E31019] text-center text-white shadow-md ring-2 ring-white/80 sm:right-5 sm:top-4 sm:h-16 sm:w-16">
-        <span className="text-[8px] font-bold sm:text-[9px]">Diskon s.d.</span>
-        <span className="font-serif text-base font-black leading-none sm:text-lg">50%</span>
-      </span>
-    </Link>
   );
 }
 
@@ -262,8 +238,8 @@ const Index = () => {
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
       case 'hero':
-        if (bannerSlides.length > 0) return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} onView={handleBannerView} onClick={handleBannerClick} />;
-        return <HomePromoCard />;
+        if (bannerSlides.length === 0) return null;
+        return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} onView={handleBannerView} onClick={handleBannerClick} />;
       
       case 'categories':
         return <HomeServiceCards />;
