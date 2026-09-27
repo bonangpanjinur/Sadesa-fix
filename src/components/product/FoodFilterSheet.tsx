@@ -28,6 +28,7 @@ interface FoodFilterSheetProps {
   showHalal?: boolean;
   resetType?: FoodType;
   foodOnly?: boolean;
+  primaryCategory?: { slug: string; name: string };
 }
 
 export function FoodFilterSheet({
@@ -40,6 +41,7 @@ export function FoodFilterSheet({
   showHalal = true,
   resetType = 'all',
   foodOnly = false,
+  primaryCategory = { slug: 'kuliner', name: 'Makanan & Minuman' },
 }: FoodFilterSheetProps) {
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState(filters);
@@ -83,7 +85,7 @@ export function FoodFilterSheet({
             <section className="space-y-3">
               <Label className="text-sm font-semibold">Kategori produk</Label>
               <div className="grid grid-cols-2 gap-2">
-                {[{ slug: 'all', name: 'Semua menu' }, { slug: 'kuliner', name: 'Makanan & Minuman' }, ...(foodOnly ? [] : [{ slug: 'belanja', name: 'Belanja' }]), ...categories.filter((category) => !['kuliner', 'belanja'].includes(category.slug))].map(({ slug, name }) => (
+                {[{ slug: 'all', name: 'Semua produk' }, primaryCategory, ...(foodOnly ? [] : [{ slug: primaryCategory.slug === 'kuliner' ? 'belanja' : 'kuliner', name: primaryCategory.slug === 'kuliner' ? 'Belanja' : 'Makanan & Minuman' }]), ...categories.filter((category) => !['kuliner', 'belanja'].includes(category.slug))].map(({ slug, name }) => (
                   <Button key={slug} type="button" variant={localFilters.type === slug ? 'default' : 'outline'} className="justify-start" onClick={() => update({ type: slug })}>
                     {localFilters.type === slug && <Check className="mr-2 h-4 w-4" />}
                     {name}
