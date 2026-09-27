@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal, ArrowLeft, ChevronRight, Grid2X2 } from 'lucide-react';
+import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, ShoppingCart, Search, SlidersHorizontal, ArrowLeft, ChevronRight, Grid2X2 } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ProductCard } from '../components/ProductCard';
@@ -26,6 +26,7 @@ import type { Product } from '../types';
 import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, sortProductCategories, type ProductCategory } from '../lib/productCategories';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { WishlistButton } from '../components/WishlistButton';
+import { useCart } from '../contexts/CartContext';
 import { fetchBannerPromotions, type Promotion } from '../lib/promotions';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
@@ -131,23 +132,35 @@ function FoodMerchantRow({ product, userLocation }: { product: Product; userLoca
   const distance = distanceKm == null ? 'Jarak belum tersedia' : distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m` : `${distanceKm.toFixed(1)} km`;
   const rating = product.merchantRatingAvg != null ? `★ ${product.merchantRatingAvg.toFixed(1)}` : 'Rating belum tersedia';
   const reviewCount = product.merchantRatingCount != null && product.merchantRatingCount > 0 ? ` (${product.merchantRatingCount}+)` : '';
-  return <Link to={`/products?merchant=${product.merchantId}`} className="flex items-center gap-3 rounded-2xl border border-[#edf0eb] bg-white p-2.5 shadow-[0_7px_20px_-18px_rgba(12,62,38,0.5)] transition hover:border-[#b9d9b9]">
+  return <Link to={`/products?type=kuliner&merchant=${product.merchantId}`} className="flex items-center gap-3 rounded-2xl border border-[#edf0eb] bg-white p-2.5 shadow-[0_7px_20px_-18px_rgba(12,62,38,0.5)] transition hover:border-[#b9d9b9]">
     <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#eef4e9]"><OptimizedImage src={product.merchantImageUrl || product.image} alt={product.merchantName} className="h-full w-full object-cover" aspectRatio="auto" lazy /></div>
     <div className="min-w-0 flex-1"><p className="truncate text-[13px] font-bold text-[#18372a]">{product.merchantName}</p><p className="mt-0.5 text-[11px] text-[#7d887f]">{rating}{reviewCount}</p><p className="mt-0.5 truncate text-[10px] text-[#8a938d]">Aneka menu · {distance} · {getDeliveryEta(distanceKm) || 'Estimasi belum tersedia'}</p></div>
     <WishlistButton productId={product.id} size="sm" className="mr-1 shrink-0 bg-transparent text-[#e35a5a] hover:bg-[#fff1f1] hover:text-[#d43f3f]" />
   </Link>;
 }
 
+function FoodBanner({ banner }: { banner: Promotion }) {
+  const content = <div className="relative min-h-[7.7rem] overflow-hidden rounded-[1.15rem] bg-[#f6d9a8] shadow-[0_12px_25px_-18px_rgba(74,52,21,0.7)]">
+    {banner.imageUrl && <OptimizedImage src={banner.imageUrl} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" aspectRatio="auto" lazy />}
+    <div className="absolute inset-0 bg-gradient-to-r from-[#17261e]/75 via-[#17261e]/35 to-transparent" />
+    <div className="relative z-10 max-w-[72%] px-4 py-5 text-white"><p className="font-serif text-[20px] font-black leading-[1.03]">{banner.title}</p>{banner.subtitle && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/90">{banner.subtitle}</p>}</div>
+  </div>;
+  if (!banner.linkUrl) return content;
+  return banner.linkUrl.startsWith('/') ? <Link to={banner.linkUrl} aria-label={banner.title} className="block">{content}</Link> : <a href={banner.linkUrl} target="_blank" rel="noreferrer" aria-label={banner.title} className="block">{content}</a>;
+}
+
 function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch, filters, onFiltersChange, activeFilterCount, userLocation, categoryOptions, foodCategories, foodBanner }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void; filters: FoodFilters; onFiltersChange: (filters: FoodFilters) => void; activeFilterCount: number; userLocation: { lat: number; lng: number } | null; categoryOptions: { slug: string; name: string }[]; foodCategories: ProductCategory[]; foodBanner: Promotion | null }) {
+  const { getItemCount } = useCart();
+  const cartCount = getItemCount();
   const merchants = Array.from(new Map(filteredProducts.map((product) => [product.merchantId, product])).values())
     .sort((a, b) => userLocation ? calculateDistance(userLocation.lat, userLocation.lng, a.locationLat, a.locationLng) - calculateDistance(userLocation.lat, userLocation.lng, b.locationLat, b.locationLng) : 0)
     .slice(0, 4);
   const recommendations = filteredProducts.slice(0, 6);
   return <div className="min-h-screen bg-[#f8fbf7] pb-28 text-[#18372a]">
-    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-[#edf1eb] bg-white/95 px-5 py-3 backdrop-blur-xl"><button type="button" onClick={onBack} aria-label="Kembali" className="flex h-9 w-9 items-center justify-center rounded-full text-[#18372a] transition hover:bg-[#eef6e9] active:scale-90"><ArrowLeft className="h-5 w-5" /></button><h1 className="text-[17px] font-extrabold">Makanan & Minuman</h1><Link to="/cart" className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#eef7e9] text-[#0b7549]"><PackageOpen className="h-4 w-4" /></Link></header>
+    <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-[#edf1eb] bg-white/95 px-5 py-3 backdrop-blur-xl"><button type="button" onClick={onBack} aria-label="Kembali" className="flex h-9 w-9 items-center justify-center rounded-full text-[#18372a] transition hover:bg-[#eef6e9] active:scale-90"><ArrowLeft className="h-5 w-5" /></button><h1 className="text-[17px] font-extrabold">Makanan & Minuman</h1><Link to="/cart" aria-label="Keranjang" className="relative ml-auto flex h-10 w-10 items-center justify-center rounded-full border border-[#d2e9c3] bg-[#edf7e6] text-[#015730] transition hover:bg-[#dff1d4]"><ShoppingCart className="h-[19px] w-[19px]" />{cartCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E31019] px-1 text-[10px] font-bold text-white ring-2 ring-white">{cartCount > 9 ? '9+' : cartCount}</span>}</Link></header>
     <main className="space-y-5 px-5 pt-3">
       <div className="flex gap-2"><div className="relative flex-1"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari makanan atau minuman..." aria-label="Cari makanan atau minuman" className="h-11 w-full rounded-2xl border border-[#e4eae2] bg-white pl-11 pr-4 text-sm shadow-[0_8px_22px_-18px_rgba(12,62,38,0.6)] outline-none focus:border-[#86bc79] focus:ring-4 focus:ring-[#86bc79]/15" /></div><FoodFilterSheet filters={filters} onFiltersChange={onFiltersChange} activeFilterCount={activeFilterCount} categories={categoryOptions} title="Filter makanan & minuman" description="Pilih menu yang sesuai dengan lokasi dan preferensimu." showHalal resetType="kuliner" /></div>
-      {foodBanner && <div className="relative min-h-[7.7rem] overflow-hidden rounded-[1.15rem] bg-[#f6d9a8] shadow-[0_12px_25px_-18px_rgba(74,52,21,0.7)]">{foodBanner.imageUrl && <OptimizedImage src={foodBanner.imageUrl} alt={foodBanner.title} className="absolute inset-0 h-full w-full object-cover" aspectRatio="auto" lazy />}<div className="absolute inset-0 bg-gradient-to-r from-[#17261e]/75 via-[#17261e]/35 to-transparent" /><div className="relative z-10 max-w-[72%] px-4 py-5 text-white"><p className="font-serif text-[20px] font-black leading-[1.03]">{foodBanner.title}</p>{foodBanner.subtitle && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/90">{foodBanner.subtitle}</p>}</div></div>}
+      {foodBanner && <FoodBanner banner={foodBanner} />}
       <div className="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Subkategori makanan"><button type="button" onClick={() => onCategoryChange('all')} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === 'all' ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border', activeType === 'all' ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}><Grid2X2 className="h-[18px] w-[18px]" /></span>Semua</button>{foodCategories.map((category) => <button key={category.id} type="button" onClick={() => onCategoryChange(category.slug)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === category.slug ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border text-lg', activeType === category.slug ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}>{category.icon || '🍽️'}</span>{category.name}</button>)}</div>
       {loading ? <div className="grid grid-cols-2 gap-3">{Array.from({ length: 4 }).map((_, index) => <ProductSkeleton key={index} />)}</div> : isError ? <div className="rounded-2xl bg-white px-5 py-10 text-center shadow-sm"><p className="font-semibold">Menu belum dapat dimuat</p><Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3 rounded-full">Coba lagi</Button></div> : <>
         <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Rekomendasi untuk kamu</h2><button type="button" onClick={() => onCategoryChange('all')} className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat Semua <ChevronRight className="h-3.5 w-3.5" /></button></div>{recommendations.length ? <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{recommendations.map((product, index) => { const distanceKm = userLocation && product.locationLat != null && product.locationLng != null ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) : undefined; return <div key={product.id} className="w-[10.25rem] shrink-0"><ProductCard product={product} index={index} distanceKm={distanceKm} deliveryEta={getDeliveryEta(distanceKm)} /></div>; })}</div> : <p className="rounded-2xl bg-white p-6 text-center text-sm text-[#7d887f]">Menu belum ditemukan. Coba kata kunci lain.</p>}</section>
@@ -165,6 +178,7 @@ export default function ProductsPage() {
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [viewMode, setViewMode] = useState<ViewMode>('products');
   const [mapRadius, setMapRadius] = useState<MapRadius>('all');
+  const merchantId = searchParams.get('merchant');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const { location: userLocation } = useUserLocation();
   const { data: categories = [] } = useAdminCategories();
@@ -242,6 +256,7 @@ export default function ProductsPage() {
     let result = products.filter((product) => {
       const query = normalize(deferredSearchQuery);
       const haystack = `${normalize(product.name)} ${normalize(product.description)} ${normalize(product.merchantName)} ${normalize(product.category)}`;
+      if (merchantId && product.merchantId !== merchantId) return false;
       if (query && !haystack.includes(query)) return false;
       if (!matchesFoodType(product, foodFilters.type, categories as ProductCategory[])) return false;
       if (foodFilters.openNow && product.isMerchantOpen === false) return false;
@@ -260,7 +275,7 @@ export default function ProductsPage() {
       case 'newest': result = [...result].sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
     }
     return result;
-  }, [products, deferredSearchQuery, foodFilters, sortMode, userLocation, categories]);
+  }, [products, deferredSearchQuery, foodFilters, sortMode, userLocation, categories, merchantId]);
 
   const activeFilterCount = useMemo(() => (
     (foodFilters.type !== 'all' ? 1 : 0) +
