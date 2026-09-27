@@ -332,7 +332,9 @@ export async function fetchProducts(options: FetchProductsOptions = {}): Promise
       originalPrice: hasDiscount ? p.price : undefined,
       discountPercent: hasDiscount ? discountPercent : undefined,
       stock: p.stock,
-      image: productImages[p.id] || p.image_url || productKeripik,
+      // Jangan tampilkan foto menu lain ketika merchant belum mengunggah foto.
+      // Placeholder netral lebih jujur daripada membuat dimsum terlihat seperti keripik.
+      image: productImages[p.id] || p.image_url || '/placeholder.svg',
       category: p.category as Product['category'],
       isActive: p.is_active,
       isPromo,

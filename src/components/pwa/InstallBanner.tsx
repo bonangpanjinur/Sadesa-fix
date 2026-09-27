@@ -14,7 +14,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 const DISMISS_KEY = 'pwa-install-dismissed';
 const DISMISS_HOURS = 24;
-const PROMPT_DELAY_MS = 5000;
+const PROMPT_DELAY_MS = 15000;
 
 function isDismissedRecently(): boolean {
   try {
@@ -35,7 +35,10 @@ export function InstallBanner() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (isInstalled || dismissed || location.pathname === '/install') return;
+    // Discovery dan checkout membutuhkan first visit yang tidak terinterupsi.
+    // Opsi install tetap tersedia dari halaman /install dan navigasi aplikasi.
+    const isFocusedFlow = ['/products', '/cart', '/checkout', '/orders'].some((path) => location.pathname.startsWith(path));
+    if (isInstalled || dismissed || location.pathname === '/install' || isFocusedFlow) return;
 
     // Give the first screen and first meaningful interaction priority, then
     // remind users who have not installed the PWA yet.
