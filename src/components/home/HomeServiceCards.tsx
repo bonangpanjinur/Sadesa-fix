@@ -43,12 +43,12 @@ const services = [
     image: shoppingImage,
     icon: ShoppingBag,
     palette: {
-      card: 'bg-[#fff0ef] border-[#f4c9ca]',
-      wash: 'from-[#fff0ef]/98 via-[#fff0ef]/90',
-      icon: 'bg-[#E31019] text-white shadow-[0_5px_14px_-5px_#E31019]',
-      title: 'text-[#a70c16]',
-      description: 'text-[#70353a]',
-      arrow: 'bg-[#E31019] text-white',
+      card: 'bg-[#fff8dc] border-[#f1df9a]',
+      wash: 'from-[#fff8dc]/98 via-[#fff8dc]/90',
+      icon: 'bg-[#d99a00] text-white shadow-[0_5px_14px_-5px_#d99a00]',
+      title: 'text-[#8a5a00]',
+      description: 'text-[#74551b]',
+      arrow: 'bg-[#d99a00] text-white',
     },
   },
   {
