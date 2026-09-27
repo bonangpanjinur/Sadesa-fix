@@ -6,7 +6,7 @@ import type { Product } from '@/types';
 import { useCart } from '@/contexts/CartContext';
 import { formatPrice, cn } from '@/lib/utils';
 import { WishlistButton } from '@/components/WishlistButton';
-import { useProductFlashSale } from '@/hooks/useFlashSales';
+import { useProductFlashSale, type ProductFlashSale } from '@/hooks/useFlashSales';
 import { FlashSaleBadge } from '@/components/FlashSaleTimer';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { getProductUnavailableReason } from '@/lib/productAvailability';
@@ -22,6 +22,7 @@ interface ProductCardProps {
   showCategoryBadge?: boolean;
   distanceKm?: number;
   deliveryEta?: string;
+  flashSaleOverride?: ProductFlashSale | null;
 }
 
 const categoryLabels: Record<string, { label: string; className: string }> = {
@@ -36,9 +37,10 @@ const categoryLabels: Record<string, { label: string; className: string }> = {
 
 const defaultCategoryStyle = { className: 'bg-muted text-muted-foreground' };
 
-export function ProductCard({ product, index = 0, showCategoryBadge = false, distanceKm, deliveryEta }: ProductCardProps) {
+export function ProductCard({ product, index = 0, showCategoryBadge = false, distanceKm, deliveryEta, flashSaleOverride }: ProductCardProps) {
   const { addToCart } = useCart();
-  const { flashSale } = useProductFlashSale(product.id);
+  const { flashSale: fetchedFlashSale } = useProductFlashSale(product.id, flashSaleOverride === undefined);
+  const flashSale = flashSaleOverride === undefined ? fetchedFlashSale : flashSaleOverride;
 
   // Check availability - ensure we use the values from the product object
   // If the API says it's available, it's available. 

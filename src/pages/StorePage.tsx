@@ -29,18 +29,25 @@ export function StorePage({ role }: { role: 'DRIVER' | 'MERCHANT' }) {
     }
     setLoading(true);
     setLoadError(false);
-    const [productsResult, ordersResult] = await Promise.all([
-      supabase.from('admin_store_products').select('id, name, description, target_role, price, stock').eq('is_active', true).in('target_role', ['ALL', role]),
-      supabase.from('admin_store_orders').select('id, total_amount, status, payment_status, created_at').eq('buyer_user_id', user.id).order('created_at', { ascending: false }),
-    ]);
-    if (productsResult.error || ordersResult.error) {
+    try {
+      const [productsResult, ordersResult] = await Promise.all([
+        supabase.from('admin_store_products').select('id, name, description, target_role, price, stock').eq('is_active', true).in('target_role', ['ALL', role]),
+        supabase.from('admin_store_orders').select('id, total_amount, status, payment_status, created_at').eq('buyer_user_id', user.id).order('created_at', { ascending: false }),
+      ]);
+      if (productsResult.error || ordersResult.error) {
+        setLoadError(true);
+        toast.error('Data toko perlengkapan gagal dimuat.');
+      } else {
+        setProducts((productsResult.data || []) as Product[]);
+        setOrders((ordersResult.data || []) as Order[]);
+      }
+    } catch (error) {
+      console.error('[admin-store] gagal memuat data:', error);
       setLoadError(true);
       toast.error('Data toko perlengkapan gagal dimuat.');
-    } else {
-      setProducts((productsResult.data || []) as Product[]);
-      setOrders((ordersResult.data || []) as Order[]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [role, user?.id]);
 
   useEffect(() => {
@@ -48,24 +55,31 @@ export function StorePage({ role }: { role: 'DRIVER' | 'MERCHANT' }) {
   }, [load]);
 
   const buy = async (product: Product) => {
+    if (buyingId) return;
     const quantity = Math.max(1, Math.min(product.stock, Math.floor(quantities[product.id] || 1)));
     if (product.stock < 1 || quantity > product.stock) {
       toast.error('Jumlah melebihi stok yang tersedia.');
       return;
     }
     setBuyingId(product.id);
-    const { data, error } = await supabase.rpc('create_admin_store_order', {
-      p_product_id: product.id,
-      p_quantity: quantity,
-      p_pickup_verifikator_id: null,
-    });
-    if (error) {
-      toast.error(error.message || 'Order gagal dibuat');
-    } else {
-      toast.success(`Order dibuat: ${String(data).slice(0, 8)}. Silakan lakukan pembayaran ke admin.`);
-      await load();
+    try {
+      const { data, error } = await supabase.rpc('create_admin_store_order', {
+        p_product_id: product.id,
+        p_quantity: quantity,
+        p_pickup_verifikator_id: null,
+      });
+      if (error) {
+        toast.error(error.message || 'Order gagal dibuat');
+      } else {
+        toast.success(`Order dibuat: ${String(data).slice(0, 8)}. Silakan lakukan pembayaran ke admin.`);
+        await load();
+      }
+    } catch (error) {
+      console.error('[admin-store] gagal membuat order:', error);
+      toast.error('Order gagal dibuat. Periksa koneksi lalu coba lagi.');
+    } finally {
+      setBuyingId(null);
     }
-    setBuyingId(null);
   };
 
   const content = (
@@ -91,7 +105,7 @@ export function StorePage({ role }: { role: 'DRIVER' | 'MERCHANT' }) {
                       const next = Number(event.target.value);
                       setQuantities((current) => ({ ...current, [product.id]: Number.isFinite(next) ? Math.max(1, Math.min(product.stock || 1, Math.floor(next))) : 1 }));
                     }} />
-                    <Button disabled={product.stock < 1 || buyingId === product.id} onClick={() => void buy(product)}>{buyingId === product.id ? 'Memproses...' : 'Beli'}</Button>
+                    <Button disabled={product.stock < 1 || buyingId !== null} onClick={() => void buy(product)}>{buyingId === product.id ? 'Memproses...' : 'Beli'}</Button>
                   </div>
                 </div>;
               })}

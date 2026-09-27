@@ -31,6 +31,8 @@ interface FlashSale {
   reason: string | null;
 }
 
+export type ProductFlashSale = Pick<FlashSale, 'productId' | 'originalPrice' | 'flashPrice' | 'discountPercent' | 'endTime'>;
+
 interface UseFlashSalesOptions {
   merchantId?: string;
   limit?: number;
@@ -147,12 +149,13 @@ export function useFlashSales(options: UseFlashSalesOptions = {}) {
 }
 
 // Hook for checking if a product has active flash sale
-export function useProductFlashSale(productId: string | undefined) {
+export function useProductFlashSale(productId: string | undefined, enabled = true) {
   const [flashSale, setFlashSale] = useState<FlashSale | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!productId) {
+    if (!productId || !enabled) {
+      setFlashSale(null);
       setLoading(false);
       return;
     }
@@ -210,7 +213,7 @@ export function useProductFlashSale(productId: string | undefined) {
     };
 
     fetchFlashSale();
-  }, [productId]);
+  }, [productId, enabled]);
 
   return { flashSale, loading };
 }

@@ -74,8 +74,6 @@ interface DraftData {
   selectedSubdistrict: string;
   merchantLocation: { lat: number; lng: number } | null;
   halalStatus: string;
-  halalCertUrl?: string;
-  ktpUrl?: string;
 }
 
 export default function RegisterMerchantPage() {
@@ -89,6 +87,7 @@ export default function RegisterMerchantPage() {
   const { data: categoryOptions = [], isLoading: categoryLoading } = useAdminCategories();
   const draftRestoredRef = useRef(false);
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const referralValidationRequestRef = useRef(0);
   
   const [addressData, setAddressData] = useState({
     provinceCode: '',
@@ -147,14 +146,12 @@ export default function RegisterMerchantPage() {
       selectedSubdistrict: addressData.villageCode,
       merchantLocation,
       halalStatus,
-      halalCertUrl,
-      ktpUrl,
     };
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
       setHasDraft(true);
     } catch (err) { console.warn('[register-merchant] gagal menyimpan draf:', err); }
-  }, [getValues, referralCode, selectedCategoryIds, weeklySchedule, addressData, merchantLocation, halalStatus, halalCertUrl, ktpUrl]);
+  }, [getValues, referralCode, selectedCategoryIds, weeklySchedule, addressData, merchantLocation, halalStatus]);
 
   // Debounced auto-save
   const scheduleSaveDraft = useCallback(() => {
@@ -168,7 +165,11 @@ export default function RegisterMerchantPage() {
     if (draftRestoredRef.current) {
       scheduleSaveDraft();
     }
-  }, [watchedFields, referralCode, addressData, merchantLocation, halalStatus, halalCertUrl, ktpUrl, scheduleSaveDraft]);
+  }, [watchedFields, referralCode, addressData, merchantLocation, halalStatus, scheduleSaveDraft]);
+
+  useEffect(() => () => {
+    if (saveDraftTimerRef.current) clearTimeout(saveDraftTimerRef.current);
+  }, []);
 
   // === DRAFT: Restore on mount ===
   useEffect(() => {
@@ -178,7 +179,12 @@ export default function RegisterMerchantPage() {
         draftRestoredRef.current = true;
         return;
       }
-      const draft: DraftData = JSON.parse(raw);
+      const draft = JSON.parse(raw) as DraftData & { halalCertUrl?: string; ktpUrl?: string };
+      if (draft.halalCertUrl || draft.ktpUrl) {
+        delete draft.halalCertUrl;
+        delete draft.ktpUrl;
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      }
       setHasDraft(true);
 
       // Restore simple fields
@@ -194,9 +200,6 @@ export default function RegisterMerchantPage() {
       if (draft.referralCode) setReferralCode((current) => current || draft.referralCode.toUpperCase());
       if (draft.merchantLocation) setMerchantLocation(draft.merchantLocation);
       if (draft.halalStatus) setHalalStatus(draft.halalStatus as 'NONE' | 'PENDING_VERIFICATION' | 'REQUESTED');
-      if (draft.halalCertUrl) setHalalCertUrl(draft.halalCertUrl);
-      if (draft.ktpUrl) setKtpUrl(draft.ktpUrl);
-
       // Restore address chain
       setAddressData({
         provinceCode: draft.selectedProvince || '',
@@ -257,6 +260,7 @@ export default function RegisterMerchantPage() {
   }, [addressData.villageCode, addressData.villageName]);
 
   const validateReferralCode = useCallback(async (code: string) => {
+    const requestId = ++referralValidationRequestRef.current;
     if (code.length < 3) {
       setReferralInfo({ isValid: false, tradeGroup: '', description: '', isLoading: false });
       return;
@@ -270,6 +274,7 @@ export default function RegisterMerchantPage() {
         .eq('is_active', true)
         .maybeSingle();
 
+      if (requestId !== referralValidationRequestRef.current) return;
       if (error || !data) {
         setReferralInfo({ isValid: false, tradeGroup: '', description: '', isLoading: false });
         return;
@@ -286,6 +291,7 @@ export default function RegisterMerchantPage() {
       });
       setValue('referralCode', code.toUpperCase());
     } catch (error) {
+      if (requestId !== referralValidationRequestRef.current) return;
       console.error('Error validating referral:', error);
       setReferralInfo({ isValid: false, tradeGroup: '', description: '', isLoading: false });
     }
@@ -440,7 +446,11 @@ export default function RegisterMerchantPage() {
                   placeholder="Masukkan kode referral"
                   className="uppercase pr-10"
                   value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value)}
+                  onChange={(e) => {
+                    referralValidationRequestRef.current += 1;
+                    setReferralCode(e.target.value);
+                    setReferralInfo({ isValid: false, tradeGroup: '', description: '', isLoading: false });
+                  }}
                 />
                 {referralInfo.isLoading && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">

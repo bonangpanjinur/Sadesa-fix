@@ -54,7 +54,6 @@ interface MerchantData {
   phone: string | null;
   image_url: string | null;
   is_open: boolean;
-  status: string;
   open_time: string | null;
   close_time: string | null;
   rating_avg: number | null;
@@ -67,7 +66,6 @@ interface MerchantData {
   city: string | null;
   district: string | null;
   subdistrict: string | null;
-  village_id: string | null;
   user_id: string | null;
   villages?: { name: string } | null;
   halal_status?: string | null;
@@ -130,7 +128,11 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
         const { data: merchantData, error: merchantError } = await supabase
           .from('merchants')
           .select(`
-            *,
+            id, name, address, google_maps_url, location_lat, location_lng,
+            phone, image_url, cover_image_url, is_open, open_time, close_time,
+            rating_avg, rating_count, badge, business_category, business_description,
+            classification_price, province, city, district, subdistrict, user_id,
+            halal_status, halal_certificate_url, slug,
             villages(name)
           `)
           .eq('id', id)
@@ -140,7 +142,11 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
 
         if (merchantError) throw merchantError;
         if (!merchantData) { navigate('/shops'); return; }
-        setMerchant(merchantData);
+        const normalizedMerchantData = {
+          ...merchantData,
+          villages: Array.isArray(merchantData.villages) ? merchantData.villages[0] || null : merchantData.villages,
+        } as MerchantData;
+        setMerchant(normalizedMerchantData);
 
          const canonicalPath = `/s/${encodeURIComponent(merchantData.slug || merchantData.id)}`;
          const canonicalUrl = `${window.location.origin}${canonicalPath}`;
@@ -199,7 +205,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
         const [productsResult, reviewsResult, galleryResult] = await Promise.all([
           supabase
             .from('products')
-            .select('*')
+            .select('id, merchant_id, name, description, price, stock, image_url, category, is_active, is_promo, discount_percent, sold_count')
             .eq('merchant_id', id)
             .eq('is_active', true)
             .order('created_at', { ascending: false }),
@@ -218,34 +224,38 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
         ]);
 
         // Map products
-        const mappedProducts: Product[] = (productsResult.data || []).map(p => ({
-          id: p.id,
-          merchantId: p.merchant_id,
-          merchantName: merchantData.name,
-          merchantVillage: merchantData.villages?.name || '',
-          name: p.name,
-          description: p.description || '',
-          price: p.price,
-          stock: p.stock,
-          image: p.image_url || '/placeholder.svg',
-          category: p.category,
-          isActive: p.is_active,
-          isPromo: p.is_promo,
-           isAvailable: !getProductUnavailableReason({
-             isActive: p.is_active,
-             stock: Number(p.stock || 0),
-             hasQuota: quotaActive,
-             isMerchantOpen,
-           }),
-          isMerchantOpen,
-          hasQuota: quotaActive,
-           unavailableReason: getProductUnavailableReason({
-             isActive: p.is_active,
-             stock: Number(p.stock || 0),
-             hasQuota: quotaActive,
-             isMerchantOpen,
-           }),
-        }));
+        const mappedProducts: Product[] = (productsResult.data || []).map(p => {
+          const basePrice = Number(p.price);
+          const discountPercent = Number(p.discount_percent || 0);
+          const hasDiscount = p.is_promo === true && discountPercent > 0;
+          const unavailableReason = getProductUnavailableReason({
+            isActive: p.is_active,
+            stock: Number(p.stock || 0),
+            hasQuota: quotaActive,
+            isMerchantOpen,
+          });
+
+          return {
+            id: p.id,
+            merchantId: p.merchant_id,
+            merchantName: merchantData.name,
+            merchantVillage: normalizedMerchantData.villages?.name || '',
+            name: p.name,
+            description: p.description || '',
+            price: hasDiscount ? Math.round(basePrice * (1 - discountPercent / 100)) : basePrice,
+            originalPrice: hasDiscount ? basePrice : undefined,
+            discountPercent: hasDiscount ? discountPercent : undefined,
+            stock: p.stock,
+            image: p.image_url || '/placeholder.svg',
+            category: p.category,
+            isActive: p.is_active,
+            isPromo: p.is_promo,
+            isAvailable: !unavailableReason,
+            isMerchantOpen,
+            hasQuota: quotaActive,
+            unavailableReason,
+          };
+        });
         setProducts(mappedProducts);
 
         // Map reviews with profiles

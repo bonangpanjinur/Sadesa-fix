@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
-import { HomeServiceCards } from '@/components/home/HomeServiceCards';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
@@ -23,6 +22,7 @@ import { logHomeSectionError } from '@/lib/homeErrorLog';
 import { useUserLocation, sortByDistance, calculateDistance } from '@/hooks/useUserLocation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { ProductFlashSale } from '@/hooks/useFlashSales';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +33,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import type { Product, Village, Tourism } from '@/types';
+
+interface HomepageFlashSaleRow {
+  product_id: string;
+  original_price: number;
+  flash_price: number;
+  end_time: string;
+}
 
 function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
   return (
@@ -123,6 +130,32 @@ const Index = () => {
     staleTime: 60_000,
   });
 
+  const homepageProductIds = useMemo(() => products.map((product) => product.id), [products]);
+  const { data: homepageFlashSales = [] } = useQuery<HomepageFlashSaleRow[]>({
+    queryKey: ['homepage-flash-sales', homepageProductIds],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('flash_sales' as never)
+        .select('product_id, original_price, flash_price, end_time')
+        .in('product_id', homepageProductIds)
+        .eq('status', 'ACTIVE')
+        .gt('end_time', new Date().toISOString());
+      if (error) throw error;
+      return (data || []) as unknown as HomepageFlashSaleRow[];
+    },
+    enabled: homepageProductIds.length > 0,
+    staleTime: 60_000,
+  });
+  const flashSalesByProduct = useMemo(() => new Map<string, ProductFlashSale>(
+    homepageFlashSales.map((sale) => [sale.product_id, {
+      productId: sale.product_id,
+      originalPrice: Number(sale.original_price),
+      flashPrice: Number(sale.flash_price),
+      discountPercent: Math.round((1 - Number(sale.flash_price) / Number(sale.original_price)) * 100),
+      endTime: sale.end_time,
+    }] as const),
+  ), [homepageFlashSales]);
+
   const {
     data: villages = [],
     isLoading: villagesLoading,
@@ -134,7 +167,7 @@ const Index = () => {
       fetchVillages()
     ),
     staleTime: 60_000,
-    enabled: enabledSectionIds.has('villages'),
+    enabled: enabledSectionIds.has('villages') && !HIDDEN_VILLAGE_FEATURES.has('villages'),
   });
 
   const {
@@ -148,7 +181,7 @@ const Index = () => {
       fetchTourism()
     ),
     staleTime: 60_000,
-    enabled: enabledSectionIds.has('popular_tourism'),
+    enabled: enabledSectionIds.has('popular_tourism') && !HIDDEN_VILLAGE_FEATURES.has('popular_tourism'),
   });
 
   const {
@@ -174,7 +207,9 @@ const Index = () => {
     staleTime: 120_000,
   });
 
-  const loading = productsLoading || villagesLoading || tourismLoading;
+  // Only visible homepage data should hold the empty state open. Village and
+  // tourism sections are hidden while their features are being reworked.
+  const loading = productsLoading;
 
   // Sort data by proximity to user location
   const sortedVillages = useMemo(() => {
@@ -189,15 +224,9 @@ const Index = () => {
 
   // Beranda masih tahap validasi awal: tanpa transaksi/rating, gunakan sinyal
   // yang netral dan mudah dipahami pengguna, yaitu produk yang baru ditambahkan.
-  const newestProducts = useMemo(() => (
-    [...products]
-      .sort((a, b) => {
-        const aTime = a.createdAt ? Date.parse(a.createdAt) : 0;
-        const bTime = b.createdAt ? Date.parse(b.createdAt) : 0;
-        return bTime - aTime;
-      })
-      .slice(0, 6)
-  ), [products]);
+  // fetchProducts already returns newest-first; avoid sorting the full payload
+  // again in the browser just to render the first six cards.
+  const newestProducts = useMemo(() => products.slice(0, 6), [products]);
   const promoProducts = useMemo(() => (
     products
       .filter((product) => product.isPromo === true)
@@ -240,9 +269,6 @@ const Index = () => {
         if (bannerSlides.length === 0) return null;
         return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} onView={handleBannerView} onClick={handleBannerClick} />;
       
-      case 'categories':
-        return <HomeServiceCards />;
-
       case 'popular_tourism':
         if (tourismLoading) return <CarouselSkeleton count={3} />;
         if (tourismError)
@@ -297,6 +323,7 @@ const Index = () => {
                   product={product}
                   index={idx}
                   showCategoryBadge
+                  flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
                   distanceKm={getProductDistance(product)}
                   deliveryEta={getDeliveryEta(getProductDistance(product))}
                 />
@@ -327,6 +354,7 @@ const Index = () => {
                       product={product}
                       index={idx}
                       showCategoryBadge
+                      flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
                       distanceKm={getProductDistance(product)}
                       deliveryEta={getDeliveryEta(getProductDistance(product))}
                     />
@@ -399,8 +427,7 @@ const Index = () => {
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
-          <div className="space-y-5">
-            <HomeServiceCards />
+          <div className="mt-6 space-y-6 pb-6">
           {activeOrder && (
             <Dialog>
               <DialogTrigger asChild>
@@ -435,11 +462,10 @@ const Index = () => {
               </DialogContent>
             </Dialog>
           )}
-          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id) && section.id !== 'hero' && section.id !== 'categories' && section.id !== 'contextual-recommendation').map((section) => (
-            <div key={section.id}>
-              {renderSection(section.id)}
-            </div>
-          ))}
+          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id) && section.id !== 'hero' && section.id !== 'categories' && section.id !== 'contextual-recommendation').map((section) => {
+            const content = renderSection(section.id);
+            return content ? <div key={section.id}>{content}</div> : null;
+          })}
           {/* Empty state when all data is empty */}
           {!loading && products.length === 0 && villages.length === 0 && tourismSpots.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
