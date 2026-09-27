@@ -15,7 +15,7 @@ interface FlashSaleRow {
   merchants: { name: string } | null;
 }
 
-interface FlashSale {
+export interface FlashSale {
   id: string;
   productId: string;
   productName: string;
