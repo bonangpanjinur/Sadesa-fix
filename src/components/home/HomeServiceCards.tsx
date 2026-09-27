@@ -13,12 +13,12 @@ const services = [
     image: foodImage,
     icon: UtensilsCrossed,
     palette: {
-      card: 'bg-[#edf7e6] border-[#d2e9c3]',
-      wash: 'from-[#edf7e6]/98 via-[#edf7e6]/90',
-      icon: 'bg-[#44a31b] text-white shadow-[0_5px_14px_-5px_#44a31b]',
-      title: 'text-[#015730]',
-      description: 'text-[#315c44]',
-      arrow: 'bg-white text-[#015730]',
+      card: 'bg-[#fff0ef] border-[#f4c9ca]',
+      wash: 'from-[#fff0ef]/98 via-[#fff0ef]/90',
+      icon: 'bg-[#E31019] text-white shadow-[0_5px_14px_-5px_#E31019]',
+      title: 'text-[#a70c16]',
+      description: 'text-[#70353a]',
+      arrow: 'bg-[#E31019] text-white',
     },
   },
   {
