@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { AddressCard } from '@/components/address/AddressCard';
 import { AddressFormDialog } from '@/components/address/AddressFormDialog';
 import { useSavedAddresses, type SavedAddress, type SavedAddressInput } from '@/hooks/useSavedAddresses';
+import { useProfileAddress } from '@/hooks/useProfileAddress';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,10 @@ export default function SavedAddressesPage() {
   const [searchParams] = useSearchParams();
   const isSelecting = searchParams.get('select') === '1';
   const { addresses, loading, addAddress, updateAddress, deleteAddress, setDefaultAddress } = useSavedAddresses();
+  const { address: profileAddress, loading: profileAddressLoading } = useProfileAddress();
+  const otherAddresses = profileAddress
+    ? addresses.filter((address) => (address.full_address || '').trim().toLowerCase() !== (profileAddress.full_address || '').trim().toLowerCase())
+    : addresses;
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
@@ -62,7 +67,9 @@ export default function SavedAddressesPage() {
     if (editingAddress) {
       return updateAddress(editingAddress.id, data);
     } else {
-      return addAddress(data);
+      const createdAddress = await addAddress(data);
+      if (createdAddress && isSelecting) handleSelect(createdAddress);
+      return createdAddress;
     }
   };
 
@@ -100,11 +107,11 @@ export default function SavedAddressesPage() {
             </Button>
           </div>
 
-          {loading ? (
+          {loading || profileAddressLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : addresses.length === 0 ? (
+          ) : otherAddresses.length === 0 && !profileAddress ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                 <MapPin className="h-8 w-8 text-muted-foreground" />
@@ -120,7 +127,25 @@ export default function SavedAddressesPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {addresses.map((address) => (
+              {profileAddress && (
+                <div className="space-y-2">
+                  <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Alamat dari Profil</p>
+                  <AddressCard
+                    address={profileAddress}
+                    onSelect={isSelecting ? handleSelect : undefined}
+                    selectable={isSelecting}
+                  />
+                  {!isSelecting && (
+                    <Button variant="outline" size="sm" className="ml-1" onClick={() => navigate('/account')}>
+                      Ubah alamat profil
+                    </Button>
+                  )}
+                </div>
+              )}
+              {otherAddresses.length > 0 && isSelecting && profileAddress && (
+                <p className="px-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Alamat tersimpan lainnya</p>
+              )}
+              {otherAddresses.map((address) => (
                 <AddressCard
                   key={address.id}
                   address={address}

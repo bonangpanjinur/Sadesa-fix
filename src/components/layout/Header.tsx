@@ -6,17 +6,32 @@ import { useWhitelabel } from '@/hooks/useWhitelabel';
 import { useCart } from '@/contexts/CartContext';
 import { Button } from '@/components/ui/button';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { useSavedAddresses } from '@/hooks/useSavedAddresses';
+import { useProfileAddress } from '@/hooks/useProfileAddress';
+
+interface SelectedAddressSummary {
+  id?: string;
+  label: string;
+  address: string;
+  full_address?: string | null;
+  address_detail?: string | null;
+  village_name?: string | null;
+  district_name?: string | null;
+  city_name?: string | null;
+}
 
 export function Header() {
   const { settings } = useWhitelabel();
   const navigate = useNavigate();
   const route = useLocation();
   const { location: userLocation, loading: locationLoading } = useUserLocation();
+  const { addresses: savedAddresses, refetch: refetchSavedAddresses } = useSavedAddresses();
+  const { address: profileAddress } = useProfileAddress();
   const { getItemCount } = useCart();
   const cartCount = getItemCount();
   const [searchQuery, setSearchQuery] = useState('');
   const isHome = route.pathname === '/';
-  const [selectedAddress, setSelectedAddress] = useState<{ label: string; address: string } | null>(() => {
+  const [selectedAddress, setSelectedAddress] = useState<SelectedAddressSummary | null>(() => {
     try {
       const saved = localStorage.getItem('sadesa-selected-address');
       return saved ? JSON.parse(saved) : null;
@@ -41,6 +56,28 @@ export function Header() {
       window.removeEventListener('storage', syncSelectedAddress);
     };
   }, []);
+
+  useEffect(() => {
+    const syncAddresses = () => { void refetchSavedAddresses(); };
+    window.addEventListener('sadesa-addresses-updated', syncAddresses);
+    return () => window.removeEventListener('sadesa-addresses-updated', syncAddresses);
+  }, [refetchSavedAddresses]);
+
+  const defaultSavedAddress = savedAddresses.find((address) => address.is_default) || null;
+  const firstSavedAddress = savedAddresses[0] || null;
+  const selectedSavedAddress = selectedAddress?.id && selectedAddress.id !== 'profile'
+    ? savedAddresses.find((address) => address.id === selectedAddress.id)
+    : null;
+  const manuallySelectedAddress = selectedAddress?.id === 'profile'
+    ? profileAddress
+    : selectedSavedAddress || (selectedAddress?.id ? null : selectedAddress);
+  const activeAddress = manuallySelectedAddress || defaultSavedAddress || profileAddress || firstSavedAddress;
+  const activeAddressText = activeAddress?.full_address || [
+    activeAddress?.address_detail,
+    activeAddress?.village_name,
+    activeAddress?.district_name,
+    activeAddress?.city_name,
+  ].filter(Boolean).join(', ') || activeAddress?.address || '';
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,12 +126,13 @@ export function Header() {
           <span className="mb-0.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.13em] text-[#557365]">
             Alamat pengantaran
             <span className="h-1 w-1 rounded-full bg-[#44a31b]" />
+            {activeAddress?.label && <span className="normal-case tracking-normal text-[#015730]">{activeAddress.label}</span>}
           </span>
           <span className="block truncate text-[13px] font-semibold leading-snug tracking-[-0.01em] text-[#173d2c] sm:text-sm">
-            {locationLoading ? 'Mencari lokasi...' : selectedAddress?.address || userLocation?.district || 'Pilih alamat pengantaran'}
+            {activeAddressText || (locationLoading ? 'Mencari lokasi...' : userLocation?.district) || 'Pilih alamat pengantaran'}
           </span>
         </span>
-        {!selectedAddress && !userLocation && !locationLoading && <span className="hidden items-center gap-1 text-[9px] font-semibold text-[#557365] sm:flex"><LocateFixed className="h-3 w-3" />Pilih alamat</span>}
+        {!activeAddressText && !userLocation && !locationLoading && <span className="hidden items-center gap-1 text-[9px] font-semibold text-[#557365] sm:flex"><LocateFixed className="h-3 w-3" />Pilih alamat</span>}
         <span className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e5eee0] bg-white/90 text-[#015730] shadow-sm transition-all group-hover:border-[#b8d9a6] group-hover:bg-[#edf7e6]">
           <ChevronDown className="h-4 w-4 transition-transform duration-200 group-hover:translate-y-0.5" />
         </span>

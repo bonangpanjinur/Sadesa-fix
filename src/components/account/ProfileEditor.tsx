@@ -300,6 +300,8 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         if (insertError) throw insertError;
       }
 
+      window.dispatchEvent(new Event('sadesa-profile-address-updated'));
+
       onSave({
         full_name: fullName.trim(),
         phone: phone.trim() || null,

@@ -102,6 +102,7 @@ export function useSavedAddresses() {
       if (error) throw error;
 
       await fetchAddresses();
+      window.dispatchEvent(new Event('sadesa-addresses-updated'));
       toast({ title: 'Alamat berhasil disimpan' });
       return data;
     } catch (error) {
@@ -137,6 +138,7 @@ export function useSavedAddresses() {
       if (error) throw error;
 
       await fetchAddresses();
+      window.dispatchEvent(new Event('sadesa-addresses-updated'));
       toast({ title: 'Alamat berhasil diperbarui' });
       return true;
     } catch (error) {
@@ -164,6 +166,7 @@ export function useSavedAddresses() {
       if (error) throw error;
 
       await fetchAddresses();
+      window.dispatchEvent(new Event('sadesa-addresses-updated'));
       toast({ title: 'Alamat berhasil dihapus' });
       return true;
     } catch (error) {

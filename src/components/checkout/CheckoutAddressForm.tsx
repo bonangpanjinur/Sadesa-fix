@@ -14,6 +14,7 @@ import { fetchProvinces, fetchRegencies, fetchDistricts, fetchVillages } from '@
 import { useSavedAddresses, type SavedAddress } from '@/hooks/useSavedAddresses';
 import { AddressCard } from '@/components/address/AddressCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useProfileAddress } from '@/hooks/useProfileAddress';
 
 export interface CheckoutAddressData {
   name: string;
@@ -57,6 +58,7 @@ export function CheckoutAddressForm({
   const isUpdatingFromMap = useRef(false);
   const [showSavedAddresses, setShowSavedAddresses] = useState(false);
   const { addresses: savedAddresses, loading: savedAddressesLoading } = useSavedAddresses();
+  const { address: profileAddress } = useProfileAddress();
 
   // Computed: is address complete?
   const isAddressComplete = !!(value.address.province && value.address.city && value.address.district && value.address.village);
@@ -209,6 +211,7 @@ export function CheckoutAddressForm({
         .eq('user_id', user.id);
       
       setProfileWasEmpty(false);
+      window.dispatchEvent(new Event('sadesa-profile-address-updated'));
     } catch (error) {
       console.error('Error saving address to profile:', error);
     }
@@ -393,7 +396,7 @@ export function CheckoutAddressForm({
   return (
     <div className="space-y-5">
       {/* Saved Address Picker */}
-      {savedAddresses.length > 0 && (
+      {(savedAddresses.length > 0 || profileAddress) && (
         <div className="space-y-3">
           <button
             type="button"
@@ -402,13 +405,20 @@ export function CheckoutAddressForm({
           >
             <div className="flex items-center gap-2">
               <BookMarked className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Pilih Alamat Tersimpan</span>
+              <span className="text-sm font-medium text-primary">Pilih Alamat Profil atau Tersimpan</span>
             </div>
             <ChevronDown className={`h-4 w-4 text-primary transition-transform ${showSavedAddresses ? 'rotate-180' : ''}`} />
           </button>
           
           {showSavedAddresses && (
             <div className="space-y-2 max-h-60 overflow-y-auto">
+              {profileAddress && (
+                <AddressCard
+                  address={profileAddress}
+                  selectable
+                  onSelect={handleSelectSavedAddress}
+                />
+              )}
               {savedAddresses.map((addr) => (
                 <AddressCard
                   key={addr.id}
