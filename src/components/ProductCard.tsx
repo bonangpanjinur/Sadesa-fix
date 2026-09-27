@@ -133,6 +133,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
             "w-full h-full transition duration-300",
             isAvailable && "group-hover:scale-105"
           )}
+          transformWidth={480}
           aspectRatio="auto"
           lazy
         />

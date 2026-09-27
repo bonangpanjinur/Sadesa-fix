@@ -91,7 +91,7 @@ export function Header() {
       <div className="flex min-h-10 items-center justify-between gap-3">
         <Link to="/" className="flex min-w-0 items-center gap-2">
           <img
-            src={settings.logoUrl || '/branding/sadesa-logo.png'}
+            src={settings.logoUrl || '/branding/sadesa-logo.webp'}
             alt={settings.siteName}
             className="h-11 w-auto max-w-[172px] object-contain"
           />

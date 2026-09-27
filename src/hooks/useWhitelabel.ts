@@ -27,7 +27,7 @@ interface WhitelabelSettings {
   pwa?: PWAConfig;
 }
 
-const DEFAULT_LOGO_URL = '/branding/sadesa-logo.png';
+const DEFAULT_LOGO_URL = '/branding/sadesa-logo.webp';
 const DEFAULT_ICON_URL = '/branding/sadesa-favicon.png';
 const DEFAULT_PWA_ICONS: PWAIcon[] = [
   { src: '/branding/sadesa-icon-192.png', sizes: '192x192', type: 'image/png' },

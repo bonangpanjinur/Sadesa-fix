@@ -4,10 +4,10 @@ interface SplashScreenProps {
   children: ReactNode;
 }
 
-// Keep the brand moment short without holding the first usable screen hostage.
-// The previous 1.52s gate was visible on every cold navigation.
-const SPLASH_MINIMUM_TIME = 350;
-const SPLASH_EXIT_TIME = 250;
+// The splash is a visual fallback, not an artificial startup gate. Keep it
+// short so slow auth/API requests do not turn into a blank screen.
+const SPLASH_MINIMUM_TIME = 240;
+const SPLASH_EXIT_TIME = 220;
 
 export function SplashScreen({ children }: SplashScreenProps) {
   const [visible, setVisible] = useState(true);
@@ -40,7 +40,7 @@ export function SplashScreen({ children }: SplashScreenProps) {
           }`}
         >
           <img
-            src="/branding/sadesa-logo.png"
+            src="/branding/sadesa-logo.webp"
             alt="SaDesa"
             className="w-[min(86vw,420px)] object-contain"
           />

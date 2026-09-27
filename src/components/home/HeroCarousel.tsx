@@ -5,6 +5,10 @@ import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
+// Local fallback assets keep the first carousel render independent of remote image hosts.
+import heroVillage from '@/assets/hero-village.webp';
+import villageBojong from '@/assets/village-bojong.webp';
+import villageSukamaju from '@/assets/village-sukamaju.webp';
 export interface BannerSlide {
   id: string;
   title: string;

@@ -133,9 +133,24 @@ function usePWAController(): PWAContextValue {
   }, []);
 
   useEffect(() => {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const isIOSInstalled = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    setStatus((prev) => ({ ...prev, isInstalled: isStandalone || isIOSInstalled }));
+    const standaloneMedia = window.matchMedia('(display-mode: standalone)');
+    const detectInstalled = () => {
+      const isStandalone = standaloneMedia.matches;
+      const isIOSInstalled = (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      setStatus((prev) => ({ ...prev, isInstalled: isStandalone || isIOSInstalled }));
+    };
+
+    detectInstalled();
+    // A user may install from another tab or return from the browser's
+    // install flow without firing `appinstalled` in this document. Recheck
+    // when display mode or visibility changes so the reminder closes and is
+    // not shown again after installation.
+    const handleDisplayModeChange = () => detectInstalled();
+    const handleInstallVisibilityChange = () => {
+      if (document.visibilityState === 'visible') detectInstalled();
+    };
+    standaloneMedia.addEventListener?.('change', handleDisplayModeChange);
+    document.addEventListener('visibilitychange', handleInstallVisibilityChange);
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -239,6 +254,8 @@ function usePWAController(): PWAContextValue {
       cancelled = true;
       subscription.unsubscribe();
       stopHeartbeat();
+      standaloneMedia.removeEventListener?.('change', handleDisplayModeChange);
+      document.removeEventListener('visibilitychange', handleInstallVisibilityChange);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
       window.removeEventListener('online', handleOnline);

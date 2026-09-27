@@ -10,6 +10,56 @@ cleanupOutdatedCaches();
 clientsClaim();
 self.skipWaiting();
 
+const SCRIPT_CACHE = 'sadesa-script-cache-v1';
+const IMAGE_CACHE = 'sadesa-image-cache-v1';
+
+function isPublicImage(url: URL): boolean {
+  const isPublicStorage = url.hostname.includes('supabase')
+    && /\/storage\/v1\/(?:object|render\/image)\/public\/(product-images|tourism-images|profile-images|merchant-images|merchant-gallery|village-images)\//i.test(url.pathname);
+  if (isPublicStorage) return true;
+  if (url.origin !== self.location.origin) return false;
+  return url.pathname.startsWith('/assets/')
+    || url.pathname.startsWith('/branding/')
+    || url.pathname === '/motor-icon.png'
+    || url.pathname === '/motor-icon_original.png';
+}
+
+async function putInCache(cacheName: string, request: Request, response: Response): Promise<Response> {
+  if (response.ok) {
+    const cache = await caches.open(cacheName);
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
+// Lazy route chunks and public media are cached after first use. This keeps
+// repeat visits fast while avoiding a multi-megabyte service-worker install.
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  const isScript = url.origin === self.location.origin && request.destination === 'script';
+  const isImage = request.destination === 'image' && isPublicImage(url);
+  if (!isScript && !isImage) return;
+
+  const cacheName = isScript ? SCRIPT_CACHE : IMAGE_CACHE;
+  event.respondWith((async () => {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request);
+
+    if (cached && isScript) {
+      // Stale-while-revalidate for route chunks: show the cached route now,
+      // but refresh it for the next navigation.
+      event.waitUntil(fetch(request).then((response) => putInCache(cacheName, request, response)).catch(() => undefined));
+      return cached;
+    }
+
+    if (cached) return cached;
+    return putInCache(cacheName, request, await fetch(request));
+  })());
+});
+
 const refreshPublicPwaMetadata = async () => {
   const response = await fetch('/manifest.webmanifest', { cache: 'no-store' });
   if (!response.ok) {
