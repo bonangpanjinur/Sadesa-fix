@@ -9,6 +9,7 @@ import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
+import { HomeServiceCards } from '@/components/home/HomeServiceCards';
 import { 
   fetchProducts, 
   fetchVillages, 
@@ -426,6 +427,9 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
+          <div className="pb-3 pt-3">
+            <HomeServiceCards />
+          </div>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           <div className="mt-6 space-y-6 pb-6">
           {activeOrder && (
