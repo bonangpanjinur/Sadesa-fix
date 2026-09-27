@@ -14,23 +14,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-// Kept as FoodType for backwards compatibility; values now come from the
-// active categories configured by the admin.
-export type FoodType = string;
-
-export interface CategoryFilterOption {
-  slug: string;
-  name: string;
-}
-
-export interface FoodFilters {
-  type: FoodType;
-  openNow: boolean;
-  promoOnly: boolean;
-  halalOnly: boolean;
-  maxPrice: number;
-}
+import { defaultFoodFilters } from './foodFilters';
+import type { CategoryFilterOption, FoodFilters } from './foodFilters';
+export type { CategoryFilterOption, FoodFilters, FoodType } from './foodFilters';
 
 interface FoodFilterSheetProps {
   filters: FoodFilters;
@@ -41,14 +27,6 @@ interface FoodFilterSheetProps {
   description?: string;
   showHalal?: boolean;
 }
-
-const initialFilters: FoodFilters = {
-  type: 'all',
-  openNow: false,
-  promoOnly: false,
-  halalOnly: false,
-  maxPrice: 100000,
-};
 
 export function FoodFilterSheet({
   filters,
@@ -72,8 +50,8 @@ export function FoodFilterSheet({
   };
 
   const reset = () => {
-    setLocalFilters(initialFilters);
-    onFiltersChange(initialFilters);
+    setLocalFilters(defaultFoodFilters);
+    onFiltersChange(defaultFoodFilters);
   };
 
   return (
@@ -150,5 +128,3 @@ export function FoodFilterSheet({
     </Sheet>
   );
 }
-
-export const defaultFoodFilters = initialFilters;

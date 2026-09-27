@@ -11,7 +11,8 @@ import { Button } from '../components/ui/button';
 import { fetchProducts } from '../lib/api';
 import { calculateDistance, useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
-import { FoodFilterSheet, type FoodFilters, type FoodType, defaultFoodFilters } from '../components/product/FoodFilterSheet';
+import { FoodFilterSheet } from '../components/product/FoodFilterSheet';
+import { defaultFoodFilters, type FoodFilters, type FoodType } from '../components/product/foodFilters';
 import { ProductMerchantMap } from '../components/product/ProductMerchantMap';
 import { useAdminCategories } from '../hooks/useAdminCategories';
 import {
