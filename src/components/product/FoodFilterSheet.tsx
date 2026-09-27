@@ -37,6 +37,9 @@ interface FoodFilterSheetProps {
   onFiltersChange: (filters: FoodFilters) => void;
   activeFilterCount: number;
   categories?: CategoryFilterOption[];
+  title?: string;
+  description?: string;
+  showHalal?: boolean;
 }
 
 const initialFilters: FoodFilters = {
@@ -47,7 +50,15 @@ const initialFilters: FoodFilters = {
   maxPrice: 100000,
 };
 
-export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount, categories = [] }: FoodFilterSheetProps) {
+export function FoodFilterSheet({
+  filters,
+  onFiltersChange,
+  activeFilterCount,
+  categories = [],
+  title = 'Filter katalog',
+  description = 'Temukan produk lokal yang paling sesuai dengan kebutuhanmu.',
+  showHalal = true,
+}: FoodFilterSheetProps) {
   const [open, setOpen] = useState(false);
   const [localFilters, setLocalFilters] = useState(filters);
 
@@ -80,8 +91,8 @@ export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount, c
       </SheetTrigger>
       <SheetContent side="right" className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2"><Filter className="h-5 w-5" /> Filter katalog</SheetTitle>
-          <SheetDescription>Temukan produk lokal yang paling sesuai dengan kebutuhanmu.</SheetDescription>
+          <SheetTitle className="flex items-center gap-2"><Filter className="h-5 w-5" /> {title}</SheetTitle>
+          <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="mt-5 h-[calc(100vh-210px)] pr-4">
@@ -110,11 +121,13 @@ export function FoodFilterSheet({ filters, onFiltersChange, activeFilterCount, c
                 <Tag className="h-4 w-4 text-primary" />
                 <span className="text-sm">Sedang promo</span>
               </label>
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border p-3">
-                <Checkbox checked={localFilters.halalOnly} onCheckedChange={(checked) => update({ halalOnly: checked === true })} />
-                <Leaf className="h-4 w-4 text-green-600" />
-                <span className="text-sm">Halal terverifikasi</span>
-              </label>
+              {showHalal && (
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border p-3">
+                  <Checkbox checked={localFilters.halalOnly} onCheckedChange={(checked) => update({ halalOnly: checked === true })} />
+                  <Leaf className="h-4 w-4 text-green-600" />
+                  <span className="text-sm">Halal terverifikasi</span>
+                </label>
+              )}
             </section>
 
             <section className="space-y-3">

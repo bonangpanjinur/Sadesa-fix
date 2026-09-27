@@ -27,6 +27,55 @@ type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';
 type MapRadius = 'all' | '1' | '3' | '5' | '10';
 
+interface CatalogProfile {
+  title: string;
+  description: string;
+  placeholder: string;
+  filterTitle: string;
+  isFood: boolean;
+}
+
+function getCatalogProfile(category?: { slug: string; name: string }): CatalogProfile {
+  const slug = normalize(category?.slug);
+  const name = normalize(category?.name);
+  const isFood = ['makanan', 'minuman', 'kuliner'].includes(slug) || /makanan|minuman|kuliner/.test(name);
+
+  if (isFood) {
+    return {
+      title: 'Makanan & Minuman',
+      description: 'Temukan menu favorit dari warung dan merchant sekitar.',
+      placeholder: 'Cari makanan, minuman, atau toko',
+      filterTitle: 'Filter makanan & minuman',
+      isFood: true,
+    };
+  }
+  if (slug === 'sembako') {
+    return {
+      title: category?.name || 'Sembako',
+      description: 'Belanja kebutuhan harian dari toko terdekat.',
+      placeholder: 'Cari beras, minyak, telur, atau toko',
+      filterTitle: 'Filter sembako',
+      isFood: false,
+    };
+  }
+  if (category) {
+    return {
+      title: category.name,
+      description: `Temukan ${category.name.toLowerCase()} dari merchant sekitar.`,
+      placeholder: `Cari ${category.name.toLowerCase()} atau toko`,
+      filterTitle: `Filter ${category.name.toLowerCase()}`,
+      isFood: false,
+    };
+  }
+  return {
+    title: 'Katalog produk',
+    description: 'Temukan produk lokal dari merchant sekitar.',
+    placeholder: 'Cari produk atau toko',
+    filterTitle: 'Filter katalog',
+    isFood: false,
+  };
+}
+
 function ProductSkeleton() {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -60,6 +109,19 @@ export default function ProductsPage() {
     () => categories.map((category) => ({ slug: category.slug, name: category.name })),
     [categories],
   );
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.slug === foodFilters.type),
+    [categories, foodFilters.type],
+  );
+  const catalogProfile = useMemo(
+    () => getCatalogProfile(selectedCategory),
+    [selectedCategory],
+  );
+  useEffect(() => {
+    if (!catalogProfile.isFood && foodFilters.halalOnly) {
+      setFoodFilters((previous) => ({ ...previous, halalOnly: false }));
+    }
+  }, [catalogProfile.isFood, foodFilters.halalOnly]);
 
   // A removed/deactivated category must not remain selected from an old URL.
   useEffect(() => {
@@ -132,17 +194,25 @@ export default function ProductsPage() {
         <div className="mb-3 flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><PackageOpen className="h-5 w-5" /></div>
           <div>
-            <h1 className="font-heading text-lg font-extrabold text-foreground">Katalog produk</h1>
-            <p className="text-xs text-muted-foreground">Temukan produk lokal dari merchant sekitar.</p>
+            <h1 className="font-heading text-lg font-extrabold text-foreground">{catalogProfile.title}</h1>
+            <p className="text-xs text-muted-foreground">{catalogProfile.description}</p>
           </div>
         </div>
 
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari produk atau toko" aria-label="Cari produk atau toko" className="h-11 w-full rounded-2xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10" />
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={catalogProfile.placeholder} aria-label={catalogProfile.placeholder} className="h-11 w-full rounded-2xl border border-border bg-background pl-10 pr-3 text-sm outline-none transition focus:border-primary/40 focus:ring-4 focus:ring-primary/10" />
           </div>
-          <FoodFilterSheet filters={foodFilters} onFiltersChange={setFoodFilters} activeFilterCount={activeFilterCount} categories={categoryOptions} />
+          <FoodFilterSheet
+            filters={foodFilters}
+            onFiltersChange={setFoodFilters}
+            activeFilterCount={activeFilterCount}
+            categories={categoryOptions}
+            title={catalogProfile.filterTitle}
+            description={catalogProfile.description}
+            showHalal={catalogProfile.isFood}
+          />
         </div>
 
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
