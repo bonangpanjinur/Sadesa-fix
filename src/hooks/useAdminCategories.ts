@@ -1,15 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { ProductCategory } from '@/lib/productCategories';
 
-export interface AdminCategory {
-  id: string;
-  slug: string;
-  name: string;
-  parent_id: string | null;
-  icon: string | null;
-  description?: string | null;
-  sort_order?: number | null;
-}
+export type AdminCategory = ProductCategory;
 
 export const ADMIN_CATEGORIES_QUERY_KEY = ['admin-categories', 'active'] as const;
 

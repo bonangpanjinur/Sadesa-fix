@@ -31,6 +31,7 @@ import { AdminEditProductDialog, type AdminProductInput } from '@/components/adm
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import { formatPrice } from '@/lib/utils';
+import { getCategoryBySlug, getCategoryDisplayLabel, type ProductCategory } from '@/lib/productCategories';
 
 // Fix for default marker icon
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
@@ -117,6 +118,7 @@ export default function AdminMerchantDetailPage() {
   const navigate = useNavigate();
   const [merchant, setMerchant] = useState<MerchantDetail | null>(null);
   const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -145,6 +147,11 @@ export default function AdminMerchantDetailPage() {
       if (merchantError) throw merchantError;
       if (!merchantData) { navigate('/admin/merchants'); return; }
       setMerchant(merchantData as MerchantDetail);
+      const { data: categoryData } = await supabase
+        .from('categories')
+        .select('id, name, slug, parent_id, icon, description, sort_order')
+        .order('sort_order', { ascending: true });
+      setProductCategories((categoryData || []) as ProductCategory[]);
 
       // Fetch owner profile if user_id exists
       if (merchantData.user_id) {
@@ -633,6 +640,7 @@ export default function AdminMerchantDetailPage() {
                         <div>
                           <p className="text-sm font-medium">{product.name}</p>
                           <p className="text-xs text-muted-foreground">{formatCurrency(product.price)} • Stok: {product.stock}</p>
+                          <p className="mt-0.5 text-xs text-primary/80">{getCategoryDisplayLabel(productCategories, getCategoryBySlug(productCategories, product.category) || { id: '', name: product.category || 'Belum dikategorikan', slug: product.category || '', parent_id: null, icon: null })}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">

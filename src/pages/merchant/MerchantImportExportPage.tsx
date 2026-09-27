@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { getCategoryDisplayLabel, getLeafCategories, getCategoryBySlug, type ProductCategory } from '@/lib/productCategories';
 
 interface ProductRow {
   id: string;
@@ -78,7 +79,7 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-function validateImportRow(raw: string[], rowNum: number, validCategories: string[]): ImportRow {
+function validateImportRow(raw: string[], rowNum: number, categories: ProductCategory[]): ImportRow {
   const [name = '', description = '', priceStr = '', stockStr = '', category = '', activeStr = '', promoStr = ''] = raw;
   const errors: string[] = [];
 
@@ -88,7 +89,8 @@ function validateImportRow(raw: string[], rowNum: number, validCategories: strin
   const stock = parseInt(stockStr);
   if (isNaN(stock) || stock < 0) errors.push('Stok harus angka >= 0');
   const cat = category.trim().toLowerCase();
-  if (!validCategories.includes(cat)) errors.push(`Kategori tidak valid (gunakan: ${validCategories.join(', ') || 'kategori aktif admin'})`);
+  const validCategories = getLeafCategories(categories).map((item) => item.slug);
+  if (!validCategories.includes(cat)) errors.push(`Kategori tidak valid (gunakan slug subkategori/ kategori tanpa turunan)`);
   const is_active = !['tidak', 'no', 'false', '0'].includes(activeStr.trim().toLowerCase());
   const is_promo = ['ya', 'yes', 'true', '1'].includes(promoStr.trim().toLowerCase());
 
@@ -117,7 +119,9 @@ export default function MerchantImportExportPage() {
   const [importDone, setImportDone] = useState<{ success: number; failed: number } | null>(null);
   const [fileLoaded, setFileLoaded] = useState(false);
   const [lastImportJobId, setLastImportJobId] = useState<string | null>(null);
-  const validCategories = categories.map((category) => category.slug);
+  const leafCategories = getLeafCategories(categories as ProductCategory[]);
+  const validCategories = leafCategories.map((category) => category.slug);
+  const categoryLabels = leafCategories.map((category) => `${getCategoryDisplayLabel(categories as ProductCategory[], category)} (${category.slug})`);
 
   const { data: products = [], isLoading: productsLoading, refetch } = useQuery<ProductRow[]>({
     queryKey: ['merchant-products-export', merchantId],
@@ -135,7 +139,7 @@ export default function MerchantImportExportPage() {
   });
 
   const downloadTemplate = () => {
-    const examples = validCategories.slice(0, 3).map((category, index) => `Contoh Produk ${String.fromCharCode(65 + index)},Deskripsi produk contoh,${25000 + index * 10000},50,${category},ya,tidak`);
+    const examples = leafCategories.slice(0, 3).map((category, index) => `Contoh Produk ${String.fromCharCode(65 + index)},Deskripsi produk contoh,${25000 + index * 10000},50,${category.slug},ya,tidak`);
     const content = [CSV_TEMPLATE_HEADER, ...examples].join('\n');
     downloadCSV('template_produk_sadesa.csv', content);
     toast.success('Template CSV berhasil diunduh');
@@ -182,7 +186,7 @@ export default function MerchantImportExportPage() {
         return;
       }
       const dataLines = lines.slice(1); // skip header
-      const parsed = dataLines.map((line, i) => validateImportRow(parseCSVLine(line), i + 2, validCategories));
+      const parsed = dataLines.map((line, i) => validateImportRow(parseCSVLine(line), i + 2, categories as ProductCategory[]));
       setImportRows(parsed);
       setFileLoaded(true);
       setImportDone(null);
@@ -286,7 +290,7 @@ export default function MerchantImportExportPage() {
                     <Info className="h-4 w-4" />
                     <AlertDescription className="text-xs">
                       <strong>Kolom wajib:</strong> nama_produk, harga, stok, kategori<br />
-                      <strong>Kategori valid:</strong> {categoriesLoading ? 'memuat...' : validCategories.join(', ') || 'belum ada kategori aktif'}<br />
+                      <strong>Kategori valid:</strong> {categoriesLoading ? 'memuat...' : categoryLabels.join(', ') || 'belum ada kategori aktif'}<br />
                       <strong>aktif/promo:</strong> isi <code className="bg-muted px-1 rounded">ya</code> atau <code className="bg-muted px-1 rounded">tidak</code>
                     </AlertDescription>
                   </Alert>
@@ -399,7 +403,7 @@ export default function MerchantImportExportPage() {
                             <TableCell className="font-medium text-sm max-w-[180px] truncate">{row.name || <span className="text-muted-foreground italic">kosong</span>}</TableCell>
                             <TableCell className="text-sm">{row.price > 0 ? formatPrice(row.price) : <span className="text-red-500">-</span>}</TableCell>
                             <TableCell className="text-sm">{row.stock}</TableCell>
-                            <TableCell className="text-sm">{row.category || <span className="text-red-500">-</span>}</TableCell>
+                            <TableCell className="text-sm">{getCategoryDisplayLabel(categories as ProductCategory[], getCategoryBySlug(categories as ProductCategory[], row.category) || { id: '', name: row.category, slug: row.category, parent_id: null, icon: null }) || <span className="text-red-500">-</span>}</TableCell>
                             <TableCell>
                               <Badge variant={row.is_active ? 'default' : 'secondary'} className="text-xs">
                                 {row.is_active ? 'Ya' : 'Tidak'}
@@ -506,7 +510,7 @@ export default function MerchantImportExportPage() {
                             <TableCell className="text-sm">
                               <span className={p.stock <= 5 ? 'text-red-600 font-medium' : ''}>{p.stock}</span>
                             </TableCell>
-                            <TableCell className="text-sm capitalize">{p.category}</TableCell>
+                            <TableCell className="text-sm">{getCategoryDisplayLabel(categories as ProductCategory[], getCategoryBySlug(categories as ProductCategory[], p.category) || { id: '', name: p.category, slug: p.category, parent_id: null, icon: null })}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{p.view_count || 0}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{p.order_count || 0}</TableCell>
                             <TableCell>

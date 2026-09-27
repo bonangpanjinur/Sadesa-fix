@@ -22,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { getCategoryTemplate } from '@/lib/categoryContracts';
 import { productFormSchema } from '@/lib/commerceSchemas';
+import { getCategoryBySlug, getCategoryChildren, getCategoryDisplayLabel, getCategoryParent, getInitialProductCategory, sortProductCategories, type ProductCategory } from '@/lib/productCategories';
 
 interface ProductRow {
   id: string;
@@ -53,6 +54,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  parent_id: string | null;
   icon: string | null;
 }
 
@@ -77,7 +79,7 @@ export default function MerchantProductsPage() {
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['product-categories'],
     queryFn: async () => {
-      const { data } = await supabase.from('categories').select('id, name, slug, icon').eq('is_active', true).order('sort_order');
+      const { data } = await supabase.from('categories').select('id, name, slug, parent_id, icon, description, sort_order').eq('is_active', true).order('sort_order');
       return (data || []) as unknown as Category[];
     },
     staleTime: 300_000,
@@ -121,6 +123,11 @@ export default function MerchantProductsPage() {
         });
         setFormErrors(nextErrors);
         throw new Error('Periksa kembali data produk');
+      }
+      const selectedProductCategory = getCategoryBySlug(categories as ProductCategory[], parsed.data.category);
+      if (selectedProductCategory && getCategoryChildren(categories as ProductCategory[], selectedProductCategory.id).length > 0) {
+        setFormErrors({ category: 'Pilih subkategori agar produk ditempatkan lebih spesifik.' });
+        throw new Error('Pilih subkategori produk');
       }
       setFormErrors({});
 
@@ -195,7 +202,7 @@ export default function MerchantProductsPage() {
   const openCreateDialog = () => {
     setEditingProduct(null);
     setFormErrors({});
-    setForm({ ...defaultForm, category: categories.length > 0 ? categories[0].slug : '' });
+    setForm({ ...defaultForm, category: getInitialProductCategory(categories as ProductCategory[]) });
     setDialogOpen(true);
   };
 
@@ -230,7 +237,7 @@ export default function MerchantProductsPage() {
           )}
           <div>
             <p className="font-medium">{item.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">{item.category}</p>
+            <p className="text-xs text-muted-foreground">{getCategoryDisplayLabel(categories as ProductCategory[], getCategoryBySlug(categories as ProductCategory[], item.category) || { id: '', name: item.category, slug: item.category, parent_id: null, icon: null })}</p>
           </div>
         </div>
       ),
@@ -295,8 +302,20 @@ export default function MerchantProductsPage() {
     },
   ];
 
-  const filters = [{ key: 'category', label: 'Kategori', options: categories.map(cat => ({ value: cat.slug, label: cat.name })) }];
+  const filters = [{ key: 'category', label: 'Kategori', options: categories.map(cat => ({ value: cat.slug, label: getCategoryDisplayLabel(categories as ProductCategory[], cat) })) }];
   const selectedCategoryTemplate = getCategoryTemplate(form.category);
+  const selectedCategory = getCategoryBySlug(categories as ProductCategory[], form.category);
+  const selectedParent = getCategoryParent(categories as ProductCategory[], selectedCategory);
+  const parentCategory = selectedParent || selectedCategory;
+  const categoryParents = sortProductCategories((categories as ProductCategory[]).filter(category => !category.parent_id));
+  const categoryChildren = getCategoryChildren(categories as ProductCategory[], parentCategory?.id);
+
+  const handleParentChange = (parentSlug: string) => {
+    const parent = getCategoryBySlug(categories as ProductCategory[], parentSlug);
+    const children = getCategoryChildren(categories as ProductCategory[], parent?.id);
+    setForm(previous => ({ ...previous, category: children[0]?.slug || parentSlug }));
+    setFormErrors(previous => ({ ...previous, category: '' }));
+  };
 
   return (
     <MerchantLayout title="Katalog Produk" subtitle="Sumber katalog untuk marketplace dan POS">
@@ -336,14 +355,19 @@ export default function MerchantProductsPage() {
                 {formErrors.name && <p id="prod-name-error" role="alert" className="text-xs text-destructive">{formErrors.name}</p>}
               </div>
               <div className="space-y-2">
-                <Label>Kategori *</Label>
-                <Select value={form.category} onValueChange={v => { setForm(p => ({ ...p, category: v })); setFormErrors(p => ({ ...p, category: '' })); }}>
-                  <SelectTrigger aria-invalid={Boolean(formErrors.category)} aria-describedby={formErrors.category ? 'prod-category-error' : undefined}><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-                  {formErrors.category && <p id="prod-category-error" role="alert" className="text-xs text-destructive">{formErrors.category}</p>}
-                  <SelectContent>
-                    {categories.map(cat => <SelectItem key={cat.id} value={cat.slug}>{cat.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Kategori produk *</Label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Select value={parentCategory?.slug || ''} onValueChange={handleParentChange}>
+                    <SelectTrigger><SelectValue placeholder="Pilih kategori utama" /></SelectTrigger>
+                    <SelectContent>{categoryParents.map(category => <SelectItem key={category.id} value={category.slug}>{getCategoryDisplayLabel(categories as ProductCategory[], category)}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Select value={selectedCategory?.parent_id ? form.category : ''} onValueChange={v => { setForm(p => ({ ...p, category: v })); setFormErrors(p => ({ ...p, category: '' })); }} disabled={!categoryChildren.length}>
+                    <SelectTrigger aria-invalid={Boolean(formErrors.category)} aria-describedby={formErrors.category ? 'prod-category-error' : undefined}><SelectValue placeholder={categoryChildren.length ? 'Pilih subkategori' : 'Tidak ada subkategori'} /></SelectTrigger>
+                    <SelectContent>{categoryChildren.map(category => <SelectItem key={category.id} value={category.slug}>{category.icon ? `${category.icon} ` : ''}{category.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                {formErrors.category && <p id="prod-category-error" role="alert" className="text-xs text-destructive">{formErrors.category}</p>}
+                <p className="text-xs text-muted-foreground">Pilihan tersimpan: <span className="font-medium text-foreground">{selectedCategory ? getCategoryDisplayLabel(categories as ProductCategory[], selectedCategory) : 'belum dipilih'}</span></p>
                 <p className="text-xs text-muted-foreground">
                   Template {selectedCategoryTemplate.label} · alur {selectedCategoryTemplate.workflow.replace('_', ' ')} · atribut: {selectedCategoryTemplate.listingFields.join(', ')}.
                 </p>
