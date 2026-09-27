@@ -33,7 +33,10 @@ export function WishlistButton({ productId, size = 'md', className }: WishlistBu
 
   return (
     <motion.button
+      type="button"
       onClick={handleClick}
+      aria-label={isWishlisted ? 'Hapus produk dari wishlist' : 'Tambahkan produk ke wishlist'}
+      aria-pressed={isWishlisted}
       whileTap={{ scale: 0.9 }}
       className={cn(
         'rounded-full flex items-center justify-center transition-all',
