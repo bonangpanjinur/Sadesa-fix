@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Image, Plus, Trash2, Edit, MoreHorizontal, Eye, EyeOff, ArrowUp, ArrowDown } from 'lucide-react';
+import { Image, Plus, Trash2, Edit, MoreHorizontal, Eye, EyeOff, ArrowUp, ArrowDown, RefreshCw } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+
+type BannerStatus = 'active' | 'scheduled' | 'expired' | 'inactive';
+
+function getBannerStatus(banner: Pick<Banner, 'is_active' | 'is_approved' | 'start_date' | 'end_date'>): BannerStatus {
+  if (!banner.is_active) return 'inactive';
+  const now = Date.now();
+  if (!banner.is_approved) return 'scheduled';
+  if (new Date(banner.start_date).getTime() > now) return 'scheduled';
+  if (banner.end_date && new Date(banner.end_date).getTime() < now) return 'expired';
+  return 'active';
+}
+
+const bannerStatusLabels: Record<BannerStatus, string> = { active: 'Aktif', scheduled: 'Terjadwal', expired: 'Berakhir', inactive: 'Nonaktif' };
+const bannerStatusVariants: Record<BannerStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = { active: 'default', scheduled: 'outline', expired: 'destructive', inactive: 'secondary' };
+
+function toDateInput(value?: string | null) {
+  return value ? value.slice(0, 10) : '';
+}
 
 interface Banner {
   id: string;
@@ -52,6 +70,7 @@ export default function AdminBannersPage() {
     image_url: '',
     link_url: '',
     is_active: true,
+    start_date: new Date().toISOString().slice(0, 10),
     end_date: '',
   });
 
@@ -65,7 +84,10 @@ export default function AdminBannersPage() {
 
       if (error) throw error;
       setBanners(data || []);
-      await queryClient.invalidateQueries({ queryKey: ['homepage-banners'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['homepage-banners'] }),
+        queryClient.invalidateQueries({ queryKey: ['food-catalog-banners'] }),
+      ]);
     } catch (error) {
       console.error('Error fetching banners:', error);
       toast.error('Gagal memuat banner');
@@ -87,7 +109,8 @@ export default function AdminBannersPage() {
         image_url: banner.image_url || '',
         link_url: banner.link_url || '',
         is_active: banner.is_active,
-        end_date: banner.end_date ? banner.end_date.split('T')[0] : '',
+        start_date: toDateInput(banner.start_date),
+        end_date: toDateInput(banner.end_date),
       });
     } else {
       setEditingBanner(null);
@@ -97,6 +120,7 @@ export default function AdminBannersPage() {
         image_url: '',
         link_url: '',
         is_active: true,
+        start_date: new Date().toISOString().slice(0, 10),
         end_date: '',
       });
     }
@@ -133,8 +157,16 @@ export default function AdminBannersPage() {
         return;
       }
     }
+    if (formData.start_date && Number.isNaN(new Date(formData.start_date).getTime())) {
+      toast.error('Tanggal mulai tidak valid');
+      return;
+    }
     if (formData.end_date && Number.isNaN(new Date(formData.end_date).getTime())) {
       toast.error('Tanggal berakhir tidak valid');
+      return;
+    }
+    if (formData.start_date && formData.end_date && new Date(formData.end_date) < new Date(formData.start_date)) {
+      toast.error('Tanggal berakhir harus setelah tanggal mulai');
       return;
     }
 
@@ -147,9 +179,10 @@ export default function AdminBannersPage() {
         link_url: linkUrl || null,
         is_active: formData.is_active,
         is_approved: true,
-        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+        start_date: formData.start_date ? new Date(`${formData.start_date}T00:00:00`).toISOString() : new Date().toISOString(),
+        end_date: formData.end_date ? new Date(`${formData.end_date}T23:59:59`).toISOString() : null,
         type: 'banner',
-        sort_order: editingBanner?.sort_order || banners.length,
+        sort_order: editingBanner?.sort_order ?? banners.length,
       };
 
       if (editingBanner) {
@@ -219,7 +252,10 @@ export default function AdminBannersPage() {
         const failed = results.find((result) => result.error);
         if (failed?.error) throw failed.error;
       setBanners(newBanners);
-      await queryClient.invalidateQueries({ queryKey: ['homepage-banners'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['homepage-banners'] }),
+        queryClient.invalidateQueries({ queryKey: ['food-catalog-banners'] }),
+      ]);
     } catch {
       toast.error('Gagal mengubah urutan');
     }
@@ -232,10 +268,15 @@ export default function AdminBannersPage() {
           <Image className="h-5 w-5 text-primary" />
           <span className="text-muted-foreground">{banners.length} banner</span>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah Banner
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => { setLoading(true); void fetchBanners(); }} aria-label="Muat ulang banner">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah Banner
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -277,15 +318,12 @@ export default function AdminBannersPage() {
                   {banner.subtitle && (
                     <p className="text-sm text-muted-foreground">{banner.subtitle}</p>
                   )}
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant={banner.is_active ? 'default' : 'secondary'}>
-                      {banner.is_active ? 'Aktif' : 'Nonaktif'}
-                    </Badge>
-                    {banner.end_date && (
-                      <span className="text-xs text-muted-foreground">
-                        Berakhir: {format(new Date(banner.end_date), 'dd/MM/yyyy')}
-                      </span>
-                    )}
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {(() => { const status = getBannerStatus(banner); return <Badge variant={bannerStatusVariants[status]}>{bannerStatusLabels[status]}</Badge>; })()}
+                    <span className="text-xs text-muted-foreground">
+                      Mulai: {format(new Date(banner.start_date), 'dd/MM/yyyy')}
+                    </span>
+                    {banner.end_date && <span className="text-xs text-muted-foreground">Berakhir: {format(new Date(banner.end_date), 'dd/MM/yyyy')}</span>}
                   </div>
                 </div>
 
@@ -379,12 +417,22 @@ export default function AdminBannersPage() {
               </div>
 
               <div>
+                <Label>Tanggal Mulai</Label>
+                <Input
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                />
+              </div>
+
+              <div>
                 <Label>Tanggal Berakhir</Label>
                 <Input
                   type="date"
                   value={formData.end_date}
                   onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                 />
+                <p className="mt-1 text-[11px] text-muted-foreground">Kosongkan jika banner tidak memiliki tanggal kedaluwarsa.</p>
               </div>
 
               <div className="flex items-center gap-3 pt-1">
