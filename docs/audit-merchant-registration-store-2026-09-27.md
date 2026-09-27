@@ -16,15 +16,22 @@ Audit menemukan dua risiko akses/alur yang langsung diperbaiki serta beberapa ri
 | Toko Admin | Input jumlah tidak benar-benar membatasi nilai ke stok dan halaman tidak memberi state loading/error yang jelas. | Jumlah di-clamp ke stok, tombol mencegah pembelian ganda, RPC tetap menjadi validasi terakhir, dan ditambahkan state loading/error/retry. |
 | Validasi | Perubahan diuji melalui lint dan production build. | Lint file terkait lulus; build production lulus. |
 
-## Temuan prioritas yang belum diubah
+## Perbaikan lanjutan: transaksi database atomik
 
-### P1 — Pendaftaran dan pengaturan toko tidak atomik
+Temuan P1 terkait proses multi-write sudah diselesaikan. Migration `20260927150000_atomic_merchant_registration_and_settings.sql` menambahkan dua RPC `SECURITY DEFINER` dengan ownership check, validasi kategori aktif, dan satu transaction boundary per operasi:
 
-`RegisterMerchantPage` menulis ke tiga tabel secara berurutan: `merchants`, `merchant_categories`, lalu `merchant_operating_hours`. Jika langkah kedua atau ketiga gagal, data merchant dapat tertinggal tanpa kategori atau jadwal.
+- `register_merchant_atomic`: membuat merchant, kategori, dan tujuh jadwal operasional secara atomik.
+- `update_merchant_settings_atomic`: memperbarui data toko serta mengganti kategori toko secara atomik.
 
-`MerchantSettingsPage` juga melakukan update merchant, delete seluruh kategori lama, lalu insert kategori baru secara terpisah. Kegagalan insert dapat meninggalkan toko tanpa kategori.
+Form pendaftaran dan pengaturan toko sekarang hanya melakukan satu pemanggilan RPC. Jika validasi atau salah satu write gagal, seluruh perubahan pada operasi tersebut di-rollback oleh PostgreSQL.
 
-**Rekomendasi:** pindahkan rangkaian ini ke satu RPC transaction di Supabase, misalnya `register_merchant` dan `update_merchant_settings`, dengan validasi ownership dan category aktif di dalam fungsi.
+## Temuan prioritas yang masih perlu ditangani
+
+### ~~P1 — Pendaftaran dan pengaturan toko tidak atomik~~ **Selesai**
+
+Temuan ini sudah dipindahkan ke RPC transaction seperti dijelaskan di atas.
+
+`MerchantSettingsPage` tidak lagi melakukan update merchant, delete kategori, dan insert kategori secara terpisah dari browser.
 
 ### P1 — Auto-approval database tidak selaras dengan UI pending
 

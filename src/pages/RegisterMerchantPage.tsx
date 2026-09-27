@@ -350,58 +350,35 @@ export default function RegisterMerchantPage() {
         return;
       }
 
-      // The database auto-approval trigger promotes new registrations to
-      // APPROVED/ACTIVE. Submit PENDING here so the public INSERT policy
-      // remains strict and the trigger is the single source of truth.
-      const registrationStatus = 'PENDING' as const;
-      const merchantStatus = 'INACTIVE' as const;
-      const legacySchedule = weeklySchedule[1] || weeklySchedule[openDays[0].day];
-
-      const { data: merchant, error } = await supabase.from('merchants').insert({
-        name: data.name.trim(),
-        user_id: user.id,
-        village_id: matchedVillage?.id || null,
-        address: data.addressDetail.trim(),
-        province: provinceName,
-        city: cityName,
-        district: districtName,
-        subdistrict: subdistrictName,
-        phone: data.phone.trim(),
-        business_category: primaryCategory.slug,
-        business_description: data.businessDescription?.trim() || null,
-        verifikator_code: referralCode ? referralCode.toUpperCase() : null,
-        trade_group: referralInfo.tradeGroup || null,
-        registration_status: registrationStatus,
-        status: merchantStatus,
-        order_mode: 'ADMIN_ASSISTED',
-        is_open: false,
-        open_time: legacySchedule.openTime,
-        close_time: legacySchedule.closeTime,
-        registered_at: new Date().toISOString(),
-        location_lat: merchantLocation?.lat || null,
-        location_lng: merchantLocation?.lng || null,
-        halal_status: halalStatus,
-        halal_certificate_url: halalCertUrl,
-        ktp_url: ktpUrl,
-      }).select('id').single();
-
-      if (error) throw error;
-
-      const { error: categoryError } = await supabase.from('merchant_categories').insert(
-        selectedCategories.map((category) => ({ merchant_id: merchant.id, category_id: category.id })),
-      );
-      if (categoryError) throw categoryError;
-
-      const { error: scheduleError } = await supabase.from('merchant_operating_hours').insert(
-        WEEK_DAYS.map(({ day }) => ({
-          merchant_id: merchant.id,
+      const { data: merchantId, error } = await supabase.rpc('register_merchant_atomic', {
+        p_user_id: user.id,
+        p_name: data.name.trim(),
+        p_village_id: matchedVillage?.id || null,
+        p_address: data.addressDetail.trim(),
+        p_province: provinceName,
+        p_city: cityName,
+        p_district: districtName,
+        p_subdistrict: subdistrictName,
+        p_phone: data.phone.trim(),
+        p_business_category: primaryCategory.slug,
+        p_business_description: data.businessDescription?.trim() || null,
+        p_verifikator_code: referralCode ? referralCode.toUpperCase() : null,
+        p_trade_group: referralInfo.tradeGroup || null,
+        p_location_lat: merchantLocation?.lat || null,
+        p_location_lng: merchantLocation?.lng || null,
+        p_halal_status: halalStatus,
+        p_halal_certificate_url: halalCertUrl || null,
+        p_ktp_url: ktpUrl || null,
+        p_category_ids: categoryIds,
+        p_schedule: WEEK_DAYS.map(({ day }) => ({
           day_of_week: day,
           open_time: weeklySchedule[day].openTime,
           close_time: weeklySchedule[day].closeTime,
           is_closed: weeklySchedule[day].isClosed,
         })),
-      );
-      if (scheduleError) throw scheduleError;
+      });
+
+      if (error || !merchantId) throw error || new Error('Pendaftaran merchant tidak menghasilkan ID');
 
       // Database triggers assign buyer + merchant roles before the insert
       // returns. Refresh the auth role state before navigating so

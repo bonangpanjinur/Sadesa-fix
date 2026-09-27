@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 230,
-  "bundle_count": 16,
+  "migration_count": 231,
+  "bundle_count": 17,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -428,6 +428,14 @@
       ],
       "sha256": "94e49836fdc2d27e416bc86926520c769155212cb83072c2885569c2e2b56982",
       "bytes": 8020
+    },
+    {
+      "file": "48_20260927150000_atomic_merchant_registration_and_settings.sql",
+      "source_files": [
+        "20260927150000_atomic_merchant_registration_and_settings.sql"
+      ],
+      "sha256": "6c5ccd937f45627007b8dbc149e8e7aafd6d01af4a2a7244943d193ddfa00d84",
+      "bytes": 9492
     }
   ],
   "idempotent": true,

@@ -204,46 +204,19 @@ export default function MerchantSettingsPage() {
         throw new Error(parsed.error.issues[0]?.message || 'Periksa kembali data pengaturan toko.');
       }
       const settings = parsed.data;
-      const { error } = await supabase.from('merchants').update({
-        name: settings.name,
-        phone: settings.phone || null,
-        address: settings.address || null,
-        province: settings.province || null,
-        city: settings.city || null,
-        district: settings.district || null,
-        subdistrict: settings.subdistrict || null,
-        location_lat: settings.location_lat,
-        location_lng: settings.location_lng,
-        google_maps_url: settings.google_maps_url || null,
-        business_category: settings.business_category || null,
-        business_description: settings.business_description || null,
-        open_time: settings.open_time || null,
-        close_time: settings.close_time || null,
-        is_open: settings.is_open,
-        classification_price: settings.classification_price || null,
-        order_mode: settings.order_mode,
-        image_url: imageUrl || null,
-        cover_image_url: coverImageUrl || null,
-        bank_name: settings.bank_name || null,
-        bank_account_number: settings.bank_account_number || null,
-        bank_account_name: settings.bank_account_name || null,
-        qris_image_url: qrisImageUrl || null,
-        // COD is temporarily disabled for marketplace checkout.
-        payment_cod_enabled: false,
-        payment_transfer_enabled: settings.payment_transfer_enabled,
-        notification_sound_enabled: settings.notification_sound_enabled,
-        slug: settings.slug || null,
-      }).eq('id', merchant.id);
+      const { error } = await supabase.rpc('update_merchant_settings_atomic', {
+        p_merchant_id: merchant.id,
+        p_settings: {
+          ...settings,
+          // COD is temporarily disabled for marketplace checkout.
+          payment_cod_enabled: false,
+          image_url: imageUrl || null,
+          cover_image_url: coverImageUrl || null,
+          qris_image_url: qrisImageUrl || null,
+        },
+        p_category_ids: selectedCategoryIds,
+      });
       if (error) throw error;
-      const { error: deleteCategoriesError } = await supabase
-        .from('merchant_categories')
-        .delete()
-        .eq('merchant_id', merchant.id);
-      if (deleteCategoriesError) throw deleteCategoriesError;
-      const { error: categoryError } = await supabase.from('merchant_categories').insert(
-        selectedCategoryIds.map((category_id) => ({ merchant_id: merchant.id, category_id }))
-      );
-      if (categoryError) throw categoryError;
     },
     onSuccess: () => {
       toast.success('Pengaturan toko berhasil disimpan');
