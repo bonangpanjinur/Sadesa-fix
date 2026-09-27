@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import { useState, useMemo, useEffect, useDeferredValue, type MouseEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal } from 'lucide-react';
+import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, Search, SlidersHorizontal, ArrowLeft, ChevronRight, Grid2X2, Utensils, Coffee, Soup, Cookie, CupSoda, Heart, Plus } from 'lucide-react';
 import { Header } from '../components/layout/Header';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ProductCard } from '../components/ProductCard';
@@ -24,6 +24,9 @@ import {
 } from '../components/ui/select';
 import type { Product } from '../types';
 import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, sortProductCategories, type ProductCategory } from '../lib/productCategories';
+import { useCart } from '../contexts/CartContext';
+import { toast } from 'sonner';
+import { OptimizedImage } from '../components/ui/OptimizedImage';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';
@@ -112,6 +115,58 @@ function getCategoryFilterSlugs(type: FoodType, categories: ProductCategory[]) {
 function matchesFoodType(product: Product, type: FoodType, categories: ProductCategory[]) {
   if (type === 'all') return true;
   return getCategoryFilterSlugs(type, categories)?.includes(normalize(product.category)) ?? false;
+}
+
+const foodCategoryItems = [
+  { key: 'all', label: 'Semua', icon: Grid2X2 },
+  { key: 'nasi', label: 'Nasi', icon: Soup },
+  { key: 'mie', label: 'Mie', icon: Utensils },
+  { key: 'minuman', label: 'Minuman', icon: CupSoda },
+  { key: 'snack', label: 'Snack', icon: Cookie },
+  { key: 'kopi', label: 'Kopi', icon: Coffee },
+];
+
+function FoodProductCard({ product, index }: { product: Product; index: number }) {
+  const { addToCart } = useCart();
+  const [liked, setLiked] = useState(false);
+  const available = product.isAvailable !== false && product.isActive && product.stock > 0;
+  const add = (event: MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!available) return;
+    addToCart(product, 1);
+    toast.success(`${product.name} ditambahkan ke keranjang`);
+  };
+  return (
+    <motion.article initial={index < 8 ? { opacity: 0, y: 12 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: Math.min(index, 7) * 0.025 }} className="group relative min-w-0 overflow-hidden rounded-[1.05rem] border border-[#e7ece4] bg-white shadow-[0_8px_22px_-18px_rgba(12,62,38,0.5)]">
+      <Link to={`/product/${product.id}`} className="block">
+        <div className="relative aspect-[1.12] overflow-hidden bg-[#eef4e9]">
+          <OptimizedImage src={product.image} alt={product.name} className="h-full w-full object-cover transition duration-300 group-hover:scale-105" aspectRatio="auto" lazy />
+          <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-[#17613d] shadow-sm">★ {(product.merchantRatingAvg || 4.7).toFixed(1)}</span>
+          <button type="button" aria-label={liked ? `Hapus ${product.name} dari favorit` : `Simpan ${product.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); setLiked((value) => !value); }} className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#e34a4a] shadow-sm transition active:scale-90">
+            <Heart className={cn('h-3.5 w-3.5', liked && 'fill-current')} />
+          </button>
+        </div>
+        <div className="px-3 pb-3 pt-2.5">
+          <p className="truncate text-[10px] text-[#748078]">{product.merchantName}</p>
+          <h3 className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-[12px] font-bold leading-snug text-[#18372a]">{product.name}</h3>
+          <p className="mt-1 text-[10px] text-[#8a938d]">{product.merchantVillage || 'Sekitar kamu'} · 20–30 menit</p>
+          <div className="mt-2 flex items-center justify-between gap-2"><p className="text-[13px] font-extrabold text-[#0b7549]">Rp {product.price.toLocaleString('id-ID')}</p><button type="button" aria-label={`Tambah ${product.name} ke keranjang`} onClick={add} disabled={!available} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0b7549] text-white shadow-[0_4px_10px_-4px_rgba(11,117,73,0.8)] transition hover:bg-[#075f3b] active:scale-90 disabled:bg-[#b9c5bc]"><Plus className="h-4 w-4" /></button></div>
+        </div>
+      </Link>
+    </motion.article>
+  );
+}
+
+function FoodMerchantRow({ product }: { product: Product }) {
+  return <Link to={`/products?merchant=${product.merchantId}`} className="flex items-center gap-3 rounded-2xl border border-[#edf0eb] bg-white p-2.5 shadow-[0_7px_20px_-18px_rgba(12,62,38,0.5)] transition hover:border-[#b9d9b9]"><div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[#eef4e9]"><OptimizedImage src={product.image} alt={product.merchantName} className="h-full w-full object-cover" aspectRatio="auto" lazy /></div><div className="min-w-0 flex-1"><p className="truncate text-[13px] font-bold text-[#18372a]">{product.merchantName}</p><p className="mt-0.5 text-[11px] text-[#7d887f]">★ {(product.merchantRatingAvg || 4.7).toFixed(1)} ({product.merchantRatingCount || 90}+)</p><p className="mt-0.5 truncate text-[10px] text-[#8a938d]">Aneka menu · 1.2 km · 20–30 menit</p></div><Heart className="mr-1 h-4 w-4 shrink-0 text-[#e35a5a]" /></Link>;
+}
+
+function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void }) {
+  const heroProduct = filteredProducts[0] || products[0];
+  const merchants = Array.from(new Map(filteredProducts.map((product) => [product.merchantId, product])).values()).slice(0, 4);
+  const recommendations = filteredProducts.slice(0, 6);
+  return <div className="min-h-screen bg-[#f8fbf7] pb-28 text-[#18372a]"><header className="sticky top-0 z-40 flex items-center gap-3 border-b border-[#edf1eb] bg-white/95 px-5 py-3 backdrop-blur-xl"><button type="button" onClick={onBack} aria-label="Kembali" className="flex h-9 w-9 items-center justify-center rounded-full text-[#18372a] transition hover:bg-[#eef6e9] active:scale-90"><ArrowLeft className="h-5 w-5" /></button><h1 className="text-[17px] font-extrabold">Makanan & Minuman</h1><Link to="/cart" className="ml-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#eef7e9] text-[#0b7549]"><PackageOpen className="h-4 w-4" /></Link></header><main className="space-y-5 px-5 pt-3"><div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari makanan atau minuman..." aria-label="Cari makanan atau minuman" className="h-11 w-full rounded-2xl border border-[#e4eae2] bg-white pl-11 pr-4 text-sm shadow-[0_8px_22px_-18px_rgba(12,62,38,0.6)] outline-none focus:border-[#86bc79] focus:ring-4 focus:ring-[#86bc79]/15" /></div>{heroProduct && !searchQuery && <div className="relative h-[7.7rem] overflow-hidden rounded-[1.15rem] bg-[#f6d9a8] shadow-[0_12px_25px_-18px_rgba(74,52,21,0.7)]"><OptimizedImage src={heroProduct.image} alt="Makanan enak dari warung terdekat" className="absolute inset-0 h-full w-full object-cover opacity-80" aspectRatio="auto" lazy /><div className="absolute inset-0 bg-gradient-to-r from-[#fff0ca] via-[#ffe5b4]/80 to-transparent" /><div className="relative z-10 max-w-[58%] px-4 pt-5"><p className="font-serif text-[20px] font-black leading-[1.03] text-[#17261e]">Makan Enak<br />dari Warung<br />Terdekat</p></div></div>}<div className="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Kategori makanan">{foodCategoryItems.map(({ key, label, icon: Icon }) => <button key={key} type="button" onClick={() => onCategoryChange(key)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === key ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border', activeType === key ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}><Icon className="h-[18px] w-[18px]" /></span>{label}</button>)}</div>{loading ? <div className="grid grid-cols-2 gap-3">{Array.from({ length: 4 }).map((_, index) => <ProductSkeleton key={index} />)}</div> : isError ? <div className="rounded-2xl bg-white px-5 py-10 text-center shadow-sm"><p className="font-semibold">Menu belum dapat dimuat</p><Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3 rounded-full">Coba lagi</Button></div> : <><section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Rekomendasi untuk kamu</h2><button type="button" onClick={() => onCategoryChange('all')} className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat Semua <ChevronRight className="h-3.5 w-3.5" /></button></div>{recommendations.length ? <div className="grid grid-cols-2 gap-3">{recommendations.map((product, index) => <FoodProductCard key={product.id} product={product} index={index} />)}</div> : <p className="rounded-2xl bg-white p-6 text-center text-sm text-[#7d887f]">Menu belum ditemukan. Coba kata kunci lain.</p>}</section>{merchants.length > 0 && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Warung Terdekat</h2><span className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat Semua <ChevronRight className="h-3.5 w-3.5" /></span></div><div className="space-y-2.5">{merchants.map((product) => <FoodMerchantRow key={product.merchantId} product={product} />)}</div></section>}</>}</main><BottomNav /></div>;
 }
 
 export default function ProductsPage() {
@@ -237,6 +292,23 @@ export default function ProductsPage() {
   const selectedParentCategory = getCategoryParent(categories as ProductCategory[], selectedCategory || null) || selectedCategory;
   const subCategoryOptions = selectedParentCategory ? getCategoryChildren(categories as ProductCategory[], selectedParentCategory.id) : [];
   const activeTopCategory = getCategoryParent(categories as ProductCategory[], selectedCategory || null)?.slug || foodFilters.type;
+
+  if (catalogProfile.isFood) {
+    return (
+      <FoodCatalogView
+        products={products}
+        filteredProducts={filteredAndSortedProducts}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onCategoryChange={(type) => handleTypeChange(type === 'all' ? 'kuliner' : type)}
+        activeType={foodFilters.type === 'kuliner' ? 'all' : foodFilters.type}
+        onBack={() => window.history.length > 1 ? window.history.back() : window.location.assign('/')}
+        loading={loading}
+        isError={isError}
+        refetch={() => void refetch()}
+      />
+    );
+  }
 
   return (
     <div className="mobile-shell flex min-h-screen flex-col bg-background">

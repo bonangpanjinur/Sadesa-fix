@@ -116,41 +116,43 @@ export function Header() {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => navigate('/addresses?select=1')}
-        className="group relative mt-2 flex min-h-[3.5rem] w-full items-center gap-2.5 overflow-hidden rounded-[1.15rem] border border-[#e4ece1] bg-gradient-to-r from-white via-white to-[#f5faef] px-3 py-2 text-left shadow-[0_8px_22px_-18px_rgba(1,87,48,0.38)] transition duration-200 hover:border-[#b8d9a6] hover:shadow-[0_12px_26px_-18px_rgba(1,87,48,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b]/50"
-        aria-label="Pilih lokasi pengantaran"
-      >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem] bg-[#015730] text-white shadow-[0_5px_12px_-6px_rgba(1,87,48,0.7)] transition-transform duration-200 group-hover:scale-[1.04]"><MapPin className="h-4 w-4 fill-white/15 stroke-white" /></span>
-        <span className="min-w-0 flex-1">
-          <span className="mb-0.5 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.13em] text-[#557365]">
-            Alamat pengantaran
-            <span className="h-1 w-1 rounded-full bg-[#44a31b]" />
-            {activeAddress?.label && <span className="normal-case tracking-normal text-[#015730]">{activeAddress.label}</span>}
+      <div className={`mt-2 flex items-stretch gap-2 ${isHome ? 'max-[360px]:flex-col' : ''}`}>
+        <button
+          type="button"
+          onClick={() => navigate('/addresses?select=1')}
+          className={`group relative flex min-h-[3.5rem] min-w-0 items-center gap-2 overflow-hidden rounded-[1.15rem] border border-[#e4ece1] bg-gradient-to-r from-white via-white to-[#f5faef] px-2.5 py-2 text-left shadow-[0_8px_22px_-18px_rgba(1,87,48,0.38)] transition duration-200 hover:border-[#b8d9a6] hover:shadow-[0_12px_26px_-18px_rgba(1,87,48,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b]/50 ${isHome ? 'flex-[1.08]' : 'w-full'}`}
+          aria-label="Pilih lokasi pengantaran"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.8rem] bg-[#015730] text-white shadow-[0_5px_12px_-6px_rgba(1,87,48,0.7)] transition-transform duration-200 group-hover:scale-[1.04]"><MapPin className="h-4 w-4 fill-white/15 stroke-white" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="mb-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-[8px] font-bold uppercase tracking-[0.1em] text-[#557365] sm:text-[9px] sm:tracking-[0.13em]">
+              <span className="truncate">Alamat pengantaran</span>
+              <span className="h-1 w-1 shrink-0 rounded-full bg-[#44a31b]" />
+              {activeAddress?.label && <span className="truncate normal-case tracking-normal text-[#015730]">{activeAddress.label}</span>}
+            </span>
+            <span className="block truncate text-[12px] font-semibold leading-snug tracking-[-0.01em] text-[#173d2c] sm:text-[13px]">
+              {activeAddressText || (locationLoading ? 'Mencari lokasi...' : userLocation?.district) || 'Pilih alamat pengantaran'}
+            </span>
           </span>
-          <span className="block truncate text-[13px] font-semibold leading-snug tracking-[-0.01em] text-[#173d2c] sm:text-sm">
-            {activeAddressText || (locationLoading ? 'Mencari lokasi...' : userLocation?.district) || 'Pilih alamat pengantaran'}
+          {!activeAddressText && !userLocation && !locationLoading && <span className="hidden items-center gap-1 text-[9px] font-semibold text-[#557365] sm:flex"><LocateFixed className="h-3 w-3" />Pilih alamat</span>}
+          <span className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e5eee0] bg-white/90 text-[#015730] shadow-sm transition-all group-hover:border-[#b8d9a6] group-hover:bg-[#edf7e6]">
+            <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-y-0.5" />
           </span>
-        </span>
-        {!activeAddressText && !userLocation && !locationLoading && <span className="hidden items-center gap-1 text-[9px] font-semibold text-[#557365] sm:flex"><LocateFixed className="h-3 w-3" />Pilih alamat</span>}
-        <span className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e5eee0] bg-white/90 text-[#015730] shadow-sm transition-all group-hover:border-[#b8d9a6] group-hover:bg-[#edf7e6]">
-          <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-y-0.5" />
-        </span>
-      </button>
+        </button>
 
-      {isHome && (
-        <form onSubmit={submitSearch} className="relative mt-2">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#015730]" aria-hidden="true" />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            aria-label="Cari makanan, barang, jasa, atau tujuan"
-            placeholder="Cari makanan, barang, jasa, atau tujuan..."
-            className="h-[3rem] w-full rounded-full border border-[#d9ebd0] bg-white pl-10 pr-4 text-sm text-slate-800 shadow-[0_7px_20px_-12px_rgba(1,87,48,0.25)] outline-none transition placeholder:text-slate-500 focus:border-[#44a31b] focus:ring-4 focus:ring-[#44a31b]/15"
-          />
-        </form>
-      )}
+        {isHome && (
+          <form onSubmit={submitSearch} className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#015730]" aria-hidden="true" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="Cari makanan, barang, jasa, atau tujuan"
+              placeholder="Cari makanan, barang, jasa..."
+              className="h-[3.5rem] w-full rounded-full border border-[#d9ebd0] bg-white pl-9 pr-3 text-[12px] text-slate-800 shadow-[0_7px_20px_-12px_rgba(1,87,48,0.25)] outline-none transition placeholder:text-slate-500 focus:border-[#44a31b] focus:ring-4 focus:ring-[#44a31b]/15 sm:pl-10 sm:pr-4 sm:text-sm"
+            />
+          </form>
+        )}
+      </div>
 
     </header>
   );
