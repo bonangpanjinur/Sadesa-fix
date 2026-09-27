@@ -10,6 +10,7 @@ export interface CategoryFilterOption {
 export interface FoodFilters {
   type: FoodType;
   openNow: boolean;
+  inStockOnly: boolean;
   promoOnly: boolean;
   halalOnly: boolean;
   maxPrice: number;
@@ -18,6 +19,7 @@ export interface FoodFilters {
 export const defaultFoodFilters: FoodFilters = {
   type: 'all',
   openNow: false,
+  inStockOnly: false,
   promoOnly: false,
   halalOnly: false,
   maxPrice: 100000,

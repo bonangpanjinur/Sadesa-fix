@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Filter, Leaf, RotateCcw, Store, Tag } from 'lucide-react';
+import { Check, Filter, Leaf, PackageCheck, RotateCcw, Store, Tag } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -100,6 +100,11 @@ export function FoodFilterSheet({
                 <Checkbox checked={localFilters.openNow} onCheckedChange={(checked) => update({ openNow: checked === true })} />
                 <Store className="h-4 w-4 text-green-600" />
                 <span className="text-sm">Buka sekarang</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border p-3">
+                <Checkbox checked={localFilters.inStockOnly} onCheckedChange={(checked) => update({ inStockOnly: checked === true })} />
+                <PackageCheck className="h-4 w-4 text-green-600" />
+                <span className="text-sm">Stok tersedia</span>
               </label>
               <label className="flex cursor-pointer items-center gap-3 rounded-xl border p-3">
                 <Checkbox checked={localFilters.promoOnly} onCheckedChange={(checked) => update({ promoOnly: checked === true })} />
