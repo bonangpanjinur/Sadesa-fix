@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,8 @@ import { ProductCard } from '@/components/ProductCard';
 import { ProductCardHorizontal } from '@/components/explore/ProductCardHorizontal';
 import { TourismCardCompact } from '@/components/explore/TourismCardCompact';
 import { VillageCardLarge } from '@/components/explore/VillageCardLarge';
-import { CategoryTabs, ExploreCategory } from '@/components/explore/CategoryTabs';
+import { CategoryTabs, type ExploreCategory } from '@/components/explore/CategoryTabs';
+import { getExploreCategoryFromSearchParams, updateSearchResultsCategoryParams, updateSearchResultsQueryParams } from '@/lib/searchResultsFilters';
 import { FilterSheet, FilterButton, FilterOptions } from '@/components/explore/FilterSheet';
 import { SortDropdown, SortOption } from '@/components/explore/SortDropdown';
 import { ViewToggle, ViewMode } from '@/components/explore/ViewToggle';
@@ -27,10 +28,8 @@ interface SearchTourismRow { id: string; name: string; description: string | nul
 
 export default function SearchResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialQuery = searchParams.get('q') || '';
-  
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [activeCategory, setActiveCategory] = useState<ExploreCategory>('all');
+  const searchQuery = searchParams.get('q') || '';
+  const activeCategory = getExploreCategoryFromSearchParams(searchParams);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortOption, setSortOption] = useState<SortOption>('relevance');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -40,11 +39,19 @@ export default function SearchResultsPage() {
     minRating: null,
   });
 
+  useEffect(() => {
+    const requestedCategory = searchParams.get('category');
+    if (!requestedCategory || activeCategory === 'products') return;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('category');
+    setSearchParams(nextParams, { replace: true });
+  }, [activeCategory, searchParams, setSearchParams]);
+
   const { data: searchResults, isLoading: loading } = useQuery({
-    queryKey: ['search-results', initialQuery],
+    queryKey: ['search-results', searchQuery],
     queryFn: async () => {
-      if (!initialQuery || initialQuery.length < 2) return { products: [], villages: [], tourismSpots: [] };
-      const searchTerm = `%${initialQuery}%`;
+      if (!searchQuery || searchQuery.length < 2) return { products: [], villages: [], tourismSpots: [] };
+      const searchTerm = `%${searchQuery}%`;
       const [productsRes, villagesRes, tourismRes] = await Promise.all([
         supabase.from('products').select('id, name, description, price, image_url, stock, category, is_active, is_promo, original_price, merchant_id, merchants(name, village_id, villages(name), location_lat, location_lng, is_open, halal_status)').ilike('name', searchTerm).eq('is_active', true).limit(50),
         supabase.from('villages').select('id, name, district, regency, description, image_url, is_active').ilike('name', searchTerm).eq('is_active', true).limit(20),
@@ -73,21 +80,22 @@ export default function SearchResultsPage() {
       return { products, villages, tourismSpots };
     },
     staleTime: 60_000,
-    enabled: !!initialQuery && initialQuery.length >= 2,
+    enabled: !!searchQuery && searchQuery.length >= 2,
   });
 
   const products = useMemo(() => searchResults?.products ?? [], [searchResults?.products]);
   const villages = useMemo(() => searchResults?.villages ?? [], [searchResults?.villages]);
   const tourismSpots = useMemo(() => searchResults?.tourismSpots ?? [], [searchResults?.tourismSpots]);
 
-  // Update URL when search changes
-  useEffect(() => {
-    if (searchQuery) {
-      setSearchParams({ q: searchQuery });
-    } else {
-      setSearchParams({});
+  const handleSearchChange = (value: string) => {
+    setSearchParams(updateSearchResultsQueryParams(searchParams, value), { replace: true });
+  };
+
+  const handleCategoryChange = (category: ExploreCategory) => {
+    if (category === 'all' || category === 'products') {
+      setSearchParams(updateSearchResultsCategoryParams(searchParams, category), { replace: true });
     }
-  }, [searchQuery, setSearchParams]);
+  };
 
   // Get available districts for filter
   const availableDistricts = useMemo(() => {
@@ -190,7 +198,7 @@ export default function SearchResultsPage() {
             <SearchBar 
               placeholder="Cari produk, wisata, desa..." 
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={handleSearchChange}
             />
           </div>
         </div>
@@ -201,7 +209,7 @@ export default function SearchResultsPage() {
         <div className="px-4 py-3 border-b border-border/30">
           <CategoryTabs 
             activeCategory={activeCategory} 
-            onCategoryChange={setActiveCategory} 
+            onCategoryChange={handleCategoryChange}
           />
         </div>
 
