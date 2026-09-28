@@ -1,11 +1,14 @@
 import { ReactNode, useState } from 'react';
 import { MerchantSidebar } from './MerchantSidebar';
-import { Menu } from 'lucide-react';
+import { Menu, Volume2 } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { MerchantCardError } from './MerchantDataState';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMerchantOrderAlarm } from '@/hooks/useMerchantOrderAlarm';
+import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 
 interface MerchantLayoutProps {
   children: ReactNode;
@@ -17,6 +20,8 @@ interface MerchantLayoutProps {
 
 export function MerchantLayout({ children, title, subtitle, actions, fullWidth = false }: MerchantLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
+  useMerchantOrderAlarm(user?.id);
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-background">
@@ -53,6 +58,16 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
           </div>
           <div className="flex items-center gap-2">
             {actions}
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-9 gap-1.5 text-xs"
+              onClick={unlockOrderNotificationAudio}
+              aria-label="Aktifkan nada alarm pesanan"
+            >
+              <Volume2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Aktifkan Nada</span>
+            </Button>
             <NotificationDropdown />
           </div>
         </div>

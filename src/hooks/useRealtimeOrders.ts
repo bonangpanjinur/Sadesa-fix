@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
 
 export interface OrderRow {
   id: string;
@@ -130,17 +129,6 @@ export function useRealtimeOrders({
         (payload) => {
           const newOrder = payload.new as OrderRow;
           setOrders((prev) => [newOrder, ...prev]);
-          
-          // Play the admin-configured order alarm without blocking realtime updates.
-          void playOrderNotificationSound('merchant');
-          
-          toast.info('Pesanan baru masuk!', {
-            description: `Pesanan dari ${newOrder.delivery_name || 'Pelanggan'}`,
-            action: {
-              label: 'Lihat',
-              onClick: () => onNewOrderRef.current?.(newOrder),
-            },
-          });
           
           onNewOrderRef.current?.(newOrder);
         }
