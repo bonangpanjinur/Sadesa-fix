@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import type { Product } from '../types';
-import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, getShoppingCategorySlugs, sortProductCategories, type ProductCategory } from '../lib/productCategories';
+import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, getShoppingCategorySlugs, hideRedundantFoodRootCategories, sortProductCategories, type ProductCategory } from '../lib/productCategories';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { WishlistButton } from '../components/WishlistButton';
 import { useCart } from '../contexts/CartContext';
@@ -344,7 +344,7 @@ export default function ProductsPage() {
       { slug: 'kuliner', name: 'Makanan & Minuman' },
       { slug: 'belanja', name: 'Belanja' },
       { slug: 'pertanian', name: 'Pertanian' },
-      ...parentCategories.filter((category) => category.slug !== 'kelontongan').map((category) => ({ slug: category.slug, name: category.name })),
+      ...hideRedundantFoodRootCategories(parentCategories, true).filter((category) => category.slug !== 'kelontongan').map((category) => ({ slug: category.slug, name: category.name })),
     ];
     return Array.from(new Map(options.map((option) => [option.slug, option])).values());
   }, [parentCategories]);

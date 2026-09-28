@@ -1,6 +1,7 @@
 import { Apple, Bike, Coffee, Package, ShoppingBasket, Sprout, Shapes, UtensilsCrossed, Wheat, Wrench, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
+import { hideRedundantFoodRootCategories } from '@/lib/productCategories';
 
 const categoryIcons: Record<string, LucideIcon> = {
   buah: Apple,
@@ -29,7 +30,7 @@ function getCategoryIcon(slug: string, icon?: string | null) {
 
 export function ProductCategoryCards() {
   const { data: categories = [], isLoading } = useAdminCategories();
-  const parentCategories = categories.filter((category) => !category.parent_id);
+  const parentCategories = hideRedundantFoodRootCategories(categories.filter((category) => !category.parent_id));
 
   if (isLoading || parentCategories.length === 0) return null;
 

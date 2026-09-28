@@ -9,6 +9,18 @@ export interface ProductCategory {
   sort_order?: number | null;
 }
 
+export function hideRedundantFoodRootCategories(categories: ProductCategory[], hasCombinedFoodCategory = categories.some((category) => {
+  if (category.parent_id) return false;
+  const slug = category.slug.trim().toLowerCase();
+  return ['kuliner', 'makanan-minuman', 'makanan-dan-minuman'].includes(slug)
+    || /makanan\s*(?:&|dan)\s*minuman/i.test(category.name);
+})): ProductCategory[] {
+  if (!hasCombinedFoodCategory) return categories;
+  return categories.filter((category) => (
+    category.parent_id || !['makanan', 'minuman'].includes(category.slug.trim().toLowerCase())
+  ));
+}
+
 export function sortProductCategories(categories: ProductCategory[]): ProductCategory[] {
   const compare = (a: ProductCategory, b: ProductCategory) => (
     (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name, 'id')

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionCategory, getCategoryTemplate } from './categoryContracts';
-import { getShoppingCategorySlugs, type ProductCategory } from './productCategories';
+import { getShoppingCategorySlugs, hideRedundantFoodRootCategories, type ProductCategory } from './productCategories';
 
 const category = (slug: string, id = slug, parent_id: string | null = null): ProductCategory => ({
   id,
@@ -45,5 +45,31 @@ describe('category listing and workflow contracts', () => {
 
   it('keeps the catalog usable while categories are still loading', () => {
     expect(getShoppingCategorySlugs([])).toEqual(['kelontongan', 'sembako']);
+  });
+
+  it('hides duplicate food roots when a combined food category exists but keeps its subcategories', () => {
+    const categories = [
+      category('kuliner'),
+      category('makanan'),
+      category('minuman'),
+      category('makanan', 'makanan-sub', 'kuliner'),
+      category('minuman', 'minuman-sub', 'kuliner'),
+      category('pertanian'),
+    ];
+
+    expect(hideRedundantFoodRootCategories(categories).map(({ id }) => id)).toEqual([
+      'kuliner', 'makanan-sub', 'minuman-sub', 'pertanian',
+    ]);
+  });
+
+  it('keeps standalone food roots when no combined category exists', () => {
+    expect(hideRedundantFoodRootCategories([category('makanan'), category('minuman'), category('pertanian')]).map(({ slug }) => slug)).toEqual([
+      'makanan', 'minuman', 'pertanian',
+    ]);
+  });
+
+  it('recognizes a combined category by its display name', () => {
+    const combined = { ...category('menu-lokal'), name: 'Makanan & Minuman' };
+    expect(hideRedundantFoodRootCategories([combined, category('makanan'), category('minuman')]).map(({ id }) => id)).toEqual(['menu-lokal']);
   });
 });
