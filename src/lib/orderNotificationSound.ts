@@ -206,7 +206,13 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
   try {
     for (let index = 0; index < settings.repeat_count && !stopped; index += 1) {
       if (profile.preset === 'custom' && profile.custom_audio_url) {
-        await playCustomAudio(profile.custom_audio_url, profile.volume);
+        try {
+          await playCustomAudio(profile.custom_audio_url, profile.volume);
+        } catch {
+          // A remote custom file can be blocked by mobile autoplay/CORS. Keep
+          // the alarm responsive by falling back to a local Web Audio preset.
+          await playPreset('urgent', profile.volume);
+        }
       } else {
         await playPreset(profile.preset === 'custom' ? 'urgent' : profile.preset, profile.volume);
       }

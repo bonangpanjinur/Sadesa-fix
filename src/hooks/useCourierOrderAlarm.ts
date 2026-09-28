@@ -11,8 +11,9 @@ interface CourierState {
 
 /**
  * Keeps the courier alarm alive across route changes. The server only fans out
- * new work to active couriers, but the client also checks the same state before
- * making noise so an offline courier never gets an alarm from a stale event.
+ * new work to active couriers. The client follows the same user-facing online
+ * control (`is_available`) and does not depend on the legacy `status` field,
+ * which can remain INACTIVE after the toggle is changed.
  */
 export function useCourierOrderAlarm(userId: string | null | undefined) {
   const courierRef = useRef<CourierState | null>(null);
@@ -30,7 +31,6 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
     const isOnline = () => {
       const courier = courierRef.current;
       return courier?.registration_status === 'APPROVED'
-        && courier.status === 'ACTIVE'
         && courier.is_available === true;
     };
 
