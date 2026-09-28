@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { ArrowLeft, Bike, Upload, Check, AlertCircle, Tag, CheckCircle, Loader2 } from 'lucide-react';
@@ -42,6 +42,7 @@ export default function RegisterCourierPage() {
   const [referralCode, setReferralCode] = useState(() => searchParams.get('ref')?.trim().toUpperCase() || '');
   const [referralInfo, setReferralInfo] = useState<{ isValid: boolean; tradeGroup: string; isLoading: boolean }>({ isValid: false, tradeGroup: '', isLoading: false });
   const [matchedVillageId, setMatchedVillageId] = useState<string | null>(null);
+  const referralRequestRef = useRef(0);
   
   // Files
   const [ktpFile, setKtpFile] = useState<File | null>(null);
@@ -49,25 +50,36 @@ export default function RegisterCourierPage() {
   const [vehicleFile, setVehicleFile] = useState<File | null>(null);
 
   useEffect(() => {
-    async function checkEnabled() {
-      const setting = await getSettingByKey('registration_courier');
-      const enabled = (setting?.value as { enabled?: boolean })?.enabled ?? true;
-      setIsEnabled(enabled);
-    }
-    checkEnabled();
+    let active = true;
+    void getSettingByKey('registration_courier')
+      .then((setting) => {
+        if (!active) return;
+        const enabled = (setting?.value as { enabled?: boolean })?.enabled ?? true;
+        setIsEnabled(enabled);
+      })
+      .catch((error) => {
+        console.warn('Gagal memuat status pendaftaran kurir, gunakan default aktif:', error);
+        if (active) setIsEnabled(true);
+      });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
+    const requestId = ++referralRequestRef.current;
     const timer = setTimeout(async () => {
       const code = referralCode.trim().toUpperCase();
       if (!code) {
         setReferralInfo({ isValid: false, tradeGroup: '', isLoading: false });
         return;
       }
-      if (code.length < 3) return;
+      if (code.length < 3) {
+        setReferralInfo({ isValid: false, tradeGroup: '', isLoading: false });
+        return;
+      }
       setReferralInfo(prev => ({ ...prev, isLoading: true }));
       const { data, error } = await supabase.from('verifikator_codes')
         .select('trade_group, max_usage, usage_count').eq('code', code).eq('is_active', true).maybeSingle();
+      if (requestId !== referralRequestRef.current) return;
       const exhausted = !!data?.max_usage && data.usage_count >= data.max_usage;
       setReferralInfo({ isValid: !error && !!data && !exhausted, tradeGroup: data?.trade_group || '', isLoading: false });
     }, 400);
@@ -75,12 +87,14 @@ export default function RegisterCourierPage() {
   }, [referralCode]);
 
   useEffect(() => {
+    let active = true;
     const findVillage = async () => {
       if (!addressData.villageName) { setMatchedVillageId(null); return; }
       const { data } = await supabase.from('villages').select('id').eq('subdistrict', addressData.villageName).eq('is_active', true).maybeSingle();
-      setMatchedVillageId(data?.id || null);
+      if (active) setMatchedVillageId(data?.id || null);
     };
     void findVillage();
+    return () => { active = false; };
   }, [addressData.villageName]);
 
   const handleFileChange = (type: 'ktp' | 'photo' | 'vehicle', file: File | null) => {
