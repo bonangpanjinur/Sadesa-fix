@@ -254,7 +254,7 @@ function CategoryHubView({ categories, products, searchQuery, setSearchQuery, lo
     <main className="space-y-5 px-5 pt-4">
       <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari produk, toko, atau kategori" aria-label="Cari produk, toko, atau kategori" className="h-12 w-full rounded-2xl border border-[#e4eae2] bg-white pl-11 pr-4 text-sm shadow-[0_8px_22px_-18px_rgba(12,62,38,0.6)] outline-none focus:border-[#86bc79] focus:ring-4 focus:ring-[#86bc79]/15" /></div>
       {searchQuery.trim() ? <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Hasil pencarian</h2><span className="text-xs text-[#718077]">{results.length} produk</span></div>{loading ? <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#718077]">Memuat produk...</div> : results.length ? <div className="grid grid-cols-2 gap-3">{results.map((product, index) => <div key={product.id} className="relative"><ProductCard product={product} index={index} /><span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold text-[#0b7549] shadow-sm">{product.category || 'Produk'}</span></div>)}</div> : <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#718077]">Produk atau toko belum ditemukan.</div>}</section> : <>
-        <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[16px] font-extrabold">Pilih kategori</h2><span className="text-xs text-[#718077]">{categories.length} kategori</span></div><div className="grid grid-cols-2 gap-3">{categories.map((category) => <Link key={category.slug} to={`/products?type=${category.slug}`} className="group rounded-2xl border border-[#e4eae2] bg-white p-4 shadow-[0_8px_20px_-18px_rgba(12,62,38,0.7)] transition hover:-translate-y-0.5 hover:border-[#b8dcae]"><div className="flex items-center justify-between"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e8f5e3] text-2xl">{category.icon}</span><ChevronRight className="h-4 w-4 text-[#9aaa9f] transition group-hover:translate-x-0.5 group-hover:text-[#0b7549]" /></div><p className="mt-3 text-sm font-extrabold">{category.name}</p><p className="mt-1 text-[11px] text-[#718077]">{category.count} produk tersedia</p></Link>)}</div></section>
+        <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[16px] font-extrabold">Pilih kategori</h2><span className="text-xs text-[#718077]">{categories.length} kategori</span></div><div className="grid grid-cols-2 gap-3">{categories.map((category) => <Link key={category.slug} to={`/products?type=${category.slug === 'belanja' ? 'kelontongan' : category.slug}`} className="group rounded-2xl border border-[#e4eae2] bg-white p-4 shadow-[0_8px_20px_-18px_rgba(12,62,38,0.7)] transition hover:-translate-y-0.5 hover:border-[#b8dcae]"><div className="flex items-center justify-between"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e8f5e3] text-2xl">{category.icon}</span><ChevronRight className="h-4 w-4 text-[#9aaa9f] transition group-hover:translate-x-0.5 group-hover:text-[#0b7549]" /></div><p className="mt-3 text-sm font-extrabold">{category.name}</p><p className="mt-1 text-[11px] text-[#718077]">{category.count} produk tersedia</p></Link>)}</div></section>
         <section className="rounded-2xl border border-[#dcebd7] bg-gradient-to-br from-[#eff8eb] to-white p-4"><p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#0b7549]">Tips menjelajah</p><p className="mt-1 text-sm font-bold text-[#18372a]">Masuk ke kategori agar filter dan pencarian lebih relevan.</p><p className="mt-1 text-xs leading-relaxed text-[#718077]">Setiap kategori memiliki pilihan produk, toko, jarak, harga, promo, dan stok yang disesuaikan.</p></section>
       </>}
     </main><BottomNav />
@@ -280,6 +280,13 @@ export default function ProductsPage() {
     staleTime: 120_000,
   });
   const { flashSales } = useFlashSales({ limit: 6 });
+  useEffect(() => {
+    if (searchParams.get('type') !== 'belanja') return;
+    setFoodFilters((previous) => previous.type === 'belanja' ? { ...previous, type: 'kelontongan' } : previous);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set('type', 'kelontongan');
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const categoryOptions = useMemo(
     () => sortProductCategories(categories as ProductCategory[]).map((category) => ({ slug: category.slug, name: getCategoryDisplayLabel(categories as ProductCategory[], category) })),
@@ -298,7 +305,7 @@ export default function ProductsPage() {
     return sortProductCategories(all.filter((category) => !category.parent_id && foodPattern.test(`${category.slug} ${category.name}`))).slice(0, 8);
   }, [categories, foodRootCategory]);
   const shoppingRootCategory = useMemo(
-    () => (categories as ProductCategory[]).find((category) => ['belanja', 'sembako', 'kelontongan'].includes(category.slug) && !category.parent_id)
+    () => (categories as ProductCategory[]).find((category) => ['kelontongan', 'sembako', 'belanja'].includes(category.slug) && !category.parent_id)
       || (categories as ProductCategory[]).find((category) => /belanja|sembako|kelontongan/i.test(`${category.slug} ${category.name}`) && !category.parent_id),
     [categories],
   );

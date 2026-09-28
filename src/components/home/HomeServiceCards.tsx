@@ -22,7 +22,7 @@ const services = [
   },
   {
     name: 'Belanja',
-    href: '/products?type=belanja',
+    href: '/products?type=kelontongan',
     icon: ShoppingBag,
     palette: {
       icon: 'bg-[#d99a00] text-white shadow-[0_6px_14px_-6px_#d99a00]',
