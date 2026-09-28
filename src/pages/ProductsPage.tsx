@@ -12,7 +12,7 @@ import { fetchProducts } from '../lib/api';
 import { calculateDistance, useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
 import { FoodFilterSheet } from '../components/product/FoodFilterSheet';
-import { defaultFoodFilters, type FoodFilters, type FoodType } from '../components/product/foodFilters';
+import { defaultFoodFilters, getCatalogTypeFromSearchParams, type FoodFilters, type FoodType } from '../components/product/foodFilters';
 import { ProductMerchantMap } from '../components/product/ProductMerchantMap';
 import { useAdminCategories } from '../hooks/useAdminCategories';
 import {
@@ -225,7 +225,7 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
       <div className="flex gap-2"><div className="relative flex-1"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} className="h-11 w-full rounded-2xl border border-[#e4eae2] bg-white pl-11 pr-4 text-sm shadow-[0_8px_22px_-18px_rgba(12,62,38,0.6)] outline-none focus:border-[#86bc79] focus:ring-4 focus:ring-[#86bc79]/15" /></div><FoodFilterSheet filters={filters} onFiltersChange={onFiltersChange} activeFilterCount={activeFilterCount} categories={categoryOptions} title={filterTitle} description={filterDescription} showHalal={showHalal} foodOnly={filterFoodOnly} primaryCategory={{ slug: filterRoot, name: catalogTitle }} resetType={filterRoot} /></div><div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#e4eae2] bg-white px-3 py-2 text-xs text-[#637168]"><MapPin className="h-3.5 w-3.5 text-[#0b7549]" /><span>{locationLabel} dalam</span><Select value={nearbyRadius} onValueChange={(value) => onNearbyRadiusChange(value as FoodRadius)} disabled={!userLocation}><SelectTrigger className="h-7 w-[112px] border-0 bg-transparent p-0 text-xs shadow-none focus:ring-0"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua jarak</SelectItem><SelectItem value="1">1 km</SelectItem><SelectItem value="3">3 km</SelectItem><SelectItem value="5">5 km</SelectItem><SelectItem value="10">10 km</SelectItem></SelectContent></Select><button type="button" onClick={onRefreshLocation} disabled={locationLoading} className="ml-auto rounded-full px-2 py-1 font-semibold text-[#0b7549] hover:bg-[#eef6e9]">{locationLoading ? 'Memuat...' : userLocation?.source === 'gps' ? 'Lokasi GPS aktif' : 'Gunakan lokasi saya'}</button></div>{userLocation?.source !== 'gps' && <p className="-mt-3 text-[10px] text-[#8a938d]">Aktifkan lokasi untuk mengurutkan {itemLabel} dan memfilter {locationLabel} terdekat.</p>}
       {foodBanner && <FoodBanner banner={foodBanner} />}
       {flashSales[0] && <FlashSaleReminder sale={flashSales[0]} />}
-      <div className="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={`Subkategori ${catalogTitle.toLowerCase()}`}><button type="button" onClick={() => onCategoryChange('all')} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === 'all' ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border', activeType === 'all' ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}><Grid2X2 className="h-[18px] w-[18px]" /></span>Semua</button>{foodCategories.map((category) => <button key={category.id} type="button" onClick={() => onCategoryChange(category.slug)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === category.slug ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border text-lg', activeType === category.slug ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}>{category.icon || '🍽️'}</span>{category.name}</button>)}</div>
+      <div className="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={`Kategori ${catalogTitle.toLowerCase()}`}><button type="button" aria-pressed={activeType === filterRoot} onClick={() => onCategoryChange(filterRoot)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === filterRoot ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border', activeType === filterRoot ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}><Grid2X2 className="h-[18px] w-[18px]" /></span>{catalogTitle}</button>{foodCategories.map((category) => <button key={category.id} type="button" aria-pressed={activeType === category.slug} onClick={() => onCategoryChange(category.slug)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === category.slug ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border text-lg', activeType === category.slug ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}>{category.icon || '🍽️'}</span>{category.name}</button>)}</div>
       <div className="grid grid-cols-2 gap-2">
         <Select value={sortMode} onValueChange={(value) => onSortChange(value as SortMode)}><SelectTrigger className="h-9 rounded-xl text-xs"><ArrowUpDown className="mr-1.5 h-3.5 w-3.5" /><SelectValue /></SelectTrigger><SelectContent><SelectItem value="newest">Terbaru</SelectItem>{userLocation && <SelectItem value="nearest">Terdekat dari saya</SelectItem>}<SelectItem value="cheapest">Harga terendah</SelectItem><SelectItem value="expensive">Harga tertinggi</SelectItem></SelectContent></Select>
         <div className="grid grid-cols-2 rounded-xl bg-[#e9f2e5] p-1" role="tablist" aria-label={`Tampilan katalog ${catalogTitle.toLowerCase()}`}><button type="button" role="tab" aria-selected={viewMode === 'products'} onClick={() => onViewModeChange('products')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'products' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>{catalogType === 'kuliner' ? 'Menu' : 'Produk'}</button><button type="button" role="tab" aria-selected={viewMode === 'map'} onClick={() => onViewModeChange('map')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'map' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>Maps</button></div>
@@ -263,7 +263,7 @@ function CategoryHubView({ categories, products, searchQuery, setSearchQuery, lo
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialType = (searchParams.get('type') as FoodType | null) || 'all';
+  const initialType = getCatalogTypeFromSearchParams(searchParams);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ type: initialType, openNow: searchParams.get('openNow') === '1', inStockOnly: searchParams.get('inStock') === '1', promoOnly: searchParams.get('promoOnly') === '1', halalOnly: searchParams.get('halalOnly') === '1', maxPrice: Number(searchParams.get('maxPrice')) || defaultFoodFilters.maxPrice });
   const [sortMode, setSortMode] = useState<SortMode>((searchParams.get('sort') as SortMode) || 'newest');
@@ -281,11 +281,15 @@ export default function ProductsPage() {
   });
   const { flashSales } = useFlashSales({ limit: 6 });
   useEffect(() => {
-    if (searchParams.get('type') !== 'belanja') return;
-    setFoodFilters((previous) => previous.type === 'belanja' ? { ...previous, type: 'kelontongan' } : previous);
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set('type', 'kelontongan');
-    setSearchParams(nextParams, { replace: true });
+    const requestedType = searchParams.get('type');
+    const nextType = getCatalogTypeFromSearchParams(searchParams);
+    setFoodFilters((previous) => previous.type === nextType ? previous : { ...previous, type: nextType });
+
+    if (requestedType === 'belanja') {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('type', 'kelontongan');
+      setSearchParams(nextParams, { replace: true });
+    }
   }, [searchParams, setSearchParams]);
 
   const categoryOptions = useMemo(
@@ -495,7 +499,7 @@ export default function ProductsPage() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onCategoryChange={(type) => handleTypeChange(type === 'all' ? (catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja') : type)}
-        activeType={foodFilters.type === (catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja') ? 'all' : foodFilters.type}
+        activeType={selectedCategory && !selectedCategory.parent_id ? (catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja') : foodFilters.type}
         onBack={() => window.history.length > 1 ? window.history.back() : window.location.assign('/')}
         loading={loading}
         isError={isError}
