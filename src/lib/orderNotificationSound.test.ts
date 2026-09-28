@@ -32,7 +32,7 @@ describe('order notification sound settings', () => {
 
     expect(result.preset).toBe('custom');
     expect(result.custom_audio_url).toContain('alarm.mp3');
-    expect(result.merchant_enabled).toBe(false);
+    expect(result.merchant_enabled).toBe(true);
     expect(result.courier_enabled).toBe(true);
   });
 });

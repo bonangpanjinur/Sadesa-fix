@@ -80,7 +80,7 @@ export default function CourierRidesPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [courierLat, setCourierLat] = useState<number | null>(null);
   const [courierLng, setCourierLng] = useState<number | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedMap, setExpandedMap] = useState<string | null>(null);
   const [roadRoute, setRoadRoute] = useState<[number, number][]>([]);
   const [routeFallback, setRouteFallback] = useState(false);
@@ -238,12 +238,12 @@ export default function CourierRidesPage() {
 
     const hasNewRide = [...currentRideIds].some((id) => !knownRideIds.current.has(id));
     const hasNewOffer = [...currentOfferIds].some((id) => !knownOfferIds.current.has(id));
-    if ((hasNewRide || hasNewOffer) && soundEnabled) {
+    if (hasNewRide || hasNewOffer) {
       void playOrderNotificationSound('courier');
     }
     knownRideIds.current = currentRideIds;
     knownOfferIds.current = currentOfferIds;
-  }, [availableRides, deliveryOffers, deliveryOffersLoading, ridesLoading, soundEnabled]);
+  }, [availableRides, deliveryOffers, deliveryOffersLoading, ridesLoading]);
 
   const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const R = 6371;
@@ -326,15 +326,11 @@ export default function CourierRidesPage() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
 
-  const toggleSound = () => {
-    const nextEnabled = !soundEnabled;
-    setSoundEnabled(nextEnabled);
-    // This click is a user gesture. Playing once here unlocks the shared
-    // AudioContext so later realtime callbacks can ring without autoplay loss.
-    if (nextEnabled) {
-      unlockOrderNotificationAudio();
-      void playOrderNotificationSound('courier');
-    }
+  const unlockSound = () => {
+    // This is only a browser autoplay unlock. The admin-controlled system
+    // setting remains the single source of truth for whether the alarm plays.
+    unlockOrderNotificationAudio();
+    setSoundUnlocked(true);
   };
 
   const cancelActiveRide = async () => {
@@ -392,9 +388,9 @@ export default function CourierRidesPage() {
         )}
 
         <div className="flex justify-end">
-          <Button variant={soundEnabled ? 'default' : 'outline'} size="sm" onClick={toggleSound} className="min-h-11 text-xs sm:min-h-9">
+          <Button variant={soundUnlocked ? 'default' : 'outline'} size="sm" onClick={unlockSound} className="min-h-11 text-xs sm:min-h-9">
             <Volume2 className="h-3.5 w-3.5 mr-1" />
-            {soundEnabled ? 'Notifikasi On' : 'Notifikasi Off'}
+            {soundUnlocked ? 'Nada Sistem Aktif' : 'Aktifkan Nada Sistem'}
           </Button>
         </div>
 

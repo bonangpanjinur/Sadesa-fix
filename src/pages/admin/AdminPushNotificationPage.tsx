@@ -318,22 +318,24 @@ export default function AdminPushNotificationPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {([
-                ['enabled', 'Aktifkan alarm global'],
-                ['merchant_enabled', 'Alarm merchant'],
-                ['courier_enabled', 'Alarm kurir'],
-              ] as const).map(([key, label]) => (
-                <label key={key} className="flex cursor-pointer items-center gap-2 rounded-lg border bg-background p-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={soundSettings[key]}
-                    onChange={(event) => setSoundSettings((current) => ({ ...current, [key]: event.target.checked }))}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  {label}
-                </label>
-              ))}
+            <div className="rounded-lg border bg-background p-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={soundSettings.enabled}
+                  onChange={(event) => setSoundSettings((current) => ({
+                    ...current,
+                    enabled: event.target.checked,
+                    merchant_enabled: true,
+                    courier_enabled: true,
+                  }))}
+                  className="h-4 w-4 accent-primary"
+                />
+                Aktifkan nada sistem untuk semua order masuk, termasuk ojek dan kurir
+              </label>
+              <p className="mt-1 pl-6 text-xs text-muted-foreground">
+                Satu preset dan volume ini dipakai bersama oleh seluruh perangkat. Driver tetap perlu menekan “Aktifkan Nada Sistem” sekali untuk membuka izin audio browser.
+              </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

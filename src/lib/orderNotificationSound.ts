@@ -39,8 +39,10 @@ export function normalizeOrderNotificationSoundSettings(value: unknown): OrderNo
     ...DEFAULT_ORDER_SOUND_SETTINGS,
     ...input,
     enabled: input.enabled !== false,
-    merchant_enabled: input.merchant_enabled !== false,
-    courier_enabled: input.courier_enabled !== false,
+    // Kept in the shape for backwards compatibility with stored settings.
+    // The alarm is system-wide: no role may override the admin-selected tone.
+    merchant_enabled: true,
+    courier_enabled: true,
     preset: ['urgent', 'bell', 'chime', 'custom'].includes(input.preset || '')
       ? input.preset as OrderSoundPreset
       : DEFAULT_ORDER_SOUND_SETTINGS.preset,
@@ -74,7 +76,8 @@ export function clearOrderNotificationSoundSettingsCache() {
 }
 
 function isAudienceEnabled(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience) {
-  return settings.enabled && (audience === 'merchant' ? settings.merchant_enabled : settings.courier_enabled);
+  void audience;
+  return settings.enabled;
 }
 
 function getAudioContext() {
