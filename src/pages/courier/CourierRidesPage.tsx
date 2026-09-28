@@ -19,7 +19,7 @@ import { OrderChat } from '@/components/chat/OrderChat';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
 import { getRoadRoute } from '@/lib/routeCalculation';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
-import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
+import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 
 const pickupIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -87,8 +87,9 @@ export default function CourierRidesPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
   const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
-  const prevRideCount = useRef(0);
-  const prevOfferCount = useRef(0);
+  const soundBaselineReady = useRef(false);
+  const knownRideIds = useRef<Set<string>>(new Set());
+  const knownOfferIds = useRef<Set<string>>(new Set());
 
   // Fetch courier info
   const { data: courierInfo, isLoading: courierLoading } = useQuery<CourierInfo | null>({
@@ -115,7 +116,7 @@ export default function CourierRidesPage() {
 
   const courierId = courierInfo?.id ?? null;
 
-  const { data: deliveryOffers = [] } = useQuery<DeliveryOffer[]>({
+  const { data: deliveryOffers = [], isLoading: deliveryOffersLoading } = useQuery<DeliveryOffer[]>({
     queryKey: ['courier-rides-delivery-offers', courierId],
     queryFn: async () => {
       if (!courierId) return [];
@@ -221,14 +222,28 @@ export default function CourierRidesPage() {
   };
 
   useEffect(() => {
-    const hasNewRide = availableRides.length > prevRideCount.current && prevRideCount.current > 0;
-    const hasNewOffer = deliveryOffers.length > prevOfferCount.current && prevOfferCount.current > 0;
+    // Do not alarm for offers that were already waiting when the page opened.
+    // Compare IDs rather than array lengths: an accepted ride can disappear at
+    // the same time a new one arrives, leaving the count unchanged.
+    if (ridesLoading || deliveryOffersLoading) return;
+
+    const currentRideIds = new Set(availableRides.map((ride) => ride.id));
+    const currentOfferIds = new Set(deliveryOffers.map((offer) => offer.id));
+    if (!soundBaselineReady.current) {
+      knownRideIds.current = currentRideIds;
+      knownOfferIds.current = currentOfferIds;
+      soundBaselineReady.current = true;
+      return;
+    }
+
+    const hasNewRide = [...currentRideIds].some((id) => !knownRideIds.current.has(id));
+    const hasNewOffer = [...currentOfferIds].some((id) => !knownOfferIds.current.has(id));
     if ((hasNewRide || hasNewOffer) && soundEnabled) {
       void playOrderNotificationSound('courier');
     }
-    prevRideCount.current = availableRides.length;
-    prevOfferCount.current = deliveryOffers.length;
-  }, [availableRides.length, deliveryOffers.length, soundEnabled]);
+    knownRideIds.current = currentRideIds;
+    knownOfferIds.current = currentOfferIds;
+  }, [availableRides, deliveryOffers, deliveryOffersLoading, ridesLoading, soundEnabled]);
 
   const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const R = 6371;
@@ -311,6 +326,17 @@ export default function CourierRidesPage() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
 
+  const toggleSound = () => {
+    const nextEnabled = !soundEnabled;
+    setSoundEnabled(nextEnabled);
+    // This click is a user gesture. Playing once here unlocks the shared
+    // AudioContext so later realtime callbacks can ring without autoplay loss.
+    if (nextEnabled) {
+      unlockOrderNotificationAudio();
+      void playOrderNotificationSound('courier');
+    }
+  };
+
   const cancelActiveRide = async () => {
     if (!activeRide) return;
     const reason = window.prompt('Alasan membatalkan perjalanan (wajib):', 'Kendaraan bermasalah');
@@ -366,7 +392,7 @@ export default function CourierRidesPage() {
         )}
 
         <div className="flex justify-end">
-          <Button variant={soundEnabled ? 'default' : 'outline'} size="sm" onClick={() => setSoundEnabled(!soundEnabled)} className="min-h-11 text-xs sm:min-h-9">
+          <Button variant={soundEnabled ? 'default' : 'outline'} size="sm" onClick={toggleSound} className="min-h-11 text-xs sm:min-h-9">
             <Volume2 className="h-3.5 w-3.5 mr-1" />
             {soundEnabled ? 'Notifikasi On' : 'Notifikasi Off'}
           </Button>

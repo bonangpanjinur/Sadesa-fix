@@ -26,6 +26,7 @@ export const DEFAULT_ORDER_SOUND_SETTINGS: OrderNotificationSoundSettings = {
 const SETTINGS_KEY = 'order_notification_sound_settings';
 let settingsCache: { value: OrderNotificationSoundSettings; expiresAt: number } | null = null;
 let activePlayback: { stop: () => void } | null = null;
+let sharedAudioContext: AudioContext | null = null;
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number) {
   const number = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -77,8 +78,17 @@ function isAudienceEnabled(settings: OrderNotificationSoundSettings, audience: O
 }
 
 function getAudioContext() {
+  if (sharedAudioContext && sharedAudioContext.state !== 'closed') return sharedAudioContext;
   const AudioContextConstructor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  return AudioContextConstructor ? new AudioContextConstructor() : null;
+  sharedAudioContext = AudioContextConstructor ? new AudioContextConstructor() : null;
+  return sharedAudioContext;
+}
+
+/** Call from a user gesture before a realtime callback needs to play audio. */
+export function unlockOrderNotificationAudio() {
+  if (typeof window === 'undefined') return;
+  const context = getAudioContext();
+  if (context?.state === 'suspended') void context.resume().catch(() => undefined);
 }
 
 async function playPreset(preset: Exclude<OrderSoundPreset, 'custom'>, volume: number) {
@@ -111,7 +121,6 @@ async function playPreset(preset: Exclude<OrderSoundPreset, 'custom'>, volume: n
     oscillator.stop(context.currentTime + Math.min(duration, at + 0.3));
   });
 
-  window.setTimeout(() => void context.close(), (duration + 0.15) * 1000);
 }
 
 async function playCustomAudio(url: string, volume: number) {
@@ -154,9 +163,9 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   }
 }
 
-export function previewOrderNotificationSound(settings: OrderNotificationSoundSettings) {
+export function previewOrderNotificationSound(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience = 'merchant') {
   settingsCache = { value: normalizeOrderNotificationSoundSettings(settings), expiresAt: Date.now() + 60_000 };
-  return playOrderNotificationSound('merchant');
+  return playOrderNotificationSound(audience);
 }
 
 export const ORDER_SOUND_SETTINGS_KEY = SETTINGS_KEY;
