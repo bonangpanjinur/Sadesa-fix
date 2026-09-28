@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { 
   Store, Phone, MapPin, CheckCircle,
-  Tag, Building, AlertCircle, Check, Loader2, Save, Trash2
+  Tag, Building, AlertCircle, Check, Loader2, Save, Trash2, ChevronDown, X
 } from 'lucide-react';
 import { PageHeader } from '../components/layout/PageHeader';
 import { BottomNav } from '../components/layout/BottomNav';
@@ -28,6 +28,7 @@ import { AddressDropdowns } from '../components/admin/AddressDropdowns';
 import { HalalRegistrationInfo } from '../components/merchant/HalalRegistrationInfo';
 import { merchantSchema } from '@/lib/commerceSchemas';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
+import { getCategoryChildren, getCategoryDisplayLabel, sortProductCategories, type ProductCategory } from '@/lib/productCategories';
 
 type MerchantFormData = z.infer<typeof merchantSchema>;
 
@@ -83,8 +84,19 @@ export default function RegisterMerchantPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState<string[]>([]);
   const [weeklySchedule, setWeeklySchedule] = useState<WeeklySchedule>(createDefaultSchedule);
   const { data: categoryOptions = [], isLoading: categoryLoading } = useAdminCategories();
+  const rootCategories = useMemo(() => {
+    const categoryIds = new Set(categoryOptions.map((category) => category.id));
+    return sortProductCategories(categoryOptions.filter((category) => (
+      !category.parent_id || !categoryIds.has(category.parent_id)
+    )));
+  }, [categoryOptions]);
+  const selectedCategories = useMemo(
+    () => selectedCategoryIds.map((id) => categoryOptions.find((category) => category.id === id)).filter((category): category is ProductCategory => Boolean(category)),
+    [categoryOptions, selectedCategoryIds],
+  );
   const draftRestoredRef = useRef(false);
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const referralValidationRequestRef = useRef(0);
@@ -125,6 +137,63 @@ export default function RegisterMerchantPage() {
       closeTime: '21:00',
     },
   });
+
+  function updateCategorySelection(nextIds: string[]) {
+    const uniqueIds = [...new Set(nextIds)];
+    setSelectedCategoryIds(uniqueIds);
+    const primary = categoryOptions.find((category) => category.id === uniqueIds[0]);
+    setValue('businessCategory', primary?.slug || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+  }
+
+  function toggleCategory(categoryId: string, checked: boolean) {
+    const nextIds = checked
+      ? [...new Set([...selectedCategoryIds, categoryId])]
+      : selectedCategoryIds.filter((id) => id !== categoryId);
+    updateCategorySelection(nextIds);
+  }
+
+  function toggleCategoryExpanded(categoryId: string) {
+    setExpandedCategoryIds((current) => current.includes(categoryId)
+      ? current.filter((id) => id !== categoryId)
+      : [...current, categoryId]);
+  }
+
+  function renderCategoryNode(category: ProductCategory, depth = 0): ReactNode {
+    const children = getCategoryChildren(categoryOptions, category.id);
+    const checked = selectedCategoryIds.includes(category.id);
+    const expanded = expandedCategoryIds.includes(category.id);
+    const childrenId = `merchant-category-children-${category.id}`;
+
+    return (
+      <div key={category.id} className={depth > 0 ? 'space-y-2' : ''}>
+        <div className={`flex items-center gap-1 rounded-xl border transition-colors ${checked ? 'border-primary/50 bg-primary/5' : 'border-border bg-background hover:border-primary/30'}`}>
+          <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-3 py-3">
+            <Checkbox checked={checked} onCheckedChange={(nextChecked) => toggleCategory(category.id, Boolean(nextChecked))} />
+            {category.icon && <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-lg">{category.icon}</span>}
+            <span className={`min-w-0 truncate text-sm ${depth === 0 ? 'font-semibold' : 'font-medium'}`}>{category.name}</span>
+          </label>
+          {children.length > 0 && (
+            <button
+              type="button"
+              aria-label={`${expanded ? 'Tutup' : 'Buka'} subkategori ${category.name}`}
+              aria-expanded={expanded}
+              aria-controls={childrenId}
+              onClick={() => toggleCategoryExpanded(category.id)}
+              className="mr-2 inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <span className="hidden sm:inline">{children.length} subkategori</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+        {children.length > 0 && (
+          <div id={childrenId} hidden={!expanded} className="ml-3 mt-2 space-y-2 border-l-2 border-primary/15 pl-3 sm:ml-4 sm:pl-4">
+            {children.map((child) => renderCategoryNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // === DRAFT: Save ===
   const saveDraft = useCallback(() => {
@@ -491,24 +560,37 @@ export default function RegisterMerchantPage() {
 
 
             <div className="space-y-2">
-              <Label>Kategori Usaha</Label>
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="mb-3 text-xs text-muted-foreground">Pilih satu atau lebih kategori yang sesuai dengan usaha Anda.</p>
-                {categoryLoading ? <p className="text-sm text-muted-foreground">Memuat kategori admin...</p> : categoryOptions.length === 0 ? <p className="text-sm text-muted-foreground">Kategori belum tersedia.</p> : <div className="grid gap-2 sm:grid-cols-2">
-                  {categoryOptions.map((cat) => {
-                    const checked = selectedCategoryIds.includes(cat.id);
-                    return <label key={cat.id} className="flex cursor-pointer items-center gap-3 rounded-md border bg-background px-3 py-2 transition hover:border-primary/50">
-                      <Checkbox checked={checked} onCheckedChange={(nextChecked) => {
-                        const nextIds = nextChecked ? [...new Set([...selectedCategoryIds, cat.id])] : selectedCategoryIds.filter((id) => id !== cat.id);
-                        setSelectedCategoryIds(nextIds);
-                        const primary = categoryOptions.find((option) => option.id === nextIds[0]);
-                        setValue('businessCategory', primary?.slug || '', { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                      }} />
-                      <span className="text-sm">{cat.icon ? `${cat.icon} ` : ''}{cat.name}</span>
-                    </label>;
-                  })}
+              <div className="flex items-center justify-between gap-3">
+                <Label>Kategori Usaha</Label>
+                <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{selectedCategories.length} dipilih</span>
+              </div>
+              <div className="rounded-xl border bg-muted/10 p-3 sm:p-4">
+                <p className="mb-3 text-xs leading-relaxed text-muted-foreground">Pilih kategori induk, lalu buka subkategori untuk memilih jenis usaha yang lebih spesifik. Anda dapat memilih lebih dari satu.</p>
+                {selectedCategories.length > 0 && (
+                  <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold text-foreground">Kategori terpilih</p>
+                      <button type="button" onClick={() => updateCategorySelection([])} className="text-xs font-medium text-primary hover:underline">Bersihkan</button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedCategories.map((category) => (
+                        <span key={category.id} className="inline-flex max-w-full items-center gap-1.5 rounded-full border bg-background px-2.5 py-1.5 text-xs font-medium">
+                          <span className="truncate">{getCategoryDisplayLabel(categoryOptions, category)}</span>
+                          <button type="button" aria-label={`Hapus kategori ${category.name}`} onClick={() => toggleCategory(category.id, false)} className="shrink-0 rounded-full p-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {categoryLoading ? <p className="py-4 text-center text-sm text-muted-foreground">Memuat kategori usaha...</p> : categoryOptions.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Kategori belum tersedia.</p> : rootCategories.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Struktur kategori belum tersedia.</p> : <div className="grid gap-2 sm:grid-cols-2">
+                  {rootCategories.map((category) => (
+                    <div key={category.id} className="min-w-0">
+                      {renderCategoryNode(category)}
+                    </div>
+                  ))}
                 </div>}
-                {selectedCategoryIds.length > 0 && <p className="mt-3 text-xs text-primary">{selectedCategoryIds.length} kategori dipilih</p>}
               </div>
               {errors.businessCategory && <p role="alert" className="text-xs text-destructive">{errors.businessCategory.message}</p>}
             </div>
