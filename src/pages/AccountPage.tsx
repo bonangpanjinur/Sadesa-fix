@@ -16,6 +16,7 @@ import { ProfileEditor } from '@/components/account/ProfileEditor';
 import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 import { isValidKtpNumber } from '@/lib/identityValidation';
 import { ServiceProviderRegistration } from '@/components/account/ServiceProviderRegistration';
+import { SERVICE_PROVIDER_REGISTRATION_ENABLED } from '@/lib/featureFlags';
 
 interface Profile {
   full_name: string;
@@ -348,8 +349,8 @@ export default function AccountPage() {
                 )}
               </div>
 
-              {/* Pendaftaran penyedia jasa berada di Akun karena merupakan pengajuan role akun. */}
-              {!isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && <ServiceProviderRegistration userId={user.id} openOnMount={searchParams.get('provider') === '1'} />}
+              {/* Pendaftaran penyedia jasa dapat dibuka kembali lewat feature flag. */}
+              {SERVICE_PROVIDER_REGISTRATION_ENABLED && !isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && <ServiceProviderRegistration userId={user.id} openOnMount={searchParams.get('provider') === '1'} />}
               {/* Onboarding partner untuk buyer baru */}
               {user && hasPartnerApplication === false && !hasServiceApplication && !isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && (
                 <section className="mb-6 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-accent/10 p-4">

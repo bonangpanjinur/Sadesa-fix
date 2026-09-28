@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Armchair, CarFront, ChevronRight, CircleDollarSign, FileClock, GraduationCap, Hammer, HeartPulse, Leaf, MessageCircle, Search, Send, ShieldCheck, Star, Trees, Truck, Wallet, Wrench } from 'lucide-react';
+import { SERVICE_PROVIDER_REGISTRATION_ENABLED } from '@/lib/featureFlags';
 
 const db = supabase as unknown as { from: typeof supabase.from; rpc: typeof supabase.rpc };
 const iconMap: Record<string, typeof Wrench> = { Tv: Leaf, CarFront, Hammer, Trees, Truck, Armchair, HeartPulse, GraduationCap, Wrench };
@@ -48,7 +49,7 @@ export default function ServicesPage() {
   const isMerchant = roles.includes('merchant');
   const isCourier = roles.includes('courier');
   const isServiceProvider = roles.includes('service_provider');
-  const canRegisterProvider = !isMerchant && !isCourier && !isServiceProvider && !isAdmin;
+  const canRegisterProvider = SERVICE_PROVIDER_REGISTRATION_ENABLED && !isMerchant && !isCourier && !isServiceProvider && !isAdmin;
   const [search, setSearch] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState('all');
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
