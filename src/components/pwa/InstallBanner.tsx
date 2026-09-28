@@ -1,20 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Download, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { usePWA } from '@/hooks/usePWA';
 import { Link, useLocation } from 'react-router-dom';
 
 const DISMISS_KEY = 'pwa-install-dismissed';
 const DISMISS_HOURS = 24;
-const PROMPT_DELAY_MS = 15000;
+const PROMPT_DELAY_MS = 45000;
 
 function isDismissedRecently(): boolean {
   try {
@@ -40,8 +32,8 @@ export function InstallBanner() {
     const isFocusedFlow = ['/products', '/cart', '/checkout', '/orders'].some((path) => location.pathname.startsWith(path));
     if (isInstalled || dismissed || location.pathname === '/install' || isFocusedFlow) return;
 
-    // Give the first screen and first meaningful interaction priority, then
-    // remind users who have not installed the PWA yet.
+    // Let visitors explore first; the reminder below is non-modal and does not
+    // block the storefront or take focus away from the current task.
     const timer = window.setTimeout(() => setOpen(true), PROMPT_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [dismissed, isInstalled, location.pathname]);
@@ -75,38 +67,41 @@ export function InstallBanner() {
 
   if (isInstalled || location.pathname === '/install') return null;
 
+  if (!open) return null;
+
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => {
-      if (!nextOpen) handleDismiss();
-      else setOpen(true);
-    }}>
-      <DialogContent className="w-[calc(100%-2rem)] rounded-2xl sm:max-w-md">
-        <DialogHeader>
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 sm:mx-0">
-            <Smartphone className="h-7 w-7 text-primary" aria-hidden="true" />
-          </div>
-          <DialogTitle className="pt-2">Install Aplikasi SaDesa</DialogTitle>
-          <DialogDescription>
-            Akses lebih cepat dari homescreen, tetap nyaman saat koneksi tidak stabil,
-            dan dapatkan pengalaman aplikasi yang lebih ringan.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-2">
-          {canInstall ? (
-            <Button onClick={handleInstall} className="w-full sm:w-auto">
-              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-              Install Sekarang
-            </Button>
-          ) : (
-            <Button asChild className="w-full sm:w-auto">
-              <Link to="/install" onClick={() => setOpen(false)}>Cara Install</Link>
-            </Button>
-          )}
-          <Button type="button" variant="ghost" onClick={handleDismiss} className="w-full sm:w-auto">
-            Nanti
+    <aside
+      aria-labelledby="install-prompt-title"
+      aria-live="polite"
+      className="fixed inset-x-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[65] mx-auto max-w-md rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_16px_40px_-18px_rgba(1,87,48,0.35)]"
+    >
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Smartphone className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 id="install-prompt-title" className="text-sm font-bold text-foreground">Install Aplikasi SaDesa</h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Akses lebih cepat dari homescreen dan tetap nyaman saat koneksi tidak stabil.
+          </p>
+        </div>
+        <Button type="button" variant="ghost" size="icon" onClick={handleDismiss} className="-mr-2 -mt-2 h-8 w-8 shrink-0" aria-label="Tutup pengingat instalasi">
+          <span aria-hidden="true">×</span>
+        </Button>
+      </div>
+      <div className="mt-3 flex gap-2">
+        {canInstall ? (
+          <Button onClick={handleInstall} className="flex-1">
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+            Install Sekarang
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        ) : (
+          <Button asChild className="flex-1">
+            <Link to="/install" onClick={() => setOpen(false)}>Cara Install</Link>
+          </Button>
+        )}
+        <Button type="button" variant="outline" onClick={handleDismiss}>Nanti</Button>
+      </div>
+    </aside>
   );
 }

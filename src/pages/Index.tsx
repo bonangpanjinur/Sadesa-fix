@@ -225,15 +225,23 @@ const Index = () => {
 
   // Beranda masih tahap validasi awal: tanpa transaksi/rating, gunakan sinyal
   // yang netral dan mudah dipahami pengguna, yaitu produk yang baru ditambahkan.
-  // fetchProducts already returns newest-first; avoid sorting the full payload
-  // again in the browser just to render the first six cards.
-  const newestProducts = useMemo(() => products.slice(0, 6), [products]);
   const promoProducts = useMemo(() => (
     products
-      .filter((product) => product.isPromo === true)
+      .filter((product) => product.isPromo === true && product.isAvailable === true)
       .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
       .slice(0, 6)
   ), [products]);
+  // Keep discovery sections complementary: products already highlighted in
+  // the promo block should not appear again immediately in the newest grid.
+  const promoSectionEnabled = enabledSectionIds.has('promo');
+  const newestProducts = useMemo(() => {
+    const highlightedProductIds = promoSectionEnabled
+      ? new Set(promoProducts.map((product) => product.id))
+      : new Set<string>();
+    return products
+      .filter((product) => product.isAvailable === true && !highlightedProductIds.has(product.id))
+      .slice(0, 6);
+  }, [products, promoProducts, promoSectionEnabled]);
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
@@ -317,7 +325,7 @@ const Index = () => {
               </div>
               <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products">Lihat promo</Link></Button>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
               {promoProducts.map((product, idx) => (
                 <ProductCard
                   key={product.id}
@@ -367,13 +375,17 @@ const Index = () => {
                   <Store className="h-5 w-5" />
                 </div>
                 <h3 className="font-heading text-sm font-extrabold text-foreground">
-                  Belum ada produk baru
+                  {products.length > 0 ? 'Belum ada produk lain yang tersedia' : 'Belum ada produk baru'}
                 </h3>
                 <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
-                  Produk dari merchant lokal akan muncul di sini setelah ditambahkan.
+                  {products.length > 0
+                    ? 'Produk terbaru mungkin sedang tampil di promo atau tokonya tutup. Jelajahi katalog untuk pilihan lain.'
+                    : 'Produk dari merchant lokal akan muncul di sini setelah ditambahkan.'}
                 </p>
                 <Button asChild size="sm" className="mt-4 rounded-full px-5">
-                  <Link to="/register/merchant">Daftar Jadi Pedagang</Link>
+                  <Link to={products.length > 0 ? '/products' : '/register/merchant'}>
+                    {products.length > 0 ? 'Lihat semua produk' : 'Daftar Jadi Pedagang'}
+                  </Link>
                 </Button>
               </div>
             )}

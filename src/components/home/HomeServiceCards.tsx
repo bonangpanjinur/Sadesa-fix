@@ -33,18 +33,26 @@ const services = [
 
 export function HomeServiceCards() {
   return (
-    <section className="mx-4" aria-label="Pilih layanan SaDesa">
-      <div className="grid grid-cols-3 gap-2">
+    <section className="mx-4" aria-labelledby="home-services-title">
+      <div className="mb-3">
+        <h2 id="home-services-title" className="font-heading text-base font-extrabold tracking-tight text-[#173d2c]">
+          Belanja dari desa, lebih dekat
+        </h2>
+        <p className="mt-1 text-xs leading-relaxed text-[#557365]">
+          Kuliner lokal, kebutuhan harian, dan ojek dalam satu tempat.
+        </p>
+      </div>
+      <div className="grid grid-cols-3 gap-2.5">
         {services.map(({ name, href, icon: Icon, palette }) => (
           <Link
             key={name}
             to={href}
-            className="group flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-1 transition duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b] active:scale-[0.98]"
+            className="group flex min-h-[5.75rem] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[#e7eee3] bg-white px-2 py-2.5 text-center shadow-[0_8px_20px_-18px_rgba(1,87,48,0.5)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a6] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b] active:scale-[0.98]"
           >
-            <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-4 ring-white ${palette.icon}`}>
-              <Icon className="h-5 w-5 stroke-[2.1] transition-transform duration-200 group-hover:scale-110" aria-hidden="true" />
+            <span className={`flex h-10 w-10 items-center justify-center rounded-[0.9rem] ${palette.icon}`}>
+              <Icon className="h-[18px] w-[18px] stroke-[2.1] transition-transform duration-200 group-hover:scale-110" aria-hidden="true" />
             </span>
-            <span className={`w-full text-center text-[10px] font-semibold leading-tight ${palette.title}`}>{name}</span>
+            <span className={`w-full text-[11px] font-bold leading-tight sm:text-xs ${palette.title}`}>{name}</span>
           </Link>
         ))}
       </div>

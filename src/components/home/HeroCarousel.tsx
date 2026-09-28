@@ -80,9 +80,15 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
 
   const currentSlide = slides[currentIndex];
   const promoCopy = (
-    <div className="max-w-[15rem] sm:max-w-md">
-      <h2 className="line-clamp-2 font-serif text-[1.35rem] font-bold leading-[0.98] tracking-[-0.025em] text-white sm:text-2xl">{currentSlide.title}</h2>
-      {currentSlide.subtitle && <p className="mt-1 line-clamp-2 text-[9px] leading-snug text-white/85 sm:text-xs">{currentSlide.subtitle}</p>}
+        <div className="max-w-[15rem] sm:max-w-md">
+          <h2 className="line-clamp-2 font-serif text-[1.35rem] font-bold leading-[0.98] tracking-[-0.025em] text-white sm:text-2xl">{currentSlide.title}</h2>
+          {currentSlide.subtitle && <p className="mt-1 line-clamp-2 text-[9px] leading-snug text-white/85 sm:text-xs">{currentSlide.subtitle}</p>}
+          {currentSlide.linkUrl && (
+            <span className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-[10px] font-bold text-[#015730] shadow-sm transition group-hover:bg-[#f1f8ec] sm:text-xs">
+              Jelajahi sekarang
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+          )}
     </div>
   );
 
@@ -146,7 +152,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             )}
             <div className="absolute inset-0 bg-gradient-to-r from-[#015730] via-[#015730]/90 to-[#0c7749]/15" />
             {currentSlide.linkUrl ? (
-              <Link to={currentSlide.linkUrl} onClick={() => onClick?.(currentSlide.id)} className="absolute inset-y-0 left-0 z-[1] flex w-[70%] items-center px-4 py-3 text-white sm:w-[64%] sm:px-6">
+              <Link to={currentSlide.linkUrl} onClick={() => onClick?.(currentSlide.id)} className="group absolute inset-y-0 left-0 z-[1] flex w-[70%] items-center px-4 py-3 text-white sm:w-[64%] sm:px-6">
                 {promoCopy}
               </Link>
             ) : (
@@ -178,7 +184,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             size="icon"
             onClick={prevSlide}
             className="absolute left-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-white/70 bg-white/85 text-emerald-800 backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
-            aria-label="Previous slide"
+            aria-label="Slide sebelumnya"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -188,7 +194,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             size="icon"
             onClick={nextSlide}
             className="absolute right-2 top-1/2 z-10 h-8 w-8 -translate-y-1/2 rounded-full border border-white/70 bg-white/85 text-emerald-800 backdrop-blur-md transition hover:bg-white focus-visible:ring-2 focus-visible:ring-white/80"
-            aria-label="Next slide"
+            aria-label="Slide berikutnya"
           >
             <ChevronRight className="h-5 w-5" />
           </Button>

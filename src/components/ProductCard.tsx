@@ -103,7 +103,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
           </span>
         ) : null}
         {showCategoryBadge && (
-          <span className={cn("text-[8px] font-medium px-1.5 py-0.5 rounded", categoryInfo.className)}>
+            <span className={cn("text-[9px] font-medium px-1.5 py-0.5 rounded", categoryInfo.className)}>
             {categoryLabel || categoryInfo.label}
           </span>
         )}
@@ -139,28 +139,28 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
         />
       </div>
       
-      <div className={cn("flex min-h-[9.25rem] flex-1 flex-col p-3", !isAvailable && "opacity-60")}>
-        <div className="mb-0.5 h-4 truncate text-[10px] text-muted-foreground">
+        <div className={cn("flex min-h-[9.25rem] flex-1 flex-col p-3", !isAvailable && "opacity-60")}>
+        <div className="mb-0.5 h-4 truncate text-[11px] text-muted-foreground">
           {product.merchantName}
         </div>
-        <h3 className="h-[2.5em] overflow-hidden font-heading text-xs font-semibold leading-snug text-card-foreground line-clamp-2">
+        <h3 className="h-[2.5em] overflow-hidden font-heading text-[13px] font-semibold leading-snug text-card-foreground line-clamp-2">
           {product.name}
         </h3>
         <div className="mt-auto flex min-h-[2.75rem] items-center justify-between">
             <div className="flex flex-col">
               {originalPrice && isAvailable && (
-                <span className="text-[9px] text-muted-foreground line-through">
+                <span className="text-[10px] text-muted-foreground line-through">
                   {formatPrice(originalPrice)}
                 </span>
               )}
               <p className={cn(
-                "font-bold text-xs",
+                "font-bold text-sm",
                 flashSale && isAvailable ? "text-destructive" : "text-primary"
               )}>
                 {formatPrice(displayPrice)}
               </p>
               {product.sold_count > 0 && (
-                <span className="text-[9px] text-muted-foreground">
+                  <span className="text-[10px] text-muted-foreground">
                   {product.sold_count >= 100 ? '100+ terjual' : `${product.sold_count} terjual`}
                 </span>
               )}
@@ -171,14 +171,14 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
               variant="default"
               size="icon"
               onClick={handleAddToCart}
-              className="h-7 w-7 rounded-lg shadow-sm"
+              className="h-8 w-8 rounded-lg shadow-sm"
               aria-label={`Tambahkan ${product.name} ke keranjang`}
             >
               <Plus className="h-3 w-3" />
             </Button>
           )}
         </div>
-        <div className="mt-2 flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+        <div className="mt-2 flex min-h-4 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
             {distanceKm != null && (
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3 w-3 text-primary" />
