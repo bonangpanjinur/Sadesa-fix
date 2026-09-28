@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { resolveNotificationLink } from '@/lib/notificationRouting';
+import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 
 interface Notification {
   id: string;
@@ -90,43 +91,72 @@ export function NotificationDropdown() {
 
     fetchNotifications();
 
-    const channelName = `notifications-${user.id}`;
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const n = payload.new as Notification;
-          setNotifications(prev => {
-            if (prev.some(item => item.id === n.id)) return prev;
-            const next = [n, ...prev].slice(0, 20);
-            setUnreadCount(next.filter(item => !item.is_read).length);
-            return next;
-          });
-        }
-      )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const updated = payload.new as Notification;
-          setNotifications(prev => {
-            const next = prev.map(n => (n.id === updated.id ? updated : n));
-            setUnreadCount(next.filter(n => !n.is_read).length);
-            return next;
-          });
-        }
-      )
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => {
-        // Chat realtime is already active for this user. Refresh notifications
-        // immediately in case the notifications channel misses its INSERT.
-        void refreshNotifications();
-      });
+    let disposed = false;
+    let retryTimer: number | undefined;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    channel.subscribe((status, error) => {
-      if (status !== 'SUBSCRIBED') {
+    const subscribe = () => {
+      if (disposed) return;
+      // Never reuse a fixed channel name. Multiple layouts can mount this
+      // component at once; Supabase closes the older channel on a collision.
+      const channelName = `notifications-${user.id}-${Math.random().toString(36).slice(2)}`;
+      channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const n = payload.new as Notification;
+            setNotifications(prev => {
+              if (prev.some(item => item.id === n.id)) return prev;
+              const next = [n, ...prev].slice(0, 20);
+              setUnreadCount(next.filter(item => !item.is_read).length);
+              return next;
+            });
+            // Ride requests are inserted by the database trigger. This is the
+            // actual event that the driver sees in the bell, so ring here too.
+            if (n.type === 'ride' || /ojek/i.test(n.title || '') || /ojek/i.test(n.message || '')) {
+              void playOrderNotificationSound('courier');
+            }
+          }
+        )
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            const updated = payload.new as Notification;
+            setNotifications(prev => {
+              const next = prev.map(n => (n.id === updated.id ? updated : n));
+              setUnreadCount(next.filter(n => !n.is_read).length);
+              return next;
+            });
+          }
+        )
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => {
+          void refreshNotifications();
+        });
+
+      channel.subscribe((status, error) => {
+        if (status === 'SUBSCRIBED') return;
         console.warn('[notifications] realtime status', { channelName, status, error: error?.message });
-      }
-    });
+        if (!disposed && (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
+          retryTimer = window.setTimeout(() => {
+            if (channel) void supabase.removeChannel(channel);
+            channel = null;
+            subscribe();
+          }, 2000);
+        }
+      });
+    };
 
-    return () => { supabase.removeChannel(channel); };
+    subscribe();
+    const unlockOnInteraction = () => unlockOrderNotificationAudio();
+    document.addEventListener('pointerdown', unlockOnInteraction, { once: true, passive: true });
+    document.addEventListener('keydown', unlockOnInteraction, { once: true });
+
+    return () => {
+      disposed = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      document.removeEventListener('pointerdown', unlockOnInteraction);
+      document.removeEventListener('keydown', unlockOnInteraction);
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, [user, refreshNotifications]);
 
   // Realtime can be delayed or unavailable on some browsers/proxies. Refresh
