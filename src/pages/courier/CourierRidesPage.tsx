@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, Volume2, MessageCircle, X, Package } from 'lucide-react';
+import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, MessageCircle, X, Package } from 'lucide-react';
 import { CourierLayout } from '@/components/courier/CourierLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -19,7 +19,6 @@ import { OrderChat } from '@/components/chat/OrderChat';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
 import { getRoadRoute } from '@/lib/routeCalculation';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
-import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 
 const pickupIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -80,16 +79,12 @@ export default function CourierRidesPage() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [courierLat, setCourierLat] = useState<number | null>(null);
   const [courierLng, setCourierLng] = useState<number | null>(null);
-  const [soundUnlocked, setSoundUnlocked] = useState(false);
   const [expandedMap, setExpandedMap] = useState<string | null>(null);
   const [roadRoute, setRoadRoute] = useState<[number, number][]>([]);
   const [routeFallback, setRouteFallback] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
   const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
-  const soundBaselineReady = useRef(false);
-  const knownRideIds = useRef<Set<string>>(new Set());
-  const knownOfferIds = useRef<Set<string>>(new Set());
 
   // Fetch courier info
   const { data: courierInfo, isLoading: courierLoading } = useQuery<CourierInfo | null>({
@@ -221,30 +216,6 @@ export default function CourierRidesPage() {
     }
   };
 
-  useEffect(() => {
-    // Do not alarm for offers that were already waiting when the page opened.
-    // Compare IDs rather than array lengths: an accepted ride can disappear at
-    // the same time a new one arrives, leaving the count unchanged.
-    if (ridesLoading || deliveryOffersLoading) return;
-
-    const currentRideIds = new Set(availableRides.map((ride) => ride.id));
-    const currentOfferIds = new Set(deliveryOffers.map((offer) => offer.id));
-    if (!soundBaselineReady.current) {
-      knownRideIds.current = currentRideIds;
-      knownOfferIds.current = currentOfferIds;
-      soundBaselineReady.current = true;
-      return;
-    }
-
-    const hasNewRide = [...currentRideIds].some((id) => !knownRideIds.current.has(id));
-    const hasNewOffer = [...currentOfferIds].some((id) => !knownOfferIds.current.has(id));
-    if (hasNewRide || hasNewOffer) {
-      void playOrderNotificationSound('courier');
-    }
-    knownRideIds.current = currentRideIds;
-    knownOfferIds.current = currentOfferIds;
-  }, [availableRides, deliveryOffers, deliveryOffersLoading, ridesLoading]);
-
   const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
     const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -326,13 +297,6 @@ export default function CourierRidesPage() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
 
-  const unlockSound = () => {
-    // This is only a browser autoplay unlock. The admin-controlled system
-    // setting remains the single source of truth for whether the alarm plays.
-    unlockOrderNotificationAudio();
-    setSoundUnlocked(true);
-  };
-
   const cancelActiveRide = async () => {
     if (!activeRide) return;
     const reason = window.prompt('Alasan membatalkan perjalanan (wajib):', 'Kendaraan bermasalah');
@@ -386,13 +350,6 @@ export default function CourierRidesPage() {
             </div>
           </Card>
         )}
-
-        <div className="flex justify-end">
-          <Button variant={soundUnlocked ? 'default' : 'outline'} size="sm" onClick={unlockSound} className="min-h-11 text-xs sm:min-h-9">
-            <Volume2 className="h-3.5 w-3.5 mr-1" />
-            {soundUnlocked ? 'Nada Sistem Aktif' : 'Aktifkan Nada Sistem'}
-          </Button>
-        </div>
 
         {activeRide && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

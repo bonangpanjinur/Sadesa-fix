@@ -1,10 +1,13 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet, MessageCircle } from 'lucide-react';
+import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet, MessageCircle, Volume2 } from 'lucide-react';
 import { CourierSidebar } from './CourierSidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useChatUnread } from '@/hooks/useChatUnread';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
+import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -20,7 +23,9 @@ const mobileNav = [
 export function CourierLayout({ children, title, subtitle }: CourierLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
   const { unreadCount: chatUnreadCount } = useChatUnread();
+  useCourierOrderAlarm(user?.id);
   const isActive = (href: string) => location.pathname === href;
 
   useEffect(() => {
@@ -85,6 +90,16 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
             <h1 className="truncate text-base font-semibold sm:text-xl">{title}</h1>
             {subtitle && <p className="hidden truncate text-xs text-muted-foreground sm:block">{subtitle}</p>}
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-10 shrink-0 gap-1.5 text-xs sm:min-h-9"
+            onClick={unlockOrderNotificationAudio}
+            aria-label="Aktifkan nada alarm pesanan"
+          >
+            <Volume2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Aktifkan Nada</span>
+          </Button>
         </header>
 
         <main className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-24 pt-4 sm:px-6 sm:pt-6 md:pb-8">

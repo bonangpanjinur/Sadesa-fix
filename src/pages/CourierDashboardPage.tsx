@@ -18,7 +18,6 @@ import {
   Camera,
   History,
   Banknote,
-  Volume2,
   PiggyBank,
   Bike,
   Star
@@ -190,19 +189,6 @@ export default function CourierDashboardPage() {
         filter: `courier_id=eq.${courier.id}`,
       }, (payload) => {
         if (payload.new && (payload.new as { status: string }).status === 'COURIER_ACCEPTED') {
-          try {
-            const ctx = new AudioContext();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.frequency.value = 880;
-            osc.type = 'sine';
-            gain.gain.value = 0.3;
-            osc.start();
-            setTimeout(() => { osc.frequency.value = 1100; }, 150);
-            setTimeout(() => { osc.stop(); ctx.close(); }, 400);
-          } catch (err) { console.warn('[courier] gagal memutar nada notifikasi:', err); }
           toast({ title: '🚀 Pesanan Baru!', description: 'Anda mendapat tugas pengiriman baru' });
           queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier.id] });
         }
