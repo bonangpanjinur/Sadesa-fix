@@ -8,6 +8,12 @@ export interface OrderNotificationSoundSettings {
   preset: OrderSoundPreset;
   custom_audio_url: string;
   volume: number;
+  merchant_preset: OrderSoundPreset;
+  merchant_custom_audio_url: string;
+  merchant_volume: number;
+  courier_preset: OrderSoundPreset;
+  courier_custom_audio_url: string;
+  courier_volume: number;
   repeat_count: number;
   repeat_gap_ms: number;
 }
@@ -19,6 +25,12 @@ export const DEFAULT_ORDER_SOUND_SETTINGS: OrderNotificationSoundSettings = {
   preset: 'urgent',
   custom_audio_url: '',
   volume: 1,
+  merchant_preset: 'urgent',
+  merchant_custom_audio_url: '',
+  merchant_volume: 1,
+  courier_preset: 'urgent',
+  courier_custom_audio_url: '',
+  courier_volume: 1,
   repeat_count: 3,
   repeat_gap_ms: 700,
 };
@@ -35,19 +47,27 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
 
 export function normalizeOrderNotificationSoundSettings(value: unknown): OrderNotificationSoundSettings {
   const input = value && typeof value === 'object' ? value as Partial<OrderNotificationSoundSettings> : {};
+  const isPreset = (candidate: unknown): candidate is OrderSoundPreset =>
+    ['urgent', 'bell', 'chime', 'custom'].includes(candidate as string);
+  const legacyPreset = isPreset(input.preset) ? input.preset : DEFAULT_ORDER_SOUND_SETTINGS.preset;
+  const legacyVolume = clampNumber(input.volume, 0, 1, DEFAULT_ORDER_SOUND_SETTINGS.volume);
   return {
     ...DEFAULT_ORDER_SOUND_SETTINGS,
     ...input,
     enabled: input.enabled !== false,
-    // Kept in the shape for backwards compatibility with stored settings.
-    // The alarm is system-wide: no role may override the admin-selected tone.
-    merchant_enabled: true,
-    courier_enabled: true,
-    preset: ['urgent', 'bell', 'chime', 'custom'].includes(input.preset || '')
-      ? input.preset as OrderSoundPreset
-      : DEFAULT_ORDER_SOUND_SETTINGS.preset,
+    merchant_enabled: input.merchant_enabled !== false,
+    courier_enabled: input.courier_enabled !== false,
+    preset: legacyPreset,
     custom_audio_url: typeof input.custom_audio_url === 'string' ? input.custom_audio_url : '',
-    volume: clampNumber(input.volume, 0, 1, DEFAULT_ORDER_SOUND_SETTINGS.volume),
+    volume: legacyVolume,
+    merchant_preset: isPreset(input.merchant_preset) ? input.merchant_preset : legacyPreset,
+    merchant_custom_audio_url: typeof input.merchant_custom_audio_url === 'string'
+      ? input.merchant_custom_audio_url : (typeof input.custom_audio_url === 'string' ? input.custom_audio_url : ''),
+    merchant_volume: clampNumber(input.merchant_volume, 0, 1, legacyVolume),
+    courier_preset: isPreset(input.courier_preset) ? input.courier_preset : legacyPreset,
+    courier_custom_audio_url: typeof input.courier_custom_audio_url === 'string'
+      ? input.courier_custom_audio_url : (typeof input.custom_audio_url === 'string' ? input.custom_audio_url : ''),
+    courier_volume: clampNumber(input.courier_volume, 0, 1, legacyVolume),
     repeat_count: Math.round(clampNumber(input.repeat_count, 1, 6, DEFAULT_ORDER_SOUND_SETTINGS.repeat_count)),
     repeat_gap_ms: Math.round(clampNumber(input.repeat_gap_ms, 250, 3000, DEFAULT_ORDER_SOUND_SETTINGS.repeat_gap_ms)),
   };
@@ -76,8 +96,13 @@ export function clearOrderNotificationSoundSettingsCache() {
 }
 
 function isAudienceEnabled(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience) {
-  void audience;
-  return settings.enabled;
+  return settings.enabled && (audience === 'merchant' ? settings.merchant_enabled : settings.courier_enabled);
+}
+
+function getAudienceProfile(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience) {
+  return audience === 'merchant'
+    ? { preset: settings.merchant_preset, customAudioUrl: settings.merchant_custom_audio_url, volume: settings.merchant_volume }
+    : { preset: settings.courier_preset, customAudioUrl: settings.courier_custom_audio_url, volume: settings.courier_volume };
 }
 
 function getAudioContext() {
@@ -142,6 +167,7 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   if (typeof window === 'undefined') return;
   const settings = await fetchOrderNotificationSoundSettings();
   if (!isAudienceEnabled(settings, audience)) return;
+  const profile = getAudienceProfile(settings, audience);
 
   activePlayback?.stop();
   let stopped = false;
@@ -150,10 +176,10 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
 
   try {
     for (let index = 0; index < settings.repeat_count && !stopped; index += 1) {
-      if (settings.preset === 'custom' && settings.custom_audio_url) {
-        await playCustomAudio(settings.custom_audio_url, settings.volume);
+      if (profile.preset === 'custom' && profile.customAudioUrl) {
+        await playCustomAudio(profile.customAudioUrl, profile.volume);
       } else {
-        await playPreset(settings.preset === 'custom' ? 'urgent' : settings.preset, settings.volume);
+        await playPreset(profile.preset === 'custom' ? 'urgent' : profile.preset, profile.volume);
       }
       if (index < settings.repeat_count - 1 && !stopped) {
         await new Promise<void>((resolve) => { timeoutId = window.setTimeout(resolve, settings.repeat_gap_ms); });

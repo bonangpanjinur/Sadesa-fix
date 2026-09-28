@@ -51,7 +51,7 @@ export default function AdminPushNotificationPage() {
   const [generating, setGenerating] = useState(false);
   const [soundSettings, setSoundSettings] = useState<OrderNotificationSoundSettings>(DEFAULT_ORDER_SOUND_SETTINGS);
   const [soundSaving, setSoundSaving] = useState(false);
-  const [soundUploading, setSoundUploading] = useState(false);
+  const [soundUploading, setSoundUploading] = useState<'merchant' | 'courier' | null>(null);
 
   // Test push state
   const [testUserId, setTestUserId] = useState('');
@@ -104,7 +104,7 @@ export default function AdminPushNotificationPage() {
     }
   };
 
-  const handleSoundUpload = async (file: File) => {
+  const handleSoundUpload = async (file: File, audience: 'merchant' | 'courier') => {
     const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Format audio harus MP3, WAV, OGG, atau M4A');
@@ -114,10 +114,10 @@ export default function AdminPushNotificationPage() {
       toast.error('Ukuran audio maksimal 5 MB');
       return;
     }
-    setSoundUploading(true);
+    setSoundUploading(audience);
     try {
       const extension = file.name.split('.').pop()?.toLowerCase() || 'mp3';
-      const path = `order-alarm-${Date.now()}.${extension}`;
+      const path = `order-alarm-${audience}-${Date.now()}.${extension}`;
       const { error } = await supabase.storage.from('notification-sounds').upload(path, file, {
         upsert: true,
         contentType: file.type,
@@ -125,12 +125,14 @@ export default function AdminPushNotificationPage() {
       });
       if (error) throw error;
       const { data } = supabase.storage.from('notification-sounds').getPublicUrl(path);
-      setSoundSettings((current) => ({ ...current, preset: 'custom', custom_audio_url: data.publicUrl }));
-      toast.success('Audio custom berhasil diunggah. Klik simpan untuk mengaktifkannya.');
+      setSoundSettings((current) => audience === 'merchant'
+        ? { ...current, merchant_preset: 'custom', merchant_custom_audio_url: data.publicUrl }
+        : { ...current, courier_preset: 'custom', courier_custom_audio_url: data.publicUrl });
+      toast.success(`Audio custom ${audience === 'merchant' ? 'merchant' : 'ojek'} berhasil diunggah. Klik simpan untuk mengaktifkannya.`);
     } catch {
       toast.error('Gagal mengunggah audio custom');
     } finally {
-      setSoundUploading(false);
+      setSoundUploading(null);
     }
   };
 
@@ -314,7 +316,7 @@ export default function AdminPushNotificationPage() {
               Alarm Pesanan Masuk
             </CardTitle>
             <CardDescription>
-              Atur suara yang diputar saat pesanan baru masuk di dashboard merchant dan kurir. Browser tetap memerlukan satu interaksi pengguna sebelum audio dapat diputar otomatis.
+              Atur alarm merchant dan ojek secara terpisah. Browser tetap memerlukan satu interaksi pengguna sebelum audio dapat diputar otomatis.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -326,45 +328,79 @@ export default function AdminPushNotificationPage() {
                   onChange={(event) => setSoundSettings((current) => ({
                     ...current,
                     enabled: event.target.checked,
-                    merchant_enabled: true,
-                    courier_enabled: true,
                   }))}
                   className="h-4 w-4 accent-primary"
                 />
-                Aktifkan nada sistem untuk semua order masuk, termasuk ojek dan kurir
+                Aktifkan sistem alarm pesanan
               </label>
-              <p className="mt-1 pl-6 text-xs text-muted-foreground">
-                Satu preset dan volume ini dipakai bersama oleh seluruh perangkat. Driver tetap perlu menekan “Aktifkan Nada Sistem” sekali untuk membuka izin audio browser.
+              <div className="mt-3 grid gap-2 pl-6 text-sm sm:grid-cols-2">
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input type="checkbox" checked={soundSettings.merchant_enabled} onChange={(event) => setSoundSettings((current) => ({ ...current, merchant_enabled: event.target.checked }))} className="h-4 w-4 accent-primary" />
+                  Alarm merchant aktif
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input type="checkbox" checked={soundSettings.courier_enabled} onChange={(event) => setSoundSettings((current) => ({ ...current, courier_enabled: event.target.checked }))} className="h-4 w-4 accent-primary" />
+                  Alarm ojek aktif
+                </label>
+              </div>
+              <p className="mt-2 pl-6 text-xs text-muted-foreground">
+                Merchant dan kurir/ojek perlu menekan “Aktifkan Nada” sekali pada perangkat masing-masing untuk membuka izin audio browser.
               </p>
             </div>
 
+            <div className="grid gap-4 lg:grid-cols-2">
+              {(['merchant', 'courier'] as const).map((audience) => {
+                const isMerchant = audience === 'merchant';
+                const presetKey = isMerchant ? 'merchant_preset' : 'courier_preset';
+                const volumeKey = isMerchant ? 'merchant_volume' : 'courier_volume';
+                const customKey = isMerchant ? 'merchant_custom_audio_url' : 'courier_custom_audio_url';
+                const label = isMerchant ? 'Merchant' : 'Ojek';
+                return (
+                  <div key={audience} className="space-y-4 rounded-lg border bg-background p-4">
+                    <div>
+                      <p className="font-semibold">Alarm {label}</p>
+                      <p className="text-xs text-muted-foreground">Nada dan volume khusus untuk {label.toLowerCase()}.</p>
+                    </div>
+                    <div>
+                      <Label htmlFor={`${audience}-sound-preset`}>Preset suara</Label>
+                      <select
+                        id={`${audience}-sound-preset`}
+                        value={soundSettings[presetKey]}
+                        onChange={(event) => setSoundSettings((current) => ({ ...current, [presetKey]: event.target.value as OrderNotificationSoundSettings['preset'] }))}
+                        className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        {Object.entries(ORDER_SOUND_PRESET_LABELS).map(([value, optionLabel]) => (
+                          <option key={value} value={value}>{optionLabel}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor={`${audience}-sound-volume`}>Volume: {Math.round(soundSettings[volumeKey] * 100)}%</Label>
+                      <input id={`${audience}-sound-volume`} type="range" min="0.1" max="1" step="0.05" value={soundSettings[volumeKey]} onChange={(event) => setSoundSettings((current) => ({ ...current, [volumeKey]: Number(event.target.value) }))} className="mt-4 w-full accent-primary" />
+                    </div>
+                    <div className="rounded-lg border border-dashed p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium">Audio custom {label}</p>
+                          <p className="text-xs text-muted-foreground">Maksimal 5 MB.</p>
+                        </div>
+                        <label className="inline-flex cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-muted">
+                          <Upload className="mr-2 h-4 w-4" />
+                          {soundUploading === audience ? 'Mengunggah...' : 'Upload'}
+                          <input type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4" className="hidden" disabled={soundUploading !== null} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleSoundUpload(file, audience); event.currentTarget.value = ''; }} />
+                        </label>
+                      </div>
+                      {soundSettings[customKey] && <p className="mt-2 truncate text-xs text-muted-foreground">Audio aktif: {soundSettings[customKey]}</p>}
+                    </div>
+                    <Button variant="outline" onClick={() => void previewOrderNotificationSound(soundSettings, audience)}>
+                      <Volume2 className="mr-2 h-4 w-4" /> Preview alarm {label}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="order-sound-preset">Preset suara</Label>
-                <select
-                  id="order-sound-preset"
-                  value={soundSettings.preset}
-                  onChange={(event) => setSoundSettings((current) => ({ ...current, preset: event.target.value as OrderNotificationSoundSettings['preset'] }))}
-                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  {Object.entries(ORDER_SOUND_PRESET_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="order-sound-volume">Volume: {Math.round(soundSettings.volume * 100)}%</Label>
-                <input
-                  id="order-sound-volume"
-                  type="range"
-                  min="0.1"
-                  max="1"
-                  step="0.05"
-                  value={soundSettings.volume}
-                  onChange={(event) => setSoundSettings((current) => ({ ...current, volume: Number(event.target.value) }))}
-                  className="mt-4 w-full accent-primary"
-                />
-              </div>
               <div>
                 <Label htmlFor="order-sound-repeat">Jumlah pengulangan: {soundSettings.repeat_count}x</Label>
                 <input
@@ -393,27 +429,7 @@ export default function AdminPushNotificationPage() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-dashed bg-background p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium">Audio custom</p>
-                  <p className="text-xs text-muted-foreground">MP3, WAV, OGG, atau M4A — maksimal 5 MB.</p>
-                </div>
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition hover:bg-muted">
-                  <Upload className="mr-2 h-4 w-4" />
-                  {soundUploading ? 'Mengunggah...' : 'Upload audio'}
-                  <input type="file" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4" className="hidden" disabled={soundUploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) void handleSoundUpload(file); event.currentTarget.value = ''; }} />
-                </label>
-              </div>
-              {soundSettings.custom_audio_url && (
-                <p className="mt-2 truncate text-xs text-muted-foreground">Audio aktif: {soundSettings.custom_audio_url}</p>
-              )}
-            </div>
-
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => void previewOrderNotificationSound(soundSettings)}>
-                <Volume2 className="mr-2 h-4 w-4" /> Preview suara
-              </Button>
               <Button onClick={() => void handleSaveSoundSettings()} disabled={soundSaving || soundUploading}>
                 {soundSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Simpan alarm
