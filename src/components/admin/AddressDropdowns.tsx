@@ -163,9 +163,12 @@ export function AddressDropdowns({
           villageName,
         });
       }
-      loadDistricts(regencyCode);
     }
-  }, [regencyCode, provinceCode, provinceName, regencyName, districtCode, districtName, villageCode, villageName, regencies, onChange, loadDistricts]);
+  }, [regencyCode, provinceCode, provinceName, regencyName, districtCode, districtName, villageCode, villageName, regencies, onChange]);
+
+  useEffect(() => {
+    if (regencyCode) loadDistricts(regencyCode);
+  }, [regencyCode, loadDistricts]);
 
   useEffect(() => {
     if (districtCode && districts.length > 0) {
@@ -182,9 +185,12 @@ export function AddressDropdowns({
           villageName,
         });
       }
-      loadVillages(districtCode);
     }
-  }, [districtCode, provinceCode, provinceName, regencyCode, regencyName, districtName, villageCode, villageName, districts, onChange, loadVillages]);
+  }, [districtCode, provinceCode, provinceName, regencyCode, regencyName, districtName, villageCode, villageName, districts, onChange]);
+
+  useEffect(() => {
+    if (districtCode) loadVillages(districtCode);
+  }, [districtCode, loadVillages]);
 
   useEffect(() => {
     if (villageCode && villages.length > 0) {

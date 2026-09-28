@@ -248,6 +248,29 @@ export default function MerchantSettingsPage() {
     setFormData(prev => ({ ...prev, location_lat: location.lat, location_lng: location.lng }));
   }, []);
 
+  const handleAddressChange = useCallback((data: {
+    provinceCode: string;
+    provinceName: string;
+    regencyCode: string;
+    regencyName: string;
+    districtCode: string;
+    districtName: string;
+    villageCode: string;
+    villageName: string;
+  }) => {
+    setFormData(prev => ({
+      ...prev,
+      province_code: data.provinceCode,
+      province: data.provinceName,
+      city_code: data.regencyCode,
+      city: data.regencyName,
+      district_code: data.districtCode,
+      district: data.districtName,
+      subdistrict_code: data.villageCode,
+      subdistrict: data.villageName,
+    }));
+  }, []);
+
   const loading = guardLoading || fetchLoading;
 
   if (loading) {
@@ -384,17 +407,7 @@ export default function MerchantSettingsPage() {
                 districtName={formData.district}
                 villageCode={formData.subdistrict_code}
                 villageName={formData.subdistrict}
-                onChange={(data) => setFormData(prev => ({
-                  ...prev,
-                  province_code: data.provinceCode,
-                  province: data.provinceName,
-                  city_code: data.regencyCode,
-                  city: data.regencyName,
-                  district_code: data.districtCode,
-                  district: data.districtName,
-                  subdistrict_code: data.villageCode,
-                  subdistrict: data.villageName,
-                }))}
+                onChange={handleAddressChange}
               />
               <div className="space-y-3 border-t pt-4">
                 <div className="flex items-center gap-2">

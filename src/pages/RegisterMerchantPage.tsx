@@ -298,6 +298,24 @@ export default function RegisterMerchantPage() {
     toast.success('Draft dihapus');
   };
 
+  const handleAddressChange = useCallback((data: {
+    provinceCode: string;
+    provinceName: string;
+    regencyCode: string;
+    regencyName: string;
+    districtCode: string;
+    districtName: string;
+    villageCode: string;
+    villageName: string;
+  }) => {
+    setAddressData(data);
+    void setValue('province', data.provinceCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    void setValue('city', data.regencyCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    void setValue('district', data.districtCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    void setValue('subdistrict', data.villageCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+    void trigger(['province', 'city', 'district', 'subdistrict']);
+  }, [setValue, trigger]);
+
   // Check if selected subdistrict matches any village in our DB
   useEffect(() => {
     const checkVillageMatch = async () => {
@@ -671,16 +689,7 @@ export default function RegisterMerchantPage() {
                 districtName={addressData.districtName}
                 villageCode={addressData.villageCode}
                 villageName={addressData.villageName}
-                onChange={(data) => {
-                  setAddressData(data);
-                  void setValue('province', data.provinceCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                  void setValue('city', data.regencyCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                  void setValue('district', data.districtCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                  void setValue('subdistrict', data.villageCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
-                  
-                  // Trigger validation for these fields
-                  trigger(['province', 'city', 'district', 'subdistrict']);
-                }}
+                onChange={handleAddressChange}
               />
               <div className="grid grid-cols-2 gap-4">
                 {errors.province && <p className="text-xs text-destructive">{errors.province.message}</p>}
