@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Receipt, User } from 'lucide-react';
+import { Home, Receipt, User, Search } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +10,7 @@ import { FloatingCartButton } from './FloatingCartButton';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Beranda' },
+  { path: '/products', icon: Search, label: 'Jelajah' },
   { path: '/orders', icon: Receipt, label: 'Pesanan' },
   { path: '/account', icon: User, label: 'Akun' },
 ];

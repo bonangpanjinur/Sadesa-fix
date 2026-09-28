@@ -169,7 +169,7 @@ export function ContextualRecommendation({ products = [], sponsoredAds = [], use
           </p>
         </div>
         <Link
-          to={activeCustomContent?.linkUrl || sponsoredAd?.linkUrl || '/'}
+          to={activeCustomContent?.linkUrl || sponsoredAd?.linkUrl || '/products'}
           className="flex shrink-0 items-center gap-0.5 rounded-full bg-white/80 px-2.5 py-2 text-[9px] font-bold text-primary shadow-sm transition hover:bg-white active:scale-95"
           aria-label={activeCustomContent ? activeCustomContent.cta : content.cta}
         >

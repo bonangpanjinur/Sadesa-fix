@@ -72,7 +72,7 @@ const NotFound = () => {
           </Button>
           
           <Button asChild variant="outline" className="border-slate-200 text-slate-600 gap-2 px-8 py-6 rounded-2xl hover:bg-slate-50 transition-all">
-            <Link to="/">
+            <Link to="/products">
               <ShoppingBag size={20} />
               Lihat Produk Desa
             </Link>

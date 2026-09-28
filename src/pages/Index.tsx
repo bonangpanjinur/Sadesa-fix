@@ -315,6 +315,7 @@ const Index = () => {
               <div>
                 <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
               </div>
+              <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products">Lihat promo</Link></Button>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
               {promoProducts.map((product, idx) => (
@@ -344,6 +345,7 @@ const Index = () => {
               <div>
                 <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
               </div>
+              <Link to="/products" className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline">Lihat semua <ChevronRight className="h-3 w-3" /></Link>
             </div>
             {newestProducts.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 pb-1">
