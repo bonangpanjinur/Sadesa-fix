@@ -92,7 +92,7 @@ export function OrderAlarmSettingsControl({ audience }: OrderAlarmSettingsContro
         <span className="hidden sm:inline">Alarm {label}</span>
       </Button>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-1rem)] max-h-[90dvh] max-w-md overflow-y-auto p-4 sm:w-full sm:p-6">
           <DialogHeader>
             <DialogTitle>Pengaturan Alarm {label}</DialogTitle>
             <DialogDescription>
@@ -121,15 +121,15 @@ export function OrderAlarmSettingsControl({ audience }: OrderAlarmSettingsContro
               <p className="text-xs text-muted-foreground">{hasOverride ? 'Override lokal aktif. Perubahan global admin tidak mengganti pengaturan perangkat ini.' : 'Belum ada override lokal. Nilai ini masih mengikuti pengaturan global admin.'}</p>
             </div>
           )}
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button variant="ghost" onClick={() => void handleReset()} disabled={loading || !hasOverride}>
+          <DialogFooter className="gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Button className="w-full sm:w-auto" variant="ghost" onClick={() => void handleReset()} disabled={loading || !hasOverride}>
               <RotateCcw className="mr-2 h-4 w-4" /> Ikuti Global
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handlePreview} disabled={loading || !profile || !globalSettings}>
+            <div className="flex w-full gap-2 sm:w-auto">
+              <Button className="min-w-0 flex-1 sm:flex-none" variant="outline" onClick={handlePreview} disabled={loading || !profile || !globalSettings}>
                 <Volume2 className="mr-2 h-4 w-4" /> Preview
               </Button>
-              <Button onClick={handleSave} disabled={loading || saving || !profile}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
+              <Button className="min-w-0 flex-1 sm:flex-none" onClick={handleSave} disabled={loading || saving || !profile}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
             </div>
           </DialogFooter>
         </DialogContent>

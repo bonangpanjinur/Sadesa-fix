@@ -47,17 +47,17 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Header (Fixed) */}
-        <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-8">
-          <div className="flex items-center gap-3">
+        <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:p-4 lg:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
             </Button>
-            <div>
+            <div className="min-w-0">
               <h1 className="font-semibold lg:text-xl truncate">{title}</h1>
               {subtitle && <p className="hidden lg:block text-muted-foreground text-xs">{subtitle}</p>}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {actions}
             <Button
               variant="outline"
