@@ -323,7 +323,7 @@ const Index = () => {
               <div>
                 <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
               </div>
-              <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products">Lihat promo</Link></Button>
+              <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products?promoOnly=1">Lihat promo</Link></Button>
             </div>
             <div className="mt-3 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
               {promoProducts.map((product, idx) => (

@@ -263,6 +263,7 @@ function CategoryHubView({ categories, products, searchQuery, setSearchQuery, lo
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const promoOnly = searchParams.get('promoOnly') === '1';
   const initialType = getCatalogTypeFromSearchParams(searchParams);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ type: initialType, openNow: searchParams.get('openNow') === '1', inStockOnly: searchParams.get('inStock') === '1', promoOnly: searchParams.get('promoOnly') === '1', halalOnly: searchParams.get('halalOnly') === '1', maxPrice: Number(searchParams.get('maxPrice')) || defaultFoodFilters.maxPrice });
@@ -457,7 +458,7 @@ export default function ProductsPage() {
     }));
   }, [topCategoryOptions, products, categories]);
 
-  if (!searchParams.get('type') || searchParams.get('type') === 'all') {
+  if (!promoOnly && (!searchParams.get('type') || searchParams.get('type') === 'all')) {
     return <CategoryHubView categories={hubCategories} products={products} searchQuery={searchQuery} setSearchQuery={setSearchQuery} loading={loading} />;
   }
 
@@ -544,8 +545,8 @@ export default function ProductsPage() {
         <div className="mb-3 flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><PackageOpen className="h-5 w-5" /></div>
           <div>
-            <h1 className="font-heading text-lg font-extrabold text-foreground">{catalogProfile.title}</h1>
-            <p className="text-xs text-muted-foreground">{catalogProfile.description}</p>
+            <h1 className="font-heading text-lg font-extrabold text-foreground">{promoOnly ? 'Kumpulan promo' : catalogProfile.title}</h1>
+            <p className="text-xs text-muted-foreground">{promoOnly ? 'Temukan semua produk yang sedang menawarkan harga spesial.' : catalogProfile.description}</p>
           </div>
         </div>
 
@@ -650,7 +651,7 @@ export default function ProductsPage() {
 
       <div className="flex-1 overflow-y-auto pb-24">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-5 py-4">
-          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat katalog...' : viewMode === 'map' ? 'Lokasi toko merchant' : `${filteredAndSortedProducts.length} produk ditemukan`}</span><span className="text-xs text-muted-foreground">{viewMode === 'map' ? `${mapProducts.length} produk sesuai filter` : 'Produk terbaru'}</span></div>
+          <div className="mb-3 flex items-center justify-between text-sm"><span className="font-semibold text-foreground">{loading ? 'Memuat katalog...' : viewMode === 'map' ? 'Lokasi toko merchant' : promoOnly ? `${filteredAndSortedProducts.length} promo tersedia` : `${filteredAndSortedProducts.length} produk ditemukan`}</span><span className="text-xs text-muted-foreground">{viewMode === 'map' ? `${mapProducts.length} produk sesuai filter` : promoOnly ? 'Promo terbaru' : 'Produk terbaru'}</span></div>
           {loading ? (
             <div className="grid grid-cols-2 gap-3">{Array.from({ length: 6 }).map((_, index) => <ProductSkeleton key={index} />)}</div>
           ) : isError ? (
@@ -666,7 +667,7 @@ export default function ProductsPage() {
               userLocation={userLocation}
             />
           ) : filteredAndSortedProducts.length === 0 ? (
-            <div className="py-12 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div><p className="font-semibold text-foreground">Produk belum ditemukan</p><p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">Coba ganti kata kunci atau kurangi filter katalog.</p></div>
+            <div className="py-12 text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted"><PackageOpen className="h-8 w-8 text-muted-foreground" /></div><p className="font-semibold text-foreground">{promoOnly ? 'Belum ada promo aktif' : 'Produk belum ditemukan'}</p><p className="mx-auto mt-1 max-w-[260px] text-sm text-muted-foreground">{promoOnly ? 'Coba cek lagi nanti untuk menemukan penawaran spesial dari merchant sekitar.' : 'Coba ganti kata kunci atau kurangi filter katalog.'}</p></div>
           ) : (
             <div className="grid grid-cols-2 gap-3">{filteredAndSortedProducts.map((product, index) => <ProductCard key={product.id} product={product} index={index} showCategoryBadge categoryLabel={getCategoryDisplayLabel(categories as ProductCategory[], getCategoryBySlug(categories as ProductCategory[], product.category) || { id: '', name: product.category, slug: product.category, parent_id: null, icon: null })} />)}</div>
           )}
