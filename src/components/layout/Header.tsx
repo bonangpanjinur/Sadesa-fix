@@ -96,7 +96,7 @@ export function Header() {
     event.preventDefault();
     const query = searchQuery.trim();
     setSearchOpen(false);
-    navigate(query ? `/products?q=${encodeURIComponent(query)}` : '/products');
+    navigate(query ? `/search?q=${encodeURIComponent(query)}` : '/');
   };
 
   return (

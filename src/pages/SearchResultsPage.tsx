@@ -183,7 +183,7 @@ export default function SearchResultsPage() {
       {/* Header */}
       <header className="bg-card sticky top-0 z-40 shadow-sm px-4 py-3">
         <div className="flex items-center gap-3">
-          <Link to="/products" className="p-2 -ml-2 hover:bg-secondary rounded-full transition">
+          <Link to="/" className="p-2 -ml-2 hover:bg-secondary rounded-full transition">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="flex-1">

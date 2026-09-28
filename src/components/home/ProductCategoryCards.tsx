@@ -37,7 +37,6 @@ export function ProductCategoryCards() {
     <section className="mx-4 mt-4" aria-labelledby="product-categories-title">
       <div className="mb-2 flex items-center justify-between">
         <h2 id="product-categories-title" className="text-sm font-bold text-foreground">Kategori Produk</h2>
-        <Link to="/products" className="text-[10px] font-bold text-primary hover:underline">Lihat semua</Link>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
         {parentCategories.map((category) => {

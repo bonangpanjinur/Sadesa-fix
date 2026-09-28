@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useDeferredValue } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, ShoppingCart, Search, SlidersHorizontal, ArrowLeft, ChevronRight, Grid2X2, Zap } from 'lucide-react';
 import { Header } from '../components/layout/Header';
@@ -108,7 +108,7 @@ function getCatalogProfile(category?: { slug: string; name: string }, requestedS
     };
   }
   return {
-    title: 'Katalog produk',
+    title: 'Produk',
     description: 'Temukan produk lokal dari merchant sekitar.',
     placeholder: 'Cari produk atau toko',
     filterTitle: 'Filter katalog',
@@ -235,27 +235,6 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
         {promotions.length > 0 && <section className="-mx-1 overflow-hidden rounded-[1.35rem] border border-[#ffd3c5] bg-gradient-to-br from-[#fff4ed] via-[#fffaf5] to-white p-3 shadow-[0_12px_28px_-20px_rgba(205,71,27,0.65)]"><div className="mb-3 flex items-start justify-between gap-3"><div><div className="mb-1 inline-flex items-center gap-1 rounded-full bg-[#e94724] px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.08em] text-white"><span className="h-1.5 w-1.5 rounded-full bg-white" />Promo spesial</div><h2 className="text-[16px] font-extrabold text-[#7c2417]">Hemat lebih banyak hari ini</h2><p className="mt-0.5 text-[10px] text-[#9b6358]">{itemLabel[0].toUpperCase() + itemLabel.slice(1)} pilihan dengan harga spesial untukmu</p></div><button type="button" onClick={() => onFiltersChange({ ...filters, promoOnly: true })} className="mt-1 flex shrink-0 items-center gap-1 text-[11px] font-bold text-[#d43f23]">Lihat semua <ChevronRight className="h-3.5 w-3.5" /></button></div><div className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{promotions.map((product, index) => { const distanceKm = userLocation && product.locationLat != null && product.locationLng != null ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) : undefined; return <div key={product.id} className="w-[10.25rem] shrink-0"><ProductCard product={product} index={index} distanceKm={distanceKm} deliveryEta={getDeliveryEta(distanceKm)} /></div>; })}</div></section>}
         <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Rekomendasi untuk kamu</h2><button type="button" onClick={() => onCategoryChange('all')} className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat semua {itemLabel} <ChevronRight className="h-3.5 w-3.5" /></button></div>{recommendations.length ? <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{recommendations.map((product, index) => { const distanceKm = userLocation && product.locationLat != null && product.locationLng != null ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) : undefined; return <div key={product.id} className="w-[10.25rem] shrink-0"><ProductCard product={product} index={index} distanceKm={distanceKm} deliveryEta={getDeliveryEta(distanceKm)} /></div>; })}</div> : <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#7d887f]"><p>{searchQuery ? `Tidak ada ${itemLabel} untuk “${searchQuery}”${filters.openNow ? ' yang sedang buka' : ''}.` : filters.openNow ? `Tidak ada ${itemLabel} yang sedang buka.` : `Belum ada ${itemLabel} yang cocok dengan filter ini.`}</p>{hasActiveDiscoveryFilters && <button type="button" onClick={onResetFilters} className="mt-3 rounded-full bg-[#e8f5e3] px-4 py-2 text-xs font-bold text-[#0b7549]">Reset pencarian & filter</button>}</div>}</section>
         {merchants.length > 0 && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">{merchantSectionTitle}</h2><button type="button" onClick={() => onCategoryChange('all')} className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat Semua <ChevronRight className="h-3.5 w-3.5" /></button></div><div className="space-y-2.5">{merchants.map((product) => <FoodMerchantRow key={product.merchantId} product={product} userLocation={userLocation} catalogType={catalogType} />)}</div></section>}
-      </>}
-    </main><BottomNav />
-  </div>;
-}
-
-interface HubCategory {
-  slug: string;
-  name: string;
-  icon: string;
-  count: number;
-}
-
-function CategoryHubView({ categories, products, searchQuery, setSearchQuery, loading }: { categories: HubCategory[]; products: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; loading: boolean }) {
-  const results = searchQuery.trim() ? products.filter((product) => `${product.name} ${product.description} ${product.merchantName} ${product.category}`.toLowerCase().includes(searchQuery.trim().toLowerCase())).slice(0, 6) : [];
-  return <div className="mobile-shell min-h-screen bg-[#f8fbf7] pb-28 text-[#18372a]">
-    <header className="sticky top-0 z-40 border-b border-[#edf1eb] bg-white/95 px-5 py-4 backdrop-blur-xl"><h1 className="text-[20px] font-extrabold">Jelajah Produk</h1><p className="mt-1 text-xs text-[#718077]">Pilih kategori untuk menemukan produk dan toko di sekitarmu.</p></header>
-    <main className="space-y-5 px-5 pt-4">
-      <div className="relative"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Cari produk, toko, atau kategori" aria-label="Cari produk, toko, atau kategori" className="h-12 w-full rounded-2xl border border-[#e4eae2] bg-white pl-11 pr-4 text-sm shadow-[0_8px_22px_-18px_rgba(12,62,38,0.6)] outline-none focus:border-[#86bc79] focus:ring-4 focus:ring-[#86bc79]/15" /></div>
-      {searchQuery.trim() ? <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Hasil pencarian</h2><span className="text-xs text-[#718077]">{results.length} produk</span></div>{loading ? <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#718077]">Memuat produk...</div> : results.length ? <div className="grid grid-cols-2 gap-3">{results.map((product, index) => <div key={product.id} className="relative"><ProductCard product={product} index={index} /><span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold text-[#0b7549] shadow-sm">{product.category || 'Produk'}</span></div>)}</div> : <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#718077]">Produk atau toko belum ditemukan.</div>}</section> : <>
-        <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[16px] font-extrabold">Pilih kategori</h2><span className="text-xs text-[#718077]">{categories.length} kategori</span></div><div className="grid grid-cols-2 gap-3">{categories.map((category) => <Link key={category.slug} to={`/products?type=${category.slug}`} className="group rounded-2xl border border-[#e4eae2] bg-white p-4 shadow-[0_8px_20px_-18px_rgba(12,62,38,0.7)] transition hover:-translate-y-0.5 hover:border-[#b8dcae]"><div className="flex items-center justify-between"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e8f5e3] text-2xl">{category.icon}</span><ChevronRight className="h-4 w-4 text-[#9aaa9f] transition group-hover:translate-x-0.5 group-hover:text-[#0b7549]" /></div><p className="mt-3 text-sm font-extrabold">{category.name}</p><p className="mt-1 text-[11px] text-[#718077]">{category.count} produk tersedia</p></Link>)}</div></section>
-        <section className="rounded-2xl border border-[#dcebd7] bg-gradient-to-br from-[#eff8eb] to-white p-4"><p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#0b7549]">Tips menjelajah</p><p className="mt-1 text-sm font-bold text-[#18372a]">Masuk ke kategori agar filter dan pencarian lebih relevan.</p><p className="mt-1 text-xs leading-relaxed text-[#718077]">Setiap kategori memiliki pilihan produk, toko, jarak, harga, promo, dan stok yang disesuaikan.</p></section>
       </>}
     </main><BottomNav />
   </div>;
@@ -438,18 +417,9 @@ export default function ProductsPage() {
     ));
   }, [filteredAndSortedProducts, mapRadius, userLocation]);
 
-  const hubCategories = useMemo<HubCategory[]>(() => {
-    const iconBySlug: Record<string, string> = { kuliner: '🍲', belanja: '🛒', pertanian: '🌱', sembako: '🛍️', kelontongan: '📦', sayuran: '🥬', buah: '🍎', elektronik: '🔌' };
-    return topCategoryOptions.filter((category) => category.slug !== 'all').map((category) => ({
-      slug: category.slug,
-      name: category.name,
-      icon: iconBySlug[category.slug] || '🧺',
-      count: products.filter((product) => matchesFoodType(product, category.slug, categories as ProductCategory[])).length,
-    }));
-  }, [topCategoryOptions, products, categories]);
-
   if (!searchParams.get('type') || searchParams.get('type') === 'all') {
-    return <CategoryHubView categories={hubCategories} products={products} searchQuery={searchQuery} setSearchQuery={setSearchQuery} loading={loading} />;
+    const query = searchParams.get('q');
+    return <Navigate to={query ? `/search?q=${encodeURIComponent(query)}` : '/'} replace />;
   }
 
   const handleTypeChange = (type: FoodType) => {

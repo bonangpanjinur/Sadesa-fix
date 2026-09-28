@@ -52,7 +52,7 @@ export function QuotaBlockedAlert({ blockedMerchants, onRemoveMerchantItems }: Q
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate('/products')}
+            onClick={() => navigate('/')}
             className="w-full"
           >
             <ShoppingBag className="h-4 w-4 mr-2" />
