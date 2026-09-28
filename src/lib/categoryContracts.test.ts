@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { canTransitionCategory, getCategoryTemplate } from './categoryContracts';
-import { getShoppingCategorySlugs, hideRedundantFoodRootCategories, type ProductCategory } from './productCategories';
+import { getCategoryAncestors, getCategoryBySlug, getFoodCategoryNavigationCategories, getShoppingCategorySlugs, hideRedundantFoodRootCategories, type ProductCategory } from './productCategories';
 
 const category = (slug: string, id = slug, parent_id: string | null = null): ProductCategory => ({
   id,
@@ -71,5 +71,27 @@ describe('category listing and workflow contracts', () => {
   it('recognizes a combined category by its display name', () => {
     const combined = { ...category('menu-lokal'), name: 'Makanan & Minuman' };
     expect(hideRedundantFoodRootCategories([combined, category('makanan'), category('minuman')]).map(({ id }) => id)).toEqual(['menu-lokal']);
+  });
+
+  it('shows Makanan and Minuman under a combined Kuliner root, then shows each selected category children', () => {
+    const categories = [
+      category('kuliner'),
+      category('makanan', 'makanan', 'kuliner'),
+      category('minuman', 'minuman', 'kuliner'),
+      category('nasi-dan-mi', 'nasi-dan-mi', 'makanan'),
+      category('kopi', 'kopi', 'minuman'),
+    ];
+    const foodCategory = getCategoryBySlug(categories, 'makanan');
+    const riceCategory = getCategoryBySlug(categories, 'nasi-dan-mi');
+
+    expect(getFoodCategoryNavigationCategories(categories, null).map(({ slug }) => slug)).toEqual(['makanan', 'minuman']);
+    expect(getFoodCategoryNavigationCategories(categories, foodCategory).map(({ slug }) => slug)).toEqual(['nasi-dan-mi']);
+    expect(getFoodCategoryNavigationCategories(categories, riceCategory)).toEqual([]);
+    expect(getCategoryAncestors(categories, riceCategory).map(({ slug }) => slug)).toEqual(['kuliner', 'makanan', 'nasi-dan-mi']);
+  });
+
+  it('shows standalone Makanan and Minuman roots when no combined root exists', () => {
+    const categories = [category('makanan'), category('minuman')];
+    expect(getFoodCategoryNavigationCategories(categories, null).map(({ slug }) => slug)).toEqual(['makanan', 'minuman']);
   });
 });

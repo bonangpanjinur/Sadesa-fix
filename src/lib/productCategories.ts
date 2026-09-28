@@ -9,22 +9,26 @@ export interface ProductCategory {
   sort_order?: number | null;
 }
 
-export function hideRedundantFoodRootCategories(categories: ProductCategory[], hasCombinedFoodCategory = categories.some((category) => {
-  if (category.parent_id) return false;
+export function isCombinedFoodCategory(category: ProductCategory): boolean {
   const slug = category.slug.trim().toLowerCase();
   return ['kuliner', 'makanan-minuman', 'makanan-dan-minuman'].includes(slug)
     || /makanan\s*(?:&|dan)\s*minuman/i.test(category.name);
-})): ProductCategory[] {
+}
+
+export function hideRedundantFoodRootCategories(categories: ProductCategory[], hasCombinedFoodCategory = categories.some((category) => (
+  !category.parent_id && isCombinedFoodCategory(category)
+))): ProductCategory[] {
   if (!hasCombinedFoodCategory) return categories;
   return categories.filter((category) => (
     category.parent_id || !['makanan', 'minuman'].includes(category.slug.trim().toLowerCase())
   ));
 }
 
+const compareProductCategories = (a: ProductCategory, b: ProductCategory) => (
+  (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name, 'id')
+);
+
 export function sortProductCategories(categories: ProductCategory[]): ProductCategory[] {
-  const compare = (a: ProductCategory, b: ProductCategory) => (
-    (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name, 'id')
-  );
   const byParent = new Map<string | null, ProductCategory[]>();
   categories.forEach((category) => {
     const items = byParent.get(category.parent_id) || [];
@@ -34,7 +38,7 @@ export function sortProductCategories(categories: ProductCategory[]): ProductCat
 
   const result: ProductCategory[] = [];
   const append = (parentId: string | null) => {
-    const children = [...(byParent.get(parentId) || [])].sort(compare);
+    const children = [...(byParent.get(parentId) || [])].sort(compareProductCategories);
     children.forEach((category) => {
       result.push(category);
       append(category.id);
@@ -50,7 +54,38 @@ export function getCategoryBySlug(categories: ProductCategory[], slug: string | 
 
 export function getCategoryChildren(categories: ProductCategory[], parentId: string | null | undefined) {
   if (!parentId) return [];
-  return sortProductCategories(categories.filter((category) => category.parent_id === parentId));
+  return categories.filter((category) => category.parent_id === parentId).sort(compareProductCategories);
+}
+
+export function getCategoryAncestors(categories: ProductCategory[], category: ProductCategory | null): ProductCategory[] {
+  if (!category) return [];
+  const ancestors: ProductCategory[] = [];
+  const visited = new Set<string>();
+  let current: ProductCategory | undefined = category;
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    ancestors.unshift(current);
+    current = current.parent_id ? categories.find((item) => item.id === current?.parent_id) : undefined;
+  }
+  return ancestors;
+}
+
+export function getFoodCategoryNavigationCategories(categories: ProductCategory[], selectedCategory: ProductCategory | null): ProductCategory[] {
+  if (selectedCategory) return getCategoryChildren(categories, selectedCategory.id);
+
+  const combinedRoot = categories.find((category) => !category.parent_id && isCombinedFoodCategory(category));
+  const combinedChildren = combinedRoot ? getCategoryChildren(categories, combinedRoot.id) : [];
+  if (combinedChildren.length) return combinedChildren;
+
+  const foodRoots = categories.filter((category) => (
+    !category.parent_id && ['makanan', 'minuman'].includes(category.slug.trim().toLowerCase())
+  ));
+  if (foodRoots.length) return sortProductCategories(foodRoots);
+
+  const foodPattern = /makanan|minuman|kuliner|nasi|mi|mie|kopi|teh|camil|jajan|snack|roti|soto|bakso|ayam|seafood/i;
+  return sortProductCategories(categories.filter((category) => (
+    !category.parent_id && foodPattern.test(`${category.slug} ${category.name}`)
+  ))).slice(0, 8);
 }
 
 export function getCategoryParent(categories: ProductCategory[], category: ProductCategory | null) {

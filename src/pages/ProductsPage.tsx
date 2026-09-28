@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import type { Product } from '../types';
-import { getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, getShoppingCategorySlugs, hideRedundantFoodRootCategories, sortProductCategories, type ProductCategory } from '../lib/productCategories';
+import { getCategoryAncestors, getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, getFoodCategoryNavigationCategories, getShoppingCategorySlugs, hideRedundantFoodRootCategories, isCombinedFoodCategory, sortProductCategories, type ProductCategory } from '../lib/productCategories';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { WishlistButton } from '../components/WishlistButton';
 import { useCart } from '../contexts/CartContext';
@@ -296,18 +296,6 @@ export default function ProductsPage() {
     () => sortProductCategories(categories as ProductCategory[]).map((category) => ({ slug: category.slug, name: getCategoryDisplayLabel(categories as ProductCategory[], category) })),
     [categories],
   );
-  const foodRootCategory = useMemo(
-    () => (categories as ProductCategory[]).find((category) => ['kuliner', 'makanan', 'minuman'].includes(category.slug) && !category.parent_id)
-      || (categories as ProductCategory[]).find((category) => /makanan|minuman|kuliner/i.test(category.name) && !category.parent_id),
-    [categories],
-  );
-  const foodCategories = useMemo(() => {
-    const all = categories as ProductCategory[];
-    const children = foodRootCategory ? getCategoryChildren(all, foodRootCategory.id) : [];
-    if (children.length) return children;
-    const foodPattern = /makanan|minuman|kuliner|nasi|mi|mie|kopi|teh|camil|jajan|snack|roti|soto|bakso|ayam|seafood/i;
-    return sortProductCategories(all.filter((category) => !category.parent_id && foodPattern.test(`${category.slug} ${category.name}`))).slice(0, 8);
-  }, [categories, foodRootCategory]);
   const shoppingRootCategory = useMemo(
     () => (categories as ProductCategory[]).find((category) => ['kelontongan', 'sembako', 'belanja'].includes(category.slug) && !category.parent_id)
       || (categories as ProductCategory[]).find((category) => /belanja|sembako|kelontongan/i.test(`${category.slug} ${category.name}`) && !category.parent_id),
@@ -352,6 +340,16 @@ export default function ProductsPage() {
     () => categories.find((category) => category.slug === foodFilters.type),
     [categories, foodFilters.type],
   );
+  const foodCategories = useMemo(() => {
+    const all = categories as ProductCategory[];
+    const currentPath = selectedCategory
+      ? getCategoryAncestors(all, selectedCategory).filter((category) => !isCombinedFoodCategory(category))
+      : [];
+    return [
+      ...currentPath,
+      ...getFoodCategoryNavigationCategories(all, selectedCategory || null),
+    ];
+  }, [categories, selectedCategory]);
   const profileCategory = useMemo(
     () => getCategoryParent(categories as ProductCategory[], selectedCategory || null) || selectedCategory,
     [categories, selectedCategory],
@@ -499,7 +497,9 @@ export default function ProductsPage() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onCategoryChange={(type) => handleTypeChange(type === 'all' ? (catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja') : type)}
-        activeType={selectedCategory && !selectedCategory.parent_id ? (catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja') : foodFilters.type}
+        activeType={catalogProfile.isFood
+          ? selectedCategory && !selectedCategory.parent_id && isCombinedFoodCategory(selectedCategory) ? 'kuliner' : foodFilters.type
+          : selectedCategory && !selectedCategory.parent_id ? (catalogProfile.isAgriculture ? 'pertanian' : 'belanja') : foodFilters.type}
         onBack={() => window.history.length > 1 ? window.history.back() : window.location.assign('/')}
         loading={loading}
         isError={isError}
