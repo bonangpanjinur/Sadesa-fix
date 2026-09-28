@@ -92,44 +92,46 @@ export function OrderAlarmSettingsControl({ audience }: OrderAlarmSettingsContro
         <span className="hidden sm:inline">Alarm {label}</span>
       </Button>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-[calc(100vw-1rem)] max-h-[90dvh] max-w-md overflow-y-auto p-4 sm:w-full sm:p-6">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-2rem)] sm:w-full">
+          <DialogHeader className="shrink-0 px-4 pb-3 pt-5 pr-12 text-left sm:px-6 sm:pb-4 sm:pt-6 sm:pr-12">
             <DialogTitle>Pengaturan Alarm {label}</DialogTitle>
             <DialogDescription>
               Pengaturan awal mengikuti default global admin. Perubahan di sini hanya berlaku pada perangkat {label.toLowerCase()} ini.
             </DialogDescription>
           </DialogHeader>
-          {loading || !profile ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Memuat pengaturan alarm...</div>
-          ) : (
-            <div className="space-y-5">
-              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-                <input type="checkbox" checked={profile.enabled} onChange={(event) => setProfile({ ...profile, enabled: event.target.checked })} className="h-4 w-4 accent-primary" />
-                Aktifkan alarm pesanan
-              </label>
-              <div>
-                <label htmlFor={`${audience}-local-preset`} className="text-sm font-medium">Nada dering</label>
-                <select id={`${audience}-local-preset`} value={profile.preset} onChange={(event) => setProfile({ ...profile, preset: event.target.value as OrderSoundProfile['preset'] })} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  {Object.entries(ORDER_SOUND_PRESET_LABELS).map(([value, optionLabel]) => <option key={value} value={value}>{optionLabel}</option>)}
-                </select>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            {loading || !profile ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Memuat pengaturan alarm...</div>
+            ) : (
+              <div className="space-y-5">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={profile.enabled} onChange={(event) => setProfile({ ...profile, enabled: event.target.checked })} className="h-4 w-4 accent-primary" />
+                  Aktifkan alarm pesanan
+                </label>
+                <div>
+                  <label htmlFor={`${audience}-local-preset`} className="text-sm font-medium">Nada dering</label>
+                  <select id={`${audience}-local-preset`} value={profile.preset} onChange={(event) => setProfile({ ...profile, preset: event.target.value as OrderSoundProfile['preset'] })} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    {Object.entries(ORDER_SOUND_PRESET_LABELS).map(([value, optionLabel]) => <option key={value} value={value}>{optionLabel}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor={`${audience}-local-volume`} className="text-sm font-medium">Volume: {Math.round(profile.volume * 100)}%</label>
+                  <input id={`${audience}-local-volume`} type="range" min="0.1" max="1" step="0.05" value={profile.volume} onChange={(event) => setProfile({ ...profile, volume: Number(event.target.value) })} className="mt-3 w-full accent-primary" />
+                </div>
+                {profile.custom_audio_url && <p className="truncate text-xs text-muted-foreground">Audio custom global: {profile.custom_audio_url}</p>}
+                <p className="text-xs text-muted-foreground">{hasOverride ? 'Override lokal aktif. Perubahan global admin tidak mengganti pengaturan perangkat ini.' : 'Belum ada override lokal. Nilai ini masih mengikuti pengaturan global admin.'}</p>
               </div>
-              <div>
-                <label htmlFor={`${audience}-local-volume`} className="text-sm font-medium">Volume: {Math.round(profile.volume * 100)}%</label>
-                <input id={`${audience}-local-volume`} type="range" min="0.1" max="1" step="0.05" value={profile.volume} onChange={(event) => setProfile({ ...profile, volume: Number(event.target.value) })} className="mt-3 w-full accent-primary" />
-              </div>
-              {profile.custom_audio_url && <p className="truncate text-xs text-muted-foreground">Audio custom global: {profile.custom_audio_url}</p>}
-              <p className="text-xs text-muted-foreground">{hasOverride ? 'Override lokal aktif. Perubahan global admin tidak mengganti pengaturan perangkat ini.' : 'Belum ada override lokal. Nilai ini masih mengikuti pengaturan global admin.'}</p>
-            </div>
-          )}
-          <DialogFooter className="gap-2 sm:flex-row sm:items-center sm:justify-between">
+            )}
+          </div>
+          <DialogFooter className="shrink-0 gap-2 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
             <Button className="w-full sm:w-auto" variant="ghost" onClick={() => void handleReset()} disabled={loading || !hasOverride}>
               <RotateCcw className="mr-2 h-4 w-4" /> Ikuti Global
             </Button>
             <div className="flex w-full gap-2 sm:w-auto">
-              <Button className="min-w-0 flex-1 sm:flex-none" variant="outline" onClick={handlePreview} disabled={loading || !profile || !globalSettings}>
+              <Button className="min-w-0 flex-1 whitespace-nowrap sm:flex-none" variant="outline" onClick={handlePreview} disabled={loading || !profile || !globalSettings}>
                 <Volume2 className="mr-2 h-4 w-4" /> Preview
               </Button>
-              <Button className="min-w-0 flex-1 sm:flex-none" onClick={handleSave} disabled={loading || saving || !profile}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
+              <Button className="min-w-0 flex-1 whitespace-nowrap sm:flex-none" onClick={handleSave} disabled={loading || saving || !profile}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
             </div>
           </DialogFooter>
         </DialogContent>
