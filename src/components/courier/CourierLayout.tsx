@@ -8,6 +8,7 @@ import { useChatUnread } from '@/hooks/useChatUnread';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -100,6 +101,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
             <Volume2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Aktifkan Nada</span>
           </Button>
+          <OrderAlarmSettingsControl audience="courier" />
         </header>
 
         <main className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-24 pt-4 sm:px-6 sm:pt-6 md:pb-8">

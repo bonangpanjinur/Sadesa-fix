@@ -9,6 +9,7 @@ import { MerchantCardError } from './MerchantDataState';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMerchantOrderAlarm } from '@/hooks/useMerchantOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 
 interface MerchantLayoutProps {
   children: ReactNode;
@@ -68,6 +69,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
               <Volume2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Aktifkan Nada</span>
             </Button>
+            <OrderAlarmSettingsControl audience="merchant" />
             <NotificationDropdown />
           </div>
         </div>

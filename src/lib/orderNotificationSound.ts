@@ -1,5 +1,11 @@
 export type OrderSoundAudience = 'merchant' | 'courier';
 export type OrderSoundPreset = 'urgent' | 'bell' | 'chime' | 'custom';
+export interface OrderSoundProfile {
+  enabled: boolean;
+  preset: OrderSoundPreset;
+  custom_audio_url: string;
+  volume: number;
+}
 
 export interface OrderNotificationSoundSettings {
   enabled: boolean;
@@ -36,6 +42,7 @@ export const DEFAULT_ORDER_SOUND_SETTINGS: OrderNotificationSoundSettings = {
 };
 
 const SETTINGS_KEY = 'order_notification_sound_settings';
+const LOCAL_OVERRIDE_KEY = 'order_notification_sound_override';
 let settingsCache: { value: OrderNotificationSoundSettings; expiresAt: number } | null = null;
 let activePlayback: { stop: () => void } | null = null;
 let sharedAudioContext: AudioContext | null = null;
@@ -95,14 +102,38 @@ export function clearOrderNotificationSoundSettingsCache() {
   settingsCache = null;
 }
 
-function isAudienceEnabled(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience) {
-  return settings.enabled && (audience === 'merchant' ? settings.merchant_enabled : settings.courier_enabled);
+export function getAudienceProfile(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience): OrderSoundProfile {
+  return audience === 'merchant'
+    ? { enabled: settings.merchant_enabled, preset: settings.merchant_preset, custom_audio_url: settings.merchant_custom_audio_url, volume: settings.merchant_volume }
+    : { enabled: settings.courier_enabled, preset: settings.courier_preset, custom_audio_url: settings.courier_custom_audio_url, volume: settings.courier_volume };
 }
 
-function getAudienceProfile(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience) {
-  return audience === 'merchant'
-    ? { preset: settings.merchant_preset, customAudioUrl: settings.merchant_custom_audio_url, volume: settings.merchant_volume }
-    : { preset: settings.courier_preset, customAudioUrl: settings.courier_custom_audio_url, volume: settings.courier_volume };
+function localOverrideKey(audience: OrderSoundAudience) {
+  return `${LOCAL_OVERRIDE_KEY}:${audience}`;
+}
+
+export function getOrderSoundLocalOverride(audience: OrderSoundAudience): Partial<OrderSoundProfile> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(localOverrideKey(audience));
+    return raw ? JSON.parse(raw) as Partial<OrderSoundProfile> : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveOrderSoundLocalOverride(audience: OrderSoundAudience, profile: OrderSoundProfile) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(localOverrideKey(audience), JSON.stringify(profile));
+}
+
+export function clearOrderSoundLocalOverride(audience: OrderSoundAudience) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(localOverrideKey(audience));
+}
+
+export function resolveOrderSoundProfile(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, override = getOrderSoundLocalOverride(audience)): OrderSoundProfile {
+  return { ...getAudienceProfile(settings, audience), ...(override || {}) };
 }
 
 function getAudioContext() {
@@ -163,11 +194,9 @@ async function playCustomAudio(url: string, volume: number) {
   });
 }
 
-export async function playOrderNotificationSound(audience: OrderSoundAudience) {
-  if (typeof window === 'undefined') return;
-  const settings = await fetchOrderNotificationSoundSettings();
-  if (!isAudienceEnabled(settings, audience)) return;
-  const profile = getAudienceProfile(settings, audience);
+async function playNotificationWithSettings(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, ignoreLocalOverride = false) {
+  const profile = ignoreLocalOverride ? getAudienceProfile(settings, audience) : resolveOrderSoundProfile(settings, audience);
+  if (!settings.enabled || !profile.enabled) return;
 
   activePlayback?.stop();
   let stopped = false;
@@ -176,8 +205,8 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
 
   try {
     for (let index = 0; index < settings.repeat_count && !stopped; index += 1) {
-      if (profile.preset === 'custom' && profile.customAudioUrl) {
-        await playCustomAudio(profile.customAudioUrl, profile.volume);
+      if (profile.preset === 'custom' && profile.custom_audio_url) {
+        await playCustomAudio(profile.custom_audio_url, profile.volume);
       } else {
         await playPreset(profile.preset === 'custom' ? 'urgent' : profile.preset, profile.volume);
       }
@@ -192,9 +221,14 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   }
 }
 
+export async function playOrderNotificationSound(audience: OrderSoundAudience) {
+  if (typeof window === 'undefined') return;
+  const settings = await fetchOrderNotificationSoundSettings();
+  return playNotificationWithSettings(settings, audience);
+}
+
 export function previewOrderNotificationSound(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience = 'merchant') {
-  settingsCache = { value: normalizeOrderNotificationSoundSettings(settings), expiresAt: Date.now() + 60_000 };
-  return playOrderNotificationSound(audience);
+  return playNotificationWithSettings(normalizeOrderNotificationSoundSettings(settings), audience, true);
 }
 
 export const ORDER_SOUND_SETTINGS_KEY = SETTINGS_KEY;
