@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Package, AlertTriangle, History, Download, Plus, Minus, Edit2, TrendingDown, TrendingUp, RefreshCw } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { usePOS } from '@/contexts/POSContext';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -41,6 +43,8 @@ interface StockHistoryItem {
 }
 
 export default function MerchantStockPage() {
+  const navigate = useNavigate();
+  const { posEnabled, loading: posLoading } = usePOS();
   const { merchantId, merchantName, loading: guardLoading } = useMerchantGuard();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -50,6 +54,10 @@ export default function MerchantStockPage() {
   const [adjustNote, setAdjustNote] = useState('');
   const [thresholdDialog, setThresholdDialog] = useState<Product | null>(null);
   const [thresholdValue, setThresholdValue] = useState('');
+
+  useEffect(() => {
+    if (!posLoading && posEnabled) navigate('/merchant/pos/stok', { replace: true });
+  }, [navigate, posEnabled, posLoading]);
 
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ['merchant-stock-products', merchantId],
@@ -177,11 +185,11 @@ export default function MerchantStockPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (guardLoading) {
+  if (guardLoading || posLoading || posEnabled) {
     return (
       <MerchantLayout title="Manajemen Stok" subtitle="Kelola dan pantau stok produk Anda">
         <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+          {posEnabled ? <p className="text-sm text-muted-foreground">Membuka manajemen stok POS…</p> : <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />}
         </div>
       </MerchantLayout>
     );

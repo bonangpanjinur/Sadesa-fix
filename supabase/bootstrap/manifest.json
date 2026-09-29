@@ -457,10 +457,11 @@
       "file": "55_20260929011000_nearest_courier_sequential_ride_dispatch.sql",
       "source_files": [
         "20260929011000_nearest_courier_sequential_ride_dispatch.sql",
-        "20260929123000_pos_trial_activation_hardening.sql"
+        "20260929123000_pos_trial_activation_hardening.sql",
+        "20260929130000_pos_canonical_catalog_integration.sql"
       ],
-      "sha256": "23d4791abe41c44fc0bccad630b555e1f7bc2ebad5e40e41b7b9c3722f626749",
-      "bytes": 16548
+      "sha256": "3f7a06c8814e40fe3393e49a51bb747c5cd6fe574e758bc4d5ec4f28a61116c6",
+      "bytes": 22006
     }
   ],
   "idempotent": true,

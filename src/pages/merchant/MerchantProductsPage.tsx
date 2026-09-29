@@ -145,6 +145,15 @@ export default function MerchantProductsPage() {
       };
 
       if (editingProduct) {
+        if (editingProduct.pos_linked && (
+          parsed.data.name !== editingProduct.name
+          || parsed.data.price !== editingProduct.price
+          || parsed.data.description !== (editingProduct.description || '')
+          || form.image_url !== editingProduct.image_url
+          || form.is_active !== editingProduct.is_active
+        )) {
+          throw new Error('Produk tertaut POS hanya dapat mengubah data inti dari POS');
+        }
         if (editingProduct.pos_linked && parsed.data.stock !== editingProduct.stock) {
           throw new Error('Stok produk tertaut POS hanya dapat diubah dari halaman stok POS');
         }
