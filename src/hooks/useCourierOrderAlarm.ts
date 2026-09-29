@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { playOrderNotificationSound, stopOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 
 interface CourierState {
@@ -87,8 +87,26 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
           event: 'INSERT', schema: 'public', table: 'ride_requests', filter: 'status=eq.SEARCHING',
         }, (payload) => ringIfNew('ride', String((payload.new as { id: string }).id)))
         .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'ride_requests',
+        }, (payload) => {
+          const ride = payload.new as { id: string; status?: string };
+          if (ride.status !== 'SEARCHING') {
+            knownRideIds.current?.delete(String(ride.id));
+            stopOrderNotificationSound();
+          }
+        })
+        .on('postgres_changes', {
           event: 'INSERT', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierRef.current?.id || '00000000-0000-0000-0000-000000000000'}`,
         }, (payload) => ringIfNew('offer', String((payload.new as { id: string }).id)))
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierRef.current?.id || '00000000-0000-0000-0000-000000000000'}`,
+        }, (payload) => {
+          const offer = payload.new as { id: string; status?: string };
+          if (offer.status !== 'OFFERED') {
+            knownOfferIds.current?.delete(String(offer.id));
+            stopOrderNotificationSound();
+          }
+        })
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'orders', filter: `courier_id=eq.${courierRef.current?.id || '00000000-0000-0000-0000-000000000000'}`,
         }, (payload) => {

@@ -141,6 +141,10 @@ export default function CourierRidesPage() {
   const { data: ridesData, isLoading: ridesLoading, isFetching: ridesFetching, isError: ridesError, refetch: refetchRides } = useQuery<RidesData>({
     queryKey: ['courier-rides', courierId],
     queryFn: async () => {
+      // An active courier session acts as a lightweight dispatch heartbeat.
+      // The RPC is server-authoritative and safely no-ops when another session
+      // already owns the dispatch lock; failure must not hide the local inbox.
+      await supabase.rpc('process_expired_ride_offers' as never).catch(() => undefined);
       const [{ data: available }, { data: active }] = await Promise.all([
         supabase.from('ride_requests').select('*').eq('status', 'SEARCHING').order('created_at', { ascending: false }).limit(20),
         supabase.from('ride_requests').select('*').eq('driver_id', courierId!).in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']).order('created_at', { ascending: false }).limit(1),
@@ -172,6 +176,7 @@ export default function CourierRidesPage() {
     },
     enabled: !!courierId,
     staleTime: 30_000,
+    refetchInterval: 15_000,
   });
 
   const availableRides = useMemo(() => ridesData?.availableRides ?? [], [ridesData?.availableRides]);

@@ -39,6 +39,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatDistance, calculateDistance } from '@/lib/etaCalculation';
 import { formatPrice } from '@/lib/utils';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
+import { usePushNotification } from '@/hooks/usePushNotification';
 
 interface CourierData {
   id: string;
@@ -91,6 +92,7 @@ export default function CourierDashboardPage() {
   const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
   const [releasingOrder, setReleasingOrder] = useState<string | null>(null);
   const [realtimeOnline, setRealtimeOnline] = useState(false);
+  const { isSupported: pushSupported, permission: pushPermission, subscribe: subscribeToPush } = usePushNotification();
 
   // Query: profil kurir + status registrasi
   const { data: courierQueryData, isLoading: courierLoading, isError: fetchError } = useQuery<CourierData | null>({
@@ -228,6 +230,19 @@ export default function CourierDashboardPage() {
       if (error) throw error;
 
       queryClient.setQueryData(['courier-profile', user?.id], { ...courierQueryData, is_available: checked });
+      queryClient.setQueryData(['courier-global-presence', user?.id], (current: { id: string; is_available: boolean; registration_status: string } | null | undefined) =>
+        current ? { ...current, is_available: checked } : current,
+      );
+      if (checked && pushSupported && pushPermission !== 'denied') {
+        const subscribed = await subscribeToPush();
+        if (!subscribed) {
+          toast({
+            title: 'Notifikasi latar belum aktif',
+            description: 'Izinkan notifikasi agar bunyi dan getar tetap masuk saat aplikasi tidak dibuka.',
+            variant: 'destructive',
+          });
+        }
+      }
       toast({
         title: checked ? 'Anda sekarang online' : 'Anda sekarang offline',
       });

@@ -12,9 +12,10 @@ interface CourierLocationUpdaterProps {
   onTrackingError?: () => void;
   autoStart?: boolean;
   mandatory?: boolean;
+  showPanel?: boolean;
 }
 
-export function CourierLocationUpdater({ courierId, onLocationUpdate, onTrackingError, autoStart = false, mandatory = false }: CourierLocationUpdaterProps) {
+export function CourierLocationUpdater({ courierId, onLocationUpdate, onTrackingError, autoStart = false, mandatory = false, showPanel = true }: CourierLocationUpdaterProps) {
   const [isTracking, setIsTracking] = useState(() => {
     // Restore tracking state from localStorage
     if (typeof window !== 'undefined') {
@@ -232,6 +233,8 @@ export function CourierLocationUpdater({ courierId, onLocationUpdate, onTracking
         return 'Terjadi kesalahan saat mendapatkan lokasi.';
     }
   };
+
+  if (!showPanel) return null;
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm">

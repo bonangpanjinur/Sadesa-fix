@@ -47,6 +47,12 @@ let settingsCache: { value: OrderNotificationSoundSettings; expiresAt: number } 
 let activePlayback: { stop: () => void } | null = null;
 let sharedAudioContext: AudioContext | null = null;
 
+/** Stop the active repeating alarm without changing the saved sound settings. */
+export function stopOrderNotificationSound() {
+  activePlayback?.stop();
+  activePlayback = null;
+}
+
 function clampNumber(value: unknown, min: number, max: number, fallback: number) {
   const number = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
   return Math.min(max, Math.max(min, number));
@@ -207,8 +213,9 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
 
   activePlayback?.stop();
   let stopped = false;
-  let timeoutId: number | undefined;
-  activePlayback = { stop: () => { stopped = true; if (timeoutId) window.clearTimeout(timeoutId); } };
+  // Leave the pending delay alive so it resolves and the loop can exit. If it
+  // is cleared, the promise remains pending and the alarm cannot be restarted.
+  activePlayback = { stop: () => { stopped = true; } };
 
   try {
     for (let index = 0; index < settings.repeat_count && !stopped; index += 1) {
@@ -224,7 +231,7 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
         await playPreset(profile.preset === 'custom' ? 'urgent' : profile.preset, profile.volume);
       }
       if (index < settings.repeat_count - 1 && !stopped) {
-        await new Promise<void>((resolve) => { timeoutId = window.setTimeout(resolve, settings.repeat_gap_ms); });
+        await new Promise<void>((resolve) => { window.setTimeout(resolve, settings.repeat_gap_ms); });
       }
     }
   } catch {

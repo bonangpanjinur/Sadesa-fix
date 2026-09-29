@@ -1,6 +1,6 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 319,
+  "migration_count": 320,
   "bundle_count": 20,
   "bundles": [
     {
@@ -458,10 +458,11 @@
       "source_files": [
         "20260929011000_nearest_courier_sequential_ride_dispatch.sql",
         "20260929123000_pos_trial_activation_hardening.sql",
-        "20260929130000_pos_canonical_catalog_integration.sql"
+        "20260929130000_pos_canonical_catalog_integration.sql",
+        "20260929133000_courier_delivery_offer_push.sql"
       ],
-      "sha256": "3f7a06c8814e40fe3393e49a51bb747c5cd6fe574e758bc4d5ec4f28a61116c6",
-      "bytes": 22006
+      "sha256": "51f829ac5ff4ef09a25c9f4d23f54e7f0e801846434557741bdd3254c39f83c9",
+      "bytes": 24370
     }
   ],
   "idempotent": true,

@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet, MessageCircle, Volume2 } from 'lucide-react';
 import { CourierSidebar } from './CourierSidebar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,8 @@ import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
+import { supabase } from '@/integrations/supabase/client';
+import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -28,6 +31,21 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
   const { user } = useAuth();
   const { unreadCount: chatUnreadCount } = useChatUnread();
   useCourierOrderAlarm(user?.id);
+  const { data: globalCourier } = useQuery<{ id: string; is_available: boolean; registration_status: string } | null>({
+    queryKey: ['courier-global-presence', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('couriers')
+        .select('id, is_available, registration_status')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return data as { id: string; is_available: boolean; registration_status: string } | null;
+    },
+    enabled: !!user,
+    staleTime: 15_000,
+    refetchInterval: 15_000,
+  });
 
   const isActive = (href: string) => href === '/courier'
     ? location.pathname === href
@@ -44,6 +62,14 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
 
   return (
     <div className="flex h-dvh min-h-0 w-full overflow-hidden bg-background">
+      {location.pathname !== '/courier' && globalCourier?.registration_status === 'APPROVED' && (
+        <CourierLocationUpdater
+          courierId={globalCourier.id}
+          autoStart={globalCourier.is_available}
+          mandatory
+          showPanel={false}
+        />
+      )}
       {/* Full navigation stays visible on desktop; mobile uses the drawer below. */}
       <aside className="hidden w-64 shrink-0 md:flex" aria-label="Menu kurir">
         <CourierSidebar chatUnreadCount={chatUnreadCount} />

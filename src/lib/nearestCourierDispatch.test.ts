@@ -38,6 +38,7 @@ describe('nearest courier sequential ride dispatch contract', () => {
   it('keeps expiry processing server-side when the optional RPC is unavailable', () => {
     expect(migration).toContain('CREATE OR REPLACE FUNCTION public.process_expired_ride_offers()');
     expect(courierLayout).not.toContain("process_expired_ride_offers");
+    expect(courierRides).toContain("process_expired_ride_offers");
     expect(courierRides).toContain("supabase.rpc('decline_ride_request' as never");
   });
 });
