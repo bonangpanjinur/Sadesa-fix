@@ -16,6 +16,7 @@ import {
   fetchTourism,
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
+import { selectNewestProducts } from '@/lib/homepageProducts';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { CarouselSkeleton, ProductGridSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
@@ -238,9 +239,7 @@ const Index = () => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    return products
-      .filter((product) => product.isAvailable === true && !highlightedProductIds.has(product.id))
-      .slice(0, 6);
+    return selectNewestProducts(products, highlightedProductIds, 6);
   }, [products, promoProducts, promoSectionEnabled]);
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
@@ -375,11 +374,11 @@ const Index = () => {
                   <Store className="h-5 w-5" />
                 </div>
                 <h3 className="font-heading text-sm font-extrabold text-foreground">
-                  {products.length > 0 ? 'Belum ada produk lain yang tersedia' : 'Belum ada produk baru'}
+                  {products.length > 0 ? 'Belum ada produk terbaru lainnya' : 'Belum ada produk baru'}
                 </h3>
                 <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
                   {products.length > 0
-                    ? 'Produk terbaru mungkin sedang tampil di promo atau tokonya tutup. Jelajahi katalog untuk pilihan lain.'
+                    ? 'Produk lain mungkin sedang tampil di bagian promo atau belum diaktifkan. Jelajahi katalog untuk pilihan lain.'
                     : 'Produk dari merchant lokal akan muncul di sini setelah ditambahkan.'}
                 </p>
                 <Button asChild size="sm" className="mt-4 rounded-full px-5">
