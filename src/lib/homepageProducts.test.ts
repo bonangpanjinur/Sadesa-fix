@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { selectNewestProducts } from './homepageProducts';
 
 describe('selectNewestProducts', () => {
-  it('keeps active products visible when temporarily unavailable for ordering', () => {
+  it('keeps stored products visible regardless of active or orderable status', () => {
     const products = [
       { id: 'open', isActive: true, isAvailable: true },
       { id: 'closed', isActive: true, isAvailable: false, unavailableReason: 'Toko Tutup' },
@@ -14,6 +14,7 @@ describe('selectNewestProducts', () => {
       'open',
       'closed',
       'out-of-stock',
+      'inactive',
     ]);
   });
 

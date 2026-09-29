@@ -378,7 +378,7 @@ const Index = () => {
                 </h3>
                 <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
                   {products.length > 0
-                    ? 'Produk lain mungkin sedang tampil di bagian promo atau belum diaktifkan. Jelajahi katalog untuk pilihan lain.'
+                    ? 'Produk yang ada mungkin sudah tampil di bagian promo. Jelajahi katalog untuk melihat semuanya.'
                     : 'Produk dari merchant lokal akan muncul di sini setelah ditambahkan.'}
                 </p>
                 <Button asChild size="sm" className="mt-4 rounded-full px-5">
