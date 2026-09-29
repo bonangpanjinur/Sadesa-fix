@@ -60,8 +60,8 @@ interface Broadcast {
 
 const ROLE_OPTIONS = [
   { value: 'buyer', label: 'Pembeli' },
-  { value: 'merchant', label: 'Merchant' },
-  { value: 'courier', label: 'Kurir' },
+  { value: 'merchant', label: 'Pedagang' },
+  { value: 'courier', label: 'Ojek' },
   { value: 'verifikator', label: 'Verifikator' },
   { value: 'admin_desa', label: 'Admin Desa' },
 ];

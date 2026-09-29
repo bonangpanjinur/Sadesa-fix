@@ -45,9 +45,9 @@ interface UserWithRoles {
 
 const AVAILABLE_ROLES: { id: AppRole; label: string; description: string }[] = [
   { id: 'admin', label: 'Admin', description: 'Akses penuh ke semua fitur sistem' },
-  { id: 'verifikator', label: 'Verifikator', description: 'Kelola verifikasi merchant dan komisi' },
-  { id: 'merchant', label: 'Merchant', description: 'Kelola toko, produk, dan pesanan' },
-  { id: 'courier', label: 'Kurir', description: 'Kelola pengiriman barang' },
+  { id: 'verifikator', label: 'Verifikator', description: 'Kelola verifikasi pedagang dan komisi' },
+  { id: 'merchant', label: 'Pedagang', description: 'Kelola toko, produk, dan pesanan' },
+  { id: 'courier', label: 'Ojek', description: 'Kelola layanan ojek dan pengiriman barang' },
   { id: 'admin_desa', label: 'Admin Desa', description: 'Kelola data wisata dan potensi desa' },
   { id: 'buyer', label: 'Pembeli', description: 'Akses standar untuk berbelanja' },
 ];

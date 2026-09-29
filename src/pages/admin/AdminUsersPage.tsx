@@ -78,8 +78,8 @@ interface UserProfile {
 const AVAILABLE_ROLES = [
   { id: 'admin', label: 'Admin' },
   { id: 'verifikator', label: 'Verifikator' },
-  { id: 'merchant', label: 'Merchant' },
-  { id: 'courier', label: 'Kurir' },
+  { id: 'merchant', label: 'Pedagang' },
+  { id: 'courier', label: 'Ojek' },
   { id: 'admin_desa', label: 'Admin Desa' },
   { id: 'buyer', label: 'Pembeli' },
 ];

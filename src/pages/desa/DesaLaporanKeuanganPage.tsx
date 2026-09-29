@@ -110,7 +110,7 @@ export default function DesaLaporanKeuanganPage() {
 
   const handleExportCSV = () => {
     if (!stats) return;
-    const headers = ['Bulan', 'Pesanan Merchant', 'Omzet Merchant', 'Komisi Desa (3%)', 'Booking Wisata', 'Pendapatan Wisata'];
+    const headers = ['Bulan', 'Pesanan Pedagang', 'Omzet Pedagang', 'Komisi Desa (3%)', 'Booking Wisata', 'Pendapatan Wisata'];
     const rows = (stats.months || []).map(m => [
       m.month, m.merchant_orders, m.merchant_revenue, m.commission, m.tourism_bookings, m.tourism_revenue,
     ]);
@@ -127,7 +127,7 @@ export default function DesaLaporanKeuanganPage() {
   return (
     <DesaLayout
       title="Laporan Keuangan Desa"
-      subtitle="Rekap pendapatan merchant, wisata, dan komisi desa"
+      subtitle="Rekap pendapatan pedagang, wisata, dan komisi desa"
       actions={
         <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!stats}>
           <Download className="h-4 w-4 mr-2" /> Export CSV
@@ -171,11 +171,11 @@ export default function DesaLaporanKeuanganPage() {
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground">Omzet Merchant</span>
+                    <span className="text-xs text-muted-foreground">Omzet Pedagang</span>
                     <Store className="h-4 w-4 text-primary" />
                   </div>
                   <p className="text-xl font-bold">{formatPrice(stats.totalMerchantRevenue)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stats.merchantCount} merchant aktif</p>
+                  <p className="text-xs text-muted-foreground mt-1">{stats.merchantCount} pedagang aktif</p>
                 </CardContent>
               </Card>
               <Card>
@@ -215,10 +215,10 @@ export default function DesaLaporanKeuanganPage() {
             {/* Merchant revenue chart */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart2 className="h-5 w-5" /> Omzet Merchant & Komisi Desa
+                  <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart2 className="h-5 w-5" /> Omzet Pedagang & Komisi Desa
                 </CardTitle>
-                <CardDescription>Rekap transaksi marketplace merchant di desa ini</CardDescription>
+                <CardDescription>Rekap transaksi marketplace pedagang di desa ini</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={260}>
@@ -227,7 +227,7 @@ export default function DesaLaporanKeuanganPage() {
                     <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
                     <Tooltip formatter={(v: number) => formatPrice(v)} />
-                    <Bar dataKey="merchant_revenue" name="Omzet Merchant" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="merchant_revenue" name="Omzet Pedagang" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="commission" name="Komisi Desa" fill="hsl(160, 60%, 45%)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -264,7 +264,7 @@ export default function DesaLaporanKeuanganPage() {
                       <tr className="border-b">
                         <th className="text-left py-2 font-medium text-muted-foreground">Bulan</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Pesanan</th>
-                        <th className="text-right py-2 font-medium text-muted-foreground">Omzet Merchant</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Omzet Pedagang</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Komisi Desa</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Booking Wisata</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Pend. Wisata</th>

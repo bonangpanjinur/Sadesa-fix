@@ -75,27 +75,27 @@ export default function VerifikatorMerchantsPage() {
     mutationFn: (id: string) => approveMerchant(id),
     onSuccess: (success) => {
       if (success) {
-        toast.success('Merchant berhasil disetujui');
+        toast.success('Pedagang berhasil disetujui');
         queryClient.invalidateQueries({ queryKey: ['verifikator-merchants', user?.id] });
       } else {
-        toast.error('Gagal menyetujui merchant');
+        toast.error('Gagal menyetujui pedagang');
       }
     },
-    onError: () => toast.error('Gagal menyetujui merchant'),
+    onError: () => toast.error('Gagal menyetujui pedagang'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectMerchant(id, reason),
     onSuccess: (success) => {
       if (success) {
-        toast.success('Merchant ditolak');
+        toast.success('Pedagang ditolak');
         queryClient.invalidateQueries({ queryKey: ['verifikator-merchants', user?.id] });
         setRejectDialogOpen(false);
       } else {
-        toast.error('Gagal menolak merchant');
+        toast.error('Gagal menolak pedagang');
       }
     },
-    onError: () => toast.error('Gagal menolak merchant'),
+    onError: () => toast.error('Gagal menolak pedagang'),
   });
 
   const openRejectDialog = (id: string) => {
@@ -124,7 +124,7 @@ export default function VerifikatorMerchantsPage() {
   const columns = [
     {
       key: 'name',
-      header: 'Nama Merchant',
+      header: 'Nama Pedagang',
       render: (item: MerchantRow) => (
         <div>
           <p className="font-medium">{item.name}</p>
@@ -199,11 +199,11 @@ export default function VerifikatorMerchantsPage() {
   ];
 
   return (
-    <VerifikatorLayout title="Merchant" subtitle="Merchant yang menggunakan kode Anda">
+    <VerifikatorLayout title="Pedagang" subtitle="Pedagang yang menggunakan kode Anda">
       <div className="flex items-center gap-2 mb-4">
         <Store className="h-5 w-5 text-primary" />
         <span className="text-muted-foreground text-sm">
-          {merchants.length} merchant • {merchants.filter(m => m.registration_status === 'PENDING').length} menunggu
+          {merchants.length} pedagang • {merchants.filter(m => m.registration_status === 'PENDING').length} menunggu
         </span>
       </div>
 
@@ -211,10 +211,10 @@ export default function VerifikatorMerchantsPage() {
         data={merchants}
         columns={columns}
         searchKeys={['name']}
-        searchPlaceholder="Cari nama merchant..."
+        searchPlaceholder="Cari nama pedagang..."
         filters={filters}
         loading={loading}
-        emptyMessage="Belum ada merchant yang menggunakan kode Anda"
+        emptyMessage="Belum ada pedagang yang menggunakan kode Anda"
       />
 
       <MerchantDetailSheet
@@ -226,9 +226,9 @@ export default function VerifikatorMerchantsPage() {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Tolak Merchant</DialogTitle>
+            <DialogTitle>Tolak Pedagang</DialogTitle>
             <DialogDescription>
-              Berikan alasan penolakan agar merchant dapat memperbaiki pendaftarannya.
+              Berikan alasan penolakan agar pedagang dapat memperbaiki pendaftarannya.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
@@ -249,7 +249,7 @@ export default function VerifikatorMerchantsPage() {
               onClick={handleRejectConfirm}
               disabled={rejectMutation.isPending || !rejectReason.trim()}
             >
-              {rejectMutation.isPending ? 'Menolak...' : 'Tolak Merchant'}
+              {rejectMutation.isPending ? 'Menolak...' : 'Tolak Pedagang'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -276,29 +276,29 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   };
 
   return (
-    <aside className="flex h-dvh w-[min(17rem,calc(100vw-2rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground lg:w-64" aria-label="Navigasi merchant dan POS">
+    <aside className="flex h-dvh w-[min(17rem,calc(100vw-2rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground lg:w-64" aria-label="Navigasi pedagang dan POS">
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-5">
         <Link to="/merchant" onClick={onNavigate} className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
             <Store className="h-5 w-5" />
           </span>
-          <span className="truncate font-heading text-sm font-semibold">Workspace Merchant</span>
+          <span className="truncate font-heading text-sm font-semibold">Ruang Kerja Pedagang</span>
         </Link>
         <Button type="button" variant="ghost" size="icon" className="h-9 w-9 lg:hidden" onClick={onClose} aria-label="Tutup navigasi">
           <X className="h-5 w-5" />
         </Button>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 scrollbar-subtle" aria-label="Menu merchant">
-        <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Merchant</p>
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 scrollbar-subtle" aria-label="Menu pedagang">
+        <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Pedagang</p>
         <div className="mb-3 px-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Cari menu merchant..."
-              aria-label="Cari menu merchant"
+              placeholder="Cari menu pedagang..."
+              aria-label="Cari menu pedagang"
               className="h-9 w-full rounded-lg border border-sidebar-border bg-sidebar-accent/40 pl-9 pr-3 text-xs outline-none transition focus-visible:ring-2 focus-visible:ring-sidebar-primary/40"
             />
           </div>

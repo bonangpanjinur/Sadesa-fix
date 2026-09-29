@@ -70,7 +70,7 @@ export function VerifikatorSidebar() {
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard',       href: '/verifikator',               icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Tim & Antrean',   href: '/verifikator/team',          icon: <UsersRound className="h-4 w-4" /> },
-    { label: 'Merchant',        href: '/verifikator/merchants',     icon: <Store className="h-4 w-4" />, badge: pendingMerchants },
+    { label: 'Pedagang',        href: '/verifikator/merchants',     icon: <Store className="h-4 w-4" />, badge: pendingMerchants },
     { label: 'Ojek',             href: '/verifikator/couriers',      icon: <Bike className="h-4 w-4" />, badge: pendingCouriers },
     { label: 'Penyedia Jasa',   href: '/verifikator/service-providers', icon: <Wrench className="h-4 w-4" />, badge: pendingServiceProviders },
     { label: 'Laporan Kas',     href: '/verifikator/kas-report',    icon: <BarChart3 className="h-4 w-4" /> },

@@ -61,7 +61,7 @@ export default function AdminFreeQuotaPage() {
 
     if (queryError) {
       console.error('Error loading free quota merchants:', queryError);
-      setError('Daftar merchant tier gratis belum dapat dimuat. Pastikan migrasi database sudah diterapkan.');
+      setError('Daftar pedagang dengan tier gratis belum dapat dimuat. Pastikan migrasi database sudah diterapkan.');
       setMerchants([]);
     } else {
       setMerchants((data ?? []) as unknown as FreeQuotaMerchant[]);
@@ -103,7 +103,7 @@ export default function AdminFreeQuotaPage() {
   };
 
   return (
-    <AdminLayout title="Merchant Tier Gratis" subtitle="Pantau merchant yang sedang memakai kuota gratis 2 bulan">
+    <AdminLayout title="Pedagang Tier Gratis" subtitle="Pantau pedagang yang sedang memakai kuota gratis 2 bulan">
       <div className="space-y-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
@@ -116,7 +116,7 @@ export default function AdminFreeQuotaPage() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Card><CardContent className="flex items-center gap-3 p-5"><Store className="h-8 w-8 text-primary" /><div><p className="text-sm text-muted-foreground">Merchant aktif</p><p className="text-2xl font-bold">{stats.merchantCount}</p></div></CardContent></Card>
+          <Card><CardContent className="flex items-center gap-3 p-5"><Store className="h-8 w-8 text-primary" /><div><p className="text-sm text-muted-foreground">Pedagang aktif</p><p className="text-2xl font-bold">{stats.merchantCount}</p></div></CardContent></Card>
           <Card><CardContent className="flex items-center gap-3 p-5"><Package className="h-8 w-8 text-blue-600" /><div><p className="text-sm text-muted-foreground">Total kuota</p><p className="text-2xl font-bold">{stats.totalQuota.toLocaleString('id-ID')}</p></div></CardContent></Card>
           <Card><CardContent className="flex items-center gap-3 p-5"><CheckCircle2 className="h-8 w-8 text-emerald-600" /><div><p className="text-sm text-muted-foreground">Sudah terpakai</p><p className="text-2xl font-bold">{stats.usedQuota.toLocaleString('id-ID')}</p></div></CardContent></Card>
           <Card><CardContent className="flex items-center gap-3 p-5"><AlertTriangle className="h-8 w-8 text-amber-600" /><div><p className="text-sm text-muted-foreground">Berakhir ≤ 7 hari</p><p className="text-2xl font-bold">{stats.expiringSoon}</p></div></CardContent></Card>
@@ -130,19 +130,19 @@ export default function AdminFreeQuotaPage() {
           <CardContent>
             {error && <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{error}</div>}
             {loading ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">Memuat data merchant...</div>
+              <div className="py-12 text-center text-sm text-muted-foreground">Memuat data pedagang...</div>
             ) : filteredMerchants.length === 0 ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">Belum ada merchant dengan tier kuota gratis aktif.</div>
+              <div className="py-12 text-center text-sm text-muted-foreground">Belum ada pedagang dengan tier kuota gratis aktif.</div>
             ) : (
               <Table>
-                <TableHeader><TableRow><TableHead>Merchant</TableHead><TableHead>Lokasi</TableHead><TableHead>Penggunaan</TableHead><TableHead>Masa aktif</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Pedagang</TableHead><TableHead>Lokasi</TableHead><TableHead>Penggunaan</TableHead><TableHead>Masa aktif</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {filteredMerchants.map((item) => {
                     const remaining = Math.max(0, item.transaction_quota - item.used_quota);
                     const days = daysRemaining(item.expired_at);
                     return (
                       <TableRow key={item.id}>
-                        <TableCell><p className="font-medium">{item.merchant?.name || 'Merchant tanpa nama'}</p><p className="text-xs text-muted-foreground">{item.merchant?.user_id ? `${item.merchant.user_id.slice(0, 8)}...` : 'Tanpa user'}</p></TableCell>
+                        <TableCell><p className="font-medium">{item.merchant?.name || 'Pedagang tanpa nama'}</p><p className="text-xs text-muted-foreground">{item.merchant?.user_id ? `${item.merchant.user_id.slice(0, 8)}...` : 'Tanpa akun'}</p></TableCell>
                         <TableCell>{[item.merchant?.district, item.merchant?.city].filter(Boolean).join(', ') || '-'}</TableCell>
                         <TableCell><p className="font-medium">{item.used_quota} / {item.transaction_quota}</p><p className="text-xs text-muted-foreground">Sisa {remaining} transaksi</p></TableCell>
                         <TableCell><p>{formatDate(item.started_at)} – {formatDate(item.expired_at)}</p><p className="text-xs text-muted-foreground">{days} hari tersisa</p></TableCell>

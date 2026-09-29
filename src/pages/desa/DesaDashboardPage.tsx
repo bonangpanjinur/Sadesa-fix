@@ -135,7 +135,7 @@ export default function DesaDashboardPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatsCard title="Total Wisata" value={stats.totalTourism} icon={<Mountain className="h-5 w-5" />} description={`${stats.activeTourism} aktif`} />
-        <StatsCard title="Total Merchant" value={stats.totalMerchants} icon={<Store className="h-5 w-5" />} />
+        <StatsCard title="Total Pedagang" value={stats.totalMerchants} icon={<Store className="h-5 w-5" />} />
         <StatsCard title="Total Views" value={stats.totalViews} icon={<Eye className="h-5 w-5" />} />
       </div>
 
@@ -154,12 +154,12 @@ export default function DesaDashboardPage() {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Store className="h-5 w-5 text-primary" />
-            Merchant di Desa ({merchants.length})
+            Pedagang di Desa ({merchants.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
           {merchants.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Belum ada merchant terdaftar di desa ini</p>
+            <p className="text-sm text-muted-foreground text-center py-4">Belum ada pedagang terdaftar di desa ini</p>
           ) : (
             <div className="space-y-3">
               {merchants.map(m => (

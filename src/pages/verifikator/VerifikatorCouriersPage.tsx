@@ -138,7 +138,7 @@ export default function VerifikatorCouriersPage() {
 
   return <VerifikatorLayout title="Verifikasi Ojek" subtitle="Ojek di wilayah desa yang ditugaskan kepada Anda">
     <div className="mb-4 flex items-center gap-2"><Bike className="h-5 w-5 text-primary" /><span className="text-sm text-muted-foreground">{couriers.length} ojek • {couriers.filter(c => c.registration_status === 'PENDING').length} menunggu verifikasi</span></div>
-    <DataTable data={couriers} columns={columns} searchKeys={['name', 'phone', 'vehicle_plate']} searchPlaceholder="Cari nama atau plat..." filters={[{ key: 'registration_status', label: 'Status Verifikasi', options: [{ value: 'PENDING', label: 'Menunggu' }, { value: 'APPROVED', label: 'Disetujui' }, { value: 'REJECTED', label: 'Ditolak' }] }]} loading={isLoading} emptyMessage="Belum ada ojek di wilayah verifikasi Anda" />
+    <DataTable data={couriers} columns={columns} searchKeys={['name', 'phone', 'vehicle_plate']} searchPlaceholder="Cari nama ojek atau plat..." filters={[{ key: 'registration_status', label: 'Status Verifikasi', options: [{ value: 'PENDING', label: 'Menunggu' }, { value: 'APPROVED', label: 'Disetujui' }, { value: 'REJECTED', label: 'Ditolak' }] }]} loading={isLoading} emptyMessage="Belum ada ojek di wilayah verifikasi Anda" />
 
     <CourierDetailDialog courier={selectedCourier} open={detailOpen} onOpenChange={setDetailOpen} />
 

@@ -165,8 +165,8 @@ export default function AdminFinancePage() {
       body: [
         ['Total Pendapatan Bruto', formatPrice(financials.totalRevenue)],
         [`Fee Platform (${platformFeePercent}%)`, formatPrice(financials.platformFees)],
-        [`Pendapatan Kurir (${courierFeePercent}% ongkir)`, formatPrice(financials.courierFees)],
-        ['Pendapatan Merchant Bersih', formatPrice(financials.merchantRevenue)],
+        [`Pendapatan Ojek (${courierFeePercent}% ongkir)`, formatPrice(financials.courierFees)],
+        ['Pendapatan Pedagang Bersih', formatPrice(financials.merchantRevenue)],
         ['Total Ongkir Terkumpul', formatPrice(financials.shippingCollected)],
         ['Jumlah Pesanan Selesai', financials.completedOrders.toString()],
       ],
@@ -178,7 +178,7 @@ export default function AdminFinancePage() {
     
     autoTable(doc, {
       startY: tableY + 4,
-      head: [['ID', 'Merchant', 'Total', 'Ongkir', 'Fee', 'Tanggal']],
+      head: [['ID', 'Pedagang', 'Total', 'Ongkir', 'Fee', 'Tanggal']],
       body: orders.filter(o => o.status === 'DONE' || o.status === 'DELIVERED').map(o => [
         o.id.slice(0, 8),
         o.merchant_name,
@@ -193,7 +193,7 @@ export default function AdminFinancePage() {
   };
 
   const exportToCSV = () => {
-    const headers = ['ID', 'Merchant', 'Total', 'Subtotal', 'Ongkir', 'Fee Platform', 'Status', 'Tanggal'];
+    const headers = ['ID', 'Pedagang', 'Total', 'Subtotal', 'Ongkir', 'Fee Platform', 'Status', 'Tanggal'];
     const rows = orders.map(o => [
       o.id,
       o.merchant_name,
@@ -309,7 +309,7 @@ export default function AdminFinancePage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Truck className="h-4 w-4" />
-                  Pendapatan Kurir
+                  Pendapatan Ojek
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -322,7 +322,7 @@ export default function AdminFinancePage() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Store className="h-4 w-4" />
-                  Pendapatan Merchant
+                  Pendapatan Pedagang
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -350,7 +350,7 @@ export default function AdminFinancePage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
-                      <TableHead>Merchant</TableHead>
+                      <TableHead>Pedagang</TableHead>
                       <TableHead className="text-right">Subtotal</TableHead>
                       <TableHead className="text-right">Ongkir</TableHead>
                       <TableHead className="text-right">Fee Platform</TableHead>

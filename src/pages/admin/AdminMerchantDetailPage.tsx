@@ -227,7 +227,7 @@ export default function AdminMerchantDetailPage() {
       });
     } catch (error) {
       console.error('Error fetching merchant:', error);
-      toast.error('Gagal memuat data merchant');
+      toast.error('Gagal memuat data pedagang');
     } finally {
       setLoading(false);
     }
@@ -237,10 +237,10 @@ export default function AdminMerchantDetailPage() {
     if (!id) return;
     const success = await approveMerchant(id);
     if (success) {
-      toast.success('Merchant berhasil disetujui');
+      toast.success('Pedagang berhasil disetujui');
       fetchMerchantData();
     } else {
-      toast.error('Gagal menyetujui merchant');
+      toast.error('Gagal menyetujui pedagang');
     }
   };
 
@@ -250,10 +250,10 @@ export default function AdminMerchantDetailPage() {
     if (!reason) return;
     const success = await rejectMerchant(id, reason);
     if (success) {
-      toast.success('Merchant ditolak');
+      toast.success('Pedagang ditolak');
       fetchMerchantData();
     } else {
-      toast.error('Gagal menolak merchant');
+      toast.error('Gagal menolak pedagang');
     }
   };
 
@@ -263,13 +263,13 @@ export default function AdminMerchantDetailPage() {
 
   const handleDelete = async () => {
     if (!id) return;
-    if (!confirm('Apakah Anda yakin ingin menghapus merchant ini?')) return;
+    if (!confirm('Apakah Anda yakin ingin menghapus pedagang ini?')) return;
     const success = await deleteMerchant(id);
     if (success) {
-      toast.success('Merchant berhasil dihapus');
+      toast.success('Pedagang berhasil dihapus');
       navigate('/admin/merchants');
     } else {
-      toast.error('Gagal menghapus merchant');
+      toast.error('Gagal menghapus pedagang');
     }
   };
 
@@ -301,7 +301,7 @@ export default function AdminMerchantDetailPage() {
 
   if (loading) {
     return (
-      <AdminLayout title="Detail Merchant" subtitle="Memuat data...">
+      <AdminLayout title="Detail Pedagang" subtitle="Memuat data...">
         <div className="space-y-4">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-64 w-full" />
@@ -312,9 +312,9 @@ export default function AdminMerchantDetailPage() {
 
   if (!merchant) {
     return (
-      <AdminLayout title="Merchant Tidak Ditemukan" subtitle="">
+      <AdminLayout title="Pedagang Tidak Ditemukan" subtitle="">
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">Merchant tidak ditemukan atau sudah dihapus.</p>
+          <p className="text-muted-foreground mb-4">Pedagang tidak ditemukan atau sudah dihapus.</p>
           <Button onClick={() => navigate('/admin/merchants')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Kembali
@@ -325,7 +325,7 @@ export default function AdminMerchantDetailPage() {
   }
 
   return (
-    <AdminLayout title={merchant.name} subtitle={merchant.business_category || 'Merchant'}>
+    <AdminLayout title={merchant.name} subtitle={merchant.business_category || 'Pedagang'}>
       {/* Back button & actions */}
       <div className="flex items-center justify-between mb-6">
         <Button variant="ghost" onClick={() => navigate('/admin/merchants')}>
@@ -355,7 +355,7 @@ export default function AdminMerchantDetailPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
                 <Edit className="h-4 w-4 mr-2" />
-                Edit Data Merchant
+                Edit Data Pedagang
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setPackageDialogOpen(true)}>
                 <Package className="h-4 w-4 mr-2" />
@@ -368,7 +368,7 @@ export default function AdminMerchantDetailPage() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleDelete} className="text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
-                Hapus Merchant
+                Hapus Pedagang
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

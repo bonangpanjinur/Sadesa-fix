@@ -92,10 +92,10 @@ export default function SellerApplicationForm() {
         <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 text-primary">
           <Store className="w-8 h-8" />
         </div>
-        <h2 className="text-3xl font-extrabold text-foreground tracking-tight">Daftar Merchant Baru</h2>
+        <h2 className="text-3xl font-extrabold text-foreground tracking-tight">Daftar Pedagang Baru</h2>
         <p className="text-muted-foreground mt-3 text-lg">Mulai kembangkan usaha Anda bersama kami</p>
         <div className="mx-auto mt-5 max-w-xl rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-          <strong>Benefit merchant baru:</strong> dapatkan 100 kuota transaksi gratis yang aktif selama 2 bulan sejak pendaftaran.
+          <strong>Keuntungan pedagang baru:</strong> dapatkan 100 kuota transaksi gratis yang aktif selama 2 bulan sejak pendaftaran.
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export default function SellerApplicationForm() {
             {isSubmitting ? (
               <><Loader2 className="mr-2 h-5 w-5 animate-spin" />Memproses Pendaftaran...</>
             ) : (
-              "Daftar Sebagai Merchant"
+              "Daftar Sebagai Pedagang"
             )}
           </Button>
         </form>

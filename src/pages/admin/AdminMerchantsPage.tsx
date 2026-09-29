@@ -80,8 +80,8 @@ export default function AdminMerchantsPage() {
     setActionLoading(true);
     try {
       const success = await approveMerchant(id);
-      if (success) { toast.success('Merchant berhasil disetujui'); await invalidate(); }
-      else toast.error('Gagal menyetujui merchant');
+      if (success) { toast.success('Pedagang berhasil disetujui'); await invalidate(); }
+      else toast.error('Gagal menyetujui pedagang');
     } finally {
       setActionLoading(false);
     }
@@ -92,11 +92,11 @@ export default function AdminMerchantsPage() {
     setActionLoading(true);
     try {
       const success = await setMerchantStatus(merchant.id, nextStatus);
-      if (!success) throw new Error(`Gagal ${nextStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'} merchant`);
-      toast.success(nextStatus === 'ACTIVE' ? 'Merchant berhasil diaktifkan' : 'Merchant berhasil dinonaktifkan');
+      if (!success) throw new Error(`Gagal ${nextStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'} pedagang`);
+      toast.success(nextStatus === 'ACTIVE' ? 'Pedagang berhasil diaktifkan' : 'Pedagang berhasil dinonaktifkan');
       await invalidate();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Status merchant gagal diperbarui');
+      toast.error(error instanceof Error ? error.message : 'Status pedagang gagal diperbarui');
     } finally {
       setActionLoading(false);
     }
@@ -125,12 +125,12 @@ export default function AdminMerchantsPage() {
       const success = merchantAction === 'reject'
         ? await rejectMerchant(selectedMerchant.id, actionReason.trim())
         : await deleteMerchant(selectedMerchant.id);
-      if (!success) throw new Error(merchantAction === 'reject' ? 'Gagal menolak merchant' : 'Gagal menghapus merchant');
-      toast.success(merchantAction === 'reject' ? 'Merchant ditolak' : 'Merchant berhasil dihapus');
+      if (!success) throw new Error(merchantAction === 'reject' ? 'Gagal menolak pedagang' : 'Gagal menghapus pedagang');
+      toast.success(merchantAction === 'reject' ? 'Pedagang ditolak' : 'Pedagang berhasil dihapus');
       closeMerchantAction();
       await invalidate();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Aksi merchant gagal diproses');
+      toast.error(error instanceof Error ? error.message : 'Aksi pedagang gagal diproses');
     } finally {
       setActionLoading(false);
     }
@@ -152,7 +152,7 @@ export default function AdminMerchantsPage() {
   const columns = [
     {
       key: 'name',
-      header: 'Nama Merchant',
+      header: 'Nama Pedagang',
       render: (item: MerchantRow) => (
         <div>
           <p className="font-medium">{item.name}</p>
@@ -237,13 +237,13 @@ export default function AdminMerchantsPage() {
             {item.registration_status === 'APPROVED' && (
               <DropdownMenuItem onClick={() => void handleToggleStatus(item)} disabled={actionLoading}>
                 <Power className="h-4 w-4 mr-2" />
-                {item.status === 'ACTIVE' ? 'Nonaktifkan Merchant' : 'Aktifkan Merchant'}
+                {item.status === 'ACTIVE' ? 'Nonaktifkan Pedagang' : 'Aktifkan Pedagang'}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => openMerchantAction(item, 'delete')} className="text-destructive">
               <Trash2 className="h-4 w-4 mr-2" />
-              Hapus Merchant
+              Hapus Pedagang
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -271,15 +271,15 @@ export default function AdminMerchantsPage() {
   ];
 
   return (
-    <AdminLayout title="Manajemen Merchant" subtitle="Kelola semua merchant yang terdaftar">
+    <AdminLayout title="Manajemen Pedagang" subtitle="Kelola semua pedagang yang terdaftar">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Store className="h-5 w-5 text-primary" />
-          <span className="text-muted-foreground text-sm">{merchants.length} merchant terdaftar</span>
+          <span className="text-muted-foreground text-sm">{merchants.length} pedagang terdaftar</span>
         </div>
         <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
-          Tambah Merchant
+          Tambah Pedagang
         </Button>
       </div>
 
@@ -287,12 +287,12 @@ export default function AdminMerchantsPage() {
         data={merchants}
         columns={columns}
         searchKeys={['name']}
-        searchPlaceholder="Cari nama merchant..."
+        searchPlaceholder="Cari nama pedagang..."
         filters={filters}
         loading={loading}
-        error={error instanceof Error ? error.message : error ? 'Gagal memuat data merchant. Silakan coba lagi.' : null}
+        error={error instanceof Error ? error.message : error ? 'Gagal memuat data pedagang. Silakan coba lagi.' : null}
         onRetry={() => void refetch()}
-        emptyMessage="Belum ada merchant terdaftar"
+        emptyMessage="Belum ada pedagang terdaftar"
       />
 
       <MerchantAddDialog
@@ -304,11 +304,11 @@ export default function AdminMerchantsPage() {
       <Dialog open={merchantAction !== null} onOpenChange={(open) => { if (!open) closeMerchantAction(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{merchantAction === 'reject' ? 'Tolak merchant' : 'Hapus merchant'}</DialogTitle>
+            <DialogTitle>{merchantAction === 'reject' ? 'Tolak pedagang' : 'Hapus pedagang'}</DialogTitle>
             <DialogDescription>
               {merchantAction === 'reject'
-                ? `Berikan alasan yang jelas untuk ${selectedMerchant?.name ?? 'merchant ini'}. Alasan akan disimpan sebagai bagian dari audit.`
-                : `Penghapusan ${selectedMerchant?.name ?? 'merchant ini'} bersifat destruktif dan tidak dapat dibatalkan.`}
+                ? `Berikan alasan yang jelas untuk ${selectedMerchant?.name ?? 'pedagang ini'}. Alasan akan disimpan sebagai bagian dari audit.`
+                : `Penghapusan ${selectedMerchant?.name ?? 'pedagang ini'} bersifat destruktif dan tidak dapat dibatalkan.`}
             </DialogDescription>
           </DialogHeader>
           {merchantAction === 'reject' ? (
@@ -318,12 +318,12 @@ export default function AdminMerchantsPage() {
               <p className="text-xs text-muted-foreground">Minimal 10 karakter.</p>
             </div>
           ) : (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">Pastikan merchant ini memang harus dihapus. Data terkait dapat ikut terhapus sesuai kebijakan database.</div>
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">Pastikan pedagang ini memang harus dihapus. Data terkait dapat ikut terhapus sesuai kebijakan database.</div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={closeMerchantAction} disabled={actionLoading}>Batal</Button>
             <Button variant="destructive" onClick={() => void handleMerchantAction()} disabled={actionLoading || (merchantAction === 'reject' && actionReason.trim().length < 10)}>
-              {actionLoading ? 'Memproses...' : merchantAction === 'reject' ? 'Tolak merchant' : 'Hapus merchant'}
+              {actionLoading ? 'Memproses...' : merchantAction === 'reject' ? 'Tolak pedagang' : 'Hapus pedagang'}
             </Button>
           </DialogFooter>
         </DialogContent>

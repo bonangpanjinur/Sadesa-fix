@@ -191,13 +191,13 @@ export function AddCourierDialog({ onSuccess }: AddCourierDialogProps) {
 
       if (error) throw error;
 
-      toast.success('Kurir berhasil ditambahkan dan otomatis aktif');
+      toast.success('Ojek berhasil ditambahkan dan otomatis aktif');
       setOpen(false);
       resetForm();
       onSuccess();
     } catch (error: unknown) {
       console.error('Error adding courier:', error);
-      toast.error('Gagal menambahkan kurir');
+      toast.error('Gagal menambahkan ojek');
     } finally {
       setLoading(false);
     }
@@ -217,12 +217,12 @@ export function AddCourierDialog({ onSuccess }: AddCourierDialogProps) {
       <DialogTrigger asChild>
         <Button className="h-9">
           <Plus className="h-4 w-4 mr-2" />
-          Tambah Kurir
+          Tambah Ojek
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Tambah Kurir Baru</DialogTitle>
+          <DialogTitle>Tambah Ojek Baru</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
@@ -230,7 +230,7 @@ export function AddCourierDialog({ onSuccess }: AddCourierDialogProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-2">
               <Label>Nama Lengkap *</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Nama kurir sesuai KTP" />
+              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Nama pengojek sesuai KTP" />
             </div>
             <div className="space-y-2">
               <Label>No. Telepon *</Label>
@@ -264,7 +264,7 @@ export function AddCourierDialog({ onSuccess }: AddCourierDialogProps) {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">User dengan role kurir yang belum terhubung ke kurir lain</p>
+            <p className="text-xs text-muted-foreground">Akun ojek yang belum terhubung ke data ojek lain</p>
           </div>
 
           {/* Address Dropdowns */}
@@ -342,7 +342,7 @@ export function AddCourierDialog({ onSuccess }: AddCourierDialogProps) {
         <DialogFooter className="mt-6">
           <Button variant="outline" onClick={() => setOpen(false)}>Batal</Button>
           <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Menyimpan...' : 'Tambah Kurir'}
+            {loading ? 'Menyimpan...' : 'Tambah Ojek'}
           </Button>
         </DialogFooter>
       </DialogContent>

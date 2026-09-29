@@ -169,7 +169,7 @@ export default function DesaMerchantPage() {
 
   if (villageLoading) {
     return (
-      <DesaLayout title="Verifikasi Merchant" subtitle="Kelola merchant di wilayah desa">
+      <DesaLayout title="Verifikasi Pedagang" subtitle="Kelola pedagang di wilayah desa">
         <div className="flex justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -179,7 +179,7 @@ export default function DesaMerchantPage() {
 
   if (!villageId) {
     return (
-      <DesaLayout title="Verifikasi Merchant" subtitle="Kelola merchant di wilayah desa">
+      <DesaLayout title="Verifikasi Pedagang" subtitle="Kelola pedagang di wilayah desa">
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="font-bold text-lg mb-2">Desa Belum Terdaftar</h2>
@@ -190,7 +190,7 @@ export default function DesaMerchantPage() {
   }
 
   return (
-    <DesaLayout title="Verifikasi Merchant" subtitle="Approve atau tolak merchant di wilayah desa">
+    <DesaLayout title="Verifikasi Pedagang" subtitle="Setujui atau tolak pedagang di wilayah desa">
       <div className="space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -225,9 +225,9 @@ export default function DesaMerchantPage() {
         ) : filteredMerchants.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Store className="h-10 w-10 text-muted-foreground mb-3" />
-            <p className="font-medium">Tidak ada merchant</p>
+            <p className="font-medium">Tidak ada pedagang</p>
             <p className="text-sm text-muted-foreground mt-1">
-              {activeTab === 'pending' ? 'Belum ada merchant yang perlu diverifikasi.' : 'Tidak ada merchant di filter ini.'}
+              {activeTab === 'pending' ? 'Belum ada pedagang yang perlu diverifikasi.' : 'Tidak ada pedagang di filter ini.'}
             </p>
           </div>
         ) : (
@@ -311,14 +311,14 @@ export default function DesaMerchantPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {actionDialog.type === 'approve' ? '✅ Setujui Merchant' : '❌ Tolak Merchant'}
+              {actionDialog.type === 'approve' ? '✅ Setujui Pedagang' : '❌ Tolak Pedagang'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
               {actionDialog.type === 'approve'
-                ? `Konfirmasi untuk menyetujui toko "${actionDialog.merchant?.name}". Merchant akan langsung bisa berjualan.`
-                : `Konfirmasi untuk menolak toko "${actionDialog.merchant?.name}". Merchant akan mendapat notifikasi.`}
+                ? `Konfirmasi untuk menyetujui toko "${actionDialog.merchant?.name}". Pedagang akan langsung bisa berjualan.`
+                : `Konfirmasi untuk menolak toko "${actionDialog.merchant?.name}". Pedagang akan mendapat notifikasi.`}
             </p>
             <div>
               <label className="text-sm font-medium mb-1.5 block">

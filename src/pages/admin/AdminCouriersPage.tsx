@@ -90,9 +90,9 @@ export default function AdminCouriersPage() {
   const handleApprove = async (id: string) => {
     try {
       const success = await approveCourier(id);
-      if (success) { toast.success('Kurir berhasil disetujui'); invalidate(); }
-      else toast.error('Gagal menyetujui kurir');
-    } catch { toast.error('Terjadi kesalahan saat menyetujui kurir'); }
+      if (success) { toast.success('Ojek berhasil disetujui'); invalidate(); }
+      else toast.error('Gagal menyetujui ojek');
+    } catch { toast.error('Terjadi kesalahan saat menyetujui ojek'); }
   };
 
   const handleReject = async (id: string) => {
@@ -101,13 +101,13 @@ export default function AdminCouriersPage() {
     if (!reason.trim()) { toast.error('Alasan penolakan wajib diisi'); return; }
     try {
       const success = await rejectCourier(id, reason);
-      if (success) { toast.success('Kurir ditolak'); invalidate(); }
-      else toast.error('Gagal menolak kurir');
-    } catch { toast.error('Terjadi kesalahan saat menolak kurir'); }
+      if (success) { toast.success('Ojek ditolak'); invalidate(); }
+      else toast.error('Gagal menolak ojek');
+    } catch { toast.error('Terjadi kesalahan saat menolak ojek'); }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus kurir ini?')) return;
+    if (!confirm('Apakah Anda yakin ingin menghapus ojek ini?')) return;
     try {
       // Check if courier has orders
       const { count } = await supabase
@@ -122,15 +122,15 @@ export default function AdminCouriersPage() {
           .update({ status: 'INACTIVE', is_available: false, registration_status: 'REJECTED', rejection_reason: 'Dihapus oleh admin' })
           .eq('id', id);
         if (error) throw error;
-        toast.success('Kurir dinonaktifkan (memiliki riwayat order)');
+        toast.success('Ojek dinonaktifkan (memiliki riwayat order)');
       } else {
         const { error } = await supabase.from('couriers').delete().eq('id', id);
         if (error) throw error;
-        toast.success('Kurir berhasil dihapus');
+        toast.success('Ojek berhasil dihapus');
       }
       invalidate();
     } catch (error: unknown) {
-      toast.error('Gagal menghapus kurir: ' + (error instanceof Error ? error.message : 'Terjadi kesalahan'));
+      toast.error('Gagal menghapus ojek: ' + (error instanceof Error ? error.message : 'Terjadi kesalahan'));
     }
   };
 
@@ -145,7 +145,7 @@ export default function AdminCouriersPage() {
   const columns = [
     {
       key: 'name',
-      header: 'Nama Kurir',
+      header: 'Nama Ojek',
       render: (item: CourierRow) => (
         <div className="flex flex-col">
           <span className="font-semibold text-foreground">{item.name}</span>
@@ -242,15 +242,15 @@ export default function AdminCouriersPage() {
             {item.registration_status === 'PENDING' && (
               <>
                 <DropdownMenuItem onClick={() => handleApprove(item.id)} className="text-emerald-600 focus:text-emerald-600">
-                  <Check className="h-4 w-4 mr-2" />Setujui Kurir
+                  <Check className="h-4 w-4 mr-2" />Setujui Ojek
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleReject(item.id)} className="text-amber-600 focus:text-amber-600">
-                  <X className="h-4 w-4 mr-2" />Tolak Kurir
+                  <X className="h-4 w-4 mr-2" />Tolak Ojek
                 </DropdownMenuItem>
               </>
             )}
             <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-destructive focus:text-destructive">
-              <Trash2 className="h-4 w-4 mr-2" />Hapus Kurir
+              <Trash2 className="h-4 w-4 mr-2" />Hapus Ojek
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -288,16 +288,16 @@ export default function AdminCouriersPage() {
   ];
 
   return (
-    <AdminLayout title="Manajemen Kurir" subtitle="Kelola dan verifikasi semua kurir yang terdaftar di platform">
+    <AdminLayout title="Manajemen Ojek" subtitle="Kelola dan verifikasi semua ojek yang terdaftar di platform">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="bg-primary/10 p-2.5 rounded-xl">
             <Bike className="h-6 w-6 text-primary" />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-lg font-bold">Daftar Kurir</h2>
+            <h2 className="text-lg font-bold">Daftar Ojek</h2>
             <span className="text-muted-foreground text-xs">
-              {couriers.length} kurir terdaftar • {couriers.filter(c => c.is_available).length} online
+              {couriers.length} ojek terdaftar • {couriers.filter(c => c.is_available).length} online
             </span>
           </div>
         </div>
@@ -314,10 +314,10 @@ export default function AdminCouriersPage() {
         data={couriers}
         columns={columns}
         searchKeys={['name', 'phone', 'email', 'district', 'city', 'owner_name']}
-        searchPlaceholder="Cari kurir (nama, telp, lokasi, user)..."
+        searchPlaceholder="Cari nama ojek (telp, lokasi, akun)..."
         filters={filters}
         loading={loading}
-        emptyMessage="Belum ada data kurir yang sesuai kriteria"
+        emptyMessage="Belum ada data ojek yang sesuai kriteria"
       />
 
       {selectedCourier && (
@@ -369,7 +369,7 @@ function AdminCourierDocumentsDialog({
     <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (next) void loadDocuments(); }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Dokumen Kurir/Ojek</DialogTitle>
+          <DialogTitle>Dokumen Ojek</DialogTitle>
           <DialogDescription>{courier?.name || '-'} • Dokumen hanya dapat diakses admin</DialogDescription>
         </DialogHeader>
         {loading ? <p className="text-sm text-muted-foreground">Memuat dokumen privat...</p> : (

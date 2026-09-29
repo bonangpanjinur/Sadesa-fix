@@ -61,7 +61,7 @@ export function MerchantAddDialog({ open, onOpenChange, onSuccess }: MerchantAdd
     void (async () => {
       setLoadingUsers(true);
       try { setProvinces(await fetchProvinces()); setAvailableUsers(await getAvailableMerchantUsers()); }
-      catch { toast.error('Gagal memuat data awal formulir merchant'); }
+      catch { toast.error('Gagal memuat data awal formulir pedagang'); }
       finally { setLoadingUsers(false); }
     })();
   }, [open]);
@@ -102,7 +102,7 @@ export function MerchantAddDialog({ open, onOpenChange, onSuccess }: MerchantAdd
 
   const handleSubmit = async () => {
     const openDays = DAYS.filter(({ day }) => !schedule[day].is_closed);
-    if (!formData.name.trim()) return toast.error('Nama merchant wajib diisi');
+    if (!formData.name.trim()) return toast.error('Nama pedagang wajib diisi');
     if (!formData.phone.trim()) return toast.error('Nomor telepon wajib diisi');
     if (selectedCategories.length === 0) return toast.error('Pilih minimal satu kategori usaha');
     if (openDays.length === 0) return toast.error('Pilih minimal satu hari operasional');
@@ -122,7 +122,7 @@ export function MerchantAddDialog({ open, onOpenChange, onSuccess }: MerchantAdd
         trade_group: verifikatorName,
         registered_at: new Date().toISOString(),
       }).select('id').single();
-      if (error || !merchant) throw error || new Error('Merchant tidak berhasil dibuat');
+      if (error || !merchant) throw error || new Error('Pedagang tidak berhasil dibuat');
       const { error: categoryError } = await supabase.from('merchant_categories').insert(selectedCategories.map((category) => ({ merchant_id: merchant.id, category_id: category.id })));
       if (categoryError) throw categoryError;
       const { error: scheduleError } = await supabase.from('merchant_operating_hours').insert(DAYS.map(({ day }) => ({ merchant_id: merchant.id, day_of_week: day, ...schedule[day] })));
@@ -130,30 +130,30 @@ export function MerchantAddDialog({ open, onOpenChange, onSuccess }: MerchantAdd
       if (formData.user_id) {
         await supabase.from('user_roles').upsert([{ user_id: formData.user_id, role: 'buyer' }, { user_id: formData.user_id, role: 'merchant' }], { onConflict: 'user_id,role' });
       }
-      toast.success('Merchant baru berhasil ditambahkan'); onSuccess(); onOpenChange(false);
+      toast.success('Pedagang baru berhasil ditambahkan'); onSuccess(); onOpenChange(false);
     } catch (error) {
       console.error('Error adding merchant:', error);
-      const message = error instanceof Error ? error.message : 'Gagal menambahkan merchant';
-      toast.error(message.includes('duplicate') || message.includes('unique') ? 'Merchant dengan data tersebut sudah ada.' : message);
+      const message = error instanceof Error ? error.message : 'Gagal menambahkan pedagang';
+      toast.error(message.includes('duplicate') || message.includes('unique') ? 'Pedagang dengan data tersebut sudah ada.' : message);
     } finally { setLoading(false); }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader><DialogTitle className="flex items-center gap-2"><Store className="h-5 w-5 text-primary" />Tambah Merchant</DialogTitle><DialogDescription>Lengkapi data merchant seperti formulir pendaftaran agar merchant siap dikelola.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Store className="h-5 w-5 text-primary" />Tambah Pedagang</DialogTitle><DialogDescription>Lengkapi data pedagang seperti formulir pendaftaran agar siap dikelola.</DialogDescription></DialogHeader>
         <div className="space-y-6 py-2">
           <section className="space-y-4 rounded-lg border p-4"><h3 className="font-semibold flex items-center gap-2"><Store className="h-4 w-4" />Informasi Usaha</h3>
             <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Nama Usaha *</Label><Input value={formData.name} onChange={(e) => update('name', e.target.value)} placeholder="Contoh: Warung Berkah" /></div><div className="space-y-2"><Label>Nomor WhatsApp *</Label><Input value={formData.phone} onChange={(e) => update('phone', e.target.value)} placeholder="08xxxxxxxxxx" /></div></div>
             <div className="space-y-2"><Label>Kategori Usaha *</Label><div className="grid gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-2">{categoriesLoading ? <p className="text-sm text-muted-foreground">Memuat kategori...</p> : categories.map((category) => <label key={category.id} className="flex items-center gap-2 rounded border bg-background p-2 text-sm"><Checkbox checked={selectedCategoryIds.includes(category.id)} onCheckedChange={(checked) => setSelectedCategoryIds((current) => checked ? [...new Set([...current, category.id])] : current.filter((id) => id !== category.id))} />{category.icon ? `${category.icon} ` : ''}{category.name}</label>)}</div></div>
-            <div className="space-y-2"><Label>Deskripsi Usaha</Label><Textarea value={formData.business_description} onChange={(e) => update('business_description', e.target.value)} rows={3} placeholder="Ceritakan usaha merchant..." /></div>
-            <div className="grid gap-4 sm:grid-cols-2"><div><Label className="mb-2 block">Foto Profil</Label><ImageUpload bucket="merchant-images" path="profiles/admin-new" value={formData.image_url} onChange={(url) => update('image_url', url)} aspectRatio="square" placeholder="Upload foto merchant" /></div><div><Label className="mb-2 block">Foto Sampul</Label><ImageUpload bucket="merchant-images" path="covers/admin-new" value={formData.cover_image_url} onChange={(url) => update('cover_image_url', url)} aspectRatio="wide" placeholder="Upload foto sampul" /></div></div>
+            <div className="space-y-2"><Label>Deskripsi Usaha</Label><Textarea value={formData.business_description} onChange={(e) => update('business_description', e.target.value)} rows={3} placeholder="Ceritakan usaha pedagang..." /></div>
+            <div className="grid gap-4 sm:grid-cols-2"><div><Label className="mb-2 block">Foto Profil</Label><ImageUpload bucket="merchant-images" path="profiles/admin-new" value={formData.image_url} onChange={(url) => update('image_url', url)} aspectRatio="square" placeholder="Upload foto pedagang" /></div><div><Label className="mb-2 block">Foto Sampul</Label><ImageUpload bucket="merchant-images" path="covers/admin-new" value={formData.cover_image_url} onChange={(url) => update('cover_image_url', url)} aspectRatio="wide" placeholder="Upload foto sampul" /></div></div>
           </section>
           <section className="space-y-4 rounded-lg border p-4"><h3 className="font-semibold flex items-center gap-2"><Clock className="h-4 w-4" />Jadwal Operasional Mingguan</h3><p className="text-xs text-muted-foreground">Atur jam masuk dan tutup untuk setiap hari. Hari yang ditutup tidak menerima pesanan.</p><div className="space-y-2">{DAYS.map(({ day, label }) => { const item = schedule[day]; return <div key={day} className="grid items-center gap-2 rounded-md bg-muted/30 p-2 sm:grid-cols-[100px_1fr_1fr_auto]"><span className="text-sm font-medium">{label}</span><Input type="time" value={item.open_time} disabled={item.is_closed} onChange={(e) => setSchedule((current) => ({ ...current, [day]: { ...item, open_time: e.target.value } }))} aria-label={`Jam buka ${label}`} /><Input type="time" value={item.close_time} disabled={item.is_closed} onChange={(e) => setSchedule((current) => ({ ...current, [day]: { ...item, close_time: e.target.value } }))} aria-label={`Jam tutup ${label}`} /><label className="flex items-center gap-2 text-xs"><Checkbox checked={item.is_closed} onCheckedChange={(checked) => setSchedule((current) => ({ ...current, [day]: { ...item, is_closed: Boolean(checked) } }))} />Tutup</label></div>; })}</div></section>
           <section className="space-y-4 rounded-lg border p-4"><h3 className="font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" />Lokasi Usaha</h3><div className="grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label>Provinsi *</Label><Select value={formData.province_code} onValueChange={handleProvince}><SelectTrigger><SelectValue placeholder="Pilih provinsi" /></SelectTrigger><SelectContent>{provinces.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Kabupaten/Kota *</Label><Select value={formData.regency_code} onValueChange={handleRegency} disabled={!formData.province_code || loadingAddress}><SelectTrigger><SelectValue placeholder="Pilih kabupaten/kota" /></SelectTrigger><SelectContent>{regencies.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Kecamatan *</Label><Select value={formData.district_code} onValueChange={handleDistrict} disabled={!formData.regency_code || loadingAddress}><SelectTrigger><SelectValue placeholder="Pilih kecamatan" /></SelectTrigger><SelectContent>{districts.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Desa/Kelurahan *</Label><Select value={formData.village_code} onValueChange={handleVillage} disabled={!formData.district_code || loadingAddress}><SelectTrigger><SelectValue placeholder="Pilih desa/kelurahan" /></SelectTrigger><SelectContent>{villages.map((item) => <SelectItem key={item.code} value={item.code}>{item.name}</SelectItem>)}</SelectContent></Select></div></div><Textarea value={formData.address} onChange={(e) => update('address', e.target.value)} placeholder="Alamat lengkap (jalan, nomor rumah, patokan)" rows={2} /><AdminLocationPicker value={formData.location_lat !== null && formData.location_lng !== null ? { lat: formData.location_lat, lng: formData.location_lng } : null} onChange={(location) => setFormData((current) => ({ ...current, location_lat: location.lat, location_lng: location.lng }))} /></section>
-          <section className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"><div className="space-y-2"><Label className="flex items-center gap-2"><User className="h-4 w-4" />Hubungkan Pemilik (opsional)</Label><Select value={formData.user_id || 'none'} onValueChange={(value) => update('user_id', value === 'none' ? '' : value)} disabled={loadingUsers}><SelectTrigger><SelectValue placeholder={loadingUsers ? 'Memuat user...' : 'Pilih user merchant'} /></SelectTrigger><SelectContent><SelectItem value="none">Tanpa pemilik</SelectItem>{availableUsers.map((user) => <SelectItem key={user.user_id} value={user.user_id}>{user.full_name || 'Tanpa nama'}{user.phone ? ` — ${user.phone}` : ''}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label className="flex items-center gap-2"><Shield className="h-4 w-4" />Kode Verifikator (opsional)</Label><Input value={formData.verifikator_code} onChange={(e) => void validateCode(e.target.value)} placeholder="Kode referral/verifikator" />{verifikatorValid === true && <p className="text-xs text-success flex items-center gap-1"><Check className="h-3 w-3" />{verifikatorName || 'Kode valid'}</p>}</div></section>
+          <section className="grid gap-4 rounded-lg border p-4 sm:grid-cols-2"><div className="space-y-2"><Label className="flex items-center gap-2"><User className="h-4 w-4" />Hubungkan Pemilik (opsional)</Label><Select value={formData.user_id || 'none'} onValueChange={(value) => update('user_id', value === 'none' ? '' : value)} disabled={loadingUsers}><SelectTrigger><SelectValue placeholder={loadingUsers ? 'Memuat user...' : 'Pilih akun pedagang'} /></SelectTrigger><SelectContent><SelectItem value="none">Tanpa pemilik</SelectItem>{availableUsers.map((user) => <SelectItem key={user.user_id} value={user.user_id}>{user.full_name || 'Tanpa nama'}{user.phone ? ` — ${user.phone}` : ''}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label className="flex items-center gap-2"><Shield className="h-4 w-4" />Kode Verifikator (opsional)</Label><Input value={formData.verifikator_code} onChange={(e) => void validateCode(e.target.value)} placeholder="Kode referral/verifikator" />{verifikatorValid === true && <p className="text-xs text-success flex items-center gap-1"><Check className="h-3 w-3" />{verifikatorName || 'Kode valid'}</p>}</div></section>
         </div>
-        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Batal</Button><Button onClick={() => void handleSubmit()} disabled={loading || categoriesLoading}><Save className="mr-2 h-4 w-4" />{loading ? 'Menyimpan...' : 'Simpan Merchant'}</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Batal</Button><Button onClick={() => void handleSubmit()} disabled={loading || categoriesLoading}><Save className="mr-2 h-4 w-4" />{loading ? 'Menyimpan...' : 'Simpan Pedagang'}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
