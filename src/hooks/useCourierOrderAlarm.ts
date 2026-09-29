@@ -10,29 +10,60 @@ interface CourierState {
   is_available: boolean | null;
 }
 
-/**
- * Keeps the courier alarm alive across route changes. The server only fans out
- * new work to active couriers. The client follows the same user-facing online
- * control (`is_available`) and does not depend on the legacy `status` field,
- * which can remain INACTIVE after the toggle is changed.
- */
+interface RideOfferPayload {
+  ride_id: string;
+  courier_id: string;
+  status: string;
+}
+
+interface DeliveryOfferPayload {
+  order_id: string;
+  courier_id: string;
+  status: string;
+}
+
+/** Plays a short alert for a courier's pending offers from any courier route. */
 export function useCourierOrderAlarm(userId: string | null | undefined) {
   const courierRef = useRef<CourierState | null>(null);
-  const knownRideIds = useRef<Set<string> | null>(null);
-  const knownOfferIds = useRef<Set<string> | null>(null);
-  const knownOrderIds = useRef<Set<string> | null>(null);
+  const pendingRideIds = useRef<Set<string>>(new Set());
+  const pendingOrderIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!userId) return;
 
     let disposed = false;
     let retryTimer: number | undefined;
+    let refreshTimer: number | undefined;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let hasSeededWork = false;
 
-    const isOnline = () => {
-      const courier = courierRef.current;
-      return courier?.registration_status === 'APPROVED'
-        && courier.is_available === true;
+    const isOnline = () => courierRef.current?.registration_status === 'APPROVED'
+      && courierRef.current.is_available === true;
+
+    const syncSound = () => {
+      if (!isOnline() || (pendingRideIds.current.size === 0 && pendingOrderIds.current.size === 0)) {
+        stopOrderNotificationSound('courier');
+      }
+    };
+
+    const alertNewOffer = () => {
+      if (!isOnline()) return;
+      vibrateCourierAlarm();
+      void playOrderNotificationSound('courier');
+    };
+
+    const updatePending = (kind: 'ride' | 'order', id: string, isPending: boolean) => {
+      if (!id) return;
+      const pendingIds = kind === 'ride' ? pendingRideIds.current : pendingOrderIds.current;
+      if (isPending) {
+        if (!pendingIds.has(id)) {
+          pendingIds.add(id);
+          alertNewOffer();
+        }
+        return;
+      }
+      pendingIds.delete(id);
+      syncSound();
     };
 
     const loadCourierState = async () => {
@@ -48,80 +79,105 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       courierRef.current = data as CourierState;
     };
 
-    const seedCurrentWork = async () => {
+    const seedCurrentWork = async (notifyNew = true) => {
       const courier = courierRef.current;
-      if (!courier?.id) return;
-      const [{ data: rides }, { data: offers }, { data: orders }] = await Promise.all([
-        supabase.from('ride_requests').select('id').eq('status', 'SEARCHING').limit(100),
-        supabase.from('delivery_assignments').select('id').eq('courier_id', courier.id).in('status', ['OFFERED', 'PENDING']).limit(100),
-        supabase.from('orders').select('id').eq('courier_id', courier.id).eq('status', 'COURIER_ACCEPTED').limit(100),
-      ]);
-      knownRideIds.current = new Set((rides || []).map((row: { id: string }) => row.id));
-      knownOfferIds.current = new Set((offers || []).map((row: { id: string }) => row.id));
-      knownOrderIds.current = new Set((orders || []).map((row: { id: string }) => row.id));
-    };
-
-    const ringIfNew = (kind: 'ride' | 'offer' | 'order', id: string) => {
-      if (!isOnline()) return;
-      const ids = kind === 'ride'
-        ? knownRideIds.current
-        : kind === 'offer' ? knownOfferIds.current : knownOrderIds.current;
-      if (!ids) {
-        if (kind === 'ride') knownRideIds.current = new Set([id]);
-        else if (kind === 'offer') knownOfferIds.current = new Set([id]);
-        else knownOrderIds.current = new Set([id]);
+      if (!courier?.id || !isOnline()) {
+        pendingRideIds.current.clear();
+        pendingOrderIds.current.clear();
+        stopOrderNotificationSound('courier');
         return;
       }
-      if (ids.has(id)) return;
-      ids.add(id);
-      vibrateCourierAlarm();
-      void playOrderNotificationSound('courier');
+
+      const [{ data: rides, error: rideError }, { data: offers, error: offerError }, { data: orders, error: orderError }] = await Promise.all([
+        supabase.from('ride_request_offers' as never).select('ride_id').eq('courier_id', courier.id).eq('status', 'PENDING').limit(100),
+        supabase.from('delivery_assignments').select('order_id').eq('courier_id', courier.id).eq('status', 'OFFERED').limit(100),
+        supabase.from('orders').select('id').eq('courier_id', courier.id).eq('status', 'ASSIGNED').limit(100),
+      ]);
+      if (disposed) return;
+
+      const nextRideIds = rideError
+        ? pendingRideIds.current
+        : new Set(((rides || []) as unknown as Array<{ ride_id: string }>).map((row) => row.ride_id));
+      const nextOrderIds = new Set(pendingOrderIds.current);
+      if (!offerError && offers) {
+        nextOrderIds.clear();
+        (offers as unknown as Array<{ order_id: string | null }>).forEach((row) => {
+          if (row.order_id) nextOrderIds.add(row.order_id);
+        });
+      }
+      if (!orderError && orders) {
+        (orders as Array<{ id: string }>).forEach((row) => nextOrderIds.add(row.id));
+      }
+
+      const hasExistingSeed = hasSeededWork;
+      const hasNewRide = [...nextRideIds].some((id) => !pendingRideIds.current.has(id));
+      const hasNewOrder = [...nextOrderIds].some((id) => !pendingOrderIds.current.has(id));
+      pendingRideIds.current = new Set(nextRideIds);
+      pendingOrderIds.current = nextOrderIds;
+      hasSeededWork = true;
+      if (notifyNew && hasExistingSeed && (hasNewRide || hasNewOrder)) alertNewOffer();
+      syncSound();
     };
 
     const subscribe = () => {
-      if (disposed) return;
+      if (disposed || !courierRef.current?.id) return;
+      const courierId = courierRef.current.id;
       const channelName = `courier-order-alarm-${userId}-${Math.random().toString(36).slice(2)}`;
       channel = supabase
         .channel(channelName)
         .on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'ride_requests', filter: 'status=eq.SEARCHING',
-        }, (payload) => ringIfNew('ride', String((payload.new as { id: string }).id)))
+          event: 'INSERT', schema: 'public', table: 'ride_request_offers', filter: `courier_id=eq.${courierId}`,
+        }, (payload) => {
+          const offer = payload.new as RideOfferPayload;
+          updatePending('ride', offer.ride_id, offer.status === 'PENDING');
+        })
         .on('postgres_changes', {
-          event: 'UPDATE', schema: 'public', table: 'ride_requests',
+          event: 'UPDATE', schema: 'public', table: 'ride_request_offers', filter: `courier_id=eq.${courierId}`,
+        }, (payload) => {
+          const offer = payload.new as RideOfferPayload;
+          updatePending('ride', offer.ride_id, offer.status === 'PENDING');
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'ride_requests', filter: `driver_id=eq.${courierId}`,
         }, (payload) => {
           const ride = payload.new as { id: string; status?: string };
-          if (ride.status !== 'SEARCHING') {
-            knownRideIds.current?.delete(String(ride.id));
-            stopOrderNotificationSound();
-          }
+          if (ride.status !== 'SEARCHING') updatePending('ride', ride.id, false);
         })
         .on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierRef.current?.id || '00000000-0000-0000-0000-000000000000'}`,
-        }, (payload) => ringIfNew('offer', String((payload.new as { id: string }).id)))
-        .on('postgres_changes', {
-          event: 'UPDATE', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierRef.current?.id || '00000000-0000-0000-0000-000000000000'}`,
+          event: 'INSERT', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierId}`,
         }, (payload) => {
-          const offer = payload.new as { id: string; status?: string };
-          if (offer.status !== 'OFFERED') {
-            knownOfferIds.current?.delete(String(offer.id));
-            stopOrderNotificationSound();
-          }
+          const offer = payload.new as DeliveryOfferPayload;
+          updatePending('order', offer.order_id, offer.status === 'OFFERED');
         })
         .on('postgres_changes', {
-          event: 'UPDATE', schema: 'public', table: 'orders', filter: `courier_id=eq.${courierRef.current?.id || '00000000-0000-0000-0000-000000000000'}`,
+          event: 'UPDATE', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierId}`,
+        }, (payload) => {
+          const offer = payload.new as DeliveryOfferPayload;
+          updatePending('order', offer.order_id, offer.status === 'OFFERED');
+        })
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'orders', filter: `courier_id=eq.${courierId}`,
         }, (payload) => {
           const order = payload.new as { id: string; status?: string };
-          if (order.status === 'COURIER_ACCEPTED') ringIfNew('order', String(order.id));
+          updatePending('order', order.id, order.status === 'ASSIGNED');
         })
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'couriers', filter: `user_id=eq.${userId}`,
         }, async (payload) => {
           courierRef.current = payload.new as CourierState;
           if (isOnline()) await seedCurrentWork();
+          else {
+            pendingRideIds.current.clear();
+            pendingOrderIds.current.clear();
+            stopOrderNotificationSound('courier');
+          }
         });
 
       channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') return;
+        if (status === 'SUBSCRIBED') {
+          void seedCurrentWork();
+          return;
+        }
         if (!disposed && (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
           retryTimer = window.setTimeout(() => {
             if (channel) void supabase.removeChannel(channel);
@@ -134,13 +190,15 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
 
     const start = async () => {
       await loadCourierState();
-      await seedCurrentWork();
-      if (!disposed) subscribe();
+      await seedCurrentWork(false);
+      if (disposed) return;
+      subscribe();
+      // ride_request_offers may not be enabled in Realtime on older deployments.
+      // Polling this small courier-scoped inbox keeps incoming ojek offers reliable.
+      refreshTimer = window.setInterval(() => { void seedCurrentWork(); }, 8000);
     };
     void start();
 
-    // The online toggle is a user gesture and unlocks Web Audio for subsequent
-    // realtime callbacks without requiring the rides menu to be opened.
     const unlockOnInteraction = () => unlockOrderNotificationAudio();
     document.addEventListener('pointerdown', unlockOnInteraction, { passive: true });
     document.addEventListener('keydown', unlockOnInteraction);
@@ -148,13 +206,14 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
     return () => {
       disposed = true;
       if (retryTimer) window.clearTimeout(retryTimer);
+      if (refreshTimer) window.clearInterval(refreshTimer);
       document.removeEventListener('pointerdown', unlockOnInteraction);
       document.removeEventListener('keydown', unlockOnInteraction);
       if (channel) void supabase.removeChannel(channel);
+      stopOrderNotificationSound('courier');
       courierRef.current = null;
-      knownRideIds.current = null;
-      knownOfferIds.current = null;
-      knownOrderIds.current = null;
+      pendingRideIds.current.clear();
+      pendingOrderIds.current.clear();
     };
   }, [userId]);
 }

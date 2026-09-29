@@ -1,19 +1,25 @@
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { playOrderNotificationSound, stopOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 
 interface MerchantState {
   id: string;
   status: string | null;
 }
 
+interface OrderAlarmPayload {
+  id: string;
+  status?: string;
+  delivery_name?: string | null;
+}
+
 const PENDING_STATUSES = ['NEW', 'PENDING_CONFIRMATION'];
 
-/** Keeps new-order sound and toast active on every merchant route. */
+/** Plays a short alert on any merchant route when an order starts waiting. */
 export function useMerchantOrderAlarm(userId: string | null | undefined) {
   const merchantRef = useRef<MerchantState | null>(null);
-  const knownOrderIds = useRef<Set<string> | null>(null);
+  const pendingOrderIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!userId) return;
@@ -22,10 +28,7 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
     let retryTimer: number | undefined;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    const isMerchantActive = () => {
-      const merchant = merchantRef.current;
-      return Boolean(merchant?.id) && merchant.status === 'ACTIVE';
-    };
+    const isMerchantActive = () => Boolean(merchantRef.current?.id) && merchantRef.current?.status === 'ACTIVE';
 
     const loadMerchant = async () => {
       const { data, error } = await supabase
@@ -41,33 +44,45 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
     };
 
     const seedPendingOrders = async () => {
-      const merchantId = merchantRef.current?.id;
-      if (!merchantId) return;
-      const { data } = await supabase
+      if (!isMerchantActive()) {
+        pendingOrderIds.current.clear();
+        stopOrderNotificationSound('merchant');
+        return;
+      }
+      const merchantId = merchantRef.current!.id;
+      const { data, error } = await supabase
         .from('orders')
         .select('id')
         .eq('merchant_id', merchantId)
         .in('status', PENDING_STATUSES)
         .limit(100);
-      knownOrderIds.current = new Set((data || []).map((row: { id: string }) => row.id));
+      if (error || disposed) return;
+      pendingOrderIds.current = new Set((data || []).map((row: { id: string }) => row.id));
+      if (pendingOrderIds.current.size === 0) stopOrderNotificationSound('merchant');
     };
 
-    const notifyIfNew = (payload: { id: string; status?: string; delivery_name?: string | null }) => {
-      if (!isMerchantActive() || !PENDING_STATUSES.includes(payload.status || '')) return;
-      if (!knownOrderIds.current) {
-        knownOrderIds.current = new Set([payload.id]);
+    const handleOrderChange = (order: OrderAlarmPayload) => {
+      if (!isMerchantActive()) return;
+      const isPending = PENDING_STATUSES.includes(order.status || '');
+      const wasPending = pendingOrderIds.current.has(order.id);
+
+      if (isPending) {
+        pendingOrderIds.current.add(order.id);
+        if (!wasPending) {
+          void playOrderNotificationSound('merchant');
+          toast.info('Pesanan baru masuk!', {
+            description: `Pesanan dari ${order.delivery_name || 'Pelanggan'}`,
+            action: {
+              label: 'Lihat',
+              onClick: () => { window.location.assign(`/merchant/orders?orderId=${order.id}`); },
+            },
+          });
+        }
         return;
       }
-      if (knownOrderIds.current.has(payload.id)) return;
-      knownOrderIds.current.add(payload.id);
-      void playOrderNotificationSound('merchant');
-      toast.info('Pesanan baru masuk!', {
-        description: `Pesanan dari ${payload.delivery_name || 'Pelanggan'}`,
-        action: {
-          label: 'Lihat',
-          onClick: () => { window.location.assign(`/merchant/orders?orderId=${payload.id}`); },
-        },
-      });
+
+      pendingOrderIds.current.delete(order.id);
+      if (pendingOrderIds.current.size === 0) stopOrderNotificationSound('merchant');
     };
 
     const subscribe = () => {
@@ -78,16 +93,26 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
         .channel(channelName)
         .on('postgres_changes', {
           event: 'INSERT', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchantId}`,
-        }, (payload) => notifyIfNew(payload.new as { id: string; status?: string; delivery_name?: string | null }))
+        }, (payload) => handleOrderChange(payload.new as OrderAlarmPayload))
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchantId}`,
+        }, (payload) => handleOrderChange(payload.new as OrderAlarmPayload))
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'merchants', filter: `user_id=eq.${userId}`,
         }, async (payload) => {
           merchantRef.current = payload.new as MerchantState;
           if (isMerchantActive()) await seedPendingOrders();
+          else {
+            pendingOrderIds.current.clear();
+            stopOrderNotificationSound('merchant');
+          }
         });
 
       channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') return;
+        if (status === 'SUBSCRIBED') {
+          void seedPendingOrders();
+          return;
+        }
         if (!disposed && (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
           retryTimer = window.setTimeout(() => {
             if (channel) void supabase.removeChannel(channel);
@@ -105,7 +130,7 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
     };
     void start();
 
-    // Any click/keypress can unlock Web Audio before a later realtime event.
+    // Any interaction unlocks Web Audio before a realtime event needs to alert.
     const unlockOnInteraction = () => unlockOrderNotificationAudio();
     document.addEventListener('pointerdown', unlockOnInteraction, { passive: true });
     document.addEventListener('keydown', unlockOnInteraction);
@@ -116,8 +141,9 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
       document.removeEventListener('pointerdown', unlockOnInteraction);
       document.removeEventListener('keydown', unlockOnInteraction);
       if (channel) void supabase.removeChannel(channel);
+      stopOrderNotificationSound('merchant');
       merchantRef.current = null;
-      knownOrderIds.current = null;
+      pendingOrderIds.current.clear();
     };
   }, [userId]);
 }

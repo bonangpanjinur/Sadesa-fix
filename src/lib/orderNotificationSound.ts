@@ -44,13 +44,23 @@ export const DEFAULT_ORDER_SOUND_SETTINGS: OrderNotificationSoundSettings = {
 const SETTINGS_KEY = 'order_notification_sound_settings';
 const LOCAL_OVERRIDE_KEY = 'order_notification_sound_override';
 let settingsCache: { value: OrderNotificationSoundSettings; expiresAt: number } | null = null;
-let activePlayback: { stop: () => void } | null = null;
+let activePlayback: { audience: OrderSoundAudience; stop: () => void } | null = null;
+let activeCustomAudio: { audience: OrderSoundAudience; audio: HTMLAudioElement } | null = null;
+const soundRequestGenerations: Record<OrderSoundAudience, number> = { merchant: 0, courier: 0 };
 let sharedAudioContext: AudioContext | null = null;
 
-/** Stop the active repeating alarm without changing the saved sound settings. */
-export function stopOrderNotificationSound() {
-  activePlayback?.stop();
-  activePlayback = null;
+/** Stop the current short alert without changing saved settings. */
+export function stopOrderNotificationSound(audience?: OrderSoundAudience) {
+  const targets = audience ? [audience] : ['merchant', 'courier'] as const;
+  targets.forEach((target) => { soundRequestGenerations[target] += 1; });
+  if (activePlayback && (!audience || activePlayback.audience === audience)) {
+    activePlayback.stop();
+    activePlayback = null;
+  }
+  if (activeCustomAudio && (!audience || activeCustomAudio.audience === audience)) {
+    activeCustomAudio.audio.pause();
+    activeCustomAudio = null;
+  }
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number) {
@@ -195,16 +205,25 @@ async function playPreset(preset: Exclude<OrderSoundPreset, 'custom'>, volume: n
 
 }
 
-async function playCustomAudio(url: string, volume: number) {
+async function playCustomAudio(url: string, volume: number, audience: OrderSoundAudience, onAudio?: (audio: HTMLAudioElement) => void) {
   const audio = new Audio(url);
   audio.preload = 'auto';
   audio.volume = volume;
   audio.currentTime = 0;
-  await audio.play();
-  await new Promise<void>((resolve) => {
-    audio.addEventListener('ended', () => resolve(), { once: true });
-    audio.addEventListener('error', () => resolve(), { once: true });
-  });
+  activeCustomAudio = { audience, audio };
+  onAudio?.(audio);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const finish = () => resolve();
+      const fail = () => reject(new Error('Custom notification audio failed to play'));
+      audio.addEventListener('ended', finish, { once: true });
+      audio.addEventListener('pause', finish, { once: true });
+      audio.addEventListener('error', fail, { once: true });
+      void audio.play().catch(fail);
+    });
+  } finally {
+    if (activeCustomAudio?.audio === audio) activeCustomAudio = null;
+  }
 }
 
 async function playNotificationWithSettings(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, ignoreLocalOverride = false) {
@@ -213,15 +232,23 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
 
   activePlayback?.stop();
   let stopped = false;
-  // Leave the pending delay alive so it resolves and the loop can exit. If it
-  // is cleared, the promise remains pending and the alarm cannot be restarted.
-  activePlayback = { stop: () => { stopped = true; } };
+  let currentAudio: HTMLAudioElement | null = null;
+  let wakeDelay: (() => void) | null = null;
+  const playback = {
+    audience,
+    stop: () => {
+      stopped = true;
+      currentAudio?.pause();
+      wakeDelay?.();
+    },
+  };
+  activePlayback = playback;
 
   try {
     for (let index = 0; index < settings.repeat_count && !stopped; index += 1) {
       if (profile.preset === 'custom' && profile.custom_audio_url) {
         try {
-          await playCustomAudio(profile.custom_audio_url, profile.volume);
+          await playCustomAudio(profile.custom_audio_url, profile.volume, audience, (audio) => { currentAudio = audio; });
         } catch {
           // A remote custom file can be blocked by mobile autoplay/CORS. Keep
           // the alarm responsive by falling back to a local Web Audio preset.
@@ -231,19 +258,31 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
         await playPreset(profile.preset === 'custom' ? 'urgent' : profile.preset, profile.volume);
       }
       if (index < settings.repeat_count - 1 && !stopped) {
-        await new Promise<void>((resolve) => { window.setTimeout(resolve, settings.repeat_gap_ms); });
+        await new Promise<void>((resolve) => {
+          const timer = window.setTimeout(() => {
+            wakeDelay = null;
+            resolve();
+          }, settings.repeat_gap_ms);
+          wakeDelay = () => {
+            window.clearTimeout(timer);
+            wakeDelay = null;
+            resolve();
+          };
+        });
       }
     }
   } catch {
     // Browser autoplay policy or an unavailable custom file should not break order updates.
   } finally {
-    if (activePlayback?.stop && !stopped) activePlayback = null;
+    if (activePlayback === playback) activePlayback = null;
   }
 }
 
 export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   if (typeof window === 'undefined') return;
+  const generation = soundRequestGenerations[audience];
   const settings = await fetchOrderNotificationSoundSettings();
+  if (soundRequestGenerations[audience] !== generation) return;
   return playNotificationWithSettings(settings, audience);
 }
 
