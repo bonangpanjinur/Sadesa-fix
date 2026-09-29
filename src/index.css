@@ -324,6 +324,12 @@
   .scrollbar-subtle::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--muted-foreground) / 0.55);
   }
+
+  /* Keep the courier dashboard scrollable inside the fixed mobile viewport. */
+  .courier-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
 }
 
 @layer components {

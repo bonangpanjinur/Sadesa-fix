@@ -35,9 +35,9 @@ describe('nearest courier sequential ride dispatch contract', () => {
     expect(migration).toContain('PERFORM public.dispatch_next_ride_offer(p_ride_id);');
   });
 
-  it('runs expiry processing from an active courier session', () => {
-    expect(courierLayout).toContain("supabase.rpc('process_expired_ride_offers' as never)");
-    expect(courierLayout).toContain('10_000');
+  it('keeps expiry processing server-side when the optional RPC is unavailable', () => {
+    expect(migration).toContain('CREATE OR REPLACE FUNCTION public.process_expired_ride_offers()');
+    expect(courierLayout).not.toContain("process_expired_ride_offers");
     expect(courierRides).toContain("supabase.rpc('decline_ride_request' as never");
   });
 });

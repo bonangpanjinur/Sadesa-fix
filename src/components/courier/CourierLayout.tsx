@@ -10,7 +10,6 @@ import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
-import { supabase } from '@/integrations/supabase/client';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -30,27 +29,6 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
   const { unreadCount: chatUnreadCount } = useChatUnread();
   useCourierOrderAlarm(user?.id);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    let processing = false;
-    const processExpiredRideOffers = async () => {
-      if (processing) return;
-      processing = true;
-      try {
-        const { error } = await supabase.rpc('process_expired_ride_offers' as never);
-        if (error && error.code !== '42501') {
-          console.warn('Gagal memproses penawaran ojek yang kedaluwarsa:', error);
-        }
-      } finally {
-        processing = false;
-      }
-    };
-
-    void processExpiredRideOffers();
-    const interval = window.setInterval(() => void processExpiredRideOffers(), 10_000);
-    return () => window.clearInterval(interval);
-  }, [user?.id]);
-
   const isActive = (href: string) => href === '/courier'
     ? location.pathname === href
     : location.pathname === href || location.pathname.startsWith(`${href}/`);
@@ -65,7 +43,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
   }, [sidebarOpen]);
 
   return (
-    <div className="flex min-h-dvh w-full overflow-x-hidden bg-background">
+    <div className="flex h-dvh min-h-0 w-full overflow-hidden bg-background">
       {/* Full navigation stays visible on desktop; mobile uses the drawer below. */}
       <aside className="hidden w-64 shrink-0 md:flex" aria-label="Menu kurir">
         <CourierSidebar chatUnreadCount={chatUnreadCount} />
@@ -130,7 +108,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
           <OrderAlarmSettingsControl audience="courier" />
         </header>
 
-        <main className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-24 pt-4 sm:px-6 sm:pt-6 md:pb-8">
+        <main className="courier-scroll min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-32 pt-4 touch-pan-y sm:px-6 sm:pt-6 md:pb-8">
           <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
 
