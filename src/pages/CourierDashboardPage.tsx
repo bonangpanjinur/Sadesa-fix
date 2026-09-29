@@ -132,7 +132,7 @@ export default function CourierDashboardPage() {
     refetchInterval: 30_000,
   });
 
-  const { data: orders = [], isLoading: ordersLoading } = useQuery<AssignedOrder[]>({
+  const { data: orders = [], isLoading: ordersLoading, isError: ordersError, isFetching: ordersFetching } = useQuery<AssignedOrder[]>({
     queryKey: ['courier-assigned-orders', courier?.id],
     queryFn: async () => {
       if (!courier) return [];
@@ -171,6 +171,7 @@ export default function CourierDashboardPage() {
         table: 'delivery_assignments',
         filter: `courier_id=eq.${courier.id}`,
       }, () => {
+        toast({ title: 'Tawaran pengiriman baru', description: 'Periksa detail pickup dan tujuan sebelum menerima.' });
         queryClient.invalidateQueries({ queryKey: ['courier-delivery-offers', courier.id] });
       })
       .on('postgres_changes', {
@@ -536,6 +537,27 @@ export default function CourierDashboardPage() {
           />
         </motion.div>
 
+        <div className="grid grid-cols-3 gap-2 sm:gap-3" aria-label="Ringkasan aktivitas kurir">
+          <Card className="border-border shadow-sm">
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-[11px] text-muted-foreground sm:text-xs">Pesanan aktif</p>
+              <p className="mt-1 text-xl font-bold sm:text-2xl">{orders.length}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border shadow-sm">
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-[11px] text-muted-foreground sm:text-xs">Tawaran barang</p>
+              <p className="mt-1 text-xl font-bold text-primary sm:text-2xl">{deliveryOffers.length}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border shadow-sm">
+            <CardContent className="p-3 sm:p-4">
+              <p className="text-[11px] text-muted-foreground sm:text-xs">Permintaan ojek</p>
+              <p className="mt-1 text-xl font-bold text-primary sm:text-2xl">{rideRequestCount}</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card className="border-primary/40 shadow-sm">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -703,17 +725,27 @@ export default function CourierDashboardPage() {
               <Package className="h-5 w-5" />
               Pesanan Aktif
             </h3>
-            <Button variant="ghost" size="sm" onClick={fetchCourierData}>
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={fetchCourierData} disabled={ordersFetching} aria-label="Muat ulang pesanan aktif" title="Muat ulang pesanan aktif">
+              <RefreshCw className={`h-4 w-4 ${ordersFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
 
-          {orders.length === 0 ? (
+          {ordersLoading ? (
+            <div className="space-y-3" aria-label="Memuat pesanan aktif">
+              {[0, 1].map((item) => <div key={item} className="h-40 animate-pulse rounded-xl border border-border bg-muted/40" />)}
+            </div>
+          ) : ordersError ? (
+            <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-center">
+              <AlertCircle className="mx-auto mb-3 h-10 w-10 text-destructive" />
+              <p className="font-medium">Pesanan aktif belum dapat dimuat</p>
+              <p className="mt-1 text-sm text-muted-foreground">Periksa koneksi lalu coba muat ulang.</p>
+              <Button className="mt-4" variant="outline" onClick={fetchCourierData}>Coba lagi</Button>
+            </div>
+          ) : orders.length === 0 ? (
             <div className="bg-card rounded-2xl p-8 border border-border text-center">
               <Package className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                Belum ada pesanan yang ditugaskan
-              </p>
+              <p className="font-medium">Belum ada pesanan aktif</p>
+              <p className="mt-1 text-sm text-muted-foreground">Pesanan yang Anda terima akan muncul di sini.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -799,7 +831,7 @@ export default function CourierDashboardPage() {
                           Navigasi ke toko
                         </NavigationButton>
                       )}
-                      {order.delivery_lat != null && order.delivery_lng != null && (
+                      {order.delivery_lat != null && order.delivery_lng != null && order.status !== 'COURIER_ACCEPTED' && (
                         <NavigationButton
                           lat={order.delivery_lat}
                           lng={order.delivery_lng}

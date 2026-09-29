@@ -11,6 +11,7 @@ import {
   MessageCircle,
   PiggyBank,
   Search,
+  ShoppingBag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +34,7 @@ export function CourierSidebar({ onNavigate, chatUnreadCount = 0 }: CourierSideb
     { label: 'Dashboard', href: '/courier', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: 'Ojek Desa', href: '/courier/rides', icon: <Bike className="h-4 w-4" /> },
     { label: 'Pengiriman Barang', href: '/courier/deliveries', icon: <Package className="h-4 w-4" /> },
-    { label: 'Toko Perlengkapan', href: '/courier/store', icon: <Package className="h-4 w-4" /> },
+    { label: 'Toko Perlengkapan', href: '/courier/store', icon: <ShoppingBag className="h-4 w-4" /> },
     { label: 'Riwayat Pengiriman', href: '/courier/history', icon: <History className="h-4 w-4" /> },
     { label: 'Chat', href: '/courier/chat', icon: <MessageCircle className="h-4 w-4" /> },
     { label: 'Pendapatan', href: '/courier/earnings', icon: <Wallet className="h-4 w-4" /> },
