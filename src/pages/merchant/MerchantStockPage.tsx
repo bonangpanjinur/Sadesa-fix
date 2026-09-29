@@ -15,7 +15,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { usePOS } from '@/contexts/POSContext';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
@@ -44,7 +43,6 @@ interface StockHistoryItem {
 
 export default function MerchantStockPage() {
   const navigate = useNavigate();
-  const { posEnabled, loading: posLoading } = usePOS();
   const { merchantId, merchantName, loading: guardLoading } = useMerchantGuard();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -55,9 +53,25 @@ export default function MerchantStockPage() {
   const [thresholdDialog, setThresholdDialog] = useState<Product | null>(null);
   const [thresholdValue, setThresholdValue] = useState('');
 
+  const { data: activeMerchantPOSTenant, isLoading: posLoading } = useQuery<{ id: string } | null>({
+    queryKey: ['merchant-active-pos-tenant', merchantId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('pos_tenants' as never)
+        .select('id')
+        .eq('merchant_id', merchantId!)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (error) throw error;
+      return data as unknown as { id: string } | null;
+    },
+    enabled: !!merchantId && !guardLoading,
+  });
+  const merchantUsesPOS = Boolean(activeMerchantPOSTenant);
+
   useEffect(() => {
-    if (!posLoading && posEnabled) navigate('/merchant/pos/stok', { replace: true });
-  }, [navigate, posEnabled, posLoading]);
+    if (!posLoading && merchantUsesPOS) navigate('/merchant/pos/stok', { replace: true });
+  }, [navigate, merchantUsesPOS, posLoading]);
 
   const { data: products = [], isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ['merchant-stock-products', merchantId],
@@ -185,11 +199,11 @@ export default function MerchantStockPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (guardLoading || posLoading || posEnabled) {
+  if (guardLoading || posLoading || merchantUsesPOS) {
     return (
       <MerchantLayout title="Manajemen Stok" subtitle="Kelola dan pantau stok produk Anda">
         <div className="flex items-center justify-center py-20">
-          {posEnabled ? <p className="text-sm text-muted-foreground">Membuka manajemen stok POS…</p> : <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />}
+          {merchantUsesPOS ? <p className="text-sm text-muted-foreground">Membuka manajemen stok POS…</p> : <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />}
         </div>
       </MerchantLayout>
     );
