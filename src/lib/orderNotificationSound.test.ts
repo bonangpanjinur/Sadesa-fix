@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ORDER_SOUND_SETTINGS,
   normalizeOrderNotificationSoundSettings,
+  resolveOrderSoundProfile,
+  shouldPlayOrderNotificationSound,
 } from './orderNotificationSound';
 
 describe('order notification sound settings', () => {
@@ -52,5 +54,22 @@ describe('order notification sound settings', () => {
     expect(result.merchant_volume).toBe(0.3);
     expect(result.courier_preset).toBe('chime');
     expect(result.courier_volume).toBe(0.8);
+  });
+
+  it('keeps courier sound mandatory despite old disabled settings or local overrides', () => {
+    const settings = normalizeOrderNotificationSoundSettings({ enabled: false, courier_enabled: false, courier_volume: 0 });
+    const courierProfile = resolveOrderSoundProfile(settings, 'courier', { enabled: false, volume: 0 });
+
+    expect(settings.courier_enabled).toBe(true);
+    expect(settings.courier_volume).toBe(0.1);
+    expect(courierProfile).toMatchObject({ enabled: true, volume: 0.1 });
+    expect(shouldPlayOrderNotificationSound(settings, 'courier', courierProfile)).toBe(true);
+  });
+
+  it('continues respecting optional merchant sound controls', () => {
+    const settings = normalizeOrderNotificationSoundSettings({ enabled: false, merchant_enabled: true });
+    const merchantProfile = resolveOrderSoundProfile(settings, 'merchant', null);
+
+    expect(shouldPlayOrderNotificationSound(settings, 'merchant', merchantProfile)).toBe(false);
   });
 });

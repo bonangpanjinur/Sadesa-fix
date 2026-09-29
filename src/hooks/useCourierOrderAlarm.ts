@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 
 interface CourierState {
   id: string;
@@ -73,6 +74,7 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       }
       if (ids.has(id)) return;
       ids.add(id);
+      vibrateCourierAlarm();
       void playOrderNotificationSound('courier');
     };
 

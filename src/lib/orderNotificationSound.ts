@@ -63,7 +63,7 @@ export function normalizeOrderNotificationSoundSettings(value: unknown): OrderNo
     ...input,
     enabled: input.enabled !== false,
     merchant_enabled: input.merchant_enabled !== false,
-    courier_enabled: input.courier_enabled !== false,
+    courier_enabled: true,
     preset: legacyPreset,
     custom_audio_url: typeof input.custom_audio_url === 'string' ? input.custom_audio_url : '',
     volume: legacyVolume,
@@ -74,7 +74,7 @@ export function normalizeOrderNotificationSoundSettings(value: unknown): OrderNo
     courier_preset: isPreset(input.courier_preset) ? input.courier_preset : legacyPreset,
     courier_custom_audio_url: typeof input.courier_custom_audio_url === 'string'
       ? input.courier_custom_audio_url : (typeof input.custom_audio_url === 'string' ? input.custom_audio_url : ''),
-    courier_volume: clampNumber(input.courier_volume, 0, 1, legacyVolume),
+    courier_volume: clampNumber(input.courier_volume, 0.1, 1, legacyVolume),
     repeat_count: Math.round(clampNumber(input.repeat_count, 1, 6, DEFAULT_ORDER_SOUND_SETTINGS.repeat_count)),
     repeat_gap_ms: Math.round(clampNumber(input.repeat_gap_ms, 250, 3000, DEFAULT_ORDER_SOUND_SETTINGS.repeat_gap_ms)),
   };
@@ -105,7 +105,7 @@ export function clearOrderNotificationSoundSettingsCache() {
 export function getAudienceProfile(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience): OrderSoundProfile {
   return audience === 'merchant'
     ? { enabled: settings.merchant_enabled, preset: settings.merchant_preset, custom_audio_url: settings.merchant_custom_audio_url, volume: settings.merchant_volume }
-    : { enabled: settings.courier_enabled, preset: settings.courier_preset, custom_audio_url: settings.courier_custom_audio_url, volume: settings.courier_volume };
+    : { enabled: true, preset: settings.courier_preset, custom_audio_url: settings.courier_custom_audio_url, volume: settings.courier_volume };
 }
 
 function localOverrideKey(audience: OrderSoundAudience) {
@@ -133,7 +133,14 @@ export function clearOrderSoundLocalOverride(audience: OrderSoundAudience) {
 }
 
 export function resolveOrderSoundProfile(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, override = getOrderSoundLocalOverride(audience)): OrderSoundProfile {
-  return { ...getAudienceProfile(settings, audience), ...(override || {}) };
+  const profile = { ...getAudienceProfile(settings, audience), ...(override || {}) };
+  return audience === 'courier'
+    ? { ...profile, enabled: true, volume: clampNumber(profile.volume, 0.1, 1, DEFAULT_ORDER_SOUND_SETTINGS.courier_volume) }
+    : profile;
+}
+
+export function shouldPlayOrderNotificationSound(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, profile: OrderSoundProfile): boolean {
+  return audience === 'courier' || (settings.enabled && profile.enabled);
 }
 
 function getAudioContext() {
@@ -196,7 +203,7 @@ async function playCustomAudio(url: string, volume: number) {
 
 async function playNotificationWithSettings(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, ignoreLocalOverride = false) {
   const profile = ignoreLocalOverride ? getAudienceProfile(settings, audience) : resolveOrderSoundProfile(settings, audience);
-  if (!settings.enabled || !profile.enabled) return;
+  if (!shouldPlayOrderNotificationSound(settings, audience, profile)) return;
 
   activePlayback?.stop();
   let stopped = false;

@@ -2,6 +2,7 @@
 
 import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
+import { COURIER_ALARM_VIBRATION_PATTERN } from './lib/notificationVibrationPattern';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -124,7 +125,8 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: data.icon,
       badge: '/branding/sadesa-favicon.png',
-      vibrate: [100, 50, 100],
+      silent: false,
+      vibrate: [...COURIER_ALARM_VIBRATION_PATTERN],
       data: { url: data.url },
       actions: [
         { action: 'open', title: 'Buka' },

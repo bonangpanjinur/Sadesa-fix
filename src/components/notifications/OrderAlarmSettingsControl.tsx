@@ -104,10 +104,17 @@ export function OrderAlarmSettingsControl({ audience }: OrderAlarmSettingsContro
               <div className="py-8 text-center text-sm text-muted-foreground">Memuat pengaturan alarm...</div>
             ) : (
               <div className="space-y-5">
-                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-                  <input type="checkbox" checked={profile.enabled} onChange={(event) => setProfile({ ...profile, enabled: event.target.checked })} className="h-4 w-4 accent-primary" />
-                  Aktifkan alarm pesanan
-                </label>
+                {audience === 'courier' ? (
+                  <div className="rounded-md border bg-muted/30 p-3 text-sm" role="status">
+                    <p className="font-medium">Alarm bunyi dan getar wajib aktif.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Alarm ojek tidak dapat dimatikan dari pengaturan perangkat ini.</p>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" checked={profile.enabled} onChange={(event) => setProfile({ ...profile, enabled: event.target.checked })} className="h-4 w-4 accent-primary" />
+                    Aktifkan alarm pesanan
+                  </label>
+                )}
                 <div>
                   <label htmlFor={`${audience}-local-preset`} className="text-sm font-medium">Nada dering</label>
                   <select id={`${audience}-local-preset`} value={profile.preset} onChange={(event) => setProfile({ ...profile, preset: event.target.value as OrderSoundProfile['preset'] })} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">

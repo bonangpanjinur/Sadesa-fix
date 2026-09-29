@@ -13,7 +13,7 @@ import {
 } from '@/lib/pushNotification';
 import { toast } from 'sonner';
 
-export function PushNotificationSettings() {
+export function PushNotificationSettings({ required = false }: { required?: boolean }) {
   const { user } = useAuth();
   const [supported, setSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
@@ -43,6 +43,7 @@ export function PushNotificationSettings() {
   }, [checkStatus]);
 
   const handleToggle = async (enabled: boolean) => {
+    if (required && !enabled && subscribed) return;
     if (!user) {
       toast.error('Silakan login terlebih dahulu');
       return;
@@ -120,7 +121,7 @@ export function PushNotificationSettings() {
               Notifikasi Push
             </Label>
             <p className="text-xs text-muted-foreground">
-              Terima notifikasi pesanan dan update penting
+              {required ? 'Wajib aktif untuk menerima pesanan ojek.' : 'Terima notifikasi pesanan dan update penting'}
             </p>
           </div>
         </div>
@@ -128,7 +129,7 @@ export function PushNotificationSettings() {
           id="push-toggle"
           checked={subscribed}
           onCheckedChange={handleToggle}
-          disabled={toggling}
+          disabled={toggling || (required && subscribed)}
         />
       </div>
 

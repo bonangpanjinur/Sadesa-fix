@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import {
   getPushPermission,
   getSubscriptionStatus,
+  hasActiveBrowserPushSubscription,
   isPushSupported,
   subscribeToPush,
 } from '@/lib/pushNotification';
@@ -13,8 +14,8 @@ import {
 type OnboardingStatus = 'checking' | 'ready' | 'unsupported' | 'default' | 'denied' | 'subscribe-failed';
 
 /**
- * Optional notification onboarding panel. It must not be mounted globally as
- * a blocking gate; users can continue using the app without push permission.
+ * Mandatory push onboarding for couriers only. Mount it inside CourierLayout,
+ * and never show the modal when this browser already has an active subscription.
  * The browser permission prompt is only reached from an explicit button click.
  */
 export function NotificationOnboardingGate() {
@@ -49,9 +50,26 @@ export function NotificationOnboardingGate() {
       return;
     }
 
-    const subscribed = await getSubscriptionStatus(user.id);
+    const browserSubscribed = await hasActiveBrowserPushSubscription();
     if (operationId !== operationRef.current) return;
-    setStatus(subscribed ? 'ready' : 'subscribe-failed');
+    if (!browserSubscribed) {
+      setStatus('default');
+      return;
+    }
+
+    const registered = await getSubscriptionStatus(user.id);
+    if (operationId !== operationRef.current) return;
+    if (registered) {
+      setStatus('ready');
+      return;
+    }
+
+    // A local subscription means the user already enabled push. Re-register it
+    // quietly so a stale/missing server row does not bring back the blocking modal.
+    const repaired = await subscribeToPush(user.id);
+    if (operationId !== operationRef.current) return;
+    if (!repaired) console.warn('Push is enabled in this browser but could not be re-synced to the server.');
+    setStatus('ready');
   }, [user]);
 
   useEffect(() => {
@@ -70,7 +88,16 @@ export function NotificationOnboardingGate() {
         setStatus('ready');
       } else {
         const permission = await getPushPermission();
-        setStatus(permission === 'denied' ? 'denied' : 'subscribe-failed');
+        if (operationId !== operationRef.current) return;
+        if (permission === 'denied') {
+          setStatus('denied');
+        } else if (await hasActiveBrowserPushSubscription()) {
+          if (operationId !== operationRef.current) return;
+          console.warn('Push is enabled in this browser but could not be re-synced to the server.');
+          setStatus('ready');
+        } else {
+          setStatus('subscribe-failed');
+        }
       }
     } finally {
       if (operationId === operationRef.current) setBusy(false);
@@ -104,7 +131,7 @@ export function NotificationOnboardingGate() {
               ? 'Izin notifikasi untuk Sadesa sedang diblokir oleh browser. Browser tidak mengizinkan aplikasi mengubahnya secara otomatis.'
               : isUnsupported
                 ? 'Browser ini tidak mendukung push notification. Gunakan browser modern seperti Chrome, Edge, atau Firefox untuk menerima update pesanan.'
-                : 'Aktifkan notifikasi untuk menerima update pesanan dan informasi penting dari Sadesa.'}
+                : 'Notifikasi push wajib aktif untuk ojek agar pesanan tetap masuk saat aplikasi tidak terbuka. Aktifkan bunyi dan getar untuk alarm pesanan.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -120,11 +147,11 @@ export function NotificationOnboardingGate() {
             </div>
           ) : isUnsupported ? (
             <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
-              Push notification membutuhkan Notification API, Service Worker, dan Push API. Silakan buka Sadesa memakai browser yang mendukung fitur tersebut.
+              Notifikasi push wajib untuk ojek, tetapi browser ini tidak mendukung Notification API, Service Worker, dan Push API. Silakan gunakan browser yang mendukung fitur tersebut.
             </div>
           ) : (
             <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
-              Permintaan izin hanya akan muncul setelah Anda menekan tombol di bawah. Sadesa tidak meminta izin secara otomatis saat halaman dibuka.
+              Push wajib aktif untuk menerima pesanan saat aplikasi tidak terbuka. Permintaan izin browser hanya muncul setelah Anda menekan tombol di bawah.
             </div>
           )}
 

@@ -115,6 +115,17 @@ export async function unsubscribeFromPush(userId: string): Promise<boolean> {
   }
 }
 
+export async function hasActiveBrowserPushSubscription(): Promise<boolean> {
+  try {
+    if (!(await isPushSupported()) || (await getPushPermission()) !== 'granted') return false;
+    const registration = await navigator.serviceWorker.ready;
+    return Boolean(await registration.pushManager.getSubscription());
+  } catch (error) {
+    console.error('Error checking browser push subscription:', error);
+    return false;
+  }
+}
+
 export async function getSubscriptionStatus(userId: string): Promise<boolean> {
   try {
     if (!(await isPushSupported())) return false;

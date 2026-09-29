@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isCourier } = useAuth();
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
 
@@ -94,7 +94,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <PushNotificationSettings />
+                  <PushNotificationSettings required={isCourier} />
                 </CardContent>
               </Card>
             )}

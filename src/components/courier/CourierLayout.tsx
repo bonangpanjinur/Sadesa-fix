@@ -9,6 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
+import { NotificationOnboardingGate } from '@/components/notifications/NotificationOnboardingGate';
+import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
@@ -63,6 +65,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
 
   return (
     <div className="flex min-h-dvh w-full overflow-x-hidden bg-background">
+      <NotificationOnboardingGate />
       {/* Full navigation stays visible on desktop; mobile uses the drawer below. */}
       <aside className="hidden w-64 shrink-0 md:flex" aria-label="Menu kurir">
         <CourierSidebar chatUnreadCount={chatUnreadCount} />
@@ -118,11 +121,11 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
             variant="outline"
             size="sm"
             className="min-h-10 shrink-0 gap-1.5 text-xs sm:min-h-9"
-            onClick={unlockOrderNotificationAudio}
-            aria-label="Aktifkan nada alarm pesanan"
+            onClick={() => { unlockOrderNotificationAudio(); vibrateCourierAlarm(); }}
+            aria-label="Aktifkan bunyi dan getar alarm pesanan"
           >
             <Volume2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Aktifkan Nada</span>
+            <span className="hidden sm:inline">Aktifkan Bunyi &amp; Getar</span>
           </Button>
           <OrderAlarmSettingsControl audience="courier" />
         </header>

@@ -9,7 +9,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-import { subscribeToPush } from './pushNotification';
+import { hasActiveBrowserPushSubscription, subscribeToPush } from './pushNotification';
 
 describe('subscribeToPush', () => {
   beforeEach(() => {
@@ -60,5 +60,18 @@ describe('subscribeToPush', () => {
       .mockResolvedValueOnce(new Response('{}', { status: 500 }));
 
     await expect(subscribeToPush('user-1')).resolves.toBe(false);
+  });
+
+  it('recognizes an existing browser subscription when permission is granted', async () => {
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          pushManager: { getSubscription: vi.fn().mockResolvedValue({ endpoint: 'https://push.example/subscription' }) },
+        }),
+      },
+    });
+
+    await expect(hasActiveBrowserPushSubscription()).resolves.toBe(true);
   });
 });
