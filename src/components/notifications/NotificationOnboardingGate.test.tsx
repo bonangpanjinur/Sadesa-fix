@@ -48,10 +48,20 @@ describe('NotificationOnboardingGate', () => {
 
   it('shows the required modal when no browser subscription exists', async () => {
     mocks.hasActiveBrowserPushSubscription.mockResolvedValue(false);
+    mocks.getPushPermission.mockResolvedValue('default');
+    mocks.subscribeToPush.mockResolvedValue(false);
     render(<NotificationOnboardingGate />);
 
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Aktifkan Notifikasi' })).toBeTruthy();
+  });
+
+  it('automatically subscribes when browser permission is already granted', async () => {
+    mocks.hasActiveBrowserPushSubscription.mockResolvedValue(false);
+    render(<NotificationOnboardingGate />);
+
+    await waitFor(() => expect(mocks.subscribeToPush).toHaveBeenCalledWith('courier-1'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('keeps the modal open when an existing browser subscription cannot sync to the server', async () => {

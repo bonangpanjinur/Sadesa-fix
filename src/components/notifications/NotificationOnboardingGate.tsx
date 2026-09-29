@@ -17,7 +17,9 @@ type OnboardingStatus = 'checking' | 'ready' | 'unsupported' | 'default' | 'deni
 /**
  * Mandatory push onboarding for couriers only. Mount it inside CourierLayout,
  * and never show the modal when this browser already has an active subscription.
- * The browser permission prompt is only reached from an explicit button click.
+ * If browser permission is already granted, subscription and server sync are
+ * attempted automatically. The first permission prompt still needs a click
+ * because browsers block unsolicited permission prompts.
  */
 export function NotificationOnboardingGate() {
   const { user, loading: authLoading } = useAuth();
@@ -54,7 +56,11 @@ export function NotificationOnboardingGate() {
     const browserSubscribed = await hasActiveBrowserPushSubscription();
     if (operationId !== operationRef.current) return;
     if (!browserSubscribed) {
-      setStatus('default');
+      // Permission was already granted, so finish activation without asking
+      // the courier to press another button.
+      const subscribed = await subscribeToPush(user.id);
+      if (operationId !== operationRef.current) return;
+      setStatus(subscribed ? 'ready' : 'sync-failed');
       return;
     }
 
