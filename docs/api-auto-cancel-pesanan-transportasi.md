@@ -39,6 +39,53 @@ Order marketplace/toko tidak diproses oleh fungsi ini. Booking dengan pickup ter
 
 > Karena job berjalan per menit, order dibatalkan pada tick pertama setelah usia 5 menit—umumnya antara 5 dan 6 menit setelah dibuat, bukan tepat pada detik ke-300.
 
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Cron as pg_cron
+    participant Worker as Auto-cancel function
+    participant DB as PostgreSQL
+    participant Passenger as Penumpang
+    participant Buyer as Pembeli
+
+    Cron->>Worker: Jalankan setiap menit
+    Worker->>DB: Coba advisory lock untuk jalur ojek
+    opt Lock ojek diperoleh
+        Worker->>DB: Expire offer PENDING pada ride yang sudah terminal
+        loop Maksimum 100 ride per run
+            Worker->>DB: Cari SEARCHING tanpa driver, usia >= 5 menit
+            Worker->>DB: Kunci row FOR UPDATE SKIP LOCKED
+            alt Ride masih eligible dan lock diperoleh
+                Worker->>DB: Ubah offer PENDING menjadi EXPIRED
+                Worker->>DB: Ubah ride menjadi CANCELLED dan simpan alasan/waktu
+                Worker->>DB: Kirim notifikasi in-app (best effort)
+                DB-->>Passenger: Notifikasi pembatalan ojek
+            else Ride berubah status atau sedang dikunci transaksi lain
+                DB-->>Worker: Ride berubah atau dilewati karena lock
+            end
+        end
+    end
+
+    loop Maksimum 100 order kurir langsung per run
+        Worker->>DB: Cari COURIER_DELIVERY ASSIGNED tanpa courier, non-terjadwal, usia >= 5 menit
+        Worker->>DB: Kunci order lalu assignment OFFERED/ACCEPTED dengan NOWAIT
+        alt Assignment accepted atau lock dipakai acceptance/dispatch
+            DB-->>Worker: Lewati order, cron akan mencoba lagi
+        else Order masih belum diterima
+            Worker->>DB: Ubah order menjadi CANCELED, cancellation_type SYSTEM
+            Worker->>DB: Tutup assignment OFFERED dan tulis order_status_history
+            Worker->>DB: Kirim notifikasi in-app (best effort)
+            DB-->>Buyer: Notifikasi pembatalan kurir
+        end
+    end
+
+    Worker-->>Cron: Kembalikan jumlah record yang dibatalkan
+```
+
+Jika penguncian menemukan acceptance/dispatch sedang berlangsung, worker melewati record tersebut alih-alih menunggu atau membatalkan secara spekulatif. Pemanggilan cron berikutnya akan memeriksanya kembali.
+
 ## Efek samping
 
 ### Ojek
