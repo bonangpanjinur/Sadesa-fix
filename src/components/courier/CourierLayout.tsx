@@ -9,7 +9,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
-import { NotificationOnboardingGate } from '@/components/notifications/NotificationOnboardingGate';
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -67,7 +66,6 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
 
   return (
     <div className="flex min-h-dvh w-full overflow-x-hidden bg-background">
-      <NotificationOnboardingGate />
       {/* Full navigation stays visible on desktop; mobile uses the drawer below. */}
       <aside className="hidden w-64 shrink-0 md:flex" aria-label="Menu kurir">
         <CourierSidebar chatUnreadCount={chatUnreadCount} />
