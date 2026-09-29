@@ -85,6 +85,7 @@ export default function RideTrackingPage() {
   const [ride, setRide] = useState<RideData | null>(null);
   const [driver, setDriver] = useState<DriverInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rideLoadError, setRideLoadError] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showRatingDialog, setShowRatingDialog] = useState(false);
@@ -96,6 +97,7 @@ export default function RideTrackingPage() {
   const [driverUserId, setDriverUserId] = useState<string | null>(null);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
   const timeoutNoticeShownRef = useRef(false);
+  const driverRef = useRef<DriverInfo | null>(null);
 
   useEffect(() => {
     const conversationId = searchParams.get('conversationId');
@@ -109,12 +111,14 @@ export default function RideTrackingPage() {
   const fetchDriver = useCallback(async (driverId: string) => {
     const data = await getAuthorizedCourierContact(driverId, { rideId: id });
     if (data) {
+      driverRef.current = data;
       setDriver(data);
       if (data.user_id) setDriverUserId(data.user_id);
     }
   }, [id]);
 
   const fetchRide = useCallback(async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('ride_requests')
@@ -123,9 +127,16 @@ export default function RideTrackingPage() {
         .eq('passenger_id', user!.id)
         .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        setRide(null);
+        setRideLoadError(false);
+        return;
+      }
       setRide(data as unknown as RideData);
+      setRideLoadError(false);
       if (data.driver_id) fetchDriver(data.driver_id);
     } catch {
+      setRideLoadError(true);
       toast({ title: 'Gagal memuat data perjalanan', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -145,8 +156,9 @@ export default function RideTrackingPage() {
         filter: `id=eq.${id}`,
       }, (payload) => {
         const updated = payload.new as Record<string, unknown>;
+        setRideLoadError(false);
         setRide(prev => prev ? { ...prev, ...updated } as unknown as RideData : null);
-        if (updated.driver_id && !driver) {
+        if (updated.driver_id && !driverRef.current) {
           fetchDriver(updated.driver_id as string);
         }
         if (updated.status === 'ACCEPTED') {
@@ -161,7 +173,7 @@ export default function RideTrackingPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, id, fetchRide, driver, fetchDriver]);
+  }, [user, id, fetchRide, fetchDriver]);
 
 
   useEffect(() => {
@@ -263,8 +275,21 @@ export default function RideTrackingPage() {
       <div className="min-h-[100dvh] bg-background">
         <Header />
         <div className="text-center py-20">
-          <p className="text-muted-foreground">Perjalanan tidak ditemukan</p>
-          <Button className="mt-4" onClick={() => navigate('/ride')}>Pesan Ojek Baru</Button>
+          {rideLoadError ? (
+            <>
+              <p className="font-medium">Data perjalanan belum dapat dimuat</p>
+              <p className="mt-2 text-sm text-muted-foreground">Ini belum tentu berarti pesanan hilang. Periksa koneksi lalu coba muat ulang.</p>
+              <Button className="mt-4" onClick={() => void fetchRide()} disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Coba lagi
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground">Perjalanan tidak ditemukan atau Anda tidak memiliki akses.</p>
+              <Button className="mt-4" onClick={() => navigate('/ride')}>Kembali ke Ojek Desa</Button>
+            </>
+          )}
         </div>
       </div>
     );

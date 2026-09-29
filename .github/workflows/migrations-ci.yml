@@ -4,12 +4,18 @@ on:
   push:
     paths:
       - "supabase/bootstrap/**"
+      - "archive/supabase/migrations/**"
+      - "scripts/ride-rls-smoke.sql"
+      - "scripts/test-build-bootstrap-safety.py"
       - "scripts/build-bootstrap-bundles.py"
       - "scripts/validate-bootstrap-bundles.py"
       - ".github/workflows/migrations-ci.yml"
   pull_request:
     paths:
       - "supabase/bootstrap/**"
+      - "archive/supabase/migrations/**"
+      - "scripts/ride-rls-smoke.sql"
+      - "scripts/test-build-bootstrap-safety.py"
       - "scripts/build-bootstrap-bundles.py"
       - "scripts/validate-bootstrap-bundles.py"
       - ".github/workflows/migrations-ci.yml"
@@ -45,6 +51,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Regression test — refuse destructive rebuild from incomplete archive
+        run: python3 scripts/test-build-bootstrap-safety.py
 
       - name: Validate canonical bootstrap coverage
         run: python3 scripts/validate-bootstrap-bundles.py
@@ -120,6 +129,9 @@ jobs:
             psql -v ON_ERROR_STOP=1 -f "$f"
             echo "::endgroup::"
           done
+
+      - name: Regression test — buyer and courier ride RLS
+        run: psql -v ON_ERROR_STOP=1 -f scripts/ride-rls-smoke.sql
 
       - name: Smoke check — required tables exist
         run: |

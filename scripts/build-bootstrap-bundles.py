@@ -2,7 +2,9 @@
 """Build ordered SQL bundles for bootstrapping a brand-new Supabase project.
 
 The canonical deployment SQL is kept in supabase/bootstrap. The archived
-migration files are used only to regenerate and audit these bundles.
+migration files are used only to regenerate and audit these bundles. Rebuilds
+refuse to proceed when the archive is incomplete relative to the current
+manifest, so an incomplete history cannot erase checked-in deployment SQL.
 """
 from __future__ import annotations
 
@@ -28,6 +30,29 @@ def main() -> int:
     files = sorted(args.source.glob('*.sql'))
     if not files:
         raise SystemExit(f'No SQL migrations found in {args.source}')
+    # Never delete/rebuild checked-in deployment bundles from an incomplete
+    # archive. The current bundle manifest is the compatibility floor: if any
+    # source entry it references is absent, a rebuild would silently omit SQL
+    # that may already exist in deployed environments.
+    existing_manifest_path = args.output / 'manifest.json'
+    if existing_manifest_path.exists():
+        existing_manifest = json.loads(existing_manifest_path.read_text(encoding='utf-8'))
+        existing_sources = {
+            name
+            for bundle in existing_manifest.get('bundles', [])
+            for name in bundle.get('source_files', [])
+        }
+        available_sources = {path.name for path in files}
+        missing_sources = sorted(existing_sources - available_sources)
+        if missing_sources:
+            preview = ', '.join(missing_sources[:5])
+            suffix = ' ...' if len(missing_sources) > 5 else ''
+            raise SystemExit(
+                'Refusing to rebuild bootstrap bundles: the current manifest references '
+                f'{len(missing_sources)} source file(s) missing from {args.source} '
+                f'({preview}{suffix}). Restore the complete source archive first; '
+                'no existing bootstrap files were changed.'
+            )
     if args.bundles < 1 or args.bundles > len(files):
         raise SystemExit('--bundles must be between 1 and the migration count')
 

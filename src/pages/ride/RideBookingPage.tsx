@@ -52,6 +52,7 @@ export default function RideBookingPage() {
   const [drivers, setDrivers] = useState<DriverMarker[]>([]);
   const [mapCenter] = useState<[number, number]>([-7.3274, 108.2207]);
   const [activeRide, setActiveRide] = useState<{ id: string; status: string } | null>(null);
+  const [activeRideCheckStatus, setActiveRideCheckStatus] = useState<'checking' | 'ready' | 'error'>('checking');
   const [geocoding, setGeocoding] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [roadRoute, setRoadRoute] = useState<RoadRoute | null>(null);
@@ -71,6 +72,21 @@ export default function RideBookingPage() {
   const nearestDriverDistance = nearestDriver && pickupLocation
     ? haversineDistance(pickupLocation.lat, pickupLocation.lng, nearestDriver.lat, nearestDriver.lng)
     : null;
+
+  const checkActiveRide = useCallback(async () => {
+    if (!user) return;
+    setActiveRideCheckStatus('checking');
+    const { data, error } = await supabase.from('ride_requests').select('id, status')
+      .eq('passenger_id', user.id)
+      .in('status', ['SEARCHING', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+      .order('created_at', { ascending: false }).limit(1);
+    if (error) {
+      setActiveRideCheckStatus('error');
+      return;
+    }
+    setActiveRide(data?.[0] as unknown as { id: string; status: string } ?? null);
+    setActiveRideCheckStatus('ready');
+  }, [user]);
 
   const fetchDrivers = useCallback(async () => {
     const { data } = await supabase.from('public_couriers').select('id, current_lat_approx, current_lng_approx, is_available, status')
@@ -124,15 +140,9 @@ export default function RideBookingPage() {
       });
     // Fetch nearby drivers
     fetchDrivers();
-    // Check active ride
-    supabase.from('ride_requests').select('id, status')
-      .eq('passenger_id', user.id)
-      .in('status', ['SEARCHING', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
-      .order('created_at', { ascending: false }).limit(1)
-      .then(({ data }) => {
-        if (data && data.length > 0) setActiveRide(data[0] as unknown as { id: string; status: string });
-      });
-  }, [user, navigate, fetchDrivers, handleGps]);
+    // Do not permit a new request when RLS/API errors prevent checking existing rides.
+    void checkActiveRide();
+  }, [user, navigate, fetchDrivers, handleGps, checkActiveRide]);
 
   // Real-time driver position updates
   useEffect(() => {
@@ -252,6 +262,25 @@ export default function RideBookingPage() {
     if (!user || !pickupLocation || !destLocation) return;
     setSubmitting(true);
     try {
+      // Re-check immediately before creating the request (the page can stay open
+      // while another tab/device starts a ride). Fail closed if the read is broken.
+      const { data: existingRides, error: activeRideError } = await supabase.from('ride_requests').select('id, status')
+        .eq('passenger_id', user.id)
+        .in('status', ['SEARCHING', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+        .order('created_at', { ascending: false }).limit(1);
+      if (activeRideError) {
+        setActiveRideCheckStatus('error');
+        toast({ title: 'Pesanan belum dapat diproses', description: 'Status perjalanan aktif tidak dapat diverifikasi. Coba lagi sebelum membuat pesanan baru.', variant: 'destructive' });
+        return;
+      }
+      const existingRide = existingRides?.[0] as unknown as { id: string; status: string } | undefined;
+      if (existingRide) {
+        setActiveRide(existingRide);
+        setActiveRideCheckStatus('ready');
+        toast({ title: 'Perjalanan aktif ditemukan', description: 'Anda akan diarahkan ke perjalanan yang sedang berlangsung.' });
+        navigate(`/ride/${existingRide.id}`);
+        return;
+      }
       if (!await requestRequiredLocation()) {
         toast({ title: 'GPS wajib diaktifkan', description: 'Aktifkan Lokasi untuk melanjutkan pemesanan ojek.', variant: 'destructive' });
         return;
@@ -272,14 +301,23 @@ export default function RideBookingPage() {
       navigate(`/ride/${data}`);
     } catch (err) {
       console.error(err);
-      toast({ title: 'Gagal memesan ojek', variant: 'destructive' });
+      const errorMessage = err && typeof err === 'object' && 'message' in err
+        ? String((err as { message?: unknown }).message ?? '')
+        : '';
+      if (/already has an active ride/i.test(errorMessage)) {
+        void checkActiveRide();
+        toast({ title: 'Anda sudah memiliki perjalanan aktif', description: 'Buka perjalanan yang sedang berjalan sebelum memesan ojek lagi.', variant: 'destructive' });
+      } else {
+        toast({ title: 'Gagal memesan ojek', variant: 'destructive' });
+      }
     } finally {
       setSubmitting(false);
       setShowConfirm(false);
     }
   };
 
-  const canOrder = !!pickupLocation && !!destLocation && distanceKm > 0.05;
+  const canOrder = !!pickupLocation && !!destLocation && distanceKm > 0.05
+    && activeRideCheckStatus === 'ready' && !activeRide;
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
@@ -317,6 +355,18 @@ export default function RideBookingPage() {
             Perjalanan sedang berlangsung — tap untuk lihat
           </span>
           <Navigation className="h-4 w-4" />
+        </div>
+      )}
+
+      {activeRideCheckStatus === 'checking' && (
+        <div className="relative z-20 px-4 py-2 text-center text-xs text-muted-foreground">
+          Memeriksa perjalanan aktif sebelum pemesanan...
+        </div>
+      )}
+      {activeRideCheckStatus === 'error' && (
+        <div className="relative z-20 flex items-center justify-between gap-3 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+          <span>Status perjalanan belum dapat diverifikasi. Pemesanan baru dinonaktifkan agar tidak membuat pesanan ganda.</span>
+          <Button variant="outline" size="sm" onClick={() => void checkActiveRide()}>Coba lagi</Button>
         </div>
       )}
 
@@ -451,7 +501,10 @@ export default function RideBookingPage() {
 
           {!canOrder && (
             <p className="text-center text-xs text-muted-foreground py-1">
-              {!pickupLocation ? 'Pilih titik jemput di peta atau gunakan GPS' :
+              {activeRideCheckStatus === 'checking' ? 'Menunggu pemeriksaan perjalanan aktif…' :
+               activeRideCheckStatus === 'error' ? 'Perbaiki koneksi lalu coba periksa kembali sebelum memesan' :
+               activeRide ? 'Perjalanan aktif sedang berjalan; buka banner di atas untuk melihat statusnya' :
+               !pickupLocation ? 'Pilih titik jemput di peta atau gunakan GPS' :
                !destLocation ? 'Tap peta untuk pilih tujuan' : 'Jarak terlalu dekat'}
             </p>
           )}
