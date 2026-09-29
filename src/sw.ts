@@ -9,7 +9,6 @@ declare const self: ServiceWorkerGlobalScope;
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 clientsClaim();
-self.skipWaiting();
 
 const SCRIPT_CACHE = 'sadesa-script-cache-v1';
 const IMAGE_CACHE = 'sadesa-image-cache-v1';

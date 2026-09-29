@@ -3,6 +3,7 @@ import { heartbeatPwaDevice, registerPwaDevice, type PwaDeviceSession } from '@/
 import { PWAContext, type PWAContextValue } from './PWAContext';
 import { reportObservability } from '@/lib/observability';
 import { supabase } from '@/integrations/supabase/client';
+import { isPendingServiceWorkerUpdate } from '@/lib/pwaUpdate';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -180,10 +181,9 @@ function usePWAController(): PWAContextValue {
     let updateCheckTimer: ReturnType<typeof setInterval> | null = null;
 
     const handleControllerChange = () => {
-      // A worker update must not interrupt an active form, checkout, chat, or
-      // admin operation. The explicit UpdatePrompt button calls updateApp()
-      // when the user is ready to reload.
-      setStatus((prev) => ({ ...prev, isUpdateAvailable: true }));
+      // A controller change also happens during first install; it is not proof
+      // of an update. An approved update clears its prompt after activation.
+      setStatus((prev) => ({ ...prev, isUpdateAvailable: false }));
     };
 
     const handleVisibilityChange = () => {
@@ -199,6 +199,14 @@ function usePWAController(): PWAContextValue {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
       void navigator.serviceWorker.ready.then((registration) => {
+        setStatus((prev) => ({
+          ...prev,
+          isUpdateAvailable: isPendingServiceWorkerUpdate(
+            registration.waiting?.state,
+            Boolean(registration.waiting),
+            Boolean(navigator.serviceWorker.controller),
+          ),
+        }));
         void registerPwaSyncCapabilities(registration).catch((error: unknown) => {
           reportObservability('offline_sync', 'capability_registration_failed', 'warn', {}, error);
         });
@@ -220,7 +228,11 @@ function usePWAController(): PWAContextValue {
           const newWorker = registration.installing;
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              if (isPendingServiceWorkerUpdate(
+                newWorker.state,
+                registration.waiting === newWorker,
+                Boolean(navigator.serviceWorker.controller),
+              )) {
                 setStatus((prev) => ({ ...prev, isUpdateAvailable: true }));
               }
             });
@@ -290,8 +302,20 @@ function usePWAController(): PWAContextValue {
   const updateApp = useCallback(() => {
     if ('serviceWorker' in navigator) {
       void navigator.serviceWorker.ready.then((registration) => {
-        registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
-        window.location.reload();
+        const waitingWorker = registration.waiting;
+        if (!waitingWorker) {
+          setStatus((prev) => ({ ...prev, isUpdateAvailable: false }));
+          return;
+        }
+
+        const reloadAfterActivation = () => {
+          if (navigator.serviceWorker.controller === waitingWorker) {
+            navigator.serviceWorker.removeEventListener('controllerchange', reloadAfterActivation);
+            window.location.reload();
+          }
+        };
+        navigator.serviceWorker.addEventListener('controllerchange', reloadAfterActivation);
+        waitingWorker.postMessage({ type: 'SKIP_WAITING' });
       }).catch((error: unknown) => reportObservability('device', 'pwa_update_failed', 'error', {}, error));
     }
   }, []);
