@@ -47,12 +47,17 @@ let settingsCache: { value: OrderNotificationSoundSettings; expiresAt: number } 
 let activePlayback: { audience: OrderSoundAudience; stop: () => void } | null = null;
 let activeCustomAudio: { audience: OrderSoundAudience; audio: HTMLAudioElement } | null = null;
 const soundRequestGenerations: Record<OrderSoundAudience, number> = { merchant: 0, courier: 0 };
+const pendingSoundAudiences = new Set<OrderSoundAudience>();
+let audioUnlocked = false;
 let sharedAudioContext: AudioContext | null = null;
 
 /** Stop the current short alert without changing saved settings. */
 export function stopOrderNotificationSound(audience?: OrderSoundAudience) {
   const targets = audience ? [audience] : ['merchant', 'courier'] as const;
-  targets.forEach((target) => { soundRequestGenerations[target] += 1; });
+  targets.forEach((target) => {
+    soundRequestGenerations[target] += 1;
+    pendingSoundAudiences.delete(target);
+  });
   if (activePlayback && (!audience || activePlayback.audience === audience)) {
     activePlayback.stop();
     activePlayback = null;
@@ -169,8 +174,24 @@ function getAudioContext() {
 /** Call from a user gesture before a realtime callback needs to play audio. */
 export function unlockOrderNotificationAudio() {
   if (typeof window === 'undefined') return;
+  audioUnlocked = true;
   const context = getAudioContext();
-  if (context?.state === 'suspended') void context.resume().catch(() => undefined);
+  if (!context) {
+    audioUnlocked = false;
+    return;
+  }
+  if (context.state === 'suspended') {
+    void context.resume().then(flushPendingSoundAudiences).catch(() => { audioUnlocked = false; });
+  } else {
+    flushPendingSoundAudiences();
+  }
+}
+
+function flushPendingSoundAudiences() {
+  if (!audioUnlocked || sharedAudioContext?.state !== 'running') return;
+  const audiences = [...pendingSoundAudiences];
+  pendingSoundAudiences.clear();
+  audiences.forEach((audience) => { void playOrderNotificationSound(audience); });
 }
 
 async function playPreset(preset: Exclude<OrderSoundPreset, 'custom'>, volume: number) {
@@ -273,6 +294,7 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
     }
   } catch {
     // Browser autoplay policy or an unavailable custom file should not break order updates.
+    if (!stopped && sharedAudioContext?.state === 'suspended') pendingSoundAudiences.add(audience);
   } finally {
     if (activePlayback === playback) activePlayback = null;
   }
@@ -280,6 +302,15 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
 
 export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   if (typeof window === 'undefined') return;
+  if (!audioUnlocked) {
+    pendingSoundAudiences.add(audience);
+    return;
+  }
+  const context = getAudioContext();
+  if (!context || context.state !== 'running') {
+    pendingSoundAudiences.add(audience);
+    return;
+  }
   const generation = soundRequestGenerations[audience];
   const settings = await fetchOrderNotificationSoundSettings();
   if (soundRequestGenerations[audience] !== generation) return;
@@ -287,6 +318,7 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
 }
 
 export function previewOrderNotificationSound(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience = 'merchant') {
+  unlockOrderNotificationAudio();
   return playNotificationWithSettings(normalizeOrderNotificationSoundSettings(settings), audience, true);
 }
 

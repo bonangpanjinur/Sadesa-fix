@@ -36,6 +36,7 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
     let refreshTimer: number | undefined;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let hasSeededWork = false;
+    let rideOfferTableAvailable: boolean | null = null;
 
     const isOnline = () => courierRef.current?.registration_status === 'APPROVED'
       && courierRef.current.is_available === true;
@@ -79,6 +80,42 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       courierRef.current = data as CourierState;
     };
 
+    const fetchPendingRideIds = async (courierId: string) => {
+      if (rideOfferTableAvailable !== false) {
+        const { data, error } = await supabase
+          .from('ride_request_offers' as never)
+          .select('ride_id')
+          .eq('courier_id', courierId)
+          .eq('status', 'PENDING')
+          .limit(100);
+        if (!error) {
+          rideOfferTableAvailable = true;
+          return {
+            ids: ((data || []) as unknown as Array<{ ride_id: string }>).map((row) => row.ride_id),
+            error: false,
+          };
+        }
+
+        const dbError = error as { code?: string; message?: string; status?: number };
+        const missingTable = dbError.code === 'PGRST205'
+          || dbError.code === '42P01'
+          || dbError.status === 404
+          || (/404/.test(dbError.message || '') && /ride_request_offers/i.test(dbError.message || ''))
+          || /ride_request_offers.*(not found|schema cache|does not exist)/i.test(dbError.message || '');
+        if (!missingTable) return { ids: null, error: true };
+        rideOfferTableAvailable = false;
+      }
+
+      // Older deployed databases expose searchable rides directly, without
+      // the newer per-courier ride_request_offers table.
+      const { data, error } = await supabase
+        .from('ride_requests')
+        .select('id')
+        .eq('status', 'SEARCHING')
+        .limit(100);
+      return { ids: error ? null : (data || []).map((row) => row.id), error: Boolean(error) };
+    };
+
     const seedCurrentWork = async (notifyNew = true) => {
       const courier = courierRef.current;
       if (!courier?.id || !isOnline()) {
@@ -88,16 +125,16 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
         return;
       }
 
-      const [{ data: rides, error: rideError }, { data: offers, error: offerError }, { data: orders, error: orderError }] = await Promise.all([
-        supabase.from('ride_request_offers' as never).select('ride_id').eq('courier_id', courier.id).eq('status', 'PENDING').limit(100),
+      const [rideResult, { data: offers, error: offerError }, { data: orders, error: orderError }] = await Promise.all([
+        fetchPendingRideIds(courier.id),
         supabase.from('delivery_assignments').select('order_id').eq('courier_id', courier.id).eq('status', 'OFFERED').limit(100),
         supabase.from('orders').select('id').eq('courier_id', courier.id).eq('status', 'ASSIGNED').limit(100),
       ]);
       if (disposed) return;
 
-      const nextRideIds = rideError
+      const nextRideIds = rideResult.error || !rideResult.ids
         ? pendingRideIds.current
-        : new Set(((rides || []) as unknown as Array<{ ride_id: string }>).map((row) => row.ride_id));
+        : new Set(rideResult.ids);
       const nextOrderIds = new Set(pendingOrderIds.current);
       if (!offerError && offers) {
         nextOrderIds.clear();
@@ -123,25 +160,37 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       if (disposed || !courierRef.current?.id) return;
       const courierId = courierRef.current.id;
       const channelName = `courier-order-alarm-${userId}-${Math.random().toString(36).slice(2)}`;
-      channel = supabase
-        .channel(channelName)
-        .on('postgres_changes', {
+      let courierChannel = supabase.channel(channelName);
+      if (rideOfferTableAvailable !== false) {
+        courierChannel = courierChannel
+          .on('postgres_changes', {
           event: 'INSERT', schema: 'public', table: 'ride_request_offers', filter: `courier_id=eq.${courierId}`,
+          }, (payload) => {
+            const offer = payload.new as RideOfferPayload;
+            updatePending('ride', offer.ride_id, offer.status === 'PENDING');
+          })
+          .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'ride_request_offers', filter: `courier_id=eq.${courierId}`,
+          }, (payload) => {
+            const offer = payload.new as RideOfferPayload;
+            updatePending('ride', offer.ride_id, offer.status === 'PENDING');
+          });
+      }
+      if (rideOfferTableAvailable === false) {
+        courierChannel = courierChannel.on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'ride_requests', filter: 'status=eq.SEARCHING',
         }, (payload) => {
-          const offer = payload.new as RideOfferPayload;
-          updatePending('ride', offer.ride_id, offer.status === 'PENDING');
-        })
+          const ride = payload.new as { id: string; status?: string };
+          updatePending('ride', ride.id, ride.status === 'SEARCHING');
+        });
+      }
+      channel = courierChannel
         .on('postgres_changes', {
-          event: 'UPDATE', schema: 'public', table: 'ride_request_offers', filter: `courier_id=eq.${courierId}`,
-        }, (payload) => {
-          const offer = payload.new as RideOfferPayload;
-          updatePending('ride', offer.ride_id, offer.status === 'PENDING');
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE', schema: 'public', table: 'ride_requests', filter: `driver_id=eq.${courierId}`,
+          event: 'UPDATE', schema: 'public', table: 'ride_requests',
         }, (payload) => {
           const ride = payload.new as { id: string; status?: string };
           if (ride.status !== 'SEARCHING') updatePending('ride', ride.id, false);
+          else if (rideOfferTableAvailable === false) updatePending('ride', ride.id, true);
         })
         .on('postgres_changes', {
           event: 'INSERT', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierId}`,
