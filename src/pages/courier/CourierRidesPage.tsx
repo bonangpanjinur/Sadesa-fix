@@ -19,6 +19,9 @@ import { OrderChat } from '@/components/chat/OrderChat';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
 import { getRoadRoute } from '@/lib/routeCalculation';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 const pickupIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
@@ -70,6 +73,14 @@ interface RidesData {
   passengerNames: Record<string, string>;
 }
 
+interface RideReasonDialogState {
+  kind: 'advance' | 'cancel';
+  nextStatus?: string;
+  title: string;
+  description: string;
+  initialValue: string;
+}
+
 export default function CourierRidesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -85,6 +96,9 @@ export default function CourierRidesPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
   const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
+  const [reasonDialog, setReasonDialog] = useState<RideReasonDialogState | null>(null);
+  const [reasonText, setReasonText] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   // Fetch courier info
   const { data: courierInfo, isLoading: courierLoading } = useQuery<CourierInfo | null>({
@@ -124,7 +138,7 @@ export default function CourierRidesPage() {
   });
 
   // Fetch rides data
-  const { data: ridesData, isLoading: ridesLoading, refetch: refetchRides } = useQuery<RidesData>({
+  const { data: ridesData, isLoading: ridesLoading, isFetching: ridesFetching, isError: ridesError, refetch: refetchRides } = useQuery<RidesData>({
     queryKey: ['courier-rides', courierId],
     queryFn: async () => {
       const [{ data: available }, { data: active }] = await Promise.all([
@@ -298,12 +312,17 @@ export default function CourierRidesPage() {
     const action = getNextAction();
     if (!action) return;
     if (action.nextStatus === 'PICKED_UP' || action.nextStatus === 'COMPLETED') {
-      const label = action.nextStatus === 'PICKED_UP'
-        ? 'Konfirmasi jemput (contoh: penumpang sudah naik):'
-        : 'Konfirmasi penyelesaian (contoh: penumpang sudah turun):';
-      const note = window.prompt(label, action.nextStatus === 'PICKED_UP' ? 'Penumpang sudah dijemput' : 'Penumpang sudah sampai');
-      if (!note?.trim()) return;
-      updateRideStatusMutation.mutate({ newStatus: action.nextStatus, verificationNote: note.trim() });
+      const initialValue = action.nextStatus === 'PICKED_UP' ? 'Penumpang sudah dijemput' : 'Penumpang sudah sampai';
+      setReasonDialog({
+        kind: 'advance',
+        nextStatus: action.nextStatus,
+        title: action.nextStatus === 'PICKED_UP' ? 'Konfirmasi penjemputan' : 'Konfirmasi perjalanan selesai',
+        description: action.nextStatus === 'PICKED_UP'
+          ? 'Tulis catatan singkat setelah penumpang sudah naik.'
+          : 'Tulis catatan singkat setelah penumpang sudah sampai.',
+        initialValue,
+      });
+      setReasonText(initialValue);
       return;
     }
     updateRideStatusMutation.mutate({ newStatus: action.nextStatus });
@@ -313,18 +332,31 @@ export default function CourierRidesPage() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
   };
 
-  const cancelActiveRide = async () => {
+  const cancelActiveRide = async (reason: string) => {
     if (!activeRide) return;
-    const reason = window.prompt('Alasan membatalkan perjalanan (wajib):', 'Kendaraan bermasalah');
-    if (!reason?.trim()) return;
+    setCancelling(true);
     try {
-      const { error } = await supabase.rpc('driver_cancel_ride' as never, { p_ride_id: activeRide.id, p_reason: reason.trim() } as never);
+      const { error } = await supabase.rpc('driver_cancel_ride' as never, { p_ride_id: activeRide.id, p_reason: reason } as never);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
       toast({ title: 'Perjalanan dibatalkan', description: 'Penumpang telah diberi tahu.' });
     } catch (error) {
       toast({ title: 'Gagal membatalkan perjalanan', description: getRpcErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setCancelling(false);
     }
+  };
+
+  const submitReason = () => {
+    const trimmedReason = reasonText.trim();
+    if (!trimmedReason || !reasonDialog) return;
+    if (reasonDialog.kind === 'advance' && reasonDialog.nextStatus) {
+      updateRideStatusMutation.mutate({ newStatus: reasonDialog.nextStatus, verificationNote: trimmedReason });
+    } else {
+      void cancelActiveRide(trimmedReason);
+    }
+    setReasonDialog(null);
+    setReasonText('');
   };
 
   useEffect(() => {
@@ -345,7 +377,13 @@ export default function CourierRidesPage() {
   return (
     <CourierLayout title="Ojek Desa" subtitle="Terima dan kelola perjalanan ojek">
       <div className="space-y-4 sm:space-y-6">
-        {deliveryOffers.length > 0 && (
+        {deliveryOffersLoading ? (
+          <Card className="border-primary/20 p-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Memuat tawaran pengiriman...
+            </div>
+          </Card>
+        ) : deliveryOffers.length > 0 && (
           <Card className="border-primary/40 shadow-sm">
             <div className="space-y-3 p-4">
               <div className="flex items-center justify-between">
@@ -373,7 +411,7 @@ export default function CourierRidesPage() {
               <div className="flex items-center gap-2 mb-3">
                 <Bike className="h-5 w-5 text-primary" />
                 <h3 className="font-bold">Perjalanan Aktif</h3>
-                <Badge>{activeRide.status}</Badge>
+                <Badge>{activeRide.status === 'ACCEPTED' ? 'Menuju jemput' : activeRide.status === 'PICKED_UP' ? 'Penumpang dijemput' : 'Dalam perjalanan'}</Badge>
               </div>
               <div className="space-y-2 mb-4">
                 <div className="flex items-start gap-2 text-sm">
@@ -418,7 +456,21 @@ export default function CourierRidesPage() {
                   </Button>
                 )}
                 {['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'].includes(activeRide.status) && (
-                  <Button variant="destructive" size="sm" className="min-h-11 w-full sm:min-h-9" onClick={() => void cancelActiveRide()}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="min-h-11 w-full sm:min-h-9"
+                    onClick={() => {
+                      setReasonDialog({
+                        kind: 'cancel',
+                        title: 'Batalkan perjalanan',
+                        description: 'Alasan pembatalan wajib diisi agar penumpang dan admin menerima konteks yang jelas.',
+                        initialValue: 'Kendaraan bermasalah',
+                      });
+                      setReasonText('Kendaraan bermasalah');
+                    }}
+                    disabled={cancelling || updatingStatus}
+                  >
                     <X className="h-4 w-4 mr-1" /> Batalkan perjalanan
                   </Button>
                 )}
@@ -433,13 +485,19 @@ export default function CourierRidesPage() {
               <MapPin className="h-4 w-4" />
               Permintaan Ojek ({availableRides.length})
             </h3>
-            <Button variant="ghost" size="sm" onClick={() => refetchRides()}>
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => void refetchRides()} disabled={ridesFetching} aria-label="Muat ulang permintaan ojek" title="Muat ulang permintaan ojek">
+              <RefreshCw className={`h-4 w-4 ${ridesFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
 
           {loading ? (
             <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
+          ) : ridesError ? (
+            <Card className="p-8 text-center">
+              <p className="font-semibold">Permintaan ojek belum dapat dimuat</p>
+              <p className="mt-1 text-sm text-muted-foreground">Periksa koneksi lalu tekan muat ulang.</p>
+              <Button className="mt-4" variant="outline" onClick={() => void refetchRides()}>Coba lagi</Button>
+            </Card>
           ) : availableRides.length === 0 ? (
             <Card className="p-8 text-center">
               <Bike className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
@@ -552,6 +610,38 @@ export default function CourierRidesPage() {
           onClose={() => setChatOpen(false)}
         />
       )}
+      <Dialog
+        open={!!reasonDialog}
+        onOpenChange={(open) => {
+          if (!open && !cancelling && !updateRideStatusMutation.isPending) setReasonDialog(null);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{reasonDialog?.title}</DialogTitle>
+            <DialogDescription>{reasonDialog?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="ride-reason">Catatan atau alasan</Label>
+            <Textarea
+              id="ride-reason"
+              value={reasonText}
+              onChange={(event) => setReasonText(event.target.value)}
+              placeholder={reasonDialog?.initialValue || 'Tulis catatan'}
+              maxLength={500}
+              autoFocus
+            />
+            <p className="text-right text-xs text-muted-foreground">{reasonText.length}/500</p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setReasonDialog(null)} disabled={cancelling || updateRideStatusMutation.isPending}>Batal</Button>
+            <Button onClick={submitReason} disabled={!reasonText.trim() || cancelling || updateRideStatusMutation.isPending}>
+              {(cancelling || updateRideStatusMutation.isPending) && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              Konfirmasi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </CourierLayout>
   );
 }
