@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { MerchantCardError } from './MerchantDataState';
-import { useAuth } from '@/contexts/AuthContext';
-import { useMerchantOrderAlarm } from '@/hooks/useMerchantOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 
@@ -21,8 +19,6 @@ interface MerchantLayoutProps {
 
 export function MerchantLayout({ children, title, subtitle, actions, fullWidth = false }: MerchantLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
-  useMerchantOrderAlarm(user?.id);
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-background">

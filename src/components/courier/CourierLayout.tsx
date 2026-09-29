@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useChatUnread } from '@/hooks/useChatUnread';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
@@ -30,7 +29,6 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
   const location = useLocation();
   const { user } = useAuth();
   const { unreadCount: chatUnreadCount } = useChatUnread();
-  useCourierOrderAlarm(user?.id);
   const { data: globalCourier } = useQuery<{ id: string; is_available: boolean; registration_status: string } | null>({
     queryKey: ['courier-global-presence', user?.id],
     queryFn: async () => {

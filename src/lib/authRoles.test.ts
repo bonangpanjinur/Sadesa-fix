@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole } from './authRoles';
+import { getRedirectPathForRoles } from '@/types/auth';
 
 describe('frontend role recovery', () => {
   it('adds merchant capability when the user owns a merchant profile', () => {
@@ -28,5 +29,10 @@ describe('frontend role recovery', () => {
     expect(ensureBuyerFallback(['courier'])).toEqual(['courier', 'buyer']);
     expect(ensureBuyerFallback(['service_provider'])).toEqual(['service_provider', 'buyer']);
     expect(ensureBuyerFallback(['merchant', 'buyer'])).toEqual(['merchant', 'buyer']);
+  });
+
+  it('sends merchant and courier roles to their dashboards on app entry', () => {
+    expect(getRedirectPathForRoles(['merchant', 'buyer'])).toBe('/merchant');
+    expect(getRedirectPathForRoles(['courier', 'buyer'])).toBe('/courier');
   });
 });

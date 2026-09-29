@@ -6,7 +6,10 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRestockNotification } from "@/hooks/useRestockNotification";
+import { useMerchantOrderAlarm } from "@/hooks/useMerchantOrderAlarm";
+import { useCourierOrderAlarm } from "@/hooks/useCourierOrderAlarm";
 import { PWAProvider } from "@/hooks/PWAProvider";
 import { WhitelabelProvider } from "@/contexts/WhitelabelContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -20,6 +23,7 @@ import { SplashScreen } from "@/components/SplashScreen";
 import { POSProvider } from "./contexts/POSContext";
 import { POSAccessRoute } from "@/components/pos/posPermissions";
 import { logUnhandledErrors, reportObservability } from '@/lib/observability';
+import { getRedirectPathForRoles } from '@/types/auth';
 import {
   PwaFileHandlerPage,
   PwaProtocolHandlerPage,
@@ -368,6 +372,13 @@ function RestockNotificationHandler() {
   return null;
 }
 
+function OrderAlarmHandler() {
+  const { user, isMerchant, isCourier } = useAuth();
+  useMerchantOrderAlarm(isMerchant ? user?.id : undefined);
+  useCourierOrderAlarm(isCourier ? user?.id : undefined);
+  return null;
+}
+
 function ObservabilityBootstrap() {
   useEffect(() => logUnhandledErrors(), []);
   return null;
@@ -375,14 +386,18 @@ function ObservabilityBootstrap() {
 
 function HomeRoute() {
   const location = useLocation();
+  const { user, roles, loading, rolesLoading } = useAuth();
   const query = new URLSearchParams(location.search);
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   const isRecoveryCallback = query.has('code') || hash.get('type') === 'recovery';
-
   if (isRecoveryCallback) {
     return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
   }
-
+  if (loading || (user && rolesLoading)) return <PageLoading />;
+  if (user) {
+    const dashboardPath = getRedirectPathForRoles(roles);
+    if (dashboardPath !== '/') return <Navigate to={dashboardPath} replace />;
+  }
   return <Index />;
 }
 
@@ -418,6 +433,7 @@ const App = () => (
       <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
+          <OrderAlarmHandler />
           <WhitelabelProvider>
             <POSProvider>
             <CartProvider>
