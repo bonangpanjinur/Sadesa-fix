@@ -9,9 +9,10 @@ import {
   hasActiveBrowserPushSubscription,
   isPushSupported,
   subscribeToPush,
+  getLastPushError,
 } from '@/lib/pushNotification';
 
-type OnboardingStatus = 'checking' | 'ready' | 'unsupported' | 'default' | 'denied' | 'subscribe-failed';
+type OnboardingStatus = 'checking' | 'ready' | 'unsupported' | 'default' | 'denied' | 'subscribe-failed' | 'sync-failed';
 
 /**
  * Mandatory push onboarding for couriers only. Mount it inside CourierLayout,
@@ -68,7 +69,11 @@ export function NotificationOnboardingGate() {
     // quietly so a stale/missing server row does not bring back the blocking modal.
     const repaired = await subscribeToPush(user.id);
     if (operationId !== operationRef.current) return;
-    if (!repaired) console.warn('Push is enabled in this browser but could not be re-synced to the server.');
+    if (!repaired) {
+      console.warn('Push is enabled in this browser but could not be re-synced to the server.');
+      setStatus('sync-failed');
+      return;
+    }
     setStatus('ready');
   }, [user]);
 
@@ -91,10 +96,6 @@ export function NotificationOnboardingGate() {
         if (operationId !== operationRef.current) return;
         if (permission === 'denied') {
           setStatus('denied');
-        } else if (await hasActiveBrowserPushSubscription()) {
-          if (operationId !== operationRef.current) return;
-          console.warn('Push is enabled in this browser but could not be re-synced to the server.');
-          setStatus('ready');
         } else {
           setStatus('subscribe-failed');
         }
@@ -110,6 +111,7 @@ export function NotificationOnboardingGate() {
 
   const isDenied = status === 'denied';
   const isUnsupported = status === 'unsupported';
+  const isSyncFailed = status === 'sync-failed';
 
   return (
     <div
@@ -124,13 +126,15 @@ export function NotificationOnboardingGate() {
             {isDenied ? <ShieldAlert className="h-8 w-8 text-destructive" /> : <Bell className="h-8 w-8 text-primary" />}
           </div>
           <CardTitle id="notification-onboarding-title">
-            {isDenied ? 'Notifikasi diblokir' : isUnsupported ? 'Notifikasi tidak tersedia' : 'Aktifkan notifikasi'}
+            {isDenied ? 'Notifikasi diblokir' : isUnsupported ? 'Notifikasi tidak tersedia' : isSyncFailed ? 'Izin sudah ada, sinkronisasi belum selesai' : 'Aktifkan notifikasi'}
           </CardTitle>
           <CardDescription className="max-w-md text-center">
             {isDenied
               ? 'Izin notifikasi untuk Sadesa sedang diblokir oleh browser. Browser tidak mengizinkan aplikasi mengubahnya secara otomatis.'
               : isUnsupported
                 ? 'Browser ini tidak mendukung push notification. Gunakan browser modern seperti Chrome, Edge, atau Firefox untuk menerima update pesanan.'
+              : isSyncFailed
+                ? 'Browser sudah memiliki izin dan subscription, tetapi server belum menerima pendaftarannya. Coba ulangi saat koneksi stabil.'
                 : 'Notifikasi push wajib aktif untuk ojek agar pesanan tetap masuk saat aplikasi tidak terbuka. Aktifkan bunyi dan getar untuk alarm pesanan.'}
           </CardDescription>
         </CardHeader>
@@ -151,7 +155,13 @@ export function NotificationOnboardingGate() {
             </div>
           ) : (
             <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
-              Push wajib aktif untuk menerima pesanan saat aplikasi tidak terbuka. Permintaan izin browser hanya muncul setelah Anda menekan tombol di bawah.
+              {isSyncFailed ? (
+                <>
+                  <p className="font-medium text-foreground">Langkah berikutnya</p>
+                  <p className="mt-1">Pastikan koneksi internet aktif, lalu tekan <strong>Coba sinkronkan lagi</strong>. Izin browser tidak perlu diberikan ulang.</p>
+                  {getLastPushError() && <p className="mt-2 text-xs text-destructive">Detail: {getLastPushError()}</p>}
+                </>
+              ) : 'Push wajib aktif untuk menerima pesanan saat aplikasi tidak terbuka. Permintaan izin browser hanya muncul setelah Anda menekan tombol di bawah.'}
             </div>
           )}
 
@@ -164,15 +174,15 @@ export function NotificationOnboardingGate() {
             ) : isUnsupported ? null : (
               <Button onClick={() => void handleEnable()} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-                {busy ? 'Mengaktifkan...' : 'Aktifkan Notifikasi'}
+                {busy ? 'Menyinkronkan...' : isSyncFailed ? 'Coba sinkronkan lagi' : 'Aktifkan Notifikasi'}
               </Button>
             )}
           </div>
 
-          {status === 'subscribe-failed' && (
+          {(status === 'subscribe-failed' || status === 'sync-failed') && (
             <p className="flex items-center justify-center gap-2 text-center text-sm text-destructive" role="alert">
               <ShieldAlert className="h-4 w-4" />
-              Aktivasi belum berhasil. Pastikan izin sudah diberikan, lalu coba lagi.
+              {status === 'sync-failed' ? 'Izin sudah diberikan, tetapi pendaftaran ke server belum berhasil.' : 'Aktivasi belum berhasil. Pastikan izin sudah diberikan, lalu coba lagi.'}
             </p>
           )}
         </CardContent>

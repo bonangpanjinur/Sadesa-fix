@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getSubscriptionStatus: vi.fn(),
   hasActiveBrowserPushSubscription: vi.fn(),
   subscribeToPush: vi.fn(),
+  getLastPushError: vi.fn(),
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
@@ -26,6 +27,7 @@ describe('NotificationOnboardingGate', () => {
     mocks.getSubscriptionStatus.mockResolvedValue(true);
     mocks.hasActiveBrowserPushSubscription.mockResolvedValue(true);
     mocks.subscribeToPush.mockResolvedValue(true);
+    mocks.getLastPushError.mockReturnValue('Subscription belum tersimpan (500)');
   });
 
   it('does not show the modal when push is already registered', async () => {
@@ -50,5 +52,15 @@ describe('NotificationOnboardingGate', () => {
 
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Aktifkan Notifikasi' })).toBeTruthy();
+  });
+
+  it('keeps the modal open when an existing browser subscription cannot sync to the server', async () => {
+    mocks.getSubscriptionStatus.mockResolvedValue(false);
+    mocks.subscribeToPush.mockResolvedValue(false);
+    render(<NotificationOnboardingGate />);
+
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.getByText(/sinkronisasi belum selesai/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Coba sinkronkan lagi' })).toBeTruthy();
   });
 });

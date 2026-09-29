@@ -1,6 +1,7 @@
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 
 const PUSH_SUBSCRIPTION_API = `${SUPABASE_URL}/functions/v1/push-subscription`;
+let lastPushError: string | null = null;
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -23,13 +24,17 @@ async function getVapidPublicKey(sessionToken: string): Promise<string> {
   const response = await fetch(PUSH_SUBSCRIPTION_API, {
     headers: { Authorization: `Bearer ${sessionToken}` },
   });
-  if (!response.ok) throw new Error(`VAPID key unavailable (${response.status})`);
+  if (!response.ok) throw new Error(`Server push tidak siap (${response.status})`);
 
   const payload = await response.json() as { publicKey?: unknown };
   if (typeof payload.publicKey !== 'string' || payload.publicKey.length === 0) {
     throw new Error('Push subscription endpoint returned no public key');
   }
   return payload.publicKey;
+}
+
+export function getLastPushError(): string | null {
+  return lastPushError;
 }
 
 export async function isPushSupported(): Promise<boolean> {
@@ -53,15 +58,25 @@ export async function requestPushPermission(): Promise<boolean> {
  * from using a stale hard-coded VAPID key or a different persistence contract.
  */
 export async function subscribeToPush(_userId: string): Promise<boolean> {
+  lastPushError = null;
   try {
-    if (!(await isPushSupported())) return false;
+    if (!(await isPushSupported())) {
+      lastPushError = 'Browser tidak mendukung push notification.';
+      return false;
+    }
 
     const permission = await getPushPermission();
-    if (permission === 'denied') return false;
-    if (permission === 'default' && !(await requestPushPermission())) return false;
+    if (permission === 'denied') {
+      lastPushError = 'Izin notifikasi diblokir oleh browser.';
+      return false;
+    }
+    if (permission === 'default' && !(await requestPushPermission())) {
+      lastPushError = 'Izin notifikasi belum diberikan.';
+      return false;
+    }
 
     const sessionToken = await getSessionToken();
-    if (!sessionToken) throw new Error('No authenticated session for push subscription');
+    if (!sessionToken) throw new Error('Sesi login tidak ditemukan. Silakan masuk ulang.');
 
     const publicKey = await getVapidPublicKey(sessionToken);
     const registration = await navigator.serviceWorker.ready;
@@ -81,10 +96,20 @@ export async function subscribeToPush(_userId: string): Promise<boolean> {
       },
       body: JSON.stringify({ subscription: subscription.toJSON() }),
     });
-    if (!response.ok) throw new Error(`Failed to save subscription (${response.status})`);
+    if (!response.ok) {
+      let serverMessage = '';
+      try {
+        const payload = await response.json() as { error?: unknown };
+        if (typeof payload.error === 'string') serverMessage = `: ${payload.error}`;
+      } catch {
+        // Keep the HTTP status when the edge function returns a non-JSON error.
+      }
+      throw new Error(`Subscription belum tersimpan (${response.status})${serverMessage}`);
+    }
 
     return true;
   } catch (error) {
+    lastPushError = error instanceof Error ? error.message : 'Aktivasi notifikasi gagal.';
     console.error('Error subscribing to push:', error);
     return false;
   }

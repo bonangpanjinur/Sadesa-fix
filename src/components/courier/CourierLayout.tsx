@@ -52,7 +52,9 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
     return () => window.clearInterval(interval);
   }, [user?.id]);
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => href === '/courier'
+    ? location.pathname === href
+    : location.pathname === href || location.pathname.startsWith(`${href}/`);
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -131,13 +133,13 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
         </header>
 
         <main className="min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-24 pt-4 sm:px-6 sm:pt-6 md:pb-8">
-          <div className="mx-auto w-full max-w-3xl">{children}</div>
+          <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
 
         <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur md:hidden" aria-label="Navigasi cepat kurir">
           <div className="mx-auto grid h-16 w-full max-w-3xl grid-cols-6">
             {mobileNav.map(({ label, href, icon: Icon }) => (
-              <Link key={href} to={href} className={cn('flex min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors', isActive(href) ? 'text-primary' : 'text-muted-foreground')}>
+              <Link key={href} to={href} aria-current={isActive(href) ? 'page' : undefined} className={cn('flex min-w-0 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors', isActive(href) ? 'text-primary' : 'text-muted-foreground')}>
                 <span className="relative">
                   <Icon className={cn('h-5 w-5', isActive(href) && 'stroke-[2.5]')} />
                   {href === '/courier/chat' && chatUnreadCount > 0 && (

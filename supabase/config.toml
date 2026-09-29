@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.assign-courier]
 verify_jwt = true
 
+[functions.push-subscription]
+verify_jwt = true
+
 [functions.send-push-notification]
 verify_jwt = true
 
