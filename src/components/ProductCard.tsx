@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Plus, Star, Clock, CheckCircle2, MapPin } from 'lucide-react';
+import { Plus, Star, Clock, CheckCircle2, MapPin, PackageX, Store } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import type { Product } from '@/types';
@@ -70,6 +70,9 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
     hasQuota,
     isMerchantOpen,
   }) || 'Tidak Tersedia';
+  const showOutOfStockIndicator = !isAvailable && (Number(product.stock) <= 0 || unavailableReason === 'Stok Habis');
+  const showStoreClosedIndicator = !isAvailable && (product.isMerchantOpen === false || unavailableReason === 'Toko Tutup');
+  const hasSpecificAvailabilityIndicator = showOutOfStockIndicator || showStoreClosedIndicator;
 
   const CardContent = (
     <div
@@ -79,7 +82,7 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
       )}
     >
       {/* Unavailable Overlay */}
-      {!isAvailable && (
+      {!isAvailable && !hasSpecificAvailabilityIndicator && (
         <div className="absolute inset-0 z-20 bg-background/70 backdrop-blur-[1px] flex items-center justify-center">
           <div className="bg-muted/90 px-3 py-2 rounded-lg flex items-center gap-2 shadow-lg border border-border">
             <Clock className="h-4 w-4 text-muted-foreground" />
@@ -91,7 +94,19 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
       )}
 
       {/* Badges Container */}
-      <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+      <div className="absolute top-2 left-2 z-30 flex flex-col items-start gap-1">
+        {showOutOfStockIndicator && (
+          <span role="status" aria-label="Stok Habis" className="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-1 text-[9px] font-extrabold text-white shadow-md ring-1 ring-rose-800/30">
+            <PackageX className="h-3.5 w-3.5" aria-hidden="true" />
+            Stok Habis
+          </span>
+        )}
+        {showStoreClosedIndicator && (
+          <span role="status" aria-label="Toko Tutup" className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-extrabold text-white shadow-md ring-1 ring-amber-700/30">
+            <Store className="h-3.5 w-3.5" aria-hidden="true" />
+            Toko Tutup
+          </span>
+        )}
         {flashSale && isAvailable ? (
           <FlashSaleBadge 
             endTime={flashSale.endTime} 
