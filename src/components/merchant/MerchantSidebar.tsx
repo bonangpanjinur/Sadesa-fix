@@ -404,7 +404,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       </nav>
 
       <div className="shrink-0 border-t border-sidebar-border bg-sidebar-accent/50 p-3">
-        <Link to="/" onClick={onNavigate} className="flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground">
+        <Link to="/" state={{ skipRoleRedirect: true }} onClick={onNavigate} className="flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground">
           <ChevronLeft className="h-4 w-4" />
           <span>Kembali ke Aplikasi</span>
         </Link>

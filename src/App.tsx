@@ -387,6 +387,7 @@ function ObservabilityBootstrap() {
 function HomeRoute() {
   const location = useLocation();
   const { user, roles, loading, rolesLoading } = useAuth();
+  const skipRoleRedirect = (location.state as { skipRoleRedirect?: boolean } | null)?.skipRoleRedirect === true;
   const query = new URLSearchParams(location.search);
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   const isRecoveryCallback = query.has('code') || hash.get('type') === 'recovery';
@@ -394,7 +395,7 @@ function HomeRoute() {
     return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
   }
   if (loading || (user && rolesLoading)) return <PageLoading />;
-  if (user) {
+  if (user && !skipRoleRedirect) {
     const dashboardPath = getRedirectPathForRoles(roles);
     if (dashboardPath !== '/') return <Navigate to={dashboardPath} replace />;
   }

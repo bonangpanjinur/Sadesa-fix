@@ -272,7 +272,7 @@ export function AdminSidebar({
       </nav>
 
       <div className="p-2 sm:p-3 border-t border-border">
-        <Link to="/" onClick={onClose} className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+        <Link to="/" state={{ skipRoleRedirect: true }} onClick={onClose} className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4 flex-shrink-0" />
           <span className="truncate">Kembali ke Aplikasi</span>
         </Link>

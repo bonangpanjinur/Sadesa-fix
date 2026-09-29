@@ -105,6 +105,7 @@ export function CourierSidebar({ onNavigate, chatUnreadCount = 0 }: CourierSideb
       <div className="border-t border-border p-3">
         <Link
           to="/"
+          state={{ skipRoleRedirect: true }}
           onClick={onNavigate}
           className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
         >

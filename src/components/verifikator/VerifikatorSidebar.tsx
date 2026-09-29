@@ -141,6 +141,7 @@ export function VerifikatorSidebar() {
       <div className="p-3 border-t border-border">
         <Link
           to="/"
+          state={{ skipRoleRedirect: true }}
           className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
