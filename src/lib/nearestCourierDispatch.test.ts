@@ -41,4 +41,12 @@ describe('nearest courier sequential ride dispatch contract', () => {
     expect(courierRides).toContain("process_expired_ride_offers");
     expect(courierRides).toContain("supabase.rpc('decline_ride_request' as never");
   });
+
+  it('renders only the currently targeted courier offer in the ride inbox', () => {
+    expect(courierRides).toContain("from('ride_request_offers' as never)");
+    expect(courierRides).toContain(".eq('courier_id', courierId!)");
+    expect(courierRides).toContain(".eq('status', 'PENDING')");
+    expect(courierRides).toContain(".gt('expires_at', new Date().toISOString())");
+    expect(courierRides).not.toContain("from('ride_requests').select('*').eq('status', 'SEARCHING')");
+  });
 });

@@ -17,6 +17,7 @@ import { formatAddressSummary, reverseGeocode } from '@/hooks/useGeocoding';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
+import { requestRequiredLocation } from '@/lib/requiredLocation';
 
 type DistanceBand = 'near' | 'medium' | 'far';
 type RoutePoint = { lat: number; lng: number };
@@ -317,6 +318,10 @@ export default function CourierBookingPage() {
     }
     setSubmitting(true);
     try {
+      if (!await requestRequiredLocation()) {
+        toast({ title: 'GPS wajib diaktifkan', description: 'Aktifkan Lokasi untuk melanjutkan pemesanan kurir.', variant: 'destructive' });
+        return;
+      }
       const { data, error } = await supabase.rpc('create_courier_order' as never, {
         p_request: {
           pickup_lat: pickupLocation!.lat,

@@ -122,11 +122,20 @@ export default function CourierDashboardPage() {
     queryClient.invalidateQueries({ queryKey: ['courier-assigned-orders', courier?.id] });
   };
 
-  // Query: ride request count + assigned orders (hanya jika approved)
+  // Query: only count ride offers targeted to this courier. Counting all
+  // SEARCHING rides makes the dashboard promise work that this courier cannot
+  // accept because accept_ride requires a matching pending offer.
   const { data: rideRequestCount = 0 } = useQuery({
-    queryKey: ['courier-ride-count'],
+    queryKey: ['courier-ride-count', courier?.id],
     queryFn: async () => {
-      const { count } = await supabase.from('ride_requests').select('*', { count: 'exact', head: true }).eq('status', 'SEARCHING');
+      if (!courier) return 0;
+      const { count, error } = await supabase
+        .from('ride_request_offers' as never)
+        .select('ride_id', { count: 'exact', head: true })
+        .eq('courier_id', courier.id)
+        .eq('status', 'PENDING')
+        .gt('expires_at', new Date().toISOString());
+      if (error) throw error;
       return count || 0;
     },
     enabled: !!courier,

@@ -1343,7 +1343,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
               </Routes>
               </RouteTransition>
-              </Suspense>
+                </Suspense>
             <PublicFooter />
           </BrowserRouter>
               </PWAProvider>

@@ -144,11 +144,28 @@ export default function CourierRidesPage() {
       // An active courier session acts as a lightweight dispatch heartbeat.
       // The RPC is server-authoritative and safely no-ops when another session
       // already owns the dispatch lock; failure must not hide the local inbox.
-      await supabase.rpc('process_expired_ride_offers' as never).catch(() => undefined);
-      const [{ data: available }, { data: active }] = await Promise.all([
-        supabase.from('ride_requests').select('*').eq('status', 'SEARCHING').order('created_at', { ascending: false }).limit(20),
+      try {
+        await supabase.rpc('process_expired_ride_offers' as never);
+      } catch {
+        // Older deployments may not have the optional expiry RPC yet.
+      }
+      const [{ data: pendingOffers, error: offersError }, { data: active }] = await Promise.all([
+        supabase.from('ride_request_offers' as never)
+          .select('ride_id')
+          .eq('courier_id', courierId!)
+          .eq('status', 'PENDING')
+          .gt('expires_at', new Date().toISOString())
+          .order('offered_at', { ascending: false })
+          .limit(20),
         supabase.from('ride_requests').select('*').eq('driver_id', courierId!).in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']).order('created_at', { ascending: false }).limit(1),
       ]);
+      if (offersError) throw offersError;
+      const rideIds = [...new Set(((pendingOffers || []) as unknown as Array<{ ride_id: string }>)
+        .map((offer) => offer.ride_id)
+        .filter(Boolean))];
+      const { data: available } = rideIds.length > 0
+        ? await supabase.from('ride_requests').select('*').in('id', rideIds).eq('status', 'SEARCHING').order('created_at', { ascending: false })
+        : { data: [] };
 
       const rides = (available || []) as unknown as RideRequest[];
       const passengerIds = [...new Set([
@@ -196,12 +213,15 @@ export default function CourierRidesPage() {
     }
   }, [activeRide, searchParams]);
 
-  // Realtime subscriptions — only invalidate for searchable or owned rides.
+  // Realtime subscriptions — only invalidate offers targeted to this courier
+  // or rides already accepted by this courier. Listening to every SEARCHING
+  // ride makes the UI look like every courier can accept every ride, while the
+  // server-authoritative RPC correctly rejects non-targeted couriers.
   useEffect(() => {
     if (!courierId) return;
     const channel = supabase
       .channel('ride-requests-courier')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests', filter: 'status=eq.SEARCHING' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_request_offers', filter: `courier_id=eq.${courierId}` }, () => {
         queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ride_requests', filter: `driver_id=eq.${courierId}` }, () => {

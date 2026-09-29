@@ -23,6 +23,7 @@ import { calculateETA, formatETA } from '@/lib/etaCalculation';
 import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
 import { GoogleRideMap } from '@/components/transport/GoogleRideMap';
 import { NominatimAddressInput } from '@/components/transport/NominatimAddressInput';
+import { requestRequiredLocation } from '@/lib/requiredLocation';
 
 interface FareSettings { base_fare: number; per_km_fare: number; min_fare: number; max_fare: number; }
 const DEFAULT_FARE: FareSettings = { base_fare: 5000, per_km_fare: 3000, min_fare: 5000, max_fare: 100000 };
@@ -131,7 +132,6 @@ export default function RideBookingPage() {
       .then(({ data }) => {
         if (data && data.length > 0) setActiveRide(data[0] as unknown as { id: string; status: string });
       });
-    handleGps();
   }, [user, navigate, fetchDrivers, handleGps]);
 
   // Real-time driver position updates
@@ -252,6 +252,10 @@ export default function RideBookingPage() {
     if (!user || !pickupLocation || !destLocation) return;
     setSubmitting(true);
     try {
+      if (!await requestRequiredLocation()) {
+        toast({ title: 'GPS wajib diaktifkan', description: 'Aktifkan Lokasi untuk melanjutkan pemesanan ojek.', variant: 'destructive' });
+        return;
+      }
       const { data, error } = await supabase.rpc('create_ride_request', {
         p_pickup_lat: pickupLocation.lat,
         p_pickup_lng: pickupLocation.lng,

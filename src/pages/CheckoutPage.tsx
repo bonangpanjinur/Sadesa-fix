@@ -21,6 +21,7 @@ import { formatFullAddress } from '@/components/AddressSelector';
 import { validatePhone } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
+import { requestRequiredLocation } from '@/lib/requiredLocation';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
 
@@ -431,6 +432,11 @@ export default function CheckoutPage() {
       setTimeout(() => {
         document.querySelector('.text-destructive')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
+      return;
+    }
+
+    if (deliveryType !== 'PICKUP' && !await requestRequiredLocation()) {
+      toast({ title: 'GPS wajib diaktifkan', description: 'Aktifkan Lokasi untuk menghitung alamat dan melanjutkan pengiriman.', variant: 'destructive' });
       return;
     }
 
