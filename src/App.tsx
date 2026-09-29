@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -343,6 +343,10 @@ const queryClient = new QueryClient({
   },
 });
 
+// Keep the deliberate home-navigation entries for browser Back during this
+// app session, but do not trust a persisted history.state after a fresh load.
+const manualHomeNavigationKeys = new Set<string>();
+
 // Fallback loading saat lazy load
 const PageLoading = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -386,16 +390,26 @@ function ObservabilityBootstrap() {
 
 function HomeRoute() {
   const location = useLocation();
+  const navigationType = useNavigationType();
   const { user, roles, loading, rolesLoading } = useAuth();
   const skipRoleRedirect = (location.state as { skipRoleRedirect?: boolean } | null)?.skipRoleRedirect === true;
+  const isManualHomeNavigation = manualHomeNavigationKeys.has(location.key)
+    || (skipRoleRedirect && navigationType !== 'POP');
   const query = new URLSearchParams(location.search);
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
   const isRecoveryCallback = query.has('code') || hash.get('type') === 'recovery';
+
+  useEffect(() => {
+    if (skipRoleRedirect && navigationType !== 'POP') {
+      manualHomeNavigationKeys.add(location.key);
+    }
+  }, [location.key, navigationType, skipRoleRedirect]);
+
   if (isRecoveryCallback) {
     return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
   }
   if (loading || (user && rolesLoading)) return <PageLoading />;
-  if (user && !skipRoleRedirect) {
+  if (user && !isManualHomeNavigation) {
     const dashboardPath = getRedirectPathForRoles(roles);
     if (dashboardPath !== '/') return <Navigate to={dashboardPath} replace />;
   }
