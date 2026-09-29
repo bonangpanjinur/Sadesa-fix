@@ -136,19 +136,7 @@ export default function MerchantPOSSubscribePage() {
     if (!merchantId) return;
     setSubmitting(true);
     try {
-      const now = new Date();
-      const expiry = new Date(now);
-      expiry.setDate(expiry.getDate() + trialDays);
-
-      const { error } = await supabase.from('pos_subscriptions').insert({
-        merchant_id: merchantId,
-        status: 'ACTIVE',
-        is_trial: true,
-        payment_amount: 0,
-        payment_status: 'FREE',
-        started_at: now.toISOString(),
-        expired_at: expiry.toISOString(),
-      });
+      const { error } = await supabase.rpc('activate_pos_trial' as never);
       if (error) throw error;
       toast.success(`Trial ${trialDays} hari berhasil diaktifkan!`);
       window.location.reload();

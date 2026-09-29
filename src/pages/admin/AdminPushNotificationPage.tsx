@@ -430,7 +430,7 @@ export default function AdminPushNotificationPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void handleSaveSoundSettings()} disabled={soundSaving || soundUploading}>
+              <Button onClick={() => void handleSaveSoundSettings()} disabled={soundSaving || Boolean(soundUploading)}>
                 {soundSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Simpan alarm
               </Button>

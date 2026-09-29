@@ -167,8 +167,8 @@ export default function SearchResultsPage() {
     };
   }, [villages, tourismSpots, products, searchQuery, filters, sortOption]);
 
-  const showVillages = activeCategory === 'all' || activeCategory === 'villages';
-  const showTourism = activeCategory === 'all' || activeCategory === 'tourism';
+  const showVillages = activeCategory === 'all';
+  const showTourism = activeCategory === 'all';
   const showProducts = activeCategory === 'all' || activeCategory === 'products';
 
   const hasResults = 
