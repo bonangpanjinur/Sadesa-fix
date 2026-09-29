@@ -125,6 +125,7 @@ export const BottomNav = React.forwardRef<HTMLElement, React.HTMLAttributes<HTML
           <Link
             key={path}
             to={path}
+            state={path === '/' ? { skipRoleRedirect: true } : undefined}
             className={cn(
               'group relative flex min-w-12 flex-1 flex-col items-center gap-0.5 rounded-[0.8rem] px-1 py-1 transition-all duration-200',
               'text-[10px] font-medium',
