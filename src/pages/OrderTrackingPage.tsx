@@ -34,6 +34,7 @@ import { useChatUnread } from '@/hooks/useChatUnread';
 import { getExpeditionLabel } from '@/lib/expeditionTracking';
 import { canBuyerContactCourier, canBuyerTrackCourier } from '@/lib/deliveryVisibility';
 import { getAuthorizedCourierContact } from '@/lib/courierApi';
+import { useTranslation } from '@/lib/i18n';
 
 interface OrderDetails {
   id: string;
@@ -67,6 +68,9 @@ interface OrderDetails {
   tracking_number: string | null;
   expedition_logo_url_snapshot: string | null;
   expedition_tracking_url_snapshot: string | null;
+  cancellation_reason: string | null;
+  cancellation_type: string | null;
+  cancelled_at: string | null;
 }
 
 interface CourierInfo {
@@ -92,14 +96,15 @@ type RefundTracking = {
   settlement_status: string | null;
 };
 
-type DeliveryCardStatus = 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'COURIER_ACCEPTED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
-const DELIVERY_CARD_STATUSES: readonly DeliveryCardStatus[] = ['NEW', 'PROCESSING', 'ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE'];
+type DeliveryCardStatus = 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'COURIER_ACCEPTED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE' | 'CANCELED' | 'CANCELLED';
+const DELIVERY_CARD_STATUSES: readonly DeliveryCardStatus[] = ['NEW', 'PROCESSING', 'ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'ON_DELIVERY', 'DELIVERING', 'DELIVERED', 'DONE', 'CANCELED', 'CANCELLED'];
 
 export default function OrderTrackingPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const reorder = useReorder();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
   const { unreadCount: chatUnreadCount } = useChatUnread();
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [courier, setCourier] = useState<CourierInfo | null>(null);
@@ -336,6 +341,21 @@ export default function OrderTrackingPage() {
             refund={refund}
           />
         </motion.div>
+
+        {['CANCELED', 'CANCELLED'].includes(order.status) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            role="status"
+            className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4"
+          >
+            <p className="font-semibold text-destructive">{t('order.cancelled.title')}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {order.cancellation_reason || t('order.cancelled.generic')}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">{t('order.cancelled.tryAgain')}</p>
+          </motion.div>
+        )}
 
         {isDirectCourier && (
           <motion.div

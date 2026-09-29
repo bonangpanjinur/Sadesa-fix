@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, Truck, MapPin, Clock, RotateCcw } from 'lucide-react';
+import { CheckCircle, Package, Truck, MapPin, Clock, RotateCcw, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation, useFormatters, type TranslationKey } from '@/lib/i18n';
 
 interface DeliveryStatus {
-  status: 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'COURIER_ACCEPTED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE';
+  status: 'NEW' | 'PROCESSING' | 'ASSIGNED' | 'COURIER_ACCEPTED' | 'PICKED_UP' | 'SENT' | 'ON_DELIVERY' | 'DELIVERING' | 'DELIVERED' | 'DONE' | 'CANCELED' | 'CANCELLED';
   created_at: string;
   assigned_at?: string | null;
   picked_up_at?: string | null;
@@ -35,7 +35,8 @@ const statusOrder = ['NEW', 'PROCESSING', 'PROCESSED', 'READY', 'ASSIGNED', 'COU
 export function DeliveryStatusCard({ order, showEstimate = true, refund }: DeliveryStatusCardProps) {
   const { t, tStatus } = useTranslation();
   const { formatTime } = useFormatters();
-  const currentIndex = statusOrder.indexOf(order.status);
+  const isCanceled = order.status === 'CANCELED' || order.status === 'CANCELLED';
+  const currentIndex = isCanceled ? -1 : statusOrder.indexOf(order.status);
 
   const getStepTime = (stepKey: string): string | null => {
     switch (stepKey) {
@@ -85,11 +86,15 @@ export function DeliveryStatusCard({ order, showEstimate = true, refund }: Deliv
       <div className="flex items-center gap-3 mb-6">
         <div className={cn(
           "w-12 h-12 rounded-full flex items-center justify-center",
-          order.status === 'DELIVERED' || order.status === 'DONE'
-            ? 'bg-green-500'
-            : 'bg-primary'
+          isCanceled
+            ? 'bg-destructive'
+            : order.status === 'DELIVERED' || order.status === 'DONE'
+              ? 'bg-green-500'
+              : 'bg-primary'
         )}>
-          {order.status === 'DELIVERED' || order.status === 'DONE' ? (
+          {isCanceled ? (
+            <XCircle className="h-6 w-6 text-white" />
+          ) : order.status === 'DELIVERED' || order.status === 'DONE' ? (
             <CheckCircle className="h-6 w-6 text-white" />
           ) : order.status === 'COURIER_ACCEPTED' || order.status === 'ON_DELIVERY' || order.status === 'SENT' || order.status === 'PICKED_UP' || order.status === 'DELIVERING' ? (
             <Truck className="h-6 w-6 text-white" />

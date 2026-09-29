@@ -95,7 +95,7 @@ export default function RideTrackingPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [driverUserId, setDriverUserId] = useState<string | null>(null);
   const [chatConversationId, setChatConversationId] = useState<string | null>(null);
-  const autoCancelAttemptedRef = useRef(false);
+  const timeoutNoticeShownRef = useRef(false);
 
   useEffect(() => {
     const conversationId = searchParams.get('conversationId');
@@ -105,19 +105,6 @@ export default function RideTrackingPage() {
   useEffect(() => {
     if (chatConversationId && driverUserId) setChatOpen(true);
   }, [chatConversationId, driverUserId]);
-
-  const autoCancel = useCallback(async () => {
-    if (!ride || ride.status !== 'SEARCHING') return;
-    try {
-      await supabase.rpc('cancel_ride', {
-        p_ride_id: ride.id,
-        p_reason: 'Tidak ada driver tersedia dalam waktu yang ditentukan',
-      });
-      toast({ title: '⏰ Pencarian habis waktu', description: 'Tidak ada driver tersedia. Silakan coba lagi.' });
-    } catch {
-      // Silent fail
-    }
-  }, [ride]);
 
   const fetchDriver = useCallback(async (driverId: string) => {
     const data = await getAuthorizedCourierContact(driverId, { rideId: id });
@@ -180,7 +167,7 @@ export default function RideTrackingPage() {
   useEffect(() => {
     if (!ride || ride.status !== 'SEARCHING') {
       setSearchCountdown(null);
-      autoCancelAttemptedRef.current = false;
+      timeoutNoticeShownRef.current = false;
       return;
     }
 
@@ -191,9 +178,9 @@ export default function RideTrackingPage() {
       const remaining = deadline - Date.now();
       if (remaining <= 0) {
         setSearchCountdown(0);
-        if (!autoCancelAttemptedRef.current) {
-          autoCancelAttemptedRef.current = true;
-          void autoCancel();
+        if (!timeoutNoticeShownRef.current) {
+          timeoutNoticeShownRef.current = true;
+          toast({ title: 'Waktu pencarian habis', description: 'Sistem sedang memproses pembatalan otomatis.' });
         }
       } else {
         setSearchCountdown(Math.ceil(remaining / 1000));
@@ -203,7 +190,7 @@ export default function RideTrackingPage() {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [ride?.status, ride?.created_at, ride, autoCancel]);
+  }, [ride?.status, ride?.created_at, ride]);
 
 
   const handleCancelClick = () => {
@@ -319,12 +306,23 @@ export default function RideTrackingPage() {
                 {searchCountdown === 0 && (
                   <div className="p-3 bg-destructive/10 rounded-lg text-center space-y-2">
                     <p className="text-sm font-medium text-destructive">Waktu pencarian habis</p>
-                    <Button size="sm" variant="outline" onClick={() => navigate('/ride')}>
-                      <Bike className="h-4 w-4 mr-1" /> Coba Lagi
-                    </Button>
+                    <p className="text-xs text-muted-foreground">Pembatalan otomatis sedang diproses. Pesanan baru bisa dibuat setelah status ini diperbarui.</p>
                   </div>
                 )}
               </div>
+            )}
+            {ride.status === 'CANCELLED' && (
+              <div className="space-y-3 rounded-lg bg-destructive/10 p-3">
+                <p className="text-sm text-destructive">{ride.cancellation_reason || 'Tidak ada driver yang merespons dalam 5 menit.'}</p>
+                <Button size="sm" variant="outline" onClick={() => navigate('/ride')}>
+                  <Bike className="mr-1 h-4 w-4" /> Coba Lagi
+                </Button>
+              </div>
+            )}
+            {ride.status === 'CANCELLED' && ride.cancellation_reason && (
+              <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                {ride.cancellation_reason}
+              </p>
             )}
           </Card>
         </motion.div>

@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 320,
-  "bundle_count": 20,
+  "migration_count": 321,
+  "bundle_count": 21,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -463,6 +463,14 @@
       ],
       "sha256": "51f829ac5ff4ef09a25c9f4d23f54e7f0e801846434557741bdd3254c39f83c9",
       "bytes": 24370
+    },
+    {
+      "file": "56_20260929140000_auto_cancel_unanswered_transport_orders.sql",
+      "source_files": [
+        "20260929140000_auto_cancel_unanswered_transport_orders.sql"
+      ],
+      "sha256": "7f0ac95082be2739cecc130e373ff42d73aea44f2857759a2476049a451b7e73",
+      "bytes": 7447
     }
   ],
   "idempotent": true,

@@ -64,4 +64,16 @@ describe('DeliveryStatusCard i18n', () => {
 
     expect(screen.getByText(/Tawaran Dikirim ke Kurir/i)).toHaveClass('text-foreground');
   });
+
+  it('renders terminal cancellation without marking the order as new or delivered', () => {
+    render(
+      <DeliveryStatusCard
+        order={{ ...baseOrder, status: 'CANCELED', picked_up_at: null }}
+      />,
+    );
+
+    expect(screen.getByText('Dibatalkan')).toBeInTheDocument();
+    expect(screen.getByText(/Pesanan Dibuat/i)).toHaveClass('text-muted-foreground');
+    expect(screen.getByText(/Sampai Tujuan/i)).toHaveClass('text-muted-foreground');
+  });
 });

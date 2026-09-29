@@ -68,6 +68,11 @@ const dictionaries = {
     'order.status.delivering': 'Penjual Sedang Mengantar',
     'order.status.delivered': 'Pesanan Terkirim',
     'order.status.done': 'Pesanan Terkirim',
+    'order.status.canceled': 'Dibatalkan',
+    'order.status.cancelled': 'Dibatalkan',
+    'order.cancelled.title': 'Pengiriman dibatalkan',
+    'order.cancelled.generic': 'Pesanan kurir tidak dapat diproses.',
+    'order.cancelled.tryAgain': 'Silakan buat pesanan baru jika masih membutuhkan pengiriman.',
 
     // order.step.*  (progress timeline labels)
     'order.step.created': 'Pesanan Dibuat',
@@ -136,6 +141,11 @@ const dictionaries = {
     'order.status.delivering': 'Seller is delivering',
     'order.status.delivered': 'Order delivered',
     'order.status.done': 'Order delivered',
+    'order.status.canceled': 'Canceled',
+    'order.status.cancelled': 'Canceled',
+    'order.cancelled.title': 'Delivery canceled',
+    'order.cancelled.generic': 'The courier order could not be completed.',
+    'order.cancelled.tryAgain': 'Please place a new order if you still need delivery.',
 
     'order.step.created': 'Order placed',
     'order.step.processed': 'Being processed',
