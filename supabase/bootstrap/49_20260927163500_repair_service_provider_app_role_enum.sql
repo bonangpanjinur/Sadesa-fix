@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- Repair schema drift in deployments where the exclusive-business-role
 -- function was installed before app_role gained service_provider.
 -- Keep enum extension isolated from any use of the new label in this file.

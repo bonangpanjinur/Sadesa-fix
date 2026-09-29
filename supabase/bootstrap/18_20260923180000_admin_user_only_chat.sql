@@ -1,11 +1,28 @@
--- Admin-user direct chat: one private thread per admin/user pair.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_49bbf867036a$
+BEGIN
+  EXECUTE $bootstrap_sql_49bbf867036a$-- Admin-user direct chat: one private thread per admin/user pair.
 -- Non-admin users may reply only inside a thread created by an admin.
 
-ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_conversation_type_check;
-ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_conversation_type_check
-  CHECK (conversation_type IN ('buyer_merchant', 'buyer_courier', 'merchant_courier', 'passenger_courier', 'admin_merchant', 'admin_courier', 'admin_user'));
+ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_conversation_type_check$bootstrap_sql_49bbf867036a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_49bbf867036a$;
 
-CREATE OR REPLACE FUNCTION public.get_or_create_admin_direct_chat(
+DO $bootstrap_do_8136453c8fdf$
+BEGIN
+  EXECUTE $bootstrap_sql_8136453c8fdf$ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_conversation_type_check
+  CHECK (conversation_type IN ('buyer_merchant', 'buyer_courier', 'merchant_courier', 'passenger_courier', 'admin_merchant', 'admin_courier', 'admin_user'))$bootstrap_sql_8136453c8fdf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8136453c8fdf$;
+
+DO $bootstrap_do_43a67e06570f$
+BEGIN
+  EXECUTE $bootstrap_sql_43a67e06570f$CREATE OR REPLACE FUNCTION public.get_or_create_admin_direct_chat(
   p_target_user_id uuid,
   p_target_role text
 )
@@ -63,8 +80,28 @@ BEGIN
   ON CONFLICT (conversation_id, user_id) DO UPDATE SET left_at = NULL, role = EXCLUDED.role;
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_43a67e06570f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_43a67e06570f$;
 
-REVOKE ALL ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) TO authenticated;
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_3c5792cdceb0$
+BEGIN
+  EXECUTE $bootstrap_sql_3c5792cdceb0$REVOKE ALL ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) FROM PUBLIC, anon$bootstrap_sql_3c5792cdceb0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3c5792cdceb0$;
+
+DO $bootstrap_do_a9d375237823$
+BEGIN
+  EXECUTE $bootstrap_sql_a9d375237823$GRANT EXECUTE ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) TO authenticated$bootstrap_sql_a9d375237823$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a9d375237823$;
+
+DO $bootstrap_do_ba98448527db$
+BEGIN
+  EXECUTE $bootstrap_sql_ba98448527db$NOTIFY pgrst, 'reload schema'$bootstrap_sql_ba98448527db$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ba98448527db$;

@@ -1,4 +1,10 @@
--- Automatic, auditable order fraud controls.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_5ed75cf23cee$
+BEGIN
+  EXECUTE $bootstrap_sql_5ed75cf23cee$-- Automatic, auditable order fraud controls.
 -- A block is a risk signal with expiry, not proof of fraud.
 CREATE TABLE IF NOT EXISTS public.order_fraud_blocks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -13,21 +19,60 @@ CREATE TABLE IF NOT EXISTS public.order_fraud_blocks (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (block_type, block_value)
-);
+)$bootstrap_sql_5ed75cf23cee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ed75cf23cee$;
 
-CREATE INDEX IF NOT EXISTS idx_order_fraud_blocks_active
-  ON public.order_fraud_blocks(blocked_until, block_type);
-CREATE INDEX IF NOT EXISTS idx_order_fraud_blocks_user
-  ON public.order_fraud_blocks(user_id, blocked_until);
+DO $bootstrap_do_d0da14c94cae$
+BEGIN
+  EXECUTE $bootstrap_sql_d0da14c94cae$CREATE INDEX IF NOT EXISTS idx_order_fraud_blocks_active
+  ON public.order_fraud_blocks(blocked_until, block_type)$bootstrap_sql_d0da14c94cae$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d0da14c94cae$;
 
-ALTER TABLE public.order_fraud_blocks ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.order_fraud_blocks FROM PUBLIC, anon, authenticated;
-DROP POLICY IF EXISTS "Admins view order fraud blocks" ON public.order_fraud_blocks;
-CREATE POLICY "Admins view order fraud blocks"
+DO $bootstrap_do_60d375922915$
+BEGIN
+  EXECUTE $bootstrap_sql_60d375922915$CREATE INDEX IF NOT EXISTS idx_order_fraud_blocks_user
+  ON public.order_fraud_blocks(user_id, blocked_until)$bootstrap_sql_60d375922915$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_60d375922915$;
+
+DO $bootstrap_do_4598d0d677c9$
+BEGIN
+  EXECUTE $bootstrap_sql_4598d0d677c9$ALTER TABLE public.order_fraud_blocks ENABLE ROW LEVEL SECURITY$bootstrap_sql_4598d0d677c9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4598d0d677c9$;
+
+DO $bootstrap_do_c9d0389502d6$
+BEGIN
+  EXECUTE $bootstrap_sql_c9d0389502d6$REVOKE ALL ON public.order_fraud_blocks FROM PUBLIC, anon, authenticated$bootstrap_sql_c9d0389502d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c9d0389502d6$;
+
+DO $bootstrap_do_7f11629d971a$
+BEGIN
+  EXECUTE $bootstrap_sql_7f11629d971a$DROP POLICY IF EXISTS "Admins view order fraud blocks" ON public.order_fraud_blocks$bootstrap_sql_7f11629d971a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7f11629d971a$;
+
+DO $bootstrap_do_6e76d2de58b5$
+BEGIN
+  EXECUTE $bootstrap_sql_6e76d2de58b5$CREATE POLICY "Admins view order fraud blocks"
   ON public.order_fraud_blocks FOR SELECT TO authenticated
-  USING (public.is_admin());
+  USING (public.is_admin())$bootstrap_sql_6e76d2de58b5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6e76d2de58b5$;
 
-CREATE OR REPLACE FUNCTION public.enforce_automatic_order_fraud_blocks()
+DO $bootstrap_do_c778fac27d25$
+BEGIN
+  EXECUTE $bootstrap_sql_c778fac27d25$CREATE OR REPLACE FUNCTION public.enforce_automatic_order_fraud_blocks()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -144,14 +189,39 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_c778fac27d25$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c778fac27d25$;
 
-DROP TRIGGER IF EXISTS trg_automatic_order_fraud_blocks ON public.orders;
-CREATE TRIGGER trg_automatic_order_fraud_blocks
+DO $bootstrap_do_b4ba5c1a79aa$
+BEGIN
+  EXECUTE $bootstrap_sql_b4ba5c1a79aa$DROP TRIGGER IF EXISTS trg_automatic_order_fraud_blocks ON public.orders$bootstrap_sql_b4ba5c1a79aa$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b4ba5c1a79aa$;
+
+DO $bootstrap_do_1972febfd5bd$
+BEGIN
+  EXECUTE $bootstrap_sql_1972febfd5bd$CREATE TRIGGER trg_automatic_order_fraud_blocks
   BEFORE INSERT ON public.orders
   FOR EACH ROW
-  EXECUTE FUNCTION public.enforce_automatic_order_fraud_blocks();
+  EXECUTE FUNCTION public.enforce_automatic_order_fraud_blocks()$bootstrap_sql_1972febfd5bd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1972febfd5bd$;
 
-REVOKE ALL ON FUNCTION public.enforce_automatic_order_fraud_blocks() FROM PUBLIC, anon, authenticated;
-COMMENT ON TABLE public.order_fraud_blocks IS
-  'Expiring, auditable automatic blocks based on repeated unpaid or failed orders; not a definitive fraud finding.';
+DO $bootstrap_do_6e56f11e2d80$
+BEGIN
+  EXECUTE $bootstrap_sql_6e56f11e2d80$REVOKE ALL ON FUNCTION public.enforce_automatic_order_fraud_blocks() FROM PUBLIC, anon, authenticated$bootstrap_sql_6e56f11e2d80$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6e56f11e2d80$;
+
+DO $bootstrap_do_948083dba45f$
+BEGIN
+  EXECUTE $bootstrap_sql_948083dba45f$COMMENT ON TABLE public.order_fraud_blocks IS
+  'Expiring, auditable automatic blocks based on repeated unpaid or failed orders; not a definitive fraud finding.'$bootstrap_sql_948083dba45f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_948083dba45f$;

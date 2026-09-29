@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- DesaMart canonical bootstrap bundle; generated from archive source migrations.
 -- DO NOT apply to an existing project with migration history.
 -- Source range: 20260929150000_transport_connection_drop_offer_recovery.sql .. 20260929150000_transport_connection_drop_offer_recovery.sql

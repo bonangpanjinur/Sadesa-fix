@@ -1,4 +1,10 @@
--- Ensure a newly created passenger ride reaches available couriers even when
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_bc68ad0ac35c$
+BEGIN
+  EXECUTE $bootstrap_sql_bc68ad0ac35c$-- Ensure a newly created passenger ride reaches available couriers even when
 -- the driver app is backgrounded. The existing in-app notification remains
 -- the source of truth; this durable job is consumed by the notification worker.
 CREATE OR REPLACE FUNCTION public.notify_couriers_new_ride()
@@ -43,10 +49,29 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_bc68ad0ac35c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bc68ad0ac35c$;
 
-REVOKE ALL ON FUNCTION public.notify_couriers_new_ride() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.notify_couriers_new_ride() TO service_role;
+DO $bootstrap_do_c2059fd0830d$
+BEGIN
+  EXECUTE $bootstrap_sql_c2059fd0830d$REVOKE ALL ON FUNCTION public.notify_couriers_new_ride() FROM PUBLIC, anon, authenticated$bootstrap_sql_c2059fd0830d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c2059fd0830d$;
 
-COMMENT ON FUNCTION public.notify_couriers_new_ride() IS
-  'Creates in-app and durable Web Push notifications for active, recently located couriers when a SEARCHING ride is inserted.';
+DO $bootstrap_do_09df42ce3f85$
+BEGIN
+  EXECUTE $bootstrap_sql_09df42ce3f85$GRANT EXECUTE ON FUNCTION public.notify_couriers_new_ride() TO service_role$bootstrap_sql_09df42ce3f85$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_09df42ce3f85$;
+
+DO $bootstrap_do_f6fa61bc0073$
+BEGIN
+  EXECUTE $bootstrap_sql_f6fa61bc0073$COMMENT ON FUNCTION public.notify_couriers_new_ride() IS
+  'Creates in-app and durable Web Push notifications for active, recently located couriers when a SEARCHING ride is inserted.'$bootstrap_sql_f6fa61bc0073$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f6fa61bc0073$;

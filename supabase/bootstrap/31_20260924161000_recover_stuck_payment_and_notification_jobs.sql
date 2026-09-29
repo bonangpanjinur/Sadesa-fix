@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- Recovery controls for provider/worker crashes.
 -- The migration is idempotent and safe to run after the canonical bootstrap bundles.
 DO $bootstrap_do_recover_jobs$

@@ -1,4 +1,10 @@
--- Manual unblock must be explicit, admin-only, and auditable.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_0ed0aaddc11e$
+BEGIN
+  EXECUTE $bootstrap_sql_0ed0aaddc11e$-- Manual unblock must be explicit, admin-only, and auditable.
 CREATE OR REPLACE FUNCTION public.unblock_order_fraud_block(
   p_block_id uuid,
   p_reason text
@@ -35,9 +41,29 @@ BEGIN
   END IF;
   RETURN v_block;
 END;
-$$;
+$$$bootstrap_sql_0ed0aaddc11e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0ed0aaddc11e$;
 
-REVOKE ALL ON FUNCTION public.unblock_order_fraud_block(uuid, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.unblock_order_fraud_block(uuid, text) TO authenticated;
-COMMENT ON FUNCTION public.unblock_order_fraud_block(uuid, text) IS
-  'Admin-only manual unblock with mandatory audit reason.';
+DO $bootstrap_do_689a0978df96$
+BEGIN
+  EXECUTE $bootstrap_sql_689a0978df96$REVOKE ALL ON FUNCTION public.unblock_order_fraud_block(uuid, text) FROM PUBLIC, anon, authenticated$bootstrap_sql_689a0978df96$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_689a0978df96$;
+
+DO $bootstrap_do_de6912a5b62d$
+BEGIN
+  EXECUTE $bootstrap_sql_de6912a5b62d$GRANT EXECUTE ON FUNCTION public.unblock_order_fraud_block(uuid, text) TO authenticated$bootstrap_sql_de6912a5b62d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_de6912a5b62d$;
+
+DO $bootstrap_do_564bd2db2f28$
+BEGIN
+  EXECUTE $bootstrap_sql_564bd2db2f28$COMMENT ON FUNCTION public.unblock_order_fraud_block(uuid, text) IS
+  'Admin-only manual unblock with mandatory audit reason.'$bootstrap_sql_564bd2db2f28$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_564bd2db2f28$;

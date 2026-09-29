@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- ===== BEGIN SOURCE: 20260922193000_require_email_confirmation.sql =====
 -- New accounts must confirm ownership of the mailbox before they can sign in.
 -- Do not alter already-confirmed users; this changes signup behavior going forward.

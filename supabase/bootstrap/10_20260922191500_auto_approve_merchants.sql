@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- ===== BEGIN SOURCE: 20260922191500_auto_approve_merchants.sql =====
 -- Merchant registration is automatically approved and active.
 -- Admin can still deactivate a merchant later; no manual approval is required.

@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- DesaMart canonical bootstrap bundle; incremental merchant hardening.
 -- Source range: 20260925230000_merchant_review_refund_input_hardening.sql
 

@@ -1,4 +1,10 @@
--- Fix chat notification sender lookup for PostgreSQL compatibility.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_21cc95cca08e$
+BEGIN
+  EXECUTE $bootstrap_sql_21cc95cca08e$-- Fix chat notification sender lookup for PostgreSQL compatibility.
 -- The previous trigger used FULL JOIN with OR predicates, which PostgreSQL cannot plan.
 
 CREATE OR REPLACE FUNCTION public.notify_chat_message()
@@ -48,6 +54,14 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_21cc95cca08e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_21cc95cca08e$;
 
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_3c7bcbeda30a$
+BEGIN
+  EXECUTE $bootstrap_sql_3c7bcbeda30a$NOTIFY pgrst, 'reload schema'$bootstrap_sql_3c7bcbeda30a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3c7bcbeda30a$;

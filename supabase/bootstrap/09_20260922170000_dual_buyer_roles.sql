@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- ===== BEGIN SOURCE: 20260922170000_dual_buyer_roles.sql =====
 -- Every merchant and courier is also a marketplace buyer.
 -- Keep role assignment server-side and repair legacy profiles missing role rows.

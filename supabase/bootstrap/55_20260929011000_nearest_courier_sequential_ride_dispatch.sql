@@ -1,3 +1,7 @@
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
 -- DesaMart canonical bootstrap bundle; generated from archive source migration.
 -- DO NOT apply to an existing project with migration history.
 -- Source: 20260929011000_nearest_courier_sequential_ride_dispatch.sql

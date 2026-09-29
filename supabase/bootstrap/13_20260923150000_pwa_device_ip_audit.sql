@@ -1,16 +1,37 @@
--- PWA device security audit: public IP observed at authenticated registration.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_460a0eefc2fa$
+BEGIN
+  EXECUTE $bootstrap_sql_460a0eefc2fa$-- PWA device security audit: public IP observed at authenticated registration.
 -- Safe to replay on existing databases.
 ALTER TABLE public.pwa_device_sessions
-  ADD COLUMN IF NOT EXISTS ip_address inet;
+  ADD COLUMN IF NOT EXISTS ip_address inet$bootstrap_sql_460a0eefc2fa$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_460a0eefc2fa$;
 
-CREATE INDEX IF NOT EXISTS idx_pwa_device_sessions_ip_last_seen
+DO $bootstrap_do_8122ebe6e524$
+BEGIN
+  EXECUTE $bootstrap_sql_8122ebe6e524$CREATE INDEX IF NOT EXISTS idx_pwa_device_sessions_ip_last_seen
   ON public.pwa_device_sessions(ip_address, last_seen_at DESC)
-  WHERE ip_address IS NOT NULL;
+  WHERE ip_address IS NOT NULL$bootstrap_sql_8122ebe6e524$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8122ebe6e524$;
 
-COMMENT ON COLUMN public.pwa_device_sessions.ip_address IS
-  'Public IP observed by the application during device registration; may change and must not be treated as a unique identity.';
+DO $bootstrap_do_5c3d43b71cf3$
+BEGIN
+  EXECUTE $bootstrap_sql_5c3d43b71cf3$COMMENT ON COLUMN public.pwa_device_sessions.ip_address IS
+  'Public IP observed by the application during device registration; may change and must not be treated as a unique identity.'$bootstrap_sql_5c3d43b71cf3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5c3d43b71cf3$;
 
-CREATE OR REPLACE FUNCTION public.register_pwa_device(
+DO $bootstrap_do_aa2758379551$
+BEGIN
+  EXECUTE $bootstrap_sql_aa2758379551$CREATE OR REPLACE FUNCTION public.register_pwa_device(
   p_device_id text,
   p_device_name text DEFAULT 'Perangkat PWA',
   p_device_type text DEFAULT 'browser',
@@ -80,9 +101,29 @@ BEGIN
   RETURNING * INTO v_device;
   RETURN v_device;
 END;
-$$;
+$$$bootstrap_sql_aa2758379551$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aa2758379551$;
 
-REVOKE ALL ON FUNCTION public.register_pwa_device(text, text, text, text, text, inet, uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.register_pwa_device(text, text, text, text, text, inet, uuid) TO authenticated;
-COMMENT ON FUNCTION public.register_pwa_device(text, text, text, text, text, inet, uuid) IS
-  'Register an authenticated PWA device and record the observed public IP for security audit signals.';
+DO $bootstrap_do_a4840627ee21$
+BEGIN
+  EXECUTE $bootstrap_sql_a4840627ee21$REVOKE ALL ON FUNCTION public.register_pwa_device(text, text, text, text, text, inet, uuid) FROM PUBLIC, anon$bootstrap_sql_a4840627ee21$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a4840627ee21$;
+
+DO $bootstrap_do_cb5d8589849c$
+BEGIN
+  EXECUTE $bootstrap_sql_cb5d8589849c$GRANT EXECUTE ON FUNCTION public.register_pwa_device(text, text, text, text, text, inet, uuid) TO authenticated$bootstrap_sql_cb5d8589849c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cb5d8589849c$;
+
+DO $bootstrap_do_964a7cbbb707$
+BEGIN
+  EXECUTE $bootstrap_sql_964a7cbbb707$COMMENT ON FUNCTION public.register_pwa_device(text, text, text, text, text, inet, uuid) IS
+  'Register an authenticated PWA device and record the observed public IP for security audit signals.'$bootstrap_sql_964a7cbbb707$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_964a7cbbb707$;

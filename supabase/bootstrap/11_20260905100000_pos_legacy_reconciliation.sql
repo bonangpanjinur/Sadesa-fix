@@ -1,4 +1,10 @@
--- POS legacy reconciliation report and safe exact-match reconciliation.
+-- DesaMart repeatable canonical bootstrap bundle.
+-- SAFE TO RE-RUN: existing objects/data are preserved and missing items continue.
+-- Duplicate-object errors are ignored per statement; other errors remain visible.
+
+DO $bootstrap_do_adcf345e0a3b$
+BEGIN
+  EXECUTE $bootstrap_sql_adcf345e0a3b$-- POS legacy reconciliation report and safe exact-match reconciliation.
 -- This migration never copies financial rows and never creates a second sale.
 
 CREATE OR REPLACE VIEW public.pos_legacy_reconciliation_report
@@ -43,14 +49,29 @@ SELECT
 FROM public.pos_transactions legacy
 JOIN public.pos_transaction_migration_map map
   ON map.legacy_transaction_id = legacy.id
-LEFT JOIN candidate_matches candidate ON candidate.map_id = map.id;
+LEFT JOIN candidate_matches candidate ON candidate.map_id = map.id$bootstrap_sql_adcf345e0a3b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_adcf345e0a3b$;
 
-COMMENT ON VIEW public.pos_legacy_reconciliation_report IS
-  'Operator report for legacy POS reconciliation. It classifies mappings without copying or deleting financial rows.';
+DO $bootstrap_do_f3dfda147e2d$
+BEGIN
+  EXECUTE $bootstrap_sql_f3dfda147e2d$COMMENT ON VIEW public.pos_legacy_reconciliation_report IS
+  'Operator report for legacy POS reconciliation. It classifies mappings without copying or deleting financial rows.'$bootstrap_sql_f3dfda147e2d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f3dfda147e2d$;
 
-GRANT SELECT ON public.pos_legacy_reconciliation_report TO authenticated;
+DO $bootstrap_do_00eb7f9d496c$
+BEGIN
+  EXECUTE $bootstrap_sql_00eb7f9d496c$GRANT SELECT ON public.pos_legacy_reconciliation_report TO authenticated$bootstrap_sql_00eb7f9d496c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_00eb7f9d496c$;
 
-CREATE OR REPLACE FUNCTION public.reconcile_exact_legacy_pos_transactions()
+DO $bootstrap_do_76c39c2877e6$
+BEGIN
+  EXECUTE $bootstrap_sql_76c39c2877e6$CREATE OR REPLACE FUNCTION public.reconcile_exact_legacy_pos_transactions()
 RETURNS TABLE (reconciled_count integer, skipped_count integer)
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -102,12 +123,37 @@ BEGIN
   reconciled_count := v_reconciled;
   RETURN NEXT;
 END;
-$$;
+$$$bootstrap_sql_76c39c2877e6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_76c39c2877e6$;
 
-REVOKE ALL ON FUNCTION public.reconcile_exact_legacy_pos_transactions() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.reconcile_exact_legacy_pos_transactions() TO authenticated;
+DO $bootstrap_do_e6b2de755778$
+BEGIN
+  EXECUTE $bootstrap_sql_e6b2de755778$REVOKE ALL ON FUNCTION public.reconcile_exact_legacy_pos_transactions() FROM PUBLIC$bootstrap_sql_e6b2de755778$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e6b2de755778$;
 
-CREATE INDEX IF NOT EXISTS idx_pos_transactions_reconciliation_key
-  ON public.pos_transactions(merchant_id, transaction_number, created_at);
-CREATE INDEX IF NOT EXISTS idx_pos_sales_reconciliation_key
-  ON public.pos_sales(tenant_id, sale_number, created_at);
+DO $bootstrap_do_4d3e2f08140e$
+BEGIN
+  EXECUTE $bootstrap_sql_4d3e2f08140e$GRANT EXECUTE ON FUNCTION public.reconcile_exact_legacy_pos_transactions() TO authenticated$bootstrap_sql_4d3e2f08140e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4d3e2f08140e$;
+
+DO $bootstrap_do_46c5f179c8ee$
+BEGIN
+  EXECUTE $bootstrap_sql_46c5f179c8ee$CREATE INDEX IF NOT EXISTS idx_pos_transactions_reconciliation_key
+  ON public.pos_transactions(merchant_id, transaction_number, created_at)$bootstrap_sql_46c5f179c8ee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_46c5f179c8ee$;
+
+DO $bootstrap_do_d9c1c17c3eee$
+BEGIN
+  EXECUTE $bootstrap_sql_d9c1c17c3eee$CREATE INDEX IF NOT EXISTS idx_pos_sales_reconciliation_key
+  ON public.pos_sales(tenant_id, sale_number, created_at)$bootstrap_sql_d9c1c17c3eee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d9c1c17c3eee$;
