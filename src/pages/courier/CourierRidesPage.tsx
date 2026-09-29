@@ -233,7 +233,7 @@ export default function CourierRidesPage() {
     },
     onSuccess: (data) => {
       if (data === false) {
-        toast({ title: 'Ride sudah diambil driver lain', variant: 'destructive' });
+        toast({ title: 'Penawaran sudah berakhir atau tidak tersedia lagi', variant: 'destructive' });
       } else {
         toast({ title: '✅ Ride diterima!' });
       }
@@ -241,6 +241,22 @@ export default function CourierRidesPage() {
     },
     onError: () => toast({ title: 'Gagal menerima ride', variant: 'destructive' }),
     onSettled: () => setAccepting(null),
+  });
+
+  const declineRideMutation = useMutation({
+    mutationFn: async (rideId: string) => {
+      const { data, error } = await supabase.rpc('decline_ride_request' as never, { p_ride_id: rideId } as never);
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
+      toast({
+        title: data === false ? 'Penawaran sudah berakhir' : 'Penawaran ditolak',
+        description: data === false ? undefined : 'Permintaan akan ditawarkan ke ojek berikutnya.',
+      });
+    },
+    onError: () => toast({ title: 'Gagal menolak penawaran ojek', variant: 'destructive' }),
   });
 
   const updateRideStatusMutation = useMutation({
@@ -469,16 +485,30 @@ export default function CourierRidesPage() {
                       </div>
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <span className="font-bold text-primary">{formatPrice(ride.estimated_fare)}</span>
-                            <div className="grid w-full grid-cols-2 gap-2 sm:w-auto">
+                            <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-3">
                               <Button size="sm" variant="outline" className="min-h-11 sm:min-h-9" onClick={() => setExpandedMap(expandedMap === ride.id ? null : ride.id)}>
-                            <MapPin className="h-3.5 w-3.5 mr-1" />
-                            {expandedMap === ride.id ? 'Tutup Peta' : 'Lihat Rute'}
-                          </Button>
-                              <Button size="sm" className="min-h-11 sm:min-h-9" onClick={() => acceptRideMutation.mutate(ride.id)} disabled={accepting === ride.id || !!activeRide}>
-                            {accepting === ride.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
-                            Terima
-                          </Button>
-                        </div>
+                                <MapPin className="h-3.5 w-3.5 mr-1" />
+                                {expandedMap === ride.id ? 'Tutup Peta' : 'Lihat Rute'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="min-h-11 sm:min-h-9"
+                                onClick={() => declineRideMutation.mutate(ride.id)}
+                                disabled={declineRideMutation.isPending || accepting === ride.id || !!activeRide}
+                              >
+                                <X className="h-3.5 w-3.5 mr-1" /> Tolak
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="min-h-11 sm:min-h-9 col-span-2 sm:col-span-1"
+                                onClick={() => acceptRideMutation.mutate(ride.id)}
+                                disabled={accepting === ride.id || declineRideMutation.isPending || !!activeRide}
+                              >
+                                {accepting === ride.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+                                Terima
+                              </Button>
+                            </div>
                       </div>
                     </div>
 

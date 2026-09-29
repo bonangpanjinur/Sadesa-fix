@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCourierOrderAlarm } from '@/hooks/useCourierOrderAlarm';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -27,6 +28,28 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
   const { user } = useAuth();
   const { unreadCount: chatUnreadCount } = useChatUnread();
   useCourierOrderAlarm(user?.id);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let processing = false;
+    const processExpiredRideOffers = async () => {
+      if (processing) return;
+      processing = true;
+      try {
+        const { error } = await supabase.rpc('process_expired_ride_offers' as never);
+        if (error && error.code !== '42501') {
+          console.warn('Gagal memproses penawaran ojek yang kedaluwarsa:', error);
+        }
+      } finally {
+        processing = false;
+      }
+    };
+
+    void processExpiredRideOffers();
+    const interval = window.setInterval(() => void processExpiredRideOffers(), 10_000);
+    return () => window.clearInterval(interval);
+  }, [user?.id]);
+
   const isActive = (href: string) => location.pathname === href;
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 233,
-  "bundle_count": 19,
+  "migration_count": 318,
+  "bundle_count": 20,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -452,6 +452,14 @@
       ],
       "sha256": "115f15aedc990ec6c4f0a5de15acfaf81e726ac2776c152320f2e215155465d4",
       "bytes": 4357
+    },
+    {
+      "file": "55_20260929011000_nearest_courier_sequential_ride_dispatch.sql",
+      "source_files": [
+        "20260929011000_nearest_courier_sequential_ride_dispatch.sql"
+      ],
+      "sha256": "b46d18d9e2086efd25ad62689c1fa0340f14ca09e36321cc40e030947c6d13cc",
+      "bytes": 14540
     }
   ],
   "idempotent": true,

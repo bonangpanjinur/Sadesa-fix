@@ -261,7 +261,10 @@ export default function RideBookingPage() {
         p_destination_address: destAddress || 'Titik tujuan',
       });
       if (error) throw error;
-      toast({ title: 'Mencari driver...', description: 'Permintaan ojek Anda sedang dicari driver terdekat' });
+      toast({
+        title: 'Mencari ojek terdekat...',
+        description: 'Pesanan ditawarkan ke ojek aktif terdekat. Jika belum diterima dalam 30 detik, sistem akan menawarkan ke ojek berikutnya.',
+      });
       navigate(`/ride/${data}`);
     } catch (err) {
       console.error(err);
