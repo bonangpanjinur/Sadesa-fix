@@ -2,12 +2,12 @@
 
 **Status:** internal backend API
 **Fungsi database:** `public.auto_cancel_unanswered_transport_orders()`
-**Migration:** `20260929140000_auto_cancel_unanswered_transport_orders.sql`
+**Migration:** `20260929140000_auto_cancel_unanswered_transport_orders.sql`, `20260929150000_transport_connection_drop_offer_recovery.sql`
 **SLA:** 5 menit tanpa respons driver/kurir; scheduler berjalan setiap menit.
 
 ## Ringkasan
 
-Fungsi ini menutup permintaan ojek dan pesanan kurir barang langsung yang belum diterima setelah melewati batas respons lima menit. Proses berjalan di server melalui `pg_cron`, sehingga tidak bergantung pada halaman pembeli atau aplikasi driver tetap terbuka.
+Fungsi ini menutup permintaan ojek dan pesanan kurir barang langsung yang belum diterima setelah melewati batas respons lima menit. Worker pemulihan juga mendeteksi driver yang heartbeat lokasinya basi, menutup offer lama, dan mencoba driver lain sebelum batas pembatalan tercapai. Proses berjalan di server melalui `pg_cron`, sehingga tidak bergantung pada halaman pembeli atau aplikasi driver tetap terbuka.
 
 Fungsi ini adalah **maintenance RPC internal**, bukan endpoint publik untuk aplikasi browser. Operasi normal dilakukan oleh job terjadwal. Pemanggilan manual hanya untuk pemeriksaan atau operasi backend yang berwenang.
 
@@ -33,11 +33,19 @@ RETURNS integer
 | Layanan | Syarat semua harus terpenuhi | Status hasil |
 |---|---|---|
 | Ojek penumpang | `ride_requests.status = 'SEARCHING'`, `driver_id IS NULL`, dan `created_at` sudah berumur sekurangnya 5 menit | `CANCELLED` |
-| Kurir barang langsung | `orders.service_type = 'COURIER_DELIVERY'`, `status = 'ASSIGNED'`, `courier_id IS NULL`, `scheduled_pickup = false`, usia order sekurangnya 5 menit, serta tidak ada assignment berstatus `ACCEPTED` | `CANCELED` |
+| Kurir barang langsung | `orders.service_type = 'COURIER_DELIVERY'`, `status = 'ASSIGNED'`, belum ada assignment berstatus `ACCEPTED`, `scheduled_pickup = false`, usia order sekurangnya 5 menit. Worker pemulihan lebih dulu melepas offer yang belum diterima dan mengosongkan `courier_id`. | `CANCELED` |
 
 Order marketplace/toko tidak diproses oleh fungsi ini. Booking dengan pickup terjadwal dikecualikan dari SLA ini. Ride/order yang sudah diterima driver atau kurir tidak dibatalkan.
 
 > Karena job berjalan per menit, order dibatalkan pada tick pertama setelah usia 5 menit—umumnya antara 5 dan 6 menit setelah dibuat, bukan tepat pada detik ke-300.
+
+## Penanganan koneksi driver terputus
+
+- Aplikasi driver menulis checkpoint lokasi ke `couriers.last_location_update` setiap 30 detik. Server menganggap driver siap ditawari pekerjaan hanya jika lokasi dan status availability valid serta heartbeat berumur paling lama 90 detik.
+- Dispatch awal kurir barang langsung tidak lagi memilih driver dengan heartbeat basi. Jika offer sudah terlanjur dibuat lalu koneksi/heartbeat driver terputus, worker mengubah assignment `OFFERED` menjadi `EXPIRED`, mencatat alasan, menambahkan driver ke `courier_rejected_ids`, mengosongkan pointer `orders.courier_id`, lalu mencoba driver terdekat lain yang masih segar.
+- Offer ojek yang kedaluwarsa juga dimajukan ke driver berikutnya oleh worker server-side. Sebelumnya, pemrosesan offer tersebut bergantung pada sesi driver aktif.
+- Jika tidak ada driver segar, order kurir barang tetap `ASSIGNED` tanpa courier dan dicoba lagi pada tick berikutnya. Jika masih belum ada yang menerima lima menit sejak order dibuat, fungsi auto-cancel tetap membatalkannya. Retry dijalankan sebelum auto-cancel pada tick yang sama.
+- Jika hanya kanal realtime terputus tetapi koneksi API/GPS masih berjalan, polling offer dan refresh saat realtime tersambung kembali tetap memungkinkan driver mengambil tawaran. Fallback heartbeat berlaku saat pembaruan lokasi memang berhenti.
 
 ## Sequence Diagram
 
@@ -45,43 +53,52 @@ Order marketplace/toko tidak diproses oleh fungsi ini. Booking dengan pickup ter
 sequenceDiagram
     autonumber
     participant Cron as pg_cron
-    participant Worker as Auto-cancel function
+    participant Recovery as Offer recovery worker
+    participant Dispatcher as Server dispatcher
+    participant Cancel as Auto-cancel function
     participant DB as PostgreSQL
+    participant Driver as Driver atau kurir
     participant Passenger as Penumpang
     participant Buyer as Pembeli
 
-    Cron->>Worker: Jalankan setiap menit
-    Worker->>DB: Coba advisory lock untuk jalur ojek
+    Cron->>Recovery: Jalankan pemulihan lebih dulu setiap menit
+    Recovery->>DB: Coba advisory lock dispatch ojek
     opt Lock ojek diperoleh
-        Worker->>DB: Expire offer PENDING pada ride yang sudah terminal
-        loop Maksimum 100 ride per run
-            Worker->>DB: Cari SEARCHING tanpa driver, usia >= 5 menit
-            Worker->>DB: Kunci row FOR UPDATE SKIP LOCKED
-            alt Ride masih eligible dan lock diperoleh
-                Worker->>DB: Ubah offer PENDING menjadi EXPIRED
-                Worker->>DB: Ubah ride menjadi CANCELLED dan simpan alasan/waktu
-                Worker->>DB: Kirim notifikasi in-app (best effort)
-                DB-->>Passenger: Notifikasi pembatalan ojek
-            else Ride berubah status atau sedang dikunci transaksi lain
-                DB-->>Worker: Ride berubah atau dilewati karena lock
+        loop Maksimum 100 ride tanpa offer aktif
+            Recovery->>Dispatcher: dispatch_next_ride_offer(ride_id)
+            Dispatcher->>DB: Cari driver dengan heartbeat lokasi <= 90 detik
+            alt Driver ojek segar tersedia
+                Dispatcher->>DB: Buat offer PENDING dengan expiry 30 detik
+                DB-->>Driver: In-app dan push offer ojek
+            else Belum ada driver segar
+                Dispatcher-->>Recovery: Tidak ada offer pada tick ini
             end
         end
     end
 
-    loop Maksimum 100 order kurir langsung per run
-        Worker->>DB: Cari COURIER_DELIVERY ASSIGNED tanpa courier, non-terjadwal, usia >= 5 menit
-        Worker->>DB: Kunci order lalu assignment OFFERED/ACCEPTED dengan NOWAIT
-        alt Assignment accepted atau lock dipakai acceptance/dispatch
-            DB-->>Worker: Lewati order, cron akan mencoba lagi
-        else Order masih belum diterima
-            Worker->>DB: Ubah order menjadi CANCELED, cancellation_type SYSTEM
-            Worker->>DB: Tutup assignment OFFERED dan tulis order_status_history
-            Worker->>DB: Kirim notifikasi in-app (best effort)
-            DB-->>Buyer: Notifikasi pembatalan kurir
+    loop Maksimum 100 order kurir barang langsung
+        Recovery->>DB: Cari order tanpa offer aktif atau driver dengan heartbeat basi
+        Recovery->>DB: Kunci order dan assignment dengan NOWAIT
+        alt Offer stale atau expired dan batas 5 menit belum lewat
+            Recovery->>DB: Tandai EXPIRED, blacklist courier, kosongkan courier_id
+            Recovery->>Dispatcher: dispatch_courier_order_internal(order_id)
+            Dispatcher->>DB: Pilih courier available dengan lokasi <= 90 detik
+            alt Driver kurir segar tersedia
+                Dispatcher->>DB: Buat assignment OFFERED selama 5 menit
+                DB-->>Driver: Notifikasi tawaran pengiriman
+            else Tidak ada driver kurir segar
+                Dispatcher-->>Recovery: WAITING_FOR_COURIER
+            end
+        else SLA 5 menit tercapai, acceptance berjalan, atau order sudah diterima
+            DB-->>Recovery: Lewati tanpa mengubah assignment
         end
     end
 
-    Worker-->>Cron: Kembalikan jumlah record yang dibatalkan
+    Cron->>Cancel: Jalankan setelah recovery dalam transaksi yang sama
+    Cancel->>DB: Batalkan ride/order belum diterima berusia >= 5 menit
+    DB-->>Passenger: Notifikasi jika ride dibatalkan
+    DB-->>Buyer: Notifikasi jika order kurir dibatalkan
+    Cancel-->>Cron: Kembalikan jumlah pembatalan
 ```
 
 Jika penguncian menemukan acceptance/dispatch sedang berlangsung, worker melewati record tersebut alih-alih menunggu atau membatalkan secara spekulatif. Pemanggilan cron berikutnya akan memeriksanya kembali.
@@ -118,7 +135,12 @@ Migration menjadwalkan job berikut secara otomatis. Jika job dengan nama yang sa
 ```text
 job name: auto-cancel-unanswered-transport-orders
 schedule: * * * * *
-command:  SELECT public.auto_cancel_unanswered_transport_orders();
+command:  DO $transport_offer_timeout_pipeline$
+          BEGIN
+            PERFORM public.process_unresponsive_transport_offers();
+            PERFORM public.auto_cancel_unanswered_transport_orders();
+          END
+          $transport_offer_timeout_pipeline$;
 ```
 
 Tidak perlu memanggil fungsi dari UI atau dari setiap sesi driver.
