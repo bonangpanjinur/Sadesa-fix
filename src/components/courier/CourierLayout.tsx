@@ -41,8 +41,8 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
       return data as { id: string; is_available: boolean; registration_status: string } | null;
     },
     enabled: !!user,
-    staleTime: 15_000,
-    refetchInterval: 15_000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 
   const isActive = (href: string) => href === '/courier'

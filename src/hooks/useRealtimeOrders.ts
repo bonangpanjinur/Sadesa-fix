@@ -36,6 +36,11 @@ interface UseRealtimeOrdersOptions {
 }
 
 const ORDER_PAGE_SIZE = 50;
+type OrderQueryRow = OrderRow & { merchants?: OrderRow['merchants'] | Array<NonNullable<OrderRow['merchants']>> };
+const normalizeOrder = (order: OrderQueryRow): OrderRow => ({
+  ...order,
+  merchants: Array.isArray(order.merchants) ? order.merchants[0] ?? null : order.merchants ?? null,
+});
 
 export function useRealtimeOrders({ 
   merchantId, 
@@ -63,13 +68,13 @@ export function useRealtimeOrders({
       setLoading(true);
       const { data, error } = await supabase
         .from('orders')
-        .select('*, merchants(name, location_lat, location_lng)')
+        .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
         .order('created_at', { ascending: false })
         .limit(ORDER_PAGE_SIZE);
 
       if (error) throw error;
-      setOrders(data || []);
+      setOrders((data || []).map((order) => normalizeOrder(order as OrderQueryRow)));
       setHasMore((data || []).length === ORDER_PAGE_SIZE);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -90,7 +95,7 @@ export function useRealtimeOrders({
       setLoadingMore(true);
       const { data, error } = await supabase
         .from('orders')
-        .select('*, merchants(name, location_lat, location_lng)')
+        .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
         .lt('created_at', cursor.created_at)
         .order('created_at', { ascending: false })
@@ -98,7 +103,7 @@ export function useRealtimeOrders({
       if (error) throw error;
       setOrders((previous) => {
         const known = new Set(previous.map((order) => order.id));
-        return [...previous, ...(data || []).filter((order) => !known.has(order.id))];
+        return [...previous, ...(data || []).map((order) => normalizeOrder(order as OrderQueryRow)).filter((order) => !known.has(order.id))];
       });
       setHasMore((data || []).length === ORDER_PAGE_SIZE);
     } catch (error) {

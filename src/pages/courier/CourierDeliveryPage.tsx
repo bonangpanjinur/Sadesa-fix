@@ -43,13 +43,13 @@ export default function CourierDeliveryPage() {
   });
   const courierId = courier?.registration_status === 'APPROVED' ? courier.id : null;
   const { data: offers = [], isLoading: offersLoading, isError: offersError, error: offersQueryError, refetch } = useQuery<DeliveryOffer[]>({
-    queryKey: ['courier-delivery-page-offers', courierId], queryFn: async () => { const { data, error } = await supabase.rpc('get_courier_delivery_offers' as never); if (error) throw error; return (data || []) as unknown as DeliveryOffer[]; }, enabled: !!courierId, refetchInterval: 15_000,
+    queryKey: ['courier-delivery-page-offers', courierId], queryFn: async () => { const { data, error } = await supabase.rpc('get_courier_delivery_offers' as never); if (error) throw error; return (data || []) as unknown as DeliveryOffer[]; }, enabled: !!courierId, refetchInterval: 30_000,
   });
   const { data: activeDeliveries = [], isError: activeDeliveriesError, error: activeDeliveriesQueryError } = useQuery<ActiveDelivery[]>({
     queryKey: ['courier-delivery-page-active', courierId], queryFn: async () => {
       const { data, error } = await supabase.rpc('get_courier_active_deliveries' as never);
       if (error) throw error; return (data || []) as unknown as ActiveDelivery[];
-    }, enabled: !!courierId, refetchInterval: 15_000,
+    }, enabled: !!courierId, refetchInterval: 30_000,
   });
   useEffect(() => { if (!courierId) return; const channel = supabase.channel(`courier-delivery-page-${courierId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierId}` }, () => { queryClient.invalidateQueries({ queryKey: ['courier-delivery-page-offers', courierId] }); queryClient.invalidateQueries({ queryKey: ['courier-delivery-page-active', courierId] }); }).on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `courier_id=eq.${courierId}` }, () => { queryClient.invalidateQueries({ queryKey: ['courier-delivery-page-active', courierId] }); }).subscribe(); return () => { supabase.removeChannel(channel); }; }, [courierId, queryClient]);
   const refresh = () => { void refetch(); void queryClient.invalidateQueries({ queryKey: ['courier-delivery-page-active', courierId] }); };

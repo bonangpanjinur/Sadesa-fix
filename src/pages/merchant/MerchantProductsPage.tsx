@@ -89,11 +89,20 @@ export default function MerchantProductsPage() {
   const { data: products = [], isLoading: productsLoading } = useQuery<ProductRow[]>({
     queryKey: ['merchant-products', merchantId],
     queryFn: async () => {
-      const [{ data, error }, { data: posProducts, error: posError }] = await Promise.all([
-        supabase.from('products').select('*').eq('merchant_id', merchantId!).order('created_at', { ascending: false }),
-        supabase.from('pos_products' as never).select('merchant_product_id').not('merchant_product_id', 'is', null),
-      ]);
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, description, price, stock, category, image_url, is_active, is_promo, view_count, order_count')
+        .eq('merchant_id', merchantId!)
+        .order('created_at', { ascending: false });
       if (error) throw error;
+      const productIds = (data || []).map((product) => product.id);
+      const { data: posProducts, error: posError } = productIds.length
+        ? await supabase
+          .from('pos_products' as never)
+          .select('merchant_product_id')
+          .in('merchant_product_id', productIds)
+          .not('merchant_product_id', 'is', null)
+        : { data: [], error: null };
       if (posError) throw posError;
       const linkedProductIds = new Set(
         ((posProducts || []) as unknown as Array<{ merchant_product_id: string | null }>)
