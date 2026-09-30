@@ -60,6 +60,20 @@ interface OrderRow {
   merchants: { name: string; location_lat: number | null; location_lng: number | null } | null;
 }
 
+const ADMIN_CANCELLABLE_ORDER_STATUSES = [
+  'NEW',
+  'PENDING_PAYMENT',
+  'PENDING_CONFIRMATION',
+  'CONFIRMED',
+  'PROCESSED',
+  'READY',
+  'ASSIGNED',
+  'COURIER_ACCEPTED',
+  'PICKED_UP',
+  'DELIVERING',
+  'SENT',
+] as const;
+
 export default function AdminOrdersPage() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
@@ -108,23 +122,21 @@ export default function AdminOrdersPage() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      const updateData: Record<string, unknown> = { status: newStatus };
-      
-      if (newStatus === 'DONE') {
-        updateData.delivered_at = new Date().toISOString();
-      }
-      
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
+      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+        p_order_id: orderId,
+        p_to_status: newStatus,
+        p_reason: newStatus === 'CANCELED' ? 'Dibatalkan oleh admin' : 'Pembaruan status oleh admin',
+        p_is_self_delivery: null,
+      } as never);
 
       if (error) throw error;
       
       toast.success('Status pesanan diperbarui');
       setDetailDialogOpen(false);
+      await fetchOrders();
     } catch (error) {
-      toast.error('Gagal mengubah status');
+      console.error('Admin order status update failed:', error);
+      toast.error(`Gagal mengubah status: ${error instanceof Error ? error.message : 'Silakan coba lagi'}`);
     }
   };
 
@@ -331,13 +343,6 @@ export default function AdminOrdersPage() {
                   <Package className="h-4 w-4 mr-2" />
                   Terima & Proses
                 </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => updateOrderStatus(item.id, 'CANCELLED')} 
-                  className="text-destructive"
-                >
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Tolak Pesanan
-                </DropdownMenuItem>
               </>
             )}
             {item.status === 'PROCESSED' && (
@@ -346,14 +351,13 @@ export default function AdminOrdersPage() {
                 Kirim
               </DropdownMenuItem>
             )}
-            {/* Cancel for PROCESSED/PENDING_PAYMENT only (NEW already has "Tolak Pesanan" above) */}
-            {['PROCESSED', 'PENDING_PAYMENT'].includes(item.status) && (
+            {ADMIN_CANCELLABLE_ORDER_STATUSES.includes(item.status as typeof ADMIN_CANCELLABLE_ORDER_STATUSES[number]) && (
               <DropdownMenuItem 
-                onClick={() => updateOrderStatus(item.id, 'CANCELLED')}
+                onClick={() => updateOrderStatus(item.id, 'CANCELED')}
                 className="text-destructive"
               >
                 <AlertCircle className="h-4 w-4 mr-2" />
-                Batalkan
+                Batalkan Pesanan
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
