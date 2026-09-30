@@ -32,7 +32,7 @@ Perubahan source telah diperiksa melalui `git diff`. Validasi awal menggunakan `
 - `src/components/merchant/MerchantLayout.tsx`
 - `src/components/merchant/MerchantSidebar.tsx`
 - `src/index.css`
-- `docs/audit-scrollbar-dashboard-merchant-2026-09-14.md`
+- `docs/audits/audit-scrollbar-dashboard-merchant-2026-09-14.md`
 
 ## Audit error dashboard merchant (14 September 2026)
 

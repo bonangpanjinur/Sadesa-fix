@@ -349,7 +349,7 @@ Dengan urutan tersebut, tim tidak membangun UI lebih jauh di atas model authoriz
 
 ## References
 
-[1]: docs/arsitektur-live-chat-realtime.md "Arsitektur Live Chat Realtime SaDesa"
-[2]: docs/audit-kesiapan-chat-realtime-2026-09-09.md "Audit Kesiapan Chat Realtime SaDesa"
-[3]: supabase/bootstrap/18_20260907040000_live_chat_realtime.sql "Live chat realtime foundation migration"
-[4]: supabase/bootstrap/33_20260909100000_direct_chat_realtime.sql "Direct chat realtime migration"
+[1]: ../architecture/arsitektur-live-chat-realtime.md "Arsitektur Live Chat Realtime SaDesa"
+[2]: ../audits/audit-kesiapan-chat-realtime-2026-09-09.md "Audit Kesiapan Chat Realtime SaDesa"
+[3]: ../../supabase/bootstrap/02_20260907030000_to_20260908180000.sql "Bootstrap bundle containing live chat realtime foundation"
+[4]: ../../supabase/bootstrap/03_20260908190000_to_20260922114500.sql "Bootstrap bundle containing direct chat realtime migration"

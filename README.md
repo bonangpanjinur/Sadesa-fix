@@ -10,6 +10,10 @@ SaDesa adalah marketplace UMKM dan destinasi wisata desa di Indonesia.
 - **Backend/API**: Supabase Edge Functions
 - **PWA**: vite-plugin-pwa
 
+## Documentation
+
+Browse the [documentation index](docs/README.md) for API references, plans, audits, pentest and testing reports, operations, security, and database guidance.
+
 ## Getting Started
 
 ### Prerequisites
@@ -38,7 +42,7 @@ Server-only variables such as `SUPABASE_SERVICE_ROLE_KEY`, Xendit secret keys, c
 
 The service marketplace supports verified provider profiles, buyer requests and price negotiation, manual payment-proof review, work-completion confirmation, disputes, and admin payout/refund reconciliation. Transaction state changes are validated by database RPCs; direct browser writes to protected transaction tables are not permitted. Bank transfers and refunds are performed outside the application and recorded with their actual transfer references. A service payment gateway is not integrated yet.
 
-For the data model, RPC parameters, lifecycle, security rules, and deployment requirements, see the [service marketplace API and escrow guide](docs/api-service-escrow-disputes.md). The current application routes are `/services`, `/services/requests`, `/services/provider-history`, `/admin/services`, and `/admin/service-disputes`. Apply the service bootstrap migrations in manifest order through the controlled staging/production workflow; merging frontend and SQL files does not apply migrations to a live Supabase project.
+For the data model, RPC parameters, lifecycle, security rules, and deployment requirements, see the [service marketplace API and escrow guide](docs/api/api-service-escrow-disputes.md). The current application routes are `/services`, `/services/requests`, `/services/provider-history`, `/admin/services`, and `/admin/service-disputes`. Apply the service bootstrap migrations in manifest order through the controlled staging/production workflow; merging frontend and SQL files does not apply migrations to a live Supabase project.
 
 ## Railway Deployment
 

@@ -40,7 +40,7 @@ Audit terdahulu menyatakan cart berisi produk dari dua merchant dengan metode `O
 1. Untuk pilot, **blokir cart online lintas merchant** dengan pesan yang jelas dan arahkan buyer ke checkout per merchant; atau
 2. Implementasikan parent payment intent/order aggregator sebelum mengizinkan checkout lintas merchant.
 
-**Bukti:** `docs/audit-checkout-end-to-end-2026-09-18.md` dan `docs/audit-alur-checkout-2026-09-18-r2.md`.
+**Bukti:** `docs/audits/audit-checkout-end-to-end-2026-09-18.md` dan `docs/audits/audit-alur-checkout-2026-09-18-r2.md`.
 
 #### 2. Jam operasional merchant belum menjadi sumber kebenaran tunggal
 
@@ -50,7 +50,7 @@ Tabel `merchant_operating_hours` sudah tersedia, tetapi audit terdahulu mencatat
 
 **Rekomendasi:** jadikan jadwal mingguan + zona waktu Asia/Jakarta sebagai sumber kebenaran; pertahankan kolom legacy hanya untuk kompatibilitas; tambahkan smoke test publik dan checkout berdasarkan hari serta jam.
 
-**Bukti:** `docs/audit-rencana-jam-operasional-multi-kategori-2026-09-20.md`, khususnya temuan pada baris 9–16.
+**Bukti:** `docs/audits/audit-rencana-jam-operasional-multi-kategori-2026-09-20.md`, khususnya temuan pada baris 9–16.
 
 #### 3. Katalog multi-kategori merchant belum konsisten
 
@@ -190,13 +190,13 @@ Dokumen ini merupakan audit kesiapan berbasis repository dan dokumentasi yang te
 
 ## Referensi internal
 
-- `docs/audit-checkout-end-to-end-2026-09-18.md`
-- `docs/audit-alur-checkout-2026-09-18-r2.md`
-- `docs/audit-payment-notification-2026-09-11.md`
-- `docs/audit-rencana-jam-operasional-multi-kategori-2026-09-20.md`
+- `docs/audits/audit-checkout-end-to-end-2026-09-18.md`
+- `docs/audits/audit-alur-checkout-2026-09-18-r2.md`
+- `docs/audits/audit-payment-notification-2026-09-11.md`
+- `docs/audits/audit-rencana-jam-operasional-multi-kategori-2026-09-20.md`
 - `docs/audit-refund-2026-09-18.md`
-- `docs/audit-pengelolaan-pesanan-merchant-pembeli-2026-09-12.md`
-- `docs/audit-product-cart-checkout-2026-09-11.md`
+- `docs/audits/audit-pengelolaan-pesanan-merchant-pembeli-2026-09-12.md`
+- `docs/audits/audit-product-cart-checkout-2026-09-11.md`
 - `supabase/bootstrap/21_20260924100000_merchant_profile_requirements.sql`
 - `supabase/bootstrap/30_20260924150000_verifikator_admin_sales_commission.sql`
 - `src/pages/merchant/MerchantSubscriptionPage.tsx`

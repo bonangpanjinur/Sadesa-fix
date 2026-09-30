@@ -237,15 +237,15 @@ Kriteria minimum:
 
 ## 10. Referensi bukti repository
 
-- `docs/audit-kesiapan-merchant-admin-2026-09-24.md`
-- `docs/audit-pengelolaan-pesanan-merchant-pembeli-2026-09-12.md`
-- `docs/audit-product-cart-checkout-2026-09-11.md`
-- `docs/audit-review-rating-refund-2026-09-11.md`
-- `docs/audit-rencana-jam-operasional-multi-kategori-2026-09-20.md`
-- `docs/audit-services-end-to-end-2026-09-25.md`
-- `docs/audit-services-gap-2026-09-25.md`
-- `docs/sop-onboarding-merchant-pilot.md`
-- `docs/ringkasan-eksekutif-pilot-merchant.md`
+- `docs/audits/audit-kesiapan-merchant-admin-2026-09-24.md`
+- `docs/audits/audit-pengelolaan-pesanan-merchant-pembeli-2026-09-12.md`
+- `docs/audits/audit-product-cart-checkout-2026-09-11.md`
+- `docs/audits/audit-review-rating-refund-2026-09-11.md`
+- `docs/audits/audit-rencana-jam-operasional-multi-kategori-2026-09-20.md`
+- `docs/audits/audit-services-end-to-end-2026-09-25.md`
+- `docs/audits/audit-services-gap-2026-09-25.md`
+- `docs/operations/sop-onboarding-merchant-pilot.md`
+- `docs/reports/ringkasan-eksekutif-pilot-merchant.md`
 - `src/App.tsx` — route merchant dan POS canonical
 - `src/pages/merchant/` — workspace merchant marketplace
 - `src/pages/pos/` — modul POS

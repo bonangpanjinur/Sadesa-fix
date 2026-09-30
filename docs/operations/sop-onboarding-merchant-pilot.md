@@ -135,7 +135,7 @@ Keputusan GO terbatas memerlukan bukti bahwa tidak ada kebocoran tenant, transak
 ## Referensi repository
 
 - Kontrak readiness onboarding: `src/lib/pilotReadiness.ts`
-- Ringkasan eksekutif pilot: `docs/ringkasan-eksekutif-pilot-merchant.md`
-- Rencana bisnis dan status fase: `docs/rencana-bisnis-marketplace-pos-umkm.md`
+- Ringkasan eksekutif pilot: `docs/reports/ringkasan-eksekutif-pilot-merchant.md`
+- Rencana bisnis dan status fase: `docs/plans/rencana-bisnis-marketplace-pos-umkm.md`
 - Static RLS audit: `scripts/audit-rls-static.py`
 - API security smoke test: `scripts/security-api-smoke.sh`

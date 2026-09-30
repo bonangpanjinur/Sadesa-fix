@@ -42,7 +42,7 @@ Pembayaran aktual ke rekening bank belum dilakukan otomatis oleh RPC. Status **A
 - `src/pages/admin/AdminVerifikatorCommissionsPage.tsx`
 - `src/pages/admin/AdminTransactionQuotaPage.tsx`
 - `src/pages/verifikator/VerifikatorEarningsPage.tsx`
-- `docs/audit-penghasilan-verifikator-2026-09-24.md`
+- `docs/audits/audit-penghasilan-verifikator-2026-09-24.md`
 
 ## Rekomendasi Operasional
 

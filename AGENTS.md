@@ -41,6 +41,11 @@ Apply these rules to every change in this repository.
 - Review the final diff for unintended files, behavior changes, generated output, lockfile drift, and whitespace issues. Do not claim a check passed unless it was run successfully.
 - If a check or environment is unavailable, state that clearly and describe remaining risk rather than assuming success.
 
+## Keep documentation organized
+- Put new documentation under the matching topic folder in `docs/` (see `docs/README.md`); avoid adding new files to the `docs/` root except the index.
+- When moving or renaming documents, preserve historical filenames/content where practical, update inbound relative links and the index, and verify local Markdown links resolve.
+- Treat dated audits, pentest reports, and deployment notes as historical snapshots, not proof of current production state. Keep tooling-owned files such as `.lovable/plan/` and database migration sources in their established locations.
+
 ## Report delivery clearly
 - Summarize the precise behavior changed, files/contracts affected, blast radius considered, and checks run.
 - Call out deployment steps that are not automatic—especially database migrations—and distinguish local/CI validation from production verification.

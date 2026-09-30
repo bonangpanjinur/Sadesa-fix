@@ -42,7 +42,7 @@ Pengukuran browser nyata tetap disarankan setelah deploy pada perangkat mobile k
 - `src/components/SplashScreen.tsx`
 - `src/sw.ts`
 - `vite.config.ts`
-- `docs/audit-performa-pwa-website-2026-09-25.md`
+- `docs/audits/audit-performa-pwa-website-2026-09-25.md`
 
 Perubahan masih berada di working tree repository dan belum dibuat commit atau pull request.
 

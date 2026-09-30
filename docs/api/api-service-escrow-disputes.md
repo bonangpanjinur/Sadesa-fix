@@ -158,7 +158,7 @@ Nominal laporan pada UI merupakan laporan operasional. Rekonsiliasikan payout/re
 
 ## 10. Keamanan, deployment, dan batasan
 
-Bootstrap migration marketplace jasa harus diterapkan berurutan. Migration state machine terbaru adalah [`40_20260925100000_service_transaction_state_machine.sql`](../supabase/bootstrap/40_20260925100000_service_transaction_state_machine.sql); migration tersebut bergantung pada schema jasa, role provider, dan dispute yang dibuat oleh migration sebelumnya. Ikuti urutan di `supabase/bootstrap/manifest.json` dan jalankan lebih dahulu pada staging. Perubahan di repository tidak otomatis mengubah database Supabase live.
+Bootstrap migration marketplace jasa harus diterapkan berurutan. Migration state machine terbaru adalah [`40_20260925100000_service_transaction_state_machine.sql`](../../supabase/bootstrap/40_20260925100000_service_transaction_state_machine.sql); migration tersebut bergantung pada schema jasa, role provider, dan dispute yang dibuat oleh migration sebelumnya. Ikuti urutan di `supabase/bootstrap/manifest.json` dan jalankan lebih dahulu pada staging. Perubahan di repository tidak otomatis mengubah database Supabase live.
 
 Authenticated user tidak memiliki DML langsung pada `service_requests`, `service_payment_proofs`, `service_payouts`, `service_disputes`, `service_profiles`, `service_skills`, dan `service_refunds`. Transaksi sensitif menggunakan RPC dengan row lock dan pemeriksaan aktor. Pesan tetap memakai insert langsung yang dibatasi RLS peserta. Fungsi admin memeriksa role admin di database.
 
@@ -174,13 +174,13 @@ Setiap pemanggilan Supabase harus memeriksa `error`. Tampilkan pesan validasi ya
 
 | Komponen | Lokasi |
 |---|---|
-| Skema awal marketplace | [`supabase/bootstrap/36_20260925010000_service_marketplace.sql`](../supabase/bootstrap/36_20260925010000_service_marketplace.sql) |
-| Sengketa dan role provider | [`supabase/bootstrap/37_20260925011000_service_disputes.sql`](../supabase/bootstrap/37_20260925011000_service_disputes.sql), [`supabase/bootstrap/38_20260925020000_service_provider_role.sql`](../supabase/bootstrap/38_20260925020000_service_provider_role.sql) |
-| RPC dan hardening transaksi | [`supabase/bootstrap/39_20260925030000_service_transaction_hardening.sql`](../supabase/bootstrap/39_20260925030000_service_transaction_hardening.sql), [`supabase/bootstrap/40_20260925100000_service_transaction_state_machine.sql`](../supabase/bootstrap/40_20260925100000_service_transaction_state_machine.sql) |
-| Katalog dan profil jasa | [`src/pages/ServicesPage.tsx`](../src/pages/ServicesPage.tsx) |
-| Riwayat buyer | [`src/pages/ServiceRequestsPage.tsx`](../src/pages/ServiceRequestsPage.tsx) |
-| Riwayat provider | [`src/pages/ServiceProviderHistoryPage.tsx`](../src/pages/ServiceProviderHistoryPage.tsx) |
-| Admin escrow dan dispute | [`src/pages/admin/AdminServicesPage.tsx`](../src/pages/admin/AdminServicesPage.tsx), [`src/pages/admin/AdminServiceDisputesPage.tsx`](../src/pages/admin/AdminServiceDisputesPage.tsx) |
+| Skema awal marketplace | [`supabase/bootstrap/36_20260925010000_service_marketplace.sql`](../../supabase/bootstrap/36_20260925010000_service_marketplace.sql) |
+| Sengketa dan role provider | [`supabase/bootstrap/37_20260925011000_service_disputes.sql`](../../supabase/bootstrap/37_20260925011000_service_disputes.sql), [`supabase/bootstrap/38_20260925020000_service_provider_role.sql`](../../supabase/bootstrap/38_20260925020000_service_provider_role.sql) |
+| RPC dan hardening transaksi | [`supabase/bootstrap/39_20260925030000_service_transaction_hardening.sql`](../../supabase/bootstrap/39_20260925030000_service_transaction_hardening.sql), [`supabase/bootstrap/40_20260925100000_service_transaction_state_machine.sql`](../../supabase/bootstrap/40_20260925100000_service_transaction_state_machine.sql) |
+| Katalog dan profil jasa | [`src/pages/ServicesPage.tsx`](../../src/pages/ServicesPage.tsx) |
+| Riwayat buyer | [`src/pages/ServiceRequestsPage.tsx`](../../src/pages/ServiceRequestsPage.tsx) |
+| Riwayat provider | [`src/pages/ServiceProviderHistoryPage.tsx`](../../src/pages/ServiceProviderHistoryPage.tsx) |
+| Admin escrow dan dispute | [`src/pages/admin/AdminServicesPage.tsx`](../../src/pages/admin/AdminServicesPage.tsx), [`src/pages/admin/AdminServiceDisputesPage.tsx`](../../src/pages/admin/AdminServiceDisputesPage.tsx) |
 
 ## References
 

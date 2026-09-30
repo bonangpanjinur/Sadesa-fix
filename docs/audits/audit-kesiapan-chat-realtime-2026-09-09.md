@@ -269,7 +269,7 @@ Urutan aman adalah: perbaiki isolasi direct chat → kunci RLS mutation → impl
 - `supabase/bootstrap/18_20260907040000_live_chat_realtime.sql`
 - `supabase/bootstrap/32_20260908190000_chat_notification_trigger_repair.sql`
 - `supabase/bootstrap/33_20260909100000_direct_chat_realtime.sql`
-- `docs/arsitektur-live-chat-realtime.md`
+- `docs/architecture/arsitektur-live-chat-realtime.md`
 
 > Catatan: audit ini menilai source dan migration yang ada di repository. Kesiapan staging/production tetap memerlukan verifikasi bahwa bootstrap bundle yang sama sudah diterapkan, RLS/realtime publication benar-benar aktif, scheduler cleanup benar-benar berjalan, dan seluruh test matrix lulus.
 
