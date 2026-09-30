@@ -85,7 +85,8 @@ function usePWAController(): PWAContextValue {
     device: null,
     deviceRevoked: false,
   });
-  const registrationInFlight = useRef<Promise<PwaDeviceSession | null> | null>(null);
+  const registrationInFlight = useRef(new Map<string, Promise<PwaDeviceSession | null>>());
+  const activeSessionUserId = useRef<string | null>(null);
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const heartbeat = useCallback(async (syncAt?: string | null) => {
@@ -98,12 +99,13 @@ function usePWAController(): PWAContextValue {
     return device;
   }, []);
 
-  const registerForSession = useCallback(async (tenantId?: string | null) => {
-    if (registrationInFlight.current) return registrationInFlight.current;
+  const registerForSession = useCallback(async (userId: string, tenantId?: string | null) => {
+    const inFlight = registrationInFlight.current.get(userId);
+    if (inFlight) return inFlight;
 
     const registration = registerPwaDevice(tenantId)
       .then((device) => {
-        if (device) {
+        if (device && activeSessionUserId.current === userId) {
           setStatus((prev) => ({ ...prev, device, deviceRevoked: device.status === 'revoked' }));
         }
         return device;
@@ -113,10 +115,12 @@ function usePWAController(): PWAContextValue {
         return null;
       })
       .finally(() => {
-        registrationInFlight.current = null;
+        if (registrationInFlight.current.get(userId) === registration) {
+          registrationInFlight.current.delete(userId);
+        }
       });
 
-    registrationInFlight.current = registration;
+    registrationInFlight.current.set(userId, registration);
     return registration;
   }, []);
 
@@ -247,12 +251,16 @@ function usePWAController(): PWAContextValue {
     const handleSession = async (session: { user?: { id: string } } | null) => {
       if (cancelled) return;
       if (!session?.user) {
+        activeSessionUserId.current = null;
         stopHeartbeat();
         setStatus((prev) => ({ ...prev, device: null, deviceRevoked: false }));
         return;
       }
-      await registerForSession();
-      if (!cancelled) startHeartbeat();
+      const userId = session.user.id;
+      const isNewUser = activeSessionUserId.current !== userId;
+      activeSessionUserId.current = userId;
+      if (isNewUser) await registerForSession(userId);
+      if (!cancelled && activeSessionUserId.current === userId) startHeartbeat();
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

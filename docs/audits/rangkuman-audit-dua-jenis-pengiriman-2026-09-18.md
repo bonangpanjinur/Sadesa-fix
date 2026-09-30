@@ -89,6 +89,6 @@ Verifikasi database staging dan RLS belum dijalankan dari lingkungan lokal.
 
 ## Dokumen Utama
 
-- Audit lengkap: `docs/audit-pemisahan-dua-jenis-pengiriman-2026-09-18.md`
+- Audit lengkap: `docs/audits/audit-pemisahan-dua-jenis-pengiriman-2026-09-18.md`
 - Kontrak flow: `src/lib/deliveryFlow.ts`
 - Test kontrak: `src/lib/deliveryFlow.test.ts`

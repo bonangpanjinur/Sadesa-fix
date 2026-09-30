@@ -64,4 +64,4 @@ Komisi pedagang disimpan terpisah di `verifikator_earnings` dan memiliki foreign
 
 - `src/pages/verifikator/VerifikatorEarningsPage.tsx` — kartu total fee, ringkasan relasi, dan tab rincian fee ojek.
 - `supabase/bootstrap/34_20260924180000_verifikator_courier_earnings_report.sql` — policy baca terbatas untuk laporan fee ojek.
-- `docs/laporan-fee-verifikator-2026-09-24.md` — dokumentasi struktur dan perhitungan.
+- `docs/reports/laporan-fee-verifikator-2026-09-24.md` — dokumentasi struktur dan perhitungan.

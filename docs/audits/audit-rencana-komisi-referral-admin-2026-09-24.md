@@ -63,7 +63,7 @@ Titik lanjutan yang disarankan adalah menambahkan pilihan daftar verifikator akt
 
 ## Referensi Repository
 
-[1]: ../src/pages/admin/AdminVerifierCommercePage.tsx "Dashboard toko dan komisi admin"
-[2]: ../src/pages/StorePage.tsx "Toko driver dan merchant"
-[3]: ../archive/supabase/migrations/20260924150000_verifikator_admin_sales_commission.sql "Migrasi komisi referral dan penjualan admin"
-[4]: ./audit-penghasilan-verifikator-2026-09-24.md "Audit earning verifikator sebelumnya"
+[1]: ../../src/pages/admin/AdminVerifierCommercePage.tsx "Dashboard toko dan komisi admin"
+[2]: ../../src/pages/StorePage.tsx "Toko driver dan merchant"
+[3]: ../../archive/supabase/migrations/20260924150000_verifikator_admin_sales_commission.sql "Migrasi komisi referral dan penjualan admin"
+[4]: audit-penghasilan-verifikator-2026-09-24.md "Audit earning verifikator sebelumnya"

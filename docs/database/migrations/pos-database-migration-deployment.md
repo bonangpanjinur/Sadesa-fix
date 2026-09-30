@@ -93,9 +93,8 @@ Perubahan database belum dieksekusi ke project Supabase production oleh proses i
 
 ## Referensi repository
 
-- [Migration atomic POS checkout](../archive/supabase/migrations/20260823070000_atomic_pos_checkout.sql)
-- [Migration invariant pembayaran POS](../archive/supabase/migrations/20260828160000_pos_payment_invariants.sql)
-- [Bootstrap POS sampai workflow transition](../supabase/bootstrap/08_20260826010000_to_20260829160000.sql)
-- [Bootstrap unified transaction history](../supabase/bootstrap/09_20260904090000_to_20260904090000.sql)
-- [Unified transaction history source migration](../archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql)
-- [Script validasi migration](../scripts/validate-migrations.sh)
+- [Migration atomic POS checkout](../../../archive/supabase/migrations/20260823070000_atomic_pos_checkout.sql)
+- [Migration invariant pembayaran POS](../../../archive/supabase/migrations/20260828160000_pos_payment_invariants.sql)
+- [Bootstrap POS dan unified transaction history](../../../supabase/bootstrap/01_20260127034916_to_20260907020000.sql)
+- [Unified transaction history source migration](../../../archive/supabase/migrations/20260904090000_pos_unified_transaction_history.sql)
+- [Script validasi migration](../../../scripts/validate-migrations.sh)

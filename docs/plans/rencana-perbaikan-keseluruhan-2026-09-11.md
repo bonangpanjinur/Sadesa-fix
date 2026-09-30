@@ -323,13 +323,13 @@ Mulai dengan **Fase 0 dan tiga pekerjaan P0 secara paralel terbatas**: tutup dir
 
 ## References
 
-[1]: ./audit-ojek-kurir-e2e-2026-09-11.md "Audit End-to-End Pemesanan Ojek dan Kurir"
-[2]: ./audit-ui-ux-chat-realtime-2026-09-11.md "Audit UI/UX Kurir/Ojek dan Chat Realtime"
-[3]: ./audit-frontend-2026-09-10.md "Audit Frontend SaDesa"
-[4]: ./audit-order.md "Audit Order SaDesa"
-[5]: ./audit-review-rating-refund-2026-09-11.md "Audit Review, Rating, dan Refund"
-[6]: ./audit-payment-notification-2026-09-11.md "Audit Payment dan Notification"
-[7]: ./audit-product-cart-checkout-2026-09-11.md "Audit Product, Cart, dan Checkout"
-[8]: ./audit-auth-user-management-2026-09-11.md "Audit Auth dan User Management"
-[9]: ./pentest-transaksi-e2e-2026-09-11.md "Pentest Transaksi End-to-End"
-[10]: ./dependency-vulnerability-scan-2026-09-11.md "Dependency Vulnerability Scan"
+[1]: ../audits/audit-ojek-kurir-e2e-2026-09-11.md "Audit End-to-End Pemesanan Ojek dan Kurir"
+[2]: ../audits/audit-ui-ux-chat-realtime-2026-09-11.md "Audit UI/UX Kurir/Ojek dan Chat Realtime"
+[3]: ../audits/audit-frontend-2026-09-10.md "Audit Frontend SaDesa"
+[4]: ../audits/audit-order.md "Audit Order SaDesa"
+[5]: ../audits/audit-review-rating-refund-2026-09-11.md "Audit Review, Rating, dan Refund"
+[6]: ../audits/audit-payment-notification-2026-09-11.md "Audit Payment dan Notification"
+[7]: ../audits/audit-product-cart-checkout-2026-09-11.md "Audit Product, Cart, dan Checkout"
+[8]: ../audits/audit-auth-user-management-2026-09-11.md "Audit Auth dan User Management"
+[9]: ../pentest/pentest-transaksi-e2e-2026-09-11.md "Pentest Transaksi End-to-End"
+[10]: ../security/dependency-vulnerability-scan-2026-09-11.md "Dependency Vulnerability Scan"

@@ -25,4 +25,4 @@ Feature flag harus dievaluasi sebelum entry point chat dibuat. Perubahan environ
 
 Go hanya jika seluruh test lokal lulus, migration checksum staging cocok, RLS matrix tidak memiliki leakage, reconnect dan retry tidak menggandakan pesan, retention evidence tersedia, alert aktif, rollback drill berhasil, dan product/operations/security/privacy memberikan sign-off. Jika salah satu guardrail gagal, keputusan adalah **hold** atau **rollback**, bukan memperluas cohort.
 
-Staging/pilot execution belum diklaim selesai oleh commit ini karena memerlukan project Supabase staging, data uji terisolasi, scheduler, storage, dan approver bisnis. Runbook eksekusi dan rollback tersedia pada `docs/chat-phase-8-runbook.md`.
+Staging/pilot execution belum diklaim selesai oleh commit ini karena memerlukan project Supabase staging, data uji terisolasi, scheduler, storage, dan approver bisnis. Runbook eksekusi dan rollback tersedia pada `docs/operations/chat-phase-8-runbook.md`.

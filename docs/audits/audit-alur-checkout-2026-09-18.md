@@ -121,5 +121,5 @@ Audit ini dilakukan melalui inspeksi source, SQL bootstrap, migration, dan test 
 [2]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/supabase/bootstrap/50_20260911071000_transaction_critical_high_hardening.sql "Authoritative checkout RPC"
 [3]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/contexts/CartContext.tsx "CartContext source"
 [4]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/src/pages/PaymentConfirmationPage.tsx "Transfer payment confirmation source"
-[5]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/docs/audit-product-cart-checkout-2026-09-11.md "Previous product cart checkout audit"
-[6]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/docs/audit-payment-notification-2026-09-11.md "Previous payment and notification audit"
+[5]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/docs/audits/audit-product-cart-checkout-2026-09-11.md "Previous product cart checkout audit"
+[6]: https://github.com/bonangpanjinur/Sadesa-fix/blob/main/docs/audits/audit-payment-notification-2026-09-11.md "Previous payment and notification audit"

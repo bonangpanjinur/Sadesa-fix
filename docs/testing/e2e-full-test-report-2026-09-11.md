@@ -149,11 +149,11 @@ Bonang Panji Nur <bopan86@gmail.com>
 
 ## Referensi
 
-- [Courier integration test](../src/test/courier.integration.test.ts)
-- [Integration test configuration](../vitest.integration.config.ts)
-- [Production readiness workflow](../.github/workflows/production-readiness.yml)
-- [Release readiness checklist](./release-readiness-checklist-2026-09-11.md)
-- [Roadmap perbaikan keseluruhan](./rencana-perbaikan-keseluruhan-2026-09-11.md)
+- [Courier integration test](../../src/test/courier.integration.test.ts)
+- [Integration test configuration](../../vitest.integration.config.ts)
+- [Production readiness workflow](../../.github/workflows/production-readiness.yml)
+- [Release readiness checklist](release-readiness-checklist-2026-09-11.md)
+- [Roadmap perbaikan keseluruhan](../plans/rencana-perbaikan-keseluruhan-2026-09-11.md)
 
 Dengan demikian, laporan ini mencatat hasil pengujian secara terpisah antara **PASS lokal/repository** dan **belum dijalankan pada staging** karena fixture belum disediakan.
 

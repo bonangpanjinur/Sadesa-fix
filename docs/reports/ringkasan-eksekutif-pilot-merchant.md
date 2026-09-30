@@ -112,7 +112,7 @@ SaDesa tidak perlu menambah banyak fitur sebelum pilot. Prioritas saat ini adala
 
 ## Referensi
 
-[1]: docs/rencana-bisnis-marketplace-pos-umkm.md "Rencana bisnis marketplace POS UMKM SaDesa"
-[2]: ../src/lib/feeEngine.ts "Fee engine SaDesa"
-[3]: ../scripts/audit-rls-static.py "Static RLS audit SaDesa"
-[4]: ../scripts/security-api-smoke.sh "API security smoke test SaDesa"
+[1]: ../plans/rencana-bisnis-marketplace-pos-umkm.md "Rencana bisnis marketplace POS UMKM SaDesa"
+[2]: ../../src/lib/feeEngine.ts "Fee engine SaDesa"
+[3]: ../../scripts/audit-rls-static.py "Static RLS audit SaDesa"
+[4]: ../../scripts/security-api-smoke.sh "API security smoke test SaDesa"

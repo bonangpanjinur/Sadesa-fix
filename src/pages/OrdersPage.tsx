@@ -326,6 +326,7 @@ const OrdersPage = () => {
     data: rides = [],
     isLoading: ridesLoading,
     isFetching: ridesRefreshing,
+    isError: ridesError,
     refetch: refetchRides,
   } = useQuery<RideOrder[]>({
     queryKey: ['passenger-rides', user?.id],
@@ -341,6 +342,7 @@ const OrdersPage = () => {
     },
     enabled: !!user,
     staleTime: 30_000,
+    refetchOnReconnect: 'always',
   });
 
   const fetchOrders = useCallback(async (isRefresh = false) => {
@@ -546,6 +548,23 @@ const OrdersPage = () => {
 
           {/* Orders list */}
           <div className="space-y-3 min-h-[50vh]">
+            {ridesError && (
+              <Card className="border border-amber-200 bg-amber-50/70 shadow-none">
+                <CardContent className="flex items-start gap-3 p-3">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-amber-900">Riwayat ojek belum dapat dimuat</p>
+                    <p className="mt-0.5 text-xs text-amber-800">
+                      Koneksi ke server bermasalah. Ini tidak berarti perjalanan Anda terhapus.
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" disabled={ridesRefreshing} onClick={() => void refetchRides()} className="shrink-0">
+                    <RefreshCw className={`mr-1 h-3.5 w-3.5 ${ridesRefreshing ? "animate-spin" : ""}`} />
+                    Coba lagi
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
             {loading || ridesLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i} className="overflow-hidden border-0 shadow-sm">

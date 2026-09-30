@@ -1,7 +1,7 @@
 # Rencana Perbaikan Frontend SaDesa
 
 **Tanggal:** 10 September 2026  
-**Dasar:** [Audit Frontend SaDesa 2026-09-10](./audit-frontend-2026-09-10.md)  
+**Dasar:** [Audit Frontend SaDesa 2026-09-10](../audits/audit-frontend-2026-09-10.md)
 **Tujuan:** meningkatkan keamanan alur transaksi, konsistensi keranjang, kejelasan feedback UI, responsivitas mobile, dan aksesibilitas tanpa mengubah ruang lingkup fitur bisnis secara tidak perlu.
 
 ## Sasaran utama
@@ -251,7 +251,7 @@ Rencana ini dianggap terlaksana apabila seluruh kondisi berikut terpenuhi:
 
 ## Referensi
 
-[1]: ./audit-frontend-2026-09-10.md "Audit Frontend SaDesa 2026-09-10"
+[1]: ../audits/audit-frontend-2026-09-10.md "Audit Frontend SaDesa 2026-09-10"
 [2]: https://tanstack.com/query/latest/docs/framework/react/guides/infinite-queries "TanStack Query Infinite Queries"
 [3]: https://www.w3.org/WAI/WCAG22/Understanding/name-role-value.html "WCAG 2.2 Name, Role, Value"
 [4]: https://developer.mozilla.org/en-US/docs/Web/CSS/env "MDN CSS env() function"

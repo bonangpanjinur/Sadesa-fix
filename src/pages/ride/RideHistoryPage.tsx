@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Bike, Clock, Star, ChevronRight } from 'lucide-react';
+import { Bike, Clock, Star, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Card } from '@/components/ui/card';
@@ -43,7 +43,13 @@ export default function RideHistoryPage() {
     if (!user) navigate('/auth');
   }, [user, navigate]);
 
-  const { data: rides = [], isLoading: loading } = useQuery<RideHistory[]>({
+  const {
+    data: rides = [],
+    isLoading: loading,
+    isFetching: refreshing,
+    isError,
+    refetch,
+  } = useQuery<RideHistory[]>({
     queryKey: ['ride-history', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -57,6 +63,7 @@ export default function RideHistoryPage() {
     },
     enabled: !!user,
     staleTime: 60_000,
+    refetchOnReconnect: 'always',
   });
 
   return (
@@ -77,17 +84,38 @@ export default function RideHistoryPage() {
           <div className="space-y-3">
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
           </div>
-        ) : rides.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Bike className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground mb-4">Belum ada riwayat perjalanan</p>
-            <Button onClick={() => navigate('/ride')}>Pesan Ojek Sekarang</Button>
-          </Card>
         ) : (
-          <div className="space-y-3">
-            {rides.map((ride, idx) => {
-              const status = STATUS_MAP[ride.status] || STATUS_MAP.SEARCHING;
-              return (
+          <>
+            {isError && (
+              <Card className="border border-amber-200 bg-amber-50/70 shadow-none">
+                <div className="flex items-start gap-3 p-3">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-amber-900">Riwayat perjalanan belum dapat dimuat</p>
+                    <p className="mt-0.5 text-xs text-amber-800">
+                      Koneksi ke server bermasalah. Ini tidak berarti perjalanan Anda terhapus.
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" disabled={refreshing} onClick={() => void refetch()} className="shrink-0">
+                    <RefreshCw className={`mr-1 h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                    Coba lagi
+                  </Button>
+                </div>
+              </Card>
+            )}
+            {rides.length === 0 ? (
+              isError ? null : (
+                <Card className="p-8 text-center">
+                  <Bike className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground mb-4">Belum ada riwayat perjalanan</p>
+                  <Button onClick={() => navigate('/ride')}>Pesan Ojek Sekarang</Button>
+                </Card>
+              )
+            ) : (
+              <div className="space-y-3">
+                {rides.map((ride, idx) => {
+                  const status = STATUS_MAP[ride.status] || STATUS_MAP.SEARCHING;
+                  return (
                 <motion.div key={ride.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}>
                   <Link to={`/ride/${ride.id}`}>
                     <Card className="p-4 hover:bg-secondary/50 transition cursor-pointer">
@@ -123,9 +151,11 @@ export default function RideHistoryPage() {
                     </Card>
                   </Link>
                 </motion.div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
       <BottomNav />

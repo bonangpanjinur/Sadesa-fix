@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/auth';
-import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole } from '@/lib/authRoles';
+import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from '@/lib/authRoles';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 
 const AUTH_CHANNEL_NAME = 'desamart_auth';
 const AUTH_INIT_TIMEOUT_MS = 8_000;
+const AUTH_ROLE_RECOVERY_TIMEOUT_MS = 8_000;
 
 function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> {
   let timeoutId: number | undefined;
@@ -22,6 +23,15 @@ interface AuthUser {
   id: string;
   email: string;
   user_metadata?: { full_name?: string };
+}
+
+function preserveAuthUserReference(currentUser: AuthUser | null, nextUser: AuthUser | null): AuthUser | null {
+  if (currentUser?.id === nextUser?.id
+    && currentUser?.email === nextUser?.email
+    && currentUser?.user_metadata?.full_name === nextUser?.user_metadata?.full_name) {
+    return currentUser;
+  }
+  return nextUser;
 }
 
 interface AuthSession {
@@ -100,12 +110,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const [merchantResult, courierResult] = await Promise.all([
         withTimeout(
           supabase.from('merchants').select('id').eq('user_id', userId).limit(1).maybeSingle(),
-          3_000,
+          AUTH_ROLE_RECOVERY_TIMEOUT_MS,
           'Timed out while checking merchant profile for role recovery',
         ).catch((error: unknown) => ({ data: null, error })),
         withTimeout(
           supabase.from('couriers').select('id').eq('user_id', userId).limit(1).maybeSingle(),
-          3_000,
+          AUTH_ROLE_RECOVERY_TIMEOUT_MS,
           'Timed out while checking courier profile for role recovery',
         ).catch((error: unknown) => ({ data: null, error })),
       ]);
@@ -143,14 +153,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        const previousUserId = activeUserIdRef.current;
+        const nextUserId = session?.user?.id ?? null;
+        const nextUser = (session?.user as AuthUser | undefined) ?? null;
         setSession(session as AuthSession | null);
-        setUser(session?.user as AuthUser | null ?? null);
-        activeUserIdRef.current = session?.user?.id ?? null;
+        setUser((currentUser) => preserveAuthUserReference(currentUser, nextUser));
+        activeUserIdRef.current = nextUserId;
 
         setLoading(false);
         if (session?.user) {
-          void fetchUserRoles(session.user.id);
+          if (shouldFetchRolesForAuthEvent(event, previousUserId, nextUserId)) {
+            void fetchUserRoles(session.user.id);
+          }
         } else {
           ++rolesRequestRef.current;
           activeUserIdRef.current = null;
@@ -166,7 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'Timed out while loading authentication session',
     ).then(({ data: { session } }) => {
       setSession(session as AuthSession | null);
-      setUser(session?.user as AuthUser | null ?? null);
+      setUser((currentUser) => preserveAuthUserReference(
+        currentUser,
+        (session?.user as AuthUser | undefined) ?? null,
+      ));
       activeUserIdRef.current = session?.user?.id ?? null;
       setLoading(false);
 
@@ -216,7 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(async ({ data: { session } }) => {
           if (session?.user) {
             setSession(session as AuthSession | null);
-            setUser(session.user as AuthUser);
+            setUser((currentUser) => preserveAuthUserReference(currentUser, session.user as AuthUser));
             await fetchUserRoles(session.user.id);
             setLoading(false);
           }

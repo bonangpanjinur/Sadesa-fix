@@ -34,17 +34,18 @@ interface Notification {
 
 export function NotificationDropdown() {
   const { user, roles } = useAuth();
+  const userId = user?.id;
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
 
   const refreshNotifications = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(20);
     if (error) {
@@ -53,22 +54,22 @@ export function NotificationDropdown() {
         message: error.message,
         details: error.details,
         hint: error.hint,
-        userId: user.id,
+        userId,
       });
       return;
     }
     setNotifications(data || []);
     setUnreadCount((data || []).filter(n => !n.is_read).length);
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     const fetchNotifications = async () => {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -78,7 +79,7 @@ export function NotificationDropdown() {
           message: error.message,
           details: error.details,
           hint: error.hint,
-          userId: user.id,
+          userId,
         });
         return;
       }
@@ -93,16 +94,17 @@ export function NotificationDropdown() {
 
     let disposed = false;
     let retryTimer: number | undefined;
+    let retryAttempt = 0;
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const subscribe = () => {
       if (disposed) return;
       // Never reuse a fixed channel name. Multiple layouts can mount this
       // component at once; Supabase closes the older channel on a collision.
-      const channelName = `notifications-${user.id}-${Math.random().toString(36).slice(2)}`;
-      channel = supabase
+      const channelName = `notifications-${userId}-${Math.random().toString(36).slice(2)}`;
+      const nextChannel = supabase
         .channel(channelName)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
           (payload) => {
             const n = payload.new as Notification;
             setNotifications(prev => {
@@ -118,7 +120,7 @@ export function NotificationDropdown() {
             }
           }
         )
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
           (payload) => {
             const updated = payload.new as Notification;
             setNotifications(prev => {
@@ -128,19 +130,30 @@ export function NotificationDropdown() {
             });
           }
         )
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => {
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${userId}` }, () => {
           void refreshNotifications();
         });
+      channel = nextChannel;
 
-      channel.subscribe((status, error) => {
-        if (status === 'SUBSCRIBED') return;
+      nextChannel.subscribe((status, error) => {
+        if (disposed || channel !== nextChannel) return;
+        if (status === 'SUBSCRIBED') {
+          if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+          retryTimer = undefined;
+          retryAttempt = 0;
+          return;
+        }
         console.warn('[notifications] realtime status', { channelName, status, error: error?.message });
-        if (!disposed && (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
+        if ((status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && retryTimer === undefined) {
+          const retryDelayMs = Math.min(2000 * 2 ** retryAttempt, 30_000);
+          retryAttempt += 1;
           retryTimer = window.setTimeout(() => {
-            if (channel) void supabase.removeChannel(channel);
+            retryTimer = undefined;
+            if (disposed || channel !== nextChannel) return;
             channel = null;
+            void supabase.removeChannel(nextChannel);
             subscribe();
-          }, 2000);
+          }, retryDelayMs);
         }
       });
     };
@@ -153,21 +166,22 @@ export function NotificationDropdown() {
     return () => {
       disposed = true;
       if (retryTimer) window.clearTimeout(retryTimer);
+      retryTimer = undefined;
       document.removeEventListener('pointerdown', unlockOnInteraction);
       document.removeEventListener('keydown', unlockOnInteraction);
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [user, refreshNotifications]);
+  }, [userId, refreshNotifications]);
 
   // Realtime can be delayed or unavailable on some browsers/proxies. Refresh
   // when the dropdown opens and periodically while the user is signed in so a
   // missed INSERT event cannot hide a new chat notification.
   useEffect(() => {
-    if (!user || !open) return;
+    if (!userId || !open) return;
     void refreshNotifications();
     const timer = window.setInterval(() => void refreshNotifications(), 15000);
     return () => window.clearInterval(timer);
-  }, [open, user, refreshNotifications]);
+  }, [open, userId, refreshNotifications]);
 
   const markAsRead = async (notifId: string) => {
     await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', notifId);

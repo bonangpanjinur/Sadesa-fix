@@ -29,3 +29,13 @@ export function ensureBuyerFallback(roles: AppRole[]): AppRole[] {
   }
   return roles;
 }
+
+/** Access-token rotation does not change roles; avoid repeating profile recovery for the same user. */
+export function shouldFetchRolesForAuthEvent(
+  event: string,
+  previousUserId: string | null,
+  nextUserId: string | null,
+): boolean {
+  if (!nextUserId) return false;
+  return event !== 'TOKEN_REFRESHED' || previousUserId !== nextUserId;
+}
