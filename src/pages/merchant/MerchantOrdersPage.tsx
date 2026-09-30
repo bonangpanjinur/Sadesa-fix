@@ -33,7 +33,7 @@ import { MerchantDeliveryTracker } from '@/components/merchant/MerchantDeliveryT
 import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 import { OrderChat } from '@/components/chat/OrderChat';
 import { CourierAssignDialog } from '@/components/admin/CourierAssignDialog';
-import { orderStatusLabel } from '@/lib/orderStatus';
+import { MERCHANT_ORDER_STATUS_FILTER_OPTIONS, orderStatusLabel } from '@/lib/orderStatus';
 
 interface OrderItem {
   id: string;
@@ -279,25 +279,28 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
 
 
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' | 'info' | 'pending' }> = {
-      'NEW': { label: 'Baru', variant: 'info' },
-      'PENDING_PAYMENT': { label: 'Menunggu Bayar', variant: 'warning' },
-      'PENDING_CONFIRMATION': { label: 'Menunggu', variant: 'warning' },
-      'PROCESSED': { label: 'Sedang Disiapkan', variant: 'pending' },
-      'READY': { label: 'Siap Dikirim/Diambil', variant: 'info' },
-      'ASSIGNED': { label: 'Menunggu Kurir', variant: 'warning' },
-      'COURIER_ASSIGNED': { label: 'Kurir Dipilih', variant: 'warning' },
-      'COURIER_ACCEPTED': { label: 'Kurir Menuju Toko', variant: 'info' },
-      'PICKED_UP': { label: 'Sudah Diambil', variant: 'info' },
-      'DELIVERING': { label: 'Diantar Sendiri', variant: 'info' },
-      'SENT': { label: 'Dikirim', variant: 'info' },
-      'DELIVERED': { label: 'Sampai', variant: 'warning' },
-      'DONE': { label: 'Selesai', variant: 'success' },
-      'CANCELED': { label: 'Dibatalkan', variant: 'destructive' },
+    const statusVariants: Record<string, 'info' | 'warning' | 'pending' | 'success' | 'destructive' | 'outline'> = {
+      NEW: 'info',
+      PENDING_PAYMENT: 'warning',
+      PENDING_CONFIRMATION: 'warning',
+      PROCESSED: 'pending',
+      READY: 'info',
+      ASSIGNED: 'warning',
+      COURIER_ASSIGNED: 'warning',
+      COURIER_ACCEPTED: 'info',
+      PICKED_UP: 'info',
+      ON_DELIVERY: 'info',
+      DELIVERING: 'info',
+      SENT: 'info',
+      DELIVERED: 'warning',
+      DONE: 'success',
+      CANCELED: 'destructive',
+      CANCELLED: 'destructive',
+      REJECTED: 'destructive',
+      REJECTED_BY_BUYER: 'destructive',
+      REFUNDED: 'outline',
     };
-    
-    const config = statusMap[status] || { label: orderStatusLabel(status), variant: 'outline' as const };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant={statusVariants[status] || 'outline'}>{orderStatusLabel(status)}</Badge>;
   };
 
   const getPaymentBadge = (status: string | null, method: string | null) => {
@@ -452,17 +455,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     {
       key: 'status',
       label: 'Status',
-      options: [
-        { value: 'NEW', label: 'Baru' },
-        { value: 'PENDING_PAYMENT', label: 'Menunggu Bayar' },
-        { value: 'PENDING_CONFIRMATION', label: 'Menunggu Konfirmasi' },
-        { value: 'PROCESSED', label: 'Diproses' },
-        { value: 'DELIVERING', label: 'Antar Sendiri' },
-        { value: 'SENT', label: 'Dikirim' },
-        { value: 'DELIVERED', label: 'Sampai' },
-        { value: 'DONE', label: 'Selesai' },
-        { value: 'CANCELED', label: 'Dibatalkan' },
-      ],
+      options: MERCHANT_ORDER_STATUS_FILTER_OPTIONS,
     },
     {
       key: 'delivery_type',
@@ -470,6 +463,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
       options: [
         { value: 'PICKUP', label: 'Ambil Sendiri' },
         { value: 'INTERNAL', label: 'Diantar' },
+        { value: 'EXPEDITION', label: 'Ekspedisi' },
       ],
     },
   ];
@@ -521,12 +515,16 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
   return (
     <MerchantOrdersShell embedded={embedded}>
       {/* Compact operational summary */}
+      <p className="mb-2 text-xs text-muted-foreground" role="status">
+        Ringkasan berikut dihitung dari {orders.length} pesanan yang dimuat, bukan total sepanjang waktu.
+        {hasMore ? ' Masih ada pesanan lama; gunakan “Muat pesanan lama” untuk memperluas cakupan angka.' : ''}
+      </p>
       <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border/70 pb-3 text-xs">
         <div><span className="text-muted-foreground">Baru</span> <strong className="ml-1 text-info">{stats.new}</strong></div>
         <div><span className="text-muted-foreground">Diproses</span> <strong className="ml-1 text-warning-foreground">{stats.processed}</strong></div>
         <div><span className="text-muted-foreground">Selesai</span> <strong className="ml-1 text-success">{stats.done}</strong></div>
         <div className="text-muted-foreground">
-          Pendapatan produk <strong className="ml-1 text-foreground">{formatPrice(stats.total_revenue)}</strong>
+          Pendapatan produk dari pesanan dimuat <strong className="ml-1 text-foreground">{formatPrice(stats.total_revenue)}</strong>
         </div>
       </div>
 
@@ -534,7 +532,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
         <div className="flex items-center gap-2">
           <Receipt className="h-5 w-5 text-primary" />
           <span className="text-muted-foreground text-sm">
-            {orders.length} pesanan
+            {orders.length} pesanan dimuat
           </span>
           {orders.filter(o => o.status === 'NEW').length > 0 && (
             <Badge variant="info">{orders.filter(o => o.status === 'NEW').length} baru</Badge>

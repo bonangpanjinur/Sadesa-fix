@@ -115,20 +115,45 @@ export default function MerchantDashboardPage() {
     staleTime: 60_000,
   });
 
+  const {
+    data: pendingOrdersSnapshot = { orders: [], count: 0 },
+    isLoading: pendingOrdersLoading,
+    isError: pendingOrdersError,
+    error: pendingOrdersErrorDetails,
+    refetch: refetchPendingOrders,
+  } = useQuery({
+    queryKey: ['merchant-pending-orders-summary', merchant?.id],
+    queryFn: async () => {
+      if (!merchant?.id) return { orders: [], count: 0 };
+      const { data, count, error } = await supabase
+        .from('orders')
+        .select('id, delivery_name, total, created_at', { count: 'exact' })
+        .eq('merchant_id', merchant.id)
+        .in('status', ['NEW', 'PENDING_CONFIRMATION'])
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return { orders: data || [], count: count || 0 };
+    },
+    enabled: !!merchant?.id,
+    staleTime: 30_000,
+  });
+
   const loading = merchantLoading;
 
   const handleNewOrder = useCallback((_order: OrderRow) => {
     queryClient.invalidateQueries({ queryKey: ['merchant-orders-chart', merchant?.id] });
+    queryClient.invalidateQueries({ queryKey: ['merchant-pending-orders-summary', merchant?.id] });
   }, [merchant?.id, queryClient]);
 
-  const { orders: realtimeOrders, updateOrderStatus } = useRealtimeOrders({
+  const { updateOrderStatus } = useRealtimeOrders({
     merchantId: merchant?.id || null,
     onNewOrder: handleNewOrder,
+    onOrderUpdate: handleNewOrder,
   });
 
-  const pendingOrders = realtimeOrders
-    .filter(order => order.status === 'NEW' || order.status === 'PENDING_CONFIRMATION')
-    .slice(0, 5);
+  const pendingOrders = pendingOrdersSnapshot.orders;
+  const pendingOrderCount = pendingOrdersSnapshot.count;
 
   const salesChartData = useMemo(() => {
     const dateMap = new Map<string, { revenue: number; orders: number }>();
@@ -306,9 +331,13 @@ export default function MerchantDashboardPage() {
                   {greeting}, {merchant.name}
                 </h2>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                  {pendingOrders.length > 0
-                    ? `Ada ${pendingOrders.length} pesanan baru yang perlu Anda konfirmasi.`
-                    : 'Semua pesanan sudah tertangani. Gunakan waktu ini untuk merapikan toko.'}
+                  {pendingOrdersLoading
+                    ? 'Memuat ringkasan pesanan...'
+                    : pendingOrdersError
+                      ? 'Ringkasan pesanan gagal dimuat. Periksa kembali sebelum mengambil tindakan.'
+                      : pendingOrderCount > 0
+                        ? `Ada ${pendingOrderCount} pesanan baru yang perlu Anda konfirmasi.`
+                        : 'Semua pesanan sudah tertangani. Gunakan waktu ini untuk merapikan toko.'}
                 </p>
               </div>
               <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
@@ -401,20 +430,26 @@ export default function MerchantDashboardPage() {
               </div>
             </div>
             <p className="text-sm leading-6 text-muted-foreground">
-              {pendingOrders.length > 0
-                ? 'Prioritaskan pesanan baru agar waktu respons toko tetap cepat.'
-                : 'Belum ada pesanan yang membutuhkan tindakan segera.'}
+              {pendingOrdersError
+                ? 'Ringkasan pesanan gagal dimuat.'
+                : pendingOrdersLoading
+                  ? 'Memuat ringkasan pesanan...'
+                  : pendingOrderCount > 0
+                    ? 'Prioritaskan pesanan baru agar waktu respons toko tetap cepat.'
+                    : 'Belum ada pesanan yang membutuhkan tindakan segera.'}
             </p>
             <div className="mt-5 flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-3">
               <div className={cn(
                 'flex h-9 w-9 items-center justify-center rounded-lg',
-                pendingOrders.length > 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
+                pendingOrderCount > 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
               )}>
-                {pendingOrders.length > 0 ? <Bell className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                {pendingOrderCount > 0 ? <Bell className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
               </div>
               <div>
-                <p className="text-sm font-semibold">{pendingOrders.length > 0 ? `${pendingOrders.length} perlu ditinjau` : 'Semua tertangani'}</p>
-                <p className="text-xs text-muted-foreground">Status realtime aktif</p>
+                <p className="text-sm font-semibold">
+                  {pendingOrdersError ? 'Data belum tersedia' : pendingOrdersLoading ? 'Memuat...' : pendingOrderCount > 0 ? `${pendingOrderCount} perlu ditinjau` : 'Semua tertangani'}
+                </p>
+                <p className="text-xs text-muted-foreground">Jumlah dari seluruh pesanan merchant</p>
               </div>
             </div>
           </div>
@@ -452,7 +487,16 @@ export default function MerchantDashboardPage() {
           </TabsList>
 
           <TabsContent value="overview" className="mt-0 space-y-5">
-            {pendingOrders.length > 0 ? (
+            {pendingOrdersLoading ? (
+              <div role="status" className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">
+                Memuat pesanan yang perlu ditinjau...
+              </div>
+            ) : pendingOrdersError ? (
+              <MerchantCardError
+                message={pendingOrdersErrorDetails instanceof Error ? pendingOrdersErrorDetails.message : 'Ringkasan pesanan gagal dimuat.'}
+                onRetry={() => void refetchPendingOrders()}
+              />
+            ) : pendingOrderCount > 0 ? (
               <div className="rounded-2xl border border-warning/30 bg-warning/[0.04] p-4 shadow-sm sm:p-5" data-testid="pending-orders-panel">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-start gap-3">
@@ -461,10 +505,14 @@ export default function MerchantDashboardPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold">Pesanan menunggu konfirmasi</h4>
-                      <p className="mt-1 text-xs leading-5 text-muted-foreground">Tinjau detail lalu terima atau tolak pesanan berikut.</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        {pendingOrders.length < pendingOrderCount
+                          ? `Menampilkan ${pendingOrders.length} pesanan terbaru dari ${pendingOrderCount} yang perlu ditinjau.`
+                          : 'Tinjau detail lalu terima atau tolak pesanan berikut.'}
+                      </p>
                     </div>
                   </div>
-                  <span className="w-fit rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">{pendingOrders.length} pesanan</span>
+                  <span className="w-fit rounded-full bg-warning/10 px-2.5 py-1 text-xs font-semibold text-warning">{pendingOrderCount} pesanan</span>
                 </div>
                 <div className="space-y-2">
                   {pendingOrders.map(order => (
@@ -519,12 +567,17 @@ export default function MerchantDashboardPage() {
                 onRetry={() => void refetchOrders()}
               />
             ) : (
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
-                <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                  <SalesAreaChart data={salesChartData} title="Pendapatan 14 hari terakhir" />
-                </div>
-                <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                  <OrdersBarChart data={salesChartData} title="Pesanan 14 hari terakhir" />
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Grafik 14 hari memakai maksimal 500 pesanan terbaru; ringkasan angka pesanan di atas menggunakan hitungan server.
+                </p>
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+                  <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                    <SalesAreaChart data={salesChartData} title="Pendapatan 14 hari terakhir" />
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                    <OrdersBarChart data={salesChartData} title="Pesanan 14 hari terakhir" />
+                  </div>
                 </div>
               </div>
             )}

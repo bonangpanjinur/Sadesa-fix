@@ -4,6 +4,7 @@ import { motion, useInView, useSpring, useMotionValue } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
+import { MerchantCardError } from '@/components/merchant/MerchantDataState';
 
 function AnimatedCounter({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -52,50 +53,83 @@ export function QuickStats({ merchantId }: QuickStatsProps) {
     availableBalance: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchStats = useCallback(async () => {
     try {
+      setLoading(true);
+      setError(null);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
-      // Fetch orders
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('id, status, total, subtotal, created_at')
-        .eq('merchant_id', merchantId);
+      const [todayOrdersRes, pendingOrdersRes, processingOrdersRes, completedTodayRes, canceledTodayRes, merchantRes] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).gte('created_at', todayISO),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).in('status', ['NEW', 'PENDING_CONFIRMATION']),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).eq('status', 'PROCESSED'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).eq('status', 'DONE').gte('created_at', todayISO),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).eq('status', 'CANCELED').gte('created_at', todayISO),
+        supabase
+          .from('merchants')
+          .select('available_balance, pending_balance')
+          .eq('id', merchantId)
+          .maybeSingle(),
+      ]);
+      const queryErrors = [todayOrdersRes.error, pendingOrdersRes.error, processingOrdersRes.error, completedTodayRes.error, canceledTodayRes.error, merchantRes.error];
+      const queryError = queryErrors.find(Boolean);
+      if (queryError) throw queryError;
 
-      // Fetch merchant balance
-      const { data: merchant } = await supabase
-        .from('merchants')
-        .select('available_balance, pending_balance')
-        .eq('id', merchantId)
-        .maybeSingle();
-
-      const todayOrders = (orders || []).filter(o => o.created_at >= todayISO);
+      // Sum every completed order from today in bounded pages; never silently
+      // treat the API's default row cap as the whole day's revenue.
+      const PAGE_SIZE = 1000;
+      let offset = 0;
+      let todayRevenue = 0;
+      while (true) {
+        const { data, error: revenueError } = await supabase
+          .from('orders')
+          .select('id, subtotal, total')
+          .eq('merchant_id', merchantId)
+          .eq('status', 'DONE')
+          .gte('created_at', todayISO)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(offset, offset + PAGE_SIZE - 1);
+        if (revenueError) throw revenueError;
+        todayRevenue += (data || []).reduce((sum, order) => sum + (order.subtotal || order.total || 0), 0);
+        if ((data || []).length < PAGE_SIZE) break;
+        offset += PAGE_SIZE;
+      }
       
       setStats({
-        todayOrders: todayOrders.length,
-        pendingOrders: (orders || []).filter(o => o.status === 'NEW' || o.status === 'PENDING_CONFIRMATION').length,
-        processingOrders: (orders || []).filter(o => o.status === 'PROCESSED').length,
-        completedToday: todayOrders.filter(o => o.status === 'DONE').length,
-        canceledToday: todayOrders.filter(o => o.status === 'CANCELED').length,
-        todayRevenue: todayOrders
-          .filter(o => o.status === 'DONE')
-          .reduce((sum, o) => sum + (o.subtotal || o.total), 0),
-        pendingBalance: merchant?.pending_balance || 0,
-        availableBalance: merchant?.available_balance || 0,
+        todayOrders: todayOrdersRes.count || 0,
+        pendingOrders: pendingOrdersRes.count || 0,
+        processingOrders: processingOrdersRes.count || 0,
+        completedToday: completedTodayRes.count || 0,
+        canceledToday: canceledTodayRes.count || 0,
+        todayRevenue,
+        pendingBalance: merchantRes.data?.pending_balance || 0,
+        availableBalance: merchantRes.data?.available_balance || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
+      setError(error instanceof Error ? error : new Error('Statistik toko gagal dimuat.'));
     } finally {
       setLoading(false);
     }
   }, [merchantId]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    void fetchStats();
+    const channel = supabase
+      .channel(`merchant-quick-stats-${merchantId}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchantId}` }, () => void fetchStats())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'merchants', filter: `id=eq.${merchantId}` }, () => void fetchStats())
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchStats, merchantId]);
 
   const statItems = [
     { 
@@ -159,6 +193,10 @@ export function QuickStats({ merchantId }: QuickStatsProps) {
         ))}
       </div>
     );
+  }
+
+  if (error) {
+    return <MerchantCardError message={error.message || 'Statistik toko gagal dimuat.'} onRetry={() => void fetchStats()} />;
   }
 
   return (

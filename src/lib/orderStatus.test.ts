@@ -4,6 +4,7 @@ import {
   canUseOnlinePaymentForMerchantCount,
   getOrderStatusGroup,
   isTerminalOrderStatus,
+  MERCHANT_ORDER_STATUS_FILTER_OPTIONS,
 } from './orderStatus';
 
 describe('order lifecycle guards', () => {
@@ -30,5 +31,20 @@ describe('order lifecycle guards', () => {
     expect(isTerminalOrderStatus('DONE')).toBe(true);
     expect(isTerminalOrderStatus('CANCELED')).toBe(true);
     expect(isTerminalOrderStatus('PROCESSED')).toBe(false);
+  });
+
+  it('offers all operational merchant statuses with official grouped labels', () => {
+    const options = new Map(MERCHANT_ORDER_STATUS_FILTER_OPTIONS.map(({ value, label }) => [value, label]));
+
+    for (const status of [
+      'NEW', 'PENDING_PAYMENT', 'PENDING_CONFIRMATION', 'PROCESSED', 'READY', 'ASSIGNED',
+      'COURIER_ASSIGNED', 'COURIER_ACCEPTED', 'PICKED_UP', 'ON_DELIVERY', 'DELIVERING',
+      'SENT', 'DELIVERED', 'DONE', 'CANCELED', 'REJECTED', 'REJECTED_BY_BUYER', 'REFUNDED',
+    ]) {
+      expect(options.has(status), `${status} should be filterable`).toBe(true);
+    }
+
+    expect(options.get('READY')).toBe('Diproses · Siap dikirim/diambil');
+    expect(options.get('ON_DELIVERY')).toBe('Pengiriman · Dalam perjalanan');
   });
 });

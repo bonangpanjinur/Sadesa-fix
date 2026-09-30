@@ -78,7 +78,7 @@ export default function MerchantSettingsPage() {
     business_description: '', open_time: '08:00', close_time: '17:00',
     is_open: false, classification_price: '', order_mode: 'ADMIN_ASSISTED',
     bank_name: '', bank_account_number: '', bank_account_name: '',
-    payment_cod_enabled: true, payment_transfer_enabled: true,
+    payment_cod_enabled: false, payment_transfer_enabled: true,
     notification_sound_enabled: true, verifikator_code: '', slug: '',
   });
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -145,7 +145,7 @@ export default function MerchantSettingsPage() {
       bank_name: merchant.bank_name || '',
       bank_account_number: merchant.bank_account_number || '',
       bank_account_name: merchant.bank_account_name || '',
-      payment_cod_enabled: merchant.payment_cod_enabled ?? true,
+      payment_cod_enabled: false,
       payment_transfer_enabled: merchant.payment_transfer_enabled ?? true,
       notification_sound_enabled: merchant.notification_sound_enabled ?? true,
       verifikator_code: merchant.verifikator_code || '',
@@ -219,7 +219,7 @@ export default function MerchantSettingsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success('Pengaturan toko berhasil disimpan');
+      toast.success('Pengaturan toko berhasil disimpan. COD belum tersedia di marketplace.');
       queryClient.invalidateQueries({ queryKey: ['merchant-settings', guardMerchantId] });
       queryClient.invalidateQueries({ queryKey: ['merchant-profile', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['merchant-categories', guardMerchantId] });
@@ -488,6 +488,12 @@ export default function MerchantSettingsPage() {
             <CardDescription>Kelola rekening bank dan QRIS untuk menerima pembayaran non-tunai</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div role="status" className="rounded-lg border border-warning/30 bg-warning/5 p-3">
+              <p className="text-sm font-medium">COD belum tersedia</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Pembayaran tunai saat barang diterima sedang dinonaktifkan untuk marketplace. Pengaturan toko tidak dapat mengaktifkan COD; metode ini akan tetap nonaktif saat Anda menyimpan.
+              </p>
+            </div>
             <div className="space-y-3">
               {[
                 { key: 'payment_transfer_enabled', label: 'Transfer Bank & QRIS', desc: 'Terima pembayaran via transfer dan QRIS' },

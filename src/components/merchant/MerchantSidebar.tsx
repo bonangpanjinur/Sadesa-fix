@@ -101,50 +101,94 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setPendingOrders(0);
+      setUnrepliedReviews(0);
+      setPendingRefunds(0);
+      setLowStockCount(0);
+      return;
+    }
 
-    const fetchBadges = async () => {
-      const { data: merchant } = await supabase
+    let active = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const fetchBadges = async (merchantId: string) => {
+      const [ordersRes, reviewsRes, lowStockRes] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).in('status', ['NEW', 'PENDING_CONFIRMATION']),
+        supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).is('merchant_reply', null),
+        supabase.from('products').select('id, stock, low_stock_threshold').eq('merchant_id', merchantId).eq('is_active', true),
+      ]);
+
+      if (!active) return;
+      if (ordersRes.error) console.error('Gagal memuat badge pesanan merchant:', ordersRes.error);
+      else setPendingOrders(ordersRes.count || 0);
+      if (reviewsRes.error) console.error('Gagal memuat badge ulasan merchant:', reviewsRes.error);
+      else setUnrepliedReviews(reviewsRes.count || 0);
+      if (lowStockRes.error) console.error('Gagal memuat badge stok merchant:', lowStockRes.error);
+      else setLowStockCount(lowStockRes.data?.filter((product) => product.stock <= (product.low_stock_threshold || 5)).length || 0);
+
+      const { data: merchantOrders, error: merchantOrdersError } = await supabase.from('orders').select('id').eq('merchant_id', merchantId);
+      if (merchantOrdersError) {
+        console.error('Gagal memuat pesanan untuk badge refund merchant:', merchantOrdersError);
+        return;
+      }
+      if (!merchantOrders?.length) {
+        setPendingRefunds(0);
+        return;
+      }
+
+      const { count, error: refundsError } = await supabase
+          .from('refund_requests')
+          .select('id', { count: 'exact', head: true })
+          .in('order_id', merchantOrders.map((order) => order.id))
+          .eq('status', 'PENDING');
+      if (!active) return;
+      if (refundsError) console.error('Gagal memuat badge refund merchant:', refundsError);
+      else setPendingRefunds(count || 0);
+    };
+
+    const initialize = async () => {
+      const { data: merchant, error } = await supabase
         .from('merchants')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (!merchant) return;
-
-      const [ordersRes, reviewsRes, lowStockRes] = await Promise.all([
-        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('merchant_id', merchant.id).in('status', ['NEW', 'PENDING_CONFIRMATION']),
-        supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('merchant_id', merchant.id).is('merchant_reply', null),
-        supabase.from('products').select('id, stock, low_stock_threshold').eq('merchant_id', merchant.id).eq('is_active', true),
-      ]);
-
-      setPendingOrders(ordersRes.count || 0);
-      setUnrepliedReviews(reviewsRes.count || 0);
-      setLowStockCount(lowStockRes.data?.filter((product) => product.stock <= (product.low_stock_threshold || 5)).length || 0);
-
-      const { data: merchantOrders } = await supabase.from('orders').select('id').eq('merchant_id', merchant.id);
-      if (merchantOrders && merchantOrders.length > 0) {
-        const { count } = await supabase
-          .from('refund_requests')
-          .select('*', { count: 'exact', head: true })
-          .in('order_id', merchantOrders.map((order) => order.id))
-          .eq('status', 'PENDING');
-        setPendingRefunds(count || 0);
+      if (!active) return;
+      if (error) {
+        console.error('Gagal menentukan merchant aktif untuk badge:', error);
+        return;
       }
+      if (!merchant) {
+        setPendingOrders(0);
+        setUnrepliedReviews(0);
+        setPendingRefunds(0);
+        setLowStockCount(0);
+        return;
+      }
+
+      const refreshScopedBadges = () => {
+        if (active) void fetchBadges(merchant.id);
+      };
+      channel = supabase
+        .channel(`merchant-sidebar-${merchant.id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `merchant_id=eq.${merchant.id}` }, refreshScopedBadges)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews', filter: `merchant_id=eq.${merchant.id}` }, refreshScopedBadges)
+        // Refund rows are linked through order_id, not merchant_id. Invalidate and
+        // recompute the merchant-scoped count instead of incrementing globally.
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'refund_requests' }, refreshScopedBadges)
+        .subscribe();
+      void fetchBadges(merchant.id);
     };
 
-    void fetchBadges();
-    const channel = supabase
-      .channel(`merchant-sidebar-${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, () => void fetchBadges())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => void fetchBadges())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reviews' }, () => setUnrepliedReviews((count) => count + 1))
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'refund_requests' }, () => setPendingRefunds((count) => count + 1))
-      .subscribe();
+    void initialize();
 
     return () => {
-      void channel.unsubscribe();
-      void supabase.removeChannel(channel);
+      active = false;
+      if (channel) {
+        void channel.unsubscribe();
+        void supabase.removeChannel(channel);
+      }
     };
   }, [user]);
 
