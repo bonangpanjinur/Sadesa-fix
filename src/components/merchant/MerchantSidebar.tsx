@@ -194,6 +194,14 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
   const groups = useMemo<SidebarGroup[]>(() => [
     {
+      id: 'quick-actions', label: 'Aksi cepat', icon: <Zap className="h-4 w-4" />, items: [
+        { label: 'Pesanan perlu tindakan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
+        { label: 'Tambah produk', href: '/merchant/products', icon: <Package className="h-4 w-4" /> },
+        { label: 'Manajemen stok', href: '/merchant/stock', icon: <Layers className="h-4 w-4" />, badge: lowStockCount || undefined },
+        { label: 'Laporan keuangan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
+      ],
+    },
+    {
       id: 'sales', label: 'Penjualan & Operasional', icon: <ShoppingBag className="h-4 w-4" />, items: [
         { label: 'Pesanan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
         { label: 'Fulfillment Parsial', href: '/merchant/fulfillment', icon: <Truck className="h-4 w-4" /> },

@@ -85,6 +85,7 @@ export default function MerchantSettingsPage() {
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  const [savedPaymentMethods, setSavedPaymentMethods] = useState<string[] | null>(null);
 
   const { data: merchant, isLoading: fetchLoading } = useQuery<MerchantData | null>({
     queryKey: ['merchant-settings', guardMerchantId],
@@ -219,6 +220,7 @@ export default function MerchantSettingsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      setSavedPaymentMethods(formData.payment_transfer_enabled ? ['Transfer Bank & QRIS'] : []);
       toast.success('Pengaturan toko berhasil disimpan. COD belum tersedia di marketplace.');
       queryClient.invalidateQueries({ queryKey: ['merchant-settings', guardMerchantId] });
       queryClient.invalidateQueries({ queryKey: ['merchant-profile', user?.id] });
@@ -494,6 +496,13 @@ export default function MerchantSettingsPage() {
                 Pembayaran tunai saat barang diterima sedang dinonaktifkan untuk marketplace. Pengaturan toko tidak dapat mengaktifkan COD; metode ini akan tetap nonaktif saat Anda menyimpan.
               </p>
             </div>
+            {savedPaymentMethods && (
+              <div role="status" className="rounded-lg border border-success/30 bg-success/5 p-3 text-sm">
+                <p className="font-medium">Metode pembayaran aktif setelah disimpan</p>
+                <p className="mt-1 text-xs text-muted-foreground">{savedPaymentMethods.length ? savedPaymentMethods.join(', ') : 'Belum ada metode pembayaran non-tunai yang dipilih.'}</p>
+                <p className="mt-1 text-xs text-muted-foreground">COD tetap nonaktif karena belum tersedia.</p>
+              </div>
+            )}
             <div className="space-y-3">
               {[
                 { key: 'payment_transfer_enabled', label: 'Transfer Bank & QRIS', desc: 'Terima pembayaran via transfer dan QRIS' },

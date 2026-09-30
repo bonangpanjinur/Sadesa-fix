@@ -36,6 +36,7 @@ import { OrderChat } from '@/components/chat/OrderChat';
 import { CourierAssignDialog } from '@/components/admin/CourierAssignDialog';
 import { MERCHANT_ORDER_STATUS_FILTER_OPTIONS, orderStatusLabel } from '@/lib/orderStatus';
 import { MerchantCardError, MerchantCardLoading } from '@/components/merchant/MerchantDataState';
+import { downloadCsv } from '@/lib/csv';
 
 interface OrderItem {
   id: string;
@@ -96,7 +97,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     setDetailDialogOpen(false);
   }, []);
 
-  const { orders, loading, updateOrderStatus, refetch, loadMore, loadingMore, hasMore } = useRealtimeOrders({
+  const { orders, loading, updateOrderStatus, refetch, loadMore, loadingMore, hasMore, realtimeStatus } = useRealtimeOrders({
     merchantId,
     onNewOrder: handleNewOrder,
   });
@@ -117,6 +118,15 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     retry: false,
   });
   const orderItems = orderItemsQuery.data ?? [];
+  const { data: serverSummary } = useQuery<{ total_orders: number; new_orders: number; processed_orders: number; shipping_orders: number; completed_orders: number; total_revenue: number }>({
+    queryKey: ['merchant-order-summary', merchantId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('merchant_order_summary' as never, { p_merchant_id: merchantId } as never);
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row || { total_orders: 0, new_orders: 0, processed_orders: 0, shipping_orders: 0, completed_orders: 0, total_revenue: 0 }) as { total_orders: number; new_orders: number; processed_orders: number; shipping_orders: number; completed_orders: number; total_revenue: number };
+    }, enabled: !!merchantId, staleTime: 30_000, retry: false,
+  });
   const orderItemsErrorMessage = 'Item pesanan gagal dimuat. Periksa koneksi lalu coba lagi.';
 
   const paymentProofQuery = useQuery<string>({
@@ -382,6 +392,16 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
       header: '',
       render: (item: OrderRow) => (
         <div className="flex items-center justify-end gap-1">
+          {(item.status === 'NEW' || item.status === 'PENDING_CONFIRMATION') && (
+            <Button size="sm" className="hidden lg:inline-flex" onClick={() => handleUpdateStatus(item.id, 'PROCESSED')}>
+              <Check className="mr-1.5 h-3.5 w-3.5" />Terima
+            </Button>
+          )}
+          {item.status === 'DELIVERING' && (
+            <Button size="sm" variant="outline" className="hidden lg:inline-flex" onClick={() => handleSelfDeliveryStatusUpdate(item.id, 'DELIVERED')}>
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Sampai
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -479,11 +499,11 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
   ];
 
   const stats = {
-    new: orders.filter(o => o.status === 'NEW').length,
-    processed: orders.filter(o => o.status === 'PROCESSED').length,
-    sent: orders.filter(o => ['SENT', 'DELIVERING'].includes(o.status)).length,
-    done: orders.filter(o => o.status === 'DONE').length,
-    total_revenue: orders.filter(o => o.status === 'DONE').reduce((acc, curr) => acc + curr.subtotal, 0)
+    new: serverSummary?.new_orders ?? orders.filter(o => o.status === 'NEW').length,
+    processed: serverSummary?.processed_orders ?? orders.filter(o => o.status === 'PROCESSED').length,
+    sent: serverSummary?.shipping_orders ?? orders.filter(o => ['SENT', 'DELIVERING'].includes(o.status)).length,
+    done: serverSummary?.completed_orders ?? orders.filter(o => o.status === 'DONE').length,
+    total_revenue: serverSummary?.total_revenue ?? orders.filter(o => o.status === 'DONE').reduce((acc, curr) => acc + curr.subtotal, 0)
   };
 
   const ordersInDateRange = useMemo(() => {
@@ -510,31 +530,23 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
       new Date(order.created_at).toLocaleDateString('id-ID')
     ]);
 
-    const csvContent = [headers, ...csvData].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `pesanan-merchant-${new Date().toISOString().slice(0,10)}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`pesanan-merchant-${new Date().toISOString().slice(0,10)}.csv`, [headers, ...csvData]);
+    toast.success('Ekspor pesanan berhasil dibuat');
   };
 
   return (
     <MerchantOrdersShell embedded={embedded}>
       {/* Compact operational summary */}
       <p className="mb-2 text-xs text-muted-foreground" role="status">
-        Ringkasan berikut dihitung dari {orders.length} pesanan yang dimuat, bukan total sepanjang waktu.
-        {hasMore ? ' Masih ada pesanan lama; gunakan “Muat pesanan lama” untuk memperluas cakupan angka.' : ''}
+        {serverSummary ? 'Ringkasan status dan pendapatan berikut dihitung di server untuk seluruh pesanan merchant.' : `Ringkasan sementara dihitung dari ${orders.length} pesanan yang dimuat.`}
+        {!serverSummary && hasMore ? ' Masih ada pesanan lama; gunakan “Muat pesanan lama” untuk memperluas cakupan sementara.' : ''}
       </p>
       <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-border/70 pb-3 text-xs">
         <div><span className="text-muted-foreground">Baru</span> <strong className="ml-1 text-info">{stats.new}</strong></div>
         <div><span className="text-muted-foreground">Diproses</span> <strong className="ml-1 text-warning-foreground">{stats.processed}</strong></div>
         <div><span className="text-muted-foreground">Selesai</span> <strong className="ml-1 text-success">{stats.done}</strong></div>
         <div className="text-muted-foreground">
-          Pendapatan produk dari pesanan dimuat <strong className="ml-1 text-foreground">{formatPrice(stats.total_revenue)}</strong>
+          Pendapatan produk seluruh pesanan selesai <strong className="ml-1 text-foreground">{formatPrice(stats.total_revenue)}</strong>
         </div>
       </div>
 
@@ -549,10 +561,10 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
           )}
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs">
-            <Wifi className={`h-3.5 w-3.5 ${isConnected ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
-            <span className={isConnected ? 'text-primary' : 'text-muted-foreground'}>
-              {isConnected ? 'Live' : 'Offline'}
+          <div className="flex items-center gap-1.5 text-xs" title="Status channel realtime pesanan">
+            <Wifi className={`h-3.5 w-3.5 ${realtimeStatus === 'live' ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
+            <span className={realtimeStatus === 'live' ? 'text-primary' : 'text-muted-foreground'}>
+              {realtimeStatus === 'live' ? 'Live' : realtimeStatus === 'reconnecting' ? 'Menyambung ulang' : realtimeStatus === 'connecting' ? 'Menghubungkan' : 'Offline'}
             </span>
           </div>
           <Button variant="outline" size="sm" onClick={refetch}>
@@ -597,6 +609,14 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
         loading={loading}
         onExport={handleExport}
         emptyMessage="Belum ada pesanan"
+        mobileCardRender={(item) => (
+          <div className="space-y-3">
+            <div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs">#{item.id.slice(0, 8).toUpperCase()}</p><p className="mt-1 font-medium">{item.delivery_name || 'Pelanggan'}</p></div>{getStatusBadge(item.status)}</div>
+            <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Total</span><strong>{formatPrice(item.total)}</strong></div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground"><span>{item.delivery_type === 'EXPEDITION' ? 'Ekspedisi' : item.delivery_type === 'PICKUP' ? 'Ambil sendiri' : 'Diantar'}</span><span>{new Date(item.created_at).toLocaleDateString('id-ID')}</span></div>
+            <div className="flex gap-2"><Button size="sm" variant="outline" className="flex-1" onClick={() => viewOrderDetail(item)}><Eye className="mr-1.5 h-3.5 w-3.5" />Detail</Button>{(item.status === 'NEW' || item.status === 'PENDING_CONFIRMATION') && <Button size="sm" className="flex-1" onClick={() => handleUpdateStatus(item.id, 'PROCESSED')}><Check className="mr-1.5 h-3.5 w-3.5" />Terima</Button>}</div>
+          </div>
+        )}
       />
       {hasMore && !dateFrom && !dateTo && (
         <div className="mt-4 flex justify-center">

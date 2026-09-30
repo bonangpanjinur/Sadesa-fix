@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { downloadCsv } from '@/lib/csv';
 import { id as idLocale } from 'date-fns/locale';
 
 interface Product {
@@ -117,39 +118,10 @@ export default function MerchantStockPage() {
       if (!adjustDialog || !merchantId || !user) throw new Error('Data tidak valid');
       const qty = parseInt(adjustQty);
       if (isNaN(qty) || qty < 0) throw new Error('Jumlah tidak valid');
-
-      const stockBefore = adjustDialog.stock;
-      let stockAfter: number;
-      let qtyChange: number;
-      const note = adjustNote.trim() || null;
-
-      if (adjustType === 'in') {
-        qtyChange = qty;
-        stockAfter = stockBefore + qty;
-      } else if (adjustType === 'out') {
-        qtyChange = -qty;
-        stockAfter = Math.max(0, stockBefore - qty);
-      } else {
-        qtyChange = qty - stockBefore;
-        stockAfter = qty;
-      }
-
-      const { error: updateErr } = await supabase
-        .from('products')
-        .update({ stock: stockAfter })
-        .eq('id', adjustDialog.id);
-      if (updateErr) throw updateErr;
-
-      await supabase.from('stock_history').insert({
-        product_id: adjustDialog.id,
-        merchant_id: merchantId,
-        type: adjustType === 'in' ? 'masuk' : adjustType === 'out' ? 'keluar' : 'penyesuaian',
-        qty_change: qtyChange,
-        stock_before: stockBefore,
-        stock_after: stockAfter,
-        note,
-        created_by: user.id,
-      });
+      const { error } = await supabase.rpc('merchant_adjust_stock_atomic' as never, {
+        p_product_id: adjustDialog.id, p_merchant_id: merchantId, p_type: adjustType, p_quantity: qty, p_note: adjustNote.trim() || null,
+      } as never);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['merchant-stock-products', merchantId] });
@@ -189,14 +161,8 @@ export default function MerchantStockPage() {
       const status = p.stock <= threshold ? 'Menipis' : 'Aman';
       return [p.name, p.stock, threshold, status];
     });
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laporan-stok-${merchantName || 'toko'}-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`laporan-stok-${merchantName || 'toko'}-${format(new Date(), 'yyyy-MM-dd')}.csv`, [headers, ...rows]);
+    toast.success('Ekspor stok berhasil dibuat');
   };
 
   if (guardLoading || posLoading || merchantUsesPOS) {

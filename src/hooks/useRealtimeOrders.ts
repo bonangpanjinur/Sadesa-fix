@@ -51,6 +51,7 @@ export function useRealtimeOrders({
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting');
   
   const onNewOrderRef = useRef(onNewOrder);
   const onOrderUpdateRef = useRef(onOrderUpdate);
@@ -218,5 +219,6 @@ export function useRealtimeOrders({
     loadMore,
     loadingMore,
     hasMore,
+    realtimeStatus,
   };
 }

@@ -11,6 +11,8 @@ import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { MerchantCardError, MerchantCardLoading } from '@/components/merchant/MerchantDataState';
 import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/utils';
+import { downloadCsv } from '@/lib/csv';
+import { toast } from 'sonner';
 import { format, startOfMonth, endOfMonth, subMonths, getMonth, getYear } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 
@@ -108,14 +110,8 @@ export default function MerchantFinancePage() {
       m.platformFee,
       m.netRevenue,
     ]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laporan-keuangan-${merchantName || 'toko'}-${format(new Date(), 'yyyy-MM')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`laporan-keuangan-${merchantName || 'toko'}-${format(new Date(), 'yyyy-MM')}.csv`, [headers, ...rows]);
+    toast.success('Ekspor laporan berhasil dibuat');
   };
 
   if (guardLoading || isLoading || (isError && isFetching)) {

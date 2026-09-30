@@ -318,6 +318,18 @@ export default function MerchantDashboardPage() {
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
       <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
+        <section className="rounded-2xl border border-warning/30 bg-warning/[0.04] p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4" aria-label="Pesanan perlu tindakan">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning"><Bell className="h-5 w-5" /></div>
+            <div>
+              <p className="text-sm font-semibold">{pendingOrdersLoading ? 'Memuat pesanan perlu tindakan...' : pendingOrdersError ? 'Pesanan perlu tindakan belum tersedia' : pendingOrderCount ? `${pendingOrderCount} pesanan perlu tindakan` : 'Tidak ada pesanan yang perlu tindakan'}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{pendingOrdersError ? 'Coba lagi untuk memastikan jumlah pesanan terbaru.' : 'Prioritaskan konfirmasi sebelum melihat statistik lainnya.'}</p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" className="mt-3 sm:mt-0" onClick={() => navigate('/merchant/orders')}>
+            <Receipt className="mr-2 h-4 w-4" />Buka pesanan
+          </Button>
+        </section>
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
           <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] via-card to-card p-5 shadow-sm sm:p-7">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />

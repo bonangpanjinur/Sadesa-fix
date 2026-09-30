@@ -361,7 +361,7 @@ export default function MerchantProductsPage() {
                   onChange={url => setForm(p => ({ ...p, image_url: url }))} aspectRatio="square" maxSizeMB={5} placeholder="Upload gambar produk" />
                 <div className="flex items-start gap-2 p-2 bg-muted/50 rounded-md">
                   <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
-                  <p className="text-[10px] text-muted-foreground leading-tight">Gunakan gambar berkualitas tinggi (1:1). Jika upload gagal, pastikan bucket 'products' sudah dibuat di Supabase Storage.</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">Gunakan gambar berkualitas tinggi (1:1). Jika upload gagal, periksa ukuran file dan koneksi, lalu coba lagi.</p>
                 </div>
               </div>
             </div>

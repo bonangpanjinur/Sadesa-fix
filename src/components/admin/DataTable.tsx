@@ -39,6 +39,7 @@ interface DataTableProps<T> {
   onExport?: (data: T[]) => void; // Optional export function
   error?: string | null;
   onRetry?: () => void;
+  mobileCardRender?: (item: T) => React.ReactNode;
 }
 
 export function DataTable<T extends { id: string }>({
@@ -55,6 +56,7 @@ export function DataTable<T extends { id: string }>({
   onExport,
   error = null,
   onRetry,
+  mobileCardRender,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,7 +175,17 @@ export function DataTable<T extends { id: string }>({
       {error ? (
         <AdminStatePanel type="error" title="Data gagal dimuat" description={error} actionLabel={onRetry ? 'Coba lagi' : undefined} onAction={onRetry} />
       ) : (
-      <div className="border border-border rounded-xl overflow-hidden bg-card">
+      <>
+      {mobileCardRender && !loading && paginatedData.length > 0 && (
+        <div className="space-y-3 sm:hidden" aria-label="Daftar pesanan versi kartu">
+          {paginatedData.map((item) => (
+            <div key={item.id} onClick={() => onRowClick?.(item)} className={cn('rounded-xl border border-border bg-card p-3', onRowClick && 'cursor-pointer')}>
+              {mobileCardRender(item)}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className={cn('border border-border rounded-xl overflow-hidden bg-card', mobileCardRender && 'hidden sm:block')}>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-secondary/30">
@@ -231,6 +243,7 @@ export function DataTable<T extends { id: string }>({
           </table>
         </div>
       </div>
+      </>
       )}
 
       {/* Pagination */}
