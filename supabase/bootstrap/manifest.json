@@ -567,6 +567,14 @@
       ],
       "sha256": "5144c33aa7b02aba35cc2af36e112ce21f9685e4a093682047ae9bbe2cb138d9",
       "bytes": 7209
+    },
+    {
+      "file": "59_20260930100000_harden_courier_booking_dispatch.sql",
+      "source_files": [
+        "20260930100000_harden_courier_booking_dispatch.sql"
+      ],
+      "sha256": "ec4ff3c53bbc7e8f87889e26fccc1b494f7510745c59aafd163f7b0c4b7c1413",
+      "bytes": 5973
     }
   ],
   "idempotent": true,
