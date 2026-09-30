@@ -38,7 +38,8 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
     let hasSeededWork = false;
     let rideOfferTableAvailable: boolean | null = null;
 
-    const isOnline = () => courierRef.current?.registration_status === 'APPROVED'
+    const isOnline = () => courierRef.current?.status === 'ACTIVE'
+      && courierRef.current.registration_status === 'APPROVED'
       && courierRef.current.is_available === true;
 
     const syncSound = () => {
@@ -87,6 +88,7 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
           .select('ride_id')
           .eq('courier_id', courierId)
           .eq('status', 'PENDING')
+          .gt('expires_at', new Date().toISOString())
           .limit(100);
         if (!error) {
           rideOfferTableAvailable = true;
@@ -106,14 +108,10 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
         rideOfferTableAvailable = false;
       }
 
-      // Older deployed databases expose searchable rides directly, without
-      // the newer per-courier ride_request_offers table.
-      const { data, error } = await supabase
-        .from('ride_requests')
-        .select('id')
-        .eq('status', 'SEARCHING')
-        .limit(100);
-      return { ids: error ? null : (data || []).map((row) => row.id), error: Boolean(error) };
+      // Never fall back to all SEARCHING rides. That legacy query can expose
+      // another passenger's pickup to every courier when the targeted-offer
+      // migration is missing. Fail closed until the private offer table exists.
+      return { ids: null, error: true };
     };
 
     const seedCurrentWork = async (notifyNew = true) => {
@@ -127,7 +125,7 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
 
       const [rideResult, { data: offers, error: offerError }, { data: orders, error: orderError }] = await Promise.all([
         fetchPendingRideIds(courier.id),
-        supabase.from('delivery_assignments').select('order_id').eq('courier_id', courier.id).eq('status', 'OFFERED').limit(100),
+        supabase.from('delivery_assignments').select('order_id').eq('courier_id', courier.id).eq('status', 'OFFERED').gt('expires_at', new Date().toISOString()).limit(100),
         supabase.from('orders').select('id').eq('courier_id', courier.id).eq('status', 'ASSIGNED').limit(100),
       ]);
       if (disposed) return;
@@ -176,21 +174,12 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
             updatePending('ride', offer.ride_id, offer.status === 'PENDING');
           });
       }
-      if (rideOfferTableAvailable === false) {
-        courierChannel = courierChannel.on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'ride_requests', filter: 'status=eq.SEARCHING',
-        }, (payload) => {
-          const ride = payload.new as { id: string; status?: string };
-          updatePending('ride', ride.id, ride.status === 'SEARCHING');
-        });
-      }
       channel = courierChannel
         .on('postgres_changes', {
           event: 'UPDATE', schema: 'public', table: 'ride_requests',
         }, (payload) => {
           const ride = payload.new as { id: string; status?: string };
           if (ride.status !== 'SEARCHING') updatePending('ride', ride.id, false);
-          else if (rideOfferTableAvailable === false) updatePending('ride', ride.id, true);
         })
         .on('postgres_changes', {
           event: 'INSERT', schema: 'public', table: 'delivery_assignments', filter: `courier_id=eq.${courierId}`,
@@ -242,8 +231,8 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       await seedCurrentWork(false);
       if (disposed) return;
       subscribe();
-      // ride_request_offers may not be enabled in Realtime on older deployments.
-      // Polling this small courier-scoped inbox keeps incoming ojek offers reliable.
+      // Polling this small courier-scoped inbox keeps incoming ojek offers reliable
+      // when Realtime is unavailable without broadening visibility to all rides.
       refreshTimer = window.setInterval(() => { void seedCurrentWork(); }, 8000);
     };
     void start();
