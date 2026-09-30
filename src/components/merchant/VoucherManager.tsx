@@ -268,7 +268,7 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
                     placeholder="DISKON20"
                     className="uppercase"
                   />
-                  <Button type="button" variant="outline" size="icon" onClick={generateCode}>
+                  <Button type="button" variant="outline" size="icon" onClick={generateCode} aria-label="Buat kode voucher" title="Buat kode voucher">
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -413,6 +413,7 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
                         size="icon"
                         className="h-6 w-6"
                         onClick={() => copyCode(voucher.code)}
+                        aria-label={`Salin kode voucher ${voucher.code}`} title="Salin kode voucher"
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -440,6 +441,7 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => toggleActive(voucher)}
+                      aria-label={voucher.is_active ? `Nonaktifkan voucher ${voucher.code}` : `Aktifkan voucher ${voucher.code}`} title={voucher.is_active ? 'Nonaktifkan voucher' : 'Aktifkan voucher'}
                     >
                       {voucher.is_active ? (
                         <ToggleRight className="h-4 w-4 text-green-600" />
@@ -452,6 +454,7 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => handleEdit(voucher)}
+                      aria-label={`Edit voucher ${voucher.code}`} title="Edit voucher"
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
@@ -460,6 +463,7 @@ export function VoucherManager({ merchantId }: VoucherManagerProps) {
                       size="icon"
                       className="h-8 w-8 text-destructive"
                       onClick={() => handleDelete(voucher.id)}
+                      aria-label={`Hapus voucher ${voucher.code}`} title="Hapus voucher"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

@@ -224,6 +224,7 @@ export function MultipleImageUpload({
                 onClick={() => handleSetPrimary(image.id)}
                 className="p-1 bg-white/20 rounded hover:bg-white/40"
                 title="Jadikan utama"
+                aria-label="Jadikan gambar sebagai gambar utama"
               >
                 <Star className="h-3 w-3 text-white" />
               </button>
@@ -231,6 +232,7 @@ export function MultipleImageUpload({
                 onClick={() => handleDelete(image.id, image.image_url)}
                 className="p-1 bg-white/20 rounded hover:bg-destructive"
                 title="Hapus"
+                aria-label="Hapus gambar"
               >
                 <X className="h-3 w-3 text-white" />
               </button>

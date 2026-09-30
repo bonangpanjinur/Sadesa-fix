@@ -303,7 +303,7 @@ export default function MerchantProductsPage() {
       render: (item: ProductRow) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" aria-label={`Buka aksi produk ${item.name}`} title="Aksi produk"><MoreHorizontal className="h-4 w-4" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => openEditDialog(item)}><Edit className="h-4 w-4 mr-2" />Edit</DropdownMenuItem>

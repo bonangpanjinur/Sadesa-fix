@@ -206,7 +206,7 @@ export default function MerchantInsightPage() {
               onClick={() => setPeriod('30d')}
             >30 Hari</Button>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={loading}>
+          <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={loading} aria-label="Muat ulang insight bisnis" title="Muat ulang">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>

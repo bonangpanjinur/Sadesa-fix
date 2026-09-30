@@ -343,14 +343,16 @@ export default function MerchantBundlePage() {
                   </div>
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" className="h-7 w-7"
-                      onClick={() => toggleMutation.mutate({ id: bundle.id, is_active: bundle.is_active })}>
+                      onClick={() => toggleMutation.mutate({ id: bundle.id, is_active: bundle.is_active })}
+                      aria-label={bundle.is_active ? `Nonaktifkan bundle ${bundle.name}` : `Aktifkan bundle ${bundle.name}`}
+                      title={bundle.is_active ? 'Nonaktifkan bundle' : 'Aktifkan bundle'}>
                       {bundle.is_active ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(bundle)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(bundle)} aria-label={`Edit bundle ${bundle.name}`} title="Edit bundle">
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                      onClick={() => setDeleteId(bundle.id)}>
+                      onClick={() => setDeleteId(bundle.id)} aria-label={`Hapus bundle ${bundle.name}`} title="Hapus bundle">
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -434,6 +436,7 @@ export default function MerchantBundlePage() {
                         <span className="flex-1 truncate">{item.product?.name || item.product_id.slice(0, 8)}</span>
                         <div className="flex items-center gap-1">
                           <Button size="icon" variant="outline" className="h-5 w-5 text-xs"
+                            aria-label={`Kurangi jumlah ${item.product?.name || 'produk'}`} title="Kurangi jumlah"
                             onClick={() => setEditingBundle(prev => {
                               if (!prev) return prev;
                               const newItems = (prev.items || []).map(i =>
@@ -444,9 +447,10 @@ export default function MerchantBundlePage() {
                             })}>-</Button>
                           <span className="w-6 text-center">{item.quantity}</span>
                           <Button size="icon" variant="outline" className="h-5 w-5 text-xs"
+                            aria-label={`Tambah jumlah ${item.product?.name || 'produk'}`} title="Tambah jumlah"
                             onClick={() => addProductToBundle(item.product || { id: item.product_id, name: '', price: 0, image_url: null, stock: 0 })}>+</Button>
                           <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive"
-                            onClick={() => removeProductFromBundle(item.product_id)}>
+                            onClick={() => removeProductFromBundle(item.product_id)} aria-label={`Hapus ${item.product?.name || 'produk'} dari bundle`} title="Hapus produk">
                             <X className="h-3 w-3" />
                           </Button>
                         </div>

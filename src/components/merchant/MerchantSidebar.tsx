@@ -94,7 +94,8 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   const posEnabled = isPOSOperational(tenant?.status);
   const [openGroupId, setOpenGroupId] = useState<string | null>(() => {
     try {
-      return window.localStorage.getItem('merchant-sidebar-group') || 'sales';
+      const savedGroup = window.localStorage.getItem('merchant-sidebar-group');
+      return savedGroup === 'quick-actions' ? 'sales' : savedGroup || 'sales';
     } catch {
       return 'sales';
     }
@@ -194,15 +195,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
   const groups = useMemo<SidebarGroup[]>(() => [
     {
-      id: 'quick-actions', label: 'Aksi cepat', icon: <Zap className="h-4 w-4" />, items: [
-        { label: 'Pesanan perlu tindakan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
-        { label: 'Tambah produk', href: '/merchant/products', icon: <Package className="h-4 w-4" /> },
-        { label: 'Manajemen stok', href: '/merchant/stock', icon: <Layers className="h-4 w-4" />, badge: lowStockCount || undefined },
-        { label: 'Laporan keuangan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
-      ],
-    },
-    {
-      id: 'sales', label: 'Penjualan & Operasional', icon: <ShoppingBag className="h-4 w-4" />, items: [
+      id: 'sales', label: 'Pesanan & Fulfillment', icon: <ShoppingBag className="h-4 w-4" />, items: [
         { label: 'Pesanan', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" />, badge: pendingOrders },
         { label: 'Fulfillment Parsial', href: '/merchant/fulfillment', icon: <Truck className="h-4 w-4" /> },
         { label: 'Refund', href: '/merchant/refunds', icon: <RotateCcw className="h-4 w-4" />, badge: pendingRefunds },
@@ -210,7 +203,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       ],
     },
     {
-      id: 'catalog', label: 'Katalog, Stok & Pembelian', icon: <Package className="h-4 w-4" />, items: [
+      id: 'catalog', label: 'Produk & Stok', icon: <Package className="h-4 w-4" />, items: [
         { label: 'Katalog Produk', href: '/merchant/products', icon: <Package className="h-4 w-4" />, badge: lowStockCount },
         { label: 'Belanja dari Admin', href: '/merchant/store', icon: <ShoppingBag className="h-4 w-4" /> },
         { label: 'Manajemen Stok', href: '/merchant/stock', icon: <Layers className="h-4 w-4" />, badge: lowStockCount || undefined },
@@ -234,7 +227,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       ],
     },
     {
-      id: 'insights', label: 'Analitik, Laporan & Keuangan', icon: <BarChart3 className="h-4 w-4" />, items: [
+      id: 'insights', label: 'Laporan & Keuangan', icon: <BarChart3 className="h-4 w-4" />, items: [
         { label: 'Analitik', href: '/merchant/analytics', icon: <BarChart3 className="h-4 w-4" /> },
         { label: 'Statistik Pengunjung', href: '/merchant/visitor-stats', icon: <Eye className="h-4 w-4" /> },
         { label: 'Insight Bisnis', href: '/merchant/insight', icon: <Lightbulb className="h-4 w-4" /> },
@@ -247,12 +240,11 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
       ],
     },
     {
-      id: 'team', label: 'Tim, Pengaturan & Integrasi', icon: <Settings className="h-4 w-4" />, items: [
+      id: 'team', label: 'Pengaturan', icon: <Settings className="h-4 w-4" />, items: [
         { label: 'Pengaturan Toko', href: '/merchant/settings', icon: <Settings className="h-4 w-4" /> },
       ],
     },
   ], [lowStockCount, pendingOrders, pendingRefunds, unrepliedReviews]);
-
   const visiblePOSCategories = useMemo(() => POS_MENU_CATEGORIES.map((category) => ({
     ...category,
     items: category.items.filter((item) => (item.scope === 'merchant' || canAccessPOSPath(roles, item.href, posRole))
@@ -328,7 +320,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   };
 
   return (
-    <aside className="flex h-dvh w-[min(17rem,calc(100vw-2rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground lg:w-64" aria-label="Navigasi pedagang dan POS">
+    <aside className="flex h-dvh w-[min(17rem,calc(100vw-2rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground lg:w-64" aria-label="Navigasi pedagang">
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-5">
         <Link to="/merchant" onClick={onNavigate} className="flex min-w-0 items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
@@ -402,6 +394,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                   type="button"
                   variant="ghost"
                   aria-expanded={open}
+                  aria-controls={`merchant-sidebar-group-${group.id}`}
                   onClick={() => toggleMerchantGroup(group.id)}
                   className={cn(
                     'h-10 w-full justify-between rounded-none border-l-2 px-4 font-body text-sm',
@@ -414,7 +407,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                   </span>
                   <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
                 </Button>
-                {open && <div className="pb-1">{group.items.map((item) => renderItem(item, true))}</div>}
+                <div id={`merchant-sidebar-group-${group.id}`} className={cn('pb-1', !open && 'hidden')}>{group.items.map((item) => renderItem(item, true))}</div>
               </section>
             );
           })}
@@ -431,6 +424,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                       type="button"
                       variant="ghost"
                       aria-expanded={open}
+                      aria-controls={`merchant-sidebar-group-${groupId.replace(':', '-')}`}
                       onClick={() => toggleMerchantGroup(groupId)}
                       className={cn(
                         'h-10 w-full justify-between rounded-none border-l-2 px-4 font-body text-sm',
@@ -443,7 +437,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                       </span>
                       <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
                     </Button>
-                    {open && <div className="pb-1">{category.items.map((item) => renderItem({ label: item.label, href: item.href, icon: item.icon, badge: item.badge }, true))}</div>}
+                    <div id={`merchant-sidebar-group-${groupId.replace(':', '-')}`} className={cn('pb-1', !open && 'hidden')}>{category.items.map((item) => renderItem({ label: item.label, href: item.href, icon: item.icon, badge: item.badge }, true))}</div>
                   </section>
                 );
               })}

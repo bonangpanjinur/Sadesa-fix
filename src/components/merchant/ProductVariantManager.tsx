@@ -217,6 +217,7 @@ export function ProductVariantManager({
                 size="icon"
                 className="h-7 w-7 text-destructive"
                 onClick={() => deleteVariant(variant.id)}
+                aria-label={`Hapus varian ${variant.name}`} title="Hapus varian"
               >
                 <X className="h-3 w-3" />
               </Button>

@@ -222,6 +222,7 @@ export function ScheduledPromoManager({ merchantId }: ScheduledPromoManagerProps
                     size="icon"
                     className="h-8 w-8 text-destructive"
                     onClick={() => handleRemovePromo(product.id)}
+                    aria-label={`Hapus promo ${product.name}`} title="Hapus promo"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

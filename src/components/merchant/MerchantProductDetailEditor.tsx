@@ -214,7 +214,7 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack}>
+          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Kembali ke katalog produk" title="Kembali ke katalog produk">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>

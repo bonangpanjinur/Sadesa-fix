@@ -236,6 +236,8 @@ export function PromoManager({ merchantId }: PromoManagerProps) {
                         variant="ghost"
                         className="text-destructive hover:text-destructive"
                         onClick={() => removePromo(product.id)}
+                        aria-label={`Hapus promo ${product.name}`}
+                        title="Hapus promo"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

@@ -246,6 +246,7 @@ export default function MerchantGalleryPage() {
               size="icon"
               className="absolute top-4 right-4 text-white hover:bg-white/20"
               onClick={() => setLightboxUrl(null)}
+              aria-label="Tutup preview gambar" title="Tutup preview"
             >
               <X className="h-6 w-6" />
             </Button>

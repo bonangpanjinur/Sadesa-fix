@@ -45,7 +45,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
         {/* Header (Fixed) */}
         <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:p-4 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Buka navigasi pedagang" title="Buka navigasi pedagang">
               <Menu className="h-5 w-5" />
             </Button>
             <div className="min-w-0">

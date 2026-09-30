@@ -360,7 +360,7 @@ export default function MerchantPreOrderPage() {
                         </div>
                       </div>
                       <div className="flex gap-1 shrink-0">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingItem(item); setDialogOpen(true); }}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingItem(item); setDialogOpen(true); }} aria-label={`Edit pre-order ${item.name}`} title="Edit pre-order">
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>

@@ -364,7 +364,7 @@ export default function MerchantNotifikasiWAPage() {
                 <AlertTriangle className="h-4 w-4 text-red-500" />
                 Alert Stok Menipis ke WA Saya
               </Button>
-              <Button variant="ghost" size="icon" onClick={fetchAll} disabled={loadingData}>
+              <Button variant="ghost" size="icon" onClick={fetchAll} disabled={loadingData} aria-label="Muat ulang notifikasi WhatsApp" title="Muat ulang">
                 <RefreshCw className={`h-4 w-4 ${loadingData ? 'animate-spin' : ''}`} />
               </Button>
             </div>
@@ -611,7 +611,7 @@ ${lowStockProducts.length > 0 ? `🔴 Stok menipis: ${lowStockProducts.length} p
                           </div>
                         </div>
                         <div className="flex gap-1.5 shrink-0">
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyNumber(b.phone)}>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyNumber(b.phone)} aria-label={`Salin nomor ${b.phone}`} title="Salin nomor">
                             <Copy className="h-3 w-3" />
                           </Button>
                           <Button

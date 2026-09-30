@@ -271,7 +271,7 @@ export default function MerchantGrosirPage() {
                         </div>
                       </div>
                       <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0"
-                        onClick={() => { setEditingProduct(wp); setDialogOpen(true); }}>
+                        onClick={() => { setEditingProduct(wp); setDialogOpen(true); }} aria-label={`Edit harga grosir ${wp.product_name || 'produk'}`} title="Edit harga grosir">
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -398,7 +398,8 @@ export default function MerchantGrosirPage() {
                         </div>
                       </div>
                       <Button size="icon" variant="ghost" className="h-6 w-6"
-                        onClick={() => setEditingProduct(p => ({ ...p, tiers: (p?.tiers || []).filter((_, j) => j !== i) }))}>
+                        onClick={() => setEditingProduct(p => ({ ...p, tiers: (p?.tiers || []).filter((_, j) => j !== i) }))}
+                        aria-label={`Hapus tingkat harga ${i + 1}`} title="Hapus tingkat harga">
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </Button>
                     </div>

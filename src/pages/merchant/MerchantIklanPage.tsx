@@ -589,8 +589,9 @@ export default function MerchantIklanPage() {
                         placeholder="URL gambar atau upload..."
                         className="flex-1"
                       />
-                      <label className="cursor-pointer">
+                      <label className="cursor-pointer" aria-label="Unggah banner iklan" title="Unggah banner iklan">
                         <input
+                          aria-label="Unggah banner iklan"
                           type="file"
                           accept="image/*"
                           className="hidden"

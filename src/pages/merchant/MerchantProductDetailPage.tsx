@@ -93,7 +93,7 @@ export default function MerchantProductDetailPage() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-start gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/merchant/products')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/merchant/products')} aria-label="Kembali ke katalog produk" title="Kembali ke katalog produk">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           
