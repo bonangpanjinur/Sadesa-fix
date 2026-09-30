@@ -18,6 +18,7 @@ import { CourierAssignDialog } from '@/components/admin/CourierAssignDialog';
 import { OrderDetailsDialog } from '@/components/order/OrderDetailsDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,6 +85,15 @@ const ADMIN_CANCELLABLE_ORDER_STATUSES = [
   'SENT',
 ] as const;
 
+const ADMIN_CANCEL_REASONS = [
+  'Permintaan pelanggan',
+  'Stok produk habis',
+  'Pembayaran tidak terverifikasi',
+  'Merchant tidak dapat memproses',
+  'Duplikasi pesanan',
+  'Lainnya',
+] as const;
+
 export default function AdminOrdersPage() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
@@ -92,6 +102,8 @@ export default function AdminOrdersPage() {
   const [courierAssignDialogOpen, setCourierAssignDialogOpen] = useState(false);
   const [pendingCancelOrder, setPendingCancelOrder] = useState<OrderRow | null>(null);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [customCancelReason, setCustomCancelReason] = useState('');
 
   const { data: orders = [], isLoading: loading, error: ordersError, refetch: refetchOrders } = useQuery<OrderRow[]>({
     queryKey: ['admin-orders-list'],
@@ -132,12 +144,12 @@ export default function AdminOrdersPage() {
     setDetailDialogOpen(true);
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string): Promise<boolean> => {
+  const updateOrderStatus = async (orderId: string, newStatus: string, reason?: string): Promise<boolean> => {
     try {
       const { error } = await supabase.rpc('merchant_transition_order' as never, {
         p_order_id: orderId,
         p_to_status: newStatus,
-        p_reason: newStatus === 'CANCELED' ? 'Dibatalkan oleh admin' : 'Pembaruan status oleh admin',
+        p_reason: newStatus === 'CANCELED' ? reason ?? 'Dibatalkan oleh admin' : 'Pembaruan status oleh admin',
         p_is_self_delivery: null,
       } as never);
 
@@ -157,10 +169,26 @@ export default function AdminOrdersPage() {
   const confirmAdminCancellation = async () => {
     if (!pendingCancelOrder) return;
 
+    const finalReason = cancelReason === 'Lainnya' ? customCancelReason.trim() : cancelReason;
+    if (!finalReason) {
+      toast.error('Pilih atau isi alasan pembatalan terlebih dahulu');
+      return;
+    }
+
     setCancelSubmitting(true);
-    const success = await updateOrderStatus(pendingCancelOrder.id, 'CANCELED');
+    const success = await updateOrderStatus(pendingCancelOrder.id, 'CANCELED', finalReason);
     setCancelSubmitting(false);
-    if (success) setPendingCancelOrder(null);
+    if (success) {
+      setPendingCancelOrder(null);
+      setCancelReason('');
+      setCustomCancelReason('');
+    }
+  };
+
+  const requestAdminCancellation = (order: OrderRow) => {
+    setPendingCancelOrder(order);
+    setCancelReason('');
+    setCustomCancelReason('');
   };
 
   const verifyPayment = async (orderId: string) => {
@@ -376,7 +404,7 @@ export default function AdminOrdersPage() {
             )}
             {ADMIN_CANCELLABLE_ORDER_STATUSES.includes(item.status as typeof ADMIN_CANCELLABLE_ORDER_STATUSES[number]) && (
               <DropdownMenuItem 
-                onClick={() => setPendingCancelOrder(item)}
+                onClick={() => requestAdminCancellation(item)}
                 className="text-destructive"
               >
                 <AlertCircle className="h-4 w-4 mr-2" />
@@ -525,6 +553,34 @@ export default function AdminOrdersPage() {
                   <p><span className="text-muted-foreground">Pelanggan:</span> {pendingCancelOrder?.delivery_name || 'Pelanggan'}</p>
                   <p><span className="text-muted-foreground">Total:</span> {pendingCancelOrder ? formatPrice(pendingCancelOrder.total) : '-'}</p>
                   <p><span className="text-muted-foreground">Status saat ini:</span> {pendingCancelOrder?.status || '-'}</p>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="admin-cancel-reason" className="text-sm font-medium text-foreground">
+                    Alasan pembatalan <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    id="admin-cancel-reason"
+                    value={cancelReason}
+                    onChange={(event) => setCancelReason(event.target.value)}
+                    disabled={cancelSubmitting}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Pilih alasan pembatalan</option>
+                    {ADMIN_CANCEL_REASONS.map((reason) => (
+                      <option key={reason} value={reason}>{reason}</option>
+                    ))}
+                  </select>
+                  {cancelReason === 'Lainnya' && (
+                    <Textarea
+                      value={customCancelReason}
+                      onChange={(event) => setCustomCancelReason(event.target.value)}
+                      disabled={cancelSubmitting}
+                      placeholder="Tuliskan alasan pembatalan..."
+                      maxLength={500}
+                      rows={3}
+                      aria-label="Alasan pembatalan lainnya"
+                    />
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Pastikan pembatalan sudah dikonfirmasi secara operasional sebelum melanjutkan.
