@@ -609,12 +609,18 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
         loading={loading}
         onExport={handleExport}
         emptyMessage="Belum ada pesanan"
+        mobileCardAriaLabel="Daftar pesanan versi kartu"
         mobileCardRender={(item) => (
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs">#{item.id.slice(0, 8).toUpperCase()}</p><p className="mt-1 font-medium">{item.delivery_name || 'Pelanggan'}</p></div>{getStatusBadge(item.status)}</div>
             <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Total</span><strong>{formatPrice(item.total)}</strong></div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground"><span>{item.delivery_type === 'EXPEDITION' ? 'Ekspedisi' : item.delivery_type === 'PICKUP' ? 'Ambil sendiri' : 'Diantar'}</span><span>{new Date(item.created_at).toLocaleDateString('id-ID')}</span></div>
-            <div className="flex gap-2"><Button size="sm" variant="outline" className="flex-1" onClick={() => viewOrderDetail(item)}><Eye className="mr-1.5 h-3.5 w-3.5" />Detail</Button>{(item.status === 'NEW' || item.status === 'PENDING_CONFIRMATION') && <Button size="sm" className="flex-1" onClick={() => handleUpdateStatus(item.id, 'PROCESSED')}><Check className="mr-1.5 h-3.5 w-3.5" />Terima</Button>}</div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>{item.delivery_type === 'EXPEDITION' ? 'Ekspedisi' : item.delivery_type === 'PICKUP' ? 'Ambil sendiri' : 'Diantar'}</span>{getPaymentBadge(item.payment_status, item.payment_method)}<span>{new Date(item.created_at).toLocaleDateString('id-ID')}</span></div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" variant="outline" onClick={() => viewOrderDetail(item)}><Eye className="mr-1.5 h-3.5 w-3.5" />Detail</Button>
+              {(item.status === 'NEW' || item.status === 'PENDING_CONFIRMATION') && <Button size="sm" onClick={() => handleUpdateStatus(item.id, 'PROCESSED')}><Check className="mr-1.5 h-3.5 w-3.5" />Terima</Button>}
+              {item.status === 'DELIVERING' && <Button size="sm" onClick={() => handleSelfDeliveryStatusUpdate(item.id, 'DELIVERED')}><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Sampai</Button>}
+              {item.status === 'PROCESSED' && <Button size="sm" onClick={() => viewOrderDetail(item)}><Truck className="mr-1.5 h-3.5 w-3.5" />Kirim</Button>}
+            </div>
           </div>
         )}
       />

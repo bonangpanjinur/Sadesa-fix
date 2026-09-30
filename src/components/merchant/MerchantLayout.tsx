@@ -53,7 +53,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
               {subtitle && <p className="hidden lg:block text-muted-foreground text-xs">{subtitle}</p>}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:gap-2">
             {actions}
             <Button
               variant="outline"

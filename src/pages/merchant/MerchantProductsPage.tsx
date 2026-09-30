@@ -337,15 +337,58 @@ export default function MerchantProductsPage() {
 
   return (
     <MerchantLayout title="Katalog Produk" subtitle="Sumber katalog untuk marketplace dan POS">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />
           <span className="text-muted-foreground text-sm">{products.length} produk</span>
         </div>
-        <Button onClick={openCreateDialog}><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
+        <Button onClick={openCreateDialog} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
       </div>
 
-      <DataTable columns={columns} data={products} loading={loading} searchKeys={['name']} filters={filters} />
+      <DataTable
+        columns={columns}
+        data={products}
+        loading={loading}
+        searchKeys={['name']}
+        filters={filters}
+        mobileCardAriaLabel="Daftar produk versi kartu"
+        mobileCardRender={(item) => {
+          const isOutOfStock = item.stock === 0;
+          const isLowStock = !isOutOfStock && item.stock <= 5;
+          return (
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                {item.image_url ? (
+                  <img src={item.image_url} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{item.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                    {getCategoryDisplayLabel(categories as ProductCategory[], getCategoryBySlug(categories as ProductCategory[], item.category) || { id: '', name: item.category, slug: item.category, parent_id: null, icon: null })}
+                  </p>
+                  <p className="mt-1 font-semibold text-primary">Rp {item.price.toLocaleString('id-ID')}</p>
+                </div>
+                {item.is_active ? <Badge className="shrink-0 bg-primary/10 text-primary">Aktif</Badge> : <Badge variant="outline" className="shrink-0">Nonaktif</Badge>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className={isOutOfStock ? 'font-semibold text-destructive' : isLowStock ? 'font-semibold text-warning' : 'text-muted-foreground'}>Stok {item.stock}</span>
+                {isLowStock && <Badge variant="outline" className="border-warning/50 px-1.5 py-0 text-[10px] text-warning">Rendah</Badge>}
+                {isOutOfStock && <Badge variant="outline" className="border-destructive/50 px-1.5 py-0 text-[10px] text-destructive">Habis</Badge>}
+                {item.is_promo && <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">Promo</Badge>}
+                <span className="ml-auto text-muted-foreground">{(item.order_count || 0).toLocaleString('id-ID')} terjual</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 border-t pt-3">
+                <Button variant="outline" size="sm" onClick={() => openEditDialog(item)}><Edit className="mr-1.5 h-3.5 w-3.5" />Edit</Button>
+                <Button size="sm" onClick={() => navigate(`/merchant/products/${item.id}`)}><Images className="mr-1.5 h-3.5 w-3.5" />Gambar & Varian</Button>
+              </div>
+            </div>
+          );
+        }}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

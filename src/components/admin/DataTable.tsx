@@ -40,6 +40,7 @@ interface DataTableProps<T> {
   error?: string | null;
   onRetry?: () => void;
   mobileCardRender?: (item: T) => React.ReactNode;
+  mobileCardAriaLabel?: string;
 }
 
 export function DataTable<T extends { id: string }>({
@@ -57,6 +58,7 @@ export function DataTable<T extends { id: string }>({
   error = null,
   onRetry,
   mobileCardRender,
+  mobileCardAriaLabel = 'Daftar versi kartu',
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -177,7 +179,7 @@ export function DataTable<T extends { id: string }>({
       ) : (
       <>
       {mobileCardRender && !loading && paginatedData.length > 0 && (
-        <div className="space-y-3 sm:hidden" aria-label="Daftar pesanan versi kartu">
+        <div className="space-y-3 sm:hidden" aria-label={mobileCardAriaLabel}>
           {paginatedData.map((item) => (
             <div key={item.id} onClick={() => onRowClick?.(item)} className={cn('rounded-xl border border-border bg-card p-3', onRowClick && 'cursor-pointer')}>
               {mobileCardRender(item)}
