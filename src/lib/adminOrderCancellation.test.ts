@@ -36,4 +36,14 @@ describe('admin order cancellation contract', () => {
     expect(adminOrdersPage).toContain('p_reason: newStatus === \'CANCELED\' ? reason ?? \'Dibatalkan oleh admin\'');
     expect(adminOrdersPage).toContain("updateOrderStatus(pendingCancelOrder.id, 'CANCELED', finalReason)");
   });
+
+  it('summarizes cancellation reasons and ranks merchants for operational evaluation', () => {
+    expect(adminOrdersPage).toContain('cancellation_reason: string | null');
+    expect(adminOrdersPage).toContain('const cancellationReport = useMemo');
+    expect(adminOrdersPage).toContain("['CANCELED', 'CANCELLED'].includes(order.status)");
+    expect(adminOrdersPage).toContain('Alasan tidak dicatat');
+    expect(adminOrdersPage).toContain('Analisis Alasan Pembatalan');
+    expect(adminOrdersPage).toContain('Merchant dengan Pembatalan Terbanyak');
+    expect(adminOrdersPage).toContain('Prioritaskan evaluasi pada merchant berikut.');
+  });
 });

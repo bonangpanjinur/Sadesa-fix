@@ -10,7 +10,8 @@ import {
   TrendingUp, 
   Clock, 
   CheckCircle2,
-  Check
+  Check,
+  BarChart3
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DataTable } from '@/components/admin/DataTable';
@@ -65,6 +66,7 @@ interface OrderRow {
   total: number;
   cod_service_fee: number | null;
   notes: string | null;
+  cancellation_reason: string | null;
   created_at: string;
   courier_id: string | null;
   merchant_id: string | null;
@@ -298,6 +300,34 @@ export default function AdminOrdersPage() {
     };
   }, [orders]);
 
+  const cancellationReport = useMemo(() => {
+    const cancelledOrders = orders.filter((order) => ['CANCELED', 'CANCELLED'].includes(order.status));
+    const reasonCounts = new Map<string, number>();
+    const merchantCounts = new Map<string, number>();
+
+    cancelledOrders.forEach((order) => {
+      const reason = order.cancellation_reason?.trim() || 'Alasan tidak dicatat';
+      const merchant = order.merchants?.name || 'Merchant tidak diketahui';
+      reasonCounts.set(reason, (reasonCounts.get(reason) || 0) + 1);
+      merchantCounts.set(merchant, (merchantCounts.get(merchant) || 0) + 1);
+    });
+
+    const reasons = [...reasonCounts.entries()]
+      .map(([label, count]) => ({ label, count, percentage: cancelledOrders.length ? Math.round((count / cancelledOrders.length) * 100) : 0 }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+    const merchants = [...merchantCounts.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .slice(0, 5);
+
+    return {
+      total: cancelledOrders.length,
+      rate: orders.length ? Math.round((cancelledOrders.length / orders.length) * 100) : 0,
+      reasons,
+      merchants,
+    };
+  }, [orders]);
+
   const columns = [
     {
       key: 'id',
@@ -486,6 +516,64 @@ export default function AdminOrdersPage() {
             icon={<TrendingUp className="h-5 w-5" />}
             description="Subtotal produk (tanpa ongkir)"
           />
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <div className="rounded-xl border border-border bg-card p-5 xl:col-span-2">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-base font-bold">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  Analisis Alasan Pembatalan
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">Gunakan data ini untuk mengevaluasi kendala operasional merchant.</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-2xl font-bold text-destructive">{cancellationReport.total}</p>
+                <p className="text-xs text-muted-foreground">{cancellationReport.rate}% dari semua pesanan</p>
+              </div>
+            </div>
+
+            {cancellationReport.reasons.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                Belum ada pesanan dibatalkan pada data ini.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {cancellationReport.reasons.map((reason) => (
+                  <div key={reason.label}>
+                    <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate font-medium">{reason.label}</span>
+                      <span className="shrink-0 text-muted-foreground">{reason.count} pesanan · {reason.percentage}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted" aria-label={`${reason.label}: ${reason.percentage}%`}>
+                      <div className="h-full rounded-full bg-destructive transition-all" style={{ width: `${reason.percentage}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h2 className="text-base font-bold">Merchant dengan Pembatalan Terbanyak</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Prioritaskan evaluasi pada merchant berikut.</p>
+            {cancellationReport.merchants.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Belum ada data merchant.</p>
+            ) : (
+              <ol className="mt-4 space-y-3">
+                {cancellationReport.merchants.map((merchant, index) => (
+                  <li key={merchant.label} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-xs font-bold text-destructive">{index + 1}</span>
+                      <span className="truncate font-medium">{merchant.label}</span>
+                    </div>
+                    <span className="shrink-0 font-semibold">{merchant.count}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6">
