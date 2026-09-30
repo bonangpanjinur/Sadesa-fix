@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole } from './authRoles';
+import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from './authRoles';
 import { getRedirectPathForRoles } from '@/types/auth';
 
 describe('frontend role recovery', () => {
@@ -34,5 +34,19 @@ describe('frontend role recovery', () => {
   it('sends merchant and courier roles to their dashboards on app entry', () => {
     expect(getRedirectPathForRoles(['merchant', 'buyer'])).toBe('/merchant');
     expect(getRedirectPathForRoles(['courier', 'buyer'])).toBe('/courier');
+  });
+
+  it('skips redundant role recovery when the same user only refreshes an access token', () => {
+    expect(shouldFetchRolesForAuthEvent('TOKEN_REFRESHED', 'user-1', 'user-1')).toBe(false);
+  });
+
+  it('still loads roles for initial sessions, sign-ins, and a different refreshed user', () => {
+    expect(shouldFetchRolesForAuthEvent('INITIAL_SESSION', null, 'user-1')).toBe(true);
+    expect(shouldFetchRolesForAuthEvent('SIGNED_IN', 'user-1', 'user-1')).toBe(true);
+    expect(shouldFetchRolesForAuthEvent('TOKEN_REFRESHED', 'user-1', 'user-2')).toBe(true);
+  });
+
+  it('does not load roles when an auth event has no session user', () => {
+    expect(shouldFetchRolesForAuthEvent('SIGNED_OUT', 'user-1', null)).toBe(false);
   });
 });
