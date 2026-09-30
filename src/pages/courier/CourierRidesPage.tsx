@@ -111,12 +111,6 @@ export default function CourierRidesPage() {
         .eq('registration_status', 'APPROVED')
         .maybeSingle();
       if (!data) return null;
-      if (data.current_lat) setCourierLat(data.current_lat);
-      if (data.current_lng) setCourierLng(data.current_lng);
-      navigator.geolocation?.getCurrentPosition(
-        pos => { setCourierLat(pos.coords.latitude); setCourierLng(pos.coords.longitude); },
-        () => {}, { enableHighAccuracy: true, timeout: 5000 }
-      );
       return data;
     },
     enabled: !!user,
@@ -124,6 +118,15 @@ export default function CourierRidesPage() {
   });
 
   const courierId = courierInfo?.id ?? null;
+  useEffect(() => {
+    if (!courierInfo) return;
+    if (courierInfo.current_lat != null) setCourierLat(courierInfo.current_lat);
+    if (courierInfo.current_lng != null) setCourierLng(courierInfo.current_lng);
+    navigator.geolocation?.getCurrentPosition(
+      pos => { setCourierLat(pos.coords.latitude); setCourierLng(pos.coords.longitude); },
+      () => {}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 30_000 },
+    );
+  }, [courierInfo]);
 
   const { data: deliveryOffers = [], isLoading: deliveryOffersLoading } = useQuery<DeliveryOffer[]>({
     queryKey: ['courier-rides-delivery-offers', courierId],
@@ -134,7 +137,7 @@ export default function CourierRidesPage() {
       return (data || []) as unknown as DeliveryOffer[];
     },
     enabled: !!courierId,
-    refetchInterval: 15_000,
+    refetchInterval: 30_000,
   });
 
   // Fetch rides data
@@ -193,7 +196,7 @@ export default function CourierRidesPage() {
     },
     enabled: !!courierId,
     staleTime: 30_000,
-    refetchInterval: 15_000,
+    refetchInterval: 30_000,
   });
 
   const availableRides = useMemo(() => ridesData?.availableRides ?? [], [ridesData?.availableRides]);

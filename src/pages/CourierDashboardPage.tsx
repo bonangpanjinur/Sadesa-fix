@@ -168,7 +168,7 @@ export default function CourierDashboardPage() {
       return (data || []) as unknown as DeliveryOffer[];
     },
     enabled: !!courier,
-    refetchInterval: 15_000,
+    refetchInterval: 30_000,
   });
 
   // Real-time notification for new assigned orders

@@ -233,7 +233,7 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       subscribe();
       // Polling this small courier-scoped inbox keeps incoming ojek offers reliable
       // when Realtime is unavailable without broadening visibility to all rides.
-      refreshTimer = window.setInterval(() => { void seedCurrentWork(); }, 8000);
+      refreshTimer = window.setInterval(() => { void seedCurrentWork(); }, 15000);
     };
     void start();
 
