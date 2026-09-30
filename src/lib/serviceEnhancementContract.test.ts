@@ -18,7 +18,7 @@ describe('service marketplace enhancement contract', () => {
     expect(migration).toContain('payout_status text');
   });
 
-  it('supports rental dates, deposit, late fee, and handover condition', () => {
+  it('preserves rental fields while clearly disabling new rental requests in the UI', () => {
     expect(migration).toContain('service_create_request_v2');
     expect(migration).toContain('rental_start_at');
     expect(migration).toContain('rental_end_at');

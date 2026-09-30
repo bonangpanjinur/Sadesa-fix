@@ -57,11 +57,12 @@ describe('service marketplace transaction contract', () => {
     expect(servicesPage).toContain('canRegisterProvider');
   });
 
-  it('keeps service discovery, provider onboarding, and rental requests distinct', () => {
+  it('keeps service discovery and provider onboarding distinct while gating rentals', () => {
     expect(servicesPage).toContain('categoryGroups');
-    expect(servicesPage).toContain("p_service_type: offer.service_type");
+    expect(servicesPage).toContain("p_service_type: 'JOB'");
     expect(servicesPage).toContain('Penyewaan barang / perlengkapan');
-    expect(servicesPage).toContain("selectedCategoryIsRental ? 'Ajukan sewa' : 'Ajukan jasa'");
+    expect(servicesPage).toContain('Penyewaan (belum tersedia)');
+    expect(servicesPage).toContain('disabled={selectedCategoryIsRental}');
     expect(providerRegistration).toContain('providerGroups');
     expect(providerRegistration).toContain('Keahlian yang ditawarkan');
   });

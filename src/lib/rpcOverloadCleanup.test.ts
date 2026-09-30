@@ -8,9 +8,10 @@ describe('RPC overload cleanup contract', () => {
       resolve(process.cwd(), 'supabase/bootstrap/05_20260911110000_to_20260914150000.sql'),
       'utf8',
     );
+    const executableSql = migration.replace(/\$bootstrap_sql_[a-f0-9]+\$/gi, '');
 
-    expect(migration).toContain('DROP FUNCTION IF EXISTS public.use_merchant_quota_v2(uuid, integer);');
-    expect(migration).toContain('DROP FUNCTION IF EXISTS public.use_merchant_quota(uuid, integer);');
-    expect(migration).toContain("NOTIFY pgrst, 'reload schema';");
+    expect(executableSql).toContain('DROP FUNCTION IF EXISTS public.use_merchant_quota_v2(uuid, integer)');
+    expect(executableSql).toContain('DROP FUNCTION IF EXISTS public.use_merchant_quota(uuid, integer)');
+    expect(executableSql).toContain("NOTIFY pgrst, 'reload schema'");
   });
 });

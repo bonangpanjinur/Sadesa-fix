@@ -54,7 +54,8 @@ describe('chat phase 8 acceptance matrix contract', () => {
     expect(notification).toContain('chat_observability_events');
     expect(notification).toContain('record_chat_observability');
     expect(notification).toContain('deep_link');
-    expect(roleAwareNotification).not.toMatch(/FULL\s+JOIN/i);
+    const executableNotificationSql = roleAwareNotification.replace(/--.*$/gm, '');
+    expect(executableNotificationSql).not.toMatch(/\bFULL\s+JOIN\b/i);
     expect(roleAwareNotification).toContain('send_chat_notification');
     expect(roleAwareNotification).toContain('RAISE WARNING');
     expect(finalNotificationRepair).toContain('CREATE TRIGGER chat_messages_notify_recipient');
