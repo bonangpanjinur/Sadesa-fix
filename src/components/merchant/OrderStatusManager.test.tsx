@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mocks = vi.hoisted(() => ({
   order: {
@@ -81,10 +82,13 @@ describe('OrderStatusManager payment and status transitions', () => {
   });
 
   it('verifies a payment proof and transitions pending payment to processed', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
-      <MemoryRouter>
-        <OrderStatusManager merchantId="merchant-1" />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <OrderStatusManager merchantId="merchant-1" />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     const detailButton = await screen.findByRole('button', { name: /lihat detail pesanan/i });

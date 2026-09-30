@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
+import { MerchantCardError, MerchantCardLoading } from '@/components/merchant/MerchantDataState';
 import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth, subMonths, getMonth, getYear } from 'date-fns';
@@ -67,20 +68,22 @@ export default function MerchantFinancePage() {
   const { merchantId, merchantName, loading: guardLoading } = useMerchantGuard();
   const [period, setPeriod] = useState<'3' | '6' | '12'>('6');
 
-  const { data: orders = [], isLoading } = useQuery<OrderFinance[]>({
+  const { data: orders = [], isLoading, isFetching, isError, refetch } = useQuery<OrderFinance[]>({
     queryKey: ['merchant-finance-orders', merchantId],
     queryFn: async () => {
       const since = subMonths(new Date(), 12);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('orders')
         .select('id, total, subtotal, platform_fee, shipping_cost, voucher_discount, status, created_at')
         .eq('merchant_id', merchantId!)
         .gte('created_at', since.toISOString())
         .order('created_at', { ascending: true });
+      if (error) throw error;
       return (data || []) as OrderFinance[];
     },
     enabled: !!merchantId && !guardLoading,
     staleTime: 60_000,
+    retry: false,
   });
 
   const monthlyData = generateMonthlyData(orders, parseInt(period));
@@ -115,11 +118,24 @@ export default function MerchantFinancePage() {
     URL.revokeObjectURL(url);
   };
 
-  if (guardLoading || isLoading) {
+  if (guardLoading || isLoading || (isError && isFetching)) {
     return (
       <MerchantLayout title="Laporan Keuangan" subtitle="Rekap laba rugi toko Anda">
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
+        <div className="max-w-4xl py-6">
+          <MerchantCardLoading label="Memuat laporan keuangan..." />
+        </div>
+      </MerchantLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <MerchantLayout title="Laporan Keuangan" subtitle="Rekap laba rugi toko Anda">
+        <div className="max-w-4xl py-6">
+          <MerchantCardError
+            message="Laporan keuangan gagal dimuat. Periksa koneksi lalu coba lagi."
+            onRetry={() => void refetch()}
+          />
         </div>
       </MerchantLayout>
     );
@@ -156,6 +172,12 @@ export default function MerchantFinancePage() {
             </SelectContent>
           </Select>
         </div>
+
+        {monthlyData.every(month => month.orders === 0) && (
+          <div role="status" className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">
+            Belum ada pesanan selesai dalam {period} bulan terakhir.
+          </div>
+        )}
 
         {/* Summary stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

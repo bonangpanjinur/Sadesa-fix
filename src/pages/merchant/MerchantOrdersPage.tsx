@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Receipt, Check, X, Package, MoreHorizontal, User, MapPin, Phone, Truck, CreditCard, MessageSquare, Printer, RefreshCw, Wifi, Search, Download, Clock, CheckCircle2, ImageIcon, Navigation, Eye, CalendarDays } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { DataTable } from '@/components/admin/DataTable';
@@ -34,6 +35,7 @@ import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 import { OrderChat } from '@/components/chat/OrderChat';
 import { CourierAssignDialog } from '@/components/admin/CourierAssignDialog';
 import { MERCHANT_ORDER_STATUS_FILTER_OPTIONS, orderStatusLabel } from '@/lib/orderStatus';
+import { MerchantCardError, MerchantCardLoading } from '@/components/merchant/MerchantDataState';
 
 interface OrderItem {
   id: string;
@@ -63,11 +65,9 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
   const [merchantName, setMerchantName] = useState<string>('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [expeditionName, setExpeditionName] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
-  const [proofDisplayUrl, setProofDisplayUrl] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
@@ -101,6 +101,36 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     onNewOrder: handleNewOrder,
   });
 
+  const orderItemsQuery = useQuery<OrderItem[]>({
+    queryKey: ['merchant-order-items', merchantId, selectedOrder?.id],
+    queryFn: async () => {
+      if (!selectedOrder?.id) return [];
+      const { data, error } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', selectedOrder.id);
+      if (error) throw error;
+      return (data || []) as OrderItem[];
+    },
+    enabled: !!merchantId && !!selectedOrder?.id && (detailDialogOpen || printDialogOpen),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const orderItems = orderItemsQuery.data ?? [];
+  const orderItemsErrorMessage = 'Item pesanan gagal dimuat. Periksa koneksi lalu coba lagi.';
+
+  const paymentProofQuery = useQuery<string>({
+    queryKey: ['merchant-order-payment-proof', merchantId, selectedOrder?.id, selectedOrder?.payment_proof_url],
+    queryFn: async () => {
+      const signedUrl = await getPaymentProofSignedUrl(selectedOrder?.payment_proof_url);
+      if (!signedUrl) throw new Error('Bukti pembayaran gagal dimuat. Periksa koneksi lalu coba lagi.');
+      return signedUrl;
+    },
+    enabled: !!merchantId && !!selectedOrder?.id && detailDialogOpen && !!selectedOrder?.payment_proof_url,
+    staleTime: 3_000_000,
+    retry: false,
+  });
+
   // Keep an open detail dialog aligned with courier and delivery updates.
   // Otherwise stale status buttons remain visible until the dialog is reopened.
   useEffect(() => {
@@ -130,24 +160,11 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     };
   }, []);
 
-  const viewOrderDetail = useCallback(async (order: OrderRow) => {
+  const viewOrderDetail = useCallback((order: OrderRow) => {
     setSelectedOrder(order);
     setExpeditionName(order.expedition_name || '');
     setTrackingNumber(order.tracking_number || '');
-    setProofDisplayUrl(null);
-    
-    const { data: items } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('order_id', order.id);
-
-    setOrderItems(items || []);
     setDetailDialogOpen(true);
-
-    if (order.payment_proof_url) {
-      const signed = await getPaymentProofSignedUrl(order.payment_proof_url);
-      setProofDisplayUrl(signed);
-    }
   }, []);
 
   const handleExpeditionHandoff = async () => {
@@ -180,15 +197,8 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     }
   }, [searchParams, setSearchParams, orders, viewOrderDetail]);
 
-  const openPrintDialog = useCallback(async (order: OrderRow) => {
+  const openPrintDialog = useCallback((order: OrderRow) => {
     setSelectedOrder(order);
-    
-    const { data: items } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('order_id', order.id);
-
-    setOrderItems(items || []);
     setPrintDialogOpen(true);
   }, []);
 
@@ -653,21 +663,29 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
               {/* Items */}
               <div className="space-y-2">
                 <p className="text-sm font-medium">Item Pesanan</p>
-                <div className="border border-border rounded-lg divide-y divide-border">
-                  {orderItems.map((item) => (
-                    <div key={item.id} className="p-3 flex justify-between">
-                      <div>
-                        <p className="font-medium text-sm">{item.product_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.quantity} x {formatPrice(item.product_price)}
-                        </p>
+                {orderItemsQuery.isLoading || (orderItemsQuery.isError && orderItemsQuery.isFetching) ? (
+                  <MerchantCardLoading label="Memuat item pesanan..." />
+                ) : orderItemsQuery.isError ? (
+                  <MerchantCardError message={orderItemsErrorMessage} onRetry={() => void orderItemsQuery.refetch()} />
+                ) : orderItems.length === 0 ? (
+                  <div role="status" className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Belum ada item pesanan yang dapat ditampilkan.
+                  </div>
+                ) : (
+                  <div className="border border-border rounded-lg divide-y divide-border">
+                    {orderItems.map((item) => (
+                      <div key={item.id} className="p-3 flex justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{item.product_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.quantity} x {formatPrice(item.product_price)}
+                          </p>
+                        </div>
+                        <p className="font-medium text-sm">{formatPrice(item.subtotal)}</p>
                       </div>
-                      <p className="font-medium text-sm">
-                        {formatPrice(item.subtotal)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Notes */}
@@ -697,15 +715,30 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
                     <ImageIcon className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-medium">Bukti Pembayaran</span>
                   </div>
-                  <div className="relative rounded-lg overflow-hidden border border-border">
-                    <img
-                      src={proofDisplayUrl || ''}
-                      alt="Bukti pembayaran"
-                      className="w-full max-h-64 object-contain bg-secondary/30 cursor-pointer"
-                      onClick={() => proofDisplayUrl && window.open(proofDisplayUrl, '_blank')}
+                  {paymentProofQuery.isLoading || (paymentProofQuery.isError && paymentProofQuery.isFetching) ? (
+                    <MerchantCardLoading label="Memuat bukti pembayaran..." />
+                  ) : paymentProofQuery.isError ? (
+                    <MerchantCardError
+                      message="Bukti pembayaran gagal dimuat. Periksa koneksi lalu coba lagi."
+                      onRetry={() => void paymentProofQuery.refetch()}
                     />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">Klik gambar untuk memperbesar</p>
+                  ) : paymentProofQuery.data ? (
+                    <>
+                      <div className="relative rounded-lg overflow-hidden border border-border">
+                        <img
+                          src={paymentProofQuery.data ?? ''}
+                          alt="Bukti pembayaran"
+                          className="w-full max-h-64 object-contain bg-secondary/30 cursor-pointer"
+                          onClick={() => paymentProofQuery.data && window.open(paymentProofQuery.data, '_blank')}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">Klik gambar untuk memperbesar</p>
+                    </>
+                  ) : (
+                    <div role="status" className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                      Bukti pembayaran belum tersedia.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -928,37 +961,43 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
           </DialogHeader>
           <div className="min-h-0 overflow-y-auto overscroll-contain py-3 sm:py-4">
             {selectedOrder && (
-              <div className="flex justify-center">
-                <OrderInvoice
-                  ref={invoiceRef}
-                  order={{
-                    id: selectedOrder.id,
-                    delivery_name: selectedOrder.delivery_name,
-                    delivery_phone: selectedOrder.delivery_phone,
-                    delivery_address: selectedOrder.delivery_address,
-                    delivery_type: selectedOrder.delivery_type,
-                    subtotal: selectedOrder.subtotal,
-                    shipping_cost: selectedOrder.shipping_cost,
-                    total: selectedOrder.total,
-                    payment_method: selectedOrder.payment_method,
-                    created_at: selectedOrder.created_at,
-                    notes: selectedOrder.notes,
-                  }}
-                  items={orderItems}
-                  merchant={{
-                    name: merchantName,
-                    address: null,
-                    phone: null,
-                  }}
-                />
-              </div>
+              orderItemsQuery.isLoading || (orderItemsQuery.isError && orderItemsQuery.isFetching) ? (
+                <MerchantCardLoading label="Memuat item untuk struk..." />
+              ) : orderItemsQuery.isError ? (
+                <MerchantCardError message={orderItemsErrorMessage} onRetry={() => void orderItemsQuery.refetch()} />
+              ) : orderItems.length === 0 ? (
+                <div role="status" className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                  Struk belum dapat dicetak karena item pesanan tidak tersedia.
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <OrderInvoice
+                    ref={invoiceRef}
+                    order={{
+                      id: selectedOrder.id,
+                      delivery_name: selectedOrder.delivery_name,
+                      delivery_phone: selectedOrder.delivery_phone,
+                      delivery_address: selectedOrder.delivery_address,
+                      delivery_type: selectedOrder.delivery_type,
+                      subtotal: selectedOrder.subtotal,
+                      shipping_cost: selectedOrder.shipping_cost,
+                      total: selectedOrder.total,
+                      payment_method: selectedOrder.payment_method,
+                      created_at: selectedOrder.created_at,
+                      notes: selectedOrder.notes,
+                    }}
+                    items={orderItems}
+                    merchant={{ name: merchantName, address: null, phone: null }}
+                  />
+                </div>
+              )
             )}
           </div>
           <DialogFooter className="flex-col-reverse gap-2 border-t border-border/70 pt-3 sm:flex-row sm:justify-end sm:pt-4">
             <Button className="w-full sm:w-auto" variant="outline" onClick={() => setPrintDialogOpen(false)}>
               Tutup
             </Button>
-            <Button className="w-full sm:w-auto" onClick={handlePrint}>
+            <Button className="w-full sm:w-auto" onClick={handlePrint} disabled={orderItemsQuery.isLoading || (orderItemsQuery.isError && orderItemsQuery.isFetching) || orderItemsQuery.isError || orderItems.length === 0}>
               <Printer className="h-4 w-4 mr-2" />
               Cetak
             </Button>
