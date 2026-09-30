@@ -1027,7 +1027,7 @@ export default function CheckoutPage() {
       </form>
 
       {/* Checkout Summary */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-card border-t border-border p-5 shadow-lg">
+      <div className="mobile-action-safe fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-card border-t border-border p-5 shadow-lg">
         {/* Free shipping badge */}
         {shippingSettings && subtotal >= shippingSettings.free_shipping_min_order && deliveryType !== 'PICKUP' && (
           <div className="flex items-center gap-1.5 mb-2 text-xs text-emerald-600 font-medium">
