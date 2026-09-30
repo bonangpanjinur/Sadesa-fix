@@ -14,10 +14,17 @@ describe('admin order cancellation contract', () => {
 
   it('sends the database-compatible CANCELED status and exposes cancellation before terminal states', () => {
     expect(adminOrdersPage).toContain("newStatus === 'CANCELED'");
-    expect(adminOrdersPage).toContain("updateOrderStatus(item.id, 'CANCELED')");
+    expect(adminOrdersPage).toContain("setPendingCancelOrder(item)");
     expect(adminOrdersPage).toContain("'PENDING_PAYMENT'");
     expect(adminOrdersPage).toContain("'DELIVERING'");
     expect(adminOrdersPage).toContain('Batalkan Pesanan');
     expect(adminOrdersPage).not.toContain("updateOrderStatus(item.id, 'CANCELLED')");
+  });
+
+  it('shows a clear confirmation modal and blocks duplicate submission while cancelling', () => {
+    expect(adminOrdersPage).toContain('Batalkan pesanan ini?');
+    expect(adminOrdersPage).toContain('Ya, Batalkan Pesanan');
+    expect(adminOrdersPage).toContain('cancelSubmitting');
+    expect(adminOrdersPage).toContain('Tindakan ini akan mengubah status pesanan');
   });
 });

@@ -18,6 +18,16 @@ import { CourierAssignDialog } from '@/components/admin/CourierAssignDialog';
 import { OrderDetailsDialog } from '@/components/order/OrderDetailsDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { StatsCard } from '@/components/admin/StatsCard';
 import {
   DropdownMenu,
@@ -80,6 +90,8 @@ export default function AdminOrdersPage() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [courierAssignDialogOpen, setCourierAssignDialogOpen] = useState(false);
+  const [pendingCancelOrder, setPendingCancelOrder] = useState<OrderRow | null>(null);
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
 
   const { data: orders = [], isLoading: loading, error: ordersError, refetch: refetchOrders } = useQuery<OrderRow[]>({
     queryKey: ['admin-orders-list'],
@@ -120,7 +132,7 @@ export default function AdminOrdersPage() {
     setDetailDialogOpen(true);
   };
 
-  const updateOrderStatus = async (orderId: string, newStatus: string) => {
+  const updateOrderStatus = async (orderId: string, newStatus: string): Promise<boolean> => {
     try {
       const { error } = await supabase.rpc('merchant_transition_order' as never, {
         p_order_id: orderId,
@@ -134,10 +146,21 @@ export default function AdminOrdersPage() {
       toast.success('Status pesanan diperbarui');
       setDetailDialogOpen(false);
       await fetchOrders();
+      return true;
     } catch (error) {
       console.error('Admin order status update failed:', error);
       toast.error(`Gagal mengubah status: ${error instanceof Error ? error.message : 'Silakan coba lagi'}`);
+      return false;
     }
+  };
+
+  const confirmAdminCancellation = async () => {
+    if (!pendingCancelOrder) return;
+
+    setCancelSubmitting(true);
+    const success = await updateOrderStatus(pendingCancelOrder.id, 'CANCELED');
+    setCancelSubmitting(false);
+    if (success) setPendingCancelOrder(null);
   };
 
   const verifyPayment = async (orderId: string) => {
@@ -353,7 +376,7 @@ export default function AdminOrdersPage() {
             )}
             {ADMIN_CANCELLABLE_ORDER_STATUSES.includes(item.status as typeof ADMIN_CANCELLABLE_ORDER_STATUSES[number]) && (
               <DropdownMenuItem 
-                onClick={() => updateOrderStatus(item.id, 'CANCELED')}
+                onClick={() => setPendingCancelOrder(item)}
                 className="text-destructive"
               >
                 <AlertCircle className="h-4 w-4 mr-2" />
@@ -479,6 +502,51 @@ export default function AdminOrdersPage() {
           }}
         />
       )}
+
+      <AlertDialog
+        open={!!pendingCancelOrder}
+        onOpenChange={(open) => {
+          if (!open && !cancelSubmitting) setPendingCancelOrder(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Batalkan pesanan ini?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-left">
+                <p>
+                  Anda akan membatalkan pesanan <strong>#{pendingCancelOrder?.id.slice(0, 8).toUpperCase()}</strong>.
+                  Tindakan ini akan mengubah status pesanan menjadi <strong>Dibatalkan</strong> dan tidak dapat dipulihkan dari halaman ini.
+                </p>
+                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-foreground">
+                  <p><span className="text-muted-foreground">Pelanggan:</span> {pendingCancelOrder?.delivery_name || 'Pelanggan'}</p>
+                  <p><span className="text-muted-foreground">Total:</span> {pendingCancelOrder ? formatPrice(pendingCancelOrder.total) : '-'}</p>
+                  <p><span className="text-muted-foreground">Status saat ini:</span> {pendingCancelOrder?.status || '-'}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Pastikan pembatalan sudah dikonfirmasi secara operasional sebelum melanjutkan.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelSubmitting}>Kembali</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmAdminCancellation();
+              }}
+              disabled={cancelSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelSubmitting ? 'Membatalkan...' : 'Ya, Batalkan Pesanan'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
