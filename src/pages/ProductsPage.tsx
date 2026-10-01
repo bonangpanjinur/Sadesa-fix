@@ -172,12 +172,11 @@ function FoodMerchantRow({ product, userLocation, catalogType }: { product: Prod
 
 function FoodBanner({ banner }: { banner: Promotion }) {
   const content = <div className="relative min-h-[7.7rem] overflow-hidden rounded-[1.15rem] bg-[#f6d9a8] shadow-[0_12px_25px_-18px_rgba(74,52,21,0.7)]">
-    {banner.imageUrl && <OptimizedImage src={banner.imageUrl} alt={banner.title} className="absolute inset-0 h-full w-full object-cover" aspectRatio="auto" lazy />}
-    <div className="absolute inset-0 bg-gradient-to-r from-[#17261e]/75 via-[#17261e]/35 to-transparent" />
-    <div className="relative z-10 max-w-[72%] px-4 py-5 text-white"><p className="font-serif text-[20px] font-black leading-[1.03]">{banner.title}</p>{banner.subtitle && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/90">{banner.subtitle}</p>}</div>
+    {banner.imageUrl && <OptimizedImage src={banner.imageUrl} alt={banner.title || 'Banner promosi'} className="absolute inset-0 h-full w-full object-cover" aspectRatio="auto" lazy />}
+    <div className="relative z-10 max-w-[72%] px-4 py-5 text-white">{banner.title && <p className="font-serif text-[20px] font-black leading-[1.03]">{banner.title}</p>}{banner.subtitle && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/90">{banner.subtitle}</p>}</div>
   </div>;
   if (!banner.linkUrl) return content;
-  return banner.linkUrl.startsWith('/') ? <Link to={banner.linkUrl} aria-label={banner.title} className="block">{content}</Link> : <a href={banner.linkUrl} target="_blank" rel="noreferrer" aria-label={banner.title} className="block">{content}</a>;
+  return banner.linkUrl.startsWith('/') ? <Link to={banner.linkUrl} aria-label={banner.title || 'Banner promosi'} className="block">{content}</Link> : <a href={banner.linkUrl} target="_blank" rel="noreferrer" aria-label={banner.title || 'Banner promosi'} className="block">{content}</a>;
 }
 
 function FlashSaleReminder({ sale }: { sale: FlashSale }) {

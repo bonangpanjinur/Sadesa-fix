@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 
 interface PromotionRow {
   id: string;
-  title: string;
+  title: string | null;
   subtitle: string | null;
   type: string;
   is_active: boolean;

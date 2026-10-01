@@ -46,7 +46,7 @@ function toDateInput(value?: string | null) {
 
 interface Banner {
   id: string;
-  title: string;
+  title: string | null;
   subtitle: string | null;
   image_url: string | null;
   link_url: string | null;
@@ -104,7 +104,7 @@ export default function AdminBannersPage() {
     if (banner) {
       setEditingBanner(banner);
       setFormData({
-        title: banner.title,
+        title: banner.title || '',
         subtitle: banner.subtitle || '',
         image_url: banner.image_url || '',
         link_url: banner.link_url || '',
@@ -131,10 +131,6 @@ export default function AdminBannersPage() {
     const title = formData.title.trim();
     const subtitle = formData.subtitle.trim();
     const linkUrl = formData.link_url.trim();
-    if (!title) {
-      toast.error('Judul harus diisi');
-      return;
-    }
     if (title.length > 120) {
       toast.error('Judul maksimal 120 karakter');
       return;
@@ -173,7 +169,7 @@ export default function AdminBannersPage() {
     setSaving(true);
     try {
       const payload = {
-        title,
+        title: title || null,
         subtitle: subtitle || null,
         image_url: formData.image_url.trim() || null,
         link_url: linkUrl || null,
@@ -302,7 +298,7 @@ export default function AdminBannersPage() {
                 {banner.image_url ? (
                   <img
                     src={banner.image_url}
-                    alt={banner.title}
+                    alt={banner.title || 'Banner promosi'}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -314,7 +310,7 @@ export default function AdminBannersPage() {
               
               <div className="flex-1 p-4 flex items-center justify-between">
                 <div>
-                  <h3 className="font-semibold">{banner.title}</h3>
+                  {banner.title && <h3 className="font-semibold">{banner.title}</h3>}
                   {banner.subtitle && (
                     <p className="text-sm text-muted-foreground">{banner.subtitle}</p>
                   )}

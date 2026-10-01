@@ -11,7 +11,7 @@ import villageBojong from '@/assets/village-bojong.webp';
 import villageSukamaju from '@/assets/village-sukamaju.webp';
 export interface BannerSlide {
   id: string;
-  title: string;
+  title: string | null;
   subtitle?: string;
   image?: string;
   linkUrl?: string;
@@ -81,7 +81,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
   const currentSlide = slides[currentIndex];
   const promoCopy = (
         <div className="max-w-[15rem] sm:max-w-md">
-          <h2 className="line-clamp-2 font-serif text-[1.35rem] font-bold leading-[0.98] tracking-[-0.025em] text-white sm:text-2xl">{currentSlide.title}</h2>
+          {currentSlide.title && <h2 className="line-clamp-2 font-serif text-[1.35rem] font-bold leading-[0.98] tracking-[-0.025em] text-white sm:text-2xl">{currentSlide.title}</h2>}
           {currentSlide.subtitle && <p className="mt-1 line-clamp-2 text-[9px] leading-snug text-white/85 sm:text-xs">{currentSlide.subtitle}</p>}
           {currentSlide.linkUrl && (
             <span className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-[10px] font-bold text-[#015730] shadow-sm transition group-hover:bg-[#f1f8ec] sm:text-xs">
@@ -140,7 +140,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
             {currentSlide.image && (
               <motion.img
                 src={currentSlide.image}
-                alt={currentSlide.title}
+                alt={currentSlide.title || 'Banner promosi'}
                 loading="eager"
                 decoding="async"
                 fetchPriority="high"
@@ -150,7 +150,6 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
                 className="absolute inset-0 h-full w-full object-cover"
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#015730] via-[#015730]/90 to-[#0c7749]/15" />
             {currentSlide.linkUrl ? (
               <Link to={currentSlide.linkUrl} onClick={() => onClick?.(currentSlide.id)} className="group absolute inset-y-0 left-0 z-[1] flex w-[70%] items-center px-4 py-3 text-white sm:w-[64%] sm:px-6">
                 {promoCopy}

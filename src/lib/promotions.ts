@@ -4,7 +4,7 @@ import { isWithinOperatingHours } from '@/lib/merchantOperatingHours';
 export interface Promotion {
   id: string;
   type: 'banner' | 'wisata_populer' | 'produk_populer' | 'promo_spesial';
-  title: string;
+  title: string | null;
   subtitle?: string;
   imageUrl?: string;
   linkUrl?: string;

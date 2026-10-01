@@ -2326,7 +2326,7 @@ export type Database = {
           sort_order: number | null
           start_date: string
           subtitle: string | null
-          title: string
+          title: string | null
           type: string
           updated_at: string
           view_count: number | null
@@ -2349,7 +2349,7 @@ export type Database = {
           sort_order?: number | null
           start_date?: string
           subtitle?: string | null
-          title: string
+          title?: string | null
           type: string
           updated_at?: string
           view_count?: number | null
@@ -2372,7 +2372,7 @@ export type Database = {
           sort_order?: number | null
           start_date?: string
           subtitle?: string | null
-          title?: string
+          title?: string | null
           type?: string
           updated_at?: string
           view_count?: number | null
