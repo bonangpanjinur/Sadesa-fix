@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -169,7 +170,9 @@ export default function AdminBannersPage() {
     setSaving(true);
     try {
       const payload = {
-        title: title || null,
+        // Keep an empty string for compatibility with databases where the
+        // optional-title migration has not been applied yet.
+        title,
         subtitle: subtitle || null,
         image_url: formData.image_url.trim() || null,
         link_url: linkUrl || null,
@@ -200,7 +203,12 @@ export default function AdminBannersPage() {
       await fetchBanners();
     } catch (error) {
       console.error('Error saving banner:', error);
-      toast.error(error instanceof Error ? error.message : 'Gagal menyimpan banner');
+      const message = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+          ? String(error.message)
+          : 'Gagal menyimpan banner';
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -367,6 +375,7 @@ export default function AdminBannersPage() {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingBanner ? 'Edit Banner' : 'Tambah Banner Baru'}</DialogTitle>
+            <DialogDescription>Atur gambar, teks, tautan, dan periode tampil banner homepage.</DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
