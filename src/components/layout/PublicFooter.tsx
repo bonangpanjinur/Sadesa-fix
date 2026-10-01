@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
-import { BUSINESS_PROFILE } from '@/config/businessProfile';
+import { useBusinessProfile } from '@/hooks/useBusinessProfile';
 
 const PRIVATE_ROUTE_PREFIXES = ['/admin', '/merchant', '/courier', '/pos', '/verifikator', '/desa'];
 
 export function PublicFooter() {
   const location = useLocation();
   const { settings } = useWhitelabel();
+  const { profile } = useBusinessProfile();
 
   if (PRIVATE_ROUTE_PREFIXES.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))) {
     return null;
@@ -34,8 +35,8 @@ export function PublicFooter() {
             <Link to="/transaction-policy" className="hover:text-foreground hover:underline">Refund & Pengiriman</Link>
             <Link to="/terms" className="hover:text-foreground hover:underline">Syarat & Ketentuan</Link>
           </div>
-          <p className="mb-1">{BUSINESS_PROFILE.email}{BUSINESS_PROFILE.phone ? ` · ${BUSINESS_PROFILE.phone}` : ''}</p>
-          <p>© {new Date().getFullYear()} {settings.companyLegalName || settings.siteName}</p>
+          <p className="mb-1">{profile.email}{profile.phone ? ` · ${profile.phone}` : ''}</p>
+          <p>© {new Date().getFullYear()} {profile.legalName || settings.siteName}</p>
           <p className="mt-1">Seluruh hak cipta dilindungi.</p>
         </div>
       </div>

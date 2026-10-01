@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { ArrowLeft, Building2, Mail, MapPin, MessageCircle, Phone, RefreshCw } from 'lucide-react';
@@ -12,8 +11,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { BUSINESS_PROFILE, whatsappHref } from '@/config/businessProfile';
+import { whatsappHref } from '@/config/businessProfile';
+import { useBusinessProfile } from '@/hooks/useBusinessProfile';
 
 const FAQ_ITEMS = [
   {
@@ -46,46 +45,10 @@ const FAQ_ITEMS = [
   },
 ];
 
-const DEFAULT_WA = BUSINESS_PROFILE.whatsapp;
-const DEFAULT_EMAIL = BUSINESS_PROFILE.email;
-
 export default function HelpPage() {
   const navigate = useNavigate();
-  const [waNumber, setWaNumber] = useState(DEFAULT_WA);
-  const [email, setEmail] = useState(DEFAULT_EMAIL);
-  const [isLoadingContact, setIsLoadingContact] = useState(true);
-  const [contactError, setContactError] = useState(false);
-
-  const fetchContact = useCallback(async () => {
-    setIsLoadingContact(true);
-    setContactError(false);
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('key, value')
-      .in('key', ['support_whatsapp', 'support_email']);
-
-    if (error) {
-      setContactError(true);
-      setIsLoadingContact(false);
-      return;
-    }
-
-    if (data) {
-      for (const row of data) {
-        const val = typeof row.value === 'string' ? row.value : (row.value as { value?: string } | null)?.value;
-        if (row.key === 'support_whatsapp' && val) setWaNumber(val);
-        if (row.key === 'support_email' && val) setEmail(val);
-      }
-    }
-    setIsLoadingContact(false);
-  }, []);
-
-  useEffect(() => {
-    void fetchContact();
-  }, [fetchContact]);
-
-  const contactUnavailable = contactError && !waNumber && !email;
-  const whatsappUrl = whatsappHref(waNumber);
+  const { profile, loading: isLoadingContact, error: contactError, refetch: fetchContact } = useBusinessProfile();
+  const whatsappUrl = whatsappHref(profile.whatsapp);
 
   return (
     <div className="mobile-shell flex min-h-screen flex-col bg-background">
@@ -111,10 +74,10 @@ export default function HelpPage() {
           <Card className="mb-5 border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20">
             <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Building2 className="h-5 w-5 text-primary" /> Informasi usaha</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div><p className="text-xs text-muted-foreground">Badan usaha</p><p className="font-semibold">{BUSINESS_PROFILE.legalName}</p></div>
-              <div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-xs text-muted-foreground">Alamat operasional</p><p>{BUSINESS_PROFILE.address}</p></div></div>
-              {BUSINESS_PROFILE.phone && <div className="flex gap-2"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-xs text-muted-foreground">Telepon</p><a href={`tel:${BUSINESS_PROFILE.phone}`} className="font-medium hover:underline">{BUSINESS_PROFILE.phone}</a></div></div>}
-              <div><p className="text-xs text-muted-foreground">Jam operasional</p><p>{BUSINESS_PROFILE.operatingHours}</p></div>
+              <div><p className="text-xs text-muted-foreground">Badan usaha</p><p className="font-semibold">{profile.legalName}</p></div>
+              <div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-xs text-muted-foreground">Alamat operasional</p><p>{profile.address}</p></div></div>
+              {profile.phone && <div className="flex gap-2"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-xs text-muted-foreground">Telepon</p><a href={`tel:${profile.phone}`} className="font-medium hover:underline">{profile.phone}</a></div></div>}
+              <div><p className="text-xs text-muted-foreground">Jam operasional</p><p>{profile.operatingHours}</p></div>
             </CardContent>
           </Card>
 
@@ -126,7 +89,7 @@ export default function HelpPage() {
             <CardContent className="space-y-3">
               {isLoadingContact ? (
                 <div className="rounded-xl border border-border bg-background p-3 text-sm text-muted-foreground" aria-live="polite">Memuat kontak bantuan...</div>
-              ) : contactUnavailable ? (
+              ) : contactError && !profile.whatsapp && !profile.email ? (
                 <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3">
                   <p className="text-sm text-destructive">Kontak bantuan belum tersedia.</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => void fetchContact()} className="mt-3 min-h-10 gap-2">
@@ -148,16 +111,16 @@ export default function HelpPage() {
                     </span>
                   </a>}
                   <a
-                    href={`mailto:${email}`}
+                    href={`mailto:${profile.email}`}
                     className="flex min-h-14 items-center gap-3 rounded-xl border border-primary/20 bg-primary/10 p-3 transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <Mail className="h-5 w-5 shrink-0 text-primary" />
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold">Email</span>
-                      <span className="block truncate text-xs text-muted-foreground">{email}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{profile.email}</span>
                     </span>
                   </a>
-                  {contactError && <p className="text-xs text-muted-foreground">Kontak ditampilkan dari konfigurasi terakhir yang tersedia.</p>}
+              {contactError && <p className="text-xs text-muted-foreground">Kontak ditampilkan dari konfigurasi terakhir yang tersedia.</p>}
                 </>
               )}
             </CardContent>

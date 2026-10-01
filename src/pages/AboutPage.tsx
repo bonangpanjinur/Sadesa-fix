@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BUSINESS_PROFILE } from '@/config/businessProfile';
+import { useBusinessProfile } from '@/hooks/useBusinessProfile';
 import { safeGoBack } from '@/lib/utils';
 
 const offerings = [
@@ -14,6 +14,7 @@ const offerings = [
 
 export default function AboutPage() {
   const navigate = useNavigate();
+  const { profile } = useBusinessProfile();
 
   return (
     <div className="mobile-shell flex min-h-screen flex-col bg-background">
@@ -27,17 +28,17 @@ export default function AboutPage() {
           <section className="rounded-3xl bg-gradient-to-br from-emerald-700 to-emerald-900 p-6 text-white shadow-lg sm:p-8">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-100">Tentang SaDesa</p>
             <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Dari desa untuk Indonesia</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-50 sm:text-base">{BUSINESS_PROFILE.tagline} SaDesa menghubungkan pembeli dengan pelaku usaha lokal melalui katalog, keranjang belanja, checkout, dan layanan antar.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-emerald-50 sm:text-base">{profile.tagline} {profile.brandName} menghubungkan pembeli dengan pelaku usaha lokal melalui katalog, keranjang belanja, checkout, dan layanan antar.</p>
           </section>
 
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Building2 className="h-5 w-5 text-primary" /> Identitas usaha</CardTitle></CardHeader>
             <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-              <div><p className="text-xs text-muted-foreground">Nama brand</p><p className="font-semibold">{BUSINESS_PROFILE.brandName}</p></div>
-              <div><p className="text-xs text-muted-foreground">Badan usaha</p><p className="font-semibold">{BUSINESS_PROFILE.legalName}</p></div>
-              <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Alamat operasional</p><p className="font-semibold">{BUSINESS_PROFILE.address}</p></div>
-              <div><p className="text-xs text-muted-foreground">Wilayah layanan</p><p>{BUSINESS_PROFILE.serviceArea}</p></div>
-              <div><p className="text-xs text-muted-foreground">Jam operasional</p><p>{BUSINESS_PROFILE.operatingHours}</p></div>
+              <div><p className="text-xs text-muted-foreground">Nama brand</p><p className="font-semibold">{profile.brandName}</p></div>
+              <div><p className="text-xs text-muted-foreground">Badan usaha</p><p className="font-semibold">{profile.legalName}</p></div>
+              <div className="sm:col-span-2"><p className="text-xs text-muted-foreground">Alamat operasional</p><p className="font-semibold">{profile.address}</p></div>
+              <div><p className="text-xs text-muted-foreground">Wilayah layanan</p><p>{profile.serviceArea}</p></div>
+              <div><p className="text-xs text-muted-foreground">Jam operasional</p><p>{profile.operatingHours}</p></div>
             </CardContent>
           </Card>
 

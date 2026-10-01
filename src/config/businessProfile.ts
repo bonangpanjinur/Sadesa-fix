@@ -12,19 +12,19 @@ export interface BusinessProfile {
 
 /**
  * Public business details used by the About, Contact, footer and service pages.
- * Keep these values identical to the legal documents and the Xendit dashboard.
- * Production deployments should provide the address and phone through Vite env.
+ * These values are only a safe loading/error fallback. Runtime values are
+ * loaded by useBusinessProfile from the public app_settings table.
  */
 export const BUSINESS_PROFILE: BusinessProfile = {
-  brandName: import.meta.env.VITE_BUSINESS_BRAND_NAME || 'SaDesa',
-  legalName: import.meta.env.VITE_BUSINESS_LEGAL_NAME || 'PT RAKA SISTEM NUSANTARA',
+  brandName: 'SaDesa',
+  legalName: 'PT RAKA SISTEM NUSANTARA',
   tagline: 'Marketplace produk lokal, kebutuhan harian, dan layanan antar dari desa.',
-  address: import.meta.env.VITE_BUSINESS_ADDRESS || 'Alamat operasional diatur pada konfigurasi bisnis SaDesa.',
-  phone: import.meta.env.VITE_BUSINESS_PHONE || '',
-  whatsapp: import.meta.env.VITE_BUSINESS_WHATSAPP || '',
-  email: import.meta.env.VITE_BUSINESS_EMAIL || 'support@sadesa.id',
-  operatingHours: import.meta.env.VITE_BUSINESS_OPERATING_HOURS || 'Setiap hari, mengikuti jam operasional merchant dan layanan.',
-  serviceArea: import.meta.env.VITE_BUSINESS_SERVICE_AREA || 'Wilayah layanan lokal SaDesa dan area sekitar merchant yang terdaftar.',
+  address: 'Alamat operasional belum diatur pada app_settings.',
+  phone: '',
+  whatsapp: '',
+  email: 'support@sadesa.id',
+  operatingHours: 'Setiap hari, mengikuti jam operasional merchant dan layanan.',
+  serviceArea: 'Wilayah layanan lokal SaDesa dan area sekitar merchant yang terdaftar.',
 };
 
 export function normalizeWhatsAppNumber(value: string): string {
