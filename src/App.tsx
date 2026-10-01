@@ -63,6 +63,9 @@ const MerchantSlugResolver = lazy(() => import("./pages/MerchantSlugResolver"));
 const ShopsPage = lazy(() => import("./pages/ShopsPage"));
 const InstallPage = lazy(() => import("./pages/InstallPage"));
 const HelpPage = lazy(() => import("./pages/HelpPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const CheckoutInfoPage = lazy(() => import("./pages/CheckoutInfoPage"));
+const TransactionPolicyPage = lazy(() => import("./pages/TransactionPolicyPage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const AccountDeletionPage = lazy(() => import("./pages/AccountDeletionPage"));
@@ -442,6 +445,11 @@ function RouteTransition({ children }: { children: ReactNode }) {
   return <div className="min-h-full">{children}</div>;
 }
 
+function CheckoutRoute() {
+  const { user } = useAuth();
+  return user ? <CheckoutPage /> : <CheckoutInfoPage />;
+}
+
 const App = () => (
   <SplashScreen>
     <ErrorBoundary>
@@ -522,26 +530,23 @@ const App = () => (
               } />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/contact" element={<HelpPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/tentang-kami" element={<AboutPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/account-deletion" element={<AccountDeletionPage />} />
               <Route path="/delete-account" element={<AccountDeletionPage />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/transaction-policy" element={<TransactionPolicyPage />} />
+              <Route path="/refund-policy" element={<TransactionPolicyPage />} />
               <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
               {/* Protected buyer routes */}
-              <Route path="/cart" element={
-                <ProtectedRoute>
-                  <CartPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/checkout" element={
-                <ProtectedRoute>
-                  <CheckoutPage />
-              </ProtectedRoute>
-              } />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/checkout-info" element={<CheckoutInfoPage />} />
+              <Route path="/checkout" element={<CheckoutRoute />} />
               <Route path="/payment/:orderId" element={
                 <ProtectedRoute>
                   <PaymentConfirmationPage />
@@ -636,11 +641,7 @@ const App = () => (
               } />
               
               {/* Ride routes */}
-              <Route path="/ride" element={
-                <ProtectedRoute>
-                  <TransportServicesPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/ride" element={<TransportServicesPage />} />
               <Route path="/ride/passenger" element={
                 <ProtectedRoute>
                   <RideBookingPage />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
-import { ArrowLeft, Mail, MessageCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, MapPin, MessageCircle, Phone, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { BUSINESS_PROFILE, whatsappHref } from '@/config/businessProfile';
 
 const FAQ_ITEMS = [
   {
@@ -45,15 +46,8 @@ const FAQ_ITEMS = [
   },
 ];
 
-const DEFAULT_WA = '6281234567890';
-const DEFAULT_EMAIL = 'support@sadesa.id';
-
-function normalizeWhatsAppNumber(value: string) {
-  const digits = value.replace(/\D/g, '');
-  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
-  if (digits.startsWith('8')) return `62${digits}`;
-  return digits;
-}
+const DEFAULT_WA = BUSINESS_PROFILE.whatsapp;
+const DEFAULT_EMAIL = BUSINESS_PROFILE.email;
 
 export default function HelpPage() {
   const navigate = useNavigate();
@@ -91,7 +85,7 @@ export default function HelpPage() {
   }, [fetchContact]);
 
   const contactUnavailable = contactError && !waNumber && !email;
-  const whatsappHref = `https://wa.me/${normalizeWhatsAppNumber(waNumber)}`;
+  const whatsappUrl = whatsappHref(waNumber);
 
   return (
     <div className="mobile-shell flex min-h-screen flex-col bg-background">
@@ -114,6 +108,16 @@ export default function HelpPage() {
             <p className="mt-1 text-sm text-muted-foreground">Temukan jawaban atau hubungi tim SaDesa.</p>
           </header>
 
+          <Card className="mb-5 border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20">
+            <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Building2 className="h-5 w-5 text-primary" /> Informasi usaha</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div><p className="text-xs text-muted-foreground">Badan usaha</p><p className="font-semibold">{BUSINESS_PROFILE.legalName}</p></div>
+              <div className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-xs text-muted-foreground">Alamat operasional</p><p>{BUSINESS_PROFILE.address}</p></div></div>
+              {BUSINESS_PROFILE.phone && <div className="flex gap-2"><Phone className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-xs text-muted-foreground">Telepon</p><a href={`tel:${BUSINESS_PROFILE.phone}`} className="font-medium hover:underline">{BUSINESS_PROFILE.phone}</a></div></div>}
+              <div><p className="text-xs text-muted-foreground">Jam operasional</p><p>{BUSINESS_PROFILE.operatingHours}</p></div>
+            </CardContent>
+          </Card>
+
           <Card className="mb-5 border-primary/15 bg-primary/[0.03]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Butuh bantuan langsung?</CardTitle>
@@ -131,8 +135,8 @@ export default function HelpPage() {
                 </div>
               ) : (
                 <>
-                  <a
-                    href={whatsappHref}
+                  {whatsappUrl && <a
+                    href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex min-h-14 items-center gap-3 rounded-xl border border-primary/20 bg-primary/10 p-3 transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -142,7 +146,7 @@ export default function HelpPage() {
                       <span className="block text-sm font-semibold">WhatsApp</span>
                       <span className="block truncate text-xs text-muted-foreground">Chat langsung dengan CS</span>
                     </span>
-                  </a>
+                  </a>}
                   <a
                     href={`mailto:${email}`}
                     className="flex min-h-14 items-center gap-3 rounded-xl border border-primary/20 bg-primary/10 p-3 transition hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"

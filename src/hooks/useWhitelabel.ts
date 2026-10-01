@@ -37,7 +37,7 @@ const DEFAULT_PWA_ICONS: PWAIcon[] = [
 const defaultSettings: WhitelabelSettings = {
   siteName: 'SaDesa',
   siteTagline: 'EKOSISTEM UMKM',
-  companyLegalName: '',
+  companyLegalName: 'PT RAKA SISTEM NUSANTARA',
   logoUrl: DEFAULT_LOGO_URL,
   faviconUrl: DEFAULT_ICON_URL,
   pwa: {

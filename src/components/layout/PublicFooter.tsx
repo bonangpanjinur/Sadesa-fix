@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
+import { BUSINESS_PROFILE } from '@/config/businessProfile';
 
 const PRIVATE_ROUTE_PREFIXES = ['/admin', '/merchant', '/courier', '/pos', '/verifikator', '/desa'];
 
@@ -7,7 +8,7 @@ export function PublicFooter() {
   const location = useLocation();
   const { settings } = useWhitelabel();
 
-  if (location.pathname === '/' || PRIVATE_ROUTE_PREFIXES.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))) {
+  if (PRIVATE_ROUTE_PREFIXES.some((prefix) => location.pathname === prefix || location.pathname.startsWith(`${prefix}/`))) {
     return null;
   }
 
@@ -23,11 +24,17 @@ export function PublicFooter() {
           {settings.companyLegalName && <p className="text-xs font-medium text-foreground">Dimiliki dan dioperasikan oleh {settings.companyLegalName}</p>}
         </div>
         <div className="text-xs sm:text-right">
-          <div className="mb-2 flex gap-3 sm:justify-end">
+          <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 sm:justify-end">
+            <Link to="/about" className="font-medium hover:text-foreground hover:underline">Tentang Kami</Link>
+            <Link to="/contact" className="font-medium hover:text-foreground hover:underline">Kontak</Link>
+            <Link to="/products" className="hover:text-foreground hover:underline">Katalog</Link>
+            <Link to="/ride" className="hover:text-foreground hover:underline">Layanan Antar</Link>
+            <Link to="/checkout" className="hover:text-foreground hover:underline">Checkout</Link>
             <Link to="/privacy-policy" className="hover:text-foreground hover:underline">Kebijakan Privasi</Link>
-            <Link to="/account-deletion" className="hover:text-foreground hover:underline">Hapus Akun</Link>
+            <Link to="/transaction-policy" className="hover:text-foreground hover:underline">Refund & Pengiriman</Link>
             <Link to="/terms" className="hover:text-foreground hover:underline">Syarat & Ketentuan</Link>
           </div>
+          <p className="mb-1">{BUSINESS_PROFILE.email}{BUSINESS_PROFILE.phone ? ` · ${BUSINESS_PROFILE.phone}` : ''}</p>
           <p>© {new Date().getFullYear()} {settings.companyLegalName || settings.siteName}</p>
           <p className="mt-1">Seluruh hak cipta dilindungi.</p>
         </div>

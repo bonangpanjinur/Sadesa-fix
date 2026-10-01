@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { TransportServiceCards } from '@/components/transport/TransportServiceCards';
+import { BUSINESS_PROFILE } from '@/config/businessProfile';
 
 export default function TransportServicesPage() {
   const navigate = useNavigate();
@@ -36,6 +37,16 @@ export default function TransportServicesPage() {
               </p>
             </div>
           </div>
+        </Card>
+
+        <Card className="mb-5 border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20">
+          <CardContent className="space-y-3 p-4 text-sm">
+            <div><p className="text-xs font-bold uppercase tracking-wide text-primary">Informasi layanan publik</p><p className="mt-1 leading-relaxed text-muted-foreground">Layanan tersedia di {BUSINESS_PROFILE.serviceArea}</p></div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><p className="font-semibold">Contoh tarif</p><p className="text-muted-foreground">Ojek penumpang mulai Rp10.000. Kurir barang mulai Rp8.000. Tarif final dihitung berdasarkan jarak, jenis layanan, dan detail pesanan.</p></div>
+              <div><p className="font-semibold">Cara pemesanan</p><p className="text-muted-foreground">Pilih layanan, isi titik jemput dan tujuan, tinjau estimasi tarif, lalu konfirmasi setelah login.</p></div>
+            </div>
+          </CardContent>
         </Card>
 
         <TransportServiceCards />
