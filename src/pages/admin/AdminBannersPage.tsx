@@ -373,21 +373,22 @@ export default function AdminBannersPage() {
             {/* Left: Image upload */}
             <div className="space-y-2">
               <Label>Gambar Banner</Label>
+              <p className="text-xs text-muted-foreground">Gambar ini akan menjadi visual utama banner yang tampil di halaman beranda.</p>
               <ImageUpload
                 value={formData.image_url || null}
                 onChange={(url) => setFormData({ ...formData, image_url: url || '' })}
                 bucket="promotions"
                 path="banners"
                 aspectRatio="wide"
-                placeholder="Upload gambar banner"
+                placeholder="Klik atau tarik gambar banner ke sini"
               />
-              <p className="text-[11px] text-muted-foreground">Ukuran rekomendasi: 1200 × 400 px (rasio 3:1).</p>
+              <p className="text-[11px] text-muted-foreground">Ukuran rekomendasi: 1200 × 400 px (rasio 3:1). Maksimal 5 MB.</p>
             </div>
 
             {/* Right: Form fields */}
             <div className="space-y-3">
               <div>
-                <Label>Judul *</Label>
+                <Label>Judul banner (opsional)</Label>
                 <Input
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
