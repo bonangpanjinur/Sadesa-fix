@@ -378,9 +378,10 @@ export default function AdminBannersPage() {
                 onChange={(url) => setFormData({ ...formData, image_url: url || '' })}
                 bucket="promotions"
                 path="banners"
-                aspectRatio="video"
-                placeholder="Upload gambar banner (16:9)"
+                aspectRatio="wide"
+                placeholder="Upload gambar banner"
               />
+              <p className="text-[11px] text-muted-foreground">Ukuran rekomendasi: 1200 × 400 px (rasio 3:1).</p>
             </div>
 
             {/* Right: Form fields */}
