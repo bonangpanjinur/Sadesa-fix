@@ -118,6 +118,14 @@ jobs:
             created_at timestamptz DEFAULT now(),
             metadata jsonb DEFAULT '{}'::jsonb
           );
+          -- Supabase Storage exposes this helper and migrations use it in RLS policies.
+          CREATE OR REPLACE FUNCTION storage.foldername(name text)
+          RETURNS text[]
+          LANGUAGE sql
+          IMMUTABLE
+          AS $fn$
+            SELECT string_to_array(name, '/');
+          $fn$;
           ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
           SQL
 
