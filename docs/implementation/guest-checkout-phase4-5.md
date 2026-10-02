@@ -38,6 +38,37 @@ Integration test terhadap database staging dijalankan hanya bila `SUPABASE_TEST_
 
 ## Tahap 5 — Rollout bertahap
 
+### Otomasi kenaikan harian
+
+Skrip [`scripts/advance-guest-checkout-rollout.py`](../../scripts/advance-guest-checkout-rollout.py) menaikkan rollout satu tahap per hari dengan urutan default `0,1,5,10,25,50,75,100`. Skrip bersifat idempotent per tanggal UTC, tidak mengubah flag jika `enabled=false`, dan mendukung `--dry-run`, `--force`, serta `--max-percent`.
+
+Environment yang diperlukan:
+
+```bash
+export SUPABASE_URL="https://<project>.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
+```
+
+Uji tanpa menulis:
+
+```bash
+python3 scripts/advance-guest-checkout-rollout.py --dry-run
+```
+
+Contoh cron harian pukul 02:00 UTC:
+
+```cron
+0 2 * * * cd /srv/sadesa && /usr/bin/python3 scripts/advance-guest-checkout-rollout.py >> /var/log/sadesa-guest-rollout.log 2>&1
+```
+
+Simpan `SUPABASE_SERVICE_ROLE_KEY` melalui secret manager atau environment service, bukan di repository atau crontab yang dapat dibaca user lain. Sebelum 100%, gunakan batas pengaman:
+
+```bash
+python3 scripts/advance-guest-checkout-rollout.py --max-percent 50
+```
+
+Skrip tidak menaikkan rollout dua kali pada hari yang sama. Jika perlu recovery manual setelah job gagal sesudah update, gunakan `--force` hanya setelah memeriksa nilai `rollout_percent` di `app_settings`.
+
 Migration `67_20261002200000_guest_checkout_rollout_flag.sql` membuat setting berikut jika belum ada:
 
 ```json
