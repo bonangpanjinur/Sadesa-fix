@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useDeferredValue } from 'react';
+import { useState, useMemo, useEffect, useDeferredValue, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -31,6 +31,7 @@ import { useFlashSales, type FlashSale } from '../hooks/useFlashSales';
 import { FlashSaleTimer } from '../components/FlashSaleTimer';
 import { formatPrice } from '../lib/utils';
 import { fetchBannerPromotions, fetchCategoryBannerPromotions, incrementPromotionClick, incrementPromotionView, type Promotion } from '../lib/promotions';
+import { HeroCarousel, type BannerSlide } from '../components/home/HeroCarousel';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';
@@ -170,17 +171,32 @@ function FoodMerchantRow({ product, userLocation, catalogType }: { product: Prod
   </Link>;
 }
 
-function FoodBanner({ banner }: { banner: Promotion }) {
-  useEffect(() => {
-    void incrementPromotionView(banner.id);
-  }, [banner.id]);
+function FoodBanner({ banners, categoryName }: { banners: Promotion[]; categoryName: string }) {
+  const slides: BannerSlide[] = banners.map((banner) => ({
+    id: banner.id,
+    title: banner.title,
+    subtitle: banner.subtitle,
+    image: banner.imageUrl,
+    linkUrl: banner.linkUrl,
+    isSponsored: true,
+  }));
+  const handleView = useCallback((slideId: string) => {
+    void incrementPromotionView(slideId);
+  }, []);
+  const handleClick = useCallback((slideId: string) => {
+    void incrementPromotionClick(slideId);
+  }, []);
 
-  const content = <div className="relative min-h-[7.7rem] overflow-hidden rounded-[1.15rem] bg-[#f6d9a8] shadow-[0_12px_25px_-18px_rgba(74,52,21,0.7)]">
-    {banner.imageUrl && <OptimizedImage src={banner.imageUrl} alt={banner.title || 'Banner promosi'} className="absolute inset-0 h-full w-full object-cover" aspectRatio="auto" lazy />}
-    <div className="relative z-10 max-w-[72%] px-4 py-5 text-white">{banner.title && <p className="font-serif text-[20px] font-black leading-[1.03]">{banner.title}</p>}{banner.subtitle && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/90">{banner.subtitle}</p>}</div>
-  </div>;
-  if (!banner.linkUrl) return content;
-  return banner.linkUrl.startsWith('/') ? <Link to={banner.linkUrl} onClick={() => void incrementPromotionClick(banner.id)} aria-label={banner.title || 'Banner promosi'} className="block">{content}</Link> : <a href={banner.linkUrl} target="_blank" rel="noreferrer" onClick={() => void incrementPromotionClick(banner.id)} aria-label={banner.title || 'Banner promosi'} className="block">{content}</a>;
+  if (slides.length === 0) return null;
+  return (
+    <HeroCarousel
+      slides={slides}
+      autoPlayInterval={5000}
+      ariaLabel={`Iklan ${categoryName}`}
+      onView={handleView}
+      onClick={handleClick}
+    />
+  );
 }
 
 function FlashSaleReminder({ sale }: { sale: FlashSale }) {
@@ -194,7 +210,7 @@ function FlashSaleReminder({ sale }: { sale: FlashSale }) {
   </Link>;
 }
 
-function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch, filters, onFiltersChange, activeFilterCount, userLocation, locationLoading, onRefreshLocation, categoryOptions, foodCategories, foodBanner, nearbyRadius, onNearbyRadiusChange, sortMode, onSortChange, viewMode, onViewModeChange, mapRadius, onMapRadiusChange, mapProducts, onResetFilters, flashSales, catalogType, catalogTitle, catalogDescription, searchPlaceholder, filterTitle, filterDescription, showHalal, filterFoodOnly, filterRoot }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void; filters: FoodFilters; onFiltersChange: (filters: FoodFilters) => void; activeFilterCount: number; userLocation: { lat: number; lng: number; source?: string } | null; locationLoading: boolean; onRefreshLocation: () => void; categoryOptions: { slug: string; name: string }[]; foodCategories: ProductCategory[]; foodBanner: Promotion | null; nearbyRadius: FoodRadius; onNearbyRadiusChange: (radius: FoodRadius) => void; sortMode: SortMode; onSortChange: (mode: SortMode) => void; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; mapRadius: MapRadius; onMapRadiusChange: (radius: MapRadius) => void; mapProducts: Product[]; onResetFilters: () => void; flashSales: FlashSale[]; catalogType: 'kuliner' | 'belanja' | 'pertanian'; catalogTitle: string; catalogDescription: string; searchPlaceholder: string; filterTitle: string; filterDescription: string; showHalal: boolean; filterFoodOnly: boolean; filterRoot: FoodType; }) {
+function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch, filters, onFiltersChange, activeFilterCount, userLocation, locationLoading, onRefreshLocation, categoryOptions, foodCategories, foodBanners, nearbyRadius, onNearbyRadiusChange, sortMode, onSortChange, viewMode, onViewModeChange, mapRadius, onMapRadiusChange, mapProducts, onResetFilters, flashSales, catalogType, catalogTitle, catalogDescription, searchPlaceholder, filterTitle, filterDescription, showHalal, filterFoodOnly, filterRoot }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void; filters: FoodFilters; onFiltersChange: (filters: FoodFilters) => void; activeFilterCount: number; userLocation: { lat: number; lng: number; source?: string } | null; locationLoading: boolean; onRefreshLocation: () => void; categoryOptions: { slug: string; name: string }[]; foodCategories: ProductCategory[]; foodBanners: Promotion[]; nearbyRadius: FoodRadius; onNearbyRadiusChange: (radius: FoodRadius) => void; sortMode: SortMode; onSortChange: (mode: SortMode) => void; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; mapRadius: MapRadius; onMapRadiusChange: (radius: MapRadius) => void; mapProducts: Product[]; onResetFilters: () => void; flashSales: FlashSale[]; catalogType: 'kuliner' | 'belanja' | 'pertanian'; catalogTitle: string; catalogDescription: string; searchPlaceholder: string; filterTitle: string; filterDescription: string; showHalal: boolean; filterFoodOnly: boolean; filterRoot: FoodType; }) {
   const flashSalesByProduct = useMemo(() => new Map(flashSales.map((sale) => [sale.productId, sale])), [flashSales]);
   const { getItemCount } = useCart();
   const cartCount = getItemCount();
@@ -231,7 +247,7 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
     <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-[#edf1eb] bg-white/95 px-5 py-3 backdrop-blur-xl"><button type="button" onClick={onBack} aria-label="Kembali" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#18372a] transition hover:bg-[#eef6e9] active:scale-90"><ArrowLeft className="h-5 w-5" /></button><div className="min-w-0"><h1 className="truncate text-[17px] font-extrabold">{catalogTitle}</h1><p className="truncate text-[10px] text-[#718077]">{catalogDescription}</p></div><Link to="/cart" aria-label="Keranjang" className="relative ml-auto flex h-10 w-10 items-center justify-center rounded-full border border-[#d2e9c3] bg-[#edf7e6] text-[#015730] transition hover:bg-[#dff1d4]"><ShoppingCart className="h-[19px] w-[19px]" />{cartCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#E31019] px-1 text-[10px] font-bold text-white ring-2 ring-white">{cartCount > 9 ? '9+' : cartCount}</span>}</Link></header>
     <motion.main initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: 'easeOut' }} className="space-y-5 px-5 pt-3">
       <div className="flex gap-2"><div className="relative flex-1"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7b887f]" /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder} className="h-11 w-full rounded-2xl border border-[#e4eae2] bg-white pl-11 pr-4 text-sm shadow-[0_8px_22px_-18px_rgba(12,62,38,0.6)] outline-none focus:border-[#86bc79] focus:ring-4 focus:ring-[#86bc79]/15" /></div><FoodFilterSheet filters={filters} onFiltersChange={onFiltersChange} activeFilterCount={activeFilterCount} categories={categoryOptions} title={filterTitle} description={filterDescription} showHalal={showHalal} foodOnly={filterFoodOnly} primaryCategory={{ slug: filterRoot, name: catalogTitle }} resetType={filterRoot} /></div><div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#e4eae2] bg-white px-3 py-2 text-xs text-[#637168]"><MapPin className="h-3.5 w-3.5 text-[#0b7549]" /><span>{locationLabel} dalam</span><Select value={nearbyRadius} onValueChange={(value) => onNearbyRadiusChange(value as FoodRadius)} disabled={!userLocation}><SelectTrigger className="h-7 w-[112px] border-0 bg-transparent p-0 text-xs shadow-none focus:ring-0"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua jarak</SelectItem><SelectItem value="1">1 km</SelectItem><SelectItem value="3">3 km</SelectItem><SelectItem value="5">5 km</SelectItem><SelectItem value="10">10 km</SelectItem></SelectContent></Select><button type="button" onClick={onRefreshLocation} disabled={locationLoading} className="ml-auto rounded-full px-2 py-1 font-semibold text-[#0b7549] hover:bg-[#eef6e9]">{locationLoading ? 'Memuat...' : userLocation?.source === 'gps' ? 'Lokasi GPS aktif' : 'Gunakan lokasi saya'}</button></div>{userLocation?.source !== 'gps' && <p className="-mt-3 text-[10px] text-[#8a938d]">Aktifkan lokasi untuk mengurutkan {itemLabel} dan memfilter {locationLabel} terdekat.</p>}
-      {foodBanner && <FoodBanner banner={foodBanner} />}
+      {foodBanners.length > 0 && <FoodBanner banners={foodBanners} categoryName={catalogTitle} />}
       {flashSales[0] && <FlashSaleReminder sale={flashSales[0]} />}
       <div className="-mx-5 flex gap-4 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={`Kategori ${catalogTitle.toLowerCase()}`}><button type="button" aria-pressed={activeType === filterRoot} onClick={() => onCategoryChange(filterRoot)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === filterRoot ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border', activeType === filterRoot ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}><Grid2X2 className="h-[18px] w-[18px]" /></span>{catalogTitle}</button>{foodCategories.map((category) => <button key={category.id} type="button" aria-pressed={activeType === category.slug} onClick={() => onCategoryChange(category.slug)} className={cn('flex min-w-[50px] shrink-0 flex-col items-center gap-1.5 text-[10px] font-semibold transition active:scale-95', activeType === category.slug ? 'text-[#0b7549]' : 'text-[#637168]')}><span className={cn('flex h-10 w-10 items-center justify-center rounded-full border text-lg', activeType === category.slug ? 'border-[#b8ddad] bg-[#e8f5e3] text-[#0b7549] shadow-sm' : 'border-transparent bg-white text-[#748078] shadow-[0_5px_16px_-12px_rgba(0,0,0,0.5)]')}>{category.icon || '🍽️'}</span>{category.name}</button>)}</div>
       <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[#dcebd7] bg-[#eff8eb] p-3 text-center text-[10px] text-[#637168]" aria-label="Alur belanja"><div><span className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white font-extrabold text-[#0b7549]">1</span><span className="font-semibold">Pilih kategori</span></div><div><span className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white font-extrabold text-[#0b7549]">2</span><span className="font-semibold">Pilih {catalogLabel}</span></div><div><span className="mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white font-extrabold text-[#0b7549]">3</span><span className="font-semibold">Tambah ke keranjang</span></div></div>
@@ -346,7 +362,7 @@ export default function ProductsPage() {
     const shoppingPattern = /sembako|kelontongan|sayur|buah|rumah[- ]tangga|elektronik|pakaian|kerajinan|pertanian|kebutuhan/i;
     return sortProductCategories(all.filter((category) => !category.parent_id && shoppingPattern.test(`${category.slug} ${category.name}`))).slice(0, 8);
   }, [categories, shoppingRootCategory]);
-  const foodBanner = categoryBanners[0] || foodBanners[0] || null;
+  const catalogBanners = categoryBanners.length > 0 ? categoryBanners : foodBanners;
 
   const parentCategories = useMemo(
     () => sortProductCategories((categories as ProductCategory[]).filter((category) => !category.parent_id)),
@@ -530,7 +546,7 @@ export default function ProductsPage() {
         onRefreshLocation={() => void refreshLocation()}
         categoryOptions={catalogCategoryOptions}
         foodCategories={catalogCategories}
-        foodBanner={foodBanner}
+        foodBanners={catalogBanners}
         nearbyRadius={nearbyRadius}
         onNearbyRadiusChange={setNearbyRadius}
         sortMode={sortMode}

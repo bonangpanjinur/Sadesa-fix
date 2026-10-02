@@ -21,11 +21,12 @@ export interface BannerSlide {
 interface HeroCarouselProps {
   slides: BannerSlide[];
   autoPlayInterval?: number;
+  ariaLabel?: string;
   onView?: (slideId: string) => void;
   onClick?: (slideId: string) => void;
 }
 
-export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick }: HeroCarouselProps) {
+export function HeroCarousel({ slides, autoPlayInterval = 5000, ariaLabel = 'Promo pilihan SaDesa', onView, onClick }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -111,7 +112,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
     <section
       role="region"
       aria-roledescription="carousel"
-      aria-label="Promo pilihan SaDesa"
+      aria-label={ariaLabel}
       className="group relative mx-4 overflow-hidden rounded-[1.25rem] border border-[#015730]/15 bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:mx-5"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
@@ -137,6 +138,11 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, onView, onClick 
           className="relative"
         >
           <div className="relative aspect-[2.6/1] w-full overflow-hidden bg-[#015730] sm:aspect-[3/1]">
+            {currentSlide.isSponsored && (
+              <span className="absolute right-3 top-3 z-[3] rounded-md bg-black/65 px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-sm">
+                Iklan
+              </span>
+            )}
             {currentSlide.image && (
               <motion.img
                 src={currentSlide.image}
