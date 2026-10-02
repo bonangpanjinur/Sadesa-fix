@@ -284,7 +284,7 @@ export default function PaymentConfirmationPage() {
       <div className="p-4 border-t border-border bg-card space-y-2">
         <Button onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))} className="w-full" size="lg">
           <CheckCircle className="h-4 w-4 mr-2" />
-          Lihat Pesanan Saya
+          {user ? 'Lihat Pesanan Saya' : 'Lihat Status Pesanan'}
         </Button>
         <Button onClick={() => navigate('/')} variant="outline" className="w-full">
           Lanjut Belanja

@@ -11,6 +11,10 @@ Session checkout guest memiliki key lokal yang stabil untuk idempotensi. Setelah
 
 Halaman status memanggil `get_guest_order_status`, menampilkan item, subtotal, ongkir, total, status order, expiry token, serta tombol ke payment UI dan salin link. Token tetap diperlukan; order ID saja tidak cukup.
 
+## Tahap 3 — Status dan pembayaran guest
+
+Halaman status guest menyediakan refresh, salin link, navigasi kembali ke pembayaran transfer, upload bukti pembayaran, serta ajakan masuk/daftar tanpa menghapus akses token guest. Route status mendukung `/guest-order/:orderId` dan `/guest-orders/:orderId`.
+
 ## Payment UI
 
 `PaymentConfirmationPage` sekarang mendukung dua mode:

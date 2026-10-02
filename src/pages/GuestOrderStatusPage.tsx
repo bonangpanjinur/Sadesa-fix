@@ -99,7 +99,7 @@ export default function GuestOrderStatusPage() {
     );
   }
 
-  const paymentPending = order.payment_method === 'TRANSFER' && !['PAID', 'VERIFIED'].includes(order.payment_status);
+  const paymentPending = !['PAID', 'VERIFIED', 'COD'].includes(order.payment_status) && order.status !== 'COMPLETED';
 
   return (
     <div className="mobile-shell min-h-screen flex flex-col bg-secondary">
@@ -128,6 +128,7 @@ export default function GuestOrderStatusPage() {
         {paymentPending && <Card className="border-primary/30"><CardContent className="space-y-3 p-4"><div className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-primary" /><p className="font-bold">Pembayaran belum selesai</p></div><p className="text-sm text-muted-foreground">Buka halaman pembayaran untuk melihat rekening/QRIS dan mengunggah bukti transfer.</p><Button className="w-full" onClick={() => navigate(guestOrderUrl(order.order_id, token, 'payment'))}>Bayar dan upload bukti</Button></CardContent></Card>}
         {!paymentPending && <Card className="border-emerald-200 bg-emerald-50/50"><CardContent className="flex gap-3 p-4 text-sm"><CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" /><p>Pembayaran sudah diterima atau pesanan tidak memerlukan pembayaran transfer. Status akan diperbarui oleh merchant.</p></CardContent></Card>}
 
+        <Card className="border-primary/20 bg-primary/5"><CardContent className="space-y-3 p-4"><div><p className="font-semibold">Simpan riwayat pesanan</p><p className="mt-1 text-sm text-muted-foreground">Masuk atau daftar agar pesanan ini tersimpan di akun Anda. Link guest tetap dapat digunakan tanpa login.</p></div><Button variant="outline" className="w-full bg-background" onClick={() => navigate('/auth')} >Masuk / Daftar</Button></CardContent></Card>
         <div className="space-y-2"><Button variant="outline" className="w-full" onClick={copyStatusLink}><Copy className="mr-2 h-4 w-4" /> Salin link status</Button><Button variant="outline" className="w-full" onClick={() => navigate('/')}><ShoppingBag className="mr-2 h-4 w-4" /> Lanjut belanja</Button></div>
       </main>
     </div>
