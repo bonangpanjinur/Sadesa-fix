@@ -20,7 +20,7 @@ import { formatPrice, safeGoBack } from '@/lib/utils';
 import { WishlistButton } from '@/components/WishlistButton';
 import { ShareProduct } from '@/components/product/ShareProduct';
 import { MerchantClosedBanner, MerchantStatusBadge } from '@/components/merchant/MerchantClosedBanner';
-import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
+import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { trackPageView } from '@/lib/pageViewTracker';
@@ -130,6 +130,22 @@ export default function ProductDetail() {
   const hasActiveQuota = merchantResult?.hasActiveQuota ?? true;
   const loading = productLoading;
 
+  const { data: weeklySchedule = [] } = useQuery<OperatingDaySchedule[]>({
+    queryKey: ['merchant-operating-hours', product?.merchantId],
+    queryFn: async () => {
+      if (!product?.merchantId) return [];
+      const { data, error } = await supabase
+        .from('merchant_operating_hours')
+        .select('day_of_week, open_time, close_time, is_closed')
+        .eq('merchant_id', product.merchantId)
+        .order('day_of_week', { ascending: true });
+      if (error) throw error;
+      return (data || []) as OperatingDaySchedule[];
+    },
+    enabled: !!product?.merchantId,
+    staleTime: 30_000,
+  });
+
   const { data: toppingOptions = [] } = useQuery<ProductTopping[]>({
     queryKey: ['product-toppings', product?.id],
     queryFn: async () => {
@@ -158,7 +174,7 @@ export default function ProductDetail() {
 
   // Get merchant operating status
   const merchantStatus = merchant 
-    ? getMerchantOperatingStatus(merchant.isOpen, merchant.openTime, merchant.closeTime)
+    ? getMerchantOperatingStatus(merchant.isOpen, merchant.openTime, merchant.closeTime, weeklySchedule)
     : null;
   
   if (loading) {
@@ -331,6 +347,7 @@ export default function ProductDetail() {
                 openTime={merchant.openTime}
                 closeTime={merchant.closeTime}
                 merchantName={merchant.name}
+                weeklySchedule={weeklySchedule}
               />
             </div>
           )}
@@ -361,6 +378,7 @@ export default function ProductDetail() {
                       openTime={merchant.openTime}
                       closeTime={merchant.closeTime}
                       hasQuota={hasActiveQuota}
+                      weeklySchedule={weeklySchedule}
                     />
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">

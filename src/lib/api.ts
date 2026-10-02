@@ -1,6 +1,6 @@
 import { supabase } from '../integrations/supabase/client';
 import type { Product, Village, Tourism, Merchant } from '../types';
-import { isWithinOperatingHours } from './merchantOperatingHours';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from './merchantOperatingHours';
 import { getProductUnavailableReason } from './productAvailability';
 
 // Import local images as fallbacks
@@ -271,18 +271,38 @@ export async function fetchProducts(options: FetchProductsOptions = {}): Promise
     throw error;
   }
 
+  const merchantIds = [...new Set((data || []).map((product) => product.merchant_id).filter(Boolean))];
+  const { data: schedules, error: schedulesError } = merchantIds.length > 0
+    ? await supabase
+      .from('merchant_operating_hours')
+      .select('merchant_id, day_of_week, open_time, close_time, is_closed')
+      .in('merchant_id', merchantIds)
+    : { data: [], error: null };
+  if (schedulesError) console.error('Error fetching merchant operating hours:', schedulesError);
+
+  const scheduleByMerchant = new Map<string, OperatingDaySchedule[]>();
+  for (const schedule of schedules || []) {
+    const merchantSchedule = scheduleByMerchant.get(schedule.merchant_id) || [];
+    merchantSchedule.push({
+      day_of_week: schedule.day_of_week,
+      open_time: schedule.open_time,
+      close_time: schedule.close_time,
+      is_closed: schedule.is_closed,
+    });
+    scheduleByMerchant.set(schedule.merchant_id, merchantSchedule);
+  }
 
   const mappedProducts = (data || []).map(p => {
     const hasQuota = merchantsWithQuota.has(p.merchant_id);
     const merchant = p.merchants;
     
-    // Check if merchant is currently open based on operating hours
-    const isManuallyOpen = merchant?.is_open ?? true;
-    const openTime = merchant?.open_time || '08:00';
-    const closeTime = merchant?.close_time || '17:00';
-    
-    // Operating hours are stored in Indonesian local time (WIB).
-    const isMerchantOpen = isManuallyOpen && isWithinOperatingHours(openTime, closeTime);
+    // Jadwal mingguan adalah sumber jam canonical; is_open tetap menjadi kill switch manual.
+    const isMerchantOpen = getMerchantOperatingStatus(
+      merchant?.is_open ?? true,
+      merchant?.open_time || null,
+      merchant?.close_time || null,
+      scheduleByMerchant.get(p.merchant_id),
+    ).isCurrentlyOpen;
     
     const unavailableReason = getProductUnavailableReason({
       isActive: p.is_active,
@@ -382,15 +402,22 @@ export async function fetchProduct(id: string): Promise<Product | null> {
     return null;
   }
 
-  // Check merchant quota
-  const hasQuota = await checkMerchantHasActiveQuota(data.merchant_id);
-  
-  // Check if merchant is currently open
-  const isManuallyOpen = data.merchants?.is_open ?? true;
-  const openTime = data.merchants?.open_time || '08:00';
-  const closeTime = data.merchants?.close_time || '17:00';
-  
-  const isMerchantOpen = isManuallyOpen && isWithinOperatingHours(openTime, closeTime);
+  const [{ data: schedule }, hasQuota] = await Promise.all([
+    supabase
+      .from('merchant_operating_hours')
+      .select('day_of_week, open_time, close_time, is_closed')
+      .eq('merchant_id', data.merchant_id)
+      .order('day_of_week', { ascending: true }),
+    checkMerchantHasActiveQuota(data.merchant_id),
+  ]);
+
+  // Jadwal mingguan adalah sumber jam canonical; is_open tetap menjadi kill switch manual.
+  const isMerchantOpen = getMerchantOperatingStatus(
+    data.merchants?.is_open ?? true,
+    data.merchants?.open_time || null,
+    data.merchants?.close_time || null,
+    (schedule || []) as OperatingDaySchedule[],
+  ).isCurrentlyOpen;
   const unavailableReason = getProductUnavailableReason({
     isActive: data.is_active,
     stock: Number(data.stock || 0),

@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Save, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
+import { getJakartaParts, getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 const DAYS = [
   { index: 0, label: 'Minggu', short: 'Min' },
@@ -115,7 +115,7 @@ export function MerchantOperatingHoursCard({ merchantId }: Props) {
   };
 
   const isOpen = isCurrentlyOpen(schedule);
-  const todayIndex = new Date().getDay();
+  const todayIndex = getJakartaParts().dayOfWeek;
   const todaySchedule = schedule.find(s => s.day_of_week === todayIndex);
 
   if (isLoading) {
