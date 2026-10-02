@@ -22,11 +22,12 @@ interface HeroCarouselProps {
   slides: BannerSlide[];
   autoPlayInterval?: number;
   ariaLabel?: string;
+  className?: string;
   onView?: (slideId: string) => void;
   onClick?: (slideId: string) => void;
 }
 
-export function HeroCarousel({ slides, autoPlayInterval = 5000, ariaLabel = 'Promo pilihan SaDesa', onView, onClick }: HeroCarouselProps) {
+export function HeroCarousel({ slides, autoPlayInterval = 5000, ariaLabel = 'Promo pilihan SaDesa', className, onView, onClick }: HeroCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -113,7 +114,7 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, ariaLabel = 'Pro
       role="region"
       aria-roledescription="carousel"
       aria-label={ariaLabel}
-      className="group relative mx-4 overflow-hidden rounded-[1.25rem] border border-[#015730]/15 bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:mx-5"
+      className={cn('group relative mx-4 overflow-hidden rounded-[1.25rem] border border-[#015730]/15 bg-[#015730] shadow-[0_14px_28px_-18px_rgba(1,87,48,0.65)] sm:mx-5', className)}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={(event) => {
