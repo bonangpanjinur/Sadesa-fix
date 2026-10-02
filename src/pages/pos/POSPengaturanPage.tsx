@@ -116,9 +116,14 @@ export default function POSPengaturanPage() {
       const printers = await getBridgePrinters();
       const printer = printers.find(item => item.type === 'tcp' && item.host === printerSettings.wifiIp && Number(item.port || 9100) === printerSettings.wifiPort);
       if (!printer) throw new Error('Printer WiFi/LAN belum dikonfigurasi di Print Bridge.');
+      const job = await printBridgeClient.testPrint();
+      const finalJob = job.status === 'printed' || job.status === 'failed'
+        ? job
+        : await printBridgeClient.waitForJob(job.jobId);
+      if (finalJob.status === 'failed') throw new Error(finalJob.error || 'Printer WiFi/LAN menolak test print');
       setPrinterStatus('connected');
-      setPrinterMsg(`Printer WiFi aktif: ${printer.name} (${printerSettings.wifiIp}:${printerSettings.wifiPort})`);
-      toast.success('Printer WiFi siap digunakan tanpa browser!');
+      setPrinterMsg(`Test print berhasil: ${printer.name} (${printerSettings.wifiIp}:${printerSettings.wifiPort})`);
+      toast.success('Printer WiFi merespons test print!');
     } catch (err: unknown) {
       setPrinterStatus('error');
       setPrinterMsg(err instanceof Error ? err.message : String(err));

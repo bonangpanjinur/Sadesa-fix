@@ -10,7 +10,8 @@ const JOBS_FILE = path.join(DATA_DIR, 'jobs.json');
 const PORT = Number(process.env.PORT || 18181);
 const HOST = process.env.HOST || '127.0.0.1';
 const MAX_BODY = 1024 * 1024;
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*';
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || 'https://www.sadesa.id,https://sadesa.id,http://localhost:5173')
+  .split(',').map(origin => origin.trim()).filter(Boolean);
 const jobs = new Map();
 const queue = [];
 let processing = false;
@@ -25,10 +26,14 @@ function persistJobs() {
   fs.writeFileSync(JOBS_FILE, JSON.stringify([...jobs.values()].slice(-500), null, 2));
 }
 
-function json(res, status, payload) {
+function corsOrigin(requestOrigin) {
+  if (!requestOrigin) return null;
+  return ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : null;
+}
+function json(res, status, payload, requestOrigin = null) {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
-    'access-control-allow-origin': ALLOWED_ORIGIN,
+    ...(corsOrigin(requestOrigin) ? { 'access-control-allow-origin': requestOrigin } : {}),
     'access-control-allow-headers': 'content-type, x-print-bridge-token',
     'access-control-allow-methods': 'GET, POST, OPTIONS',
     'access-control-allow-private-network': 'true',
@@ -117,29 +122,54 @@ async function processQueue() {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (req.method === 'OPTIONS') return json(res, 204, {});
+  const requestOrigin = req.headers.origin || null;
+  if (requestOrigin && !corsOrigin(requestOrigin)) {
+    return json(res, 403, { error: 'Origin browser tidak diizinkan oleh Print Bridge' });
+  }
+  if (req.method === 'OPTIONS') return json(res, 204, {}, requestOrigin);
   const url = new URL(req.url, `http://${req.headers.host || HOST}`);
   if (url.pathname === '/health' && req.method === 'GET') {
-    return json(res, 200, { ok: true, service: 'sadesa-pos-print-bridge', version: '0.1.0', queue: queue.length, time: new Date().toISOString() });
+    return json(res, 200, { ok: true, service: 'sadesa-pos-print-bridge', version: '0.1.1', queue: queue.length, time: new Date().toISOString() }, requestOrigin);
   }
-  if (url.pathname === '/printers' && req.method === 'GET') return json(res, 200, { printers: getConfig().printers });
-  if (url.pathname === '/jobs' && req.method === 'GET') return json(res, 200, { jobs: [...jobs.values()].slice(-100).reverse() });
+  if (url.pathname === '/printers' && req.method === 'GET') return json(res, 200, { printers: getConfig().printers }, requestOrigin);
+  if (url.pathname === '/jobs' && req.method === 'GET') return json(res, 200, { jobs: [...jobs.values()].slice(-100).reverse() }, requestOrigin);
   if (url.pathname.startsWith('/jobs/') && req.method === 'GET') {
     const job = jobs.get(decodeURIComponent(url.pathname.slice('/jobs/'.length)));
-    return job ? json(res, 200, job) : json(res, 404, { error: 'Job tidak ditemukan' });
+    return job ? json(res, 200, job, requestOrigin) : json(res, 404, { error: 'Job tidak ditemukan' }, requestOrigin);
   }
   if (url.pathname === '/jobs' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
-      if (!body.jobId || !body.saleId || !body.data) return json(res, 400, { error: 'jobId, saleId, dan data wajib diisi' });
+      if (!body.jobId || !body.saleId || !body.data) return json(res, 400, { error: 'jobId, saleId, dan data wajib diisi' }, requestOrigin);
       const existing = jobs.get(body.jobId);
-      if (existing) return json(res, 200, existing);
+      if (existing && existing.status !== 'failed') return json(res, 200, existing, requestOrigin);
+      if (existing?.status === 'failed') {
+        // Retrying is an explicit operator action. If the bridge lost its
+        // acknowledgement after printing, the retry can duplicate output.
+        existing.status = 'queued';
+        existing.error = null;
+        existing.updatedAt = new Date().toISOString();
+        existing.attempts = (existing.attempts || 0) + 1;
+        queue.push(existing);
+        persistJobs();
+        void processQueue();
+        return json(res, 202, existing, requestOrigin);
+      }
       const job = { jobId: body.jobId, saleId: body.saleId, saleNumber: body.saleNumber || '', outletId: body.outletId || '', createdAt: body.createdAt || new Date().toISOString(), printerId: body.printerId || null, copies: body.copies || 1, data: body.data, status: 'queued', attempts: 0, error: null, updatedAt: new Date().toISOString() };
       jobs.set(job.jobId, job); queue.push(job); persistJobs(); void processQueue();
-      return json(res, 202, job);
-    } catch (error) { return json(res, 400, { error: error instanceof Error ? error.message : 'Payload tidak valid' }); }
+      return json(res, 202, job, requestOrigin);
+    } catch (error) { return json(res, 400, { error: error instanceof Error ? error.message : 'Payload tidak valid' }, requestOrigin); }
   }
-  return json(res, 404, { error: 'Endpoint tidak ditemukan' });
+  return json(res, 404, { error: 'Endpoint tidak ditemukan' }, requestOrigin);
 });
 
+// Resume jobs that were queued or interrupted while the bridge process was
+// down. A job marked "printing" is returned to queued because no durable
+// printer acknowledgement exists at process level.
+for (const job of jobs.values()) {
+  if (job.status === 'printing') job.status = 'queued';
+  if (job.status === 'queued') queue.push(job);
+}
+persistJobs();
+void processQueue();
 server.listen(PORT, HOST, () => console.log(`SaDesa Print Bridge listening on http://${HOST}:${PORT}`));

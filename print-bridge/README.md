@@ -109,7 +109,15 @@ Untuk LAN, IP printer dan port pada halaman POS harus sama dengan entry `type: "
 
 ## Operasional dan keamanan
 
-Bridge hanya bind ke `127.0.0.1` secara default dan tidak boleh diekspos ke internet. Job disimpan lokal dengan `jobId` sebagai idempotency key sehingga retry job yang sama tidak mencetak ulang secara otomatis. PWA juga menyimpan antrean receipt ketika printer belum tersedia.
+Bridge hanya bind ke `127.0.0.1` secara default dan tidak boleh diekspos ke internet. CORS dibatasi ke `https://www.sadesa.id`, `https://sadesa.id`, dan `http://localhost:5173` secara default. Untuk staging atau domain lain, set daftar origin secara eksplisit sebelum menjalankan service, misalnya:
+
+```bash
+ALLOWED_ORIGIN="https://staging.example.id,http://localhost:5173" npm --prefix print-bridge start
+```
+
+Jangan memakai `ALLOWED_ORIGIN=*` pada komputer kasir produksi karena website lain dapat mengirim perintah cetak ke localhost.
+
+Job disimpan lokal dengan `jobId` sebagai idempotency key. Job `queued` atau `printing` dipulihkan saat bridge restart. Job `failed` dapat dikirim ulang dari tombol retry; karena bridge mungkin kehilangan acknowledgement setelah printer sudah menerima data, retry manual dapat menghasilkan cetak ganda dan harus dilakukan setelah kasir memeriksa printer. PWA juga menyimpan antrean receipt ketika printer belum tersedia.
 
 Endpoint yang tersedia:
 
@@ -117,6 +125,8 @@ Endpoint yang tersedia:
 - `GET /printers` — daftar printer dari konfigurasi lokal.
 - `POST /jobs` — menerima byte ESC/POS dalam Base64.
 - `GET /jobs/:jobId` — status job cetak.
+
+Status bridge atau job **bukan bukti tinta/kertas benar-benar keluar** pada semua model printer. Test print fisik tetap wajib dilakukan saat onboarding.
 
 ## Batasan yang masih perlu diuji secara fisik
 

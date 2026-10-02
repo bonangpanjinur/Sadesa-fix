@@ -21,9 +21,10 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
     try {
       const health = await printBridgeClient.health();
       const printers = await printBridgeClient.listPrinters();
-      if (!health.ok || printers.length === 0) throw new Error('Print Bridge aktif, tetapi belum ada printer yang dikonfigurasi.');
+      const defaultPrinter = printers.find((printer) => printer.isDefault);
+      if (!health.ok || !defaultPrinter) throw new Error('Print Bridge aktif, tetapi printer default belum dikonfigurasi.');
       setThermalConnected(true);
-      toast.success(`Print Bridge siap · ${printers.find((printer) => printer.isDefault)?.name || printers[0].name}`);
+      toast.success(`Print Bridge siap · ${defaultPrinter.name}`);
       return true;
     } catch (error: unknown) {
       setThermalConnected(false);
