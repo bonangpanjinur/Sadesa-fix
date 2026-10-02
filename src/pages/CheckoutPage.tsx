@@ -23,6 +23,7 @@ import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } fro
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
 import { requestRequiredLocation } from '@/lib/requiredLocation';
+import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
 
@@ -45,6 +46,7 @@ interface MerchantPaymentSettings {
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { enabled: guestCheckoutEnabled, loading: guestCheckoutFlagLoading } = useGuestCheckoutEnabled(Boolean(user));
   const { selectedItems, removeFromCart } = useCart();
   const items = selectedItems;
   const { t } = useTranslation();
@@ -76,6 +78,12 @@ export default function CheckoutPage() {
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
   // Merchant payment settings
   const [merchantPaymentSettings, setMerchantPaymentSettings] = useState<MerchantPaymentSettings & { qrisImageUrl: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!user && !guestCheckoutFlagLoading && !guestCheckoutEnabled) {
+      navigate('/auth', { replace: true });
+    }
+  }, [guestCheckoutEnabled, guestCheckoutFlagLoading, navigate, user]);
 
   // Check if Xendit is enabled
   useEffect(() => {
@@ -1083,7 +1091,7 @@ export default function CheckoutPage() {
             !loading && items.length > 0 && allMerchantsOpen ? 'animate-pulse hover:animate-none' : ''
           }`}
           size="lg"
-          disabled={loading || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady}
+          disabled={loading || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>

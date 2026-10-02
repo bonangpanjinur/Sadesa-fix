@@ -20,6 +20,7 @@ import { formatPrice } from '@/lib/utils';
 import { useTranslation, useFormatters } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 
 interface StockProductRow {
   id: string;
@@ -33,6 +34,7 @@ export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { items, selectedItems, selectedItemIds, toggleItemSelection, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { enabled: guestCheckoutEnabled, loading: guestCheckoutFlagLoading } = useGuestCheckoutEnabled(Boolean(user));
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -112,6 +114,10 @@ export default function CartPage() {
         description: 'Hapus atau sesuaikan produk yang stoknya berubah sebelum checkout.',
         variant: 'destructive',
       });
+      return;
+    }
+    if (!user && !guestCheckoutEnabled) {
+      navigate('/auth');
       return;
     }
     navigate('/checkout');
@@ -314,8 +320,15 @@ export default function CartPage() {
           onClick={handleCheckout}
           className="w-full shadow-brand font-bold"
           size="lg"
+          disabled={guestCheckoutFlagLoading}
         >
-          {user ? 'Lanjut ke Checkout' : 'Checkout tanpa Login'}
+          {guestCheckoutFlagLoading
+            ? 'Memeriksa Checkout...'
+            : user
+            ? 'Lanjut ke Checkout'
+            : guestCheckoutEnabled
+            ? 'Checkout tanpa Login'
+            : 'Masuk untuk Checkout'}
         </Button>
       </div>
 
