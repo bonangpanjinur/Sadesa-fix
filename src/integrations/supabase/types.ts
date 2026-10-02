@@ -2311,6 +2311,7 @@ export type Database = {
         Row: {
           advertiser_id: string | null
           advertiser_type: string | null
+          category_id: string | null
           click_count: number | null
           created_at: string
           end_date: string | null
@@ -2334,6 +2335,7 @@ export type Database = {
         Insert: {
           advertiser_id?: string | null
           advertiser_type?: string | null
+          category_id?: string | null
           click_count?: number | null
           created_at?: string
           end_date?: string | null
@@ -2357,6 +2359,7 @@ export type Database = {
         Update: {
           advertiser_id?: string | null
           advertiser_type?: string | null
+          category_id?: string | null
           click_count?: number | null
           created_at?: string
           end_date?: string | null
@@ -2377,7 +2380,15 @@ export type Database = {
           updated_at?: string
           view_count?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "promotions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {

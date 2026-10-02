@@ -26,6 +26,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
+import { hideRedundantFoodRootCategories } from '@/lib/productCategories';
 
 type BannerStatus = 'active' | 'scheduled' | 'expired' | 'inactive';
 
@@ -56,10 +58,13 @@ interface Banner {
   start_date: string;
   end_date: string | null;
   sort_order: number | null;
+  category_id: string | null;
 }
 
 export default function AdminBannersPage() {
   const queryClient = useQueryClient();
+  const { data: activeCategories = [] } = useAdminCategories();
+  const mainCategories = hideRedundantFoodRootCategories(activeCategories.filter((category) => !category.parent_id));
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -70,6 +75,7 @@ export default function AdminBannersPage() {
     subtitle: '',
     image_url: '',
     link_url: '',
+    category_id: '',
     is_active: true,
     start_date: new Date().toISOString().slice(0, 10),
     end_date: '',
@@ -79,7 +85,7 @@ export default function AdminBannersPage() {
     try {
       const { data, error } = await supabase
         .from('promotions')
-        .select('id, title, subtitle, image_url, link_url, is_active, is_approved, start_date, end_date, sort_order')
+        .select('id, title, subtitle, image_url, link_url, category_id, is_active, is_approved, start_date, end_date, sort_order')
         .eq('type', 'banner')
         .order('sort_order', { ascending: true });
 
@@ -88,6 +94,7 @@ export default function AdminBannersPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['homepage-banners'] }),
         queryClient.invalidateQueries({ queryKey: ['food-catalog-banners'] }),
+        queryClient.invalidateQueries({ queryKey: ['category-banners'] }),
       ]);
     } catch (error) {
       console.error('Error fetching banners:', error);
@@ -109,6 +116,7 @@ export default function AdminBannersPage() {
         subtitle: banner.subtitle || '',
         image_url: banner.image_url || '',
         link_url: banner.link_url || '',
+        category_id: banner.category_id || '',
         is_active: banner.is_active,
         start_date: toDateInput(banner.start_date),
         end_date: toDateInput(banner.end_date),
@@ -120,6 +128,7 @@ export default function AdminBannersPage() {
         subtitle: '',
         image_url: '',
         link_url: '',
+        category_id: '',
         is_active: true,
         start_date: new Date().toISOString().slice(0, 10),
         end_date: '',
@@ -169,6 +178,8 @@ export default function AdminBannersPage() {
 
     setSaving(true);
     try {
+      const targetCategoryId = formData.category_id || null;
+      const categoryBannerCount = banners.filter((banner) => banner.category_id === targetCategoryId).length;
       const payload = {
         // Keep an empty string for compatibility with databases where the
         // optional-title migration has not been applied yet.
@@ -176,12 +187,15 @@ export default function AdminBannersPage() {
         subtitle: subtitle || null,
         image_url: formData.image_url.trim() || null,
         link_url: linkUrl || null,
+        category_id: formData.category_id || null,
         is_active: formData.is_active,
         is_approved: true,
         start_date: formData.start_date ? new Date(`${formData.start_date}T00:00:00`).toISOString() : new Date().toISOString(),
         end_date: formData.end_date ? new Date(`${formData.end_date}T23:59:59`).toISOString() : null,
         type: 'banner',
-        sort_order: editingBanner?.sort_order ?? banners.length,
+        sort_order: editingBanner?.category_id === targetCategoryId
+          ? editingBanner.sort_order ?? categoryBannerCount
+          : categoryBannerCount,
       };
 
       if (editingBanner) {
@@ -238,27 +252,36 @@ export default function AdminBannersPage() {
   };
 
   const moveOrder = async (id: string, direction: 'up' | 'down') => {
-    const index = banners.findIndex(b => b.id === id);
-    if (index < 0) return;
-    
+    const targetBanner = banners.find((banner) => banner.id === id);
+    if (!targetBanner) return;
+    const categoryBanners = banners.filter((banner) => banner.category_id === targetBanner.category_id);
+    const index = categoryBanners.findIndex((banner) => banner.id === id);
     const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= banners.length) return;
+    if (newIndex < 0 || newIndex >= categoryBanners.length) return;
 
+    const reorderedCategoryBanners = [...categoryBanners];
+    [reorderedCategoryBanners[index], reorderedCategoryBanners[newIndex]] = [reorderedCategoryBanners[newIndex], reorderedCategoryBanners[index]];
+    const categoryPositions = banners.flatMap((banner, position) => (
+      banner.category_id === targetBanner.category_id ? [position] : []
+    ));
     const newBanners = [...banners];
-    [newBanners[index], newBanners[newIndex]] = [newBanners[newIndex], newBanners[index]];
+    categoryPositions.forEach((position, categoryIndex) => {
+      newBanners[position] = { ...reorderedCategoryBanners[categoryIndex], sort_order: categoryIndex };
+    });
 
     try {
-        const results = await Promise.all(
-          newBanners.map((b, i) =>
-            supabase.from('promotions').update({ sort_order: i }).eq('id', b.id)
-          )
-        );
-        const failed = results.find((result) => result.error);
-        if (failed?.error) throw failed.error;
+      const results = await Promise.all(
+        reorderedCategoryBanners.map((banner, sortOrder) =>
+          supabase.from('promotions').update({ sort_order: sortOrder }).eq('id', banner.id)
+        )
+      );
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
       setBanners(newBanners);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['homepage-banners'] }),
         queryClient.invalidateQueries({ queryKey: ['food-catalog-banners'] }),
+        queryClient.invalidateQueries({ queryKey: ['category-banners'] }),
       ]);
     } catch {
       toast.error('Gagal mengubah urutan');
@@ -266,7 +289,7 @@ export default function AdminBannersPage() {
   };
 
   return (
-    <AdminLayout title="Manajemen Banner" subtitle="Kelola banner homepage">
+    <AdminLayout title="Manajemen Banner" subtitle="Kelola banner umum dan iklan per kategori">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
           <Image className="h-5 w-5 text-primary" />
@@ -297,7 +320,7 @@ export default function AdminBannersPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {banners.map((banner, index) => (
+          {banners.map((banner) => (
             <div
               key={banner.id}
               className="bg-card border border-border rounded-xl overflow-hidden flex"
@@ -319,6 +342,11 @@ export default function AdminBannersPage() {
               <div className="flex-1 p-4 flex items-center justify-between">
                 <div>
                   {banner.title && <h3 className="font-semibold">{banner.title}</h3>}
+                  <Badge variant="outline" className="mt-1">
+                    {banner.category_id
+                      ? mainCategories.find((category) => category.id === banner.category_id)?.name || 'Kategori nonaktif'
+                      : 'Banner umum'}
+                  </Badge>
                   {banner.subtitle && (
                     <p className="text-sm text-muted-foreground">{banner.subtitle}</p>
                   )}
@@ -332,10 +360,10 @@ export default function AdminBannersPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" onClick={() => moveOrder(banner.id, 'up')} disabled={index === 0}>
+                  <Button variant="ghost" size="icon" onClick={() => moveOrder(banner.id, 'up')} disabled={banners.filter((item) => item.category_id === banner.category_id).findIndex((item) => item.id === banner.id) === 0}>
                     <ArrowUp className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => moveOrder(banner.id, 'down')} disabled={index === banners.length - 1}>
+                  <Button variant="ghost" size="icon" onClick={() => moveOrder(banner.id, 'down')} disabled={banners.filter((item) => item.category_id === banner.category_id).findIndex((item) => item.id === banner.id) === banners.filter((item) => item.category_id === banner.category_id).length - 1}>
                     <ArrowDown className="h-4 w-4" />
                   </Button>
                   
@@ -375,14 +403,14 @@ export default function AdminBannersPage() {
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingBanner ? 'Edit Banner' : 'Tambah Banner Baru'}</DialogTitle>
-            <DialogDescription>Atur gambar, teks, tautan, dan periode tampil banner homepage.</DialogDescription>
+            <DialogDescription>Atur gambar, teks, tautan, periode, dan kategori tujuan banner.</DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Left: Image upload */}
             <div className="space-y-2">
               <Label>Gambar Banner</Label>
-              <p className="text-xs text-muted-foreground">Gambar ini akan menjadi visual utama banner yang tampil di halaman beranda.</p>
+              <p className="text-xs text-muted-foreground">Gambar ini menjadi visual utama banner pada lokasi dan kategori yang dipilih.</p>
               <ImageUpload
                 value={formData.image_url || null}
                 onChange={(url) => setFormData({ ...formData, image_url: url || '' })}
@@ -412,6 +440,25 @@ export default function AdminBannersPage() {
                   onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
                   placeholder="Deskripsi singkat"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="banner-category">Tampilkan di</Label>
+                <select
+                  id="banner-category"
+                  value={formData.category_id}
+                  onChange={(event) => setFormData({ ...formData, category_id: event.target.value })}
+                  className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Banner umum — halaman utama</option>
+                  {editingBanner?.category_id && !mainCategories.some((category) => category.id === editingBanner.category_id) && (
+                    <option value={editingBanner.category_id}>Kategori nonaktif (pertahankan target)</option>
+                  )}
+                  {mainCategories.map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Iklan kategori tampil pada halaman kategori tersebut. Kategori mengikuti pengaturan kategori utama yang aktif.</p>
               </div>
 
               <div>

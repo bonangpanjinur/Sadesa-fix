@@ -30,7 +30,7 @@ import { useCart } from '../contexts/CartContext';
 import { useFlashSales, type FlashSale } from '../hooks/useFlashSales';
 import { FlashSaleTimer } from '../components/FlashSaleTimer';
 import { formatPrice } from '../lib/utils';
-import { fetchBannerPromotions, type Promotion } from '../lib/promotions';
+import { fetchBannerPromotions, fetchCategoryBannerPromotions, incrementPromotionClick, incrementPromotionView, type Promotion } from '../lib/promotions';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';
@@ -171,12 +171,16 @@ function FoodMerchantRow({ product, userLocation, catalogType }: { product: Prod
 }
 
 function FoodBanner({ banner }: { banner: Promotion }) {
+  useEffect(() => {
+    void incrementPromotionView(banner.id);
+  }, [banner.id]);
+
   const content = <div className="relative min-h-[7.7rem] overflow-hidden rounded-[1.15rem] bg-[#f6d9a8] shadow-[0_12px_25px_-18px_rgba(74,52,21,0.7)]">
     {banner.imageUrl && <OptimizedImage src={banner.imageUrl} alt={banner.title || 'Banner promosi'} className="absolute inset-0 h-full w-full object-cover" aspectRatio="auto" lazy />}
     <div className="relative z-10 max-w-[72%] px-4 py-5 text-white">{banner.title && <p className="font-serif text-[20px] font-black leading-[1.03]">{banner.title}</p>}{banner.subtitle && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/90">{banner.subtitle}</p>}</div>
   </div>;
   if (!banner.linkUrl) return content;
-  return banner.linkUrl.startsWith('/') ? <Link to={banner.linkUrl} aria-label={banner.title || 'Banner promosi'} className="block">{content}</Link> : <a href={banner.linkUrl} target="_blank" rel="noreferrer" aria-label={banner.title || 'Banner promosi'} className="block">{content}</a>;
+  return banner.linkUrl.startsWith('/') ? <Link to={banner.linkUrl} onClick={() => void incrementPromotionClick(banner.id)} aria-label={banner.title || 'Banner promosi'} className="block">{content}</Link> : <a href={banner.linkUrl} target="_blank" rel="noreferrer" onClick={() => void incrementPromotionClick(banner.id)} aria-label={banner.title || 'Banner promosi'} className="block">{content}</a>;
 }
 
 function FlashSaleReminder({ sale }: { sale: FlashSale }) {
@@ -281,9 +285,23 @@ export default function ProductsPage() {
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const { location: userLocation, loading: locationLoading, refreshLocation } = useUserLocation();
   const { data: categories = [] } = useAdminCategories();
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.slug === foodFilters.type),
+    [categories, foodFilters.type],
+  );
+  const profileCategory = useMemo(
+    () => getCategoryParent(categories as ProductCategory[], selectedCategory || null) || selectedCategory,
+    [categories, selectedCategory],
+  );
   const { data: foodBanners = [] } = useQuery<Promotion[]>({
     queryKey: ['food-catalog-banners'],
     queryFn: fetchBannerPromotions,
+    staleTime: 120_000,
+  });
+  const { data: categoryBanners = [] } = useQuery<Promotion[]>({
+    queryKey: ['category-banners', profileCategory?.id],
+    queryFn: () => profileCategory ? fetchCategoryBannerPromotions(profileCategory.id) : Promise.resolve([]),
+    enabled: Boolean(profileCategory?.id),
     staleTime: 120_000,
   });
   const { flashSales } = useFlashSales({ limit: 6 });
@@ -328,7 +346,7 @@ export default function ProductsPage() {
     const shoppingPattern = /sembako|kelontongan|sayur|buah|rumah[- ]tangga|elektronik|pakaian|kerajinan|pertanian|kebutuhan/i;
     return sortProductCategories(all.filter((category) => !category.parent_id && shoppingPattern.test(`${category.slug} ${category.name}`))).slice(0, 8);
   }, [categories, shoppingRootCategory]);
-  const foodBanner = foodBanners[0] || null;
+  const foodBanner = categoryBanners[0] || foodBanners[0] || null;
 
   const parentCategories = useMemo(
     () => sortProductCategories((categories as ProductCategory[]).filter((category) => !category.parent_id)),
@@ -344,10 +362,6 @@ export default function ProductsPage() {
     ];
     return Array.from(new Map(options.map((option) => [option.slug, option])).values());
   }, [parentCategories]);
-  const selectedCategory = useMemo(
-    () => categories.find((category) => category.slug === foodFilters.type),
-    [categories, foodFilters.type],
-  );
   const foodCategories = useMemo(() => {
     const all = categories as ProductCategory[];
     const currentPath = selectedCategory
@@ -358,10 +372,6 @@ export default function ProductsPage() {
       ...getFoodCategoryNavigationCategories(all, selectedCategory || null),
     ];
   }, [categories, selectedCategory]);
-  const profileCategory = useMemo(
-    () => getCategoryParent(categories as ProductCategory[], selectedCategory || null) || selectedCategory,
-    [categories, selectedCategory],
-  );
   const catalogProfile = useMemo(
     () => getCatalogProfile(profileCategory, foodFilters.type),
     [profileCategory, foodFilters.type],

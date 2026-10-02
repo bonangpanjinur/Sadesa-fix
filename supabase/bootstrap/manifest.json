@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; RLS ride fix appended",
-  "migration_count": 339,
-  "bundle_count": 38,
+  "migration_count": 340,
+  "bundle_count": 39,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -607,6 +607,14 @@
       ],
       "sha256": "bded911ad26483543c44337cba04275f4b93255e83c39c3bb67ca22ea615faff",
       "bytes": 20924
+    },
+    {
+      "file": "64_20261002150000_promotion_category_banner_targeting.sql",
+      "source_files": [
+        "20261002150000_promotion_category_banner_targeting.sql"
+      ],
+      "sha256": "b512f7924cd841136723c1d0ac3c5f51618d22fe04c6a5265698bbd2971e062b",
+      "bytes": 1285
     }
   ],
   "idempotent": true,

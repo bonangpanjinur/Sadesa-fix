@@ -12,6 +12,7 @@ export interface Promotion {
   linkId?: string;
   advertiserType?: string;
   advertiserId?: string;
+  categoryId?: string | null;
   startDate: string;
   endDate?: string;
   sortOrder: number;
@@ -73,7 +74,7 @@ export async function fetchActiveHomepageAds(): Promise<MerchantAd[]> {
 }
 
 // Fetch active promotions by type
-export async function fetchPromotions(type?: Promotion['type']): Promise<Promotion[]> {
+export async function fetchPromotions(type?: Promotion['type'], categoryId?: string | null): Promise<Promotion[]> {
   const now = new Date().toISOString();
   let query = supabase
     .from('promotions')
@@ -92,6 +93,7 @@ export async function fetchPromotions(type?: Promotion['type']): Promise<Promoti
       .eq('is_approved', true)
       .lte('start_date', now)
       .or(`end_date.is.null,end_date.gte.${now}`);
+    query = categoryId ? query.eq('category_id', categoryId) : query.is('category_id', null);
   }
 
   const { data, error } = await query;
@@ -112,6 +114,7 @@ export async function fetchPromotions(type?: Promotion['type']): Promise<Promoti
     linkId: p.link_id || undefined,
     advertiserType: p.advertiser_type || undefined,
     advertiserId: p.advertiser_id || undefined,
+    categoryId: p.category_id || null,
     startDate: p.start_date,
     endDate: p.end_date || undefined,
     sortOrder: p.sort_order,
@@ -122,7 +125,7 @@ export async function fetchPromotions(type?: Promotion['type']): Promise<Promoti
 
 // Fetch banner promotions specifically
 export async function fetchBannerPromotions(): Promise<Promotion[]> {
-  const adminBanners = await fetchPromotions('banner');
+  const adminBanners = await fetchPromotions('banner', null);
   const now = new Date().toISOString();
   const { data: merchantAds, error } = await supabase
     .from('merchant_ads')
@@ -157,6 +160,10 @@ export async function fetchBannerPromotions(): Promise<Promotion[]> {
   }));
 
   return [...paidBanners, ...adminBanners];
+}
+
+export async function fetchCategoryBannerPromotions(categoryId: string): Promise<Promotion[]> {
+  return fetchPromotions('banner', categoryId);
 }
 
 export async function incrementPromotionView(id: string): Promise<void> {
