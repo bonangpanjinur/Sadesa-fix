@@ -168,6 +168,11 @@ export default function POSPengaturanPage() {
     setPrinterMsg('Konfigurasi tersimpan; bridge akan memakai printer default berikutnya.');
     toast.info('Status printer direset');
   };
+  const selectedConnectionLabel = printerSettings.connectionType === 'usb'
+    ? 'USB kabel'
+    : printerSettings.connectionType === 'wifi'
+      ? 'WiFi / LAN'
+      : 'Bluetooth';
 
   useEffect(() => {
     if (tenant) {
@@ -485,6 +490,39 @@ export default function POSPengaturanPage() {
         {/* ── TAB PRINTER ─────────────────────────────────────── */}
         <TabsContent value="printer">
           <div className="space-y-4">
+            <Card className="border-emerald-200 bg-emerald-50/70 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-emerald-950">
+                  <Printer className="h-4 w-4 text-emerald-700" />
+                  Cara cepat menghubungkan printer
+                </CardTitle>
+                <CardDescription className="text-emerald-900/75">
+                  Tidak perlu akun atau layanan printer berbayar. Ikuti 3 langkah ini.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-emerald-950">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border border-emerald-200 bg-white/80 p-3">
+                    <Badge className="mb-2 bg-emerald-700">1</Badge>
+                    <p className="font-semibold">Nyalakan printer</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Pastikan kertas terpasang dan printer siap.</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-200 bg-white/80 p-3">
+                    <Badge className="mb-2 bg-emerald-700">2</Badge>
+                    <p className="font-semibold">Pilih jenis koneksi</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Pilih USB kabel, WiFi/LAN, atau Bluetooth di bawah.</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-200 bg-white/80 p-3">
+                    <Badge className="mb-2 bg-emerald-700">3</Badge>
+                    <p className="font-semibold">Simpan & Test Print</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Satu tombol untuk menyimpan dan mencetak struk percobaan.</p>
+                  </div>
+                </div>
+                <p className="rounded-lg border border-emerald-200 bg-white/80 px-3 py-2 text-xs">
+                  <strong>Yang sedang dipilih:</strong> {selectedConnectionLabel}. Jika menggunakan komputer kasir tetap, WiFi/LAN biasanya paling stabil.
+                </p>
+              </CardContent>
+            </Card>
             {/* Status bar */}
             <Card className="border-dashed">
               <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -539,11 +577,11 @@ export default function POSPengaturanPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">USB melalui Print Bridge</p>
+                      <p className="font-semibold text-sm">USB kabel</p>
                       {printerSettings.connectionType === 'usb' && <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Dipilih</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Printer USB dikelola service lokal dan mencetak tanpa dialog browser. Cocok untuk counter kasir tetap.</p>
-                    <p className="text-xs text-emerald-600 mt-1">✓ Pastikan Print Bridge aktif di komputer kasir.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Hubungkan printer ke perangkat kasir dengan kabel USB. Cocok jika printer berada di sebelah kasir.</p>
+                    <p className="text-xs text-emerald-600 mt-1">✓ Browser akan meminta Anda memilih printer saat pertama kali.</p>
                   </div>
                 </button>
 
@@ -558,11 +596,11 @@ export default function POSPengaturanPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">WiFi / LAN (TCP Port 9100)</p>
+                      <p className="font-semibold text-sm">WiFi / LAN</p>
                       {printerSettings.connectionType === 'wifi' && <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Dipilih</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Printer terhubung ke jaringan WiFi/LAN yang sama. Cocok untuk kasir multi-perangkat di satu jaringan.</p>
-                    <p className="text-xs text-blue-600 mt-1">✓ Bekerja di semua browser. Printer harus satu jaringan dengan server.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Printer dan komputer kasir harus terhubung ke WiFi/LAN yang sama. Cocok untuk beberapa perangkat kasir.</p>
+                    <p className="text-xs text-blue-600 mt-1">✓ Paling stabil untuk operasional harian. Memerlukan Print Bridge lokal di komputer kasir.</p>
                   </div>
                 </button>
 
@@ -577,11 +615,11 @@ export default function POSPengaturanPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">Bluetooth melalui Print Bridge</p>
+                      <p className="font-semibold text-sm">Bluetooth</p>
                       {printerSettings.connectionType === 'bluetooth' && <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Dipilih</Badge>}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Printer Bluetooth portabel dikelola service lokal. Cocok untuk kasir bergerak atau lapangan.</p>
-                    <p className="text-xs text-amber-600 mt-1">⚠ Dukungan bergantung pada tipe printer dan adapter Bluetooth di komputer bridge.</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Untuk printer portabel. Dukungan bergantung pada tipe printer dan memerlukan Print Bridge lokal.</p>
+                    <p className="text-xs text-amber-600 mt-1">⚠ Jika ragu, pilih USB kabel atau WiFi/LAN.</p>
                   </div>
                 </button>
               </CardContent>
@@ -755,7 +793,7 @@ export default function POSPengaturanPage() {
               </Button>
               <Button variant="outline" onClick={doTestPrint} disabled={testingPrint}>
                 <TestTube2 className="h-4 w-4 mr-1.5" />
-                {testingPrint ? 'Mengirim test print...' : 'Test Print'}
+                {testingPrint ? 'Menyimpan & mencetak...' : 'Simpan & Test Print'}
               </Button>
             </div>
 

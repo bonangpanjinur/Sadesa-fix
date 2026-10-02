@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard, Link2, AlertTriangle, CheckCircle2, MoreHorizontal, Ban, RotateCcw, CalendarPlus, Play, Pencil, History } from 'lucide-react';
+import { Receipt, Check, X, Eye, Package, Plus, Trash2, Save, Loader2, Settings, Clock, CreditCard, Link2, AlertTriangle, CheckCircle2, MoreHorizontal, Ban, RotateCcw, CalendarPlus, Play, Pencil, History, UserPlus, Users } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,6 +80,15 @@ interface POSIntegrationHealth {
   sync_gap_count: number | null;
   status: 'READY' | 'NEEDS_MAPPING' | 'NEEDS_SYNC' | 'NEEDS_OUTLET';
 }
+interface MerchantAccessRow {
+  id: string;
+  user_id: string | null;
+  name: string;
+  phone: string | null;
+  status: string;
+  registration_status: string;
+  currentSubscription: POSSubscription | null;
+}
 
 interface POSPackageHistory {
   id: string;
@@ -114,6 +123,7 @@ export default function AdminPOSPage() {
   const [packages, setPackages] = useState<POSPackage[]>([]);
   const [packageHistory, setPackageHistory] = useState<POSPackageHistory[]>([]);
   const [subscriptions, setSubscriptions] = useState<POSSubscription[]>([]);
+  const [merchantAccounts, setMerchantAccounts] = useState<MerchantAccessRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [trialDays, setTrialDays] = useState(30);
   const [savingConfig, setSavingConfig] = useState(false);
@@ -143,17 +153,25 @@ export default function AdminPOSPage() {
     code: '', name: '', description: '', partner_type: 'Desa/Koperasi',
     discount_percent: 10, starts_at: '', expires_at: '', max_redemptions: '',
   });
+  const [manualGrantOpen, setManualGrantOpen] = useState(false);
+  const [manualMerchantId, setManualMerchantId] = useState('');
+  const [manualPackageId, setManualPackageId] = useState('');
+  const [manualDuration, setManualDuration] = useState(1);
+  const [manualReason, setManualReason] = useState('');
+  const [merchantSearch, setMerchantSearch] = useState('');
+  const [grantingAccess, setGrantingAccess] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [pkgsRes, subsRes, config, healthRes, promotionsRes] = await Promise.all([
+      const [pkgsRes, subsRes, config, healthRes, promotionsRes, merchantsRes] = await Promise.all([
         supabase.from('pos_packages').select('*').order('sort_order'),
         supabase.from('pos_subscriptions').select('*, merchants(name), pos_packages(name)').order('created_at', { ascending: false }),
         getSettingByKey('pos_config'),
         supabase.rpc('get_pos_integration_health' as never),
         supabase.from('pos_onboarding_promotions' as never).select('*').order('created_at', { ascending: false }),
+        supabase.from('merchants').select('id, user_id, name, phone, status, registration_status').order('name'),
       ]);
       const historyRes = await supabase.rpc('get_pos_package_history' as never, { p_limit: 200 } as never);
       const tenantRes = await supabase.from('pos_tenants').select('merchant_id, status, is_active');
@@ -168,6 +186,20 @@ export default function AdminPOSPage() {
         package_duration_months: (s.pos_packages as { duration_months?: number } | null)?.duration_months,
         tenant_status: tenantByMerchant.get(s.merchant_id)?.status,
         tenant_is_active: tenantByMerchant.get(s.merchant_id)?.is_active,
+      })));
+      const latestByMerchant = new Map<string, POSSubscription>();
+      (subsRes.data || []).forEach((raw: POSSubscriptionRow) => {
+        if (!latestByMerchant.has(raw.merchant_id)) {
+          latestByMerchant.set(raw.merchant_id, {
+            ...raw,
+            merchant_name: raw.merchants?.name || '-',
+            package_name: raw.pos_packages?.name || (raw.is_trial ? 'Trial Gratis' : '-'),
+          });
+        }
+      });
+      setMerchantAccounts(((merchantsRes.data || []) as Array<Omit<MerchantAccessRow, 'currentSubscription'>>).map((merchant) => ({
+        ...merchant,
+        currentSubscription: latestByMerchant.get(merchant.id) || null,
       })));
       if (config?.value) {
         setTrialDays(((config.value as POSConfig).trial_days) || 30);
@@ -230,6 +262,35 @@ export default function AdminPOSPage() {
     if (ok) toast.success('Konfigurasi POS berhasil disimpan');
     else toast.error('Gagal menyimpan');
     setSavingConfig(false);
+  };
+  const openManualGrant = () => {
+    setManualMerchantId('');
+    setManualPackageId(packages.find((pkg) => pkg.is_active)?.id || '');
+    setManualDuration(1);
+    setManualReason('');
+    setMerchantSearch('');
+    setManualGrantOpen(true);
+  };
+  const handleManualGrant = async () => {
+    if (!manualMerchantId || !manualReason.trim()) {
+      toast.error('Pilih merchant dan isi alasan pemberian akses');
+      return;
+    }
+    setGrantingAccess(true);
+    const { error } = await supabase.rpc('admin_grant_pos_access' as never, {
+      p_merchant_id: manualMerchantId,
+      p_package_id: manualPackageId || null,
+      p_duration_months: Math.max(1, manualDuration),
+      p_reason: manualReason.trim(),
+    } as never);
+    if (error) {
+      toast.error(`Gagal memberikan akses POS: ${error.message}`);
+    } else {
+      toast.success('Akses POS berhasil diberikan kepada merchant');
+      setManualGrantOpen(false);
+      await loadData();
+    }
+    setGrantingAccess(false);
   };
 
   const handleAddPackage = async () => {
@@ -385,6 +446,7 @@ export default function AdminPOSPage() {
           <TabsTrigger value="subscriptions" className="flex items-center gap-2">
               Review Langganan {pendingCount > 0 && <Badge variant="destructive" className="text-[10px] px-1.5">{pendingCount}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="manual-access" className="flex items-center gap-2"><Users className="h-4 w-4" />Akses Manual</TabsTrigger>
           <TabsTrigger value="packages">Paket & Fitur</TabsTrigger>
           <TabsTrigger value="promotions">Promo Partner</TabsTrigger>
           <TabsTrigger value="package-history"><History className="mr-1 h-4 w-4" />Riwayat Paket</TabsTrigger>
@@ -533,6 +595,42 @@ export default function AdminPOSPage() {
                   </Table>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Manual POS access Tab */}
+        <TabsContent value="manual-access">
+          <Card>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>Akses POS Manual</CardTitle>
+                <CardDescription>Pilih akun pedagang tertentu untuk diberi akses POS tanpa menunggu permintaan pembayaran.</CardDescription>
+              </div>
+              <Button onClick={openManualGrant}><UserPlus className="mr-2 h-4 w-4" />Berikan Akses POS</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Pedagang</TableHead><TableHead>Status Akun</TableHead><TableHead>Akses POS</TableHead><TableHead>Berakhir</TableHead><TableHead className="text-right">Aksi</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {merchantAccounts.map((merchant) => {
+                      const sub = merchant.currentSubscription;
+                      const active = sub?.status === 'ACTIVE' && !!sub.expired_at && new Date(sub.expired_at) > new Date();
+                      return (
+                        <TableRow key={merchant.id}>
+                          <TableCell><div className="font-medium">{merchant.name}</div><div className="text-xs text-muted-foreground">{merchant.phone || 'Nomor telepon belum ada'}</div></TableCell>
+                          <TableCell><Badge variant={merchant.status === 'ACTIVE' || merchant.registration_status === 'APPROVED' ? 'success' : 'secondary'}>{merchant.status || merchant.registration_status}</Badge></TableCell>
+                          <TableCell><Badge variant={active ? 'success' : 'secondary'}>{active ? 'Aktif' : sub?.status || 'Belum diberikan'}</Badge></TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{sub?.expired_at ? new Date(sub.expired_at).toLocaleDateString('id-ID') : '-'}</TableCell>
+                          <TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => { setManualMerchantId(merchant.id); setManualPackageId(packages.find((pkg) => pkg.is_active)?.id || ''); setManualDuration(1); setManualReason('Perpanjangan atau pemberian akses manual oleh admin'); setManualGrantOpen(true); }}><UserPlus className="mr-1 h-4 w-4" />Beri / Perbarui</Button></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {merchantAccounts.length === 0 && <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">Belum ada akun pedagang.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -765,6 +863,51 @@ export default function AdminPOSPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={manualGrantOpen} onOpenChange={setManualGrantOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Berikan akses POS manual</DialogTitle>
+            <CardDescription>Pilih akun pedagang yang boleh menggunakan POS. Tidak ada pembayaran yang dibuat dari aksi ini.</CardDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Cari akun pedagang</Label>
+              <Input value={merchantSearch} onChange={(event) => setMerchantSearch(event.target.value)} placeholder="Nama atau nomor telepon" />
+            </div>
+            <div className="space-y-2">
+              <Label>Akun pedagang</Label>
+              <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={manualMerchantId} onChange={(event) => setManualMerchantId(event.target.value)}>
+                <option value="">Pilih akun pedagang</option>
+                {merchantAccounts.filter((merchant) => `${merchant.name} ${merchant.phone || ''}`.toLowerCase().includes(merchantSearch.toLowerCase())).slice(0, 100).map((merchant) => (
+                  <option key={merchant.id} value={merchant.id}>{merchant.name} {merchant.phone ? `· ${merchant.phone}` : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Paket POS</Label>
+                <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={manualPackageId} onChange={(event) => setManualPackageId(event.target.value)}>
+                  <option value="">Akses dasar manual</option>
+                  {packages.filter((pkg) => pkg.is_active).map((pkg) => <option key={pkg.id} value={pkg.id}>{pkg.name} · {pkg.duration_months} bulan</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Durasi akses (bulan)</Label>
+                <Input type="number" min={1} value={manualDuration} onChange={(event) => setManualDuration(Math.max(1, parseInt(event.target.value, 10) || 1))} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Alasan pemberian akses</Label>
+              <Textarea value={manualReason} onChange={(event) => setManualReason(event.target.value)} placeholder="Contoh: Akses gratis untuk merchant pilot" rows={3} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualGrantOpen(false)}>Batal</Button>
+            <Button onClick={handleManualGrant} disabled={grantingAccess || !manualMerchantId || !manualReason.trim()}>{grantingAccess ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}{grantingAccess ? 'Memberikan akses...' : 'Berikan akses'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Package Dialog */}
       <Dialog open={addPkgOpen} onOpenChange={setAddPkgOpen}>
