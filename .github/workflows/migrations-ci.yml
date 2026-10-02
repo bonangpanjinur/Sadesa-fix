@@ -143,6 +143,7 @@ jobs:
 
           CREATE EXTENSION IF NOT EXISTS pgcrypto;
           CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          CREATE PUBLICATION supabase_realtime;
 
           -- Minimal auth.users stand-in so FKs resolve
           CREATE TABLE IF NOT EXISTS auth.users (
