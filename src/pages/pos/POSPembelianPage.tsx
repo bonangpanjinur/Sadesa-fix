@@ -39,8 +39,6 @@ interface POItem {
 }
 
 interface StockRow { id: string; quantity: number; }
-interface PurchaseOrderInsert { id: string; }
-
 interface PurchaseOrder {
   id: string;
   po_number: string;
@@ -221,29 +219,9 @@ export default function POSPembelianPage() {
       const taxAmt = sub * (form.tax_rate / 100);
       const total = sub - form.discount_amount + taxAmt;
 
-      const { data: poData, error: poError } = await supabase.from('pos_purchase_orders' as never).insert({
-        tenant_id: tenant.id,
-        outlet_id: activeOutlet.id,
-        supplier_id: form.supplier_id || null,
-        supplier_name: form.supplier_name,
-        po_number: form.po_number,
-        status: 'draft',
-        order_date: form.order_date,
-        expected_date: form.expected_date || null,
-        subtotal: sub,
-        discount_amount: form.discount_amount,
-        tax_amount: taxAmt,
-        total,
-        amount_paid: 0,
-        notes: form.notes || null,
-        created_by: user.id,
-      }).select().single();
-
-      if (poError) throw poError;
-
       const itemsPayload = validItems.map(item => ({
-        purchase_order_id: (poData as unknown as PurchaseOrderInsert).id,
         product_id: item.product_id || null,
+        variant_id: null,
         product_name: item.product_name,
         sku: item.sku || null,
         unit: item.unit,
@@ -255,8 +233,22 @@ export default function POSPembelianPage() {
         notes: null,
       }));
 
-      const { error: itemsError } = await supabase.from('pos_purchase_order_items' as never).insert(itemsPayload);
-      if (itemsError) throw itemsError;
+      const { error } = await supabase.rpc('create_pos_purchase_order' as never, {
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_supplier_id: form.supplier_id || null,
+        p_supplier_name: form.supplier_name,
+        p_po_number: form.po_number,
+        p_order_date: form.order_date,
+        p_expected_date: form.expected_date || null,
+        p_subtotal: sub,
+        p_discount_amount: form.discount_amount,
+        p_tax_amount: taxAmt,
+        p_total: total,
+        p_notes: form.notes || null,
+        p_items: itemsPayload,
+      } as never);
+      if (error) throw error;
 
       toast.success(`Purchase Order ${form.po_number} berhasil dibuat`);
       setDialogOpen(false);

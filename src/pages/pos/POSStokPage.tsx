@@ -177,16 +177,15 @@ export default function POSStokPage() {
       return;
     }
     try {
-      const { error } = await supabase.from('pos_stock_batches' as never).insert({
-        tenant_id: tenant.id,
-        outlet_id: activeOutlet.id,
-        stock_id: stock.id,
-        product_id: stock.product_id,
-        batch_number: batchForm.batchNumber.trim(),
-        expiry_date: batchForm.expiryDate || null,
-        quantity,
-        unit_cost: unitCost,
-      });
+      const { error } = await supabase.rpc('receive_pos_stock_batch' as never, {
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_stock_id: stock.id,
+        p_batch_number: batchForm.batchNumber.trim(),
+        p_expiry_date: batchForm.expiryDate || null,
+        p_quantity: quantity,
+        p_unit_cost: unitCost,
+      } as never);
       if (error) throw error;
       toast.success('Batch stok berhasil dicatat');
       setBatchDialog(false);
@@ -198,7 +197,13 @@ export default function POSStokPage() {
   };
 
   const handleMinStockUpdate = async (stockId: string, minStock: number) => {
-    const { error: updateError } = await supabase.from('pos_stock' as never).update({ min_stock: minStock }).eq('id', stockId);
+    if (!tenant || !activeOutlet) return;
+    const { error: updateError } = await supabase.rpc('set_pos_stock_minimum' as never, {
+      p_stock_id: stockId,
+      p_tenant_id: tenant.id,
+      p_outlet_id: activeOutlet.id,
+      p_min_stock: minStock,
+    } as never);
     if (updateError) {
       toast.error(`Batas minimum gagal disimpan: ${updateError.message}`);
       return;

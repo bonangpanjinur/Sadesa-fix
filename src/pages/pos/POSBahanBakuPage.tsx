@@ -144,46 +144,20 @@ export default function POSBahanBakuPage() {
     if (!tenant || !form.name.trim()) { toast.error('Nama bahan baku wajib diisi'); return; }
     setSaving(true);
     try {
-      const payload = {
-        tenant_id: tenant.id,
-        outlet_id: activeOutlet?.id || null,
-        name: form.name.trim(),
-        unit: form.unit,
-        current_stock: parseFloat(form.current_stock) || 0,
-        min_stock: parseFloat(form.min_stock) || 0,
-        cost_per_unit: parseFloat(form.cost_per_unit) || 0,
-        description: form.description || null,
-      };
-
-      if (editItem) {
-        const { error } = await supabase
-          .from('pos_raw_materials' as never)
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq('id', editItem.id);
-        if (error) throw error;
-        toast.success('Bahan baku berhasil diperbarui');
-      } else {
-        const { data: newMat, error } = await supabase
-          .from('pos_raw_materials' as never)
-          .insert(payload)
-          .select()
-          .single();
-        if (error) throw error;
-
-        if (payload.current_stock > 0) {
-          await supabase.from('pos_raw_material_mutations' as never).insert({
-            tenant_id: tenant.id,
-            outlet_id: activeOutlet?.id || null,
-            raw_material_id: (newMat as unknown as { id: string }).id,
-            type: 'initial',
-            qty: payload.current_stock,
-            qty_before: 0,
-            qty_after: payload.current_stock,
-            notes: 'Stok awal',
-          });
-        }
-        toast.success('Bahan baku berhasil ditambahkan');
-      }
+      if (!activeOutlet) throw new Error('Outlet aktif wajib dipilih');
+      const { error } = await supabase.rpc('save_pos_raw_material' as never, {
+        p_id: editItem?.id || null,
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_name: form.name.trim(),
+        p_unit: form.unit,
+        p_initial_stock: parseFloat(form.current_stock) || 0,
+        p_min_stock: parseFloat(form.min_stock) || 0,
+        p_cost_per_unit: parseFloat(form.cost_per_unit) || 0,
+        p_description: form.description || null,
+      } as never);
+      if (error) throw error;
+      toast.success(editItem ? 'Bahan baku berhasil diperbarui' : 'Bahan baku berhasil ditambahkan');
       setDialogOpen(false);
       fetchMaterials();
       fetchMutations();
@@ -224,26 +198,16 @@ export default function POSBahanBakuPage() {
     if (isNaN(qty) || qty <= 0) { toast.error('Jumlah harus lebih dari 0'); return; }
     setStockSaving(true);
     try {
-      const isDeduction = ['usage', 'waste'].includes(stockForm.type);
-      const delta = isDeduction ? -qty : qty;
-      const qtyBefore = selectedMaterial.current_stock;
-      const qtyAfter = Math.max(0, qtyBefore + delta);
-
-      await supabase
-        .from('pos_raw_materials' as never)
-        .update({ current_stock: qtyAfter, updated_at: new Date().toISOString() })
-        .eq('id', selectedMaterial.id);
-
-      await supabase.from('pos_raw_material_mutations' as never).insert({
-        tenant_id: tenant.id,
-        outlet_id: activeOutlet?.id || null,
-        raw_material_id: selectedMaterial.id,
-        type: stockForm.type,
-        qty: isDeduction ? -qty : qty,
-        qty_before: qtyBefore,
-        qty_after: qtyAfter,
-        notes: stockForm.notes || null,
-      });
+      if (!activeOutlet) throw new Error('Outlet aktif wajib dipilih');
+      const { error } = await supabase.rpc('adjust_pos_raw_material' as never, {
+        p_id: selectedMaterial.id,
+        p_tenant_id: tenant.id,
+        p_outlet_id: activeOutlet.id,
+        p_type: stockForm.type,
+        p_quantity: qty,
+        p_notes: stockForm.notes || null,
+      } as never);
+      if (error) throw error;
 
       toast.success('Stok berhasil diperbarui');
       setStockDialog(false);
