@@ -13,6 +13,7 @@ const DB_VERSION = 3;
 const MAX_SYNC_ATTEMPTS = 8;
 const CLAIM_LEASE_MS = 5 * 60_000;
 export const PRODUCT_CACHE_MAX_AGE_MS = 30 * 60_000;
+const RETRY_DELAYS_MS = [5_000, 30_000, 2 * 60_000, 10 * 60_000, 30 * 60_000];
 const STORES = {
   PRODUCTS: 'pos_products',
   PENDING_SALES: 'pending_sales',
@@ -58,9 +59,15 @@ export type PendingSaleStatus = 'queued' | 'syncing' | 'failed' | 'conflict' | '
 
 export interface PendingSale {
   id: string;
+  /** Stable idempotency key. It is identical to id and never regenerated. */
+  request_key?: string;
   outlet_id: string;
   tenant_id: string;
   cashier_id: string;
+  device_id?: string;
+  created_at_client?: string;
+  timezone?: string;
+  offline_sequence?: number;
   sale_number?: string;
   items: Array<{
     product_id: string;
@@ -95,6 +102,11 @@ export interface PendingSale {
   created_at: string;
   synced: boolean;
   status?: PendingSaleStatus;
+  stock_unverified_until_sync?: boolean;
+  print_status?: 'not_requested' | 'queued' | 'printed_by_bridge' | 'browser_dialog' | 'failed';
+  server_sale_id?: string;
+  server_sale_number?: string;
+  synced_at?: string;
   attempts?: number;
   next_attempt_at?: number;
   last_attempt_at?: number;
@@ -109,6 +121,11 @@ export interface CheckoutCheckpoint {
   outlet_id: string;
   created_at: string;
   sale: Omit<PendingSale, 'synced'>;
+}
+
+export function getRetryDelayMs(attempts: number): number {
+  const index = Math.max(0, Math.min(RETRY_DELAYS_MS.length - 1, attempts - 1));
+  return RETRY_DELAYS_MS[index];
 }
 
 export interface SyncResult {
@@ -314,14 +331,36 @@ export async function savePendingSale(sale: Omit<PendingSale, 'synced'>): Promis
   if (!sale.tenant_id || !sale.outlet_id) throw new Error('Pending sale requires tenant and outlet scope');
   const db = await openDB();
   const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
-  tx.objectStore(STORES.PENDING_SALES).put(normaliseSale(sale));
+  tx.objectStore(STORES.PENDING_SALES).put(normaliseSale({
+    ...sale,
+    request_key: sale.request_key || sale.id,
+    created_at_client: sale.created_at_client || sale.created_at,
+  }));
+  await waitForTransaction(tx);
+}
+
+/** Atomically persists the pre-RPC checkpoint and its durable outbox record. */
+export async function saveCheckoutTransaction(checkpoint: CheckoutCheckpoint): Promise<void> {
+  if (!checkpoint.id || !checkpoint.tenant_id || !checkpoint.outlet_id) {
+    throw new Error('Checkout transaction requires id, tenant, and outlet scope');
+  }
+  if (checkpoint.sale.id !== checkpoint.id || checkpoint.sale.tenant_id !== checkpoint.tenant_id || checkpoint.sale.outlet_id !== checkpoint.outlet_id) {
+    throw new Error('Checkout transaction scope does not match its sale');
+  }
+  const db = await openDB();
+  const tx = db.transaction([STORES.PENDING_SALES, STORES.CHECKOUT_CHECKPOINTS], 'readwrite');
+  tx.objectStore(STORES.PENDING_SALES).put(normaliseSale({
+    ...checkpoint.sale,
+    request_key: checkpoint.sale.request_key || checkpoint.id,
+    created_at_client: checkpoint.sale.created_at_client || checkpoint.sale.created_at,
+  }));
+  tx.objectStore(STORES.CHECKOUT_CHECKPOINTS).put(checkpoint);
   await waitForTransaction(tx);
 }
 
 /**
- * Saves the checkout payload before the network RPC. If the browser is
- * refreshed, closed, or loses power after the server commits but before the
- * response reaches the browser, the same request key can safely be replayed.
+ * Saves only a pre-RPC checkpoint for recovery callers that do not yet have
+ * an outbox record. Checkout itself uses saveCheckoutTransaction above.
  */
 export async function saveCheckoutCheckpoint(checkpoint: CheckoutCheckpoint): Promise<void> {
   if (!checkpoint.id || !checkpoint.tenant_id || !checkpoint.outlet_id) {
@@ -415,13 +454,13 @@ export async function getOfflineQueueSummary(tenantId: string, outletId: string)
   });
 }
 
-export async function markSaleSynced(id: string): Promise<void> {
+export async function markSaleSynced(id: string, server?: { sale_id?: string; sale_number?: string }): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
   const store = tx.objectStore(STORES.PENDING_SALES);
   const request = store.get(id);
   request.onsuccess = () => {
-    if (request.result) store.put({ ...request.result, synced: true, status: 'synced', sync_error: undefined });
+    if (request.result) store.put({ ...request.result, synced: true, status: 'synced', sync_error: undefined, server_sale_id: server?.sale_id, server_sale_number: server?.sale_number, synced_at: new Date().toISOString() });
   };
   await waitForTransaction(tx);
 }
@@ -464,7 +503,7 @@ export async function markSaleSyncError(id: string, error: string, retryable = t
       status: permanent ? 'failed' : 'queued',
       attempts,
       last_attempt_at: Date.now(),
-      next_attempt_at: permanent ? Number.MAX_SAFE_INTEGER : Date.now() + Math.min(30 * 60_000, 2 ** attempts * 1_000),
+      next_attempt_at: permanent ? Number.MAX_SAFE_INTEGER : Date.now() + getRetryDelayMs(attempts),
       sync_error: error.slice(0, 500),
     });
   };

@@ -24,7 +24,7 @@ import { usePOSCart } from '@/hooks/usePOSCart';
 import { usePOSPayment } from '@/hooks/usePOSPayment';
 import { usePOSHeldBills } from '@/hooks/usePOSHeldBills';
 import { usePOSReceipt } from '@/hooks/usePOSReceipt';
-import { clearCheckoutCheckpoint, saveCheckoutCheckpoint, type PendingSale } from '@/lib/posOfflineDB';
+import { clearCheckoutCheckpoint, markSaleSynced, saveCheckoutTransaction, type PendingSale } from '@/lib/posOfflineDB';
 import type {
   CartItem, HeldBill, Customer, LastSale, ReceiptStore, LoyaltyProgram,
   Promotion, Voucher, Product, Variant,
@@ -90,6 +90,7 @@ export default function POSKasirPage() {
 
   const paymentRequestKeyRef = useRef<string | null>(null);
   const [lastSale, setLastSale] = useState<LastSale | null>(null);
+  const [lastSaleWasOffline, setLastSaleWasOffline] = useState(false);
 
   // Printer
   const {
@@ -409,12 +410,17 @@ export default function POSKasirPage() {
       customer_name: selectedCustomer?.name || customerName || null,
       notes: notes || undefined,
       created_at: createdAt,
+      request_key: requestKey,
+      created_at_client: createdAt,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      stock_unverified_until_sync: !isOnline,
+      print_status: 'not_requested',
     };
 
     try {
-      // Durable before the RPC: a refresh, tab close, or power loss can
-      // recover this exact request key without creating a second sale.
-      await saveCheckoutCheckpoint({
+      // Durable and atomic before the RPC: a refresh, tab close, or power loss
+      // can recover this exact request key without creating a second sale.
+      await saveCheckoutTransaction({
         id: requestKey,
         tenant_id: tenant.id,
         outlet_id: activeOutlet.id,
@@ -466,6 +472,8 @@ export default function POSKasirPage() {
         })),
       );
 
+      await markSaleSynced(requestKey, result);
+      setLastSaleWasOffline(false);
       setLastSale({
         saleId: result.sale_id,
         saleNumber: result.sale_number,
@@ -506,9 +514,10 @@ export default function POSKasirPage() {
       if ((browserOffline || !isOnline) && storedPaymentMethod === 'cash') {
         try {
           const queuedSale = { ...offlineSale, payment_method: 'cash' };
-          await saveOfflineSale(queuedSale);
+          await saveOfflineSale({ ...queuedSale, print_status: 'queued', stock_unverified_until_sync: true });
           await clearCheckoutCheckpoint(requestKey);
           const offlineSaleNumber = queuedSale.sale_number || `OFF-${requestKey.slice(0, 8).toUpperCase()}`;
+          setLastSaleWasOffline(true);
           setLastSale({
             saleId: requestKey,
             saleNumber: offlineSaleNumber,
@@ -931,7 +940,13 @@ export default function POSKasirPage() {
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
             </div>
-            <h2 className="text-xl font-bold mb-1">Transaksi Berhasil!</h2>
+            <h2 className="text-xl font-bold mb-1">{lastSaleWasOffline ? 'Tersimpan di Perangkat' : 'Transaksi Berhasil!'}</h2>
+            {lastSaleWasOffline && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-xs leading-5 text-amber-900" role="status">
+                <strong>Transaksi tersimpan di perangkat. Belum tercatat di server.</strong><br />
+                Jangan hapus data browser sebelum status tersinkronisasi. Pembayaran tunai akan dikirim otomatis saat online kembali.
+              </p>
+            )}
             {lastSale && (
               <div className="bg-muted rounded-xl p-4 mt-3 text-left space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">No. Transaksi</span><span className="font-mono font-bold text-xs">{lastSale.saleNumber}</span></div>

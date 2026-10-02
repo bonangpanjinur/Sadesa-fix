@@ -13,6 +13,7 @@ import {
 } from '@/lib/posOfflineDB';
 import { processAtomicPOSSale } from '@/lib/posCheckout';
 import { supabase } from '@/integrations/supabase/client';
+import { withPOSSyncLock } from '@/lib/posOfflineCoordinator';
 
 interface OfflineProductApiRow {
   id: string;
@@ -239,7 +240,7 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     syncInProgress.current = true;
     setIsSyncing(true);
     try {
-      const result = await syncPendingSales(async (sale) => {
+      const result = await withPOSSyncLock(tenantId, outletId, () => syncPendingSales(async (sale) => {
         try {
           await processAtomicPOSSale(
             sale.id,
@@ -285,18 +286,21 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
           );
           return { success: true };
         } catch (error: unknown) {
-          const rpcError = error as { code?: string; message?: string };
+          const rpcError = error as { code?: string; message?: string; details?: string };
           const message = rpcError.message || (error instanceof Error ? error.message : 'Offline sale sync failed');
-          const conflict = rpcError.code === 'P0001' || message.includes('Price conflict');
+          const searchable = `${message} ${rpcError.details || ''}`.toLowerCase();
+          const priceConflict = rpcError.code === 'P0001' || searchable.includes('price conflict') || searchable.includes('price_changed');
+          const stockConflict = searchable.includes('stock conflict') || searchable.includes('stock_conflict') || searchable.includes('insufficient stock') || searchable.includes('stok tidak cukup');
+          const conflict = priceConflict || stockConflict;
           return {
             success: false,
             error: message,
             retryable: conflict ? false : rpcError.code ? isRetryableStatus(Number(rpcError.code)) : true,
             conflict,
-            conflictCode: conflict ? 'PRICE_CHANGED' : rpcError.code,
+            conflictCode: priceConflict ? 'PRICE_CHANGED' : stockConflict ? 'STOCK_CONFLICT' : rpcError.code,
           };
         }
-      }, { tenantId, outletId });
+      }, { tenantId, outletId })) ?? { synced: 0, failed: 0 };
       await refreshQueueSummary();
       if (result.synced > 0 || result.failed > 0) setLastSync(new Date());
       return result;
