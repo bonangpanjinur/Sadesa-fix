@@ -7,7 +7,7 @@ import { getPrinterSettings } from '@/lib/thermalPrinter';
 import { createPrintJobId } from '@/lib/receiptDomain';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Search, Package, ChevronLeft, Barcode, CheckCircle2, Star, Ticket, Percent, Printer, Gift, MessageCircle, FileDown, QrCode } from 'lucide-react';
@@ -940,7 +940,12 @@ export default function POSKasirPage() {
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
             </div>
-            <h2 className="text-xl font-bold mb-1">{lastSaleWasOffline ? 'Tersimpan di Perangkat' : 'Transaksi Berhasil!'}</h2>
+            <DialogTitle className="text-xl font-bold mb-1">{lastSaleWasOffline ? 'Tersimpan di Perangkat' : 'Transaksi Berhasil!'}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {lastSaleWasOffline
+                ? 'Transaksi tersimpan lokal dan belum tercatat di server.'
+                : 'Transaksi pembayaran POS berhasil tercatat.'}
+            </DialogDescription>
             {lastSaleWasOffline && (
               <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-xs leading-5 text-amber-900" role="status">
                 <strong>Transaksi tersimpan di perangkat. Belum tercatat di server.</strong><br />
