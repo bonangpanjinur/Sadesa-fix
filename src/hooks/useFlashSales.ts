@@ -78,9 +78,8 @@ export function useFlashSales(options: UseFlashSalesOptions = {}) {
         `)
         .eq('status', 'ACTIVE')
         .gt('end_time', new Date().toISOString())
-        .gt('stock_available', supabase.rpc('get_stock_sold_ref' as never))
-        .order('end_time', { ascending: true })
-        .limit(limit);
+        .gt('stock_available', 0)
+        .order('end_time', { ascending: true });
 
       if (merchantId) {
         query = query.eq('merchant_id', merchantId);
@@ -90,21 +89,24 @@ export function useFlashSales(options: UseFlashSalesOptions = {}) {
 
       if (fetchError) throw fetchError;
 
-      const mappedSales: FlashSale[] = ((data || []) as unknown as FlashSaleRow[]).map((sale) => ({
-        id: sale.id,
-        productId: sale.product_id,
-        productName: sale.products?.name || 'Unknown',
-        productImage: sale.products?.image_url || null,
-        merchantId: sale.merchant_id,
-        merchantName: sale.merchants?.name || 'Unknown',
-        originalPrice: sale.original_price,
-        flashPrice: sale.flash_price,
-        discountPercent: Math.round((1 - sale.flash_price / sale.original_price) * 100),
-        stockAvailable: sale.stock_available,
-        stockSold: sale.stock_sold,
-        endTime: sale.end_time,
-        reason: sale.reason,
-      }));
+      const mappedSales: FlashSale[] = ((data || []) as unknown as FlashSaleRow[])
+        .filter((sale) => sale.stock_available > sale.stock_sold)
+        .slice(0, limit)
+        .map((sale) => ({
+          id: sale.id,
+          productId: sale.product_id,
+          productName: sale.products?.name || 'Unknown',
+          productImage: sale.products?.image_url || null,
+          merchantId: sale.merchant_id,
+          merchantName: sale.merchants?.name || 'Unknown',
+          originalPrice: sale.original_price,
+          flashPrice: sale.flash_price,
+          discountPercent: Math.round((1 - sale.flash_price / sale.original_price) * 100),
+          stockAvailable: sale.stock_available,
+          stockSold: sale.stock_sold,
+          endTime: sale.end_time,
+          reason: sale.reason,
+        }));
 
       setFlashSales(mappedSales);
       setError(null);
