@@ -114,10 +114,6 @@ export default function CartPage() {
       });
       return;
     }
-    if (!user) {
-      navigate('/auth');
-      return;
-    }
     navigate('/checkout');
   };
 
@@ -319,7 +315,7 @@ export default function CartPage() {
           className="w-full shadow-brand font-bold"
           size="lg"
         >
-          {user ? 'Lanjut ke Checkout' : 'Masuk untuk Checkout'}
+          {user ? 'Lanjut ke Checkout' : 'Checkout tanpa Login'}
         </Button>
       </div>
 

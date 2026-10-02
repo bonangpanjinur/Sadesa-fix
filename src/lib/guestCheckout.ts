@@ -7,9 +7,14 @@ export interface GuestOrderAccess {
 const ACCESS_STORAGE_KEY = 'sadesa_guest_order_access';
 const SESSION_STORAGE_KEY = 'sadesa_guest_checkout_session';
 
+// Guest access is intentionally scoped to the current browser session. The URL
+// token remains the durable shareable credential; storage is only a convenience
+// for refresh/re-entry in the same tab and must not become a long-lived profile.
+const getSessionStorage = () => typeof window !== 'undefined' ? window.sessionStorage : null;
+
 function readAccess(): GuestOrderAccess[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(ACCESS_STORAGE_KEY) || '[]') as GuestOrderAccess[];
+    const parsed = JSON.parse(getSessionStorage()?.getItem(ACCESS_STORAGE_KEY) || '[]') as GuestOrderAccess[];
     if (!Array.isArray(parsed)) return [];
     const now = Date.now();
     return parsed.filter((entry) => entry && typeof entry.token === 'string' && typeof entry.expiresAt === 'string' && new Date(entry.expiresAt).getTime() > now);
@@ -20,7 +25,7 @@ function readAccess(): GuestOrderAccess[] {
 
 function persistAccess(entries: GuestOrderAccess[]) {
   try {
-    localStorage.setItem(ACCESS_STORAGE_KEY, JSON.stringify(entries.slice(-10)));
+    getSessionStorage()?.setItem(ACCESS_STORAGE_KEY, JSON.stringify(entries.slice(-10)));
   } catch {
     // Private browsing or a full storage quota should not block checkout.
   }
@@ -28,10 +33,10 @@ function persistAccess(entries: GuestOrderAccess[]) {
 
 export function getGuestCheckoutSessionKey(): string {
   try {
-    const existing = localStorage.getItem(SESSION_STORAGE_KEY);
+    const existing = getSessionStorage()?.getItem(SESSION_STORAGE_KEY);
     if (existing && existing.length >= 16) return existing;
     const next = crypto.randomUUID();
-    localStorage.setItem(SESSION_STORAGE_KEY, next);
+    getSessionStorage()?.setItem(SESSION_STORAGE_KEY, next);
     return next;
   } catch {
     return crypto.randomUUID();

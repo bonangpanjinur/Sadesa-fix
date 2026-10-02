@@ -567,7 +567,9 @@ export default function CheckoutPage() {
       const rawMessage = error instanceof Error ? error.message : '';
       if (rawMessage) {
         if (rawMessage.includes('violates row-level security')) {
-          errorMessage = 'Anda tidak memiliki izin untuk membuat pesanan. Pastikan sudah login.';
+          errorMessage = user
+            ? 'Anda tidak memiliki izin untuk membuat pesanan. Silakan coba lagi.'
+            : 'Checkout guest tidak dapat diproses. Periksa data pesanan lalu coba lagi.';
         } else if (rawMessage.includes('violates foreign key')) {
           errorMessage = 'Data merchant atau produk tidak valid.';
         } else if (rawMessage.includes('null value')) {
@@ -1101,7 +1103,7 @@ export default function CheckoutPage() {
               Ada Toko Tutup
             </>
           ) : (
-            'Pesan'
+            user ? 'Pesan' : 'Pesan tanpa Login'
           )}
         </Button>
         {!isDeliveryReady && (
