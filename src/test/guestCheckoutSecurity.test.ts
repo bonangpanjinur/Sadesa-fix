@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 const phase1 = () => read('supabase/bootstrap/65_20261002170000_guest_checkout_phase1.sql');
 const payment = () => read('supabase/bootstrap/66_20261002190000_guest_payment_ui.sql');
+const hardening = () => read('supabase/bootstrap/68_20261002210000_guest_checkout_hardening.sql');
 
 describe('guest checkout security contract', () => {
   it('generates a cryptographic token, stores only its digest, and expires it', () => {
@@ -62,5 +63,19 @@ describe('guest checkout security contract', () => {
     ]) {
       expect(read(path)).toContain('mobile-shell');
     }
+  });
+
+  it('rejects online guest payment and arbitrary guest proof URLs server-side', () => {
+    const sql = hardening();
+    expect(sql).toContain("NEW.buyer_id IS NULL AND NEW.guest_access_token_hash IS NOT NULL");
+    expect(sql).toContain("NEW.payment_method <> 'TRANSFER'");
+    expect(sql).toContain("/payment-proofs/orders/' || NEW.id::text || '/' || NEW.guest_access_token_hash || '/");
+    expect(sql).toContain('BEFORE INSERT OR UPDATE OF payment_method, payment_proof_url');
+  });
+
+  it('does not expose online payment as a guest checkout option', () => {
+    const checkout = read('src/pages/CheckoutPage.tsx');
+    expect(checkout).toContain("if (!user) return 'TRANSFER'");
+    expect(checkout).toContain('{user && xenditAvailable && (');
   });
 });

@@ -1,4 +1,21 @@
-# Guest Checkout — Tahap 4 dan 5
+# Guest Checkout — Audit Kesiapan, Tahap 4, dan 5
+
+## Ringkasan audit (2 Oktober 2026)
+
+Fondasi checkout tanpa login sudah tersedia: cart dan checkout publik, RPC token-scoped,
+status order guest, pembayaran transfer, upload bukti, session storage, idempotency, dan
+feature flag rollout. Namun sebelum audit ini ada dua gap yang membuatnya belum layak dibuka
+lebih luas:
+
+| Temuan | Risiko | Perbaikan |
+|---|---|---|
+| RPC guest masih dapat dipanggil langsung dengan `ONLINE` saat Xendit aktif | Guest bisa membuat order yang tidak punya jalur pembayaran guest yang dapat diselesaikan | Migration `68` menolak metode selain `TRANSFER` pada trigger database; UI tetap hanya menampilkan transfer |
+| RPC bukti transfer menerima URL arbitrer selama token valid | Merchant dapat diarahkan ke URL yang tidak berasal dari object bukti transfer order tersebut | Migration `68` mengikat URL ke `payment-proofs/orders/<order-id>/<token-hash>/...` |
+| Flag rollout default `enabled=false` | Fitur aman untuk staging tetapi belum terlihat oleh guest produksi | Tetap fail-closed; aktifkan pilot secara eksplisit setelah migration dan smoke test staging lulus |
+
+Kesimpulan: implementasi kode sekarang **siap untuk staging/pilot setelah migration 68 diterapkan**,
+tetapi belum boleh dianggap live untuk seluruh guest sampai flag `guest_checkout_enabled` diubah
+secara terkontrol.
 
 ## Tahap 4 — Testing dan hardening
 
@@ -8,7 +25,7 @@
 |---|---|---|
 | Guest form/rollout | Flag malformed, off, pilot allowlist, persentase deterministik | `src/lib/guestCheckoutFeature.test.ts` |
 | Token/session | Refresh, expiry, token salah, order lain, storage isolation | `src/lib/guestCheckout.test.ts` |
-| RPC/security | Token hash, expiry, generic error, anon grant hanya ke RPC, proof path scoped | `src/test/guestCheckoutSecurity.test.ts` |
+| RPC/security | Token hash, expiry, generic error, anon grant hanya ke RPC, proof path scoped, guest transfer-only, URL proof terikat token | `src/test/guestCheckoutSecurity.test.ts` |
 | Checkout regression | CTA guest, status/payment route, cart shipping i18n | `src/pages/CartPage.i18n.test.tsx` dan contract tests |
 | Mobile | Layout memakai `mobile-shell`, action bar memakai safe-area class | `CartPage`, `CheckoutPage`, `GuestOrderStatusPage`, `PaymentConfirmationPage` |
 
@@ -35,6 +52,7 @@ Integration test terhadap database staging dijalankan hanya bila `SUPABASE_TEST_
 - Storage proof mensyaratkan path `orders/<order-id>/<sha256-token>/...` dan token belum expired.
 - Session key dan cache access guest disimpan di `sessionStorage`, tidak di `localStorage`.
 - Pesan invalid/expired/cross-order bersifat generik.
+- Trigger database menolak guest `ONLINE` dan URL bukti yang tidak berada di path order/token hash.
 
 ## Tahap 5 — Rollout bertahap
 
@@ -83,7 +101,7 @@ Migration `67_20261002200000_guest_checkout_rollout_flag.sql` membuat setting be
 
 ### Urutan deployment
 
-1. Terapkan bootstrap/migration database **65, 66, lalu 67**.
+1. Terapkan bootstrap/migration database **65, 66, 67, lalu 68**.
 2. Deploy frontend dengan flag tetap `enabled=false`.
 3. Jalankan test staging untuk guest checkout, retry, stok berubah, toko tutup, token invalid/expired, cross-order, refresh, dan mobile viewport.
 4. Masukkan session pilot ke `pilot_user_ids`, atau set `rollout_percent` kecil seperti `1`–`5`.
@@ -125,6 +143,7 @@ Tahap 5 dinyatakan siap hanya jika:
 
 - seluruh unit test, TypeScript, lint, build, migration validator, dan RLS audit lulus;
 - migration 65–67 diterapkan di staging;
+- migration 68 diterapkan dan trigger guest payment contract terverifikasi;
 - tidak ada akses tabel langsung untuk role `anon`;
 - retry checkout tidak membuat order ganda;
 - cohort pilot stabil sebelum persentase dinaikkan;

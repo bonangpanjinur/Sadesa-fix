@@ -639,6 +639,14 @@
       ],
       "sha256": "902b025760b2e44c94d5b8b3fcc06a1830b28e588101d36a7500732ea1571542",
       "bytes": 659
+    },
+    {
+      "file": "68_20261002210000_guest_checkout_hardening.sql",
+      "source_files": [
+        "20261002210000_guest_checkout_hardening.sql"
+      ],
+      "sha256": "e7051f158f3121f27283c599236894d26f93060209360feae1be786e393e9eec",
+      "bytes": 1942
     }
   ],
   "idempotent": true,
