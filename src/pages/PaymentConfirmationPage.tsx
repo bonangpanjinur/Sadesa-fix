@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatPrice } from '@/lib/utils';
+import { getGuestOrderAccess, guestOrderUrl } from '@/lib/guestCheckout';
 import { toast } from '@/hooks/use-toast';
 import { PaymentProofUpload } from '@/components/checkout/PaymentProofUpload';
 import { PaymentCountdown } from '@/components/checkout/PaymentCountdown';
@@ -36,6 +37,7 @@ export default function PaymentConfirmationPage() {
   const { orderId } = useParams();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const guestToken = searchParams.get('guest_token') || getGuestOrderAccess(orderId || '', null)?.token;
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,69 +45,65 @@ export default function PaymentConfirmationPage() {
 
   const loadOrderAndPaymentInfo = useCallback(async () => {
     try {
-      // Fetch order
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('id, total, payment_method, payment_status, merchant_id, created_at, payment_proof_url, confirmation_deadline')
-        .eq('id', orderId!)
-        .eq('buyer_id', user!.id)
-        .maybeSingle();
+      if (!orderId) return;
+      let orderData: OrderInfo | null = null;
+      let merchantData: { name?: string; bank_name?: string; bank_account_number?: string; bank_account_name?: string; qris_image_url?: string | null } | null = null;
+      let adminSettings: { value?: unknown } | null = null;
 
-      if (orderError || !orderData) {
-        toast({ title: 'Pesanan tidak ditemukan', variant: 'destructive' });
-        navigate('/orders');
-        return;
+      if (!user && guestToken) {
+        const { data, error } = await supabase.rpc('get_guest_order_payment_context' as never, {
+          p_order_id: orderId,
+          p_guest_access_token: guestToken,
+        } as never);
+        if (error || !data) throw new Error('Pesanan guest tidak ditemukan atau link sudah kedaluwarsa');
+        const context = data as OrderInfo & { bank_name?: string; bank_account_number?: string; bank_account_name?: string; qris_image_url?: string | null };
+        orderData = context;
+        merchantData = context;
+      } else if (user) {
+        const result = await supabase
+          .from('orders')
+          .select('id, total, payment_method, payment_status, merchant_id, created_at, payment_proof_url, confirmation_deadline')
+          .eq('id', orderId)
+          .eq('buyer_id', user.id)
+          .maybeSingle();
+        if (result.error || !result.data) throw new Error('Pesanan tidak ditemukan');
+        orderData = result.data as OrderInfo;
+        const [{ data: merchant }, { data: settings }] = await Promise.all([
+          supabase.from('merchants').select('name, bank_name, bank_account_number, bank_account_name, qris_image_url').eq('id', orderData.merchant_id).maybeSingle(),
+          supabase.from('app_settings').select('value').eq('key', 'admin_payment_info').maybeSingle(),
+        ]);
+        merchantData = merchant;
+        adminSettings = settings;
+      } else {
+        throw new Error('Link pembayaran tidak memiliki token guest');
       }
 
-      // These reads are independent once the order has resolved. Running them
-      // together removes one network round trip from the payment screen.
-      const [{ data: merchantData }, { data: adminSettings }] = await Promise.all([
-        supabase
-          .from('merchants')
-          .select('name, bank_name, bank_account_number, bank_account_name, qris_image_url')
-          .eq('id', orderData.merchant_id)
-          .maybeSingle(),
-        supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', 'admin_payment_info')
-          .maybeSingle(),
-      ]);
+      if (!orderData) throw new Error('Pesanan tidak ditemukan');
+      setOrder({ ...orderData, merchant_name: merchantData?.name || orderData.merchant_name || 'Merchant' });
 
-      setOrder({
-        ...orderData,
-        merchant_name: merchantData?.name || 'Merchant',
-      });
-
-      // Use merchant payment info, fallback to admin defaults
       let bankName = merchantData?.bank_name || '';
       let bankAccountNumber = merchantData?.bank_account_number || '';
       let bankAccountName = merchantData?.bank_account_name || '';
       let qrisImageUrl = merchantData?.qris_image_url || null;
-
-      // Use admin defaults only for missing merchant fields.
       if (!bankName || !bankAccountNumber) {
-        if (adminSettings?.value) {
-          const adminPayment = adminSettings.value as Record<string, string>;
-          if (!bankName) bankName = adminPayment.bank_name || '';
-          if (!bankAccountNumber) bankAccountNumber = adminPayment.bank_account_number || '';
-          if (!bankAccountName) bankAccountName = adminPayment.bank_account_name || '';
-          if (!qrisImageUrl) qrisImageUrl = adminPayment.qris_image_url || null;
-        }
+        const adminPayment = (adminSettings?.value || {}) as Record<string, string>;
+        if (!bankName) bankName = adminPayment.bank_name || '';
+        if (!bankAccountNumber) bankAccountNumber = adminPayment.bank_account_number || '';
+        if (!bankAccountName) bankAccountName = adminPayment.bank_account_name || '';
+        if (!qrisImageUrl) qrisImageUrl = adminPayment.qris_image_url || null;
       }
-
       setPaymentInfo({ bankName, bankAccountNumber, bankAccountName, qrisImageUrl });
     } catch (error) {
       console.error('Error loading payment info:', error);
     } finally {
       setLoading(false);
     }
-  }, [orderId, user, navigate]);
+  }, [orderId, user, guestToken]);
 
   useEffect(() => {
-    if (!orderId || !user) return;
+    if (!orderId || (!user && !guestToken)) return;
     void loadOrderAndPaymentInfo();
-  }, [orderId, user, loadOrderAndPaymentInfo]);
+  }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
 
   const handleCopyAccount = () => {
     if (paymentInfo?.bankAccountNumber) {
@@ -135,7 +133,7 @@ export default function PaymentConfirmationPage() {
     return (
       <div className="mobile-shell bg-background flex flex-col min-h-screen items-center justify-center p-8">
         <p className="text-muted-foreground">Data tidak ditemukan</p>
-        <Button onClick={() => navigate('/orders')} className="mt-4">Ke Pesanan Saya</Button>
+        <Button onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))} className="mt-4">{user ? 'Ke Pesanan Saya' : 'Ke Status Pesanan'}</Button>
       </div>
     );
   }
@@ -145,7 +143,7 @@ export default function PaymentConfirmationPage() {
       {/* Header */}
       <div className="p-4 border-b border-border bg-card flex items-center gap-3">
         <button
-          onClick={() => navigate('/orders')}
+          onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))}
           className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -258,6 +256,7 @@ export default function PaymentConfirmationPage() {
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
               <PaymentProofUpload
                 orderId={order.id}
+                guestAccessToken={!user ? guestToken : undefined}
                 currentProofUrl={order.payment_proof_url}
                 onUploaded={(url) => setOrder(prev => prev ? { ...prev, payment_proof_url: url } : prev)}
               />
@@ -283,7 +282,7 @@ export default function PaymentConfirmationPage() {
 
       {/* Bottom Actions */}
       <div className="p-4 border-t border-border bg-card space-y-2">
-        <Button onClick={() => navigate('/orders')} className="w-full" size="lg">
+        <Button onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))} className="w-full" size="lg">
           <CheckCircle className="h-4 w-4 mr-2" />
           Lihat Pesanan Saya
         </Button>

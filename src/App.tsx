@@ -40,6 +40,7 @@ const TourismDetail = lazy(() => import("./pages/TourismDetail"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const PaymentConfirmationPage = lazy(() => import("./pages/PaymentConfirmationPage"));
+const GuestOrderStatusPage = lazy(() => import("./pages/GuestOrderStatusPage"));
 const SearchResultsPage = lazy(() => import("./pages/SearchResultsPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
@@ -446,8 +447,7 @@ function RouteTransition({ children }: { children: ReactNode }) {
 }
 
 function CheckoutRoute() {
-  const { user } = useAuth();
-  return user ? <CheckoutPage /> : <CheckoutInfoPage />;
+  return <CheckoutPage />;
 }
 
 const App = () => (
@@ -547,11 +547,8 @@ const App = () => (
               <Route path="/cart" element={<CartPage />} />
               <Route path="/checkout-info" element={<CheckoutInfoPage />} />
               <Route path="/checkout" element={<CheckoutRoute />} />
-              <Route path="/payment/:orderId" element={
-                <ProtectedRoute>
-                  <PaymentConfirmationPage />
-                </ProtectedRoute>
-              } />
+              <Route path="/payment/:orderId" element={<PaymentConfirmationPage />} />
+              <Route path="/guest-orders/:orderId" element={<GuestOrderStatusPage />} />
               <Route path="/orders" element={
                 <ProtectedRoute>
                   <OrdersPage />

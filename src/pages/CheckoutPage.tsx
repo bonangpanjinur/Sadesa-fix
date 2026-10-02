@@ -21,6 +21,7 @@ import { formatFullAddress } from '@/components/AddressSelector';
 import { validatePhone } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
+import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
 import { requestRequiredLocation } from '@/lib/requiredLocation';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
@@ -51,6 +52,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
   const [xenditAvailable, setXenditAvailable] = useState(false);
@@ -62,6 +64,7 @@ export default function CheckoutPage() {
   // Keep the same key while a checkout attempt is retried after a timeout or
   // invoice-provider failure. The database then returns the original order.
   const checkoutKeyRef = useRef<string | null>(null);
+  const guestSessionKeyRef = useRef<string | null>(null);
 
   // Address state
   const [addressData, setAddressData] = useState<CheckoutAddressData>(createEmptyCheckoutAddress());
@@ -77,6 +80,7 @@ export default function CheckoutPage() {
   // Check if Xendit is enabled
   useEffect(() => {
     isXenditEnabled().then(setXenditAvailable);
+    if (!user) guestSessionKeyRef.current = getGuestCheckoutSessionKey();
     // Load admin shipping settings
     supabase.from('app_settings').select('value').eq('key', 'shipping_base_fee').maybeSingle().then(({ data }) => {
       if (data?.value) {
@@ -90,7 +94,7 @@ export default function CheckoutPage() {
         });
       }
     });
-  }, []);
+  }, [user]);
 
   // Get merchant location state (will be loaded after merchantIds are computed)
   const [merchantLocation, setMerchantLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -235,12 +239,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!merchantPaymentSettings) return;
     setPaymentMethod((current) => {
+      if (!user) return 'TRANSFER';
       if (merchantPaymentSettings.transferEnabled) {
         return current === 'ONLINE' && xenditAvailable ? current : 'TRANSFER';
       }
       return xenditAvailable ? 'ONLINE' : current;
     });
-  }, [merchantPaymentSettings, xenditAvailable]);
+  }, [merchantPaymentSettings, xenditAvailable, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -383,15 +388,6 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user) {
-      toast({
-        title: 'Silakan login terlebih dahulu',
-        variant: 'destructive',
-      });
-      navigate('/auth');
-      return;
-    }
-
     if (items.length === 0) {
       toast({
         title: 'Keranjang kosong',
@@ -481,7 +477,7 @@ export default function CheckoutPage() {
       }
 
       const fullAddress = formatFullAddress(addressData.address);
-      const { data: checkoutResult, error: checkoutError } = await supabase.rpc('create_marketplace_checkout' as never, {
+      const checkoutPayload = {
         p_items: items.flatMap((item) => [
           { product_id: item.product.id, quantity: Math.trunc(item.quantity) },
           ...(item.toppings || []).map((topping) => ({ product_id: topping.product.id, quantity: Math.trunc(item.quantity * topping.quantity) })),
@@ -502,21 +498,35 @@ export default function CheckoutPage() {
         },
         p_delivery_type: deliveryType,
         p_payment_method: paymentMethod,
-        p_voucher_id: appliedVoucher?.id ?? null,
-        // Shipping distance is recalculated from persisted coordinates by the RPC.
+        p_voucher_id: user ? appliedVoucher?.id ?? null : null,
         p_distance_km: null,
         p_checkout_key: checkoutKeyRef.current,
-      } as never);
+        ...(user ? {} : { p_guest_checkout_key: guestSessionKeyRef.current ?? getGuestCheckoutSessionKey() }),
+      };
+      const { data: checkoutResult, error: checkoutError } = await supabase.rpc(
+        (user ? 'create_marketplace_checkout' : 'create_guest_marketplace_checkout') as never,
+        checkoutPayload as never,
+      );
       if (checkoutError) {
         console.error('Authoritative checkout error:', checkoutError);
         throw new Error(checkoutError.message || 'Checkout gagal divalidasi server');
       }
 
-      const authoritativeOrderId = (checkoutResult as { primary_order_id?: string } | null)?.primary_order_id;
+      const typedCheckoutResult = checkoutResult as { primary_order_id?: string; order_ids?: string[]; guest_access_token?: string; guest_token_expires_at?: string } | null;
+      const authoritativeOrderId = typedCheckoutResult?.primary_order_id;
       if (!authoritativeOrderId) throw new Error('Checkout tidak menghasilkan order');
+      if (!user) {
+        if (!typedCheckoutResult.guest_access_token || !typedCheckoutResult.guest_token_expires_at) throw new Error('Token akses guest tidak diterima');
+        setGuestToken(typedCheckoutResult.guest_access_token);
+        rememberGuestOrderAccess({
+          orderIds: typedCheckoutResult.order_ids?.length ? typedCheckoutResult.order_ids : [authoritativeOrderId],
+          token: typedCheckoutResult.guest_access_token,
+          expiresAt: typedCheckoutResult.guest_token_expires_at,
+        });
+      }
       let paymentNeedsRecovery = false;
 
-      if (paymentMethod === 'ONLINE' && xenditAvailable) {
+      if (user && paymentMethod === 'ONLINE' && xenditAvailable) {
         try {
           const invoice = await createPaymentInvoice({ orderId: authoritativeOrderId });
           window.location.href = invoice.invoice_url;
@@ -536,7 +546,7 @@ export default function CheckoutPage() {
       selectedItems.forEach(item => removeFromCart(item.product.id));
       checkoutKeyRef.current = null;
       if (paymentMethod === 'TRANSFER') {
-        navigate(`/payment/${authoritativeOrderId}`);
+        navigate(user ? `/payment/${authoritativeOrderId}` : guestOrderUrl(authoritativeOrderId, typedCheckoutResult?.guest_access_token || guestToken || '', 'payment'));
         return;
       }
       setOrderId(authoritativeOrderId);
@@ -619,8 +629,8 @@ export default function CheckoutPage() {
                 {retryingPayment ? 'Mencoba membuat invoice...' : 'Coba Bayar Lagi'}
               </Button>
             )}
-            <Button onClick={() => navigate('/orders')} className="w-full">
-              Lihat Pesanan Saya
+            <Button onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))} className="w-full">
+              {user ? 'Lihat Pesanan Saya' : 'Lihat Status Pesanan'}
             </Button>
             <Button onClick={() => navigate('/')} variant="outline" className="w-full">
               Lanjut Belanja
@@ -924,7 +934,7 @@ export default function CheckoutPage() {
             className="space-y-2"
           >
             {/* Transfer Option - Based on merchant settings */}
-            {merchantPaymentSettings?.transferEnabled !== false && (
+            {(!user || merchantPaymentSettings?.transferEnabled !== false) && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'
               } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -944,7 +954,7 @@ export default function CheckoutPage() {
             )}
 
             {/* Online Payment via Xendit */}
-            {xenditAvailable && (
+            {user && xenditAvailable && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border'
               } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -993,7 +1003,9 @@ export default function CheckoutPage() {
           transition={{ delay: 0.25 }}
           className="bg-card rounded-xl p-4 border border-border shadow-sm mb-4"
         >
-          {merchantIds.length > 1 ? (
+          {!user ? (
+            <p className="text-sm text-muted-foreground">Voucher akun dan diskon tersimpan hanya tersedia setelah login.</p>
+          ) : merchantIds.length > 1 ? (
             <p className="text-sm text-muted-foreground">Voucher hanya dapat digunakan untuk checkout satu toko.</p>
           ) : (
             <VoucherInput

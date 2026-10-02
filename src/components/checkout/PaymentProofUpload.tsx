@@ -7,15 +7,17 @@ import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { reportObservability } from '@/lib/observability';
+import { sha256Hex } from '@/lib/guestCheckout';
 
 interface PaymentProofUploadProps {
   orderId: string;
   currentProofUrl?: string | null;
   onUploaded: (url: string) => void;
   disabled?: boolean;
+  guestAccessToken?: string;
 }
 
-export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disabled = false }: PaymentProofUploadProps) {
+export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disabled = false, guestAccessToken }: PaymentProofUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(currentProofUrl || null);
   const [displayUrl, setDisplayUrl] = useState<string | null>(null);
@@ -44,9 +46,10 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
     setIsUploading(true);
     try {
       const compressedFile = await compressImage(file);
+      const tokenHash = guestAccessToken ? await sha256Hex(guestAccessToken) : null;
       const result = await uploadFile({
         bucket: 'payment-proofs',
-        path: `orders/${orderId}`,
+        path: tokenHash ? `orders/${orderId}/${tokenHash}` : `orders/${orderId}`,
         file: compressedFile,
       });
 
@@ -57,11 +60,16 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
       }
 
       if (result.url) {
-        // Buyer order updates are revoked; use the ownership-scoped RPC.
-        const { error: updateError } = await supabase.rpc('buyer_submit_payment_proof', {
-          p_order_id: orderId,
-          p_payment_proof_url: result.url,
-        });
+        const { error: updateError } = guestAccessToken
+          ? await supabase.rpc('guest_submit_payment_proof', {
+              p_order_id: orderId,
+              p_guest_access_token: guestAccessToken,
+              p_payment_proof_url: result.url,
+            })
+          : await supabase.rpc('buyer_submit_payment_proof', {
+              p_order_id: orderId,
+              p_payment_proof_url: result.url,
+            });
 
         if (updateError) {
           await deleteFile('payment-proofs', result.url);
