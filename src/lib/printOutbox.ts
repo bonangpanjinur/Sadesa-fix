@@ -1,6 +1,7 @@
 import { createPrintJob, type PrintJobEnvelope, type ReceiptSnapshot } from '@/lib/receiptDomain';
 import { printBridgeClient } from '@/lib/printBridgeClient';
 import { getPrinterSettings, getUniversalPrinter } from '@/lib/thermalPrinter';
+import { printReceiptViaAndroidService } from '@/lib/androidPrintService';
 
 const OUTBOX_KEY = 'pos_receipt_print_outbox_v1';
 
@@ -48,6 +49,11 @@ export function enqueueReceiptJob(snapshot: ReceiptSnapshot, cashierName?: strin
 async function sendToConfiguredPrinter(receipt: PrintJobEnvelope['receipt'], copies: number): Promise<void> {
   const settings = getPrinterSettings();
   const universal = getUniversalPrinter();
+
+  if (settings.connectionType === 'android_bluetooth') {
+    await printReceiptViaAndroidService(receipt, copies);
+    return;
+  }
 
   // Direct Web Serial/Web Bluetooth is fast when already authorised. If the
   // browser lost the device connection, continue through the local bridge.

@@ -23,6 +23,7 @@ import {
 import type { PrinterSettings, ConnectionType } from '@/lib/thermalPrinter';
 import { printBridgeClient } from '@/lib/printBridgeClient';
 import { flushReceiptOutbox, getPendingReceiptCount } from '@/lib/printOutbox';
+import { testPrintViaAndroidService } from '@/lib/androidPrintService';
 
 interface Outlet {
   id: string;
@@ -146,6 +147,13 @@ export default function POSPengaturanPage() {
     savePrinterSettings(printerSettings);
     setTestingPrint(true);
     try {
+      if (printerSettings.connectionType === 'android_bluetooth') {
+        await testPrintViaAndroidService();
+        toast.success('Perintah test print dikirim ke ESC/POS Bluetooth Print Service');
+        setPrinterStatus('connected');
+        setPrinterMsg('Perintah cetak dikirim ke aplikasi Android');
+        return;
+      }
       const nativeSelected = printerSettings.connectionType === 'usb' || printerSettings.connectionType === 'bluetooth';
       if (nativeSelected && uniPrinter.connected) {
         try {
@@ -197,7 +205,9 @@ export default function POSPengaturanPage() {
     ? 'USB kabel'
     : printerSettings.connectionType === 'wifi'
       ? 'WiFi / LAN'
-      : 'Bluetooth';
+      : printerSettings.connectionType === 'android_bluetooth'
+        ? 'Aplikasi Android Bluetooth'
+        : 'Bluetooth';
 
   useEffect(() => {
     if (tenant) {
@@ -572,6 +582,7 @@ export default function POSPengaturanPage() {
                   onClick={() => {
                     if (printerSettings.connectionType === 'wifi') void testWifiConnection();
                     else if (printerSettings.connectionType === 'bluetooth') void connectBluetooth();
+                    else if (printerSettings.connectionType === 'android_bluetooth') void testPrintViaAndroidService().catch(error => toast.error(error instanceof Error ? error.message : String(error)));
                     else void connectUSB();
                   }}
                 >Coba lagi</Button>
@@ -645,6 +656,25 @@ export default function POSPengaturanPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">Untuk printer portabel. Dukungan bergantung pada tipe printer dan memerlukan Print Bridge lokal.</p>
                     <p className="text-xs text-amber-600 mt-1">⚠ Jika ragu, pilih USB kabel atau WiFi/LAN.</p>
+                  </div>
+                </button>
+
+                {/* Android print service */}
+                <button
+                  onClick={() => updatePrinter({ connectionType: 'android_bluetooth' })}
+                  className={`w-full flex items-start gap-3 p-4 rounded-xl border-2 transition-all text-left
+                    ${printerSettings.connectionType === 'android_bluetooth' ? 'border-emerald-500 bg-emerald-50' : 'border-border hover:border-emerald-300'}`}>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
+                    ${printerSettings.connectionType === 'android_bluetooth' ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                    <Bluetooth className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm">ESC/POS Bluetooth Print Service</p>
+                      {printerSettings.connectionType === 'android_bluetooth' && <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs">Dipilih</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Untuk tablet Android tanpa mini PC. Struk dikirim ke aplikasi pihak ketiga melalui app link Android.</p>
+                    <p className="text-xs text-blue-600 mt-1">✓ Install dan pilih printer sekali di aplikasi ESC/POS Bluetooth Print Service.</p>
                   </div>
                 </button>
               </CardContent>

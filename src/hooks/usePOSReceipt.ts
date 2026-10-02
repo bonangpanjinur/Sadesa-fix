@@ -4,6 +4,7 @@ import { printBridgeClient } from '@/lib/printBridgeClient';
 import { createPrintJob } from '@/lib/receiptDomain';
 import { printReceiptWithContract } from '@/lib/receiptPrintContract';
 import { getPrinterSettings, getUniversalPrinter } from '@/lib/thermalPrinter';
+import { isAndroidPrintServiceSupported } from '@/lib/androidPrintService';
 import type { ReceiptStore, LastSale } from '@/components/pos/kasir/types';
 
 interface UsePOSReceiptArgs {
@@ -21,6 +22,12 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
     setThermalConnecting(true);
     try {
       const settings = getPrinterSettings();
+      if (settings.connectionType === 'android_bluetooth') {
+        if (!isAndroidPrintServiceSupported()) throw new Error('Mode ini hanya tersedia di tablet Android.');
+        setThermalConnected(true);
+        toast.success('ESC/POS Bluetooth Print Service siap. Test print untuk memeriksa printer.');
+        return true;
+      }
       const bridgeError: unknown[] = [];
       try {
         const health = await printBridgeClient.health();

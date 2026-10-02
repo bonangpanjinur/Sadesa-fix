@@ -7,7 +7,7 @@ import {
   markReceiptJobPrinted,
 } from '@/lib/printOutbox';
 
-export type ReceiptPrintChannel = 'usb' | 'bluetooth' | 'bridge' | 'browser' | 'outbox';
+export type ReceiptPrintChannel = 'usb' | 'bluetooth' | 'android-print-service' | 'bridge' | 'browser' | 'outbox';
 
 export interface ReceiptPrintResult {
   status: 'printed' | 'queued';
@@ -35,7 +35,9 @@ export async function printReceiptWithContract(
     if (result.failed === 0 && (result.printed > 0 || getReceiptJobStatus(job.jobId) === 'printed')) {
       return {
         status: 'printed',
-        channel: nativeWasConnected
+        channel: settings.connectionType === 'android_bluetooth'
+          ? 'android-print-service'
+          : nativeWasConnected
           ? settings.connectionType === 'bluetooth' ? 'bluetooth' : 'usb'
           : 'bridge',
       };

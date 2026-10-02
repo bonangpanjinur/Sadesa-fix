@@ -19,7 +19,7 @@ declare global { interface Navigator { serial: { requestPort(): Promise<SerialPo
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
-export type ConnectionType = "usb" | "wifi" | "bluetooth";
+export type ConnectionType = "usb" | "wifi" | "bluetooth" | "android_bluetooth";
 export type PaperWidth = 58 | 80;
 
 export interface PrinterSettings {
