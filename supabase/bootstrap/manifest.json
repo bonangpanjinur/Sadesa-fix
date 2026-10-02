@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; RLS ride fix appended",
-  "migration_count": 337,
-  "bundle_count": 36,
+  "migration_count": 338,
+  "bundle_count": 37,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -591,6 +591,14 @@
       ],
       "sha256": "a25846bc45566628c33f7042516a6e09a6870901be712507526aac180a0a3cd2",
       "bytes": 739
+    },
+    {
+      "file": "62_20261002110000_admin_manual_pos_access.sql",
+      "source_files": [
+        "20261002110000_admin_manual_pos_access.sql"
+      ],
+      "sha256": "d5504a60b8e8b1d71f764e8317c990816a9dcc58ef52321ba7cf43d5e7490f4f",
+      "bytes": 7173
     }
   ],
   "idempotent": true,

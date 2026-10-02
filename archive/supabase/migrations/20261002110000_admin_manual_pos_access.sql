@@ -1,6 +1,6 @@
--- Allow admins to grant POS access directly to a selected merchant account.
--- This is intentionally separate from payment approval so an admin can provision
--- a merchant without requiring a subscription request or payment proof.
+-- Admin-only manual POS access grant.
+-- A grant must provision the merchant POS workspace as well as its entitlement,
+-- so the merchant can use POS immediately without repeating setup manually.
 
 CREATE OR REPLACE FUNCTION public.admin_grant_pos_access(
   p_merchant_id uuid,
@@ -17,14 +17,20 @@ DECLARE
   v_merchant public.merchants%ROWTYPE;
   v_package public.pos_packages%ROWTYPE;
   v_subscription public.pos_subscriptions%ROWTYPE;
+  v_tenant public.pos_tenants%ROWTYPE;
+  v_outlet public.pos_outlets%ROWTYPE;
   v_old jsonb;
   v_started_at timestamptz := now();
   v_expired_at timestamptz;
   v_duration integer;
   v_reason text := NULLIF(trim(COALESCE(p_reason, '')), '');
+  v_synced_products integer := 0;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Only admins can grant POS access' USING ERRCODE = '42501';
+  END IF;
+  IF NULLIF(trim(COALESCE(p_reason, '')), '') IS NULL THEN
+    RAISE EXCEPTION 'A reason is required for manual POS access grants' USING ERRCODE = '22023';
   END IF;
 
   SELECT * INTO v_merchant
@@ -75,55 +81,89 @@ BEGIN
     v_old := to_jsonb(v_subscription);
     UPDATE public.pos_subscriptions
     SET package_id = COALESCE(p_package_id, package_id),
-        status = 'ACTIVE',
-        payment_amount = 0,
-        payment_status = 'PAID',
-        started_at = v_started_at,
-        expired_at = v_expired_at,
-        grace_ends_at = NULL,
-        approved_by = auth.uid(),
-        approved_at = v_started_at,
-        rejection_reason = NULL,
-        is_trial = true,
-        updated_at = v_started_at
+        status = 'ACTIVE', payment_amount = 0, payment_status = 'PAID',
+        started_at = v_started_at, expired_at = v_expired_at,
+        grace_ends_at = NULL, approved_by = auth.uid(), approved_at = v_started_at,
+        rejection_reason = NULL, is_trial = true, updated_at = v_started_at
     WHERE id = v_subscription.id
     RETURNING * INTO v_subscription;
   END IF;
 
-  UPDATE public.pos_tenants
-  SET status = CASE WHEN status = 'suspended' THEN 'active' ELSE status END,
-      is_active = true,
-      activated_at = COALESCE(activated_at, v_started_at),
-      suspended_at = NULL,
-      updated_at = v_started_at
-  WHERE merchant_id = p_merchant_id;
+  -- Provision or repair the merchant-owned POS workspace in this same transaction.
+  SELECT * INTO v_tenant
+  FROM public.pos_tenants
+  WHERE merchant_id = p_merchant_id OR user_id = v_merchant.user_id
+  ORDER BY (merchant_id = p_merchant_id) DESC, created_at
+  LIMIT 1
+  FOR UPDATE;
+
+  IF v_tenant.id IS NULL THEN
+    INSERT INTO public.pos_tenants (
+      user_id, name, phone, address, timezone, currency, merchant_id,
+      is_active, status, enabled_modules, activated_at
+    ) VALUES (
+      v_merchant.user_id,
+      COALESCE(NULLIF(trim(v_merchant.name), ''), 'Toko Merchant'),
+      NULLIF(trim(v_merchant.phone), ''), NULLIF(trim(v_merchant.address), ''),
+      'Asia/Jakarta', 'IDR', p_merchant_id,
+      true, 'trial', '["cashier"]'::jsonb, v_started_at
+    )
+    RETURNING * INTO v_tenant;
+  ELSE
+    UPDATE public.pos_tenants
+    SET merchant_id = COALESCE(merchant_id, p_merchant_id), user_id = v_merchant.user_id,
+        name = COALESCE(NULLIF(trim(name), ''), NULLIF(trim(v_merchant.name), ''), 'Toko Merchant'),
+        phone = COALESCE(phone, NULLIF(trim(v_merchant.phone), '')),
+        address = COALESCE(address, NULLIF(trim(v_merchant.address), '')),
+        is_active = true, status = 'trial',
+        enabled_modules = CASE
+          WHEN jsonb_typeof(enabled_modules) = 'array' AND jsonb_array_length(enabled_modules) > 0
+            THEN enabled_modules ELSE '["cashier"]'::jsonb END,
+        activated_at = COALESCE(activated_at, v_started_at), suspended_at = NULL,
+        updated_at = v_started_at
+    WHERE id = v_tenant.id
+    RETURNING * INTO v_tenant;
+  END IF;
+
+  IF v_tenant.merchant_id IS DISTINCT FROM p_merchant_id THEN
+    RAISE EXCEPTION 'POS tenant is mapped to another merchant' USING ERRCODE = '23514';
+  END IF;
+
+  SELECT * INTO v_outlet
+  FROM public.pos_outlets
+  WHERE tenant_id = v_tenant.id AND is_active = true
+  ORDER BY created_at
+  LIMIT 1
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    INSERT INTO public.pos_outlets (tenant_id, name, address, phone, is_active)
+    VALUES (
+      v_tenant.id,
+      COALESCE(NULLIF(trim(v_merchant.name), ''), 'Toko Merchant') || ' - Outlet Utama',
+      NULLIF(trim(v_merchant.address), ''), NULLIF(trim(v_merchant.phone), ''), true
+    )
+    RETURNING * INTO v_outlet;
+  END IF;
+
+  IF to_regprocedure('public.sync_pos_tenant_catalog(uuid)') IS NOT NULL THEN
+    v_synced_products := COALESCE(public.sync_pos_tenant_catalog(v_tenant.id), 0);
+  END IF;
 
   INSERT INTO public.admin_audit_logs (admin_id, action, entity_type, entity_id, old_value, new_value)
   VALUES (
-    auth.uid(),
-    'POS_ACCESS_MANUAL_GRANT',
-    'merchant',
-    p_merchant_id,
-    v_old,
-    jsonb_build_object(
-      'subscription', to_jsonb(v_subscription),
-      'package_id', p_package_id,
-      'duration_months', v_duration,
-      'reason', v_reason
-    )
+    auth.uid(), 'POS_ACCESS_MANUAL_GRANT', 'merchant', p_merchant_id, v_old,
+    jsonb_build_object('subscription', to_jsonb(v_subscription), 'tenant', to_jsonb(v_tenant),
+      'outlet', to_jsonb(v_outlet), 'package_id', p_package_id, 'duration_months', v_duration,
+      'reason', v_reason, 'synced_products', v_synced_products)
   );
 
-  RETURN jsonb_build_object(
-    'merchant_id', p_merchant_id,
-    'subscription_id', v_subscription.id,
-    'status', v_subscription.status,
-    'started_at', v_subscription.started_at,
-    'expired_at', v_subscription.expired_at
-  );
+  RETURN jsonb_build_object('merchant_id', p_merchant_id, 'subscription_id', v_subscription.id,
+    'tenant_id', v_tenant.id, 'outlet_id', v_outlet.id, 'status', v_subscription.status,
+    'started_at', v_subscription.started_at, 'expired_at', v_subscription.expired_at,
+    'synced_products', v_synced_products);
 END;
 $$;
 
 REVOKE ALL ON FUNCTION public.admin_grant_pos_access(uuid, uuid, integer, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_grant_pos_access(uuid, uuid, integer, text) TO authenticated;
-
 NOTIFY pgrst, 'reload schema';

@@ -73,8 +73,9 @@ const POS_GROUP_BY_CATEGORY: Record<string, string> = {
   administrasi: 'team',
 };
 
-// POS disembunyikan sementara dari workspace merchant; route dan implementasinya tetap dipertahankan.
-const POS_UI_ENABLED = false;
+// POS is a first-class merchant capability. Entitlement and module checks below
+// still control which accounts and modules are visible.
+const POS_UI_ENABLED = true;
 
 function isItemActive(pathname: string, href: string) {
   if (href === '/merchant') return pathname === href;
