@@ -28,6 +28,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 - [Laporan pengujian E2E](testing/e2e-full-test-report-2026-09-11.md)
 - [Checklist kesiapan rilis](testing/release-readiness-checklist-2026-09-11.md)
 - [Panduan migrasi dan deployment POS](database/migrations/pos-database-migration-deployment.md)
+- [Audit fitur POS dari sisi merchant — 2 Oktober 2026](audits/audit-fitur-pos-merchant-2026-10-02.md)
 - [Rencana perbaikan keseluruhan](plans/rencana-perbaikan-keseluruhan-2026-09-11.md)
 
 Untuk cara menjalankan aplikasi dan quality gates, lihat [README proyek](../README.md).

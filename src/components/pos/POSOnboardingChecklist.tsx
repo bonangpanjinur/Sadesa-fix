@@ -21,16 +21,21 @@ export function POSOnboardingChecklist({
   enabledModuleCount,
 }: POSOnboardingChecklistProps) {
   const navigate = useNavigate();
-  const [hasSale, setHasSale] = useState<boolean | null>(null);
+  const [hasSale, setHasSale] = useState<boolean | 'error' | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    supabase
-      .from('pos_sales' as never)
-      .select('id', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId)
-      .then(({ count, error }) => {
-        if (mounted) setHasSale(!error && (count || 0) > 0);
+    void Promise.resolve(
+      supabase
+        .from('pos_sales' as never)
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .then(({ count, error }) => {
+          if (mounted) setHasSale(error ? 'error' : (count || 0) > 0);
+        }),
+    )
+      .catch(() => {
+        if (mounted) setHasSale('error');
       });
     return () => { mounted = false; };
   }, [tenantId]);
@@ -40,21 +45,22 @@ export function POSOnboardingChecklist({
     { label: 'Workspace POS aktif', detail: tenantName, done: true, href: '/merchant/pos/pengaturan' },
     { label: 'Outlet pertama siap', detail: activeOutletName || `${outletCount} outlet terdaftar`, done: outletCount > 0, href: '/merchant/pos/pengaturan' },
     { label: 'Modul operasional dipilih', detail: `${enabledModuleCount} modul aktif`, done: enabledModuleCount > 0, href: '/merchant/pos/pengaturan' },
-    { label: 'Printer struk dikonfigurasi', detail: printerReady ? 'Print Bridge atau USB dipilih' : 'Opsional — browser print masih tersedia', done: printerReady, href: '/merchant/pos/pengaturan' },
-    { label: 'Transaksi POS pertama', detail: hasSale === null ? 'Memeriksa transaksi...' : hasSale ? 'Transaksi berhasil tercatat' : 'Belum ada transaksi', done: hasSale === true, href: '/merchant/pos/kasir' },
+    { label: 'Printer struk (opsional)', detail: printerReady ? 'Print Bridge atau USB dipilih' : 'Belum dikonfigurasi — browser print masih tersedia', done: printerReady, optional: true, href: '/merchant/pos/pengaturan' },
+    { label: 'Transaksi POS pertama', detail: hasSale === null ? 'Memeriksa transaksi...' : hasSale === 'error' ? 'Status transaksi belum dapat diverifikasi' : hasSale ? 'Transaksi berhasil tercatat' : 'Belum ada transaksi', done: hasSale === true, href: '/merchant/pos/kasir' },
   ], [activeOutletName, enabledModuleCount, hasSale, outletCount, printerReady, tenantName]);
 
-  const completed = checks.filter((check) => check.done).length;
+  const requiredChecks = checks.filter((check) => !check.optional);
+  const completed = requiredChecks.filter((check) => check.done).length;
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6" data-testid="pos-onboarding-checklist">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Onboarding POS</p>
           <h3 className="mt-1 text-base font-semibold">Siap berjualan di outlet?</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{completed} dari {checks.length} langkah selesai.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{completed} dari {requiredChecks.length} langkah wajib selesai.</p>
         </div>
-        <div className="h-2 w-32 overflow-hidden rounded-full bg-muted" aria-label={`${completed} dari ${checks.length} selesai`}>
-          <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${(completed / checks.length) * 100}%` }} />
+        <div className="h-2 w-32 overflow-hidden rounded-full bg-muted" aria-label={`${completed} dari ${requiredChecks.length} langkah wajib selesai`}>
+          <div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${(completed / requiredChecks.length) * 100}%` }} />
         </div>
       </div>
       <div className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -74,7 +80,7 @@ export function POSOnboardingChecklist({
           </button>
         ))}
       </div>
-      {completed < checks.length && (
+      {completed < requiredChecks.length && (
         <Button variant="link" className="mt-3 h-auto px-0 text-emerald-700 dark:text-emerald-300" onClick={() => navigate('/merchant/pos/kasir')}>
           Buka kasir untuk menyelesaikan onboarding
         </Button>

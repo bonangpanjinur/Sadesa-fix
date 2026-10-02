@@ -15,6 +15,7 @@ import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
 import type { ReceiptData } from '@/lib/thermalPrinter';
 import { printReceiptWithContract } from '@/lib/receiptPrintContract';
+import { isMissingPOSHistoryViewError } from '@/lib/posTransactionHistory';
 
 interface Sale {
   id: string;
@@ -88,11 +89,13 @@ export default function POSTransaksiPage() {
   const [dateFilter, setDateFilter] = useState('today');
   const [selected, setSelected] = useState<Sale | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [legacyHistoryUnavailable, setLegacyHistoryUnavailable] = useState(false);
 
   const fetchSales = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
     setLoading(true);
     setError('');
+    setLegacyHistoryUnavailable(false);
     const now = new Date();
     const { start, end } = dateFilter === 'today'
       ? { start: startOfDay(now), end: endOfDay(now) }
@@ -103,23 +106,47 @@ export default function POSTransaksiPage() {
           : dateFilter === 'month'
             ? { start: startOfMonth(now), end: endOfMonth(now) }
             : { start: startOfDay(now), end: endOfDay(now) };
-    const { data, error: salesError } = await supabase
-      .from('pos_sales' as never)
-      .select('*, pos_sale_items(*)')
+    const { data, error: historyError } = await supabase
+      .from('pos_unified_transaction_history' as never)
+      .select('*')
       .eq('tenant_id', tenant.id)
       .eq('outlet_id', activeOutlet.id)
       .gte('created_at', start.toISOString())
       .lte('created_at', end.toISOString())
       .order('created_at', { ascending: false });
-    if (salesError) {
-      setError(salesError.message || 'Gagal memuat transaksi');
+
+    if (historyError && isMissingPOSHistoryViewError(historyError)) {
+      // Keep modern sales usable on environments where the reporting migration
+      // has not been applied yet; never hide other database/permission errors.
+      setLegacyHistoryUnavailable(true);
+      const { data: modernSales, error: modernSalesError } = await supabase
+        .from('pos_sales' as never)
+        .select('*, pos_sale_items(*)')
+        .eq('tenant_id', tenant.id)
+        .eq('outlet_id', activeOutlet.id)
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
+        .order('created_at', { ascending: false });
+      if (modernSalesError) {
+        setError(modernSalesError.message || 'Gagal memuat transaksi');
+        setSales([]);
+      } else {
+        setSales(((modernSales || []) as unknown as Array<Record<string, unknown>>).map((sale) => ({
+          ...sale,
+          source: 'modern' as const,
+          source_id: String(sale.id),
+          items: [],
+        })) as Sale[]);
+      }
+    } else if (historyError) {
+      setError(historyError.message || 'Gagal memuat transaksi');
       setSales([]);
     } else {
       setSales(((data || []) as unknown as Array<Record<string, unknown>>).map((sale) => ({
         ...sale,
-        source: 'modern' as const,
-        source_id: String(sale.id),
-        items: [],
+        source: sale.source === 'legacy' ? 'legacy' as const : 'modern' as const,
+        source_id: String(sale.source_id ?? sale.id),
+        items: sale.items ?? [],
       })) as Sale[]);
     }
     setLoading(false);
@@ -225,6 +252,12 @@ export default function POSTransaksiPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {legacyHistoryUnavailable && (
+          <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Riwayat transaksi POS baru tetap ditampilkan, tetapi sebagian transaksi lama belum tersedia karena dukungan histori legacy belum aktif pada database ini.
+          </div>
+        )}
 
         {loading ? (
           <POSLoadingState label="Memuat riwayat transaksi..." />
