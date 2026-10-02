@@ -1,5 +1,5 @@
 import type { ReceiptData } from '@/lib/thermalPrinter';
-import { getPrinterSettings, printReceiptBrowser } from '@/lib/thermalPrinter';
+import { getPrinterSettings, getUniversalPrinter, printReceiptBrowser } from '@/lib/thermalPrinter';
 import {
   enqueueReceiptData,
   flushReceiptOutbox,
@@ -7,7 +7,7 @@ import {
   markReceiptJobPrinted,
 } from '@/lib/printOutbox';
 
-export type ReceiptPrintChannel = 'usb' | 'bridge' | 'browser' | 'outbox';
+export type ReceiptPrintChannel = 'usb' | 'bluetooth' | 'bridge' | 'browser' | 'outbox';
 
 export interface ReceiptPrintResult {
   status: 'printed' | 'queued';
@@ -26,6 +26,8 @@ export async function printReceiptWithContract(
 ): Promise<ReceiptPrintResult> {
   const allowBrowserFallback = options.allowBrowserFallback ?? true;
   const settings = getPrinterSettings();
+  const nativeWasConnected = (settings.connectionType === 'usb' || settings.connectionType === 'bluetooth')
+    && getUniversalPrinter().connected;
   const job = enqueueReceiptData(receipt);
 
   try {
@@ -33,11 +35,13 @@ export async function printReceiptWithContract(
     if (result.failed === 0 && (result.printed > 0 || getReceiptJobStatus(job.jobId) === 'printed')) {
       return {
         status: 'printed',
-        channel: settings.connectionType === 'usb' ? 'usb' : 'bridge',
+        channel: nativeWasConnected
+          ? settings.connectionType === 'bluetooth' ? 'bluetooth' : 'usb'
+          : 'bridge',
       };
     }
   } catch (error: unknown) {
-    if (!allowBrowserFallback || settings.connectionType === 'usb') {
+    if (!allowBrowserFallback) {
       return {
         status: 'queued',
         channel: 'outbox',
@@ -46,7 +50,7 @@ export async function printReceiptWithContract(
     }
   }
 
-  if (!allowBrowserFallback || settings.connectionType === 'usb') {
+  if (!allowBrowserFallback) {
     return {
       status: 'queued',
       channel: 'outbox',

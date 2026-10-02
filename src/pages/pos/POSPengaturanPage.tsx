@@ -93,18 +93,29 @@ export default function POSPengaturanPage() {
 
   const connectBluetooth = async () => {
     setPrinterStatus('connecting');
-    setPrinterMsg('Memeriksa Print Bridge dan printer Bluetooth...');
+    setPrinterMsg('Mencoba koneksi Bluetooth langsung dari browser/PWA...');
     try {
-      const printers = await getBridgePrinters();
-      const printer = printers.find(item => item.name.toLowerCase().includes('bluetooth'));
-      if (!printer) throw new Error('Printer Bluetooth belum dikonfigurasi di Print Bridge.');
-      setPrinterStatus('connected');
-      setPrinterMsg(`Printer Bluetooth siap: ${printer.name}`);
-      toast.success('Printer Bluetooth siap digunakan tanpa browser');
+      const connected = uniPrinter.bluetooth.connected || await uniPrinter.bluetooth.connect();
+      if (connected) {
+        setPrinterStatus('connected');
+        setPrinterMsg(`Printer Bluetooth siap: ${uniPrinter.bluetooth.deviceName}`);
+        toast.success('Printer Bluetooth siap digunakan langsung dari browser/PWA');
+        return;
+      }
+      throw new Error('Pemilihan printer Bluetooth dibatalkan.');
     } catch (err: unknown) {
-      setPrinterStatus('error');
-      setPrinterMsg(err instanceof Error ? err.message : String(err));
-      toast.error(err instanceof Error ? err.message : String(err));
+      try {
+        const printers = await getBridgePrinters();
+        const printer = printers.find(item => item.name.toLowerCase().includes('bluetooth'));
+        if (!printer) throw err;
+        setPrinterStatus('connected');
+        setPrinterMsg(`Printer Bluetooth via Print Bridge: ${printer.name}`);
+        toast.success('Printer Bluetooth siap melalui Print Bridge');
+      } catch (bridgeError: unknown) {
+        setPrinterStatus('error');
+        setPrinterMsg(bridgeError instanceof Error ? bridgeError.message : String(bridgeError));
+        toast.error(bridgeError instanceof Error ? bridgeError.message : String(bridgeError));
+      }
     }
   };
 
@@ -135,8 +146,17 @@ export default function POSPengaturanPage() {
     savePrinterSettings(printerSettings);
     setTestingPrint(true);
     try {
-      if (printerSettings.connectionType === 'usb') {
-        await uniPrinter.testPrint();
+      const nativeSelected = printerSettings.connectionType === 'usb' || printerSettings.connectionType === 'bluetooth';
+      if (nativeSelected && uniPrinter.connected) {
+        try {
+          await uniPrinter.testPrint();
+        } catch (nativeError) {
+          const job = await printBridgeClient.testPrint();
+          const finalJob = job.status === 'printed' || job.status === 'failed'
+            ? job
+            : await printBridgeClient.waitForJob(job.jobId);
+          if (finalJob.status === 'failed') throw new Error(`${nativeError instanceof Error ? nativeError.message : 'Koneksi native gagal'}; ${finalJob.error || 'Print Bridge gagal'}`);
+        }
       } else {
         const job = await printBridgeClient.testPrint();
         const finalJob = job.status === 'printed' || job.status === 'failed'
@@ -502,7 +522,7 @@ export default function POSPengaturanPage() {
                   Cara cepat menghubungkan printer
                 </CardTitle>
                 <CardDescription className="text-emerald-900/75">
-                  Tidak perlu akun atau layanan printer berbayar. Ikuti 3 langkah ini.
+                  PWA tetap berjalan di atas browser. Cetak langsung memakai printer native bila didukung; untuk cetak tanpa dialog browser gunakan Print Bridge lokal.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 text-sm text-emerald-950">
@@ -515,7 +535,7 @@ export default function POSPengaturanPage() {
                   <div className="rounded-lg border border-emerald-200 bg-white/80 p-3">
                     <Badge className="mb-2 bg-emerald-700">2</Badge>
                     <p className="font-semibold">Pilih jenis koneksi</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Pilih USB kabel, WiFi/LAN, atau Bluetooth di bawah.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Pilih USB kabel, WiFi/LAN, atau Bluetooth. Jika koneksi native gagal, aplikasi mencoba Print Bridge lalu fallback browser.</p>
                   </div>
                   <div className="rounded-lg border border-emerald-200 bg-white/80 p-3">
                     <Badge className="mb-2 bg-emerald-700">3</Badge>

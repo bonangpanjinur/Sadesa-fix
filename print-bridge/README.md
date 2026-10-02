@@ -1,6 +1,8 @@
 # SaDesa POS Print Bridge
 
-Print Bridge adalah service lokal di komputer kasir. PWA mengirim byte ESC/POS ke `127.0.0.1:18181`, lalu bridge meneruskannya ke printer thermal tanpa dialog browser.
+Print Bridge adalah service lokal di komputer kasir. PWA mengirim byte ESC/POS ke `127.0.0.1:18181`, lalu bridge meneruskannya ke printer thermal tanpa dialog browser. Ini adalah jalur utama untuk mode **non-browser**: PWA tetap memakai engine browser, tetapi pekerjaan cetak diproses oleh service lokal dan driver OS.
+
+Jika Print Bridge atau printer native tidak tersedia, POS tidak menghilangkan struk. Receipt disimpan di print outbox IndexedDB/local storage dan PWA membuka fallback print sheet untuk `window.print()`. Pada mode fallback, kasir memilih printer thermal dari dialog sistem/browser; status ini tetap terpisah dari status sinkronisasi transaksi.
 
 ## Rekomendasi pilihan perangkat
 
@@ -101,7 +103,7 @@ Untuk printer USB yang dikenali sebagai serial:
 
 1. Pastikan browser membuka aplikasi SaDesa melalui HTTPS.
 2. Buka **POS → Pengaturan → Printer**.
-3. Pilih **WiFi/LAN melalui Print Bridge** atau **USB melalui Print Bridge**.
+3. Pilih **WiFi/LAN melalui Print Bridge** atau **USB melalui Print Bridge** untuk cetak tanpa dialog browser. USB/Bluetooth direct hanya digunakan jika browser dan perangkat mendukung Web Serial/Web Bluetooth.
 4. Simpan pengaturan dan tekan **Test Print**.
 5. Jika gagal, cek `http://127.0.0.1:18181/health`. Respons yang benar memiliki `ok: true`.
 

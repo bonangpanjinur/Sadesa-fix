@@ -3,6 +3,7 @@ import type { ReceiptData } from '@/lib/thermalPrinter';
 
 const mocks = vi.hoisted(() => ({
   getPrinterSettings: vi.fn(),
+  getUniversalPrinter: vi.fn(),
   printReceiptBrowser: vi.fn(),
   enqueueReceiptData: vi.fn(),
   flushReceiptOutbox: vi.fn(),
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/thermalPrinter', () => ({
   getPrinterSettings: mocks.getPrinterSettings,
+  getUniversalPrinter: mocks.getUniversalPrinter,
   printReceiptBrowser: mocks.printReceiptBrowser,
 }));
 
@@ -47,6 +49,7 @@ describe('receipt print contract', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getPrinterSettings.mockReturnValue({ connectionType: 'wifi', printCopies: 1 });
+    mocks.getUniversalPrinter.mockReturnValue({ connected: false });
     mocks.enqueueReceiptData.mockReturnValue(receipt);
     mocks.getReceiptJobStatus.mockReturnValue('failed');
     mocks.printReceiptBrowser.mockResolvedValue(undefined);
@@ -75,14 +78,14 @@ describe('receipt print contract', () => {
     expect(mocks.markReceiptJobPrinted).toHaveBeenCalledWith(receipt.jobId);
   });
 
-  it('does not open browser print for a failed USB printer', async () => {
+  it('falls back to browser print when a USB printer is not connected', async () => {
     mocks.getPrinterSettings.mockReturnValue({ connectionType: 'usb', printCopies: 1 });
     mocks.flushReceiptOutbox.mockResolvedValue({ printed: 0, failed: 1 });
 
     await expect(printReceiptWithContract(receipt)).resolves.toMatchObject({
-      status: 'queued',
-      channel: 'outbox',
+      status: 'printed',
+      channel: 'browser',
     });
-    expect(mocks.printReceiptBrowser).not.toHaveBeenCalled();
+    expect(mocks.printReceiptBrowser).toHaveBeenCalledWith(receipt);
   });
 });

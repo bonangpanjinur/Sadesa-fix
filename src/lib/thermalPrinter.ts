@@ -15,7 +15,7 @@ interface BluetoothCharacteristicLike {
 interface BluetoothServerLike { getPrimaryService(uuid: string): Promise<{ getCharacteristic(uuid: string): Promise<BluetoothCharacteristicLike> }>; }
 interface BluetoothDeviceLike { name?: string; gatt: { connect(): Promise<BluetoothServerLike>; disconnect(): void } }
 
-declare global { interface Navigator { serial: { requestPort(): Promise<SerialPortLike> }; bluetooth: { requestDevice(options: unknown): Promise<BluetoothDeviceLike> }; } }
+declare global { interface Navigator { serial: { requestPort(): Promise<SerialPortLike>; getPorts?: () => Promise<SerialPortLike[]> }; bluetooth: { requestDevice(options: unknown): Promise<BluetoothDeviceLike> }; } }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
@@ -181,7 +181,8 @@ export class USBPrinter {
       throw new Error("Web Serial API tidak didukung. Gunakan Chrome/Edge terbaru.");
     }
     try {
-      this.port = await navigator.serial.requestPort();
+      const rememberedPorts = navigator.serial.getPorts ? await navigator.serial.getPorts() : [];
+      this.port = rememberedPorts[0] || await navigator.serial.requestPort();
       await this.port.open({ baudRate });
       this.writer = this.port.writable!.getWriter();
       this.connected = true;
@@ -432,11 +433,10 @@ export function getPrinter(): ThermalPrinter {
 // ─── Browser fallback (popup window print) ───────────────────────────────────
 
 export async function printReceiptBrowser(receipt: ReceiptData): Promise<void> {
-  const W = 42;
+  const W = receipt.items.some(item => item.name.length > 42) ? 48 : 42;
   const c = (t: string) => t.padStart(Math.floor((W + t.length) / 2)).padEnd(W);
   const r = (l: string, rv: string) => l + " ".repeat(Math.max(1, W - l.length - rv.length)) + rv;
   const div = "-".repeat(W);
-
   const lines: string[] = [
     c(receipt.storeName || "STRUK PENJUALAN"),
     ...(receipt.storeAddress ? [c(receipt.storeAddress)] : []),
@@ -455,7 +455,6 @@ export async function printReceiptBrowser(receipt: ReceiptData): Promise<void> {
     lines.push(r(`  ${item.qty}x ${fmtCur(item.price)}`, fmtCur(item.qty * item.price)));
     if (item.discount > 0) lines.push(`  Diskon: -${fmtCur(item.discount)}`);
   }
-
   lines.push(div);
   if (receipt.subtotal !== receipt.total) lines.push(r("Subtotal", fmtCur(receipt.subtotal)));
   if (receipt.discountAmount > 0) lines.push(r("Diskon", `-${fmtCur(receipt.discountAmount)}`));
@@ -474,15 +473,39 @@ export async function printReceiptBrowser(receipt: ReceiptData): Promise<void> {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-  const win = window.open("", "_blank", "width=400,height=600");
-  if (!win) { alert("Aktifkan popup untuk mencetak struk."); return; }
-  win.document.write(`<html><head><title>Struk</title>
+  const html = `<html><head><title>Struk ${escapeHtml(receipt.invoiceNo)}</title>
     <style>body{font-family:'Courier New',monospace;font-size:12px;margin:0;padding:8px}
-    pre{white-space:pre-wrap;word-wrap:break-word}
-    @media print{@page{margin:2mm;size:80mm auto}}</style></head>
-    <body><pre>${escapeHtml(content)}</pre>
-    <script>window.onload=()=>{window.print();window.close();}${'<'}/script></body></html>`);
-  win.document.close();
+    pre{white-space:pre-wrap;word-wrap:break-word;margin:0}
+    @page{margin:2mm;size:80mm auto}
+    @media print{body{padding:0;width:80mm}}</style></head>
+    <body><pre>${escapeHtml(content)}</pre></body></html>`;
+
+  // A PWA is still subject to popup rules. Use a popup when permitted, but
+  // fall back to a temporary in-document print sheet when it is blocked.
+  const win = window.open('', '_blank', 'width=400,height=600');
+  if (win) {
+    win.document.open();
+    win.document.write(`${html}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}${'<'}/script>`);
+    win.document.close();
+    return;
+  }
+
+  const sheet = document.createElement('div');
+  sheet.setAttribute('data-pos-print-sheet', 'true');
+  sheet.innerHTML = `<style data-pos-print-style>
+    [data-pos-print-sheet]{position:fixed;inset:0;z-index:2147483647;background:#fff;color:#000;padding:8px;font:12px 'Courier New',monospace}
+    [data-pos-print-sheet] pre{white-space:pre-wrap;word-wrap:break-word;margin:0}
+    @media print{body>*:not([data-pos-print-sheet]){display:none!important}[data-pos-print-sheet]{position:static;width:80mm;padding:0}}
+  </style><pre>${escapeHtml(content)}</pre>`;
+  document.body.appendChild(sheet);
+  await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+  const cleanup = () => {
+    sheet.remove();
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
+  window.setTimeout(cleanup, 60_000);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

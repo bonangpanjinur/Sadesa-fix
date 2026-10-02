@@ -45,6 +45,39 @@ export function enqueueReceiptJob(snapshot: ReceiptSnapshot, cashierName?: strin
   return enqueueReceiptData(createPrintJob(snapshot, cashierName, getPrinterSettings().printCopies).receipt);
 }
 
+async function sendToConfiguredPrinter(receipt: PrintJobEnvelope['receipt'], copies: number): Promise<void> {
+  const settings = getPrinterSettings();
+  const universal = getUniversalPrinter();
+
+  // Direct Web Serial/Web Bluetooth is fast when already authorised. If the
+  // browser lost the device connection, continue through the local bridge.
+  if ((settings.connectionType === 'usb' || settings.connectionType === 'bluetooth') && universal.connected) {
+    try {
+      await universal.printReceipt(receipt, copies);
+      return;
+    } catch (nativeError) {
+      try {
+        const bridgeJob = await printBridgeClient.submitReceipt(receipt);
+        const finalJob = bridgeJob.status === 'printed' || bridgeJob.status === 'failed'
+          ? bridgeJob
+          : await printBridgeClient.waitForJob(bridgeJob.jobId);
+        if (finalJob.status === 'printed') return;
+        throw new Error(finalJob.error || 'Print Bridge gagal mencetak');
+      } catch (bridgeError) {
+        throw new Error(`Native printer gagal: ${nativeError instanceof Error ? nativeError.message : String(nativeError)}; Print Bridge gagal: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}`);
+      }
+    }
+  }
+
+  // WiFi/LAN and bridge-managed USB/Bluetooth are printed without opening a
+  // browser dialog, including when the PWA is installed in standalone mode.
+  const bridgeJob = await printBridgeClient.submitReceipt(receipt);
+  const finalJob = bridgeJob.status === 'printed' || bridgeJob.status === 'failed'
+    ? bridgeJob
+    : await printBridgeClient.waitForJob(bridgeJob.jobId);
+  if (finalJob.status !== 'printed') throw new Error(finalJob.error || 'Printer gagal');
+}
+
 export async function flushReceiptOutbox(filter?: (job: PrintJobEnvelope) => boolean): Promise<{ printed: number; failed: number }> {
   const jobs = readJobs();
   let printed = 0;
@@ -52,15 +85,7 @@ export async function flushReceiptOutbox(filter?: (job: PrintJobEnvelope) => boo
   for (const stored of jobs.filter(job => job.status !== 'printed' && (!filter || filter(hydrate(job))))) {
     try {
       const receipt = hydrate(stored).receipt;
-      if (getPrinterSettings().connectionType === 'usb') {
-        await getUniversalPrinter().printReceipt(receipt, stored.copies);
-      } else {
-        const submitted = await printBridgeClient.submitReceipt(receipt);
-        const finalJob = submitted.status === 'printed' || submitted.status === 'failed'
-          ? submitted
-          : await printBridgeClient.waitForJob(submitted.jobId);
-        if (finalJob.status !== 'printed') throw new Error(finalJob.error || 'Printer gagal');
-      }
+      await sendToConfiguredPrinter(receipt, stored.copies);
       stored.status = 'printed'; stored.lastError = undefined; printed += 1;
     } catch (error) {
       stored.status = 'failed'; stored.lastError = error instanceof Error ? error.message : String(error); failed += 1;
