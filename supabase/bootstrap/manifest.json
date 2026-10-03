@@ -661,8 +661,8 @@
       "source_files": [
         "20261003190000_pos_subscription_workspace_provisioning.sql"
       ],
-      "sha256": "29d6233f21d18c62653dc9205ef56b5ed4c96834fa1e300b68ce9743630d885e",
-      "bytes": 4924
+      "sha256": "fc7afdeffd050714ec2f5da5de0065b0d6ad6cda94f3636e4b3a2cc8cefe89f2",
+      "bytes": 4681
     }
   ],
   "idempotent": true,

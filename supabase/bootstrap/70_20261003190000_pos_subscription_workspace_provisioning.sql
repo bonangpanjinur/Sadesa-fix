@@ -4,6 +4,7 @@
 DO $bootstrap_do_pos_subscription_workspace_provisioning$
 BEGIN
   EXECUTE $bootstrap_sql_pos_subscription_workspace_provisioning$
+DROP TRIGGER IF EXISTS provision_pos_workspace_after_subscription_change ON public.pos_subscriptions;
 CREATE OR REPLACE FUNCTION public.provision_pos_workspace_for_subscription(
   p_subscription_id uuid
 )
@@ -86,33 +87,28 @@ BEGIN
     WHERE tenant_id = v_tenant.id AND is_active = true
   );
 
-  IF to_regprocedure('public.sync_pos_tenant_catalog(uuid)') IS NOT NULL THEN
-    PERFORM public.sync_pos_tenant_catalog(v_tenant.id);
-  END IF;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.provision_pos_workspace_for_subscription_trigger()
+CREATE OR REPLACE FUNCTION public.sync_pos_tenant_catalog_after_mapping()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  PERFORM public.provision_pos_workspace_for_subscription(NEW.id);
+  IF COALESCE(current_setting('app.pos_workspace_provisioning', true), '') = 'on' THEN
+    RETURN NEW;
+  END IF;
+  IF NEW.merchant_id IS NOT NULL
+     AND (TG_OP = 'INSERT' OR OLD.merchant_id IS DISTINCT FROM NEW.merchant_id) THEN
+    PERFORM public.sync_pos_tenant_catalog(NEW.id);
+  END IF;
   RETURN NEW;
 END;
 $$;
 
 REVOKE ALL ON FUNCTION public.provision_pos_workspace_for_subscription(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.provision_pos_workspace_for_subscription_trigger() FROM PUBLIC, anon, authenticated;
-
-DROP TRIGGER IF EXISTS provision_pos_workspace_after_subscription_change ON public.pos_subscriptions;
-CREATE TRIGGER provision_pos_workspace_after_subscription_change
-AFTER INSERT OR UPDATE OF status, started_at, expired_at, payment_status, is_trial
-ON public.pos_subscriptions
-FOR EACH ROW
-EXECUTE FUNCTION public.provision_pos_workspace_for_subscription_trigger();
 $bootstrap_sql_pos_subscription_workspace_provisioning$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
@@ -123,6 +119,7 @@ DO $bootstrap_do_pos_subscription_workspace_backfill$
 DECLARE
   v_subscription record;
 BEGIN
+  PERFORM set_config('app.pos_workspace_provisioning', 'on', true);
   FOR v_subscription IN
     SELECT s.id
     FROM public.pos_subscriptions s
