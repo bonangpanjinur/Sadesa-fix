@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { getSettingByKey } from '@/lib/adminApi';
-import { getPOSSubscriptionState, POS_SUBSCRIPTION_STATE_LABEL } from '@/lib/posSubscription';
+import { getPOSSubscriptionState, isPOSSubscriptionActive, POS_SUBSCRIPTION_STATE_LABEL } from '@/lib/posSubscription';
 
 interface POSSubscription {
   id: string;
@@ -77,7 +77,7 @@ export default function MerchantPOSSubscribePage() {
       try {
         const { data: merchant } = await supabase
           .from('merchants')
-          .select('id')
+          .select('id, name, phone, address')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -108,6 +108,28 @@ export default function MerchantPOSSubscribePage() {
           .limit(1)
           .maybeSingle();
         setExistingSub(sub as POSSubscription | null);
+
+        // A manual admin grant can leave older deployments with an active
+        // entitlement but no POS tenant. Repair that gap through the
+        // server-side entitlement check instead of making the merchant repeat
+        // setup before the POS menu becomes available.
+        if (!tenant && sub && isPOSSubscriptionActive(sub)) {
+          const { error: provisioningError } = await supabase.rpc('ensure_merchant_pos_workspace' as never, {
+            p_name: merchant.name || 'Toko Merchant',
+            p_phone: merchant.phone || null,
+            p_address: merchant.address || null,
+            p_timezone: 'Asia/Jakarta',
+            p_currency: 'IDR',
+            p_outlet_name: `${merchant.name || 'Toko Merchant'} - Outlet Utama`,
+            p_outlet_address: merchant.address || null,
+            p_outlet_phone: merchant.phone || null,
+          } as never);
+          if (!provisioningError) {
+            window.location.reload();
+            return;
+          }
+          console.warn('POS subscription is active but workspace provisioning failed:', provisioningError);
+        }
 
         // Check if trial was used
         const { count } = await supabase
