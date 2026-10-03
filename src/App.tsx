@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { ThemeProvider } from "next-themes";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -453,8 +454,9 @@ function CheckoutRoute() {
 }
 
 const App = () => (
-  <SplashScreen>
-    <ErrorBoundary>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <SplashScreen>
+      <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
@@ -1357,8 +1359,9 @@ const App = () => (
     </AuthProvider>
   </TooltipProvider>
       </QueryClientProvider>
-    </ErrorBoundary>
-  </SplashScreen>
+      </ErrorBoundary>
+    </SplashScreen>
+  </ThemeProvider>
 );
 
 export default App;

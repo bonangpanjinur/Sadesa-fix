@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Bell, Moon, Sun, Globe, Shield, Lock, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Bell, Moon, Sun, Globe, Shield, Lock, Loader2 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { PushNotificationSettings } from '@/components/settings/PushNotificationSettings';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { useTranslation } from '@/lib/i18n';
@@ -24,23 +22,27 @@ import { passwordSchema } from '@/lib/validationSchemas';
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, isCourier } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const { t } = useTranslation();
-
-  // Change password state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
+  const resetPasswordForm = () => {
+    setShowPasswordForm(false);
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
   const handleChangePassword = async () => {
     const passwordResult = passwordSchema.safeParse(newPassword);
     if (!passwordResult.success) {
-      toast.error(passwordResult.error.issues[0]?.message || 'Password belum memenuhi kebijakan keamanan');
+      toast.error(t('settings.password.policy_error'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('Password tidak cocok');
+      toast.error(t('settings.password.mismatch'));
       return;
     }
 
@@ -48,52 +50,52 @@ export default function SettingsPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      toast.success('Password berhasil diubah');
-      setShowPasswordForm(false);
-      setNewPassword('');
-      setConfirmPassword('');
+      toast.success(t('settings.password.changed'));
+      resetPasswordForm();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Gagal mengubah password');
+      toast.error(error instanceof Error ? error.message : t('settings.password.update_failed'));
     } finally {
       setChangingPassword(false);
     }
   };
 
-  const isDark = theme === 'dark';
+  const isDark = resolvedTheme === 'dark';
 
   return (
-    <div className="mobile-shell bg-background flex flex-col min-h-screen">
+    <div className="mobile-shell flex min-h-screen flex-col bg-background">
       <Header />
-      
+
       <div className="flex-1 overflow-y-auto pb-24">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="px-5 py-4"
         >
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <Button variant="ghost" size="icon" onClick={() => safeGoBack(navigate)}>
+          <div className="mb-6 flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('settings.back')}
+              title={t('settings.back')}
+              onClick={() => safeGoBack(navigate)}
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-xl font-bold">Pengaturan</h1>
-              <p className="text-sm text-muted-foreground">Kelola preferensi aplikasi</p>
+              <h1 className="text-xl font-bold">{t('settings.title')}</h1>
+              <p className="text-sm text-muted-foreground">{t('settings.description')}</p>
             </div>
           </div>
 
           <div className="space-y-4">
-            {/* Push Notifications */}
             {user && (
               <Card>
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
                     <Bell className="h-5 w-5 text-primary" />
-                    <CardTitle className="text-base">Notifikasi Push</CardTitle>
+                    <CardTitle className="text-base">{t('settings.push.title')}</CardTitle>
                   </div>
-                  <CardDescription>
-                    Terima notifikasi untuk pesanan, promo, dan update penting
-                  </CardDescription>
+                  <CardDescription>{t('settings.push.description')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <PushNotificationSettings required={isCourier} />
@@ -101,21 +103,19 @@ export default function SettingsPage() {
               </Card>
             )}
 
-            {/* Theme */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   {isDark ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-primary" />}
-                  <CardTitle className="text-base">Tampilan</CardTitle>
+                  <CardTitle className="text-base">{t('settings.theme.title')}</CardTitle>
                 </div>
-                <CardDescription>
-                  Sesuaikan tema dan tampilan aplikasi
-                </CardDescription>
+                <CardDescription>{t('settings.theme.description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Mode Gelap</span>
+                  <Label htmlFor="dark-mode" className="text-sm">{t('settings.theme.dark_mode')}</Label>
                   <Switch
+                    id="dark-mode"
                     checked={isDark}
                     onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
                   />
@@ -123,16 +123,13 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Language */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <Globe className="h-5 w-5 text-primary" />
                   <CardTitle className="text-base">{t('settings.language.title')}</CardTitle>
                 </div>
-                <CardDescription>
-                  {t('settings.language.description')}
-                </CardDescription>
+                <CardDescription>{t('settings.language.description')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 <p className="text-xs text-muted-foreground">{t('settings.language.active')}</p>
@@ -140,55 +137,58 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Privacy */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <Shield className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-base">Privasi & Keamanan</CardTitle>
+                  <CardTitle className="text-base">{t('settings.privacy.title')}</CardTitle>
                 </div>
-                <CardDescription>
-                  Kelola data dan keamanan akun Anda
-                </CardDescription>
+                <CardDescription>{t('settings.privacy.description')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {/* Change Password */}
                 {user && (
                   <>
                     {!showPasswordForm ? (
-                      <Button variant="outline" className="w-full justify-start" onClick={() => setShowPasswordForm(true)}>
-                        <Lock className="h-4 w-4 mr-2" />
-                        Ubah Password
+                      <Button type="button" variant="outline" className="w-full justify-start" onClick={() => setShowPasswordForm(true)}>
+                        <Lock className="mr-2 h-4 w-4" />
+                        {t('settings.password.change')}
                       </Button>
                     ) : (
-                      <div className="space-y-3 p-3 border border-border rounded-lg">
+                      <div className="space-y-3 rounded-lg border border-border p-3">
                         <div className="space-y-1.5">
-                          <Label htmlFor="new-password" className="text-xs">Password Baru</Label>
+                          <Label htmlFor="new-password" className="text-xs">{t('settings.password.new')}</Label>
                           <Input
                             id="new-password"
                             type="password"
-                            placeholder="Min. 8 karakter, huruf besar, kecil, dan angka"
+                            autoComplete="new-password"
+                            minLength={8}
+                            required
+                            disabled={changingPassword}
+                            placeholder={t('settings.password.placeholder')}
                             value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
+                            onChange={(event) => setNewPassword(event.target.value)}
                           />
                         </div>
                         <div className="space-y-1.5">
-                          <Label htmlFor="confirm-password" className="text-xs">Konfirmasi Password</Label>
+                          <Label htmlFor="confirm-password" className="text-xs">{t('settings.password.confirm')}</Label>
                           <Input
                             id="confirm-password"
                             type="password"
-                            placeholder="Ulangi password baru"
+                            autoComplete="new-password"
+                            required
+                            disabled={changingPassword}
+                            placeholder={t('settings.password.confirm_placeholder')}
                             value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            onChange={(event) => setConfirmPassword(event.target.value)}
                           />
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={handleChangePassword} disabled={changingPassword}>
-                            {changingPassword && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                            Simpan
+                          <Button type="button" size="sm" onClick={handleChangePassword} disabled={changingPassword}>
+                            {changingPassword && <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" />}
+                            {changingPassword ? t('settings.password.saving') : t('settings.password.save')}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setShowPasswordForm(false); setNewPassword(''); setConfirmPassword(''); }}>
-                            Batal
+                          <Button type="button" size="sm" variant="ghost" onClick={resetPasswordForm} disabled={changingPassword}>
+                            {t('settings.password.cancel')}
                           </Button>
                         </div>
                       </div>
@@ -196,22 +196,20 @@ export default function SettingsPage() {
                   </>
                 )}
 
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/privacy')}>
-                  Kebijakan Privasi
+                <Button type="button" variant="outline" className="w-full justify-start" onClick={() => navigate('/privacy')}>
+                  {t('settings.privacy.policy')}
                 </Button>
-                <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/terms')}>
-                  Syarat & Ketentuan
+                <Button type="button" variant="outline" className="w-full justify-start" onClick={() => navigate('/terms')}>
+                  {t('settings.privacy.terms')}
                 </Button>
               </CardContent>
             </Card>
           </div>
 
-          <p className="text-center text-xs text-muted-foreground mt-8">
-            SaDesa v1.0.0 • Platform UMKM Desa
-          </p>
+          <p className="mt-8 text-center text-xs text-muted-foreground">{t('settings.footer')}</p>
         </motion.div>
       </div>
-      
+
       <BottomNav />
     </div>
   );

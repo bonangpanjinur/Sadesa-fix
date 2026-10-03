@@ -166,10 +166,11 @@ export async function getSubscriptionStatus(userId: string): Promise<boolean> {
       .eq('endpoint', subscription.endpoint)
       .maybeSingle();
 
-    return !error && !!data;
+    if (error) throw error;
+    return !!data;
   } catch (error) {
     console.error('Error checking push subscription:', error);
-    return false;
+    throw error;
   }
 }
 

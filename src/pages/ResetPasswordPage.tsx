@@ -7,18 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { z } from 'zod';
-
-const passwordSchema = z.object({
-  password: z.string()
-    .min(8, 'Password minimal 8 karakter')
-    .regex(/[A-Za-z]/, 'Password harus mengandung huruf')
-    .regex(/[0-9]/, 'Password harus mengandung angka'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Password tidak sama',
-  path: ['confirmPassword'],
-});
+import { resetPasswordSchema } from '@/lib/validationSchemas';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -52,7 +41,7 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setErrors({});
 
-    const result = passwordSchema.safeParse({ password, confirmPassword });
+    const result = resetPasswordSchema.safeParse({ password, confirmPassword });
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
@@ -175,7 +164,8 @@ export default function ResetPasswordPage() {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Minimal 8 karakter, huruf dan angka"
+                autoComplete="new-password"
+                placeholder="Min. 8 karakter, huruf besar, kecil, dan angka"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);

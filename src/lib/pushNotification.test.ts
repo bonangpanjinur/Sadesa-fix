@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
+const { getSession, from } = vi.hoisted(() => ({ getSession: vi.fn(), from: vi.fn() }));
 
 vi.mock('@/integrations/supabase/client', () => ({
   SUPABASE_URL: 'https://push-test.supabase.co',
   supabase: {
     auth: { getSession },
+    from,
   },
 }));
 
-import { hasActiveBrowserPushSubscription, subscribeToPush } from './pushNotification';
+import { getSubscriptionStatus, hasActiveBrowserPushSubscription, subscribeToPush } from './pushNotification';
 
 describe('subscribeToPush', () => {
   beforeEach(() => {
@@ -73,5 +74,26 @@ describe('subscribeToPush', () => {
     });
 
     await expect(hasActiveBrowserPushSubscription()).resolves.toBe(true);
+  });
+
+  it('propagates backend status errors instead of treating them as an inactive subscription', async () => {
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          pushManager: { getSubscription: vi.fn().mockResolvedValue({ endpoint: 'https://push.example/subscription' }) },
+        }),
+      },
+    });
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: new Error('status lookup failed') }),
+    };
+    from.mockReturnValue(query);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(getSubscriptionStatus('user-1')).rejects.toThrow('status lookup failed');
+    consoleError.mockRestore();
   });
 });
