@@ -146,6 +146,7 @@ export default function MerchantProductsPage() {
         price: parsed.data.price,
         stock: parsed.data.stock,
         category: parsed.data.category,
+        category_id: selectedProductCategory?.id || null,
         image_url: form.image_url,
         is_active: form.is_active,
         is_promo: form.is_promo,

@@ -120,6 +120,36 @@ export function getCategoryDescendantSlugs(categories: ProductCategory[], catego
   return descendants;
 }
 
+export function getCategoryDescendantIds(categories: ProductCategory[], categoryId: string): string[] {
+  const descendants: string[] = [];
+  const append = (parentId: string) => {
+    categories.filter((category) => category.parent_id === parentId).forEach((category) => {
+      descendants.push(category.id);
+      append(category.id);
+    });
+  };
+  append(categoryId);
+  return descendants;
+}
+
+export function getCategoryFilterIds(categories: ProductCategory[], type: string): string[] | null {
+  if (type === 'all') return null;
+  if (type === 'belanja') {
+    const root = ['kelontongan', 'sembako'].map((slug) => getCategoryBySlug(categories, slug)).find(Boolean);
+    return root ? [root.id, ...getCategoryDescendantIds(categories, root.id)] : [];
+  }
+  if (type === 'kuliner') {
+    const roots = categories.filter((category) => !category.parent_id && (isCombinedFoodCategory(category) || ['makanan', 'minuman'].includes(category.slug.toLowerCase())));
+    return roots.flatMap((root) => [root.id, ...getCategoryDescendantIds(categories, root.id)]);
+  }
+  if (type === 'pertanian') {
+    const root = categories.find((category) => !category.parent_id && ['pertanian', 'agri'].includes(category.slug.toLowerCase()));
+    return root ? [root.id, ...getCategoryDescendantIds(categories, root.id)] : [];
+  }
+  const selected = getCategoryBySlug(categories, type);
+  return selected ? [selected.id, ...getCategoryDescendantIds(categories, selected.id)] : [];
+}
+
 /** Resolve Belanja to the canonical Kelontongan category, with legacy fallback. */
 export function getShoppingCategorySlugs(categories: ProductCategory[]): string[] {
   const root = ['kelontongan', 'sembako']

@@ -147,6 +147,7 @@ export function MerchantProductDetailEditor({ productId, merchantId, onBack }: M
           price: parsed.data.price,
           stock: parsed.data.stock,
           category: parsed.data.category,
+          category_id: categories.find((category) => category.slug === parsed.data.category)?.id || null,
           is_active: form.is_active,
           is_promo: form.is_promo,
           discount_percent: parsed.data.discount_percent ?? null,

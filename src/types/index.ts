@@ -83,6 +83,8 @@ export interface Product {
   stock: number;
   image: string;
   category: ProductCategory;
+  /** Stable database identity; category slug is retained for legacy display only. */
+  categoryId?: string | null;
   isActive: boolean;
   isPromo?: boolean;
   // Availability fields

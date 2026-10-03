@@ -66,7 +66,7 @@ export function AdminEditProductDialog({ open, onOpenChange, product, onSuccess 
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from('products').update({ name: form.name.trim(), description: form.description.trim() || null, price: Number(form.price), stock: Math.max(0, Number(form.stock) || 0), category: form.category, is_active: form.is_active, min_stock_alert: Math.max(0, Number(form.min_stock_alert) || 0), updated_at: new Date().toISOString() }).eq('id', product.id);
+    const { error } = await supabase.from('products').update({ name: form.name.trim(), description: form.description.trim() || null, price: Number(form.price), stock: Math.max(0, Number(form.stock) || 0), category: form.category, category_id: selectedCategory?.id || null, is_active: form.is_active, min_stock_alert: Math.max(0, Number(form.min_stock_alert) || 0), updated_at: new Date().toISOString() }).eq('id', product.id);
     setSaving(false);
     if (error) { toast.error(error.message || 'Gagal memperbarui produk'); return; }
     toast.success('Produk/menu berhasil diperbarui'); onSuccess(); onOpenChange(false);

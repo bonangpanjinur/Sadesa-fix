@@ -73,18 +73,21 @@ async function getFreeTierLimit(): Promise<number> {
 }
 
 // Helper to get merchant IDs with active quota (subscriptions OR free tier)
-async function getMerchantsWithActiveQuota(): Promise<Set<string>> {
-  // Run the three independent reads in parallel instead of a request waterfall.
+async function getMerchantsWithActiveQuota(merchantScopeIds: string[]): Promise<Set<string>> {
+  if (merchantScopeIds.length === 0) return new Set();
+  // Scope every quota lookup to merchants represented by the current page.
   const [FREE_TIER_LIMIT, merchantsRes, subsRes] = await Promise.all([
     getFreeTierLimit(),
     supabase
       .from('merchants')
       .select('id')
+      .in('id', merchantScopeIds)
       .eq('status', 'ACTIVE')
       .eq('registration_status', 'APPROVED'),
     supabase
       .from('merchant_subscriptions')
       .select('merchant_id, transaction_quota, used_quota')
+      .in('merchant_id', merchantScopeIds)
       .eq('status', 'ACTIVE')
       .gte('expired_at', new Date().toISOString()),
   ]);
@@ -211,16 +214,73 @@ export async function checkMerchantHasActiveQuota(merchantId: string): Promise<b
 
 interface FetchProductsOptions {
   limit?: number;
+  offset?: number;
   includeReviews?: boolean;
   cacheKey?: string;
+  search?: string;
+  categoryIds?: string[] | null;
+  merchantId?: string | null;
+  promoOnly?: boolean;
+  inStockOnly?: boolean;
+  maxPrice?: number;
+  sort?: 'nearest' | 'cheapest' | 'expensive' | 'newest';
+}
+
+export interface ProductPage {
+  products: Product[];
+  hasMore: boolean;
+  total: number | null;
+}
+
+interface CatalogMerchant {
+  id?: string;
+  name?: string | null;
+  image_url?: string | null;
+  slug?: string | null;
+  address?: string | null;
+  rating_avg?: number | null;
+  rating_count?: number | null;
+  is_open?: boolean | null;
+  open_time?: string | null;
+  close_time?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  reviews?: Array<{ id: string; rating: number; comment?: string | null; created_at: string; is_visible?: boolean | null }>;
+  villages?: { name?: string | null; location_lat?: number | null; location_lng?: number | null } | null;
+}
+
+export async function fetchProductCategoryCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.rpc('get_product_category_counts' as never);
+  if (error) throw error;
+  return Object.fromEntries(((data || []) as Array<{ category_id: string; product_count: number }>).map((row) => [row.category_id, Number(row.product_count)]));
 }
 
 // Fetch products from database (include availability status and location).
 // Homepage callers can request a smaller payload because review details are not
 // rendered in product cards.
 export async function fetchProducts(options: FetchProductsOptions = {}): Promise<Product[]> {
-  const { limit = 200, includeReviews = true, cacheKey = 'products' } = options;
-  const cached = getCached<Product[]>(cacheKey);
+  const page = await fetchProductPage(options);
+  return page.products;
+}
+
+export async function fetchProductPage(options: FetchProductsOptions = {}): Promise<ProductPage> {
+  const {
+    limit = 24,
+    offset = 0,
+    includeReviews = false,
+    cacheKey = 'products',
+    search = '',
+    categoryIds,
+    merchantId,
+    promoOnly = false,
+    inStockOnly = false,
+    maxPrice,
+    sort = 'newest',
+  } = options;
+  const normalizedLimit = Math.min(Math.max(limit, 1), 48);
+  const cacheSuffix = JSON.stringify({ offset, normalizedLimit, search, categoryIds, merchantId, promoOnly, inStockOnly, maxPrice, sort });
+  const cacheKeyWithParams = `${cacheKey}:${cacheSuffix}`;
+  const cached = getCached<ProductPage>(cacheKeyWithParams);
   if (cached) return cached;
   const merchantFields = includeReviews
     ? `
@@ -254,15 +314,29 @@ export async function fetchProducts(options: FetchProductsOptions = {}): Promise
           location_lng,
           villages (name, location_lat, location_lng)
         `;
-  // Quota lookup and the product query are independent — fire both at once.
-  const [merchantsWithQuota, { data, error }] = await Promise.all([
-    getMerchantsWithActiveQuota(),
-    supabase
-      .from('products')
-      .select(`*, merchants (${merchantFields})`)
-      .order('created_at', { ascending: false })
-      .limit(limit),
-  ]);
+  let query = supabase
+    .from('products')
+    .select(`id, merchant_id, name, description, price, stock, category, category_id, image_url, is_active, is_promo, discount_percent, created_at, merchants (${merchantFields})`, { count: 'exact' })
+    .eq('is_active', true);
+  let merchantSearchIds: string[] = [];
+  if (search.trim()) {
+    const term = `%${search.trim().replace(/[%(),]/g, ' ')}%`;
+    const { data: matchingMerchants } = await supabase.from('merchants').select('id').ilike('name', term).limit(50);
+    merchantSearchIds = (matchingMerchants || []).map((merchant) => merchant.id);
+    const merchantClause = merchantSearchIds.length ? `,merchant_id.in.(${merchantSearchIds.join(',')})` : '';
+    query = query.or(`name.ilike.${term},description.ilike.${term},category.ilike.${term}${merchantClause}`);
+  }
+  if (categoryIds?.length) query = query.in('category_id', categoryIds);
+  if (merchantId) query = query.eq('merchant_id', merchantId);
+  if (promoOnly) query = query.eq('is_promo', true);
+  if (inStockOnly) query = query.gt('stock', 0);
+  if (maxPrice != null && maxPrice < 100000) query = query.lte('price', maxPrice);
+  if (sort === 'cheapest') query = query.order('price', { ascending: true });
+  else if (sort === 'expensive') query = query.order('price', { ascending: false });
+  else query = query.order('created_at', { ascending: false });
+  query = query.order('id', { ascending: true }).range(offset, offset + normalizedLimit - 1);
+
+  const { data, error, count } = await query;
 
   if (error) {
     console.error('Error fetching products:', error);
@@ -272,9 +346,12 @@ export async function fetchProducts(options: FetchProductsOptions = {}): Promise
   }
 
 
-  const mappedProducts = (data || []).map(p => {
+  const merchantIds = [...new Set((data || []).map((p) => p.merchant_id).filter(Boolean))];
+  const merchantsWithQuota = await getMerchantsWithActiveQuota(merchantIds);
+  const mappedProducts = (data || []).map((rawProduct) => {
+    const p = rawProduct as typeof rawProduct & { sold_count?: number };
     const hasQuota = merchantsWithQuota.has(p.merchant_id);
-    const merchant = p.merchants;
+    const merchant = (Array.isArray(p.merchants) ? p.merchants[0] : p.merchants) as CatalogMerchant | null;
     
     // Check if merchant is currently open based on operating hours
     const isManuallyOpen = merchant?.is_open ?? true;
@@ -336,6 +413,7 @@ export async function fetchProducts(options: FetchProductsOptions = {}): Promise
       // Placeholder netral lebih jujur daripada membuat dimsum terlihat seperti keripik.
       image: productImages[p.id] || p.image_url || '/placeholder.svg',
       category: p.category as Product['category'],
+      categoryId: p.category_id || null,
       isActive: p.is_active,
       isPromo,
       isAvailable,
@@ -348,8 +426,13 @@ export async function fetchProducts(options: FetchProductsOptions = {}): Promise
     };
   });
 
-  setCache(cacheKey, mappedProducts);
-  return mappedProducts;
+  const result = {
+    products: mappedProducts,
+    hasMore: (count != null ? offset + mappedProducts.length < count : mappedProducts.length === normalizedLimit),
+    total: count ?? null,
+  };
+  setCache(cacheKeyWithParams, result);
+  return result;
 }
 
 // Fetch single product

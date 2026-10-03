@@ -58,7 +58,7 @@ export function AdminAddProductDialog({ open, onOpenChange, merchantId, merchant
     if (selectedCategory && children.length > 0) return void toast.error('Pilih subkategori produk');
     setLoading(true);
     try {
-      const { error } = await supabase.from('products').insert({ merchant_id: merchantId, name: formData.name.trim(), description: formData.description.trim() || null, price: Number(formData.price), stock: Number(formData.stock) || 0, category: formData.category, image_url: formData.image_url, is_active: formData.is_active, min_stock_alert: Number(formData.min_stock_alert) || 5 });
+      const { error } = await supabase.from('products').insert({ merchant_id: merchantId, name: formData.name.trim(), description: formData.description.trim() || null, price: Number(formData.price), stock: Number(formData.stock) || 0, category: formData.category, category_id: selectedCategory?.id || null, image_url: formData.image_url, is_active: formData.is_active, min_stock_alert: Number(formData.min_stock_alert) || 5 });
       if (error) throw error;
       toast.success('Produk berhasil ditambahkan');
       onSuccess();

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useDeferredValue, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Map as MapIcon, MapPin, ArrowUpDown, PackageOpen, ShoppingCart, Search, SlidersHorizontal, ArrowLeft, ChevronRight, Grid2X2, Zap, X } from 'lucide-react';
@@ -8,7 +8,7 @@ import { BottomNav } from '../components/layout/BottomNav';
 import { ProductCard } from '../components/ProductCard';
 import { Skeleton } from '../components/ui/skeleton';
 import { Button } from '../components/ui/button';
-import { fetchProducts } from '../lib/api';
+import { fetchProductCategoryCounts, fetchProductPage } from '../lib/api';
 import { calculateDistance, useUserLocation, sortByDistance } from '../hooks/useUserLocation';
 import { cn } from '../lib/utils';
 import { FoodFilterSheet } from '../components/product/FoodFilterSheet';
@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import type { Product } from '../types';
-import { getCategoryAncestors, getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, getFoodCategoryNavigationCategories, getShoppingCategorySlugs, hideRedundantFoodRootCategories, isCombinedFoodCategory, sortProductCategories, type ProductCategory } from '../lib/productCategories';
+import { getCategoryAncestors, getCategoryBySlug, getCategoryDescendantSlugs, getCategoryDisplayLabel, getCategoryParent, getCategoryChildren, getCategoryFilterIds, getFoodCategoryNavigationCategories, getShoppingCategorySlugs, hideRedundantFoodRootCategories, isCombinedFoodCategory, sortProductCategories, type ProductCategory } from '../lib/productCategories';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { WishlistButton } from '../components/WishlistButton';
 import { useCart } from '../contexts/CartContext';
@@ -132,6 +132,13 @@ function normalize(value: string | undefined) {
   return (value || '').toLowerCase().trim();
 }
 
+const SORT_MODES: SortMode[] = ['nearest', 'cheapest', 'expensive', 'newest'];
+const VIEW_MODES: ViewMode[] = ['products', 'map'];
+const RADII: MapRadius[] = ['all', '1', '3', '5', '10'];
+const asAllowed = <T extends string>(value: string | null, allowed: readonly T[], fallback: T): T => (
+  value && (allowed as readonly string[]).includes(value) ? value as T : fallback
+);
+
 function getCategoryFilterSlugs(type: FoodType, categories: ProductCategory[]) {
   if (type === 'all') return null;
   if (normalize(type) === 'belanja') {
@@ -211,7 +218,7 @@ function FlashSaleReminder({ sale }: { sale: FlashSale }) {
   </Link>;
 }
 
-function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch, filters, onFiltersChange, activeFilterCount, userLocation, locationLoading, onRefreshLocation, categoryOptions, foodCategories, foodBanners, nearbyRadius, onNearbyRadiusChange, sortMode, onSortChange, viewMode, onViewModeChange, mapRadius, onMapRadiusChange, mapProducts, onResetFilters, flashSales, catalogType, catalogTitle, catalogDescription, searchPlaceholder, filterTitle, filterDescription, showHalal, filterFoodOnly, filterRoot }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void; filters: FoodFilters; onFiltersChange: (filters: FoodFilters) => void; activeFilterCount: number; userLocation: { lat: number; lng: number; source?: string } | null; locationLoading: boolean; onRefreshLocation: () => void; categoryOptions: { slug: string; name: string }[]; foodCategories: ProductCategory[]; foodBanners: Promotion[]; nearbyRadius: FoodRadius; onNearbyRadiusChange: (radius: FoodRadius) => void; sortMode: SortMode; onSortChange: (mode: SortMode) => void; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; mapRadius: MapRadius; onMapRadiusChange: (radius: MapRadius) => void; mapProducts: Product[]; onResetFilters: () => void; flashSales: FlashSale[]; catalogType: 'kuliner' | 'belanja' | 'pertanian'; catalogTitle: string; catalogDescription: string; searchPlaceholder: string; filterTitle: string; filterDescription: string; showHalal: boolean; filterFoodOnly: boolean; filterRoot: FoodType; }) {
+function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQuery, onCategoryChange, activeType, onBack, loading, isError, refetch, filters, onFiltersChange, activeFilterCount, userLocation, locationLoading, onRefreshLocation, categoryOptions, foodCategories, foodBanners, nearbyRadius, onNearbyRadiusChange, sortMode, onSortChange, viewMode, onViewModeChange, mapRadius, onMapRadiusChange, mapProducts, onResetFilters, flashSales, catalogType, catalogTitle, catalogDescription, searchPlaceholder, filterTitle, filterDescription, showHalal, filterFoodOnly, filterRoot, hasNextPage, isFetchingNextPage, onLoadMore }: { products: Product[]; filteredProducts: Product[]; searchQuery: string; setSearchQuery: (value: string) => void; onCategoryChange: (type: FoodType) => void; activeType: FoodType; onBack: () => void; loading: boolean; isError: boolean; refetch: () => void; filters: FoodFilters; onFiltersChange: (filters: FoodFilters) => void; activeFilterCount: number; userLocation: { lat: number; lng: number; source?: string } | null; locationLoading: boolean; onRefreshLocation: () => void; categoryOptions: { slug: string; name: string }[]; foodCategories: ProductCategory[]; foodBanners: Promotion[]; nearbyRadius: FoodRadius; onNearbyRadiusChange: (radius: FoodRadius) => void; sortMode: SortMode; onSortChange: (mode: SortMode) => void; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; mapRadius: MapRadius; onMapRadiusChange: (radius: MapRadius) => void; mapProducts: Product[]; onResetFilters: () => void; flashSales: FlashSale[]; catalogType: 'kuliner' | 'belanja' | 'pertanian'; catalogTitle: string; catalogDescription: string; searchPlaceholder: string; filterTitle: string; filterDescription: string; showHalal: boolean; filterFoodOnly: boolean; filterRoot: FoodType; hasNextPage: boolean; isFetchingNextPage: boolean; onLoadMore: () => void; }) {
   const flashSalesByProduct = useMemo(() => new Map(flashSales.map((sale) => [sale.productId, sale])), [flashSales]);
   const { getItemCount } = useCart();
   const cartCount = getItemCount();
@@ -298,6 +305,7 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
 {showDiscoverySections && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Rekomendasi untuk kamu</h2><button type="button" onClick={scrollToCatalog} className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat semua {itemLabel} <ChevronRight className="h-3.5 w-3.5" /></button></div>{recommendations.length ? <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{recommendations.map((product, index) => { const distanceKm = userLocation && product.locationLat != null && product.locationLng != null ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) : undefined; return <div key={product.id} className="w-[10.25rem] shrink-0"><ProductCard product={product} index={index} distanceKm={distanceKm} deliveryEta={getDeliveryEta(distanceKm)} flashSaleOverride={flashSalesByProduct.get(product.id) ?? null} /></div>; })}</div> : <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#7d887f]"><p>{searchQuery ? `Tidak ada ${itemLabel} untuk “${searchQuery}”${filters.openNow ? ' yang sedang buka' : ''}.` : filters.openNow ? `Tidak ada ${itemLabel} yang sedang buka.` : `Belum ada ${itemLabel} yang cocok dengan filter ini.`}</p>{hasActiveDiscoveryFilters && <button type="button" onClick={onResetFilters} className="mt-3 rounded-full bg-[#e8f5e3] px-4 py-2 text-xs font-bold text-[#0b7549]">Reset pencarian & filter</button>}</div>}</section>}
         {showDiscoverySections && merchants.length > 0 && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">{merchantSectionTitle}</h2><button type="button" onClick={scrollToCatalog} className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat Semua <ChevronRight className="h-3.5 w-3.5" /></button></div><div className="space-y-2.5">{merchants.map((product) => <FoodMerchantRow key={product.merchantId} product={product} userLocation={userLocation} catalogType={catalogType} />)}</div></section>}
         <section id="catalog-list" className="scroll-mt-24"><div className="mb-3 flex items-end justify-between gap-3"><div><h2 className="text-[15px] font-extrabold">Semua {itemLabel}</h2><p className="mt-0.5 text-[11px] text-[#718077]">{filteredProducts.length} pilihan sesuai pencarian dan filter</p></div>{hasActiveDiscoveryFilters && <button type="button" onClick={onResetFilters} className="shrink-0 text-[11px] font-bold text-[#0b7549]">Reset filter</button>}</div>{filteredProducts.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{filteredProducts.map((product, index) => { const distanceKm = userLocation && product.locationLat != null && product.locationLng != null ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) : undefined; return <ProductCard key={product.id} product={product} index={index} distanceKm={distanceKm} deliveryEta={getDeliveryEta(distanceKm)} flashSaleOverride={flashSalesByProduct.get(product.id) ?? null} />; })}</div> : <div className="rounded-2xl border border-dashed border-[#cfe3c8] bg-white p-7 text-center text-sm text-[#7d887f]"><PackageOpen className="mx-auto mb-2 h-7 w-7 text-[#8bb77c]" /><p>Tidak ada {itemLabel} yang sesuai.</p><button type="button" onClick={onResetFilters} className="mt-3 rounded-full bg-[#e8f5e3] px-4 py-2 text-xs font-bold text-[#0b7549]">Tampilkan semua</button></div>}</section>
+        {hasNextPage && <button type="button" onClick={onLoadMore} disabled={isFetchingNextPage} className="w-full rounded-xl border border-[#b8ddad] bg-white py-3 text-xs font-bold text-[#0b7549] disabled:opacity-60">{isFetchingNextPage ? 'Memuat produk...' : 'Muat lebih banyak produk'}</button>}
       </>}
     </motion.main><BottomNav />
   </div>;
@@ -330,14 +338,14 @@ export default function ProductsPage() {
   const initialType = getCatalogTypeFromSearchParams(searchParams);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ type: initialType, openNow: searchParams.get('openNow') === '1', inStockOnly: searchParams.get('inStock') === '1', promoOnly: searchParams.get('promoOnly') === '1', halalOnly: searchParams.get('halalOnly') === '1', maxPrice: Number(searchParams.get('maxPrice')) || defaultFoodFilters.maxPrice });
-  const [sortMode, setSortMode] = useState<SortMode>((searchParams.get('sort') as SortMode) || 'newest');
-  const [viewMode, setViewMode] = useState<ViewMode>((searchParams.get('view') as ViewMode) || 'products');
-  const [mapRadius, setMapRadius] = useState<MapRadius>((searchParams.get('mapRadius') as MapRadius) || 'all');
-  const [nearbyRadius, setNearbyRadius] = useState<FoodRadius>((searchParams.get('radius') as FoodRadius) || 'all');
+  const [sortMode, setSortMode] = useState<SortMode>(asAllowed(searchParams.get('sort'), SORT_MODES, 'newest'));
+  const [viewMode, setViewMode] = useState<ViewMode>(asAllowed(searchParams.get('view'), VIEW_MODES, 'products'));
+  const [mapRadius, setMapRadius] = useState<MapRadius>(asAllowed(searchParams.get('mapRadius'), RADII, 'all'));
+  const [nearbyRadius, setNearbyRadius] = useState<FoodRadius>(asAllowed(searchParams.get('radius'), RADII, 'all'));
   const merchantId = searchParams.get('merchant');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const { location: userLocation, loading: locationLoading, refreshLocation } = useUserLocation();
-  const { data: categories = [] } = useAdminCategories();
+  const { data: categories = [], isError: categoriesError } = useAdminCategories();
   const selectedCategory = useMemo(
     () => categories.find((category) => category.slug === foodFilters.type),
     [categories, foodFilters.type],
@@ -468,25 +476,36 @@ export default function ProductsPage() {
     }
   }, [categories, foodFilters.type, searchParams, setSearchParams]);
 
-  const { data: products = [], isLoading: loading, isError, refetch } = useQuery<Product[]>({
-    queryKey: ['all-products'],
-    // Product cards do not render merchant review bodies on this route.
-    queryFn: () => fetchProducts({ includeReviews: false, cacheKey: 'catalog-products' }),
+  const categoryIds = useMemo(() => getCategoryFilterIds(categories as ProductCategory[], foodFilters.type), [categories, foodFilters.type]);
+  const catalogQuery = useInfiniteQuery({
+    queryKey: ['catalog-products', deferredSearchQuery.trim(), categoryIds, merchantId, foodFilters.promoOnly, foodFilters.inStockOnly, foodFilters.maxPrice, sortMode],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => fetchProductPage({
+      offset: pageParam,
+      search: deferredSearchQuery,
+      categoryIds,
+      merchantId,
+      promoOnly: foodFilters.promoOnly,
+      inStockOnly: foodFilters.inStockOnly,
+      maxPrice: foodFilters.maxPrice,
+      sort: sortMode,
+      cacheKey: 'catalog-products',
+    }),
+    getNextPageParam: (lastPage, allPages) => lastPage.hasMore ? allPages.reduce((total, page) => total + page.products.length, 0) : undefined,
     staleTime: 120_000,
   });
+  const products = useMemo(() => catalogQuery.data?.pages.flatMap((page) => page.products) || [], [catalogQuery.data]);
+  const loading = catalogQuery.isLoading;
+  const isError = catalogQuery.isError;
+  const refetch = catalogQuery.refetch;
 
   const filteredAndSortedProducts = useMemo(() => {
     let result = products.filter((product) => {
-      const query = normalize(deferredSearchQuery);
-      const haystack = `${normalize(product.name)} ${normalize(product.description)} ${normalize(product.merchantName)} ${normalize(product.category)}`;
-      if (merchantId && product.merchantId !== merchantId) return false;
-      if (query && !haystack.includes(query)) return false;
-      if (!matchesFoodType(product, foodFilters.type, categories as ProductCategory[])) return false;
+      if (categoryIds && product.categoryId && !categoryIds.includes(product.categoryId)) return false;
       if (foodFilters.openNow && product.isMerchantOpen === false) return false;
       if (foodFilters.inStockOnly && (product.stock <= 0 || product.isAvailable === false)) return false;
       if (foodFilters.promoOnly && !product.isPromo) return false;
       if (foodFilters.halalOnly && product.halal_status !== 'VERIFIED') return false;
-      if (foodFilters.maxPrice < 100000 && product.price > foodFilters.maxPrice) return false;
       return true;
     });
 
@@ -494,12 +513,12 @@ export default function ProductsPage() {
       case 'nearest':
         if (userLocation) result = sortByDistance(result, userLocation.lat, userLocation.lng);
         break;
-      case 'cheapest': result = [...result].sort((a, b) => a.price - b.price); break;
-      case 'expensive': result = [...result].sort((a, b) => b.price - a.price); break;
+      case 'cheapest': break;
+      case 'expensive': break;
       case 'newest': result = [...result].sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
     }
     return result;
-  }, [products, deferredSearchQuery, foodFilters, sortMode, userLocation, categories, merchantId]);
+  }, [products, foodFilters, sortMode, userLocation, categoryIds]);
 
   const activeFilterCount = useMemo(() => (
     (foodFilters.type !== 'all' ? 1 : 0) +
@@ -518,15 +537,24 @@ export default function ProductsPage() {
     ));
   }, [filteredAndSortedProducts, mapRadius, userLocation]);
 
+  const { data: categoryCounts = {}, isError: categoryCountsError } = useQuery({
+    queryKey: ['product-category-counts'],
+    queryFn: fetchProductCategoryCounts,
+    staleTime: 120_000,
+  });
   const hubCategories = useMemo<HubCategory[]>(() => {
     const iconBySlug: Record<string, string> = { kuliner: '🍲', belanja: '🛒', pertanian: '🌱', sembako: '🛍️', kelontongan: '📦', sayuran: '🥬', buah: '🍎', elektronik: '🔌' };
     return topCategoryOptions.filter((category) => category.slug !== 'all').map((category) => ({
       slug: category.slug,
       name: category.name,
       icon: iconBySlug[category.slug] || '🧺',
-      count: products.filter((product) => matchesFoodType(product, category.slug, categories as ProductCategory[])).length,
+      count: (getCategoryFilterIds(categories as ProductCategory[], category.slug) || []).reduce((total, id) => total + (categoryCounts[id] || 0), 0),
     }));
-  }, [topCategoryOptions, products, categories]);
+  }, [topCategoryOptions, categories, categoryCounts]);
+
+  if (categoriesError || categoryCountsError) {
+    return <div className="mobile-shell min-h-screen bg-background"><Header /><main className="px-5 py-12 text-center"><PackageOpen className="mx-auto h-10 w-10 text-destructive" /><h1 className="mt-4 font-semibold">Kategori belum dapat dimuat</h1><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Terjadi gangguan saat memuat kategori produk. Coba lagi tanpa menganggap katalog kosong.</p><Button className="mt-4 rounded-full" onClick={() => window.location.reload()}>Coba lagi</Button></main><BottomNav /></div>;
+  }
 
   if (!promoOnly && (!searchParams.get('type') || searchParams.get('type') === 'all')) {
     return <CategoryHubView categories={hubCategories} products={products} searchQuery={searchQuery} setSearchQuery={setSearchQuery} loading={loading} flashSalesByProduct={flashSalesByProduct} />;
@@ -604,6 +632,9 @@ export default function ProductsPage() {
         showHalal={catalogProfile.isFood}
         filterFoodOnly
         filterRoot={catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja'}
+        hasNextPage={Boolean(catalogQuery.hasNextPage)}
+        isFetchingNextPage={catalogQuery.isFetchingNextPage}
+        onLoadMore={() => void catalogQuery.fetchNextPage()}
       />
     );
   }
