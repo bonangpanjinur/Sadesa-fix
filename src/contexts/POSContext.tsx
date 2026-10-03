@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { isPOSOperational, isPOSStatus, type POSStatus } from '@/lib/posFeatureGate';
+import { isPOSSubscriptionActive } from '@/lib/posSubscription';
 
 interface POSTenant {
   id: string;
@@ -104,6 +105,60 @@ export function POSProvider({ children }: { children: ReactNode }) {
 
       let resolvedTenant = normalizeTenant(ownedTenant);
       let resolvedRole: POSRole | null = ownedTenant ? 'owner' : null;
+      if (!resolvedTenant) {
+        // Older deployments may have approved the subscription before the
+        // admin grant provisioning migration was applied. Recover only when
+        // the merchant has a server-authoritative active entitlement; never
+        // create a POS workspace for a merchant without an active grant.
+        const { data: merchant, error: merchantError } = await supabase
+          .from('merchants')
+          .select('id, name, phone, address')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (merchantError) throw new Error(merchantError.message);
+        let currentSubscription: {
+          status: string;
+          expired_at: string | null;
+          grace_ends_at: string | null;
+          is_trial: boolean | null;
+        } | null = null;
+        if (merchant) {
+          const { data: merchantSubscription, error: merchantSubscriptionError } = await supabase
+            .from('pos_subscriptions')
+            .select('status, expired_at, grace_ends_at, is_trial')
+            .eq('merchant_id', merchant.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (merchantSubscriptionError) throw new Error(merchantSubscriptionError.message);
+          currentSubscription = merchantSubscription;
+        }
+
+        if (merchant && currentSubscription && isPOSSubscriptionActive(currentSubscription)) {
+          const { error: provisioningError } = await supabase.rpc('ensure_merchant_pos_workspace' as never, {
+            p_name: merchant.name || 'Toko Merchant',
+            p_phone: merchant.phone || null,
+            p_address: merchant.address || null,
+            p_timezone: 'Asia/Jakarta',
+            p_currency: 'IDR',
+            p_outlet_name: `${merchant.name || 'Toko Merchant'} - Outlet Utama`,
+            p_outlet_address: merchant.address || null,
+            p_outlet_phone: merchant.phone || null,
+          } as never);
+          if (provisioningError) {
+            console.warn('POS entitlement exists but workspace recovery failed:', provisioningError);
+          } else {
+            const { data: recoveredTenant, error: recoveredTenantError } = await supabase
+              .from('pos_tenants')
+              .select('*')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            if (recoveredTenantError) throw new Error(recoveredTenantError.message);
+            resolvedTenant = normalizeTenant(recoveredTenant);
+            resolvedRole = recoveredTenant ? 'owner' : null;
+          }
+        }
+      }
       if (!resolvedTenant) {
         const { data: membership, error: membershipError } = await supabase
           .from('pos_users')
