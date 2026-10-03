@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import { CourierRatingDialog } from "@/components/buyer/CourierRatingDialog";
 import { getBuyerTransactionKind } from "@/lib/buyerTransaction";
 import { getDeliveryFlow } from "@/lib/deliveryFlow";
 import { getAuthorizedCourierContact } from "@/lib/courierApi";
+import { ORDER_STATUS_GROUPS, getOrderStatusGroup, isTerminalOrderStatus } from "@/lib/orderStatus";
 
 interface BuyerOrderItem {
   id: string;
@@ -105,15 +106,18 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; co
   DONE: { label: "Selesai", icon: CheckCircle, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   CANCELLED: { label: "Dibatalkan", icon: XCircle, color: "bg-red-50 text-red-700 border-red-200" },
   CANCELED: { label: "Dibatalkan", icon: XCircle, color: "bg-red-50 text-red-700 border-red-200" },
+  REJECTED: { label: "Ditolak toko", icon: XCircle, color: "bg-red-50 text-red-700 border-red-200" },
+  REJECTED_BY_BUYER: { label: "Dibatalkan pembeli", icon: XCircle, color: "bg-red-50 text-red-700 border-red-200" },
+  REFUNDED: { label: "Dana dikembalikan", icon: RotateCcw, color: "bg-violet-50 text-violet-700 border-violet-200" },
 };
 
 const ORDER_STEPS = ["NEW", "PENDING_CONFIRMATION", "PROCESSED", "READY", "ASSIGNED", "COURIER_ACCEPTED", "PICKED_UP", "DELIVERING", "DELIVERED", "DONE"];
 
-const PENDING_STATUSES = ["NEW", "PENDING_PAYMENT", "PENDING_CONFIRMATION"];
-const PROCESSING_STATUSES = ["CONFIRMED", "PROCESSED", "READY", "ASSIGNED", "COURIER_ASSIGNED", "COURIER_ACCEPTED"];
-const SHIPPING_STATUSES = ["PICKED_UP", "SENT", "DELIVERING", "DELIVERED"];
-const DONE_STATUSES = ["DONE"];
-const CANCELLED_STATUSES = ["CANCELLED", "CANCELED"];
+const PENDING_STATUSES: string[] = [...ORDER_STATUS_GROUPS.pending];
+const PROCESSING_STATUSES: string[] = ["CONFIRMED", ...ORDER_STATUS_GROUPS.processing];
+const SHIPPING_STATUSES: string[] = [...ORDER_STATUS_GROUPS.shipping];
+const DONE_STATUSES: string[] = [...ORDER_STATUS_GROUPS.completed];
+const CANCELLED_STATUSES: string[] = [...ORDER_STATUS_GROUPS.canceled];
 const RIDE_ACTIVE_STATUSES = ["SEARCHING", "ACCEPTED", "PICKED_UP", "IN_TRANSIT"];
 const RIDE_CANCELLED_STATUSES = ["CANCELLED", "CANCELED"];
 const RIDE_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -136,12 +140,8 @@ const TAB_FILTERS = [
 ];
 
 const getStatusGroup = (status: string): string => {
-  if (PENDING_STATUSES.includes(status)) return "pending";
-  if (PROCESSING_STATUSES.includes(status)) return "processing";
-  if (SHIPPING_STATUSES.includes(status)) return "shipped";
-  if (DONE_STATUSES.includes(status)) return "completed";
-  if (CANCELLED_STATUSES.includes(status)) return "cancelled";
-  return "all";
+  const group = getOrderStatusGroup(status);
+  return group === "shipping" ? "shipped" : group === "canceled" ? "cancelled" : group;
 };
 
 const getRideStatusGroup = (status: string): string => {
@@ -157,7 +157,7 @@ const getHistoryStatusGroup = (item: HistoryItem): string =>
   item.kind === "ride" ? getRideStatusGroup(item.item.status) : getStatusGroup(item.item.status);
 
 function getOrderProgress(status: string): number {
-  if (CANCELLED_STATUSES.includes(status)) return 0;
+  if (isTerminalOrderStatus(status) && !DONE_STATUSES.includes(status)) return 0;
   const idx = ORDER_STEPS.indexOf(status);
   if (idx === -1) {
     // Map pending statuses to step 0
@@ -360,27 +360,52 @@ const OrdersPage = () => {
     setChatOrder({ orderId: order.id, otherUserId: courier.user_id, otherUserName: courier.name || 'Kurir', chatType: 'buyer_courier' });
   };
 
-  // Realtime subscription for order status updates — updates React Query cache directly
+  // Realtime subscription for order status updates — keep every loaded page in sync.
+  // `buyer-orders` is an infinite query, so its cache is `{ pages, pageParams }`,
+  // not a flat BuyerOrder[] (the old implementation silently missed updates).
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel('buyer-orders-realtime')
+      .channel(`buyer-orders-realtime:${user.id}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `buyer_id=eq.${user.id}` },
         (payload) => {
           const newOrder = payload.new as { id: string; status: string; payment_status?: string | null };
           const newStatus = newOrder.status;
-          queryClient.setQueryData<BuyerOrder[]>(['buyer-orders', user.id], (prev = []) => {
-            const oldOrder = prev.find(o => o.id === newOrder.id);
-            if (oldOrder && oldOrder.status !== newStatus) {
+          queryClient.setQueryData<InfiniteData<BuyerOrder[]>>(['buyer-orders', user.id], (prev) => {
+            if (!prev) return prev;
+            const oldOrder = prev.pages.flat().find(o => o.id === newOrder.id);
+            if (oldOrder && (oldOrder.status !== newStatus || newOrder.payment_status !== undefined && oldOrder.payment_status !== newOrder.payment_status)) {
               const statusLabel = STATUS_CONFIG[newStatus]?.label || newStatus;
               toast({ title: `Pesanan #${newOrder.id.substring(0, 8).toUpperCase()}`, description: `Status berubah: ${statusLabel}` });
             }
-            return prev.map(order =>
-              order.id === newOrder.id ? { ...order, status: newStatus, payment_status: newOrder.payment_status ?? order.payment_status } : order
-            );
+            return {
+              ...prev,
+              pages: prev.pages.map(page => page.map(order =>
+                order.id === newOrder.id
+                  ? { ...order, status: newStatus, payment_status: newOrder.payment_status ?? order.payment_status }
+                  : order
+              )),
+            };
           });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders', filter: `buyer_id=eq.${user.id}` },
+        () => { void queryClient.invalidateQueries({ queryKey: ['buyer-orders', user.id] }); }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'orders', filter: `buyer_id=eq.${user.id}` },
+        (payload) => {
+          const deletedId = (payload.old as { id?: string }).id;
+          if (!deletedId) return;
+          queryClient.setQueryData<InfiniteData<BuyerOrder[]>>(['buyer-orders', user.id], (prev) => prev ? {
+            ...prev,
+            pages: prev.pages.map(page => page.filter(order => order.id !== deletedId)),
+          } : prev);
         }
       )
       .subscribe();
@@ -432,7 +457,7 @@ const OrdersPage = () => {
   const activeOrderCount = historyItems.filter((item) =>
     item.kind === "ride"
       ? RIDE_ACTIVE_STATUSES.includes(item.item.status)
-      : !["DONE", "CANCELLED", "CANCELED"].includes(item.item.status),
+      : !isTerminalOrderStatus(item.item.status),
   ).length;
 
   const handleContactSeller = async (e: React.MouseEvent, order: BuyerOrder) => {
@@ -505,9 +530,12 @@ const OrdersPage = () => {
             )}
           </div>
           <button
+            type="button"
+            aria-label="Muat ulang pesanan"
+            title="Muat ulang pesanan"
             onClick={() => fetchOrders(true)}
             disabled={refreshing || ridesRefreshing}
-            className="p-2 rounded-full hover:bg-secondary transition-colors"
+            className="min-h-11 min-w-11 p-2 rounded-full hover:bg-secondary transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-5 h-5 text-muted-foreground ${refreshing || ridesRefreshing ? "animate-spin" : ""}`} />
           </button>
@@ -700,7 +728,7 @@ const OrdersPage = () => {
                 const relativeTime = formatDistanceToNow(new Date(order.created_at), { addSuffix: true, locale: idLocale });
                 const shortId = order.id.substring(0, 8).toUpperCase();
                 const progress = getOrderProgress(order.status);
-                const isActive = !DONE_STATUSES.includes(order.status) && !CANCELLED_STATUSES.includes(order.status);
+                const isActive = !isTerminalOrderStatus(order.status);
 
                 return (
                   <Card
