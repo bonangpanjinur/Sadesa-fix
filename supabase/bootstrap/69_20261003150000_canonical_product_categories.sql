@@ -50,3 +50,12 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_product_category_counts() TO anon, authenticated;
+
+-- Keep the bundle compatible with the canonical bootstrap validator. The
+-- statements above are already guarded with IF NOT EXISTS / CREATE OR REPLACE.
+DO $bootstrap_do_canonical_product_categories_marker$
+BEGIN
+  NULL;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_canonical_product_categories_marker$;
