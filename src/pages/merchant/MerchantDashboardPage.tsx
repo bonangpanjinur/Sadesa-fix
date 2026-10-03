@@ -102,12 +102,16 @@ export default function MerchantDashboardPage() {
     queryKey: ['merchant-orders-chart', merchant?.id],
     queryFn: async () => {
       if (!merchant?.id) return [];
+      const startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setDate(startDate.getDate() - 13);
       const { data, error } = await supabase
         .from('orders')
-        .select('id, status, total, created_at')
+        .select('id, status, subtotal, total, created_at')
         .eq('merchant_id', merchant.id)
+        .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(250);
       if (error) throw error;
       return data || [];
     },
@@ -581,7 +585,7 @@ export default function MerchantDashboardPage() {
             ) : (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  Grafik 14 hari memakai maksimal 500 pesanan terbaru; ringkasan angka pesanan di atas menggunakan hitungan server.
+                Grafik 14 hari memakai data pada periode yang sama; ringkasan angka pesanan di atas menggunakan hitungan server.
                 </p>
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
                   <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">

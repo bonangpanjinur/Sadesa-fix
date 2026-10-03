@@ -91,6 +91,7 @@ export default function CourierDashboardPage() {
   const [podOrderId, setPodOrderId] = useState<string | null>(null);
   const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
   const [releasingOrder, setReleasingOrder] = useState<string | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [realtimeOnline, setRealtimeOnline] = useState(false);
   const { isSupported: pushSupported, permission: pushPermission, subscribe: subscribeToPush } = usePushNotification();
 
@@ -125,7 +126,7 @@ export default function CourierDashboardPage() {
   // Query: only count ride offers targeted to this courier. Counting all
   // SEARCHING rides makes the dashboard promise work that this courier cannot
   // accept because accept_ride requires a matching pending offer.
-  const { data: rideRequestCount = 0 } = useQuery({
+  const { data: rideRequestCount = 0, isError: rideRequestError } = useQuery({
     queryKey: ['courier-ride-count', courier?.id],
     queryFn: async () => {
       if (!courier) return 0;
@@ -143,23 +144,27 @@ export default function CourierDashboardPage() {
     refetchInterval: 30_000,
   });
 
-  const { data: orders = [], isLoading: ordersLoading, isError: ordersError, isFetching: ordersFetching } = useQuery<AssignedOrder[]>({
+  const { data: orders = [], isLoading: ordersLoading, isError: ordersError, isFetching: ordersFetching, refetch: refetchOrders } = useQuery<AssignedOrder[]>({
     queryKey: ['courier-assigned-orders', courier?.id],
     queryFn: async () => {
       if (!courier) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('orders')
-        .select('*, pickup_address, pickup_lat, pickup_lng, shipping_cost, courier_earning_estimate, courier_platform_fee, merchants(name, address)')
+        .select('id, status, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, total, created_at, notes, pickup_address, pickup_lat, pickup_lng, shipping_cost, courier_earning_estimate, courier_platform_fee, merchants(name, address)')
         .eq('courier_id', courier.id)
         .in('status', ['COURIER_ACCEPTED', 'PICKED_UP', 'SENT', 'DELIVERING'])
         .order('created_at', { ascending: false });
-      return (data || []) as AssignedOrder[];
+      if (error) throw error;
+      return (data || []).map((row) => ({
+        ...row,
+        merchants: Array.isArray(row.merchants) ? row.merchants[0] ?? null : row.merchants ?? null,
+      })) as unknown as AssignedOrder[];
     },
     enabled: !!courier,
     staleTime: 30_000,
   });
 
-  const { data: deliveryOffers = [], isError: deliveryOffersError } = useQuery<DeliveryOffer[]>({
+  const { data: deliveryOffers = [], isError: deliveryOffersError, refetch: refetchDeliveryOffers } = useQuery<DeliveryOffer[]>({
     queryKey: ['courier-delivery-offers', courier?.id],
     queryFn: async () => {
       if (!courier) return [];
@@ -175,7 +180,7 @@ export default function CourierDashboardPage() {
   useEffect(() => {
     if (!courier?.id) return;
     const channel = supabase
-      .channel('courier-new-orders')
+      .channel(`courier-new-orders-${courier.id}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -300,6 +305,7 @@ export default function CourierDashboardPage() {
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
+    setUpdatingOrderId(orderId);
     try {
       const { error } = await supabase.rpc('courier_transition_order' as never, {
         p_order_id: orderId,
@@ -319,6 +325,8 @@ export default function CourierDashboardPage() {
         description: getRpcErrorMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -495,7 +503,7 @@ export default function CourierDashboardPage() {
                 </span>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+            <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Keluar dari akun kurir" title="Keluar">
               <LogOut className="h-5 w-5 text-muted-foreground" />
             </Button>
           </div>
@@ -577,7 +585,7 @@ export default function CourierDashboardPage() {
           <Card className="border-border shadow-sm">
             <CardContent className="p-3 sm:p-4">
               <p className="text-[11px] text-muted-foreground sm:text-xs">Permintaan ojek</p>
-              <p className="mt-1 text-xl font-bold text-primary sm:text-2xl">{rideRequestCount}</p>
+              <p className="mt-1 text-xl font-bold text-primary sm:text-2xl">{rideRequestError ? '—' : rideRequestCount}</p>
             </CardContent>
           </Card>
         </div>
@@ -592,7 +600,10 @@ export default function CourierDashboardPage() {
               <Badge>{deliveryOffers.length}</Badge>
             </div>
             {deliveryOffersError ? (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">Tawaran belum dapat dimuat. Buka menu Pengiriman Barang untuk mencoba lagi.</div>
+              <div className="flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <span>Tawaran belum dapat dimuat.</span>
+                <Button size="sm" variant="outline" onClick={() => void refetchDeliveryOffers()}>Coba lagi</Button>
+              </div>
             ) : deliveryOffers.length > 0 ? (
               deliveryOffers.map((offer) => (
                 <DeliveryOfferCard
@@ -606,8 +617,8 @@ export default function CourierDashboardPage() {
               <div className="rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground">Belum ada tawaran aktif. Status Anda harus Online agar dapat menerima tawaran baru.</div>
             )}
             <div className="flex items-center justify-between gap-3">
-              <p className={`text-[11px] ${realtimeOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
-                {realtimeOnline ? 'Realtime tersambung' : 'Memperbarui otomatis setiap 15 detik'}
+            <p className={`text-[11px] ${realtimeOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {realtimeOnline ? 'Realtime tersambung' : 'Memperbarui otomatis setiap 30 detik'}
               </p>
               <Link to="/courier/deliveries"><Button size="sm" variant="outline">Buka Pengiriman Barang</Button></Link>
             </div>
@@ -749,7 +760,7 @@ export default function CourierDashboardPage() {
               <Package className="h-5 w-5" />
               Pesanan Aktif
             </h3>
-            <Button variant="ghost" size="sm" onClick={fetchCourierData} disabled={ordersFetching} aria-label="Muat ulang pesanan aktif" title="Muat ulang pesanan aktif">
+            <Button variant="ghost" size="sm" onClick={() => void refetchOrders()} disabled={ordersFetching} aria-label="Muat ulang pesanan aktif" title="Muat ulang pesanan aktif">
               <RefreshCw className={`h-4 w-4 ${ordersFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
@@ -763,7 +774,7 @@ export default function CourierDashboardPage() {
               <AlertCircle className="mx-auto mb-3 h-10 w-10 text-destructive" />
               <p className="font-medium">Pesanan aktif belum dapat dimuat</p>
               <p className="mt-1 text-sm text-muted-foreground">Periksa koneksi lalu coba muat ulang.</p>
-              <Button className="mt-4" variant="outline" onClick={fetchCourierData}>Coba lagi</Button>
+              <Button className="mt-4" variant="outline" onClick={() => void refetchOrders()}>Coba lagi</Button>
             </div>
           ) : orders.length === 0 ? (
             <div className="bg-card rounded-2xl p-8 border border-border text-center">
@@ -878,6 +889,7 @@ export default function CourierDashboardPage() {
                           className="min-h-11 w-full"
                           size="sm"
                           onClick={handleAction}
+                          disabled={updatingOrderId === order.id}
                         >
                           {action.needsPOD ? (
                             <Camera className="h-4 w-4 mr-1" />
@@ -886,7 +898,7 @@ export default function CourierDashboardPage() {
                           ) : (
                             <CheckCircle className="h-4 w-4 mr-1" />
                           )}
-                          {action.label}
+                          {updatingOrderId === order.id ? 'Memproses…' : action.label}
                         </Button>
                       )}
                       </div>
