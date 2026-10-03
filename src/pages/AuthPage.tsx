@@ -10,8 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { getRedirectPathForRoles } from '@/types/auth';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
-import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
-import { createOtpExpiration, getOtpExpirationKey } from '@/lib/otp';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -120,15 +118,6 @@ export default function AuthPage() {
         }
       } else {
         const signupEmail = normalizeEmail(formData.email);
-        const otpLimit = checkPersistentRateLimit(signupEmail, 'signupOtp', RATE_LIMITS.signupOtp);
-        if (!otpLimit.allowed) {
-          toast({
-            title: 'Terlalu banyak permintaan',
-            description: `Email verifikasi dapat dikirim lagi dalam ${Math.ceil(otpLimit.resetIn / 60000)} menit.`,
-            variant: 'destructive',
-          });
-          return;
-        }
         const { data, error } = await signUp(
           signupEmail,
           formData.password,
@@ -142,13 +131,9 @@ export default function AuthPage() {
           });
         } else {
           if (data?.session) {
-            toast({ title: 'Akun berhasil didaftarkan.' });
+            toast({ title: 'Akun berhasil didaftarkan dan siap digunakan.' });
           } else {
-            try {
-              window.localStorage.setItem(getOtpExpirationKey(signupEmail), String(createOtpExpiration()));
-            } catch {
-              // The verification flow remains protected by Supabase's token expiry.
-            }
+            // Keep a safe fallback for deployments that still require confirmation.
             navigate('/email-confirmation', { state: { email: normalizeEmail(formData.email) } });
           }
         }
@@ -255,7 +240,7 @@ export default function AuthPage() {
                 className="pl-10"
               />
             </div>
-            <p className="text-[10px] text-muted-foreground italic">Gunakan email yang benar-benar aktif. Tautan verifikasi akan dikirim ke inbox Anda.</p>
+            <p className="text-[10px] text-muted-foreground italic">Gunakan email yang benar-benar aktif agar mudah memulihkan akun bila diperlukan.</p>
             {errors.email && (
               <p id="email-error" role="alert" className="text-xs text-destructive">{errors.email}</p>
             )}
