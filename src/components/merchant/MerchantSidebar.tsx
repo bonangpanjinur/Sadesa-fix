@@ -43,7 +43,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { isPOSModuleEnabled, isPOSOperational, isPOSSetupStatus } from '@/lib/posFeatureGate';
+import { isPOSModuleEnabled, isPOSOperational, isPOSSetupStatus, shouldShowPOSNavigation } from '@/lib/posFeatureGate';
 
 interface SidebarItem {
   label: string;
@@ -250,7 +250,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
     ...category,
     items: category.items.filter((item) => (item.scope === 'merchant' || canAccessPOSPath(roles, item.href, posRole))
       && isPOSModuleEnabled(tenant?.enabled_modules, item.moduleId)),
-  })).filter((category) => POS_UI_ENABLED && posEnabled && category.items.length > 0), [posEnabled, roles, posRole, tenant?.enabled_modules]);
+  })).filter((category) => POS_UI_ENABLED && shouldShowPOSNavigation(tenant?.status) && category.items.length > 0), [roles, posRole, tenant?.enabled_modules, tenant?.status]);
 
   const activeMerchantGroupId = groups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
   const normalizedSearch = searchTerm.trim().toLowerCase();

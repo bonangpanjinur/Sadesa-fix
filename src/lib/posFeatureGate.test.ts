@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPOSModuleEnabled, isPOSOperational, isPOSSetupStatus, isPOSStatus } from './posFeatureGate';
+import { isPOSModuleEnabled, isPOSOperational, isPOSSetupStatus, isPOSStatus, shouldShowPOSNavigation } from './posFeatureGate';
 
 describe('POS feature gate', () => {
   it('only treats active and trial tenants as operational', () => {
@@ -14,6 +14,14 @@ describe('POS feature gate', () => {
     expect(isPOSSetupStatus('inactive')).toBe(true);
     expect(isPOSSetupStatus('setup_required')).toBe(true);
     expect(isPOSSetupStatus('suspended')).toBe(false);
+  });
+
+  it('keeps POS navigation visible while a provisioned tenant needs setup', () => {
+    expect(shouldShowPOSNavigation('setup_required')).toBe(true);
+    expect(shouldShowPOSNavigation('trial')).toBe(true);
+    expect(shouldShowPOSNavigation('active')).toBe(true);
+    expect(shouldShowPOSNavigation(undefined)).toBe(false);
+    expect(shouldShowPOSNavigation('suspended')).toBe(false);
   });
 
   it('rejects unknown status values', () => {
