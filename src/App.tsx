@@ -13,6 +13,7 @@ import { useCourierOrderAlarm } from "@/hooks/useCourierOrderAlarm";
 import { PWAProvider } from "@/hooks/PWAProvider";
 import { WhitelabelProvider } from "@/contexts/WhitelabelContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { DashboardRoute } from "@/components/auth/DashboardRoute";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { SEO } from "@/components/SEO";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
@@ -543,6 +544,9 @@ const App = () => (
               <Route path="/refund-policy" element={<TransactionPolicyPage />} />
               <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
               <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+              {/* Generic dashboard entrypoint: route users to their role workspace. */}
+              <Route path="/dashboard" element={<DashboardRoute />} />
 
               {/* Protected buyer routes */}
               <Route path="/cart" element={<CartPage />} />
