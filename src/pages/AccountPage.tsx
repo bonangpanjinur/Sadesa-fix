@@ -45,8 +45,11 @@ export default function AccountPage() {
     || 'Pengguna';
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [hasPartnerApplication, setHasPartnerApplication] = useState<boolean | null>(null);
-  const [hasServiceApplication, setHasServiceApplication] = useState(false);
+  const [hasServiceApplication, setHasServiceApplication] = useState<boolean | null>(null);
+  const [partnerCheckError, setPartnerCheckError] = useState<string | null>(null);
+  const [applicationCheckVersion, setApplicationCheckVersion] = useState(0);
   const [editing, setEditing] = useState(false);
   const [profileRequired, setProfileRequired] = useState(false);
   const [courierProfileRequired, setCourierProfileRequired] = useState(false);
@@ -66,6 +69,7 @@ export default function AccountPage() {
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
+    setProfileError(null);
 
     try {
       const primaryResult = await supabase
@@ -115,6 +119,7 @@ export default function AccountPage() {
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      setProfileError('Profil belum dapat dimuat. Data Anda tetap aman; coba muat ulang.');
     } finally {
       setLoading(false);
     }
@@ -133,8 +138,12 @@ export default function AccountPage() {
     const checkPartnerApplication = async () => {
       if (!user) {
         setHasPartnerApplication(false);
+        setHasServiceApplication(false);
+        setPartnerCheckError(null);
         return;
       }
+
+      setPartnerCheckError(null);
 
       const [merchantResult, courierResult, serviceResult] = await Promise.all([
         supabase.from('merchants').select('id').eq('user_id', user.id).limit(1),
@@ -144,7 +153,9 @@ export default function AccountPage() {
 
       if (!cancelled) {
         if (merchantResult.error || courierResult.error || serviceResult.error) {
-          setHasPartnerApplication(true);
+          setHasPartnerApplication(null);
+          setHasServiceApplication(null);
+          setPartnerCheckError('Status pendaftaran belum dapat diperiksa.');
           return;
         }
         setHasPartnerApplication(
@@ -157,15 +168,16 @@ export default function AccountPage() {
     checkPartnerApplication().catch((error) => {
       console.error('Error checking partner application:', error);
       if (!cancelled) {
-        setHasPartnerApplication(true);
-        setHasServiceApplication(true);
+        setHasPartnerApplication(null);
+        setHasServiceApplication(null);
+        setPartnerCheckError('Status pendaftaran belum dapat diperiksa.');
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, applicationCheckVersion]);
 
   const handleProfileSave = async () => {
     setProfileRequired(false);
@@ -262,6 +274,21 @@ export default function AccountPage() {
         >
           {user ? (
             <>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Akun</p>
+                  <h1 className="text-xl font-bold text-foreground">Akun Saya</h1>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => void Promise.all([fetchProfile(), setApplicationCheckVersion((version) => version + 1)])} disabled={loading}>
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Muat ulang
+                </Button>
+              </div>
+              {profileError && (
+                <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm">
+                  <span className="text-destructive">{profileError}</span>
+                  <Button variant="outline" size="sm" onClick={() => void fetchProfile()}>Coba lagi</Button>
+                </div>
+              )}
               {/* Profile Card */}
               <div className="bg-card rounded-2xl p-6 border border-border mb-6">
                 <div className="flex items-center gap-4 mb-4">
@@ -280,8 +307,11 @@ export default function AccountPage() {
                   </div>
                   {!editing && (
                     <button
+                      type="button"
+                      aria-label="Edit profil"
+                      title="Edit profil"
                       onClick={() => setEditing(true)}
-                      className="p-2 hover:bg-secondary rounded-lg transition"
+                      className="min-h-11 min-w-11 p-2 hover:bg-secondary rounded-lg transition"
                     >
                       <Edit className="h-4 w-4 text-muted-foreground" />
                     </button>
@@ -352,7 +382,13 @@ export default function AccountPage() {
               {/* Pendaftaran penyedia jasa dapat dibuka kembali lewat feature flag. */}
               {SERVICE_PROVIDER_REGISTRATION_ENABLED && !isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && <ServiceProviderRegistration userId={user.id} openOnMount={searchParams.get('provider') === '1'} />}
               {/* Onboarding partner untuk buyer baru */}
-              {user && hasPartnerApplication === false && !hasServiceApplication && !isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && (
+              {partnerCheckError && (
+                <div role="status" className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <span>{partnerCheckError}</span>
+                  <Button variant="outline" size="sm" onClick={() => setApplicationCheckVersion((version) => version + 1)}>Coba lagi</Button>
+                </div>
+              )}
+              {user && hasPartnerApplication === false && hasServiceApplication === false && !isMerchant && !isCourier && !isServiceProvider && !isAdmin && !isAdminDesa && !isVerifikator && (
                 <section className="mb-6 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-card to-accent/10 p-4">
                   <div className="mb-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Peluang di Sadesa</p>

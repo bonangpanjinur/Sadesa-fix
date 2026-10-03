@@ -19,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { passwordSchema } from '@/lib/validationSchemas';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -33,8 +34,9 @@ export default function SettingsPage() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   const handleChangePassword = async () => {
-    if (newPassword.length < 6) {
-      toast.error('Password minimal 6 karakter');
+    const passwordResult = passwordSchema.safeParse(newPassword);
+    if (!passwordResult.success) {
+      toast.error(passwordResult.error.issues[0]?.message || 'Password belum memenuhi kebijakan keamanan');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -165,7 +167,7 @@ export default function SettingsPage() {
                           <Input
                             id="new-password"
                             type="password"
-                            placeholder="Minimal 6 karakter"
+                            placeholder="Min. 8 karakter, huruf besar, kecil, dan angka"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                           />
