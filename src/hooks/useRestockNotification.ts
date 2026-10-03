@@ -10,11 +10,11 @@ import { useAuth } from '@/contexts/AuthContext';
 type WishlistRow = { product_id: string };
 type RestockProduct = { id: string; name: string; merchants: { name: string } | null };
 
-export function useRestockNotification() {
+export function useRestockNotification(enabled = true) {
   const { user } = useAuth();
 
   const checkRestockedWishlistItems = useCallback(async () => {
-    if (!user) return;
+    if (!enabled || !user) return;
 
     try {
       // Get user's wishlist products
@@ -63,14 +63,14 @@ export function useRestockNotification() {
     } catch (err) {
       // Silently fail — this is a background check
     }
-  }, [user]);
+  }, [enabled, user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!enabled || !user) return;
     checkRestockedWishlistItems();
     const interval = setInterval(checkRestockedWishlistItems, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [user, checkRestockedWishlistItems]);
+  }, [enabled, user, checkRestockedWishlistItems]);
 }
 
 /**

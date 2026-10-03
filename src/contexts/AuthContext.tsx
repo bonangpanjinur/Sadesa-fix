@@ -107,17 +107,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // These checks only repair legacy accounts which were created before
       // role rows were guaranteed. They must never block authentication.
+      // Do not query both profile tables for every authenticated user. The
+      // authoritative role row is enough for normal accounts; only legacy
+      // accounts missing a role need the corresponding recovery lookup.
+      const needsMerchantRecovery = !userRoles.includes('merchant');
+      const needsCourierRecovery = !userRoles.includes('courier');
       const [merchantResult, courierResult] = await Promise.all([
-        withTimeout(
-          supabase.from('merchants').select('id').eq('user_id', userId).limit(1).maybeSingle(),
-          AUTH_ROLE_RECOVERY_TIMEOUT_MS,
-          'Timed out while checking merchant profile for role recovery',
-        ).catch((error: unknown) => ({ data: null, error })),
-        withTimeout(
-          supabase.from('couriers').select('id').eq('user_id', userId).limit(1).maybeSingle(),
-          AUTH_ROLE_RECOVERY_TIMEOUT_MS,
-          'Timed out while checking courier profile for role recovery',
-        ).catch((error: unknown) => ({ data: null, error })),
+        needsMerchantRecovery
+          ? withTimeout(
+              supabase.from('merchants').select('id').eq('user_id', userId).limit(1).maybeSingle(),
+              AUTH_ROLE_RECOVERY_TIMEOUT_MS,
+              'Timed out while checking merchant profile for role recovery',
+            ).catch((error: unknown) => ({ data: null, error }))
+          : Promise.resolve({ data: null, error: null }),
+        needsCourierRecovery
+          ? withTimeout(
+              supabase.from('couriers').select('id').eq('user_id', userId).limit(1).maybeSingle(),
+              AUTH_ROLE_RECOVERY_TIMEOUT_MS,
+              'Timed out while checking courier profile for role recovery',
+            ).catch((error: unknown) => ({ data: null, error }))
+          : Promise.resolve({ data: null, error: null }),
       ]);
       if (merchantResult.error) console.warn('Unable to check merchant profile for role recovery:', merchantResult.error);
       if (courierResult.error) console.warn('Unable to check courier profile for role recovery:', courierResult.error);

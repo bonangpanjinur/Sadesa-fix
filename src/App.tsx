@@ -376,7 +376,8 @@ function RedirectHandler() {
 
 // S3-05: Restok wishlist notification (inside auth context)
 function RestockNotificationHandler() {
-  useRestockNotification();
+  const { roles } = useAuth();
+  useRestockNotification(roles.includes('buyer'));
   return null;
 }
 
