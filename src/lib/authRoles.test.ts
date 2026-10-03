@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from './authRoles';
-import { getRedirectPathForRoles } from '@/types/auth';
+import { canAccessPath, getRedirectPathForRoles } from '@/types/auth';
 
 describe('frontend role recovery', () => {
   it('adds merchant capability when the user owns a merchant profile', () => {
@@ -34,6 +34,10 @@ describe('frontend role recovery', () => {
   it('sends merchant and courier roles to their dashboards on app entry', () => {
     expect(getRedirectPathForRoles(['merchant', 'buyer'])).toBe('/merchant');
     expect(getRedirectPathForRoles(['courier', 'buyer'])).toBe('/courier');
+  });
+
+  it('keeps the profile alias available to authenticated buyers', () => {
+    expect(canAccessPath(['buyer'], '/profile')).toBe(true);
   });
 
   it('skips redundant role recovery when the same user only refreshes an access token', () => {

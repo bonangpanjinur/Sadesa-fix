@@ -70,6 +70,7 @@ export default function AccountPage() {
   const fetchProfile = useCallback(async () => {
     if (!user) return;
     setProfileError(null);
+    setLoading(true);
 
     try {
       const primaryResult = await supabase
@@ -256,8 +257,9 @@ export default function AccountPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="mobile-shell bg-background flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="mobile-shell bg-background flex items-center justify-center min-h-screen" role="status" aria-label="Memuat profil">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden="true" />
+        <span className="sr-only">Memuat profil...</span>
       </div>
     );
   }

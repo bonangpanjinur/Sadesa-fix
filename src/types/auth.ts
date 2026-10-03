@@ -51,7 +51,7 @@ export const ROLE_CONFIGS: Record<AppRole, RoleConfig> = {
     role: 'buyer',
     label: 'Pembeli',
     redirectPath: '/',
-    allowedPaths: ['/', '/products', '/product/*', '/tourism', '/tourism/*', '/cart', '/checkout', '/orders', '/orders/*', '/account', '/search'],
+    allowedPaths: ['/', '/products', '/product/*', '/tourism', '/tourism/*', '/cart', '/checkout', '/orders', '/orders/*', '/account', '/profile', '/search'],
   },
   service_provider: {
     role: 'service_provider',

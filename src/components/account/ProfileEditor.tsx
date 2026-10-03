@@ -341,7 +341,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       )}
       {/* Optional profile photo */}
       <div className="space-y-2">
-        <Label>Foto Profil <span className="font-normal text-muted-foreground">(opsional)</span></Label>
+        <p className="text-sm font-medium">Foto Profil <span className="font-normal text-muted-foreground">(opsional)</span></p>
         <p className="text-xs text-muted-foreground">Gunakan foto diri yang jelas, bukan foto toko. Foto dapat ditambahkan atau dilewati kapan saja. Maksimal 2MB.</p>
         <div className="flex justify-center">
         <div className="relative">
@@ -359,8 +359,10 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
           </div>
           <button
             type="button"
+            aria-label="Unggah foto profil"
+            title="Unggah foto profil"
             onClick={() => fileInputRef.current?.click()}
-            className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-md hover:opacity-90 transition"
+            className="absolute -bottom-2 -right-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition hover:opacity-90"
             disabled={uploadingAvatar}
           >
             <Camera className="h-3.5 w-3.5" />
@@ -377,21 +379,27 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       </div>
 
       <div className="space-y-2">
-        <Label>Nama Lengkap</Label>
+        <Label htmlFor="profile-full-name">Nama Lengkap</Label>
         <Input
+          id="profile-full-name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           placeholder="Nama lengkap"
+          autoComplete="name"
+          disabled={saving}
         />
       </div>
 
       <div className="space-y-2">
-        <Label>No. WhatsApp {(requireCourierProfile || requireMerchantProfile) && <span className="text-destructive">*</span>}{!(requireCourierProfile || requireMerchantProfile) && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
+        <Label htmlFor="profile-phone">No. WhatsApp {(requireCourierProfile || requireMerchantProfile) && <span className="text-destructive">*</span>}{!(requireCourierProfile || requireMerchantProfile) && <span className="font-normal text-muted-foreground">(opsional)</span>}</Label>
         <PhoneInput
+          id="profile-phone"
           value={phone}
           onChange={setPhone}
           onValidationChange={handlePhoneValidation}
           disabled={saving}
+          required={requireCourierProfile || requireMerchantProfile}
+          autoComplete="tel"
         />
       </div>
 
