@@ -352,9 +352,9 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
 
         {canSeePOS && POS_UI_ENABLED && (
           <div className="mx-4 mt-4 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Toko aktif</p>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{tenant ? 'Toko aktif' : 'Penawaran POS'}</p>
             <p className="mt-1 truncate font-heading text-xs font-semibold text-sidebar-foreground">
-              {tenant?.name || 'Kasir belum diaktifkan'}
+              {tenant?.name || 'Penawaran Langganan POS'}
             </p>
             {posEnabled && outlets.length > 1 && (
               <Select value={activeOutlet?.id} onValueChange={(value) => {
@@ -380,7 +380,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
               className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-sidebar-primary"
             >
               <CreditCard className="h-3.5 w-3.5" />
-              {!tenant ? 'Lihat paket POS' : isPOSSetupStatus(tenant.status) ? 'Lanjutkan setup POS' : 'Kelola langganan POS'}
+              {!tenant ? 'Lihat penawaran POS' : isPOSSetupStatus(tenant.status) ? 'Lanjutkan setup POS' : 'Kelola langganan POS'}
             </Link>
           </div>
         )}
