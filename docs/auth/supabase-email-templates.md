@@ -1,4 +1,216 @@
+# Template Email Supabase SaDesa
 
+Template ini digunakan pada **Supabase Dashboard → Authentication → Emails**.
+
+> Template hosted Supabase tidak otomatis membaca file ini. Setelah perubahan, salin template yang sesuai ke tab **Source** di Dashboard Supabase.
+
+## Pengaturan umum
+
+- Logo: `https://www.sadesa.id/branding/sadesa-logo.png`
+- Site URL: `https://www.sadesa.id`
+- Redirect reset password: `https://www.sadesa.id/reset-password`
+- **Confirm email:** aktif
+- **Custom SMTP:** aktif
+
+---
+
+## Confirm sign up
+
+### Subject
+
+```text
+Verifikasi email Anda untuk SaDesa
+```
+
+### Source
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Verifikasi Email SaDesa</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f3f7f4; font-family:Arial, Helvetica, sans-serif; color:#193226;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f3f7f4; margin:0; padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; border-radius:18px; overflow:hidden;">
+            <tr>
+              <td align="center" style="padding:32px 24px 28px; background-color:#e8f5ed; border-bottom:1px solid #d7eadf;">
+                <a href="https://www.sadesa.id" target="_blank" style="text-decoration:none;">
+                  <img src="https://www.sadesa.id/branding/sadesa-logo.png" alt="Logo SaDesa" width="160" style="display:block; width:160px; max-width:80%; height:auto; margin:0 auto;">
+                </a>
+                <p style="margin:14px 0 0; color:#4b6b59; font-size:14px; line-height:1.5;">Platform Ekonomi Desa</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:42px 40px 36px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr><td align="center"><div style="width:64px; height:64px; line-height:64px; border-radius:50%; background-color:#e6f3eb; color:#23834d; font-size:32px; font-weight:bold; text-align:center;">✓</div></td></tr>
+                </table>
+                <h1 style="margin:26px 0 16px; text-align:center; color:#193226; font-size:27px; line-height:1.3; font-weight:700;">Verifikasi Email Anda</h1>
+                <p style="margin:0 auto 18px; max-width:470px; text-align:center; color:#5f7367; font-size:16px; line-height:1.7;">Terima kasih telah mendaftar di SaDesa. Verifikasi alamat email Anda untuk menyelesaikan pendaftaran akun.</p>
+                <p style="margin:0 auto 26px; max-width:470px; text-align:center; color:#718177; font-size:14px; line-height:1.6;">Klik tombol di bawah untuk mengaktifkan akun SaDesa Anda.</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 30px;">
+                  <tr><td align="center"><a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block; padding:15px 32px; background-color:#23834d; color:#ffffff; font-size:16px; font-weight:bold; line-height:1; text-decoration:none; border-radius:9px;">Verifikasi Email</a></td></tr>
+                </table>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e5eee8;">
+                  <tr><td style="padding-top:22px;">
+                    <p style="margin:0 0 8px; color:#718177; font-size:12px; line-height:1.6;">Jika tombol tidak dapat diklik, salin dan buka tautan berikut di browser:</p>
+                    <p style="margin:0; word-break:break-all; font-size:12px; line-height:1.6;"><a href="{{ .ConfirmationURL }}" target="_blank" style="color:#23834d; text-decoration:underline;">{{ .ConfirmationURL }}</a></p>
+                  </td></tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 40px; background-color:#fffaf0; border-top:1px solid #f3ead3; border-bottom:1px solid #f3ead3;">
+                <p style="margin:0 0 7px; color:#745d2d; font-size:13px; line-height:1.5; font-weight:bold;">Catatan keamanan</p>
+                <p style="margin:0; color:#806f48; font-size:12px; line-height:1.7;">Jika Anda tidak pernah mendaftar di SaDesa, abaikan email ini. Jangan berikan tautan verifikasi kepada siapa pun.</p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:26px 24px 30px; background-color:#f8fbf9;">
+                <p style="margin:0 0 8px; color:#557163; font-size:13px; line-height:1.5;">Butuh bantuan? <a href="https://www.sadesa.id" target="_blank" style="color:#23834d; text-decoration:none; font-weight:bold;">Kunjungi www.sadesa.id</a></p>
+                <p style="margin:0; color:#9aaa9f; font-size:11px; line-height:1.5;">© SaDesa — Platform Ekonomi Desa</p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:16px auto 0; max-width:560px; color:#91a198; text-align:center; font-size:11px; line-height:1.5;">Email ini dikirim secara otomatis. Mohon tidak membalas email ini.</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+```
+
+---
+
+## Reset password
+
+### Subject
+
+```text
+Atur ulang kata sandi akun SaDesa
+```
+
+### Source
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Atur Ulang Kata Sandi SaDesa</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f3f7f4; font-family:Arial, Helvetica, sans-serif; color:#193226;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f3f7f4; margin:0; padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; border-radius:18px; overflow:hidden;">
+            <tr>
+              <td align="center" style="padding:32px 24px 28px; background-color:#e8f5ed; border-bottom:1px solid #d7eadf;">
+                <a href="https://www.sadesa.id" target="_blank" style="text-decoration:none;"><img src="https://www.sadesa.id/branding/sadesa-logo.png" alt="Logo SaDesa" width="160" style="display:block; width:160px; max-width:80%; height:auto; margin:0 auto;"></a>
+                <p style="margin:14px 0 0; color:#4b6b59; font-size:14px; line-height:1.5;">Platform Ekonomi Desa</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:42px 40px 36px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><div style="width:64px; height:64px; line-height:64px; border-radius:50%; background-color:#e6f3eb; color:#23834d; font-size:30px; font-weight:bold; text-align:center;">🔒</div></td></tr></table>
+                <h1 style="margin:26px 0 16px; text-align:center; color:#193226; font-size:27px; line-height:1.3; font-weight:700;">Atur Ulang Kata Sandi</h1>
+                <p style="margin:0 auto 18px; max-width:470px; text-align:center; color:#5f7367; font-size:16px; line-height:1.7;">Kami menerima permintaan untuk mengatur ulang kata sandi akun SaDesa Anda.</p>
+                <p style="margin:0 auto 26px; max-width:470px; text-align:center; color:#718177; font-size:14px; line-height:1.6;">Klik tombol di bawah untuk membuat kata sandi baru.</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 30px;"><tr><td align="center"><a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block; padding:15px 32px; background-color:#23834d; color:#ffffff; font-size:16px; font-weight:bold; line-height:1; text-decoration:none; border-radius:9px;">Atur Ulang Kata Sandi</a></td></tr></table>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e5eee8;"><tr><td style="padding-top:22px;"><p style="margin:0 0 8px; color:#718177; font-size:12px; line-height:1.6;">Jika tombol tidak dapat diklik, salin dan buka tautan berikut di browser:</p><p style="margin:0; word-break:break-all; font-size:12px; line-height:1.6;"><a href="{{ .ConfirmationURL }}" target="_blank" style="color:#23834d; text-decoration:underline;">{{ .ConfirmationURL }}</a></p></td></tr></table>
+              </td>
+            </tr>
+            <tr><td style="padding:22px 40px; background-color:#fffaf0; border-top:1px solid #f3ead3; border-bottom:1px solid #f3ead3;"><p style="margin:0 0 7px; color:#745d2d; font-size:13px; line-height:1.5; font-weight:bold;">Bukan Anda yang meminta?</p><p style="margin:0; color:#806f48; font-size:12px; line-height:1.7;">Jika Anda tidak meminta pengaturan ulang kata sandi, abaikan email ini. Kata sandi Anda tidak akan berubah tanpa tindakan dari Anda.</p></td></tr>
+            <tr><td align="center" style="padding:26px 24px 30px; background-color:#f8fbf9;"><p style="margin:0 0 8px; color:#557163; font-size:13px; line-height:1.5;">Butuh bantuan? <a href="https://www.sadesa.id" target="_blank" style="color:#23834d; text-decoration:none; font-weight:bold;">Kunjungi www.sadesa.id</a></p><p style="margin:0; color:#9aaa9f; font-size:11px; line-height:1.5;">© SaDesa — Platform Ekonomi Desa</p></td></tr>
+          </table>
+          <p style="margin:16px auto 0; max-width:560px; color:#91a198; text-align:center; font-size:11px; line-height:1.5;">Email ini dikirim secara otomatis. Mohon tidak membalas email ini.</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+```
+
+## Checklist dashboard
+
+1. Aktifkan **Custom SMTP**.
+2. Buka template **Confirm sign up** dan tempel source pertama.
+3. Buka template **Reset password** dan tempel source kedua.
+4. Simpan masing-masing template.
+5. Uji signup dan reset password dengan email asli.
+6. Pastikan logo PNG dapat diakses publik dan status email di provider SMTP adalah `Delivered`.
+
+---
+
+## Magic link atau OTP
+
+Template ini digunakan untuk login tanpa password melalui tautan atau kode OTP.
+
+### Subject
+
+```text
+Kode masuk Anda untuk SaDesa
+```
+
+### Source
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>Masuk ke SaDesa</title>
+  </head>
+  <body style="margin:0; padding:0; background-color:#f3f7f4; font-family:Arial, Helvetica, sans-serif; color:#193226;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f3f7f4; margin:0; padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; border-radius:18px; overflow:hidden;">
+            <tr>
+              <td align="center" style="padding:32px 24px 28px; background-color:#e8f5ed; border-bottom:1px solid #d7eadf;">
+                <a href="https://www.sadesa.id" target="_blank" style="text-decoration:none;">
+                  <img src="https://www.sadesa.id/branding/sadesa-logo.png" alt="Logo SaDesa" width="160" style="display:block; width:160px; max-width:80%; height:auto; margin:0 auto;">
+                </a>
+                <p style="margin:14px 0 0; color:#4b6b59; font-size:14px; line-height:1.5;">Platform Ekonomi Desa</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:42px 40px 36px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center"><div style="width:64px; height:64px; line-height:64px; border-radius:50%; background-color:#e6f3eb; color:#23834d; font-size:30px; font-weight:bold; text-align:center;">→</div></td></tr></table>
+                <h1 style="margin:26px 0 16px; text-align:center; color:#193226; font-size:27px; line-height:1.3; font-weight:700;">Masuk ke SaDesa</h1>
+                <p style="margin:0 auto 26px; max-width:470px; text-align:center; color:#5f7367; font-size:16px; line-height:1.7;">Gunakan tombol atau kode di bawah untuk masuk ke akun SaDesa Anda.</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 24px;"><tr><td align="center"><a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block; padding:15px 32px; background-color:#23834d; color:#ffffff; font-size:16px; font-weight:bold; line-height:1; text-decoration:none; border-radius:9px;">Masuk ke SaDesa</a></td></tr></table>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 30px; background-color:#f7faf8; border:1px solid #e1eee5; border-radius:12px;"><tr><td align="center" style="padding:20px 18px;"><p style="margin:0 0 9px; color:#667a6e; font-size:13px; line-height:1.5;">Atau masukkan kode berikut di aplikasi:</p><p style="margin:0; color:#23834d; font-size:30px; line-height:1.2; font-weight:700; letter-spacing:8px;">{{ .Token }}</p><p style="margin:12px 0 0; color:#89988e; font-size:12px; line-height:1.5;">Kode ini hanya dapat digunakan satu kali.</p></td></tr></table>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #e5eee8;"><tr><td style="padding-top:22px;"><p style="margin:0 0 8px; color:#718177; font-size:12px; line-height:1.6;">Jika tombol tidak dapat diklik, salin dan buka tautan berikut di browser:</p><p style="margin:0; word-break:break-all; font-size:12px; line-height:1.6;"><a href="{{ .ConfirmationURL }}" target="_blank" style="color:#23834d; text-decoration:underline;">{{ .ConfirmationURL }}</a></p></td></tr></table>
+              </td>
+            </tr>
+            <tr><td style="padding:22px 40px; background-color:#fffaf0; border-top:1px solid #f3ead3; border-bottom:1px solid #f3ead3;"><p style="margin:0 0 7px; color:#745d2d; font-size:13px; line-height:1.5; font-weight:bold;">Catatan keamanan</p><p style="margin:0; color:#806f48; font-size:12px; line-height:1.7;">Jika Anda tidak meminta kode atau tautan login ini, abaikan email ini. Jangan berikan kode kepada siapa pun.</p></td></tr>
+            <tr><td align="center" style="padding:26px 24px 30px; background-color:#f8fbf9;"><p style="margin:0 0 8px; color:#557163; font-size:13px; line-height:1.5;">Butuh bantuan? <a href="https://www.sadesa.id" target="_blank" style="color:#23834d; text-decoration:none; font-weight:bold;">Kunjungi www.sadesa.id</a></p><p style="margin:0; color:#9aaa9f; font-size:11px; line-height:1.5;">© SaDesa — Platform Ekonomi Desa</p></td></tr>
+          </table>
+          <p style="margin:16px auto 0; max-width:560px; color:#91a198; text-align:center; font-size:11px; line-height:1.5;">Email ini dikirim secara otomatis. Mohon tidak membalas email ini.</p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+```
+
+### Variabel yang digunakan
+
+- `{{ .ConfirmationURL }}` — tautan masuk sekali pakai.
+- `{{ .Token }}` — kode OTP sekali pakai.
+
+> Template ini berbeda dari **Confirm sign up**: pada Magic link atau OTP, `{{ .Token }}` memang ditampilkan karena template ini ditujukan untuk login tanpa password.
 ---
 
 ## Change email address
