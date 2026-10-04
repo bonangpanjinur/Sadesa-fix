@@ -393,12 +393,17 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
       render: (item: OrderRow) => (
         <div className="flex items-center justify-end gap-1">
           {(item.status === 'NEW' || item.status === 'PENDING_CONFIRMATION') && (
-            <Button size="sm" className="hidden lg:inline-flex" onClick={() => handleUpdateStatus(item.id, 'PROCESSED')}>
+            <Button size="sm" className="inline-flex" onClick={() => handleUpdateStatus(item.id, 'PROCESSED')}>
               <Check className="mr-1.5 h-3.5 w-3.5" />Terima
             </Button>
           )}
+          {item.status === 'PROCESSED' && (
+            <Button size="sm" variant="outline" className="inline-flex" onClick={() => viewOrderDetail(item)}>
+              <Truck className="mr-1.5 h-3.5 w-3.5" />Kirim
+            </Button>
+          )}
           {item.status === 'DELIVERING' && (
-            <Button size="sm" variant="outline" className="hidden lg:inline-flex" onClick={() => handleSelfDeliveryStatusUpdate(item.id, 'DELIVERED')}>
+            <Button size="sm" variant="outline" className="inline-flex" onClick={() => handleSelfDeliveryStatusUpdate(item.id, 'DELIVERED')}>
               <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />Sampai
             </Button>
           )}

@@ -74,6 +74,14 @@ const POS_GROUP_BY_CATEGORY: Record<string, string> = {
   administrasi: 'team',
 };
 
+const QUICK_ACTIONS: SidebarItem[] = [
+  { label: 'Pesanan baru', href: '/merchant/orders', icon: <Receipt className="h-4 w-4" /> },
+  { label: 'Tambah produk', href: '/merchant/products', icon: <Package className="h-4 w-4" /> },
+  { label: 'Stok menipis', href: '/merchant/stock', icon: <Layers className="h-4 w-4" /> },
+  { label: 'Buat promo', href: '/merchant/promo', icon: <Percent className="h-4 w-4" /> },
+  { label: 'Laporan keuangan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
+];
+
 // POS is a first-class merchant capability. Entitlement and module checks below
 // still control which accounts and modules are visible.
 const POS_UI_ENABLED = true;
@@ -360,6 +368,33 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
           </div>
         </div>
         {showDashboard && renderItem({ label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> })}
+        {!normalizedSearch && (
+          <section className="mt-4 px-3 sm:px-4" aria-label="Aksi cepat">
+            <p className="mb-2 px-1 font-heading text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Aksi cepat</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {QUICK_ACTIONS.map((item) => {
+                const active = activeRouteHref === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={onNavigate}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'flex min-h-10 items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
+                      active
+                        ? 'border-sidebar-primary/30 bg-sidebar-accent text-sidebar-accent-foreground'
+                        : 'border-sidebar-border/70 bg-sidebar-accent/30 text-muted-foreground hover:border-sidebar-primary/30 hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                    )}
+                  >
+                    <span className={cn('shrink-0', active ? 'text-sidebar-primary' : 'text-muted-foreground')}>{item.icon}</span>
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {canSeePOS && POS_UI_ENABLED && (
           <div className="mx-3 mt-4 rounded-2xl border border-sidebar-border bg-gradient-to-br from-sidebar-accent/70 via-sidebar to-sidebar-accent/30 p-3 shadow-sm sm:mx-4">

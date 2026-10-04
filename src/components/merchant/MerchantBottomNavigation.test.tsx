@@ -17,6 +17,7 @@ describe('MerchantBottomNavigation', () => {
     { path: '/merchant', current: 'Beranda' },
     { path: '/merchant/orders/abc', current: 'Pesanan' },
     { path: '/merchant/products/abc', current: 'Produk' },
+    { path: '/merchant/stock', current: 'Stok' },
     { path: '/merchant/pos/kasir', current: 'Buka semua menu pedagang' },
   ])('marks $current current at $path', ({ path, current }) => {
     renderNavigation(path);
