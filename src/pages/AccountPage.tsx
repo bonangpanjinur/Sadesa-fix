@@ -226,7 +226,7 @@ export default function AccountPage() {
 
     if (isMerchant || isAdmin) {
       buttons.push({
-        label: 'Dashboard Merchant',
+        label: 'Dashboard Pedagang',
         path: '/merchant',
         icon: <Store className="h-5 w-5" />,
         color: 'bg-warning/10 text-warning border-warning/20',
@@ -350,7 +350,7 @@ export default function AccountPage() {
                     {(profileRequired || courierProfileRequired || merchantProfileRequired) && (
                       <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
                         {merchantProfileRequired
-                          ? 'Lengkapi nomor KTP dan WhatsApp aktif untuk mengoptimalkan fitur merchant. Foto profil tetap opsional.'
+                          ? 'Lengkapi nomor KTP dan WhatsApp aktif untuk mengoptimalkan fitur pedagang. Foto profil tetap opsional.'
                           : courierProfileRequired
                           ? 'Tambahkan nomor WhatsApp aktif untuk mengoptimalkan fitur kurir. Foto profil tetap opsional.'
                           : 'Profil Anda belum lengkap. Tambahkan alamat atau foto profil kapan saja, tanpa mengunci akses menu.'}
@@ -405,7 +405,7 @@ export default function AccountPage() {
                     >
                       <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20"><Store className="h-5 w-5" /></span>
                       <span>
-                        <span className="block text-sm font-bold">Daftar Merchant</span>
+                        <span className="block text-sm font-bold">Daftar Pedagang</span>
                         <span className="mt-0.5 block text-[10px] text-white/80">Jual makanan & produk</span>
                       </span>
                     </button>

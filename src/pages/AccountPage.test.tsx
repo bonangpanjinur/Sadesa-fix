@@ -87,8 +87,34 @@ describe('AccountPage and /profile route', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
 
     expect(await screen.findByRole('heading', { name: 'Ayu' })).toBeInTheDocument();
+    expect(screen.getByText('Daftar Pedagang')).toBeInTheDocument();
+    expect(screen.queryByText('Daftar Merchant')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     consoleError.mockRestore();
     consoleWarn.mockRestore();
+  });
+
+  it('uses Pedagang for the merchant dashboard shortcut', async () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'merchant-user', email: 'pedagang@example.test', user_metadata: { full_name: 'Pedagang' } },
+      signOut: vi.fn(),
+      loading: false,
+      isAdmin: false,
+      isVerifikator: false,
+      isMerchant: true,
+      isCourier: false,
+      isAdminDesa: false,
+      isServiceProvider: false,
+    } as unknown as ReturnType<typeof useAuth>);
+    vi.mocked(supabase.from).mockImplementation(() => createQuery({ data: [], error: null }) as never);
+
+    render(
+      <MemoryRouter>
+        <AccountPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('Dashboard Pedagang')).toBeInTheDocument();
+    expect(screen.queryByText('Dashboard Merchant')).not.toBeInTheDocument();
   });
 });

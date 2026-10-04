@@ -61,7 +61,7 @@ export function DesaSidebar() {
     { label: 'Destinasi Wisata',    href: '/desa/tourism',             icon: <Mountain className="h-4 w-4" /> },
     { label: 'Paket Wisata',        href: '/desa/paket-wisata',        icon: <Package className="h-4 w-4" /> },
     { label: 'Pemandu Wisata',      href: '/desa/pemandu',             icon: <User className="h-4 w-4" /> },
-    { label: 'Verifikasi Merchant', href: '/desa/merchants',           icon: <ShieldCheck className="h-4 w-4" />, badge: pendingMerchants },
+    { label: 'Verifikasi Pedagang', href: '/desa/merchants',           icon: <ShieldCheck className="h-4 w-4" />, badge: pendingMerchants },
     { label: 'Laporan Keuangan',    href: '/desa/laporan-keuangan',    icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Laporan Ekonomi',     href: '/desa/ekonomi',             icon: <TrendingUp className="h-4 w-4" /> },
     { label: 'Event Desa',          href: '/desa/event',               icon: <Calendar className="h-4 w-4" /> },
