@@ -18,6 +18,39 @@ export interface PwaDeviceSession {
   updated_at: string;
 }
 
+export interface PwaDeviceScopeReadiness {
+  userId: string | null | undefined;
+  tenantId: string | null | undefined;
+  posRole: string | null | undefined;
+  posEnabled: boolean;
+  posLoading: boolean;
+  posRoleLoading: boolean;
+}
+
+export function canRegisterPwaDeviceForSession({
+  userId,
+  tenantId,
+  posRole,
+  posEnabled,
+  posLoading,
+  posRoleLoading,
+}: PwaDeviceScopeReadiness) {
+  return Boolean(userId && tenantId && posRole && posEnabled && !posLoading && !posRoleLoading);
+}
+
+/**
+ * The server allows one default device when no active subscription exists,
+ * but rejects registration when an active subscription explicitly excludes
+ * the POS device feature. Unknown payloads fail closed so we do not turn a
+ * failed entitlement check into an unnecessary 403 registration request.
+ */
+export function allowsPwaDeviceRegistration(entitlement: unknown) {
+  if (!entitlement || typeof entitlement !== 'object' || Array.isArray(entitlement)) return false;
+  const value = entitlement as { enabled?: unknown; source?: unknown; subscription_id?: unknown };
+  if (value.subscription_id == null) return value.source === 'none';
+  return value.enabled === true;
+}
+
 const DEVICE_KEY = 'desamart:pwa-device-id';
 
 function getDeviceId(): string {

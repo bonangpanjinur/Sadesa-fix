@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { MerchantSidebar } from './MerchantSidebar';
 import { MerchantBottomNavigation } from './MerchantBottomNavigation';
 import { Menu, Volume2 } from 'lucide-react';
@@ -33,6 +33,10 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
     sidebarTriggerRef.current = trigger;
     setSidebarOpen(true);
   };
+  const setSidebarDialogRef = useCallback((element: HTMLDivElement | null) => {
+    sidebarDialogRef.current = element;
+    if (element) element.inert = !isSidebarVisible;
+  }, [isSidebarVisible]);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -114,13 +118,12 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
       )}
 
       <div
-        ref={sidebarDialogRef}
+        ref={setSidebarDialogRef}
         id="merchant-mobile-drawer"
         role={isMobileDialogOpen ? 'dialog' : undefined}
         aria-modal={isMobileDialogOpen || undefined}
         aria-label={isMobileDialogOpen ? 'Menu pedagang' : undefined}
         aria-hidden={!isSidebarVisible || undefined}
-        inert={!isSidebarVisible}
         tabIndex={isMobileDialogOpen ? -1 : undefined}
         className={cn(
           'fixed inset-y-0 left-0 z-50 transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:relative lg:z-0 lg:translate-x-0',

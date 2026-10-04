@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { heartbeatPwaDevice, registerPwaDevice, type PwaDeviceSession } from '@/lib/pwaDevice';
+import { allowsPwaDeviceRegistration, canRegisterPwaDeviceForSession, heartbeatPwaDevice, registerPwaDevice, type PwaDeviceSession } from '@/lib/pwaDevice';
 import { PWAContext, type PWAContextValue } from './PWAContext';
 import { reportObservability } from '@/lib/observability';
 import { supabase } from '@/integrations/supabase/client';
 import { isPendingServiceWorkerUpdate } from '@/lib/pwaUpdate';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePOS } from '@/contexts/POSContext';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -76,6 +78,25 @@ async function checkForServiceWorkerUpdate() {
 }
 
 function usePWAController(): PWAContextValue {
+  const { user } = useAuth();
+  const { tenant, posEnabled, posRole, posRoleLoading, loading: posLoading } = usePOS();
+  const pwaDeviceScope = useMemo(() => {
+    if (!canRegisterPwaDeviceForSession({
+      userId: user?.id,
+      tenantId: tenant?.id,
+      posRole,
+      posEnabled,
+      posLoading,
+      posRoleLoading,
+    }) || !user?.id || !tenant?.id || !posRole) return null;
+
+    return {
+      key: `${user.id}:${tenant.id}`,
+      userId: user.id,
+      tenantId: tenant.id,
+      posRole,
+    };
+  }, [user?.id, tenant?.id, posRole, posEnabled, posLoading, posRoleLoading]);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [status, setStatus] = useState<PWAStatus>({
     isInstallable: false,
@@ -86,10 +107,12 @@ function usePWAController(): PWAContextValue {
     deviceRevoked: false,
   });
   const registrationInFlight = useRef(new Map<string, Promise<PwaDeviceSession | null>>());
-  const activeSessionUserId = useRef<string | null>(null);
+  const activeDeviceScope = useRef<string | null>(null);
+  const deviceHeartbeatEnabled = useRef(false);
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const heartbeat = useCallback(async (syncAt?: string | null) => {
+    if (!deviceHeartbeatEnabled.current) return null;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
@@ -100,12 +123,13 @@ function usePWAController(): PWAContextValue {
   }, []);
 
   const registerForSession = useCallback(async (userId: string, tenantId?: string | null) => {
-    const inFlight = registrationInFlight.current.get(userId);
+    const scopeKey = `${userId}:${tenantId ?? ''}`;
+    const inFlight = registrationInFlight.current.get(scopeKey);
     if (inFlight) return inFlight;
 
     const registration = registerPwaDevice(tenantId)
       .then((device) => {
-        if (device && activeSessionUserId.current === userId) {
+        if (device && activeDeviceScope.current === scopeKey) {
           setStatus((prev) => ({ ...prev, device, deviceRevoked: device.status === 'revoked' }));
         }
         return device;
@@ -115,12 +139,12 @@ function usePWAController(): PWAContextValue {
         return null;
       })
       .finally(() => {
-        if (registrationInFlight.current.get(userId) === registration) {
-          registrationInFlight.current.delete(userId);
+        if (registrationInFlight.current.get(scopeKey) === registration) {
+          registrationInFlight.current.delete(scopeKey);
         }
       });
 
-    registrationInFlight.current.set(userId, registration);
+    registrationInFlight.current.set(scopeKey, registration);
     return registration;
   }, []);
 
@@ -247,32 +271,7 @@ function usePWAController(): PWAContextValue {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleWindowFocus);
 
-    let cancelled = false;
-    const handleSession = async (session: { user?: { id: string } } | null) => {
-      if (cancelled) return;
-      if (!session?.user) {
-        activeSessionUserId.current = null;
-        stopHeartbeat();
-        setStatus((prev) => ({ ...prev, device: null, deviceRevoked: false }));
-        return;
-      }
-      const userId = session.user.id;
-      const isNewUser = activeSessionUserId.current !== userId;
-      activeSessionUserId.current = userId;
-      if (isNewUser) await registerForSession(userId);
-      if (!cancelled && activeSessionUserId.current === userId) startHeartbeat();
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      void handleSession(session);
-    });
-    void supabase.auth.getSession().then(({ data: { session } }) => handleSession(session)).catch((error: unknown) => {
-      if (!cancelled) reportObservability('device', 'session_check_failed', 'warn', {}, error);
-    });
-
     return () => {
-      cancelled = true;
-      subscription.unsubscribe();
       stopHeartbeat();
       standaloneMedia.removeEventListener?.('change', handleDisplayModeChange);
       document.removeEventListener('visibilitychange', handleInstallVisibilityChange);
@@ -288,7 +287,72 @@ function usePWAController(): PWAContextValue {
         updateCheckTimer = null;
       }
     };
-  }, [heartbeat, registerForSession, startHeartbeat, stopHeartbeat]);
+  }, [heartbeat, stopHeartbeat]);
+
+  useEffect(() => {
+    if (!pwaDeviceScope) {
+      activeDeviceScope.current = null;
+      deviceHeartbeatEnabled.current = false;
+      stopHeartbeat();
+      setStatus((prev) => (prev.device || prev.deviceRevoked
+        ? { ...prev, device: null, deviceRevoked: false }
+        : prev));
+      return;
+    }
+
+    const scope = pwaDeviceScope;
+    let cancelled = false;
+    activeDeviceScope.current = scope.key;
+    deviceHeartbeatEnabled.current = false;
+    stopHeartbeat();
+    setStatus((prev) => ({ ...prev, device: null, deviceRevoked: false }));
+
+    const registerWhenEntitled = async () => {
+      try {
+        const { data: merchant, error: merchantError } = await supabase
+          .from('merchants')
+          .select('id')
+          .eq('user_id', scope.userId)
+          .maybeSingle();
+        if (merchantError) throw merchantError;
+
+        if (merchant?.id) {
+          const { data, error } = await supabase.rpc('get_subscription_entitlement' as never, {
+            p_merchant_id: merchant.id,
+            p_feature_key: 'pos_devices',
+          } as never);
+          if (error) throw error;
+          if (!allowsPwaDeviceRegistration(data)) {
+            reportObservability('device', 'register_skipped', 'info', {
+              hasTenant: true,
+              reason: 'pos_device_entitlement_disabled',
+            });
+            return;
+          }
+        }
+
+        if (cancelled || activeDeviceScope.current !== scope.key) return;
+        const device = await registerForSession(scope.userId, scope.tenantId);
+        if (cancelled || activeDeviceScope.current !== scope.key || !device) return;
+        deviceHeartbeatEnabled.current = true;
+        startHeartbeat();
+      } catch (error: unknown) {
+        if (!cancelled) {
+          reportObservability('device', 'register_preflight_failed', 'warn', { hasTenant: true }, error);
+        }
+      }
+    };
+
+    void registerWhenEntitled();
+    return () => {
+      cancelled = true;
+      if (activeDeviceScope.current === scope.key) {
+        activeDeviceScope.current = null;
+        deviceHeartbeatEnabled.current = false;
+      }
+      stopHeartbeat();
+    };
+  }, [pwaDeviceScope, registerForSession, startHeartbeat, stopHeartbeat]);
 
   const installApp = useCallback(async () => {
     if (!deferredPrompt) return false;

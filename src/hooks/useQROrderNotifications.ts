@@ -5,11 +5,7 @@
  */
 import { useEffect, useRef, useCallback, useState } from "react";
 import { posBridgeFetch } from '@/lib/posBridge';
-
-interface WindowWithWebkitAudioContext extends Window {
-  AudioContext?: typeof AudioContext;
-  webkitAudioContext?: typeof AudioContext;
-}
+import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
 
 interface SSEBroadcastDetail {
   type?: string;
@@ -35,33 +31,6 @@ export interface QRIncomingOrder {
   notes: string | null;
   created_at: string;
   read: boolean;
-}
-
-function playNotificationSound() {
-  try {
-    const audioWindow = window as WindowWithWebkitAudioContext;
-    const AudioContextConstructor = audioWindow.AudioContext || audioWindow.webkitAudioContext;
-    if (!AudioContextConstructor) return;
-    const ctx = new AudioContextConstructor();
-    const sequence = [
-      { freq: 880, start: 0, duration: 0.12 },
-      { freq: 1100, start: 0.14, duration: 0.12 },
-      { freq: 1320, start: 0.28, duration: 0.18 },
-    ];
-    sequence.forEach(({ freq, start, duration }) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ctx.currentTime + start);
-      gain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + start + 0.02);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + duration);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration + 0.05);
-    });
-  } catch (err) { console.warn('[qr-order] gagal memutar nada notifikasi:', err); }
 }
 
 async function subscribeToQRChannel(tenantId: string) {
@@ -119,7 +88,7 @@ export function useQROrderNotifications(tenantId: string | null | undefined) {
       ) {
         const p = detail.payload as Omit<QRIncomingOrder, "read">;
         setOrders((prev) => [{ ...p, read: false }, ...prev]);
-        playNotificationSound();
+        void playOrderNotificationSound('merchant');
       }
     };
 
