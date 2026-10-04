@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { MerchantSidebar } from './MerchantSidebar';
 import { Menu, Volume2 } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
@@ -19,19 +19,105 @@ interface MerchantLayoutProps {
 
 export function MerchantLayout({ children, title, subtitle, actions, fullWidth = false }: MerchantLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(() => (
+    typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(min-width: 1024px)').matches
+  ));
+  const sidebarDialogRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const isMobileDialogOpen = sidebarOpen && !isDesktop;
+  const isSidebarVisible = sidebarOpen || isDesktop;
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const updateViewport = (event?: MediaQueryListEvent) => {
+      const desktop = event?.matches ?? mediaQuery.matches;
+      setIsDesktop(desktop);
+      if (desktop) setSidebarOpen(false);
+    };
+
+    updateViewport();
+    mediaQuery.addEventListener('change', updateViewport);
+    return () => mediaQuery.removeEventListener('change', updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileDialogOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    document.body.style.overflow = 'hidden';
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      const closeButton = sidebarDialogRef.current?.querySelector<HTMLButtonElement>('[aria-label="Tutup navigasi"]');
+      (closeButton ?? sidebarDialogRef.current)?.focus();
+    });
+
+    const onDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSidebarOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !sidebarDialogRef.current) return;
+      const focusable = Array.from(sidebarDialogRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => element.getClientRects().length > 0);
+      if (!focusable.length) {
+        event.preventDefault();
+        sidebarDialogRef.current.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !sidebarDialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !sidebarDialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onDialogKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', onDialogKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (menuTriggerRef.current?.isConnected) menuTriggerRef.current.focus();
+      else previousFocus?.focus();
+    };
+  }, [isMobileDialogOpen]);
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-background">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-foreground/50 z-40 lg:hidden"
+      {isMobileDialogOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu pedagang"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="fixed inset-0 z-40 cursor-default bg-slate-950/45 backdrop-blur-[2px] lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <div
+        ref={sidebarDialogRef}
+        id="merchant-mobile-drawer"
+        role={isMobileDialogOpen ? 'dialog' : undefined}
+        aria-modal={isMobileDialogOpen || undefined}
+        aria-label={isMobileDialogOpen ? 'Menu pedagang' : undefined}
+        aria-hidden={!isSidebarVisible || undefined}
+        inert={!isSidebarVisible}
+        tabIndex={isMobileDialogOpen ? -1 : undefined}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 lg:relative lg:z-0 transform transition-transform duration-200',
+          'fixed inset-y-0 left-0 z-50 transform-gpu transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:relative lg:z-0 lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
@@ -45,7 +131,17 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
         {/* Header (Fixed) */}
         <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:p-4 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Buka navigasi pedagang" title="Buka navigasi pedagang">
+            <Button
+              ref={menuTriggerRef}
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11 rounded-xl lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Buka navigasi pedagang"
+              aria-controls="merchant-mobile-drawer"
+              aria-expanded={sidebarOpen}
+              title="Buka navigasi pedagang"
+            >
               <Menu className="h-5 w-5" />
             </Button>
             <div className="min-w-0">

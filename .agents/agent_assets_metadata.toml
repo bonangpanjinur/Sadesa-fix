@@ -6,21 +6,25 @@ id = "5TItq_PZv_oSeeKd8xnPC"
 uri = "file://DESAMART_POS_PROGRESS_REPORT.md"
 type = "text"
 title = "DesaMart POS SaaS — Progress Report (Phase 1–3)"
+logical_id = "878695e2-5aa1-4530-af51-dab9fadf2eba"
 
 [[outputs]]
 id = "iOQiO96Lo8Fjl-y6pxXyL"
 uri = "file://docs/PROGRESS.md"
 type = "text"
 title = "Progress Fitur DesaMart"
+logical_id = "42aadb2f-51e5-4f98-a37a-d51246fcd237"
 
 [[outputs]]
 id = "Azbwlf7NgJwXyYUW8FDNa"
 uri = "file://docs/RENCANA_PERBAIKAN.md"
 type = "text"
 title = "Rencana Perbaikan & Prioritas Sprint"
+logical_id = "e1ccb3b4-ddb8-4944-92ba-79f1bbf70da5"
 
 [[outputs]]
 id = "jtz2_qxz4pZ9EbIgzS0gD"
 uri = "file://ROADMAP_FITUR.md"
 type = "text"
 title = "Roadmap Prioritas Fitur DesaMart"
+logical_id = "31c098e1-7d3e-468b-af7f-f2375bf9d115"

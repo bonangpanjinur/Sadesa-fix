@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
+  ArrowUpRight,
   BarChart3,
   BookOpen,
   Calendar,
@@ -79,7 +80,7 @@ const POS_UI_ENABLED = true;
 
 function isItemActive(pathname: string, href: string) {
   if (href === '/merchant') return pathname === href;
-  return pathname.startsWith(href);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
@@ -248,11 +249,18 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   ], [lowStockCount, pendingOrders, pendingRefunds, unrepliedReviews]);
   const visiblePOSCategories = useMemo(() => POS_MENU_CATEGORIES.map((category) => ({
     ...category,
-    items: category.items.filter((item) => (item.scope === 'merchant' || canAccessPOSPath(roles, item.href, posRole))
+    // Merchant-scoped POS links can also exist in the main workspace menu.
+    // Keep one visible destination when both modules point at the same route.
+    items: category.items.filter((item) => !groups.some((group) => group.items.some((merchantItem) => merchantItem.href === item.href))
+      && (item.scope === 'merchant' || canAccessPOSPath(roles, item.href, posRole))
       && isPOSModuleEnabled(tenant?.enabled_modules, item.moduleId)),
-  })).filter((category) => POS_UI_ENABLED && shouldShowPOSNavigation(tenant?.status) && category.items.length > 0), [roles, posRole, tenant?.enabled_modules, tenant?.status]);
+  })).filter((category) => POS_UI_ENABLED && shouldShowPOSNavigation(tenant?.status) && category.items.length > 0), [groups, roles, posRole, tenant?.enabled_modules, tenant?.status]);
 
   const activeMerchantGroupId = groups.find((group) => group.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
+  const activePOSGroupId = visiblePOSCategories.find((category) => category.items.some((item) => isItemActive(location.pathname, item.href)))?.id;
+  const activeRouteHref = [...groups.flatMap((group) => group.items), ...visiblePOSCategories.flatMap((category) => category.items)]
+    .filter((item) => isItemActive(location.pathname, item.href))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const showDashboard = !normalizedSearch || 'dashboard'.includes(normalizedSearch);
   const visibleGroups = groups
@@ -274,10 +282,12 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   const hasVisibleMenu = showDashboard || visibleGroups.length > 0 || visiblePOSCategoriesForSearch.length > 0;
 
   useEffect(() => {
-    if (activeMerchantGroupId) {
+    if (activePOSGroupId) {
+      setOpenGroupId(`pos:${activePOSGroupId}`);
+    } else if (activeMerchantGroupId) {
       setOpenGroupId(activeMerchantGroupId);
     }
-  }, [activeMerchantGroupId]);
+  }, [activeMerchantGroupId, activePOSGroupId]);
 
   useEffect(() => {
     try {
@@ -292,7 +302,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   };
 
   const renderItem = (item: SidebarItem, nested = false) => {
-    const active = isItemActive(location.pathname, item.href);
+    const active = activeRouteHref === item.href;
     return (
       <Link
         key={item.href}
@@ -300,7 +310,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         onClick={onNavigate}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'group relative flex min-h-10 items-center justify-between gap-2 border-l-2 px-4 py-2 text-sm font-medium transition-colors',
+          'group relative mx-2 flex min-h-11 items-center justify-between gap-2 rounded-r-xl border-l-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-primary sm:px-4',
           nested && 'pl-11',
           active
             ? 'border-sidebar-primary bg-sidebar-accent text-sidebar-accent-foreground'
@@ -312,7 +322,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
           <span className="truncate">{item.label}</span>
         </span>
         {item.badge !== undefined && item.badge > 0 && (
-          <span className="min-w-5 shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-destructive-foreground">
+          <span aria-label={`${item.badge} notifikasi`} className="min-w-5 shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-destructive-foreground">
             {item.badge > 99 ? '99+' : item.badge}
           </span>
         )}
@@ -321,22 +331,22 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   };
 
   return (
-    <aside className="flex h-dvh w-[min(17rem,calc(100vw-2rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground lg:w-64" aria-label="Navigasi pedagang">
-      <div className="flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-5">
+    <aside className="flex h-dvh w-[min(18rem,72vw)] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground shadow-2xl lg:w-64 lg:shadow-none" aria-label="Navigasi pedagang">
+      <div className="flex min-h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-4 sm:px-5">
         <Link to="/merchant" onClick={onNavigate} className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-emerald-700 text-sidebar-primary-foreground shadow-sm shadow-sidebar-primary/20">
             <Store className="h-5 w-5" />
           </span>
           <span className="truncate font-heading text-sm font-semibold">Ruang Kerja Pedagang</span>
         </Link>
-        <Button type="button" variant="ghost" size="icon" className="h-9 w-9 lg:hidden" onClick={onClose} aria-label="Tutup navigasi">
+        <Button type="button" variant="ghost" size="icon" className="h-10 w-10 rounded-xl lg:hidden" onClick={onClose} aria-label="Tutup navigasi">
           <X className="h-5 w-5" />
         </Button>
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 scrollbar-subtle" aria-label="Menu pedagang">
-        <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase text-muted-foreground">Pedagang</p>
-        <div className="mb-3 px-4">
+      <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3 scrollbar-subtle sm:py-4" aria-label="Menu pedagang">
+        <p className="mb-2 px-5 font-heading text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Pedagang</p>
+        <div className="mb-3 px-3 sm:px-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -344,24 +354,38 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Cari menu pedagang..."
               aria-label="Cari menu pedagang"
-              className="h-9 w-full rounded-lg border border-sidebar-border bg-sidebar-accent/40 pl-9 pr-3 text-xs outline-none transition focus-visible:ring-2 focus-visible:ring-sidebar-primary/40"
+              type="search"
+              className="h-11 w-full rounded-xl border border-sidebar-border bg-sidebar-accent/40 pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground/80 focus-visible:border-sidebar-primary/50 focus-visible:ring-2 focus-visible:ring-sidebar-primary/25 [&::-webkit-search-cancel-button]:cursor-pointer"
             />
           </div>
         </div>
         {showDashboard && renderItem({ label: 'Dashboard', href: '/merchant', icon: <LayoutDashboard className="h-4 w-4" /> })}
 
         {canSeePOS && POS_UI_ENABLED && (
-          <div className="mx-4 mt-4 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-3">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{tenant ? 'Toko aktif' : 'Penawaran POS'}</p>
-            <p className="mt-1 truncate font-heading text-xs font-semibold text-sidebar-foreground">
-              {tenant?.name || 'Penawaran Langganan POS'}
-            </p>
+          <div className="mx-3 mt-4 rounded-2xl border border-sidebar-border bg-gradient-to-br from-sidebar-accent/70 via-sidebar to-sidebar-accent/30 p-3 shadow-sm sm:mx-4">
+            <div className="flex items-center gap-2">
+              <span className={cn('h-2 w-2 shrink-0 rounded-full ring-4 ring-background/60', posEnabled ? 'bg-emerald-500' : 'bg-amber-500')} aria-hidden="true" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{tenant ? 'Toko aktif' : 'Penawaran POS'}</p>
+            </div>
+            <div className="mt-2 flex min-w-0 items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary/10 text-sidebar-primary">
+                <Store className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-heading text-sm font-semibold text-sidebar-foreground">
+                  {tenant?.name || 'Aktifkan POS toko'}
+                </p>
+                {(activeOutlet || !tenant) && (
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{activeOutlet?.name || 'Kelola pesanan dan penjualan'}</p>
+                )}
+              </div>
+            </div>
             {posEnabled && outlets.length > 1 && (
               <Select value={activeOutlet?.id} onValueChange={(value) => {
                 const outlet = outlets.find((candidate) => candidate.id === value);
                 if (outlet) setActiveOutlet(outlet);
               }}>
-                <SelectTrigger className="mt-2 h-8 border-sidebar-border bg-sidebar text-xs">
+                <SelectTrigger className="mt-3 h-11 rounded-xl border-sidebar-border bg-sidebar text-sm">
                   <SelectValue placeholder="Pilih outlet" />
                 </SelectTrigger>
                 <SelectContent>
@@ -371,16 +395,16 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                 </SelectContent>
               </Select>
             )}
-            {posEnabled && outlets.length === 1 && activeOutlet && (
-              <p className="mt-1 truncate text-xs text-muted-foreground">{activeOutlet.name}</p>
-            )}
             <Link
               to={!tenant ? '/merchant/pos/subscribe' : isPOSSetupStatus(tenant.status) ? '/merchant/pos/setup' : '/merchant/pos/subscribe'}
               onClick={onNavigate}
-              className="mt-2 flex items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-sidebar-primary"
+              className="mt-2 flex min-h-10 items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary"
             >
-              <CreditCard className="h-3.5 w-3.5" />
-              {!tenant ? 'Lihat penawaran POS' : isPOSSetupStatus(tenant.status) ? 'Lanjutkan setup POS' : 'Kelola langganan POS'}
+              <span className="flex min-w-0 items-center gap-2">
+                <CreditCard className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{!tenant ? 'Lihat penawaran POS' : isPOSSetupStatus(tenant.status) ? 'Lanjutkan setup POS' : 'Kelola langganan POS'}</span>
+              </span>
+              <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             </Link>
           </div>
         )}
@@ -398,7 +422,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                   aria-controls={`merchant-sidebar-group-${group.id}`}
                   onClick={() => toggleMerchantGroup(group.id)}
                   className={cn(
-                    'h-10 w-full justify-between rounded-none border-l-2 px-4 font-body text-sm',
+                    'min-h-11 h-auto w-full justify-between rounded-none border-l-2 px-4 py-2 text-left font-body text-sm transition-colors',
                     active ? 'border-sidebar-primary text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
                   )}
                 >
@@ -428,7 +452,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                       aria-controls={`merchant-sidebar-group-${groupId.replace(':', '-')}`}
                       onClick={() => toggleMerchantGroup(groupId)}
                       className={cn(
-                        'h-10 w-full justify-between rounded-none border-l-2 px-4 font-body text-sm',
+                        'min-h-11 h-auto w-full justify-between rounded-none border-l-2 px-4 py-2 text-left font-body text-sm transition-colors',
                         active ? 'border-sidebar-primary text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
                       )}
                     >
@@ -450,8 +474,8 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         </div>
       </nav>
 
-      <div className="shrink-0 border-t border-sidebar-border bg-sidebar-accent/50 p-3">
-        <Link to="/" state={{ skipRoleRedirect: true }} onClick={onNavigate} className="flex min-h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground">
+      <div className="shrink-0 border-t border-sidebar-border bg-sidebar-accent/50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <Link to="/" state={{ skipRoleRedirect: true }} onClick={onNavigate} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary">
           <ChevronLeft className="h-4 w-4" />
           <span>Kembali ke Aplikasi</span>
         </Link>

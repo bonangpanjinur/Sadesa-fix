@@ -100,7 +100,7 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
   },
   {
     id: 'pelanggan',
-    label: 'Promosi & Pelanggan',
+    label: 'Pelanggan & Promo POS',
     icon: <Users className="h-4 w-4" />,
     items: [
       { label: 'Pelanggan', href: '/merchant/pos/customer', icon: <Users className="h-4 w-4" /> },
@@ -111,7 +111,7 @@ export const POS_MENU_CATEGORIES: POSSidebarCategory[] = [
   },
   {
     id: 'laporan',
-    label: 'Analitik & Laporan',
+    label: 'Laporan POS',
     icon: <BarChart3 className="h-4 w-4" />,
     items: [
       { label: 'Laporan Penjualan', href: '/merchant/pos/laporan', icon: <BarChart3 className="h-4 w-4" />, moduleId: 'sales_reports' },
