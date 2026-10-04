@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { MerchantSidebar } from './MerchantSidebar';
+import { MerchantBottomNavigation } from './MerchantBottomNavigation';
 import { Menu, Volume2 } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { Button } from '@/components/ui/button';
@@ -25,9 +26,13 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
     && window.matchMedia('(min-width: 1024px)').matches
   ));
   const sidebarDialogRef = useRef<HTMLDivElement>(null);
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const sidebarTriggerRef = useRef<HTMLButtonElement>(null);
   const isMobileDialogOpen = sidebarOpen && !isDesktop;
   const isSidebarVisible = sidebarOpen || isDesktop;
+  const openSidebar = (trigger: HTMLButtonElement) => {
+    sidebarTriggerRef.current = trigger;
+    setSidebarOpen(true);
+  };
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
@@ -48,7 +53,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
     if (!isMobileDialogOpen) return;
 
     const previousOverflow = document.body.style.overflow;
-    const menuTrigger = menuTriggerRef.current;
+    const sidebarTrigger = sidebarTriggerRef.current;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = 'hidden';
 
@@ -90,7 +95,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', onDialogKeyDown);
       document.body.style.overflow = previousOverflow;
-      if (menuTrigger?.isConnected && menuTrigger.getClientRects().length > 0) menuTrigger.focus();
+      if (sidebarTrigger?.isConnected && sidebarTrigger.getClientRects().length > 0) sidebarTrigger.focus();
       else if (previousFocus?.isConnected && previousFocus.getClientRects().length > 0) previousFocus.focus();
     };
   }, [isMobileDialogOpen]);
@@ -133,14 +138,13 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
         <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:p-4 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
             <Button
-              ref={menuTriggerRef}
               variant="ghost"
               size="icon"
               className="h-11 w-11 rounded-xl lg:hidden"
-              onClick={() => setSidebarOpen(true)}
+              onClick={(event) => openSidebar(event.currentTarget)}
               aria-label="Buka navigasi pedagang"
               aria-controls="merchant-mobile-drawer"
-              aria-expanded={sidebarOpen}
+              aria-expanded={isMobileDialogOpen}
               title="Buka navigasi pedagang"
             >
               <Menu className="h-5 w-5" />
@@ -170,7 +174,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
         {/* Content (Scrollable) */}
         <div className={cn(
           'min-h-0 min-w-0 flex-1 scrollbar-subtle',
-          fullWidth ? 'overflow-hidden' : 'overflow-x-hidden overflow-y-auto overscroll-contain p-4 lg:p-8',
+          fullWidth ? 'overflow-hidden' : 'overflow-x-hidden overflow-y-auto overscroll-contain p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:p-8 lg:pb-8',
         )}>
           <div className={fullWidth ? 'h-full min-h-0 min-w-0' : 'mx-auto max-w-6xl'}>
             <ErrorBoundary
@@ -186,6 +190,12 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
           </div>
         </div>
       </div>
+      {!fullWidth && (
+        <MerchantBottomNavigation
+          menuExpanded={isMobileDialogOpen}
+          onOpenMenu={openSidebar}
+        />
+      )}
     </div>
   );
 }
