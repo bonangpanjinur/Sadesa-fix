@@ -10,6 +10,8 @@ npm run dev
 
 The application is served on port `5000`. The workspace uses Node.js 22 to
 match the repository requirement (`>=22.13.0 <25`).
+Use Replit's Run button to start the `Start application` workflow and open
+the preview. Vite listens on all interfaces and accepts Replit's proxy host.
 
 Install dependencies from the checked-in npm lockfile with:
 
@@ -28,6 +30,14 @@ The browser requires these public Supabase variables:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 - `VITE_SUPABASE_PROJECT_ID`
+
+The imported workspace already supplies these public Supabase settings.
+Keep the existing backend; starting this frontend does not apply database
+migrations or deploy Supabase Edge Functions.
+
+The passenger ride map also requires `VITE_GOOGLE_MAPS_API_KEY`, with Maps
+JavaScript API and Places API enabled and browser-domain restrictions.
+This optional map setting is not required to start the public storefront.
 
 Only the publishable/anon key belongs in the frontend. Service-role keys,
 payment secrets, webhook secrets, and private signing keys belong in Supabase
