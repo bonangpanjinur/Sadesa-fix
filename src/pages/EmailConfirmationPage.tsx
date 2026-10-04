@@ -1,13 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, RefreshCw, CheckCircle, Loader2, KeyRound } from 'lucide-react';
+import { Mail, ArrowLeft, RefreshCw, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
-import { createOtpExpiration, formatOtpTimeRemaining, getOtpExpirationKey, isOtpExpired } from '@/lib/otp';
 import { toast } from '@/hooks/use-toast';
 
 export default function EmailConfirmationPage() {
@@ -15,87 +13,29 @@ export default function EmailConfirmationPage() {
   const location = useLocation();
   const initialEmail = (location.state as { email?: string })?.email || '';
   const [email] = useState(normalizeEmail(initialEmail));
-  const [token, setToken] = useState('');
   const [resending, setResending] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [resent, setResent] = useState(false);
   const [error, setError] = useState('');
-  const [expiresAt, setExpiresAt] = useState(() => {
-    try {
-      const stored = Number(window.localStorage.getItem(getOtpExpirationKey(normalizeEmail(initialEmail))));
-      return stored > Date.now() ? stored : createOtpExpiration();
-    } catch {
-      return createOtpExpiration();
-    }
-  });
-  const [now, setNow] = useState(() => Date.now());
-  const otpExpired = isOtpExpired(expiresAt, now);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const handleVerifyToken = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setError('');
-
-    if (!signupEmailSchema.safeParse(email).success) {
-      setError('Email pendaftaran tidak ditemukan. Silakan daftar kembali.');
-      return;
-    }
-    if (!/^\d{6}$/.test(token)) {
-      setError('Masukkan kode OTP 6 digit dari email Anda.');
-      return;
-    }
-    if (isOtpExpired(expiresAt)) {
-      setError('Kode OTP sudah kedaluwarsa. Silakan kirim ulang email verifikasi.');
-      setNow(Date.now());
-      return;
-    }
-
-    setVerifying(true);
-    try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'signup',
-      });
-      if (verifyError) throw verifyError;
-      toast({ title: 'Email berhasil diverifikasi!' });
-      navigate('/auth', { replace: true });
-    } catch (verificationError: unknown) {
-      setError(verificationError instanceof Error ? verificationError.message : 'Kode OTP tidak valid atau sudah kedaluwarsa.');
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   const handleResend = async () => {
     if (!signupEmailSchema.safeParse(email).success) {
       setError('Email pendaftaran tidak ditemukan. Silakan daftar kembali.');
       return;
     }
-    const otpLimit = checkPersistentRateLimit(email, 'resendOtp', RATE_LIMITS.resendOtp);
-    if (!otpLimit.allowed) {
-      setError(`Batas kirim ulang tercapai. Coba lagi dalam ${Math.ceil(otpLimit.resetIn / 60000)} menit.`);
+
+    const resendLimit = checkPersistentRateLimit(email, 'resendOtp', RATE_LIMITS.resendOtp);
+    if (!resendLimit.allowed) {
+      setError(`Batas kirim ulang tercapai. Coba lagi dalam ${Math.ceil(resendLimit.resetIn / 60000)} menit.`);
       return;
     }
+
     setResending(true);
     setError('');
     try {
       const { error: resendError } = await supabase.auth.resend({ type: 'signup', email });
       if (resendError) throw resendError;
       setResent(true);
-      setToken('');
-      const nextExpiresAt = createOtpExpiration();
-      setExpiresAt(nextExpiresAt);
-      try {
-        window.localStorage.setItem(getOtpExpirationKey(email), String(nextExpiresAt));
-      } catch {
-        // Supabase still enforces token expiration server-side.
-      }
-      toast({ title: 'Email verifikasi dikirim ulang!' });
+      toast({ title: 'Email verifikasi berhasil dikirim ulang.' });
     } catch (resendError: unknown) {
       setError(resendError instanceof Error ? resendError.message : 'Gagal mengirim ulang email verifikasi.');
     } finally {
@@ -106,7 +46,11 @@ export default function EmailConfirmationPage() {
   return (
     <div className="mobile-shell bg-background flex flex-col min-h-screen">
       <div className="p-4">
-        <button onClick={() => navigate('/auth')} className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center" aria-label="Kembali ke masuk">
+        <button
+          onClick={() => navigate('/auth')}
+          className="w-8 h-8 rounded-full hover:bg-secondary flex items-center justify-center"
+          aria-label="Kembali ke masuk"
+        >
           <ArrowLeft className="h-5 w-5" />
         </button>
       </div>
@@ -114,65 +58,58 @@ export default function EmailConfirmationPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex-1 flex flex-col items-center justify-center px-6 text-center"
+        className="flex-1 flex flex-col items-center justify-center px-6 pb-10 text-center"
       >
         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
           <Mail className="h-10 w-10 text-primary" />
         </div>
 
-        <h1 className="text-2xl font-bold text-foreground mb-2">Verifikasi Email</h1>
-        <p className="text-muted-foreground text-sm mb-2">
-          Kami mengirim link verifikasi dan kode OTP ke:
+        <h1 className="text-2xl font-bold text-foreground mb-3">Cek Email Anda</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
+          Pendaftaran Anda hampir selesai. Kami telah mengirim email verifikasi ke:
         </p>
-        {email && <p className="font-semibold text-foreground mb-6 break-all">{email}</p>}
+        {email && <p className="font-semibold text-foreground mt-2 mb-5 break-all">{email}</p>}
 
-        <form onSubmit={handleVerifyToken} className="w-full max-w-sm space-y-3 text-left">
-          <label htmlFor="verification-token" className="text-sm font-medium text-foreground">
-            Kode OTP 6 digit
-          </label>
-          <div className="relative">
-            <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="verification-token"
-              value={token}
-              onChange={(event) => {
-                setToken(event.target.value.replace(/\D/g, '').slice(0, 6));
-                setError('');
-              }}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              placeholder="123456"
-              className="pl-10 tracking-[0.35em]"
-              aria-describedby={error ? 'verification-error' : 'verification-help'}
-            />
-          </div>
-          <p id="verification-help" className={`text-xs ${otpExpired ? 'text-destructive' : 'text-muted-foreground'}`}>
-            {otpExpired ? 'Kode OTP sudah kedaluwarsa. Kirim ulang email untuk mendapatkan kode baru.' : `Kode berlaku selama ${formatOtpTimeRemaining(expiresAt, now)}.`}
-            {' '}Anda juga dapat langsung mengeklik link verifikasi di email.
-          </p>
-          {error && <p id="verification-error" role="alert" className="text-xs text-destructive">{error}</p>}
-          <Button type="submit" className="w-full" disabled={verifying || !email || otpExpired}>
-            {verifying ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memverifikasi...</> : 'Verifikasi OTP'}
-          </Button>
-        </form>
-
-        <div className="bg-muted/50 rounded-xl p-4 mt-6 text-left w-full max-w-sm">
-          <h3 className="font-medium text-sm text-foreground mb-2">Belum menerima email?</h3>
+        <div className="w-full max-w-sm rounded-xl border border-primary/20 bg-primary/5 p-4 text-left">
+          <p className="font-medium text-sm text-foreground mb-2">Verifikasi pendaftaran Anda</p>
           <ol className="text-xs text-muted-foreground space-y-2 list-decimal pl-4">
-            <li>Periksa inbox dan folder Spam.</li>
-            <li>Pastikan email yang didaftarkan benar-benar aktif.</li>
-            <li>Kirim ulang email verifikasi jika diperlukan.</li>
+            <li>Buka inbox email tersebut dan cari email dari SaDesa.</li>
+            <li>Klik tombol <strong className="text-foreground">Verifikasi Email</strong> di dalam email.</li>
+            <li>Setelah berhasil, kembali ke aplikasi dan masuk menggunakan akun Anda.</li>
           </ol>
         </div>
 
-        <div className="space-y-3 w-full max-w-sm mt-6">
+        <a
+          href="https://mail.google.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+        >
+          Buka Gmail <ExternalLink className="h-4 w-4" />
+        </a>
+
+        {error && (
+          <p role="alert" className="w-full max-w-sm mt-4 text-xs text-destructive">
+            {error}
+          </p>
+        )}
+
+        <div className="w-full max-w-sm space-y-3 mt-6">
           <Button variant="outline" className="w-full" onClick={handleResend} disabled={resending || resent || !email}>
-            {resent ? <><CheckCircle className="h-4 w-4 mr-2" />Email terkirim!</> : <><RefreshCw className={`h-4 w-4 mr-2 ${resending ? 'animate-spin' : ''}`} />{resending ? 'Mengirim...' : 'Kirim ulang email'}</>}
+            {resent ? (
+              <><CheckCircle className="h-4 w-4 mr-2" />Email terkirim</>
+            ) : (
+              <><RefreshCw className={`h-4 w-4 mr-2 ${resending ? 'animate-spin' : ''}`} />{resending ? 'Mengirim...' : 'Kirim ulang email verifikasi'}</>
+            )}
           </Button>
-          <Button className="w-full" onClick={() => navigate('/auth')}>Kembali ke Halaman Masuk</Button>
+          <Button className="w-full" onClick={() => navigate('/auth')}>
+            Saya sudah memverifikasi email
+          </Button>
         </div>
+
+        <p className="text-xs text-muted-foreground mt-6 max-w-sm leading-relaxed">
+          Belum menerima email? Periksa folder Spam atau Promosi. Pastikan alamat email yang didaftarkan benar-benar aktif.
+        </p>
       </motion.div>
     </div>
   );
