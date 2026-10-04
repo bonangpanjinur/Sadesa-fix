@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Bell, Moon, Sun, Globe, Shield, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Bell, Moon, Sun, Globe, Shield, Lock, Loader2, Mail } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { passwordSchema } from '@/lib/validationSchemas';
+import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [changingEmail, setChangingEmail] = useState(false);
 
   const resetPasswordForm = () => {
     setShowPasswordForm(false);
@@ -56,6 +60,39 @@ export default function SettingsPage() {
       toast.error(error instanceof Error ? error.message : t('settings.password.update_failed'));
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const resetEmailForm = () => {
+    setShowEmailForm(false);
+    setNewEmail('');
+  };
+
+  const handleChangeEmail = async () => {
+    const normalizedEmail = normalizeEmail(newEmail);
+    const emailResult = signupEmailSchema.safeParse(normalizedEmail);
+    if (!emailResult.success) {
+      toast.error(emailResult.error.issues[0]?.message || 'Masukkan email yang valid.');
+      return;
+    }
+    if (normalizedEmail === normalizeEmail(user?.email || '')) {
+      toast.error('Email baru harus berbeda dari email saat ini.');
+      return;
+    }
+
+    setChangingEmail(true);
+    try {
+      const { error } = await supabase.auth.updateUser(
+        { email: normalizedEmail },
+        { emailRedirectTo: `${window.location.origin}/auth` },
+      );
+      if (error) throw error;
+      toast.success('Tautan konfirmasi telah dikirim ke email baru. Buka email tersebut untuk menyelesaikan perubahan.');
+      resetEmailForm();
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Gagal mengubah email.');
+    } finally {
+      setChangingEmail(false);
     }
   };
 
@@ -148,6 +185,41 @@ export default function SettingsPage() {
               <CardContent className="space-y-3">
                 {user && (
                   <>
+                    {!showEmailForm ? (
+                      <Button type="button" variant="outline" className="w-full justify-start" onClick={() => setShowEmailForm(true)}>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Ganti email akun
+                      </Button>
+                    ) : (
+                      <div className="space-y-3 rounded-lg border border-border p-3">
+                        <div>
+                          <p className="text-sm font-medium">Ganti email akun</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Tautan konfirmasi akan dikirim ke email baru. Email lama tetap aktif sampai perubahan dikonfirmasi.</p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="new-email" className="text-xs">Email baru</Label>
+                          <Input
+                            id="new-email"
+                            type="email"
+                            autoComplete="email"
+                            inputMode="email"
+                            disabled={changingEmail}
+                            placeholder="nama@email.com"
+                            value={newEmail}
+                            onChange={(event) => setNewEmail(event.target.value)}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button type="button" size="sm" onClick={handleChangeEmail} disabled={changingEmail || !newEmail.trim()}>
+                            {changingEmail && <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden="true" />}
+                            {changingEmail ? 'Mengirim...' : 'Kirim konfirmasi'}
+                          </Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={resetEmailForm} disabled={changingEmail}>
+                            Batal
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {!showPasswordForm ? (
                       <Button type="button" variant="outline" className="w-full justify-start" onClick={() => setShowPasswordForm(true)}>
                         <Lock className="mr-2 h-4 w-4" />
