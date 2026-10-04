@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Plus, Edit, Trash2, MoreHorizontal, ImageIcon, Images, Eye, ShoppingCart, AlertCircle } from 'lucide-react';
+import { Package, Plus, Edit, Trash2, MoreHorizontal, ImageIcon, Images, Eye, ShoppingCart, AlertCircle, Search, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { DataTable } from '@/components/admin/DataTable';
 import { Badge } from '@/components/ui/badge';
@@ -36,8 +36,23 @@ interface ProductRow {
   is_promo: boolean;
   view_count: number | null;
   order_count: number | null;
+  min_stock_alert?: number | null;
+  low_stock_threshold?: number | null;
   pos_linked?: boolean;
 }
+
+interface ProductSummary {
+  total: number;
+  active: number;
+  inactive: number;
+  outOfStock: number;
+  lowStock: number;
+  promo: number;
+}
+
+type ProductStatusFilter = 'all' | 'active' | 'inactive' | 'out_of_stock' | 'low_stock' | 'promo';
+
+const PAGE_SIZE = 25;
 
 interface ProductForm {
   name: string;
@@ -72,6 +87,11 @@ export default function MerchantProductsPage() {
   const [editingProduct, setEditingProduct] = useState<ProductRow | null>(null);
   const [form, setForm] = useState<ProductForm>(defaultForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const merchantId = guardMerchantId;
 
@@ -85,15 +105,88 @@ export default function MerchantProductsPage() {
     staleTime: 300_000,
   });
 
-  // Fetch products
-  const { data: products = [], isLoading: productsLoading } = useQuery<ProductRow[]>({
-    queryKey: ['merchant-products', merchantId],
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSearchTerm(searchInput.trim());
+      setCurrentPage(1);
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, categoryFilter]);
+
+  const { data: summary = { total: 0, active: 0, inactive: 0, outOfStock: 0, lowStock: 0, promo: 0 }, isLoading: summaryLoading } = useQuery<ProductSummary>({
+    queryKey: ['merchant-product-summary', merchantId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (!merchantId) return { total: 0, active: 0, inactive: 0, outOfStock: 0, lowStock: 0, promo: 0 };
+      const [totalRes, activeRes, inactiveRes, outOfStockRes, promoRes, stockRes] = await Promise.all([
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).eq('is_active', true),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).eq('is_active', false),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).eq('stock', 0),
+        supabase.from('products').select('id', { count: 'exact', head: true }).eq('merchant_id', merchantId).eq('is_promo', true),
+        supabase.from('products').select('stock, min_stock_alert, low_stock_threshold').eq('merchant_id', merchantId),
+      ]);
+      const queryError = [totalRes.error, activeRes.error, inactiveRes.error, outOfStockRes.error, promoRes.error, stockRes.error].find(Boolean);
+      if (queryError) throw queryError;
+      const lowStock = (stockRes.data || []).filter((product) => {
+        const threshold = product.low_stock_threshold ?? product.min_stock_alert ?? 5;
+        return product.stock > 0 && product.stock <= threshold;
+      }).length;
+      return {
+        total: totalRes.count || 0,
+        active: activeRes.count || 0,
+        inactive: inactiveRes.count || 0,
+        outOfStock: outOfStockRes.count || 0,
+        lowStock,
+        promo: promoRes.count || 0,
+      };
+    },
+    enabled: !!merchantId && !guardLoading,
+    staleTime: 60_000,
+  });
+
+  // Fetch one server-side page of products. The low-stock candidate query only
+  // selects stock fields, then the visible page fetches the full product rows.
+  const { data: productsPage = { rows: [], total: 0 }, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = useQuery<{ rows: ProductRow[]; total: number }>({
+    queryKey: ['merchant-products', merchantId, searchTerm, statusFilter, categoryFilter, currentPage],
+    queryFn: async () => {
+      if (!merchantId) return { rows: [], total: 0 };
+      let productIdsForFilter: string[] | null = null;
+      let query = supabase
         .from('products')
-        .select('id, name, description, price, stock, category, image_url, is_active, is_promo, view_count, order_count')
-        .eq('merchant_id', merchantId!)
-        .order('created_at', { ascending: false });
+        .select('id, name, description, price, stock, category, image_url, is_active, is_promo, view_count, order_count, min_stock_alert, low_stock_threshold', { count: 'exact' })
+        .eq('merchant_id', merchantId);
+
+      if (searchTerm) query = query.ilike('name', `%${searchTerm}%`);
+      if (categoryFilter !== 'all') query = query.eq('category', categoryFilter);
+      if (statusFilter === 'active') query = query.eq('is_active', true);
+      if (statusFilter === 'inactive') query = query.eq('is_active', false);
+      if (statusFilter === 'out_of_stock') query = query.eq('stock', 0);
+      if (statusFilter === 'promo') query = query.eq('is_promo', true);
+      if (statusFilter === 'low_stock') {
+        const { data: candidates, error: candidateError } = await supabase
+          .from('products')
+          .select('id, name, stock, min_stock_alert, low_stock_threshold')
+          .eq('merchant_id', merchantId)
+          .ilike('name', searchTerm ? `%${searchTerm}%` : '%')
+          .eq(categoryFilter === 'all' ? 'merchant_id' : 'category', categoryFilter === 'all' ? merchantId : categoryFilter);
+        if (candidateError) throw candidateError;
+        productIdsForFilter = (candidates || [])
+          .filter((product) => {
+            const threshold = product.low_stock_threshold ?? product.min_stock_alert ?? 5;
+            return product.stock > 0 && product.stock <= threshold;
+          })
+          .map((product) => product.id);
+        if (productIdsForFilter.length === 0) return { rows: [], total: 0 };
+        query = query.in('id', productIdsForFilter);
+      }
+
+      const { data, count, error } = await query
+        .order('created_at', { ascending: false })
+        .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
       if (error) throw error;
       const productIds = (data || []).map((product) => product.id);
       const { data: posProducts, error: posError } = productIds.length
@@ -109,16 +202,23 @@ export default function MerchantProductsPage() {
           .map((row) => row.merchant_product_id)
           .filter((id): id is string => Boolean(id)),
       );
-      return (data || []).map((product) => ({
-        ...product,
-        pos_linked: linkedProductIds.has(product.id),
-      }));
+      return {
+        rows: (data || []).map((product) => ({ ...product, pos_linked: linkedProductIds.has(product.id) })) as ProductRow[],
+        total: count || 0,
+      };
     },
     enabled: !!merchantId && !guardLoading,
     staleTime: 60_000,
   });
 
+  const products = productsPage.rows;
+  const totalProducts = productsPage.total;
+  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
   const loading = guardLoading || productsLoading;
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -178,6 +278,7 @@ export default function MerchantProductsPage() {
       toast.success(editingProduct ? 'Produk berhasil diperbarui' : 'Produk berhasil ditambahkan');
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['merchant-products', merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-product-summary', merchantId] });
       queryClient.invalidateQueries({ queryKey: ['pos-products'] });
     },
     onError: (err: unknown) => {
@@ -199,6 +300,7 @@ export default function MerchantProductsPage() {
     onSuccess: () => {
       toast.success('Produk dihapus');
       queryClient.invalidateQueries({ queryKey: ['merchant-products', merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-product-summary', merchantId] });
     },
     onError: (err: unknown) => {
       if (err instanceof Error && err.message !== 'cancelled') toast.error('Gagal menghapus produk');
@@ -214,6 +316,7 @@ export default function MerchantProductsPage() {
     onSuccess: (newActive) => {
       toast.success(newActive ? 'Produk diaktifkan' : 'Produk dinonaktifkan');
       queryClient.invalidateQueries({ queryKey: ['merchant-products', merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-product-summary', merchantId] });
     },
     onError: () => toast.error('Gagal mengubah status'),
   });
@@ -267,7 +370,8 @@ export default function MerchantProductsPage() {
       header: 'Stok',
       render: (item: ProductRow) => {
         const isOutOfStock = item.stock === 0;
-        const isLowStock = !isOutOfStock && item.stock <= 5;
+        const threshold = item.low_stock_threshold ?? item.min_stock_alert ?? 5;
+        const isLowStock = !isOutOfStock && item.stock <= threshold;
         return (
           <div className="flex items-center gap-1.5">
             <span className={isOutOfStock ? 'text-destructive font-medium' : isLowStock ? 'text-warning font-medium' : ''}>{item.stock}</span>
@@ -321,7 +425,6 @@ export default function MerchantProductsPage() {
     },
   ];
 
-  const filters = [{ key: 'category', label: 'Kategori', options: categories.map(cat => ({ value: cat.slug, label: getCategoryDisplayLabel(categories as ProductCategory[], cat) })) }];
   const selectedCategoryTemplate = getCategoryTemplate(form.category);
   const selectedCategory = getCategoryBySlug(categories as ProductCategory[], form.category);
   const selectedParent = getCategoryParent(categories as ProductCategory[], selectedCategory);
@@ -341,21 +444,88 @@ export default function MerchantProductsPage() {
       <div className="mb-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />
-          <span className="text-muted-foreground text-sm">{products.length} produk</span>
+          <span className="text-muted-foreground text-sm">{summaryLoading ? 'Memuat ringkasan...' : `${summary.total} produk`}</span>
         </div>
         <Button onClick={openCreateDialog} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" aria-label="Ringkasan status katalog">
+        {[
+          { key: 'all' as const, label: 'Semua', value: summary.total, tone: 'text-foreground' },
+          { key: 'active' as const, label: 'Aktif', value: summary.active, tone: 'text-primary' },
+          { key: 'inactive' as const, label: 'Nonaktif', value: summary.inactive, tone: 'text-muted-foreground' },
+          { key: 'out_of_stock' as const, label: 'Stok habis', value: summary.outOfStock, tone: 'text-destructive' },
+          { key: 'low_stock' as const, label: 'Stok menipis', value: summary.lowStock, tone: 'text-warning' },
+          { key: 'promo' as const, label: 'Promo', value: summary.promo, tone: 'text-info' },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setStatusFilter(item.key)}
+            aria-pressed={statusFilter === item.key}
+            className={`rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${statusFilter === item.key ? 'border-primary bg-primary/[0.05] shadow-sm' : 'border-border'}`}
+          >
+            <p className="text-[11px] font-medium text-muted-foreground">{item.label}</p>
+            <p className={`mt-1 text-xl font-bold ${item.tone}`}>{summaryLoading ? '—' : item.value.toLocaleString('id-ID')}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder="Cari nama produk..."
+            aria-label="Cari nama produk"
+            className="h-10 pl-9 pr-9"
+          />
+          {searchInput && (
+            <button type="button" onClick={() => setSearchInput('')} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Hapus pencarian">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ProductStatusFilter)}>
+          <SelectTrigger className="h-10 w-full sm:w-[180px]" aria-label="Filter status produk">
+            <Filter className="mr-2 h-4 w-4 opacity-70" />
+            <SelectValue placeholder="Status produk" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua status</SelectItem>
+            <SelectItem value="active">Aktif</SelectItem>
+            <SelectItem value="inactive">Nonaktif</SelectItem>
+            <SelectItem value="out_of_stock">Stok habis</SelectItem>
+            <SelectItem value="low_stock">Stok menipis</SelectItem>
+            <SelectItem value="promo">Sedang promo</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="h-10 w-full sm:w-[190px]" aria-label="Filter kategori produk">
+            <SelectValue placeholder="Kategori" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua kategori</SelectItem>
+            {categories.map((category) => <SelectItem key={category.id} value={category.slug}>{getCategoryDisplayLabel(categories as ProductCategory[], category)}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
         columns={columns}
         data={products}
         loading={loading}
-        searchKeys={['name']}
-        filters={filters}
+        pageSize={PAGE_SIZE}
+        searchKeys={undefined}
+        filters={[]}
+        error={productsError ? 'Daftar produk gagal dimuat. Periksa koneksi lalu coba lagi.' : null}
+        onRetry={() => void refetchProducts()}
         mobileCardAriaLabel="Daftar produk versi kartu"
         mobileCardRender={(item) => {
           const isOutOfStock = item.stock === 0;
-          const isLowStock = !isOutOfStock && item.stock <= 5;
+          const threshold = item.low_stock_threshold ?? item.min_stock_alert ?? 5;
+          const isLowStock = !isOutOfStock && item.stock <= threshold;
           return (
             <div className="space-y-3">
               <div className="flex items-start gap-3">
@@ -390,6 +560,23 @@ export default function MerchantProductsPage() {
           );
         }}
       />
+
+      {!productsError && totalProducts > 0 && (
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            Menampilkan <span className="text-foreground">{(currentPage - 1) * PAGE_SIZE + 1}</span>–<span className="text-foreground">{Math.min(currentPage * PAGE_SIZE, totalProducts)}</span> dari <span className="text-foreground">{totalProducts}</span> produk
+          </p>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1 || loading} aria-label="Halaman sebelumnya">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="px-2 text-xs font-semibold">{currentPage} / {totalPages}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages || loading} aria-label="Halaman berikutnya">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
