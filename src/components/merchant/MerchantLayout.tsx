@@ -48,6 +48,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
     if (!isMobileDialogOpen) return;
 
     const previousOverflow = document.body.style.overflow;
+    const menuTrigger = menuTriggerRef.current;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = 'hidden';
 
@@ -89,8 +90,8 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', onDialogKeyDown);
       document.body.style.overflow = previousOverflow;
-      if (menuTriggerRef.current?.isConnected) menuTriggerRef.current.focus();
-      else previousFocus?.focus();
+      if (menuTrigger?.isConnected && menuTrigger.getClientRects().length > 0) menuTrigger.focus();
+      else if (previousFocus?.isConnected && previousFocus.getClientRects().length > 0) previousFocus.focus();
     };
   }, [isMobileDialogOpen]);
 
@@ -102,7 +103,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
           aria-label="Tutup menu pedagang"
           aria-hidden="true"
           tabIndex={-1}
-          className="fixed inset-0 z-40 cursor-default bg-slate-950/45 backdrop-blur-[2px] lg:hidden"
+          className="fixed inset-0 z-40 cursor-default bg-slate-950/35 backdrop-blur-[1px] lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}

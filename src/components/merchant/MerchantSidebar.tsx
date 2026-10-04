@@ -331,7 +331,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
   };
 
   return (
-    <aside className="flex h-dvh w-[min(18rem,72vw)] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground shadow-2xl lg:w-64 lg:shadow-none" aria-label="Navigasi pedagang">
+    <aside className="flex h-dvh w-[min(20rem,calc(100vw-2.5rem))] flex-col border-r border-sidebar-border bg-sidebar font-body text-sidebar-foreground shadow-2xl lg:w-64 lg:shadow-none" aria-label="Navigasi pedagang">
       <div className="flex min-h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-4 sm:px-5">
         <Link to="/merchant" onClick={onNavigate} className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-emerald-700 text-sidebar-primary-foreground shadow-sm shadow-sidebar-primary/20">
@@ -422,8 +422,8 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                   aria-controls={`merchant-sidebar-group-${group.id}`}
                   onClick={() => toggleMerchantGroup(group.id)}
                   className={cn(
-                    'min-h-11 h-auto w-full justify-between rounded-none border-l-2 px-4 py-2 text-left font-body text-sm transition-colors',
-                    active ? 'border-sidebar-primary text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
+                    'min-h-11 h-auto w-full justify-between rounded-none border-l-2 px-4 py-2 text-left font-body text-sm transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring',
+                    active ? 'border-sidebar-primary bg-sidebar-accent text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-3">
@@ -452,8 +452,8 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                       aria-controls={`merchant-sidebar-group-${groupId.replace(':', '-')}`}
                       onClick={() => toggleMerchantGroup(groupId)}
                       className={cn(
-                        'min-h-11 h-auto w-full justify-between rounded-none border-l-2 px-4 py-2 text-left font-body text-sm transition-colors',
-                        active ? 'border-sidebar-primary text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
+                        'min-h-11 h-auto w-full justify-between rounded-none border-l-2 px-4 py-2 text-left font-body text-sm transition-colors hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-ring',
+                        active ? 'border-sidebar-primary bg-sidebar-accent text-sidebar-accent-foreground' : 'border-transparent text-sidebar-foreground',
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-3">
