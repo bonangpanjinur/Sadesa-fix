@@ -20,7 +20,7 @@ export function ProtectedRoute({
   exclusiveRegistration = false,
 }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { roles, loading: rolesLoading, hasAnyRole } = useUserRoles();
+  const { roles, loading: rolesLoading, merchantRoleRecoveryLoading, hasAnyRole } = useUserRoles();
   const location = useLocation();
   const posRouteRoles: AppRole[] = ['admin', 'merchant'];
   const isPOSRoute = location.pathname === '/pos' || location.pathname.startsWith('/pos/');
@@ -68,6 +68,7 @@ export function ProtectedRoute({
 
   // Show loading while checking auth state
   const waitingForRequiredRoles = (Boolean(routeRequiredRoles?.length) && rolesLoading)
+    || (isMerchantWorkspaceRoute && !roles.includes('merchant') && merchantRoleRecoveryLoading)
     || merchantAccessLoading;
 
   if (authLoading || waitingForRequiredRoles) {

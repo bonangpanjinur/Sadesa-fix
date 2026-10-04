@@ -9,12 +9,13 @@ import { getPOSNavigationItem } from './posNavigation';
 import { canAccessPOSPath, getPOSPermission } from './posPermissionConfig';
 
 export function POSAccessRoute({ children }: { children: React.ReactNode }) {
-  const { user, roles, rolesLoading } = useAuth();
+  const { user, roles, rolesLoading, merchantRoleRecoveryLoading } = useAuth();
   const { tenant, posEnabled, posRole, posRoleLoading } = usePOS();
   const location = useLocation();
   const isSetupRoute = location.pathname === '/merchant/pos/setup' || location.pathname === '/pos/setup';
 
-  if (rolesLoading || (Boolean(user) && posRoleLoading)) {
+  if (rolesLoading || (Boolean(user) && posRoleLoading)
+    || (Boolean(user) && !roles.includes('merchant') && merchantRoleRecoveryLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">

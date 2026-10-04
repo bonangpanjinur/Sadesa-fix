@@ -8,10 +8,10 @@ import { getRedirectPathForRoles } from '@/types/auth';
  * knowing which role-specific workspace they belong to.
  */
 export function DashboardRoute() {
-  const { user, roles, loading, rolesLoading } = useAuth();
+  const { user, roles, loading, rolesLoading, merchantRoleRecoveryLoading } = useAuth();
   const location = useLocation();
 
-  if (loading || (user && rolesLoading)) {
+  if (loading || (user && (rolesLoading || merchantRoleRecoveryLoading))) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background" role="status" aria-live="polite">
         <div className="flex flex-col items-center gap-3">

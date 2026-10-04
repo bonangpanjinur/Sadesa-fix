@@ -9,6 +9,7 @@ export function useUserRoles() {
   const { 
     roles, 
     rolesLoading: loading, 
+    merchantRoleRecoveryLoading,
     hasRole, 
     hasAnyRole,
     isAdmin,
@@ -23,6 +24,7 @@ export function useUserRoles() {
   return {
     roles,
     loading,
+    merchantRoleRecoveryLoading,
     error: null, // For backwards compatibility
     hasRole,
     hasAnyRole,

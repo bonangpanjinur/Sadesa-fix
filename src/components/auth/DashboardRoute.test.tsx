@@ -83,4 +83,19 @@ describe('DashboardRoute', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Memuat dashboard');
     expect(screen.queryByTestId('current-path')).not.toBeInTheDocument();
   });
+
+  it('waits for merchant profile recovery before choosing a dashboard', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { id: 'user-1', email: 'user@example.test' },
+      roles: ['buyer'],
+      loading: false,
+      rolesLoading: false,
+      merchantRoleRecoveryLoading: true,
+    } as ReturnType<typeof useAuth>);
+
+    renderDashboardRoute();
+
+    expect(screen.getByRole('status')).toHaveTextContent('Memuat dashboard');
+    expect(screen.queryByTestId('current-path')).not.toBeInTheDocument();
+  });
 });

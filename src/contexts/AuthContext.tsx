@@ -45,6 +45,7 @@ interface AuthContextType {
   roles: AppRole[];
   loading: boolean;
   rolesLoading: boolean;
+  merchantRoleRecoveryLoading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<{
     data: { user: unknown; session: unknown };
     error: Error | null;
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(true);
+  const [merchantRoleRecoveryLoading, setMerchantRoleRecoveryLoading] = useState(false);
   const broadcastRef = useRef<BroadcastChannel | null>(null);
   const rolesRequestRef = useRef(0);
   const activeUserIdRef = useRef<string | null>(null);
@@ -86,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     activeUserIdRef.current = userId;
     const request = (async () => {
       setRolesLoading(true);
+      setMerchantRoleRecoveryLoading(false);
       const { data, error } = await withTimeout(
         supabase
           .from('user_roles')
@@ -99,6 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userRoles = (data || []).map(r => r.role as AppRole);
 
       if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
+      const needsMerchantRecovery = !userRoles.includes('merchant');
+      setMerchantRoleRecoveryLoading(needsMerchantRecovery);
       // The authoritative role result is enough to finish auth initialization.
       // Legacy profile recovery below may enrich this list, but must not keep
       // route guards and the whole application in a loading state.
@@ -110,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Do not query both profile tables for every authenticated user. The
       // authoritative role row is enough for normal accounts; only legacy
       // accounts missing a role need the corresponding recovery lookup.
-      const needsMerchantRecovery = !userRoles.includes('merchant');
       const needsCourierRecovery = !userRoles.includes('courier');
       const [merchantResult, courierResult] = await Promise.all([
         needsMerchantRecovery
@@ -146,10 +150,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Unable to load user roles; using buyer fallback:', err);
       if (requestId !== rolesRequestRef.current || activeUserIdRef.current !== userId) return;
       setRoles(['buyer']);
+      // A transient user_roles failure must not send a merchant to
+      // /unauthorized before we have tried the existing profile fallback.
+      setMerchantRoleRecoveryLoading(true);
+      try {
+        const { data: merchant, error } = await withTimeout(
+          supabase.from('merchants').select('id').eq('user_id', userId).limit(1).maybeSingle(),
+          AUTH_ROLE_RECOVERY_TIMEOUT_MS,
+          'Timed out while checking merchant profile after role lookup failed',
+        );
+        if (error) throw error;
+        if (merchant && requestId === rolesRequestRef.current && activeUserIdRef.current === userId) {
+          setRoles(['merchant', 'buyer']);
+        }
+      } catch (recoveryError) {
+        console.warn('Unable to recover merchant role after role lookup failed:', recoveryError);
+      }
     } finally {
       if (rolesInFlightRef.current.get(userId) === request) rolesInFlightRef.current.delete(userId);
       if (requestId === rolesRequestRef.current && activeUserIdRef.current === userId) {
         setRolesLoading(false);
+        setMerchantRoleRecoveryLoading(false);
       }
     }
   }, []);
@@ -179,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ++rolesRequestRef.current;
           activeUserIdRef.current = null;
           setRoles([]);
+          setMerchantRoleRecoveryLoading(false);
           setRolesLoading(false);
         }
       }
@@ -209,6 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ++rolesRequestRef.current;
       activeUserIdRef.current = null;
       setRoles([]);
+      setMerchantRoleRecoveryLoading(false);
       setRolesLoading(false);
       setLoading(false);
     });
@@ -234,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ++rolesRequestRef.current;
         activeUserIdRef.current = null;
         setRoles([]);
+        setMerchantRoleRecoveryLoading(false);
         setLoading(false);
         setRolesLoading(false);
         // Arahkan ke halaman auth
@@ -320,6 +344,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         roles,
         loading,
         rolesLoading,
+        merchantRoleRecoveryLoading,
         signUp,
         signIn,
         signOut,
