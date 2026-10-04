@@ -322,18 +322,6 @@ export default function MerchantDashboardPage() {
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
       <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
-        <section className="rounded-2xl border border-warning/30 bg-warning/[0.04] p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4" aria-label="Pesanan perlu tindakan">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning"><Bell className="h-5 w-5" /></div>
-            <div>
-              <p className="text-sm font-semibold">{pendingOrdersLoading ? 'Memuat pesanan perlu tindakan...' : pendingOrdersError ? 'Pesanan perlu tindakan belum tersedia' : pendingOrderCount ? `${pendingOrderCount} pesanan perlu tindakan` : 'Tidak ada pesanan yang perlu tindakan'}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{pendingOrdersError ? 'Coba lagi untuk memastikan jumlah pesanan terbaru.' : 'Prioritaskan konfirmasi sebelum melihat statistik lainnya.'}</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" className="mt-3 sm:mt-0" onClick={() => navigate('/merchant/orders')}>
-            <Receipt className="mr-2 h-4 w-4" />Buka pesanan
-          </Button>
-        </section>
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
           <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] via-card to-card p-5 shadow-sm sm:p-7">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
@@ -347,13 +335,7 @@ export default function MerchantDashboardPage() {
                   {greeting}, {merchant.name}
                 </h2>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-                  {pendingOrdersLoading
-                    ? 'Memuat ringkasan pesanan...'
-                    : pendingOrdersError
-                      ? 'Ringkasan pesanan gagal dimuat. Periksa kembali sebelum mengambil tindakan.'
-                      : pendingOrderCount > 0
-                        ? `Ada ${pendingOrderCount} pesanan baru yang perlu Anda konfirmasi.`
-                        : 'Semua pesanan sudah tertangani. Gunakan waktu ini untuk merapikan toko.'}
+                  Pantau pesanan dan kelola toko melalui ringkasan operasional hari ini.
                 </p>
               </div>
               <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
@@ -365,6 +347,40 @@ export default function MerchantDashboardPage() {
                   <CircleCheck className="h-3.5 w-3.5 text-success" />
                   Data diperbarui otomatis
                 </span>
+              </div>
+              <div className="mt-6 flex flex-wrap items-center gap-2" aria-live="polite">
+                {pendingOrdersError ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => navigate('/merchant/orders')}>
+                      <Receipt className="mr-2 h-4 w-4" />Buka daftar pesanan
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => void refetchPendingOrders()}>
+                      Coba lagi
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant={pendingOrderCount > 0 ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => navigate('/merchant/orders')}
+                    disabled={pendingOrdersLoading}
+                  >
+                    {pendingOrdersLoading ? (
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-current" aria-hidden="true" />
+                    ) : pendingOrderCount > 0 ? (
+                      <Bell className="h-4 w-4" />
+                    ) : (
+                      <Receipt className="h-4 w-4" />
+                    )}
+                    {pendingOrdersLoading
+                      ? 'Memeriksa pesanan…'
+                      : pendingOrderCount > 0
+                        ? `Tinjau ${pendingOrderCount} pesanan`
+                        : 'Lihat daftar pesanan'}
+                    {!pendingOrdersLoading && <ArrowUpRight className="h-4 w-4" aria-hidden="true" />}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -433,49 +449,15 @@ export default function MerchantDashboardPage() {
           <MerchantKasCard merchantId={merchant.id} />
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+        <section aria-label="Ringkasan hari ini" className="max-w-4xl">
           <DailySummaryCard merchantId={merchant.id} />
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Kondisi hari ini</p>
-                <h3 className="mt-1 text-base font-semibold">Aktivitas pesanan</h3>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-            </div>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {pendingOrdersError
-                ? 'Ringkasan pesanan gagal dimuat.'
-                : pendingOrdersLoading
-                  ? 'Memuat ringkasan pesanan...'
-                  : pendingOrderCount > 0
-                    ? 'Prioritaskan pesanan baru agar waktu respons toko tetap cepat.'
-                    : 'Belum ada pesanan yang membutuhkan tindakan segera.'}
-            </p>
-            <div className="mt-5 flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-3">
-              <div className={cn(
-                'flex h-9 w-9 items-center justify-center rounded-lg',
-                pendingOrderCount > 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success'
-              )}>
-                {pendingOrderCount > 0 ? <Bell className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-              </div>
-              <div>
-                <p className="text-sm font-semibold">
-                  {pendingOrdersError ? 'Data belum tersedia' : pendingOrdersLoading ? 'Memuat...' : pendingOrderCount > 0 ? `${pendingOrderCount} perlu ditinjau` : 'Semua tertangani'}
-                </p>
-                <p className="text-xs text-muted-foreground">Jumlah dari seluruh pesanan merchant</p>
-              </div>
-            </div>
-          </div>
         </section>
 
         <section>
           <div className="mb-3 flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Snapshot performa</p>
-              <h3 className="mt-1 text-lg font-semibold tracking-tight">Angka penting toko Anda</h3>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Detail operasional</p>
+              <h3 className="mt-1 text-lg font-semibold tracking-tight">Status pesanan hari ini</h3>
             </div>
             <span className="hidden text-xs text-muted-foreground sm:block">Hari ini</span>
           </div>
