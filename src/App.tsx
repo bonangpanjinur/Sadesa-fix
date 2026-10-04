@@ -402,9 +402,11 @@ function HomeRoute() {
   const skipRoleRedirect = (location.state as { skipRoleRedirect?: boolean } | null)?.skipRoleRedirect === true;
   const isManualHomeNavigation = manualHomeNavigationKeys.has(location.key)
     || (skipRoleRedirect && navigationType !== 'POP');
-  const query = new URLSearchParams(location.search);
   const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
-  const isRecoveryCallback = query.has('code') || hash.get('type') === 'recovery';
+  // Signup confirmation and password recovery can both use a PKCE `code`.
+  // Recovery links are sent directly to /reset-password, so only legacy
+  // recovery callbacks that land on the home route need redirecting here.
+  const isRecoveryCallback = hash.get('type') === 'recovery';
 
   useEffect(() => {
     if (skipRoleRedirect && navigationType !== 'POP') {
