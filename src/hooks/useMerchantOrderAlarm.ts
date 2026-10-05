@@ -76,6 +76,23 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
       if (pendingOrderIds.current.size === 0) stopOrderNotificationSound('merchant');
     };
 
+    const announceBrowserOrder = (order: OrderAlarmPayload) => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      try {
+        const notification = new Notification('Pesanan Baru', {
+          body: `Pesanan dari ${order.delivery_name || 'Pelanggan'} menunggu diproses.`,
+          tag: `merchant-order-${order.id}`,
+          requireInteraction: true,
+        });
+        notification.onclick = () => {
+          window.focus();
+          window.location.assign(`/merchant/orders?orderId=${order.id}`);
+          notification.close();
+        };
+      } catch (error) {
+        console.warn('[merchant-order-alarm] browser notification failed', error);
+      }
+    };
     const handleOrderChange = (order: OrderAlarmPayload) => {
       if (!isMerchantActive()) return;
       const isPending = PENDING_STATUSES.includes(order.status || '');
@@ -85,6 +102,7 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
         pendingOrderIds.current.add(order.id);
         if (!wasPending) {
           void playOrderNotificationSound('merchant');
+          announceBrowserOrder(order);
           toast.info('Pesanan baru masuk!', {
             description: `Pesanan dari ${order.delivery_name || 'Pelanggan'}`,
             action: {

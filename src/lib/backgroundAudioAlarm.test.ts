@@ -51,15 +51,17 @@ describe('courier background alarm contract', () => {
     expect(courierDeliveryOfferPush).toContain('AFTER INSERT ON public.delivery_assignments');
   });
 
-  it('activates merchant Web Push from the merchant header gesture', () => {
-    expect(merchantLayout).toContain('subscribeToPush(user.id)');
+  it('activates merchant page alarm without depending on Web Push backend', () => {
+    expect(merchantLayout).toContain('requestPushPermission()');
+    expect(merchantLayout).not.toContain('subscribeToPush(user.id)');
     expect(merchantLayout).toContain('Aktifkan Alarm &amp; Notifikasi');
-    expect(merchantLayout).toContain('Izin audio dan langganan push tersimpan di perangkat ini');
+    expect(merchantLayout).toContain('Alarm pesanan aktif');
   });
 
   it('automatically plays the merchant alarm for a newly pending realtime order', () => {
     expect(merchantAlarmHook).toContain("event: 'INSERT', schema: 'public', table: 'orders'");
     expect(merchantAlarmHook).toContain("void playOrderNotificationSound('merchant')");
+    expect(merchantAlarmHook).toContain('new Notification');
     expect(merchantAlarmHook).toContain("const PENDING_STATUSES = ['NEW', 'PENDING_CONFIRMATION', 'PENDING_PAYMENT']");
   });
 
