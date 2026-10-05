@@ -48,10 +48,29 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       }
     };
 
-    const alertNewOffer = () => {
+    const announceBrowserOffer = (kind: 'ride' | 'order', id: string) => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      try {
+        const isRide = kind === 'ride';
+        const notification = new Notification(isRide ? 'Tawaran Ojek Baru' : 'Order Antar Baru', {
+          body: isRide ? 'Ada perjalanan baru yang menunggu diterima.' : 'Ada order antar baru yang menunggu diterima.',
+          tag: `courier-${kind}-${id}`,
+          requireInteraction: true,
+        });
+        notification.onclick = () => {
+          window.focus();
+          window.location.assign(isRide ? '/courier/rides' : '/courier/deliveries');
+          notification.close();
+        };
+      } catch (error) {
+        console.warn('[courier-order-alarm] browser notification failed', error);
+      }
+    };
+    const alertNewOffer = (kind: 'ride' | 'order', id: string) => {
       if (!isOnline()) return;
       vibrateCourierAlarm();
       void playOrderNotificationSound('courier');
+      announceBrowserOffer(kind, id);
     };
 
     const updatePending = (kind: 'ride' | 'order', id: string, isPending: boolean) => {
@@ -60,7 +79,7 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       if (isPending) {
         if (!pendingIds.has(id)) {
           pendingIds.add(id);
-          alertNewOffer();
+          alertNewOffer(kind, id);
         }
         return;
       }
@@ -150,7 +169,10 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
       pendingRideIds.current = new Set(nextRideIds);
       pendingOrderIds.current = nextOrderIds;
       hasSeededWork = true;
-      if (notifyNew && hasExistingSeed && (hasNewRide || hasNewOrder)) alertNewOffer();
+      if (notifyNew && hasExistingSeed && (hasNewRide || hasNewOrder)) {
+        if (hasNewRide) alertNewOffer('ride', [...nextRideIds][0]);
+        else alertNewOffer('order', [...nextOrderIds][0]);
+      }
       syncSound();
     };
 

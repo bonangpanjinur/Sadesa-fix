@@ -11,6 +11,7 @@ const merchantPushBundle = readFileSync(resolve(process.cwd(), 'supabase/bootstr
 const merchantSettingsPage = readFileSync(resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'), 'utf8');
 const notificationWorker = readFileSync(resolve(process.cwd(), 'supabase/functions/process-notification-queue/index.ts'), 'utf8');
 const merchantAlarmHook = readFileSync(resolve(process.cwd(), 'src/hooks/useMerchantOrderAlarm.ts'), 'utf8');
+const courierAlarmHook = readFileSync(resolve(process.cwd(), 'src/hooks/useCourierOrderAlarm.ts'), 'utf8');
 const audioPermissionModal = readFileSync(resolve(process.cwd(), 'src/components/audio/AudioPermissionModal.tsx'), 'utf8');
 const audioPermissionHook = readFileSync(resolve(process.cwd(), 'src/hooks/useAudioPermission.ts'), 'utf8');
 const audioManager = readFileSync(resolve(process.cwd(), 'src/lib/audioManager.ts'), 'utf8');
@@ -38,10 +39,12 @@ describe('courier background alarm contract', () => {
     expect(soundManager).toContain('unlockOrderNotificationAudio');
   });
 
-  it('activates courier push and page alarm from a user gesture', () => {
+  it('activates courier page alarm without depending on Web Push backend', () => {
     expect(courierLayout).toContain('unlockOrderNotificationAudio()');
-    expect(courierLayout).toContain('subscribeToPush(user.id)');
-    expect(courierLayout).toContain('Aktifkan Push &amp; Alarm');
+    expect(courierLayout).toContain('requestPushPermission()');
+    expect(courierLayout).not.toContain('subscribeToPush(user.id)');
+    expect(courierLayout).toContain('Aktifkan Alarm Ojek');
+    expect(courierAlarmHook).toContain('new Notification');
   });
 
   it('queues push for targeted Ojek rides and delivery offers', () => {
