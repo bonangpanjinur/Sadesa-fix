@@ -10,7 +10,6 @@ import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
 import { HomeServiceCards } from '@/components/home/HomeServiceCards';
-import { ProductCategoryCards } from '@/components/home/ProductCategoryCards';
 import { 
   fetchProducts, 
   fetchVillages, 
@@ -441,7 +440,6 @@ const Index = () => {
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
           <div className="pb-3 pt-3">
             <HomeServiceCards />
-            {enabledSectionIds.has('categories') && <ProductCategoryCards />}
           </div>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           <div className="mt-6 space-y-6 pb-6">

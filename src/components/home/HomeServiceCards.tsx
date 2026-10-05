@@ -1,58 +1,55 @@
-import { Coffee, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const services = [
-  {
-    name: 'Makanan',
-    href: '/products?type=makanan',
-    icon: UtensilsCrossed,
-    palette: {
-      icon: 'bg-[#E31019] text-white shadow-[0_6px_14px_-6px_#E31019]',
-      title: 'text-[#a70c16]',
-    },
-  },
-  {
-    name: 'Minuman',
-    href: '/products?type=minuman',
-    icon: Coffee,
-    palette: {
-      icon: 'bg-[#015730] text-white shadow-[0_6px_14px_-6px_#015730]',
-      title: 'text-[#015730]',
-    },
-  },
-  {
-    name: 'Belanja',
-    href: '/products?type=kelontongan',
-    icon: ShoppingBag,
-    palette: {
-      icon: 'bg-[#d99a00] text-white shadow-[0_6px_14px_-6px_#d99a00]',
-      title: 'text-[#8a5a00]',
-    },
-  },
-];
+import { supabase } from '@/integrations/supabase/client';
+import {
+  EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES,
+  HOMEPAGE_SERVICE_CARDS,
+  parseHomepageServiceCardImageOverrides,
+} from '@/lib/homeServiceCards';
 
 export function HomeServiceCards() {
+  const { data: imageOverrides = EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES } = useQuery({
+    queryKey: ['homepage-service-card-images'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'homepage_service_card_images')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading homepage service card images:', error);
+        return { ...EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES };
+      }
+
+      return parseHomepageServiceCardImageOverrides(data?.value);
+    },
+  });
+
   return (
-    <section className="mx-4" aria-labelledby="home-services-title">
-      <div className="mb-3">
-        <h2 id="home-services-title" className="font-heading text-base font-extrabold tracking-tight text-[#173d2c]">
-          Kategori utama
-        </h2>
-        <p className="mt-1 text-xs leading-relaxed text-[#557365]">
-          Makanan lokal, minuman, dan kebutuhan harian dalam satu tempat.
-        </p>
-      </div>
+    <section className="mx-4" aria-label="Kategori utama">
       <div className="grid grid-cols-3 gap-2.5">
-        {services.map(({ name, href, icon: Icon, palette }) => (
+        {HOMEPAGE_SERVICE_CARDS.map((card) => (
           <Link
-            key={name}
-            to={href}
-            className="group flex min-h-[5.75rem] min-w-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[#e7eee3] bg-white px-2 py-2.5 text-center shadow-[0_8px_20px_-18px_rgba(1,87,48,0.5)] transition duration-200 hover:-translate-y-0.5 hover:border-[#b8d9a6] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b] active:scale-[0.98]"
+            key={card.id}
+            to={card.href}
+            aria-label={card.title}
+            className="group relative aspect-[1.12/1] min-w-0 overflow-hidden rounded-2xl bg-secondary shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98]"
           >
-            <span className={`flex h-10 w-10 items-center justify-center rounded-[0.9rem] ${palette.icon}`}>
-              <Icon className="h-[18px] w-[18px] stroke-[2.1] transition-transform duration-200 group-hover:scale-110" aria-hidden="true" />
+            <img
+              src={imageOverrides[card.id] || card.fallbackImage}
+              alt={card.imageAlt}
+              className="absolute inset-0 h-full w-full object-cover object-right transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+            <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
+            <span className="absolute bottom-3 left-3 right-10 text-left text-sm font-extrabold leading-tight text-white drop-shadow sm:text-base">
+              {card.title}
             </span>
-            <span className={`w-full text-[11px] font-bold leading-tight sm:text-xs ${palette.title}`}>{name}</span>
+            <span aria-hidden="true" className="absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary shadow-sm transition-transform group-hover:translate-x-0.5">
+              <ChevronRight className="h-5 w-5" />
+            </span>
           </Link>
         ))}
       </div>

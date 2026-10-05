@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Save, Loader2, Image as ImageIcon, Palette, Globe, Type, Upload, CheckCircle2, Info, RefreshCw, Search, Plus, Edit2, Trash2, Eye, EyeOff, Share2, Layout, GripVertical, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,11 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
+import {
+  EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES,
+  HOMEPAGE_SERVICE_CARDS,
+  parseHomepageServiceCardImageOverrides,
+} from '@/lib/homeServiceCards';
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
@@ -140,6 +146,7 @@ interface BrandingAppearanceSettingsProps {
 
 export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave }: BrandingAppearanceSettingsProps) {
   const { refetch: refetchWhitelabel } = useWhitelabel();
+  const queryClient = useQueryClient();
   
   // Whitelabel State
   const [siteName, setSiteName] = useState('SaDesa');
@@ -193,6 +200,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
   const [allCategories, setAllCategories] = useState<{id: string; name: string}[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [recommendationBanner, setRecommendationBanner] = useState<HomepageRecommendationBanner>(DEFAULT_RECOMMENDATION_BANNER);
+  const [homepageServiceCardImages, setHomepageServiceCardImages] = useState({ ...EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES });
 
   // Loading & Saving State
   const [loading, setLoading] = useState(true);
@@ -284,10 +292,11 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
       setSeoSettings(seoData || []);
 
       // Fetch Homepage Layout and Dynamic Categories in parallel
-      const [layoutRes, categoriesRes, recommendationRes] = await Promise.all([
+      const [layoutRes, categoriesRes, recommendationRes, serviceCardImagesRes] = await Promise.all([
         supabase.from('app_settings').select('value').eq('key', 'homepage_layout').maybeSingle(),
         supabase.from('categories').select('id, name, slug').eq('is_active', true).order('sort_order'),
         supabase.from('app_settings').select('value').eq('key', 'homepage_recommendation_banner').maybeSingle(),
+        supabase.from('app_settings').select('value').eq('key', 'homepage_service_card_images').maybeSingle(),
       ]);
 
       const cats = (categoriesRes.data || []).map(c => ({ id: c.slug, name: c.name }));
@@ -307,6 +316,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
       if (recommendationRes.data?.value && typeof recommendationRes.data.value === 'object' && !Array.isArray(recommendationRes.data.value)) {
         setRecommendationBanner({ ...DEFAULT_RECOMMENDATION_BANNER, ...(recommendationRes.data.value as unknown as Partial<HomepageRecommendationBanner>) });
       }
+      setHomepageServiceCardImages(parseHomepageServiceCardImageOverrides(serviceCardImagesRes.data?.value));
     } catch (error) {
       console.error('Error fetching settings:', error);
       toast.error('Gagal memuat beberapa pengaturan');
@@ -530,6 +540,28 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
     } catch (error) {
       console.error('Error saving layout:', error);
       toast.error('Gagal menyimpan layout beranda');
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSaveHomepageServiceCardImages = async () => {
+    setSaving('service-card-images');
+    try {
+      const { error } = await supabase.from('app_settings').upsert({
+        key: 'homepage_service_card_images',
+        category: 'layout',
+        value: homepageServiceCardImages as unknown as JsonValue,
+        description: 'Gambar untuk tiga kartu layanan utama di halaman beranda',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'key' });
+
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ['homepage-service-card-images'] });
+      toast.success('Gambar menu utama berhasil disimpan');
+    } catch (error) {
+      console.error('Error saving homepage service card images:', error);
+      toast.error('Gagal menyimpan gambar menu utama');
     } finally {
       setSaving(null);
     }
@@ -900,6 +932,46 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               <Button onClick={handleSaveHomepageLayout} disabled={saving === 'layout'} className="w-full">
                 {saving === 'layout' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 Simpan Layout
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Gambar Menu Utama</CardTitle>
+              <CardDescription>Atur gambar untuk kartu Makanan &amp; Minuman, Ojek, dan Belanja yang tampil di halaman beranda.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-5 md:grid-cols-3">
+                {HOMEPAGE_SERVICE_CARDS.map((card) => (
+                  <div key={card.id} className="space-y-2">
+                    <Label>{card.title}</Label>
+                    <ImageUpload
+                      bucket="admin-assets"
+                      path={`homepage/service-cards/${card.id}`}
+                      value={homepageServiceCardImages[card.id] || card.fallbackImage}
+                      onChange={(url) => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: url }))}
+                      aspectRatio="wide"
+                      stableFileName
+                      placeholder={`Upload gambar ${card.title}`}
+                    />
+                    <p className="text-xs text-muted-foreground">Unggah gambar JPG, PNG, WEBP, atau GIF (maks. 5 MB). Tombol hapus mengembalikan gambar bawaan.</p>
+                    {homepageServiceCardImages[card.id] && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto px-0"
+                        onClick={() => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: null }))}
+                      >
+                        Gunakan gambar bawaan
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button onClick={handleSaveHomepageServiceCardImages} disabled={saving === 'service-card-images'} className="w-full">
+                {saving === 'service-card-images' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Simpan Gambar Menu Utama
               </Button>
             </CardContent>
           </Card>
