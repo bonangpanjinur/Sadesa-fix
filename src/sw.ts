@@ -118,6 +118,15 @@ self.addEventListener('push', (event) => {
     console.error('Error parsing push data:', error);
   }
 
+  const notificationType = data.data?.type;
+  const merchantOrderId = typeof data.data?.order_id === 'string' ? data.data.order_id : null;
+  const isPersistentOrderAlert = notificationType === 'new_ride_request'
+    || notificationType === 'new_delivery_offer'
+    || notificationType === 'new_merchant_order';
+  const notificationUrl = notificationType === 'new_merchant_order' && merchantOrderId
+    ? `/merchant/orders?orderId=${encodeURIComponent(merchantOrderId)}`
+    : data.url;
+
   const notificationOptions: NotificationOptions & {
     vibrate?: number[];
     actions?: Array<{ action: string; title: string }>;
@@ -127,13 +136,13 @@ self.addEventListener('push', (event) => {
       icon: data.icon,
       badge: '/branding/sadesa-favicon.png',
       silent: false,
-      requireInteraction: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer' || data.data?.type === 'new_merchant_order',
-      tag: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer' || data.data?.type === 'new_merchant_order'
-        ? `order-${data.data.type}`
-        : undefined,
+      requireInteraction: isPersistentOrderAlert,
+      tag: notificationType === 'new_merchant_order' && merchantOrderId
+        ? `merchant-order-${merchantOrderId}`
+        : isPersistentOrderAlert ? `order-${notificationType}` : undefined,
       renotify: true,
       vibrate: [...COURIER_ALARM_VIBRATION_PATTERN],
-      data: { url: data.url },
+      data: { url: notificationUrl },
       actions: [
         { action: 'open', title: 'Buka' },
         { action: 'close', title: 'Tutup' },

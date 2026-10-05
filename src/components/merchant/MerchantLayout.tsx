@@ -187,16 +187,16 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
                   user ? subscribeToPush(user.id) : Promise.resolve(false),
                 ]).then(([audioActivated, pushActivated]) => {
                   if (audioActivated && pushActivated) {
-                    toast.success('Audio alarm pesanan merchant aktif', {
-                      description: 'Banner dan suara sistem akan tetap muncul meskipun aplikasi ditutup.',
+                    toast.success('Izin audio dan langganan push tersimpan di perangkat ini', {
+                      description: 'Saat aplikasi ditutup, push perlu worker dan kunci VAPID Supabase aktif. Bunyi mengikuti pengaturan notifikasi perangkat.',
                     });
                   } else if (audioActivated) {
                     toast.warning('Audio aktif, notifikasi background belum aktif', {
-                      description: getLastPushError() || 'Izinkan notifikasi browser agar banner tetap muncul saat aplikasi ditutup.',
+                      description: getLastPushError() || 'Izinkan notifikasi browser agar push dapat dikirim saat aplikasi ditutup.',
                     });
                   } else if (pushActivated) {
-                    toast.warning('Notifikasi background aktif, audio belum aktif', {
-                      description: 'Izinkan audio browser lalu tekan tombol ini kembali.',
+                    toast.warning('Langganan push tersimpan, audio halaman belum aktif', {
+                      description: 'Izinkan audio browser lalu tekan tombol ini kembali. Bunyi saat aplikasi ditutup mengikuti pengaturan notifikasi perangkat.',
                     });
                   } else {
                     toast.error('Audio dan notifikasi belum aktif', {

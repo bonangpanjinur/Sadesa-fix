@@ -553,16 +553,15 @@ export default function MerchantSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><Bell className="h-5 w-5" />Notifikasi</CardTitle>
-            <CardDescription>Atur suara notifikasi pesanan masuk</CardDescription>
+            <CardDescription>Gunakan suara global admin atau atur suara khusus untuk perangkat ini.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-4 rounded-lg bg-secondary/50 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium text-sm">Suara Notifikasi Pesanan Baru</p>
-                <p className="text-xs text-muted-foreground">Pilih jenis suara, atur volume, lalu uji langsung sebelum menyimpan.</p>
+                <p className="text-xs text-muted-foreground">Pilih jenis suara dan volume, lalu uji. Pengaturan khusus hanya berlaku di perangkat ini.</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Switch checked={formData.notification_sound_enabled} onCheckedChange={v => setFormData(p => ({ ...p, notification_sound_enabled: v }))} />
                 <OrderAlarmSettingsControl audience="merchant" />
               </div>
             </div>

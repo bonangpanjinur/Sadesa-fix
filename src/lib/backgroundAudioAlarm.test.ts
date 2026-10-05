@@ -13,6 +13,7 @@ const merchantAlarmHook = readFileSync(resolve(process.cwd(), 'src/hooks/useMerc
 const audioManager = readFileSync(resolve(process.cwd(), 'src/lib/audioManager.ts'), 'utf8');
 const notificationWorkerSchedule = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005150000_notification_delivery_worker_cron.sql'), 'utf8');
 const supabaseFunctionConfig = readFileSync(resolve(process.cwd(), 'supabase/config.toml'), 'utf8');
+const orderAlarmSettingsControl = readFileSync(resolve(process.cwd(), 'src/components/notifications/OrderAlarmSettingsControl.tsx'), 'utf8');
 
 describe('courier background alarm contract', () => {
   it('keeps a user-gesture-unlocked media fallback for hidden tabs', () => {
@@ -30,6 +31,7 @@ describe('courier background alarm contract', () => {
   it('activates merchant Web Push from the merchant header gesture', () => {
     expect(merchantLayout).toContain('subscribeToPush(user.id)');
     expect(merchantLayout).toContain('Aktifkan Alarm &amp; Notifikasi');
+    expect(merchantLayout).toContain('Izin audio dan langganan push tersimpan di perangkat ini');
   });
 
   it('automatically plays the merchant alarm for a newly pending realtime order', () => {
@@ -59,13 +61,18 @@ describe('courier background alarm contract', () => {
 
   it('exposes the merchant alarm test control from store settings', () => {
     expect(merchantSettingsPage).toContain('OrderAlarmSettingsControl');
-    expect(merchantSettingsPage).toContain('Pilih jenis suara, atur volume, lalu uji langsung');
+    expect(merchantSettingsPage).toContain('Pilih jenis suara dan volume, lalu uji');
+    expect(orderAlarmSettingsControl).toContain('Ikuti Global');
+    expect(orderAlarmSettingsControl).toContain('Perubahan di sini hanya berlaku pada perangkat');
+    expect(orderAlarmSettingsControl).toContain('Saat aplikasi ditutup, suara mengikuti notifikasi sistem perangkat.');
   });
 
   it('queues merchant order push delivery on the server', () => {
     expect(merchantPushMigration).toContain("'new_merchant_order'");
     expect(merchantPushMigration).toContain("'push'");
     expect(merchantPushMigration).toContain('notification_delivery_jobs');
+    expect(merchantPushMigration).toContain("'/merchant/orders?orderId=' || NEW.id::TEXT");
+    expect(merchantPushMigration).toContain('CREATE TRIGGER order_notification_trigger');
   });
 
   it('retries instead of acknowledging push jobs when VAPID configuration is missing', () => {
@@ -94,5 +101,7 @@ describe('courier background alarm contract', () => {
     expect(serviceWorker).toContain('silent: false');
     expect(serviceWorker).toContain('vibrate: [...COURIER_ALARM_VIBRATION_PATTERN]');
     expect(serviceWorker).toContain('new_merchant_order');
+    expect(serviceWorker).toContain('`merchant-order-${merchantOrderId}`');
+    expect(serviceWorker).toContain('encodeURIComponent(merchantOrderId)');
   });
 });

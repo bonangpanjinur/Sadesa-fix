@@ -122,6 +122,11 @@ export function OrderAlarmSettingsControl({ audience }: OrderAlarmSettingsContro
                 </div>
                 {profile.custom_audio_url && <p className="truncate text-xs text-muted-foreground">Audio custom global: {profile.custom_audio_url}</p>}
                 <p className="text-xs text-muted-foreground">{hasOverride ? 'Override lokal aktif. Perubahan global admin tidak mengganti pengaturan perangkat ini.' : 'Belum ada override lokal. Nilai ini masih mengikuti pengaturan global admin.'}</p>
+                {audience === 'merchant' && (
+                  <p className="text-xs text-muted-foreground">
+                    Saat aplikasi ditutup, suara mengikuti notifikasi sistem perangkat. Nada pilihan di sini berlaku saat aplikasi masih berjalan.
+                  </p>
+                )}
               </div>
             )}
           </div>

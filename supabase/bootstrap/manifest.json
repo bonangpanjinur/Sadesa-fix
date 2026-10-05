@@ -685,8 +685,8 @@
       "source_files": [
         "20261005124500_merchant_order_push_notification.sql"
       ],
-      "sha256": "da6249ce88594f6a6cc9f97f173a0e1c39ad23413e579026db2903775dcb58e2",
-      "bytes": 2524
+      "sha256": "00d247235da48367d4d0f40428bf18d95a02fef13392bb32de7fc9d5587f3476",
+      "bytes": 2788
     },
     {
       "file": "76_20261005130000_merchant_order_summary_rpc.sql",

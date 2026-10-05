@@ -44,7 +44,7 @@ BEGIN
       'Pesanan Baru',
       'Anda menerima pesanan baru senilai Rp ' || NEW.total::TEXT,
       'order',
-      '/merchant/orders'
+      '/merchant/orders?orderId=' || NEW.id::TEXT
     );
 
     INSERT INTO public.notification_delivery_jobs (
@@ -59,7 +59,7 @@ BEGIN
       jsonb_build_object(
         'title', 'Pesanan Baru',
         'body', 'Anda menerima pesanan baru senilai Rp ' || NEW.total::TEXT || '. Buka aplikasi untuk memproses pesanan.',
-        'url', '/merchant/orders',
+        'url', '/merchant/orders?orderId=' || NEW.id::TEXT,
         'data', jsonb_build_object(
           'type', 'new_merchant_order',
           'order_id', NEW.id::TEXT
@@ -70,6 +70,12 @@ BEGIN
 
   RETURN NEW;
 END;
+$$;
+DROP TRIGGER IF EXISTS order_notification_trigger ON public.orders;
+CREATE TRIGGER order_notification_trigger
+AFTER INSERT OR UPDATE ON public.orders
+FOR EACH ROW
+EXECUTE FUNCTION public.notify_order_change();
 $$$bootstrap_sql_merchant_order_push$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR unique_violation THEN NULL;
