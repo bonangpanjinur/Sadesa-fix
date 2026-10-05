@@ -345,7 +345,28 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
     throw error;
   }
 
-
+  // Some products store their photos in the gallery table instead of the
+  // legacy products.image_url column. Use the first ordered gallery image for
+  // catalogue cards, while keeping the catalogue usable if the optional table
+  // is unavailable on an older deployment.
+  const galleryImageByProduct = new Map<string, string>();
+  const productIds = (data || []).map((item) => item.id).filter(Boolean);
+  if (productIds.length > 0) {
+    const { data: galleryData, error: galleryError } = await supabase
+      .from('product_images')
+      .select('product_id, image_url, sort_order')
+      .in('product_id', productIds)
+      .order('sort_order', { ascending: true });
+    if (galleryError) {
+      console.warn('Unable to load product gallery images:', galleryError.message);
+    } else {
+      for (const image of (galleryData || []) as Array<{ product_id: string; image_url: string | null }>) {
+        if (image.image_url && !galleryImageByProduct.has(image.product_id)) {
+          galleryImageByProduct.set(image.product_id, image.image_url);
+        }
+      }
+    }
+  }
   const merchantIds = [...new Set((data || []).map((p) => p.merchant_id).filter(Boolean))];
   const merchantsWithQuota = await getMerchantsWithActiveQuota(merchantIds);
   const mappedProducts = (data || []).map((rawProduct) => {
@@ -411,7 +432,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
       stock: p.stock,
       // Jangan tampilkan foto menu lain ketika merchant belum mengunggah foto.
       // Placeholder netral lebih jujur daripada membuat dimsum terlihat seperti keripik.
-      image: productImages[p.id] || p.image_url || '/placeholder.svg',
+      image: productImages[p.id] || p.image_url || galleryImageByProduct.get(p.id) || '/placeholder.svg',
       category: p.category as Product['category'],
       categoryId: p.category_id || null,
       isActive: p.is_active,
@@ -499,7 +520,9 @@ export async function fetchProduct(id: string): Promise<Product | null> {
     originalPrice: hasDiscount ? data.price : undefined,
     discountPercent: hasDiscount ? data.discount_percent : undefined,
     stock: data.stock,
-    image: productImages[data.id] || data.image_url || productKeripik,
+    // Do not show an unrelated local product photo when the merchant has not
+    // uploaded an image; the detail gallery can promote product_images instead.
+    image: productImages[data.id] || data.image_url || '/placeholder.svg',
     category: data.category as Product['category'],
     isActive: data.is_active,
     isPromo: data.is_promo,

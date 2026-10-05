@@ -9,7 +9,7 @@ interface ProductImageGalleryProps {
 }
 
 export function ProductImageGallery({ productId, mainImage, productName }: ProductImageGalleryProps) {
-  const [images, setImages] = useState<string[]>([mainImage]);
+  const [images, setImages] = useState<string[]>(mainImage ? [mainImage] : []);
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -21,9 +21,11 @@ export function ProductImageGallery({ productId, mainImage, productName }: Produ
         .order('sort_order', { ascending: true });
 
       if (data && data.length > 0) {
-        const urls = data.map(d => d.image_url);
-        // Put main image first, then additional images (avoid duplicates)
-        const allImages = [mainImage, ...urls.filter(u => u !== mainImage)];
+        const urls = data.map(d => d.image_url).filter(Boolean);
+        // If the product row has no image_url, promote the first gallery image
+        // instead of keeping a placeholder as the active image.
+        const primary = mainImage && mainImage !== '/placeholder.svg' ? mainImage : urls[0];
+        const allImages = primary ? [primary, ...urls.filter(u => u !== primary)] : [];
         setImages(allImages);
       }
     }
@@ -34,10 +36,14 @@ export function ProductImageGallery({ productId, mainImage, productName }: Produ
     <div className="relative">
       {/* Main Image */}
       <div className="relative h-72 bg-muted">
-        <img 
-          src={images[activeIndex]} 
+        <img
+          src={images[activeIndex] || '/placeholder.svg'}
           alt={productName}
           className="w-full h-full object-cover"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = '/placeholder.svg';
+          }}
         />
         {/* Dot indicators */}
         {images.length > 1 && (
@@ -67,7 +73,15 @@ export function ProductImageGallery({ productId, mainImage, productName }: Produ
                 idx === activeIndex ? 'border-primary' : 'border-transparent opacity-60'
               )}
             >
-              <img src={img} alt="" className="w-full h-full object-cover" />
+              <img
+                src={img}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = '/placeholder.svg';
+                }}
+              />
             </button>
           ))}
         </div>

@@ -74,16 +74,17 @@ export function MultipleImageUpload({
         const fileExt = file.name.split('.').pop();
         const fileName = `${merchantId}/${productId}/${Date.now()}-${i}.${fileExt}`;
 
-        // Upload to storage
+        // Upload to the canonical public product image bucket. The legacy
+        // `products` bucket creates URLs that are not used by the storefront.
         const { error: uploadError } = await supabase.storage
-          .from('products')
+          .from('product-images')
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
-          .from('products')
+          .from('product-images')
           .getPublicUrl(fileName);
 
         // Insert to database
@@ -103,7 +104,7 @@ export function MultipleImageUpload({
       console.error('Error uploading:', error);
       const errorMessage = error instanceof Error ? error.message : 'Gagal mengupload gambar';
       if (errorMessage.includes('Bucket not found')) {
-        toast.error('Error: Bucket storage "products" tidak ditemukan. Silakan jalankan migrasi SQL.');
+        toast.error('Error: Bucket storage "product-images" tidak ditemukan. Silakan jalankan migrasi SQL.');
       } else {
         toast.error(errorMessage);
       }
@@ -117,7 +118,7 @@ export function MultipleImageUpload({
       // Delete from storage
       const path = imageUrl.split('/product-images/')[1];
       if (path) {
-        await supabase.storage.from('products').remove([path]);
+        await supabase.storage.from('product-images').remove([path]);
       }
 
       // Delete from database

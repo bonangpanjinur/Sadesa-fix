@@ -139,7 +139,15 @@ export default function ProductDetail() {
         .select('topping_product_id, products:topping_product_id(id, name, price, stock, image_url)')
         .eq('product_id', product.id)
         .order('sort_order');
-      if (error) throw error;
+      // Toppings are optional. Keep the product page usable while an older
+      // production database is waiting for the repair migration.
+      if (error) {
+        if (error.code === 'PGRST205' || error.message.includes('product_toppings')) {
+          console.warn('Product toppings are unavailable until the database migration is applied.');
+          return [];
+        }
+        throw error;
+      }
       const rows = (data || []) as unknown as ProductToppingRow[];
       return rows
         .map((row) => row.products)

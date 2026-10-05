@@ -1,6 +1,8 @@
--- DesaMart canonical bootstrap bundle; generated from archive source migration.
--- Source range: 20261005123000_close_stale_transport_offers.sql .. 20261005123000_close_stale_transport_offers.sql
-
+-- DesaMart canonical bootstrap bundle; generated from archive/supabase/migrations/20261005123000_close_stale_transport_offers.sql.
+-- SAFE TO RE-RUN: function definitions are replaced idempotently.
+DO $bootstrap_do_close_stale_transport_offers$
+BEGIN
+  EXECUTE $bootstrap_sql_close_stale_transport_offers$
 -- Close every competing transport offer when a ride/order is cancelled or accepted.
 -- This keeps realtime clients and polling clients consistent: no stale offer can
 -- reappear and restart the alarm after the transport decision is final.
@@ -76,3 +78,7 @@ GRANT EXECUTE ON FUNCTION public.cancel_ride(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.accept_ride(uuid, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.respond_delivery_offer(uuid, boolean, text) TO authenticated;
 NOTIFY pgrst, 'reload schema';
+$bootstrap_sql_close_stale_transport_offers$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR unique_violation THEN NULL;
+END $bootstrap_do_close_stale_transport_offers$;
