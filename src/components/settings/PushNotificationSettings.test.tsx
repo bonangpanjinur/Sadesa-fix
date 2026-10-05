@@ -5,6 +5,7 @@ import {
   getPushPermission,
   getSubscriptionStatus,
   isPushSupported,
+  replacePushSubscription,
   subscribeToPush,
   unsubscribeFromPush,
 } from '@/lib/pushNotification';
@@ -17,6 +18,7 @@ vi.mock('@/lib/pushNotification', () => ({
   getLastPushError: vi.fn(),
   isPushSupported: vi.fn(),
   getPushPermission: vi.fn(),
+  replacePushSubscription: vi.fn(),
   subscribeToPush: vi.fn(),
   unsubscribeFromPush: vi.fn(),
   getSubscriptionStatus: vi.fn(),
@@ -33,6 +35,7 @@ describe('PushNotificationSettings', () => {
     vi.mocked(isPushSupported).mockResolvedValue(true);
     vi.mocked(getPushPermission).mockResolvedValue('granted');
     vi.mocked(subscribeToPush).mockResolvedValue(true);
+    vi.mocked(replacePushSubscription).mockResolvedValue(true);
     vi.mocked(unsubscribeFromPush).mockResolvedValue(false);
   });
 
@@ -61,5 +64,17 @@ describe('PushNotificationSettings', () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Gagal menonaktifkan notifikasi'));
     expect(notificationSwitch).toBeChecked();
+  });
+
+  it('lets a subscribed user refresh their browser subscription', async () => {
+    vi.mocked(getSubscriptionStatus).mockResolvedValue(true);
+
+    render(<PushNotificationSettings />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Perbarui subscription' }));
+
+    await waitFor(() => {
+      expect(replacePushSubscription).toHaveBeenCalledWith('user-1');
+      expect(toast.success).toHaveBeenCalledWith('Subscription push diperbarui');
+    });
   });
 });

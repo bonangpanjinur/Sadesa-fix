@@ -1,8 +1,8 @@
 /**
  * P2-05: Admin Push Notification Settings
- * Konfigurasi VAPID keys, test kirim push, broadcast ke semua user.
+ * Inspect server-side VAPID readiness, test push, and broadcast to subscribers.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  Bell, Save, Send, TestTube, CheckCircle, AlertCircle, Volume2, Upload,
-  Loader2, Key, Users, Info, Eye, EyeOff, RefreshCw,
+  Bell, Save, Send, TestTube, AlertCircle, Volume2, Upload,
+  Loader2, Key, Users, RefreshCw,
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { generateVapidKeyPair } from '@/lib/vapid';
 import {
   DEFAULT_ORDER_SOUND_SETTINGS,
   normalizeOrderNotificationSoundSettings,
@@ -29,26 +28,17 @@ import {
 } from '@/lib/orderNotificationSound';
 
 
-interface PushSettings {
-  enabled: boolean;
-  vapid_public_key: string;
-  vapid_private_key: string;
-  vapid_email: string;
+interface VapidRuntimeStatus {
+  publicKeyConfigured: boolean;
+  privateKeyConfigured: boolean;
+  vapidConfigured: boolean;
+  missingVariables: string[];
 }
 
-const DEFAULT_SETTINGS: PushSettings = {
-  enabled: false,
-  vapid_public_key: '',
-  vapid_private_key: '',
-  vapid_email: 'mailto:admin@sadesa.id',
-};
-
 export default function AdminPushNotificationPage() {
-  const [settings, setSettings] = useState<PushSettings>(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [showPrivateKey, setShowPrivateKey] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [vapidStatus, setVapidStatus] = useState<VapidRuntimeStatus | null>(null);
+  const [vapidStatusLoading, setVapidStatusLoading] = useState(true);
+  const [vapidStatusError, setVapidStatusError] = useState<string | null>(null);
   const [soundSettings, setSoundSettings] = useState<OrderNotificationSoundSettings>(DEFAULT_ORDER_SOUND_SETTINGS);
   const [soundSaving, setSoundSaving] = useState(false);
   const [soundUploading, setSoundUploading] = useState<'merchant' | 'courier' | null>(null);
@@ -68,20 +58,65 @@ export default function AdminPushNotificationPage() {
   // Subscriber count
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchSettings();
-    fetchSubscriberCount();
-    fetchSoundSettings();
+  const refreshVapidStatus = useCallback(async () => {
+    setVapidStatusLoading(true);
+    setVapidStatusError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sesi admin tidak ditemukan.');
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/push-subscription`, {
+        headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const payload = await response.json().catch(() => null) as Partial<VapidRuntimeStatus> | null;
+      if (!response.ok) throw new Error(`Pemeriksaan server gagal (${response.status}).`);
+      if (
+        !payload
+        || typeof payload.vapidConfigured !== 'boolean'
+        || typeof payload.publicKeyConfigured !== 'boolean'
+        || typeof payload.privateKeyConfigured !== 'boolean'
+        || !Array.isArray(payload.missingVariables)
+      ) {
+        throw new Error('Edge Function push-subscription belum menyediakan status konfigurasi terbaru.');
+      }
+
+      setVapidStatus(payload as VapidRuntimeStatus);
+    } catch (error) {
+      setVapidStatus(null);
+      setVapidStatusError(error instanceof Error ? error.message : 'Status server belum dapat diperiksa.');
+    } finally {
+      setVapidStatusLoading(false);
+    }
   }, []);
 
-  const fetchSoundSettings = async () => {
+  const fetchSoundSettings = useCallback(async () => {
     const { data } = await supabase
       .from('app_settings')
       .select('value')
       .eq('key', ORDER_SOUND_SETTINGS_KEY)
       .maybeSingle();
     setSoundSettings(normalizeOrderNotificationSoundSettings(data?.value));
-  };
+  }, []);
+
+  const fetchSubscriberCount = useCallback(async () => {
+    try {
+      const { count } = await supabase
+        .from('push_subscriptions')
+        .select('*', { count: 'exact', head: true });
+      setSubscriberCount(count ?? 0);
+    } catch {
+      setSubscriberCount(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshVapidStatus();
+    void fetchSubscriberCount();
+    void fetchSoundSettings();
+  }, [fetchSubscriberCount, fetchSoundSettings, refreshVapidStatus]);
 
   const handleSaveSoundSettings = async () => {
     setSoundSaving(true);
@@ -136,82 +171,6 @@ export default function AdminPushNotificationPage() {
     }
   };
 
-  const fetchSettings = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'push_notification_settings')
-        .maybeSingle();
-
-      if (data?.value) {
-        if (typeof data.value === 'object' && data.value !== null) {
-          setSettings({ ...DEFAULT_SETTINGS, ...data.value as Partial<PushSettings> });
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching push settings:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSubscriberCount = async () => {
-    try {
-      const { count } = await supabase
-        .from('push_subscriptions')
-        .select('*', { count: 'exact', head: true });
-      setSubscriberCount(count ?? 0);
-    } catch {
-      setSubscriberCount(null);
-    }
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('app_settings')
-        .upsert(
-          {
-            key: 'push_notification_settings',
-            value: settings,
-            category: 'notification',
-            description: 'Konfigurasi VAPID keys untuk Web Push Notification',
-          },
-          { onConflict: 'key' }
-        );
-
-      if (error) throw error;
-
-      toast.success(
-        'Pengaturan push notification berhasil disimpan. Private key harus juga disimpan sebagai secret backend (VAPID_PRIVATE_KEY) agar pengiriman aktif.'
-      );
-    } catch (err) {
-      toast.error('Gagal menyimpan pengaturan');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleGenerateKeys = async () => {
-    setGenerating(true);
-    try {
-      const { publicKey, privateKey } = await generateVapidKeyPair();
-      setSettings(prev => ({
-        ...prev,
-        vapid_public_key: publicKey,
-        vapid_private_key: privateKey,
-      }));
-      toast.success('VAPID keys berhasil di-generate! Jangan lupa simpan.');
-    } catch (err) {
-      toast.error('Gagal generate VAPID keys');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   const handleTestPush = async () => {
     if (!testUserId.trim()) {
       toast.error('User ID wajib diisi');
@@ -262,16 +221,7 @@ export default function AdminPushNotificationPage() {
   };
 
 
-  if (loading) {
-    return (
-      <AdminLayout title="Push Notification" subtitle="Konfigurasi web push notification">
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent" />
-        </div>
-      </AdminLayout>
-    );
-  }
-
+  const vapidConfigured = vapidStatus?.vapidConfigured === true;
   return (
     <AdminLayout title="Push Notification" subtitle="Konfigurasi web push notification ke pengguna">
       <div className="max-w-3xl mx-auto space-y-6">
@@ -296,15 +246,36 @@ export default function AdminPushNotificationPage() {
           </Card>
           <Card>
             <CardContent className="flex items-center gap-3 py-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${settings.enabled ? 'bg-green-500/10' : 'bg-muted'}`}>
-                <Bell className={`h-5 w-5 ${settings.enabled ? 'text-green-500' : 'text-muted-foreground'}`} />
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${vapidConfigured ? 'bg-green-500/10' : 'bg-muted'}`}>
+                <Bell className={`h-5 w-5 ${vapidConfigured ? 'text-green-500' : 'text-muted-foreground'}`} />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Status Push</p>
-                <Badge variant={settings.enabled && settings.vapid_public_key ? 'default' : 'secondary'}>
-                  {settings.enabled && settings.vapid_public_key ? 'Aktif' : 'Belum dikonfigurasi'}
+                <p className="text-xs text-muted-foreground">Status konfigurasi VAPID</p>
+                <Badge variant={vapidConfigured ? 'default' : 'secondary'}>
+                  {vapidStatusLoading
+                    ? 'Memeriksa...'
+                    : vapidStatusError
+                      ? 'Tidak dapat diverifikasi'
+                      : vapidConfigured
+                        ? 'Variabel VAPID tersedia'
+                        : 'Konfigurasi belum lengkap'}
                 </Badge>
               </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="ml-auto"
+                aria-label="Periksa konfigurasi VAPID"
+                title="Periksa konfigurasi VAPID"
+                onClick={() => void refreshVapidStatus()}
+                disabled={vapidStatusLoading}
+              >
+                {vapidStatusLoading
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <RefreshCw className="h-4 w-4" />
+                }
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -457,96 +428,52 @@ export default function AdminPushNotificationPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Key className="h-5 w-5" />
-                  VAPID Keys
+                  Konfigurasi Server VAPID
                 </CardTitle>
                 <CardDescription>
-                  VAPID keys digunakan untuk mengotentikasi server push notification ke browser.
-                  Generate sekali dan simpan — jangan ubah setelah ada subscriber aktif.
+                  Kunci push dibaca Edge Functions dari secrets server. Halaman ini hanya memeriksa keberadaan variabel; nilainya tidak pernah dimuat atau disimpan di browser.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg flex gap-2">
-                  <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-                  <p className="text-xs text-blue-700 dark:text-blue-300">
-                    Jika belum punya VAPID keys, klik tombol "Generate Keys" di bawah.
-                    Setelah disimpan, pengguna perlu subscribe ulang jika keys diubah.
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+                  <p className="font-medium">Simpan hanya di konfigurasi server Supabase</p>
+                  <p className="mt-1 text-muted-foreground">
+                    Push subscription dan pengiriman membaca <code>VAPID_PUBLIC_KEY</code> serta <code>VAPID_PRIVATE_KEY</code> dari Edge Function secrets. Jangan simpan private key di <code>app_settings</code> atau variabel frontend <code>VITE_*</code>.
                   </p>
                 </div>
 
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="vapid-email">Email VAPID (Contact)</Label>
-                    <Input
-                      id="vapid-email"
-                      value={settings.vapid_email}
-                      onChange={e => setSettings(prev => ({ ...prev, vapid_email: e.target.value }))}
-                      placeholder="mailto:admin@sadesa.id"
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="vapid-public">VAPID Public Key</Label>
-                    <Input
-                      id="vapid-public"
-                      value={settings.vapid_public_key}
-                      onChange={e => setSettings(prev => ({ ...prev, vapid_public_key: e.target.value }))}
-                      placeholder="BxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxA"
-                      className="mt-1 font-mono text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="vapid-private">VAPID Private Key</Label>
-                    <div className="relative mt-1">
-                      <Input
-                        id="vapid-private"
-                        type={showPrivateKey ? 'text' : 'password'}
-                        value={settings.vapid_private_key}
-                        onChange={e => setSettings(prev => ({ ...prev, vapid_private_key: e.target.value }))}
-                        placeholder="Private key (rahasia, jangan disebarkan)"
-                        className="font-mono text-xs pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full px-3"
-                        onClick={() => setShowPrivateKey(v => !v)}
-                      >
-                        {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Private key disimpan terenkripsi di database. Jangan bagikan ke siapapun.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
+                <div className="space-y-2 rounded-lg border p-4 text-sm">
+                  <p className="font-medium">Pemeriksaan keberadaan variabel</p>
+                  {vapidStatusLoading && <p className="text-muted-foreground">Memeriksa konfigurasi server...</p>}
+                  {vapidStatusError && <p className="text-destructive">{vapidStatusError}</p>}
+                  {vapidStatus && (
+                    <>
+                      <p>VAPID pair: {vapidStatus.vapidConfigured ? 'tersedia' : 'belum lengkap'}</p>
+                      {!vapidStatus.vapidConfigured && vapidStatus.missingVariables.length > 0 && (
+                        <p className="text-destructive">
+                          Variabel yang belum tersedia: {vapidStatus.missingVariables.join(', ')}
+                        </p>
+                      )}
+                    </>
+                  )}
                   <Button
+                    type="button"
                     variant="outline"
-                    onClick={handleGenerateKeys}
-                    disabled={generating}
+                    size="sm"
+                    onClick={() => void refreshVapidStatus()}
+                    disabled={vapidStatusLoading}
                   >
-                    {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                    Generate Keys Baru
-                  </Button>
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                    Simpan Pengaturan
+                    {vapidStatusLoading
+                      ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      : <RefreshCw className="mr-2 h-4 w-4" />
+                    }
+                    Periksa ulang konfigurasi server
                   </Button>
                 </div>
 
-                {settings.vapid_public_key && (
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-                    <p className="text-xs font-medium mb-1">Public Key untuk Frontend (VITE_VAPID_PUBLIC_KEY):</p>
-                    <code className="text-xs break-all text-muted-foreground">{settings.vapid_public_key}</code>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Salin nilai ini ke environment variable <code>VITE_VAPID_PUBLIC_KEY</code> di Replit Secrets.
-                    </p>
-                  </div>
-                )}
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-muted-foreground">
+                  Pemeriksaan ini tidak dapat memastikan jadwal cron atau secret di Supabase Vault. Pastikan Vault berisi nama <code>sadesa_project_url</code>, <code>sadesa_publishable_key</code>, dan <code>sadesa_notification_worker_secret</code>; nilainya tidak dibaca halaman ini.
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -593,16 +520,16 @@ export default function AdminPushNotificationPage() {
                     className="mt-1"
                   />
                 </div>
-                <Button onClick={handleTestPush} disabled={testing || !settings.vapid_public_key}>
+                <Button onClick={handleTestPush} disabled={testing || !vapidConfigured}>
                   {testing
                     ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
                     : <><Send className="h-4 w-4 mr-2" />Kirim Test Push</>
                   }
                 </Button>
-                {!settings.vapid_public_key && (
+                {!vapidConfigured && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    VAPID keys belum dikonfigurasi. Setup di tab Konfigurasi dulu.
+                    {vapidStatusError || 'Konfigurasi Edge Function belum lengkap. Periksa tab Konfigurasi.'}
                   </p>
                 )}
               </CardContent>
@@ -667,7 +594,7 @@ export default function AdminPushNotificationPage() {
 
                 <Button
                   onClick={handleBroadcast}
-                  disabled={broadcasting || !settings.vapid_public_key}
+                  disabled={broadcasting || !vapidConfigured}
                   className="w-full"
                 >
                   {broadcasting
@@ -675,6 +602,11 @@ export default function AdminPushNotificationPage() {
                     : <><Send className="h-4 w-4 mr-2" />Kirim Broadcast</>
                   }
                 </Button>
+                {!vapidConfigured && (
+                  <p className="text-xs text-destructive">
+                    {vapidStatusError || 'Pastikan konfigurasi VAPID Edge Function sudah lengkap.'}
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

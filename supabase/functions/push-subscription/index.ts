@@ -41,8 +41,19 @@ Deno.serve(async (req) => {
 
   if (req.method === 'GET') {
     const publicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? ''
-    if (!publicKey) return json(req, { error: 'VAPID key unavailable' }, 503)
-    return json(req, { publicKey })
+    const privateKeyConfigured = Boolean(Deno.env.get('VAPID_PRIVATE_KEY'))
+    const missingVariables = [
+      !publicKey && 'VAPID_PUBLIC_KEY',
+      !privateKeyConfigured && 'VAPID_PRIVATE_KEY',
+    ].filter((name): name is string => Boolean(name))
+
+    return json(req, {
+      publicKey: publicKey || null,
+      publicKeyConfigured: Boolean(publicKey),
+      privateKeyConfigured,
+      vapidConfigured: Boolean(publicKey && privateKeyConfigured),
+      missingVariables,
+    })
   }
 
   if (req.method === 'DELETE') {

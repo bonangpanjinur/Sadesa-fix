@@ -15,6 +15,7 @@ import {
   getLastPushError,
   getSubscriptionStatus,
   hasActiveBrowserPushSubscription,
+  replacePushSubscription,
   subscribeToPush,
   waitForPushServiceWorkerRegistration,
 } from './pushNotification';
@@ -46,7 +47,7 @@ describe('subscribeToPush', () => {
 
   it('uses the backend VAPID key and hides the onboarding gate after persistence succeeds', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U', vapidConfigured: true }), { status: 200 }))
       .mockResolvedValueOnce(new Response('{}', { status: 200 }));
 
     await expect(subscribeToPush('user-1')).resolves.toBe(true);
@@ -67,10 +68,92 @@ describe('subscribeToPush', () => {
 
   it('returns false when the backend rejects persistence instead of claiming activation succeeded', async () => {
     vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response(JSON.stringify({ publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U' }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ publicKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U', vapidConfigured: true }), { status: 200 }))
       .mockResolvedValueOnce(new Response('{}', { status: 500 }));
 
     await expect(subscribeToPush('user-1')).resolves.toBe(false);
+  });
+
+  it('does not subscribe when the server reports incomplete VAPID configuration', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        publicKey: 'AQID',
+        publicKeyConfigured: true,
+        privateKeyConfigured: false,
+        vapidConfigured: false,
+        missingVariables: ['VAPID_PRIVATE_KEY'],
+      }), { status: 200 }),
+    );
+    const registration = await navigator.serviceWorker.ready;
+
+    await expect(subscribeToPush('user-1')).resolves.toBe(false);
+    expect(getLastPushError()).toContain('VAPID_PUBLIC_KEY dan VAPID_PRIVATE_KEY');
+    expect(registration.pushManager.subscribe).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  it('replaces an existing browser subscription when its application server key has rotated', async () => {
+    const oldSubscription = {
+      endpoint: 'https://push.example/old-subscription',
+      options: { applicationServerKey: Uint8Array.of(9, 9, 9).buffer },
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    };
+    const newSubscription = {
+      toJSON: () => ({ endpoint: 'https://push.example/new-subscription', keys: { p256dh: 'new-key', auth: 'new-auth' } }),
+    };
+    const getSubscription = vi.fn().mockResolvedValue(oldSubscription);
+    const subscribe = vi.fn().mockResolvedValue(newSubscription);
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({ pushManager: { getSubscription, subscribe } }),
+      },
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ publicKey: 'AQID', vapidConfigured: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    await expect(subscribeToPush('user-1')).resolves.toBe(true);
+
+    expect(oldSubscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({
+      method: 'DELETE',
+      body: JSON.stringify({ endpoint: oldSubscription.endpoint }),
+    });
+    expect(subscribe).toHaveBeenCalledWith({
+      userVisibleOnly: true,
+      applicationServerKey: Uint8Array.of(1, 2, 3),
+    });
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'POST' });
+  });
+
+  it('allows a manual refresh to replace an existing subscription when the browser hides its key', async () => {
+    const oldSubscription = {
+      endpoint: 'https://push.example/old-subscription',
+      options: { applicationServerKey: null },
+      unsubscribe: vi.fn().mockResolvedValue(true),
+    };
+    const getSubscription = vi.fn().mockResolvedValue(oldSubscription);
+    const subscribe = vi.fn().mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example/new-subscription', keys: { p256dh: 'new-key', auth: 'new-auth' } }),
+    });
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({ pushManager: { getSubscription, subscribe } }),
+      },
+    });
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ publicKey: 'AQID', vapidConfigured: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }));
+
+    await expect(replacePushSubscription('user-1')).resolves.toBe(true);
+    expect(oldSubscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(subscribe).toHaveBeenCalledOnce();
   });
 
   it('returns an actionable error when a service worker never becomes ready', async () => {

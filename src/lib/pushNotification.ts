@@ -39,11 +39,51 @@ async function getVapidPublicKey(sessionToken: string): Promise<string> {
     throw new Error(`Server push tidak siap (${response.status})${serverMessage}`);
   }
 
-  const payload = await response.json() as { publicKey?: unknown };
+  const payload = await response.json() as {
+    publicKey?: unknown;
+    vapidConfigured?: unknown;
+  };
+  if (payload.vapidConfigured === false) {
+    throw new Error(
+      'Konfigurasi VAPID server belum lengkap. Atur VAPID_PUBLIC_KEY dan VAPID_PRIVATE_KEY pada secrets Edge Functions.',
+    );
+  }
   if (typeof payload.publicKey !== 'string' || payload.publicKey.length === 0) {
     throw new Error('Push subscription endpoint returned no public key');
   }
   return payload.publicKey;
+}
+
+function matchesApplicationServerKey(subscription: PushSubscription, expectedKey: Uint8Array): boolean | null {
+  const currentKey = subscription.options.applicationServerKey;
+  if (!currentKey) return null;
+
+  const currentBytes = new Uint8Array(currentKey);
+  return currentBytes.length === expectedKey.length
+    && currentBytes.every((value, index) => value === expectedKey[index]);
+}
+
+async function removeSubscriptionFromServer(endpoint: string, sessionToken: string): Promise<void> {
+  const response = await fetch(PUSH_SUBSCRIPTION_API, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${sessionToken}`,
+    },
+    body: JSON.stringify({ endpoint }),
+  });
+  if (!response.ok) throw new Error(`Failed to remove subscription (${response.status})`);
+}
+
+async function unsubscribeBrowserSubscription(
+  registration: ServiceWorkerRegistration,
+  subscription: PushSubscription,
+): Promise<void> {
+  const unsubscribed = await subscription.unsubscribe();
+  if (!unsubscribed && (await registration.pushManager.getSubscription())?.endpoint === subscription.endpoint) {
+    throw new Error('Subscription browser tidak dapat dihapus.');
+  }
 }
 
 export function getLastPushError(): string | null {
@@ -88,7 +128,10 @@ export async function requestPushPermission(): Promise<boolean> {
  * edge function. Keeping these steps in one path prevents the onboarding gate
  * from using a stale hard-coded VAPID key or a different persistence contract.
  */
-export async function subscribeToPush(_userId: string): Promise<boolean> {
+export async function subscribeToPush(
+  _userId: string,
+  options: { forceReplace?: boolean } = {},
+): Promise<boolean> {
   lastPushError = null;
   try {
     if (!(await isPushSupported())) {
@@ -111,11 +154,23 @@ export async function subscribeToPush(_userId: string): Promise<boolean> {
 
     const registration = await waitForPushServiceWorkerRegistration();
     const publicKey = await getVapidPublicKey(sessionToken);
+    const applicationServerKey = urlBase64ToUint8Array(publicKey);
     let subscription = await registration.pushManager.getSubscription();
+
+    if (subscription && (
+      options.forceReplace
+      || matchesApplicationServerKey(subscription, applicationServerKey) === false
+    )) {
+      const oldEndpoint = subscription.endpoint;
+      await removeSubscriptionFromServer(oldEndpoint, sessionToken);
+      await unsubscribeBrowserSubscription(registration, subscription);
+      subscription = null;
+    }
+
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+        applicationServerKey: applicationServerKey as BufferSource,
       });
     }
 
@@ -147,25 +202,20 @@ export async function subscribeToPush(_userId: string): Promise<boolean> {
   }
 }
 
-export async function unsubscribeFromPush(userId: string): Promise<boolean> {
+export async function replacePushSubscription(userId: string): Promise<boolean> {
+  return subscribeToPush(userId, { forceReplace: true });
+}
+
+export async function unsubscribeFromPush(_userId: string): Promise<boolean> {
   try {
     const registration = await waitForPushServiceWorkerRegistration();
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) return true;
 
     const sessionToken = await getSessionToken();
-    const response = await fetch(PUSH_SUBSCRIPTION_API, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${sessionToken}`,
-      },
-      body: JSON.stringify({ userId, endpoint: subscription.endpoint }),
-    });
-    if (!response.ok) throw new Error(`Failed to remove subscription (${response.status})`);
-
-    await subscription.unsubscribe();
+    if (!sessionToken) throw new Error('Sesi login tidak ditemukan. Silakan masuk ulang.');
+    await removeSubscriptionFromServer(subscription.endpoint, sessionToken);
+    await unsubscribeBrowserSubscription(registration, subscription);
     return true;
   } catch (error) {
     console.error('Error unsubscribing from push:', error);

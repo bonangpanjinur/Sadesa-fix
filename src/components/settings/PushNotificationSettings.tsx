@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect } from 'react';
-import { Bell, BellOff, Loader2 } from 'lucide-react';
+import { Bell, BellOff, Loader2, RefreshCw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import {
   getLastPushError,
   isPushSupported,
   getPushPermission,
+  replacePushSubscription,
   subscribeToPush,
   unsubscribeFromPush,
   getSubscriptionStatus,
@@ -90,6 +91,30 @@ export function PushNotificationSettings({ required = false }: { required?: bool
     }
   };
 
+  const handleRefreshSubscription = async () => {
+    if (!user) {
+      toast.error(t('settings.push.login_required'));
+      return;
+    }
+
+    setToggling(true);
+    try {
+      const success = await replacePushSubscription(user.id);
+      if (success) {
+        setSubscribed(true);
+        setPermission('granted');
+        toast.success(t('settings.push.refreshed'));
+      } else {
+        toast.error(getLastPushError() || t('settings.push.refresh_failed'));
+      }
+    } catch (error) {
+      console.error('Error refreshing push subscription:', error);
+      toast.error(t('settings.push.refresh_failed'));
+    } finally {
+      setToggling(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-4" role="status" aria-live="polite">
@@ -159,10 +184,25 @@ export function PushNotificationSettings({ required = false }: { required?: bool
 
       {subscribed && (
         <div className="mt-3 border-t border-border pt-3">
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-            {t('settings.push.active')}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+              {t('settings.push.active')}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void handleRefreshSubscription()}
+              disabled={toggling}
+            >
+              {toggling
+                ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                : <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+              }
+              {toggling ? t('settings.push.refreshing') : t('settings.push.refresh')}
+            </Button>
+          </div>
         </div>
       )}
     </div>
