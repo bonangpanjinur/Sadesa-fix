@@ -82,8 +82,10 @@ export function normalizeOrderNotificationSoundSettings(value: unknown): OrderNo
   return {
     ...DEFAULT_ORDER_SOUND_SETTINGS,
     ...input,
-    enabled: input.enabled !== false,
-    merchant_enabled: input.merchant_enabled !== false,
+    // Order audio is required for both operational audiences. The browser
+    // permission remains user-controlled, while audience enabled flags are not.
+    enabled: true,
+    merchant_enabled: true,
     courier_enabled: true,
     preset: legacyPreset,
     custom_audio_url: typeof input.custom_audio_url === 'string' ? input.custom_audio_url : '',
@@ -155,13 +157,15 @@ export function clearOrderSoundLocalOverride(audience: OrderSoundAudience) {
 
 export function resolveOrderSoundProfile(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, override = getOrderSoundLocalOverride(audience)): OrderSoundProfile {
   const profile = { ...getAudienceProfile(settings, audience), ...(override || {}) };
-  return audience === 'courier'
-    ? { ...profile, enabled: true, volume: clampNumber(profile.volume, 0.1, 1, DEFAULT_ORDER_SOUND_SETTINGS.courier_volume) }
-    : profile;
+  return {
+    ...profile,
+    enabled: true,
+    volume: clampNumber(profile.volume, 0.1, 1, audience === 'courier' ? DEFAULT_ORDER_SOUND_SETTINGS.courier_volume : DEFAULT_ORDER_SOUND_SETTINGS.merchant_volume),
+  };
 }
 
 export function shouldPlayOrderNotificationSound(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, profile: OrderSoundProfile): boolean {
-  return audience === 'courier' || (settings.enabled && profile.enabled);
+  return (audience === 'merchant' || audience === 'courier') && settings.enabled && profile.enabled;
 }
 
 /** Call from a user gesture before a realtime callback needs to play audio. */

@@ -35,7 +35,7 @@ describe('order notification sound settings', () => {
 
     expect(result.preset).toBe('custom');
     expect(result.custom_audio_url).toContain('alarm.mp3');
-    expect(result.merchant_enabled).toBe(false);
+    expect(result.merchant_enabled).toBe(true);
     expect(result.courier_enabled).toBe(true);
     expect(result.merchant_preset).toBe('custom');
     expect(result.courier_preset).toBe('custom');
@@ -66,10 +66,13 @@ describe('order notification sound settings', () => {
     expect(shouldPlayOrderNotificationSound(settings, 'courier', courierProfile)).toBe(true);
   });
 
-  it('continues respecting optional merchant sound controls', () => {
-    const settings = normalizeOrderNotificationSoundSettings({ enabled: false, merchant_enabled: true });
-    const merchantProfile = resolveOrderSoundProfile(settings, 'merchant', null);
+  it('keeps merchant sound mandatory despite disabled legacy settings or overrides', () => {
+    const settings = normalizeOrderNotificationSoundSettings({ enabled: false, merchant_enabled: false, merchant_volume: 0 });
+    const merchantProfile = resolveOrderSoundProfile(settings, 'merchant', { enabled: false, volume: 0 });
 
-    expect(shouldPlayOrderNotificationSound(settings, 'merchant', merchantProfile)).toBe(false);
+    expect(settings.enabled).toBe(true);
+    expect(settings.merchant_enabled).toBe(true);
+    expect(merchantProfile).toMatchObject({ enabled: true, volume: 0.1 });
+    expect(shouldPlayOrderNotificationSound(settings, 'merchant', merchantProfile)).toBe(true);
   });
 });

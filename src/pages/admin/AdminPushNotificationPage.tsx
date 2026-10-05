@@ -316,7 +316,7 @@ export default function AdminPushNotificationPage() {
               Alarm Pesanan Masuk
             </CardTitle>
             <CardDescription>
-              Atur nada merchant dan ojek secara terpisah. Alarm ojek wajib berbunyi dan bergetar; browser tetap memerlukan satu interaksi pengguna sebelum audio dapat diputar otomatis.
+              Atur nada merchant dan ojek secara terpisah. Alarm keduanya wajib aktif; browser tetap memerlukan satu interaksi pengguna sebelum audio dapat diputar otomatis.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -324,19 +324,16 @@ export default function AdminPushNotificationPage() {
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={soundSettings.enabled}
-                  onChange={(event) => setSoundSettings((current) => ({
-                    ...current,
-                    enabled: event.target.checked,
-                  }))}
+                  checked
+                  disabled
                   className="h-4 w-4 accent-primary"
                 />
-                Aktifkan alarm merchant
+                Alarm pesanan aktif (wajib)
               </label>
               <div className="mt-3 grid gap-2 pl-6 text-sm sm:grid-cols-2">
                 <label className="flex cursor-pointer items-center gap-2">
-                  <input type="checkbox" checked={soundSettings.merchant_enabled} onChange={(event) => setSoundSettings((current) => ({ ...current, merchant_enabled: event.target.checked }))} className="h-4 w-4 accent-primary" />
-                  Alarm merchant aktif
+                  <input type="checkbox" checked disabled aria-label="Alarm merchant wajib aktif" className="h-4 w-4 accent-primary" />
+                  Alarm merchant wajib aktif
                 </label>
                 <div className="flex items-center gap-2 font-medium text-primary" role="status">
                   <input type="checkbox" checked disabled aria-label="Alarm ojek wajib aktif" className="h-4 w-4 accent-primary" />
@@ -344,7 +341,7 @@ export default function AdminPushNotificationPage() {
                 </div>
               </div>
               <p className="mt-2 pl-6 text-xs text-muted-foreground">
-                Alarm ojek tidak dapat dimatikan. Merchant perlu menekan “Aktifkan Bunyi &amp; Getar” pada perangkatnya untuk membuka izin audio browser.
+                Alarm merchant dan ojek tidak dapat dimatikan dari konfigurasi audio. Perangkat tetap perlu menekan tombol aktivasi audio satu kali untuk membuka izin audio browser.
               </p>
             </div>
 
