@@ -941,7 +941,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
               <CardDescription>Atur gambar untuk kartu Makanan &amp; Minuman, Ojek, dan Belanja yang tampil di halaman beranda.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <p className="text-sm text-muted-foreground">Ukuran gambar yang disarankan: <span className="font-semibold text-foreground">1120 × 1000 px</span> (rasio 1,12:1). Gambar dengan ukuran atau rasio lain akan otomatis menyesuaikan dan dapat terpotong agar pas di kartu.</p>
+              <p className="text-sm text-muted-foreground">Ukuran yang disarankan: <span className="font-semibold text-foreground">1120 × 1000 px</span> (rasio 1,12:1). Unggahan hanya menerima rasio 1,11–1,13:1 agar gambar tampil pas tanpa distorsi atau pemotongan besar; crop gambar terlebih dahulu jika rasionya berbeda.</p>
               <div className="grid gap-5 md:grid-cols-3">
                 {HOMEPAGE_SERVICE_CARDS.map((card) => (
                   <div key={card.id} className="space-y-2">
@@ -954,6 +954,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                       aspectRatio="home-card"
                       maxSizeMB={15}
                       compressionOptions={{ maxWidth: 1120, maxHeight: 1000, quality: 0.82, force: true }}
+                      aspectRatioValidation={{ ratio: 1.12, tolerance: 0.01 }}
                       stableFileName
                       placeholder={`Upload gambar ${card.title}`}
                     />

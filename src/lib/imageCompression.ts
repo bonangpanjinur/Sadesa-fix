@@ -6,6 +6,61 @@ export interface ImageCompressionOptions {
   force?: boolean;
 }
 
+export interface ImageAspectRatioValidation {
+  ratio: number;
+  tolerance?: number;
+}
+
+export interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
+export function isImageAspectRatioValid(
+  width: number,
+  height: number,
+  validation: ImageAspectRatioValidation,
+): boolean {
+  const tolerance = validation.tolerance ?? 0.01;
+  if (
+    !Number.isFinite(width)
+    || !Number.isFinite(height)
+    || width <= 0
+    || height <= 0
+    || !Number.isFinite(validation.ratio)
+    || validation.ratio <= 0
+    || !Number.isFinite(tolerance)
+    || tolerance < 0
+  ) {
+    return false;
+  }
+
+  const floatingPointEpsilon = Number.EPSILON * Math.max(1, validation.ratio);
+  return Math.abs(width / height - validation.ratio) <= tolerance + floatingPointEpsilon;
+}
+
+export function readImageDimensions(file: File): Promise<ImageDimensions | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    const releaseUrl = () => URL.revokeObjectURL(objectUrl);
+
+    image.onload = () => {
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+      releaseUrl();
+      resolve(width > 0 && height > 0 ? { width, height } : null);
+    };
+
+    image.onerror = () => {
+      releaseUrl();
+      resolve(null);
+    };
+
+    image.src = objectUrl;
+  });
+}
+
 export function fitImageDimensions(
   width: number,
   height: number,

@@ -3,7 +3,7 @@ import { Upload, X, Loader2, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { uploadFile, validateFile, compressImage, type StorageBucket } from '@/lib/storage';
-import type { ImageCompressionOptions } from '@/lib/imageCompression';
+import { isImageAspectRatioValid, readImageDimensions, type ImageAspectRatioValidation, type ImageCompressionOptions } from '@/lib/imageCompression';
 import { toast } from 'sonner';
 
 interface ImageUploadProps {
@@ -15,6 +15,7 @@ interface ImageUploadProps {
   aspectRatio?: 'square' | 'video' | 'wide' | 'home-card';
   maxSizeMB?: number;
   compressionOptions?: ImageCompressionOptions;
+  aspectRatioValidation?: ImageAspectRatioValidation;
   placeholder?: string;
   disabled?: boolean;
   stableFileName?: boolean;
@@ -29,6 +30,7 @@ export function ImageUpload({
   aspectRatio = 'square',
   maxSizeMB = 5,
   compressionOptions,
+  aspectRatioValidation,
   placeholder = 'Upload gambar',
   disabled = false,
   stableFileName = false,
@@ -55,6 +57,27 @@ export function ImageUpload({
     setIsUploading(true);
 
     try {
+      if (aspectRatioValidation) {
+        const dimensions = await readImageDimensions(file);
+        if (!dimensions) {
+          toast.error('Dimensi gambar tidak dapat dibaca. Coba gunakan file gambar lain.');
+          return;
+        }
+
+        if (!isImageAspectRatioValid(dimensions.width, dimensions.height, aspectRatioValidation)) {
+          const actualRatio = (dimensions.width / dimensions.height).toLocaleString('id-ID', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+          const targetRatio = aspectRatioValidation.ratio.toLocaleString('id-ID', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          });
+          toast.error(`Rasio gambar harus sekitar ${targetRatio}:1. File ini ${dimensions.width} × ${dimensions.height} px (${actualRatio}:1). Crop gambar terlebih dahulu.`);
+          return;
+        }
+      }
+
       // Compress image
       const compressedFile = await compressImage(file, compressionOptions);
       

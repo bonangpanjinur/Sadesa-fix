@@ -1,5 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { fitImageDimensions } from './imageCompression';
+import { fitImageDimensions, isImageAspectRatioValid } from './imageCompression';
+
+describe('isImageAspectRatioValid', () => {
+  const homepageCardRatio = { ratio: 1.12, tolerance: 0.01 };
+
+  it('accepts the recommended 1120 × 1000 ratio', () => {
+    expect(isImageAspectRatioValid(1120, 1000, homepageCardRatio)).toBe(true);
+  });
+
+  it('accepts a ratio within the configured tolerance', () => {
+    expect(isImageAspectRatioValid(1110, 1000, homepageCardRatio)).toBe(true);
+  });
+
+  it('rejects images that would need substantial cropping', () => {
+    expect(isImageAspectRatioValid(1600, 1200, homepageCardRatio)).toBe(false);
+  });
+
+  it('rejects invalid image dimensions', () => {
+    expect(isImageAspectRatioValid(0, 1000, homepageCardRatio)).toBe(false);
+  });
+});
 
 describe('fitImageDimensions', () => {
   it('shrinks large images to stay within both bounds without changing their ratio', () => {
