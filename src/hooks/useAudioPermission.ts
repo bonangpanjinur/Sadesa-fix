@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   enableAudio,
-  hasAudioPermissionPreference,
   isAudioEnabled,
   isWebAudioSupported,
   subscribeAudioManager,
@@ -10,20 +9,19 @@ import {
 export function useAudioPermission() {
   const [isSupported] = useState(() => isWebAudioSupported());
   const [isEnabled, setIsEnabled] = useState(() => isAudioEnabled());
-  const [needsPermission, setNeedsPermission] = useState(() => isSupported && !hasAudioPermissionPreference());
+  // The saved preference survives reloads; the browser's unlocked AudioContext
+  // does not. Operational users must make a fresh gesture in every app session.
+  const [needsPermission, setNeedsPermission] = useState(() => isSupported && !isAudioEnabled());
   const [isActivating, setIsActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     const enabled = isAudioEnabled();
-    const hasPreference = hasAudioPermissionPreference();
     setIsEnabled(enabled);
-    // A stored preference is enough to keep the modal quiet after a reload.
-    // If a context exists and is suspended, the manager explicitly asks again.
     if (enabled) {
       setNeedsPermission(false);
       setError(null);
-    } else if (!hasPreference) {
+    } else {
       setNeedsPermission(true);
     }
   }, []);

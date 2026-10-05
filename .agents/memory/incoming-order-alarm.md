@@ -7,4 +7,4 @@ Both merchants and Ojek couriers must receive audible alarms for incoming orders
 
 **Why:** the user explicitly requires alarms for both audiences.
 
-**How to apply:** Preserve role-specific alert paths and account for browser audio activation rules; background sound remains controlled by browser and device notification settings.
+**How to apply:** Require a user-gesture audio activation modal for signed-in merchants and couriers, not buyers. Preserve role-specific alert paths; background sound remains controlled by browser and device notification settings.

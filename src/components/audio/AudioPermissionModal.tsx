@@ -9,10 +9,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
 import { useAudioPermission } from '@/hooks/useAudioPermission';
 
 export function AudioPermissionModal() {
   const [unsupportedDismissed, setUnsupportedDismissed] = useState(false);
+  const {
+    user,
+    isMerchant,
+    isCourier,
+    loading: authLoading,
+    rolesLoading,
+    merchantRoleRecoveryLoading,
+  } = useAuth();
   const {
     isSupported,
     needsPermission,
@@ -21,7 +30,12 @@ export function AudioPermissionModal() {
     activate,
   } = useAudioPermission();
 
-  const open = isSupported ? needsPermission : !unsupportedDismissed;
+  const isOrderOperator = Boolean(user)
+    && (isMerchant || isCourier)
+    && !authLoading
+    && !rolesLoading
+    && !merchantRoleRecoveryLoading;
+  const open = isOrderOperator && (isSupported ? needsPermission : !unsupportedDismissed);
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => {
@@ -37,13 +51,19 @@ export function AudioPermissionModal() {
           <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             {isSupported ? <Volume2 className="h-8 w-8" aria-hidden="true" /> : <AlertTriangle className="h-8 w-8" aria-hidden="true" />}
           </div>
-          <DialogTitle>{isSupported ? 'Aktifkan Audio' : 'Audio Tidak Tersedia'}</DialogTitle>
+          <DialogTitle>{isSupported ? 'Aktifkan Alarm Pesanan' : 'Audio Tidak Tersedia'}</DialogTitle>
           <DialogDescription>
             {isSupported
-              ? 'Aktifkan audio agar notifikasi suara aplikasi dapat digunakan.'
+              ? 'Chrome hanya mengizinkan alarm setelah ada klik dari pengguna. Tekan tombol untuk mengaktifkan dan menguji suara. Jendela ini tidak bisa ditutup sampai audio aktif.'
               : 'Browser ini tidak mendukung Web Audio API. Gunakan Chrome versi terbaru atau browser modern lainnya.'}
           </DialogDescription>
         </DialogHeader>
+
+        {isSupported && (
+          <p className="text-center text-xs text-muted-foreground">
+            Saat aplikasi ditutup, alarm memerlukan notifikasi Push yang diizinkan. Bunyi push diatur oleh Chrome dan perangkat.
+          </p>
+        )}
 
         {error && (
           <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
@@ -54,7 +74,7 @@ export function AudioPermissionModal() {
         {isSupported && (
           <DialogFooter className="sm:justify-center">
             <Button type="button" className="min-h-11 w-full rounded-xl font-bold sm:w-auto sm:min-w-56" onClick={() => void activate()} disabled={isActivating}>
-              {isActivating ? 'MENGAKTIFKAN...' : 'AKTIFKAN AUDIO'}
+              {isActivating ? 'MENGAKTIFKAN...' : 'AKTIFKAN & UJI SUARA'}
             </Button>
           </DialogFooter>
         )}

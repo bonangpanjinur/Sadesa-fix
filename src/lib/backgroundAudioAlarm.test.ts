@@ -11,6 +11,8 @@ const merchantPushBundle = readFileSync(resolve(process.cwd(), 'supabase/bootstr
 const merchantSettingsPage = readFileSync(resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'), 'utf8');
 const notificationWorker = readFileSync(resolve(process.cwd(), 'supabase/functions/process-notification-queue/index.ts'), 'utf8');
 const merchantAlarmHook = readFileSync(resolve(process.cwd(), 'src/hooks/useMerchantOrderAlarm.ts'), 'utf8');
+const audioPermissionModal = readFileSync(resolve(process.cwd(), 'src/components/audio/AudioPermissionModal.tsx'), 'utf8');
+const audioPermissionHook = readFileSync(resolve(process.cwd(), 'src/hooks/useAudioPermission.ts'), 'utf8');
 const audioManager = readFileSync(resolve(process.cwd(), 'src/lib/audioManager.ts'), 'utf8');
 const notificationWorkerSchedule = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005150000_notification_delivery_worker_cron.sql'), 'utf8');
 const supabaseFunctionConfig = readFileSync(resolve(process.cwd(), 'supabase/config.toml'), 'utf8');
@@ -19,6 +21,15 @@ const courierRideDispatch = readFileSync(resolve(process.cwd(), 'archive/supabas
 const courierDeliveryOfferPush = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20260929133000_courier_delivery_offer_push.sql'), 'utf8');
 
 describe('courier background alarm contract', () => {
+  it('requires an audio-activation click only from signed-in merchants and couriers', () => {
+    expect(audioPermissionModal).toContain('isMerchant');
+    expect(audioPermissionModal).toContain('isCourier');
+    expect(audioPermissionModal).toContain('!authLoading');
+    expect(audioPermissionModal).toContain('AKTIFKAN & UJI SUARA');
+    expect(audioPermissionHook).toContain('isSupported && !isAudioEnabled()');
+    expect(audioPermissionHook).toContain('setNeedsPermission(true)');
+  });
+
   it('keeps a user-gesture-unlocked media fallback for hidden tabs', () => {
     expect(soundManager).toContain("new Audio('/notification.wav')");
     expect(soundManager).toContain('document.hidden');

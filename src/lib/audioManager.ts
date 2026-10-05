@@ -133,7 +133,7 @@ export function isAudioEnabled() {
   return isWebAudioSupported() && readPermissionPreference() && getAudioContext()?.state === 'running';
 }
 
-/** Used by the permission hook to avoid showing the prompt on every reload. */
+/** Returns whether this device previously saved an audio-enabled preference. */
 export function hasAudioPermissionPreference() {
   return readPermissionPreference();
 }
