@@ -43,20 +43,6 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
   }, [isSidebarVisible]);
 
   useEffect(() => {
-    const unlockOnFirstInteraction = () => {
-      document.removeEventListener('pointerdown', unlockOnFirstInteraction, true);
-      document.removeEventListener('keydown', unlockOnFirstInteraction, true);
-      void unlockOrderNotificationAudio({ playConfirmationTone: false });
-    };
-    document.addEventListener('pointerdown', unlockOnFirstInteraction, true);
-    document.addEventListener('keydown', unlockOnFirstInteraction, true);
-    return () => {
-      document.removeEventListener('pointerdown', unlockOnFirstInteraction, true);
-      document.removeEventListener('keydown', unlockOnFirstInteraction, true);
-    };
-  }, []);
-
-  useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
 
     const mediaQuery = window.matchMedia('(min-width: 1024px)');

@@ -75,10 +75,9 @@ describe('courier background alarm contract', () => {
     expect(merchantAlarmHook).toContain('window.clearInterval(refreshTimer)');
   });
 
-  it('silently unlocks automatic order audio on the first merchant interaction', () => {
-    expect(merchantLayout).toContain("addEventListener('pointerdown', unlockOnFirstInteraction, true)");
-    expect(merchantLayout).toContain("addEventListener('keydown', unlockOnFirstInteraction, true)");
-    expect(merchantLayout).toContain('unlockOrderNotificationAudio({ playConfirmationTone: false })');
+  it('unlocks audio from the mandatory user-click modal and plays a test tone', () => {
+    expect(audioPermissionHook).toContain('await enableAudio();');
+    expect(merchantLayout).not.toContain('unlockOnFirstInteraction');
     expect(audioManager).toContain('if (options.playConfirmationTone !== false) await playTestSound();');
   });
 

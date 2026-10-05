@@ -54,10 +54,20 @@ export function AudioPermissionModal() {
           <DialogTitle>{isSupported ? 'Aktifkan Alarm Pesanan' : 'Audio Tidak Tersedia'}</DialogTitle>
           <DialogDescription>
             {isSupported
-              ? 'Chrome hanya mengizinkan alarm setelah ada klik dari pengguna. Tekan tombol untuk mengaktifkan dan menguji suara. Jendela ini tidak bisa ditutup sampai audio aktif.'
+              ? 'Audio di Chrome tidak memiliki halaman izin seperti GPS. Tombol ini adalah langkah aktivasinya: klik untuk mengaktifkan dan menguji suara. Jendela ini tetap terbuka sampai audio aktif.'
               : 'Browser ini tidak mendukung Web Audio API. Gunakan Chrome versi terbaru atau browser modern lainnya.'}
           </DialogDescription>
         </DialogHeader>
+
+        {isSupported && (
+          <details className="rounded-xl border px-3 py-2 text-sm">
+            <summary className="cursor-pointer font-medium">Suara tes tidak terdengar?</summary>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+              <li>Di Chrome desktop, buka ikon pengaturan situs di samping alamat web, lalu pastikan Suara diizinkan dan tab tidak dibisukan.</li>
+              <li>Di Android, buka Chrome ⋮ → Setelan → Setelan situs → Suara, lalu izinkan suara. Periksa juga volume media dan mode senyap.</li>
+            </ul>
+          </details>
+        )}
 
         {isSupported && (
           <p className="text-center text-xs text-muted-foreground">
