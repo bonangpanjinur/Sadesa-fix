@@ -8,6 +8,12 @@ const alarmHook = readFileSync(
 );
 
 describe('courier order alarm safety contract', () => {
+  it('plays a sound for targeted new Ojek rides and delivery offers', () => {
+    expect(alarmHook).toContain("void playOrderNotificationSound('courier')");
+    expect(alarmHook).toContain("updatePending('ride', offer.ride_id, offer.status === 'PENDING')");
+    expect(alarmHook).toContain("updatePending('order', offer.order_id, offer.status === 'OFFERED')");
+  });
+
   it('requires an active courier status before sounding an alarm', () => {
     expect(alarmHook).toContain("courierRef.current?.status === 'ACTIVE'");
     expect(alarmHook).toContain("courierRef.current.registration_status === 'APPROVED'");

@@ -48,12 +48,20 @@ describe('courier background alarm contract', () => {
   it('automatically plays the merchant alarm for a newly pending realtime order', () => {
     expect(merchantAlarmHook).toContain("event: 'INSERT', schema: 'public', table: 'orders'");
     expect(merchantAlarmHook).toContain("void playOrderNotificationSound('merchant')");
+    expect(merchantAlarmHook).toContain("const PENDING_STATUSES = ['NEW', 'PENDING_CONFIRMATION', 'PENDING_PAYMENT']");
   });
 
   it('reconciles unseen pending orders after realtime reconnects or the page resumes', () => {
     expect(merchantAlarmHook).toContain('seedPendingOrders(true)');
     expect(merchantAlarmHook).toContain("window.addEventListener('online', reconcileWhenResumed)");
     expect(merchantAlarmHook).toContain("document.addEventListener('visibilitychange', handleVisibilityChange)");
+  });
+
+  it('polls only the signed-in merchant inbox if Realtime silently misses a new order', () => {
+    expect(merchantAlarmHook).toContain("setInterval(() =>");
+    expect(merchantAlarmHook).toContain('reconcilePendingOrders(true)');
+    expect(merchantAlarmHook).toContain(".eq('merchant_id', merchantId)");
+    expect(merchantAlarmHook).toContain('window.clearInterval(refreshTimer)');
   });
 
   it('silently unlocks automatic order audio on the first merchant interaction', () => {

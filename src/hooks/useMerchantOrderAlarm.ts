@@ -14,7 +14,7 @@ interface OrderAlarmPayload {
   delivery_name?: string | null;
 }
 
-const PENDING_STATUSES = ['NEW', 'PENDING_CONFIRMATION'];
+const PENDING_STATUSES = ['NEW', 'PENDING_CONFIRMATION', 'PENDING_PAYMENT'];
 
 /** Plays a short alert on any merchant route when an order starts waiting. */
 export function useMerchantOrderAlarm(userId: string | null | undefined) {
@@ -26,8 +26,10 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
 
     let disposed = false;
     let retryTimer: number | undefined;
+    let refreshTimer: number | undefined;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let hasSeededPendingOrders = false;
+    let isReconcilingPendingOrders = false;
 
     const isMerchantActive = () => Boolean(merchantRef.current?.id) && merchantRef.current?.status === 'ACTIVE';
 
@@ -99,8 +101,14 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
     };
 
     const reconcilePendingOrders = async (announceNewOrders: boolean) => {
-      await loadMerchant();
-      if (!disposed) await seedPendingOrders(announceNewOrders);
+      if (disposed || isReconcilingPendingOrders) return;
+      isReconcilingPendingOrders = true;
+      try {
+        await loadMerchant();
+        if (!disposed) await seedPendingOrders(announceNewOrders);
+      } finally {
+        isReconcilingPendingOrders = false;
+      }
     };
 
     const subscribe = () => {
@@ -156,9 +164,14 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const start = async () => {
-      await loadMerchant();
-      await seedPendingOrders();
-      if (!disposed) subscribe();
+      await reconcilePendingOrders(false);
+      if (disposed) return;
+      subscribe();
+      // Reconcile this merchant's inbox periodically in case a Realtime event
+      // is missed without the channel reporting a disconnect.
+      refreshTimer = window.setInterval(() => {
+        if (navigator.onLine) void reconcilePendingOrders(true);
+      }, 15_000);
     };
     void start();
 
@@ -167,6 +180,7 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
       window.removeEventListener('online', reconcileWhenResumed);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (retryTimer) window.clearTimeout(retryTimer);
+      if (refreshTimer) window.clearInterval(refreshTimer);
       if (channel) void supabase.removeChannel(channel);
       stopOrderNotificationSound('merchant');
       merchantRef.current = null;
