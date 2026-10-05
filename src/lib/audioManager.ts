@@ -12,6 +12,8 @@ const listeners: Record<AudioManagerEvent, Set<() => void>> = {
 
 let sharedAudioContext: AudioContext | null = null;
 let contextStateListener: (() => void) | null = null;
+let lifecycleRecoveryAttached = false;
+let audioRecoveryPromise: Promise<boolean> | null = null;
 
 function getAudioContextConstructor(): AudioContextConstructor | null {
   if (typeof window === 'undefined') return null;
@@ -49,9 +51,61 @@ function attachStateListener(context: AudioContext) {
   if (contextStateListener) return;
   contextStateListener = () => {
     emit('statechange');
-    if (context.state === 'suspended' && readPermissionPreference()) emit('permission-required');
+    if (context.state === 'suspended' && readPermissionPreference()
+      && (typeof document === 'undefined' || document.visibilityState !== 'hidden')) {
+      void recoverAudioContext();
+    }
   };
   context.addEventListener('statechange', contextStateListener);
+}
+
+async function recoverAudioContext(): Promise<boolean> {
+  if (!readPermissionPreference()) return false;
+  if (audioRecoveryPromise) return audioRecoveryPromise;
+
+  const context = getAudioContext();
+  if (!context) {
+    emit('permission-required');
+    return false;
+  }
+  if (context.state === 'running') {
+    emit('statechange');
+    return true;
+  }
+
+  audioRecoveryPromise = (async () => {
+    try {
+      await context.resume();
+      if (context.state === 'running') {
+        emit('statechange');
+        return true;
+      }
+    } catch {
+      // Browsers may require another user gesture after a long suspension.
+    }
+    emit('permission-required');
+    return false;
+  })();
+
+  try {
+    return await audioRecoveryPromise;
+  } finally {
+    audioRecoveryPromise = null;
+  }
+}
+
+function attachLifecycleRecoveryListeners() {
+  if (lifecycleRecoveryAttached || typeof window === 'undefined' || typeof document === 'undefined') return;
+  lifecycleRecoveryAttached = true;
+
+  const recoverWhenVisible = () => {
+    if (document.visibilityState === 'hidden') return;
+    void recoverAudioContext();
+  };
+
+  window.addEventListener('focus', recoverWhenVisible);
+  window.addEventListener('pageshow', recoverWhenVisible);
+  document.addEventListener('visibilitychange', recoverWhenVisible);
 }
 
 function ensureAudioContext() {
@@ -61,6 +115,7 @@ function ensureAudioContext() {
   sharedAudioContext = new Constructor();
   contextStateListener = null;
   attachStateListener(sharedAudioContext);
+  attachLifecycleRecoveryListeners();
   return sharedAudioContext;
 }
 

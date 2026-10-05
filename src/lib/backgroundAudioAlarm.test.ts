@@ -42,6 +42,13 @@ describe('courier background alarm contract', () => {
     expect(audioManager).toContain('if (options.playConfirmationTone !== false) await playTestSound();');
   });
 
+  it('retries suspended audio on focus/visibility recovery and flushes queued alerts', () => {
+    expect(audioManager).toContain("window.addEventListener('focus', recoverWhenVisible)");
+    expect(audioManager).toContain("window.addEventListener('pageshow', recoverWhenVisible)");
+    expect(audioManager).toContain("document.addEventListener('visibilitychange', recoverWhenVisible)");
+    expect(soundManager).toContain("subscribeAudioManager('statechange', flushPendingSoundAudiences)");
+  });
+
   it('exposes the merchant alarm test control from store settings', () => {
     expect(merchantSettingsPage).toContain('OrderAlarmSettingsControl');
     expect(merchantSettingsPage).toContain('Pilih jenis suara, atur volume, lalu uji langsung');

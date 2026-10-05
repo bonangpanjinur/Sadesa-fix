@@ -1,4 +1,4 @@
-import { enableAudio, getAudioContext, isAudioEnabled, requestAudioPermission } from '@/lib/audioManager';
+import { enableAudio, getAudioContext, isAudioEnabled, requestAudioPermission, subscribeAudioManager } from '@/lib/audioManager';
 
 export type OrderSoundAudience = 'merchant' | 'courier';
 export type OrderSoundPreset = 'urgent' | 'bell' | 'chime' | 'custom';
@@ -259,6 +259,8 @@ function flushPendingSoundAudiences() {
   pendingSoundAudiences.clear();
   audiences.forEach((audience) => { void playOrderNotificationSound(audience); });
 }
+
+subscribeAudioManager('statechange', flushPendingSoundAudiences);
 
 async function playPreset(preset: Exclude<OrderSoundPreset, 'custom'>, volume: number) {
   const context = getAudioContext();
