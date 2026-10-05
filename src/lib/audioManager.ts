@@ -138,6 +138,11 @@ export function hasAudioPermissionPreference() {
   return readPermissionPreference();
 }
 
+/** The blocking activation prompt is only needed until the user opts in once. */
+export function shouldPromptForAudioActivation(isSupported: boolean) {
+  return isSupported && !hasAudioPermissionPreference();
+}
+
 export function subscribeAudioManager(event: AudioManagerEvent, listener: () => void) {
   listeners[event].add(listener);
   return () => listeners[event].delete(listener);

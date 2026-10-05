@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { enableAudio, subscribeAudioManager } from './audioManager';
+import { enableAudio, shouldPromptForAudioActivation, subscribeAudioManager } from './audioManager';
 
 describe('audio lifecycle recovery', () => {
   beforeEach(() => {
@@ -35,5 +35,13 @@ describe('audio lifecycle recovery', () => {
     expect(mockContext.state).toBe('running');
     expect(stateChange).toHaveBeenCalled();
     unsubscribe();
+  });
+
+  it('shows the blocking activation prompt only until the user opts in once', () => {
+    expect(shouldPromptForAudioActivation(true)).toBe(true);
+    expect(shouldPromptForAudioActivation(false)).toBe(false);
+
+    window.localStorage.setItem('sadesa-audio-enabled', 'true');
+    expect(shouldPromptForAudioActivation(true)).toBe(false);
   });
 });

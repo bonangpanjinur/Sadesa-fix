@@ -54,7 +54,7 @@ export function AudioPermissionModal() {
           <DialogTitle>{isSupported ? 'Aktifkan Alarm Pesanan' : 'Audio Tidak Tersedia'}</DialogTitle>
           <DialogDescription>
             {isSupported
-              ? 'Audio di Chrome tidak memiliki halaman izin seperti GPS. Tombol ini adalah langkah aktivasinya: klik untuk mengaktifkan dan menguji suara. Jendela ini tetap terbuka sampai audio aktif.'
+              ? 'Audio di Chrome tidak memiliki halaman izin seperti GPS. Klik sekali untuk mengaktifkan dan menguji suara. Setelah itu dialog ini tidak akan muncul lagi; jika browser menidurkan audio, aplikasi akan mencoba mengaktifkannya kembali saat Anda berinteraksi.'
               : 'Browser ini tidak mendukung Web Audio API. Gunakan Chrome versi terbaru atau browser modern lainnya.'}
           </DialogDescription>
         </DialogHeader>

@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   enableAudio,
+  hasAudioPermissionPreference,
   isAudioEnabled,
   isWebAudioSupported,
+  shouldPromptForAudioActivation,
   subscribeAudioManager,
 } from '@/lib/audioManager';
 
 export function useAudioPermission() {
   const [isSupported] = useState(() => isWebAudioSupported());
   const [isEnabled, setIsEnabled] = useState(() => isAudioEnabled());
-  // The saved preference survives reloads; the browser's unlocked AudioContext
-  // does not. Operational users must make a fresh gesture in every app session.
-  const [needsPermission, setNeedsPermission] = useState(() => isSupported && !isAudioEnabled());
+  // Prompt once. A previous opt-in is remembered across reloads; if the
+  // browser suspends audio later, silently resume it on the next user gesture.
+  const [needsPermission, setNeedsPermission] = useState(() => shouldPromptForAudioActivation(isSupported));
   const [isActivating, setIsActivating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,16 +23,20 @@ export function useAudioPermission() {
     if (enabled) {
       setNeedsPermission(false);
       setError(null);
-    } else {
+    } else if (shouldPromptForAudioActivation(isSupported)) {
       setNeedsPermission(true);
+    } else {
+      setNeedsPermission(false);
     }
-  }, []);
+  }, [isSupported]);
 
   useEffect(() => {
     const unsubscribeState = subscribeAudioManager('statechange', refresh);
     const unsubscribePermission = subscribeAudioManager('permission-required', () => {
-      setNeedsPermission(true);
-      setError(null);
+      if (shouldPromptForAudioActivation(isSupported)) {
+        setNeedsPermission(true);
+        setError(null);
+      }
     });
     const handleVisibility = () => refresh();
     window.addEventListener('pageshow', handleVisibility);
@@ -41,7 +47,35 @@ export function useAudioPermission() {
       window.removeEventListener('pageshow', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [refresh]);
+  }, [isSupported, refresh]);
+
+  useEffect(() => {
+    if (!isSupported || !hasAudioPermissionPreference() || isEnabled) return;
+
+    let disposed = false;
+    const resumeOnUserGesture = () => {
+      if (!hasAudioPermissionPreference() || isAudioEnabled()) return;
+      void enableAudio({ playConfirmationTone: false }).then(() => {
+        if (disposed) return;
+        setIsEnabled(true);
+        setNeedsPermission(false);
+        setError(null);
+      }).catch(() => {
+        // Keep listening for the next real user gesture; do not reopen the
+        // blocking first-time activation dialog after a previous opt-in.
+      });
+    };
+
+    window.addEventListener('pointerdown', resumeOnUserGesture, true);
+    window.addEventListener('keydown', resumeOnUserGesture, true);
+    window.addEventListener('touchstart', resumeOnUserGesture, true);
+    return () => {
+      disposed = true;
+      window.removeEventListener('pointerdown', resumeOnUserGesture, true);
+      window.removeEventListener('keydown', resumeOnUserGesture, true);
+      window.removeEventListener('touchstart', resumeOnUserGesture, true);
+    };
+  }, [isEnabled, isSupported]);
 
   const activate = useCallback(async () => {
     setIsActivating(true);

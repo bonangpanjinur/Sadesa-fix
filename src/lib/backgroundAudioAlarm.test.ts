@@ -21,13 +21,14 @@ const courierRideDispatch = readFileSync(resolve(process.cwd(), 'archive/supabas
 const courierDeliveryOfferPush = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20260929133000_courier_delivery_offer_push.sql'), 'utf8');
 
 describe('courier background alarm contract', () => {
-  it('requires an audio-activation click only from signed-in merchants and couriers', () => {
+  it('requires first-time audio activation only from signed-in merchants and couriers', () => {
     expect(audioPermissionModal).toContain('isMerchant');
     expect(audioPermissionModal).toContain('isCourier');
     expect(audioPermissionModal).toContain('!authLoading');
     expect(audioPermissionModal).toContain('AKTIFKAN & UJI SUARA');
-    expect(audioPermissionHook).toContain('isSupported && !isAudioEnabled()');
+    expect(audioPermissionHook).toContain('shouldPromptForAudioActivation(isSupported)');
     expect(audioPermissionHook).toContain('setNeedsPermission(true)');
+    expect(audioPermissionHook).toContain("enableAudio({ playConfirmationTone: false })");
   });
 
   it('keeps a user-gesture-unlocked media fallback for hidden tabs', () => {
