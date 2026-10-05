@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
 
 const API_BASE = `${SUPABASE_URL}/functions/v1/push-subscription`;
 
@@ -55,7 +55,10 @@ export function usePushNotification() {
     try {
       // Get VAPID public key
       const keyRes = await fetch(API_BASE, {
-        headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}` },
+        headers: {
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ""}`,
+        },
       });
       if (!keyRes.ok) throw new Error("VAPID key unavailable");
       const { publicKey } = await keyRes.json();
@@ -79,6 +82,7 @@ export function usePushNotification() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({ subscription: subscription.toJSON() }),
@@ -108,6 +112,7 @@ export function usePushNotification() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${session?.access_token || ""}`,
         },
         body: JSON.stringify({ endpoint: sub.endpoint }),

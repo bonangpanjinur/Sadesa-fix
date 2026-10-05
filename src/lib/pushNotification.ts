@@ -1,4 +1,4 @@
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/integrations/supabase/client';
 
 const PUSH_SUBSCRIPTION_API = `${SUPABASE_URL}/functions/v1/push-subscription`;
 let lastPushError: string | null = null;
@@ -22,9 +22,22 @@ async function getSessionToken(): Promise<string> {
 
 async function getVapidPublicKey(sessionToken: string): Promise<string> {
   const response = await fetch(PUSH_SUBSCRIPTION_API, {
-    headers: { Authorization: `Bearer ${sessionToken}` },
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${sessionToken}`,
+    },
   });
-  if (!response.ok) throw new Error(`Server push tidak siap (${response.status})`);
+  if (!response.ok) {
+    let serverMessage = '';
+    try {
+      const payload = await response.json() as { error?: unknown; message?: unknown };
+      const message = typeof payload.error === 'string' ? payload.error : payload.message;
+      if (typeof message === 'string') serverMessage = `: ${message.slice(0, 200)}`;
+    } catch {
+      // Keep the HTTP status when the gateway returns a non-JSON error.
+    }
+    throw new Error(`Server push tidak siap (${response.status})${serverMessage}`);
+  }
 
   const payload = await response.json() as { publicKey?: unknown };
   if (typeof payload.publicKey !== 'string' || payload.publicKey.length === 0) {
@@ -92,6 +105,7 @@ export async function subscribeToPush(_userId: string): Promise<boolean> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        apikey: SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${sessionToken}`,
       },
       body: JSON.stringify({ subscription: subscription.toJSON() }),
@@ -126,6 +140,7 @@ export async function unsubscribeFromPush(userId: string): Promise<boolean> {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
+        apikey: SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${sessionToken}`,
       },
       body: JSON.stringify({ userId, endpoint: subscription.endpoint }),

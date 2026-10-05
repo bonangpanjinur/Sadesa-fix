@@ -4,13 +4,14 @@ const { getSession, from } = vi.hoisted(() => ({ getSession: vi.fn(), from: vi.f
 
 vi.mock('@/integrations/supabase/client', () => ({
   SUPABASE_URL: 'https://push-test.supabase.co',
+  SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_push_test',
   supabase: {
     auth: { getSession },
     from,
   },
 }));
 
-import { getSubscriptionStatus, hasActiveBrowserPushSubscription, subscribeToPush } from './pushNotification';
+import { getLastPushError, getSubscriptionStatus, hasActiveBrowserPushSubscription, subscribeToPush } from './pushNotification';
 
 describe('subscribeToPush', () => {
   beforeEach(() => {
@@ -47,11 +48,14 @@ describe('subscribeToPush', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       'https://push-test.supabase.co/functions/v1/push-subscription',
-      { headers: { Authorization: 'Bearer test-token' } },
+      { headers: { apikey: 'sb_publishable_push_test', Authorization: 'Bearer test-token' } },
     );
     expect(fetchMock.mock.calls[1][1]).toMatchObject({
       method: 'POST',
-      headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+      headers: expect.objectContaining({
+        apikey: 'sb_publishable_push_test',
+        Authorization: 'Bearer test-token',
+      }),
     });
   });
 
@@ -61,6 +65,21 @@ describe('subscribeToPush', () => {
       .mockResolvedValueOnce(new Response('{}', { status: 500 }));
 
     await expect(subscribeToPush('user-1')).resolves.toBe(false);
+  });
+
+  it('includes gateway auth details when the VAPID-key request is rejected', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: 'Invalid JWT' }), { status: 401 }),
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(subscribeToPush('user-1')).resolves.toBe(false);
+    expect(getLastPushError()).toContain('Server push tidak siap (401): Invalid JWT');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://push-test.supabase.co/functions/v1/push-subscription',
+      { headers: { apikey: 'sb_publishable_push_test', Authorization: 'Bearer test-token' } },
+    );
+    consoleError.mockRestore();
   });
 
   it('recognizes an existing browser subscription when permission is granted', async () => {
