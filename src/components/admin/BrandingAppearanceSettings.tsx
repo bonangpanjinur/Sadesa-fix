@@ -952,10 +952,12 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                       value={homepageServiceCardImages[card.id] || card.fallbackImage}
                       onChange={(url) => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: url }))}
                       aspectRatio="home-card"
+                      maxSizeMB={15}
+                      compressionOptions={{ maxWidth: 1120, maxHeight: 1000, quality: 0.82, force: true }}
                       stableFileName
                       placeholder={`Upload gambar ${card.title}`}
                     />
-                    <p className="text-xs text-muted-foreground">Unggah gambar JPG, PNG, WEBP, atau GIF (maks. 5 MB). Tombol hapus mengembalikan gambar bawaan.</p>
+                    <p className="text-xs text-muted-foreground">Unggah JPG, PNG, WEBP, atau GIF hingga 15 MB. Gambar otomatis dikompres ke JPEG maksimal 1120 × 1000 px; GIF animasi menjadi gambar statis. Tombol hapus mengembalikan gambar bawaan.</p>
                     {homepageServiceCardImages[card.id] && (
                       <Button
                         type="button"

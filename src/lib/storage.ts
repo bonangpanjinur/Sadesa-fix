@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { observe, reportObservability } from '@/lib/observability';
+import { fitImageDimensions, type ImageCompressionOptions } from '@/lib/imageCompression';
 
 export type StorageBucket = 'products' | 'product-images' | 'tourism-images' | 'profile-images' | 'merchant-images' | 'promotions' | 'pod-images' | 'village-images' | 'payment-proofs' | 'admin-assets';
 
@@ -101,10 +102,24 @@ export function validateFile(file: File, maxSizeMB: number = 5): string | null {
 /**
  * Compress image before upload
  */
-export async function compressImage(file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> {
+export async function compressImage(
+  file: File,
+  optionsOrMaxWidth: ImageCompressionOptions | number = 1200,
+  legacyQuality: number = 0.8,
+): Promise<File> {
+  const options: ImageCompressionOptions = typeof optionsOrMaxWidth === 'number'
+    ? { maxWidth: optionsOrMaxWidth, quality: legacyQuality }
+    : optionsOrMaxWidth;
+  const maxWidth = options.maxWidth ?? 1200;
+  const maxHeight = options.maxHeight;
+  const quality = options.quality ?? 0.8;
+  const minSizeBytes = options.minSizeBytes ?? 500 * 1024;
+  const force = options.force ?? false;
+
   return new Promise((resolve) => {
-    // If file is small enough or not compressible, return as-is
-    if (file.size < 500 * 1024 || file.type === 'image/gif') {
+    // Keep current behavior for general uploads unless a caller explicitly
+    // requests compression. Forced compression converts GIFs to a static JPEG.
+    if (!force && (file.size < minSizeBytes || file.type === 'image/gif')) {
       resolve(file);
       return;
     }
@@ -114,13 +129,7 @@ export async function compressImage(file: File, maxWidth: number = 1200, quality
     const ctx = canvas.getContext('2d');
 
     img.onload = () => {
-      let { width, height } = img;
-      
-      // Scale down if larger than maxWidth
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
-      }
+      const { width, height } = fitImageDimensions(img.width, img.height, { maxWidth, maxHeight });
 
       canvas.width = width;
       canvas.height = height;

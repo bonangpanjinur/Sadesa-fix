@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { Upload, X, Loader2, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { uploadFile, validateFile, compressImage, StorageBucket } from '@/lib/storage';
+import { uploadFile, validateFile, compressImage, type StorageBucket } from '@/lib/storage';
+import type { ImageCompressionOptions } from '@/lib/imageCompression';
 import { toast } from 'sonner';
 
 interface ImageUploadProps {
@@ -13,6 +14,7 @@ interface ImageUploadProps {
   className?: string;
   aspectRatio?: 'square' | 'video' | 'wide' | 'home-card';
   maxSizeMB?: number;
+  compressionOptions?: ImageCompressionOptions;
   placeholder?: string;
   disabled?: boolean;
   stableFileName?: boolean;
@@ -26,6 +28,7 @@ export function ImageUpload({
   className,
   aspectRatio = 'square',
   maxSizeMB = 5,
+  compressionOptions,
   placeholder = 'Upload gambar',
   disabled = false,
   stableFileName = false,
@@ -53,7 +56,7 @@ export function ImageUpload({
 
     try {
       // Compress image
-      const compressedFile = await compressImage(file);
+      const compressedFile = await compressImage(file, compressionOptions);
       
       // Upload
       const result = await uploadFile({
