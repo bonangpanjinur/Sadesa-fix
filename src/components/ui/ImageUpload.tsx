@@ -11,7 +11,7 @@ interface ImageUploadProps {
   value?: string | null;
   onChange: (url: string | null) => void;
   className?: string;
-  aspectRatio?: 'square' | 'video' | 'wide';
+  aspectRatio?: 'square' | 'video' | 'wide' | 'home-card';
   maxSizeMB?: number;
   placeholder?: string;
   disabled?: boolean;
@@ -38,6 +38,7 @@ export function ImageUpload({
     square: 'aspect-square',
     video: 'aspect-video',
     wide: 'aspect-[3/1]',
+    'home-card': 'aspect-[1.12/1]',
   }[aspectRatio];
 
   const handleFile = async (file: File) => {
