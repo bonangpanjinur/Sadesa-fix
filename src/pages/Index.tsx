@@ -18,7 +18,9 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import { selectNewestProducts } from '@/lib/homepageProducts';
+import { groupNewestProductsByCategory } from '@/lib/homepageProductCategories';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
+import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { CarouselSkeleton, ProductGridSkeleton } from '@/components/home/HomeSkeletons';
 import { SectionError } from '@/components/home/SectionError';
 import { logHomeSectionError } from '@/lib/homeErrorLog';
@@ -76,6 +78,12 @@ const Index = () => {
   
   const { getEnabledSections } = useHomepageLayout();
   const { user } = useAuth();
+  const {
+    data: activeProductCategories = [],
+    isLoading: productCategoriesLoading,
+    isError: productCategoriesError,
+    refetch: refetchProductCategories,
+  } = useAdminCategories();
   const enabledSectionIds = new Set(getEnabledSections().map((section) => section.id));
   const handleBannerView = useCallback((id: string) => { void incrementPromotionView(id); }, []);
   const handleBannerClick = useCallback((id: string) => { void incrementPromotionClick(id); }, []);
@@ -125,10 +133,9 @@ const Index = () => {
   } = useQuery<Product[]>({
     queryKey: ['homepage-products'],
     queryFn: withErrorLog('products', 'homepage-products', { staleTime: 60_000 }, () =>
-      // The home screen renders at most six promo cards and four newest cards.
-      // Keep a small buffer for overlap filtering instead of downloading a full
-      // catalogue before the user has asked to browse it.
-      fetchProducts({ limit: 16, includeReviews: false, cacheKey: 'homepage-products' })
+      // Category rows need a recent sample broad enough to represent more than
+      // one or two categories without fetching the full catalogue.
+      fetchProducts({ limit: 48, includeReviews: false, cacheKey: 'homepage-products' })
     ),
     staleTime: 60_000,
   });
@@ -239,8 +246,12 @@ const Index = () => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    return selectNewestProducts(products, highlightedProductIds, 4);
+    return selectNewestProducts(products, highlightedProductIds, 48);
   }, [products, promoProducts, promoSectionEnabled]);
+  const newestProductRows = useMemo(
+    () => groupNewestProductsByCategory(newestProducts, activeProductCategories),
+    [newestProducts, activeProductCategories],
+  );
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
@@ -340,6 +351,16 @@ const Index = () => {
       case 'recommendations':
         if (productsLoading) return <ProductGridSkeleton count={4} />;
         if (productsError) return <MerchantJoinCard onRetry={() => refetchProducts()} />;
+        if (productCategoriesLoading) return <ProductGridSkeleton count={4} />;
+        if (productCategoriesError) {
+          return (
+            <SectionError
+              title="Kategori produk gagal dimuat"
+              message="Kategori terbaru belum dapat ditampilkan."
+              onRetry={() => refetchProductCategories()}
+            />
+          );
+        }
         return (
           <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
             <div className="mb-3 flex items-center gap-2">
@@ -351,19 +372,54 @@ const Index = () => {
               </div>
               <Link to="/products" className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline">Lihat semua <ChevronRight className="h-3 w-3" /></Link>
             </div>
-            {newestProducts.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 pb-1">
-                  {newestProducts.map((product, idx) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      index={idx}
-                      showCategoryBadge
-                      flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
-                      distanceKm={getProductDistance(product)}
-                      deliveryEta={getDeliveryEta(getProductDistance(product))}
-                    />
-                  ))}
+            {newestProductRows.length > 0 ? (
+              <div className="space-y-4">
+                {newestProductRows.map((row, rowIndex) => (
+                  <section
+                    key={row.id}
+                    className={rowIndex > 0 ? 'border-t border-border/60 pt-3' : undefined}
+                    aria-labelledby={`newest-category-title-${row.id}`}
+                    data-testid={`newest-category-row-${row.id}`}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <h3
+                        id={`newest-category-title-${row.id}`}
+                        className="min-w-0 truncate text-sm font-bold text-foreground"
+                      >
+                        {row.label}
+                      </h3>
+                      <Link
+                        to={row.slug === 'all' ? '/products' : `/products?type=${encodeURIComponent(row.slug)}`}
+                        className="flex shrink-0 items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
+                        data-testid={`link-newest-category-${row.id}`}
+                      >
+                        Lihat semua <ChevronRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                    <div
+                      className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 hide-scrollbar"
+                      aria-label={`Produk terbaru kategori ${row.label}`}
+                      data-testid={`list-newest-products-${row.id}`}
+                    >
+                      {row.products.map((product, idx) => (
+                        <div
+                          key={product.id}
+                          className="w-[48%] shrink-0 snap-start sm:w-[32%]"
+                          data-testid={`newest-category-product-${row.id}-${product.id}`}
+                        >
+                          <ProductCard
+                            product={product}
+                            index={rowIndex * 4 + idx}
+                            showCategoryBadge
+                            flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
+                            distanceKm={getProductDistance(product)}
+                            deliveryEta={getDeliveryEta(getProductDistance(product))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-center">
