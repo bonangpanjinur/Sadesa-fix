@@ -121,6 +121,7 @@ self.addEventListener('push', (event) => {
   const notificationOptions: NotificationOptions & {
     vibrate?: number[];
     actions?: Array<{ action: string; title: string }>;
+    renotify?: boolean;
   } = {
       body: data.body,
       icon: data.icon,

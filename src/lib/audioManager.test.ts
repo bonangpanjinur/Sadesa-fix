@@ -7,15 +7,16 @@ describe('audio lifecycle recovery', () => {
   });
 
   it('resumes previously enabled audio when the app regains focus', async () => {
-    const context = {
-      state: 'running',
+    const mockContext = {
+      state: 'running' as AudioContextState,
       currentTime: 0,
       destination: {},
       addEventListener: vi.fn(),
       resume: vi.fn(async () => {
-        context.state = 'running';
+        mockContext.state = 'running';
       }),
-    } as unknown as AudioContext;
+    };
+    const context = mockContext as unknown as AudioContext;
     Object.defineProperty(window, 'AudioContext', {
       configurable: true,
       value: vi.fn(function AudioContextMock() { return context; }),
@@ -26,12 +27,12 @@ describe('audio lifecycle recovery', () => {
     await enableAudio({ playConfirmationTone: false });
     stateChange.mockClear();
 
-    context.state = 'suspended';
+    mockContext.state = 'suspended';
     window.dispatchEvent(new Event('focus'));
     await Promise.resolve();
 
     expect(context.resume).toHaveBeenCalledOnce();
-    expect(context.state).toBe('running');
+    expect(mockContext.state).toBe('running');
     expect(stateChange).toHaveBeenCalled();
     unsubscribe();
   });
