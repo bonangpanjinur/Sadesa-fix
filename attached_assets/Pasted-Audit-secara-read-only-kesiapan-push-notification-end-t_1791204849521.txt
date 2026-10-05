@@ -1,0 +1,39 @@
+Audit secara read-only kesiapan push notification end-to-end untuk pesanan baru di SaDesa—baik pesanan merchant, tawaran kiriman ke kurir, maupun order Ojek.
+
+Jangan mengubah kode, database, konfigurasi, secret, atau deployment. Jangan meminta atau menampilkan nilai secret. Jika pemeriksaan remote tidak tersedia, tandai sebagai “tidak dapat diverifikasi”; jangan menyimpulkan bahwa konfigurasi aktif hanya dari kode lokal.
+
+Periksa alur berikut:
+
+1. Merchant menerima pesanan baru
+- Pastikan trigger pesanan baru membuat notifikasi dan job push untuk merchant yang benar.
+- Periksa migrasi dan bundel #75, termasuk penutup dollar-quote SQL serta kecocokan hash/ukuran di manifest.
+- Pastikan payload berisi judul, isi, tipe notifikasi, dan tautan pesanan.
+
+2. Kurir menerima tawaran kiriman
+- Periksa alur `delivery_assignments` berstatus `OFFERED`.
+- Pastikan job `new_delivery_offer` ditujukan kepada pengguna kurir yang mendapat tawaran, bukan semua kurir.
+
+3. Ojek menerima tawaran perjalanan
+- Periksa alur `ride_requests` → `dispatch_next_ride_offer` → `ride_request_offers`.
+- Pastikan job `new_ride_request` dikirim kepada kurir yang benar-benar mendapat tawaran, sesuai syarat status aktif, tersedia, lokasi terkini, dan kedekatan.
+- Pastikan tawaran untuk kurir lain tidak ikut terkirim kepadanya.
+
+4. Pendaftaran push di perangkat
+- Periksa apakah merchant dan kurir dapat meminta izin browser dan mendaftarkan subscription dari antarmuka.
+- Pastikan service worker aktif dan menampilkan notifikasi ketika aplikasi di-background-kan atau ditutup.
+- Periksa apakah rotasi VAPID ditangani: subscription lama mungkin perlu dihapus dan dibuat ulang.
+- Pastikan tiap pesanan/tawaran memiliki notifikasi tersendiri dan klik notifikasi membuka halaman yang sesuai.
+
+5. Konfigurasi VAPID dan pengiriman
+- Bandingkan pengaturan admin `push_notification_settings` dengan sumber konfigurasi yang benar-benar dibaca Edge Functions.
+- Periksa `push-subscription`, `process-notification-queue`, dan fungsi pengirim push lain yang digunakan. Jangan menganggap menyimpan VAPID di halaman admin otomatis mengubah secret Edge Function.
+- Jika akses aman tersedia, laporkan hanya apakah secret yang dibutuhkan tersedia dan nama variabelnya—jangan tampilkan nilainya.
+- Pastikan worker, antrean, jadwal cron, autentikasi worker, dan penanganan retry aktif; jangan menerapkan migrasi atau mengirim push ke pengguna nyata.
+
+6. Bunyi alarm
+- Pastikan notifikasi push meminta bunyi/getar sistem perangkat.
+- Jelaskan bahwa nada audio kustom aplikasi tidak dapat diputar oleh service worker saat aplikasi benar-benar tertutup; hasil bunyi bergantung pada browser, OS, izin, volume, dan pengaturan notifikasi perangkat.
+
+Jalankan hanya pemeriksaan lokal yang aman dan tersedia: tes terkait, validasi bundel bootstrap, serta build jika dependency tersedia. Jangan menginstal dependency atau mengubah workflow tanpa izin.
+
+Laporkan hasil dalam tabel PASS / FAIL / PERLU PERHATIAN / TIDAK DAPAT DIVERIFIKASI, sertakan bukti berupa file, fungsi, migrasi, atau hasil tes. Tutup dengan blocker paling penting dan langkah perbaikannya, tanpa melakukan perbaikan terlebih dahulu.
