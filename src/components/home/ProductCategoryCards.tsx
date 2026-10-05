@@ -1,7 +1,6 @@
 import { Apple, Bike, Coffee, Package, ShoppingBasket, Sprout, Shapes, UtensilsCrossed, Wheat, Wrench, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
-import { hideRedundantFoodRootCategories } from '@/lib/productCategories';
 
 const categoryIcons: Record<string, LucideIcon> = {
   buah: Apple,
@@ -30,18 +29,21 @@ function getCategoryIcon(slug: string, icon?: string | null) {
 
 export function ProductCategoryCards() {
   const { data: categories = [], isLoading } = useAdminCategories();
-  const parentCategories = hideRedundantFoodRootCategories(categories.filter((category) => !category.parent_id));
+  const primarySlugs = new Set(['makanan', 'minuman', 'kuliner', 'belanja', 'kelontongan', 'sembako']);
+  const dynamicCategories = categories
+    .filter((category) => !primarySlugs.has(category.slug.trim().toLowerCase()))
+    .slice(0, 6);
 
-  if (isLoading || parentCategories.length === 0) return null;
+  if (isLoading || dynamicCategories.length === 0) return null;
 
   return (
     <section className="mx-4 mt-4" aria-labelledby="product-categories-title">
       <div className="mb-2 flex items-center justify-between">
-        <h2 id="product-categories-title" className="text-sm font-bold text-foreground">Kategori Produk</h2>
+        <h2 id="product-categories-title" className="text-sm font-bold text-foreground">Kategori lainnya</h2>
         <Link to="/products" className="text-[10px] font-bold text-primary hover:underline">Lihat semua</Link>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-        {parentCategories.map((category) => {
+        {dynamicCategories.map((category) => {
           const Icon = getCategoryIcon(category.slug, category.icon);
           return (
             <Link

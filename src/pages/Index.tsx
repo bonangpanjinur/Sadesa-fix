@@ -10,6 +10,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
 import { HomeServiceCards } from '@/components/home/HomeServiceCards';
+import { ProductCategoryCards } from '@/components/home/ProductCategoryCards';
 import { 
   fetchProducts, 
   fetchVillages, 
@@ -239,7 +240,7 @@ const Index = () => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    return selectNewestProducts(products, highlightedProductIds, 6);
+    return selectNewestProducts(products, highlightedProductIds, 4);
   }, [products, promoProducts, promoSectionEnabled]);
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
@@ -341,7 +342,7 @@ const Index = () => {
         );
       
       case 'recommendations':
-        if (productsLoading) return <ProductGridSkeleton count={6} />;
+        if (productsLoading) return <ProductGridSkeleton count={4} />;
         if (productsError) return <MerchantJoinCard onRetry={() => refetchProducts()} />;
         return (
           <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
@@ -440,6 +441,7 @@ const Index = () => {
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
           <div className="pb-3 pt-3">
             <HomeServiceCards />
+            {enabledSectionIds.has('categories') && <ProductCategoryCards />}
           </div>
           {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           <div className="mt-6 space-y-6 pb-6">

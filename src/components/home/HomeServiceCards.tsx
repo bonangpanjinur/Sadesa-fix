@@ -1,10 +1,10 @@
-import { Bike, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { Coffee, ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const services = [
   {
-    name: 'Makanan & Minuman',
-    href: '/products?type=kuliner',
+    name: 'Makanan',
+    href: '/products?type=makanan',
     icon: UtensilsCrossed,
     palette: {
       icon: 'bg-[#E31019] text-white shadow-[0_6px_14px_-6px_#E31019]',
@@ -12,9 +12,9 @@ const services = [
     },
   },
   {
-    name: 'Ojek',
-    href: '/ride',
-    icon: Bike,
+    name: 'Minuman',
+    href: '/products?type=minuman',
+    icon: Coffee,
     palette: {
       icon: 'bg-[#015730] text-white shadow-[0_6px_14px_-6px_#015730]',
       title: 'text-[#015730]',
@@ -36,10 +36,10 @@ export function HomeServiceCards() {
     <section className="mx-4" aria-labelledby="home-services-title">
       <div className="mb-3">
         <h2 id="home-services-title" className="font-heading text-base font-extrabold tracking-tight text-[#173d2c]">
-          Belanja dari desa, lebih dekat
+          Kategori utama
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-[#557365]">
-          Kuliner lokal, kebutuhan harian, dan ojek dalam satu tempat.
+          Makanan lokal, minuman, dan kebutuhan harian dalam satu tempat.
         </p>
       </div>
       <div className="grid grid-cols-3 gap-2.5">
