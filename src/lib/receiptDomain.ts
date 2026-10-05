@@ -1,10 +1,13 @@
 import type { CartItem, LastSale, ReceiptStore } from '@/components/pos/kasir/types';
+import { getPrinterScope } from '@/lib/thermalPrinter';
 import type { ReceiptData } from '@/lib/thermalPrinter';
 
 export interface ReceiptSnapshot {
   store: ReceiptStore;
   sale: LastSale;
 }
+
+export type PrintIntent = 'auto' | 'manual' | 'reprint' | 'retry';
 
 export interface PrintJobEnvelope {
   jobId: string;
@@ -13,11 +16,24 @@ export interface PrintJobEnvelope {
   outletId: string;
   createdAt: string;
   copies: number;
+  printIntent: PrintIntent;
+  attemptId: string;
+  requestedAt: string;
   receipt: ReceiptData;
 }
 
 export function createPrintJobId(saleId: string, saleNumber: string): string {
   return `receipt:${saleId || saleNumber}`;
+}
+
+export function createReceiptReprintJobId(saleId: string, attemptId = createAttemptId()): string {
+  return `receipt:reprint:${saleId}:${attemptId}`;
+}
+
+export function createAttemptId(): string {
+  return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export function toReceiptData(snapshot: ReceiptSnapshot, cashierName?: string): ReceiptData {
@@ -27,6 +43,7 @@ export function toReceiptData(snapshot: ReceiptSnapshot, cashierName?: string): 
     saleNumber: sale.saleNumber,
     createdAt: sale.createdAt,
     outletId: sale.outletId,
+    printerScope: store.id && sale.outletId ? getPrinterScope(store.id, sale.outletId) : undefined,
     jobId: sale.printJobId,
     storeName: store.name || 'Toko',
     storeAddress: store.address,
@@ -53,15 +70,26 @@ export function toReceiptData(snapshot: ReceiptSnapshot, cashierName?: string): 
   };
 }
 
-export function createPrintJob(snapshot: ReceiptSnapshot, cashierName: string | undefined, copies = 1): PrintJobEnvelope {
+export function createPrintJob(snapshot: ReceiptSnapshot, cashierName: string | undefined, copies = 1, options: { printIntent?: PrintIntent; attemptId?: string } = {}): PrintJobEnvelope {
   const receipt = toReceiptData(snapshot, cashierName);
+  const jobId = snapshot.sale.printJobId || createPrintJobId(snapshot.sale.saleId || '', snapshot.sale.saleNumber);
+  const printIntent = options.printIntent ?? 'auto';
+  const attemptId = options.attemptId ?? jobId;
+  const requestedAt = new Date().toISOString();
+  receipt.jobId = jobId;
+  receipt.printIntent = printIntent;
+  receipt.attemptId = attemptId;
+  receipt.requestedAt = requestedAt;
   return {
-    jobId: snapshot.sale.printJobId,
+    jobId,
     saleId: snapshot.sale.saleId,
     saleNumber: snapshot.sale.saleNumber,
     outletId: snapshot.sale.outletId,
     createdAt: snapshot.sale.createdAt,
     copies: Math.max(1, copies),
+    printIntent,
+    attemptId,
+    requestedAt,
     receipt,
   };
 }

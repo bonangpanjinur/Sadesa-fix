@@ -13,11 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Building2, Store, Plus, Pencil, Phone, MapPin, Printer, Wifi, Bluetooth, Usb, CheckCircle2, XCircle, TestTube2, Copy, RefreshCw } from 'lucide-react';
+import { Building2, Store, Plus, Pencil, Phone, MapPin, Printer, Wifi, Bluetooth, Usb, CheckCircle2, XCircle, TestTube2, Copy, RefreshCw, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCallback } from 'react';
 import {
-  getPrinterSettings, savePrinterSettings, DEFAULT_SETTINGS,
+  getPrinterSettings, savePrinterSettings, getPrinterScope, DEFAULT_SETTINGS,
   USBPrinter, BluetoothPrinter, WiFiPrinter, getUniversalPrinter,
 } from '@/lib/thermalPrinter';
 import type { PrinterSettings, ConnectionType } from '@/lib/thermalPrinter';
@@ -34,7 +34,7 @@ interface Outlet {
 }
 
 export default function POSPengaturanPage() {
-  const { tenant, outlets, refetchTenant, refetchOutlets } = usePOS();
+  const { tenant, outlets, activeOutlet, refetchTenant, refetchOutlets } = usePOS();
   const { user } = useAuth();
   const [tenantForm, setTenantForm] = useState({
     name: '', phone: '', address: '', receipt_header: '', receipt_footer: '', timezone: 'Asia/Jakarta', currency: 'IDR',
@@ -50,6 +50,7 @@ export default function POSPengaturanPage() {
 
   // ── Printer Settings ──────────────────────────────────────
   const [printerSettings, setPrinterSettings] = useState<PrinterSettings>(() => getPrinterSettings());
+  const printerScope = tenant && activeOutlet ? getPrinterScope(tenant.id, activeOutlet.id) : undefined;
   const [printerStatus, setPrinterStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [printerMsg, setPrinterMsg] = useState('');
   const [testingPrint, setTestingPrint] = useState(false);
@@ -65,7 +66,7 @@ export default function POSPengaturanPage() {
   };
 
   const savePrinter = () => {
-    savePrinterSettings(printerSettings);
+    savePrinterSettings(printerSettings, printerScope);
     toast.success('Pengaturan printer tersimpan');
   };
 
@@ -81,7 +82,7 @@ export default function POSPengaturanPage() {
     try {
       const connected = await uniPrinter.usb.connect(printerSettings.baudRate);
       if (!connected) throw new Error('Pemilihan printer dibatalkan.');
-      savePrinterSettings(printerSettings);
+      savePrinterSettings(printerSettings, printerScope);
       setPrinterStatus('connected');
       setPrinterMsg('Printer USB terhubung langsung ke tablet');
       toast.success('Printer USB siap digunakan dari tablet');
@@ -128,7 +129,7 @@ export default function POSPengaturanPage() {
       const printers = await getBridgePrinters();
       const printer = printers.find(item => item.type === 'tcp' && item.host === printerSettings.wifiIp && Number(item.port || 9100) === printerSettings.wifiPort);
       if (!printer) throw new Error('Printer WiFi/LAN belum dikonfigurasi di Print Bridge.');
-      const job = await printBridgeClient.testPrint();
+      const job = await printBridgeClient.testPrint(printerScope);
       const finalJob = job.status === 'printed' || job.status === 'failed'
         ? job
         : await printBridgeClient.waitForJob(job.jobId);
@@ -144,7 +145,7 @@ export default function POSPengaturanPage() {
   };
 
   const doTestPrint = async () => {
-    savePrinterSettings(printerSettings);
+    savePrinterSettings(printerSettings, printerScope);
     setTestingPrint(true);
     try {
       if (printerSettings.connectionType === 'android_bluetooth') {
@@ -157,16 +158,16 @@ export default function POSPengaturanPage() {
       const nativeSelected = printerSettings.connectionType === 'usb' || printerSettings.connectionType === 'bluetooth';
       if (nativeSelected && uniPrinter.connected) {
         try {
-          await uniPrinter.testPrint();
+          await uniPrinter.testPrint(printerScope);
         } catch (nativeError) {
-          const job = await printBridgeClient.testPrint();
+          const job = await printBridgeClient.testPrint(printerScope);
           const finalJob = job.status === 'printed' || job.status === 'failed'
             ? job
             : await printBridgeClient.waitForJob(job.jobId);
           if (finalJob.status === 'failed') throw new Error(`${nativeError instanceof Error ? nativeError.message : 'Koneksi native gagal'}; ${finalJob.error || 'Print Bridge gagal'}`);
         }
       } else {
-        const job = await printBridgeClient.testPrint();
+        const job = await printBridgeClient.testPrint(printerScope);
         const finalJob = job.status === 'printed' || job.status === 'failed'
           ? job
           : await printBridgeClient.waitForJob(job.jobId);
@@ -187,8 +188,12 @@ export default function POSPengaturanPage() {
   const retryPrintJobs = async () => {
     setFlushingPrintJobs(true);
     try {
-      const result = await flushReceiptOutbox();
-      setPendingPrintJobs(getPendingReceiptCount());
+      const result = await flushReceiptOutbox(candidate => {
+        if (!printerScope) return false;
+        return candidate.receipt.printerScope?.tenantId === printerScope.tenantId
+          && candidate.receipt.printerScope?.outletId === printerScope.outletId;
+      });
+      setPendingPrintJobs(getPendingReceiptCount(printerScope));
       if (result.failed > 0) toast.error('Sebagian job masih gagal; periksa koneksi printer.');
       else toast.success(result.printed > 0 ? `${result.printed} job berhasil dicetak.` : 'Tidak ada job yang dapat dicetak.');
     } catch (err: unknown) {
@@ -208,6 +213,16 @@ export default function POSPengaturanPage() {
       : printerSettings.connectionType === 'android_bluetooth'
         ? 'Aplikasi Android Bluetooth'
         : 'Bluetooth';
+
+  useEffect(() => {
+    if (tenant && activeOutlet) {
+      const scope = getPrinterScope(tenant.id, activeOutlet.id);
+      setPrinterSettings(getPrinterSettings(scope));
+      setPendingPrintJobs(getPendingReceiptCount(scope));
+      setPrinterStatus('idle');
+      setPrinterMsg('');
+    }
+  }, [tenant, activeOutlet]);
 
   useEffect(() => {
     if (tenant) {
@@ -554,7 +569,7 @@ export default function POSPengaturanPage() {
                   </div>
                 </div>
                 <p className="rounded-lg border border-emerald-200 bg-white/80 px-3 py-2 text-xs">
-                  <strong>Yang sedang dipilih:</strong> {selectedConnectionLabel}. Jika menggunakan komputer kasir tetap, WiFi/LAN biasanya paling stabil.
+                  <strong>Scope konfigurasi:</strong> {tenant?.name || 'Tenant'} · {activeOutlet?.name || 'Outlet belum dipilih'}. <strong>Koneksi:</strong> {selectedConnectionLabel}. Jika menggunakan komputer kasir tetap, WiFi/LAN biasanya paling stabil.
                 </p>
               </CardContent>
             </Card>
@@ -565,6 +580,51 @@ export default function POSPengaturanPage() {
                 <Button variant="outline" size="sm" onClick={() => void retryPrintJobs()} disabled={flushingPrintJobs || pendingPrintJobs === 0}><RefreshCw className="mr-2 h-4 w-4" />{flushingPrintJobs ? 'Memproses...' : 'Coba ulang antrean'}</Button>
               </CardContent>
             </Card>
+
+            <Card className="border-sky-200 bg-sky-50/70 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-sky-950">
+                  <Info className="h-4 w-4 text-sky-700" />
+                  Cara menggunakan pengaturan print
+                </CardTitle>
+                <CardDescription className="text-sky-900/75">
+                  Pengaturan di bawah ini berlaku untuk perangkat kasir yang sedang dipakai pada outlet aktif.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 text-sm text-sky-950 md:grid-cols-2">
+                <div className="rounded-lg border border-sky-200 bg-white/80 p-3">
+                  <p className="font-semibold">1. Pastikan scope sudah benar</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Cek label <strong>Scope konfigurasi</strong> di atas: {tenant?.name || 'tenant'} · {activeOutlet?.name || 'outlet belum dipilih'}. Jika berganti outlet, pilih outlet terlebih dahulu lalu simpan pengaturan printer untuk outlet tersebut.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-sky-200 bg-white/80 p-3">
+                  <p className="font-semibold">2. Simpan lalu lakukan Test Print</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Pilih koneksi, isi detail yang diminta, aktifkan <strong>Auto Print</strong> bila struk ingin langsung dicetak setelah pembayaran, lalu tekan <strong>Simpan Pengaturan Printer</strong> dan <strong>Test Print</strong>.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-sky-200 bg-white/80 p-3">
+                  <p className="font-semibold">3. Pilih cara koneksi sesuai perangkat</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    USB/Bluetooth membutuhkan izin browser dan tombol hubungkan. WiFi/LAN membutuhkan Print Bridge yang aktif pada komputer kasir dan IP/port yang benar. Android Bluetooth membutuhkan aplikasi Print Service di tablet Android.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-sky-200 bg-white/80 p-3">
+                  <p className="font-semibold">4. Jika print gagal</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Struk tidak hilang: job disimpan di <strong>Antrean print</strong>. Perbaiki koneksi atau nyalakan printer, lalu tekan <strong>Coba ulang antrean</strong>. Hanya antrean tenant/outlet aktif yang diproses.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-sky-200 bg-white/80 p-3 md:col-span-2">
+                  <p className="font-semibold">Cetak ulang transaksi</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Untuk mencetak ulang tanpa membuat transaksi baru, buka menu <strong>Transaksi</strong>, lihat detail transaksi, lalu tekan <strong>Cetak Ulang</strong>. Sistem membuat percobaan print baru untuk transaksi yang sama dan tetap mencatatnya sebagai reprint.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className={`flex items-center gap-2.5 px-4 py-3 rounded-lg border text-sm font-medium
               ${printerStatus === 'connected' ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
               : printerStatus === 'error' ? 'bg-red-50 border-red-300 text-red-800'

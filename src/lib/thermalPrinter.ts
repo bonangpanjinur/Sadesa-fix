@@ -22,6 +22,12 @@ declare global { interface Navigator { serial: { requestPort(): Promise<SerialPo
 export type ConnectionType = "usb" | "wifi" | "bluetooth" | "android_bluetooth";
 export type PaperWidth = 58 | 80;
 
+export interface PrinterScope {
+  tenantId: string;
+  outletId: string;
+  deviceId?: string;
+}
+
 export interface PrinterSettings {
   connectionType: ConnectionType;
   wifiIp: string;
@@ -30,6 +36,7 @@ export interface PrinterSettings {
   paperWidth: PaperWidth;
   autoPrint: boolean;
   printCopies: number;
+  migratedFromLegacy?: boolean;
 }
 
 const SETTINGS_KEY = "pos_printer_settings";
@@ -44,8 +51,45 @@ export const DEFAULT_SETTINGS: PrinterSettings = {
   printCopies: 1,
 };
 
-export function getPrinterSettings(): PrinterSettings {
+const SCOPED_SETTINGS_PREFIX = "pos_printer_settings:v2";
+const DEVICE_ID_KEY = "pos_device_id:v1";
+
+function getDeviceId(): string {
   try {
+    const existing = localStorage.getItem(DEVICE_ID_KEY);
+    if (existing) return existing;
+    const created = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(DEVICE_ID_KEY, created);
+    return created;
+  } catch {
+    return "ephemeral-device";
+  }
+}
+
+export function getPrinterScope(tenantId: string, outletId: string): PrinterScope {
+  return { tenantId, outletId, deviceId: getDeviceId() };
+}
+
+function scopedSettingsKey(scope: PrinterScope): string {
+  return `${SCOPED_SETTINGS_PREFIX}:${scope.tenantId}:${scope.outletId}:${scope.deviceId || getDeviceId()}`;
+}
+
+export function getPrinterSettings(scope?: PrinterScope): PrinterSettings {
+  try {
+    if (scope?.tenantId && scope.outletId) {
+      const key = scopedSettingsKey(scope);
+      const scopedRaw = localStorage.getItem(key);
+      if (scopedRaw) return { ...DEFAULT_SETTINGS, ...JSON.parse(scopedRaw) };
+      const legacyRaw = localStorage.getItem(SETTINGS_KEY);
+      if (legacyRaw) {
+        const migrated = { ...DEFAULT_SETTINGS, ...JSON.parse(legacyRaw), migratedFromLegacy: true };
+        localStorage.setItem(key, JSON.stringify(migrated));
+        return migrated;
+      }
+      return { ...DEFAULT_SETTINGS };
+    }
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
@@ -54,8 +98,13 @@ export function getPrinterSettings(): PrinterSettings {
   }
 }
 
-export function savePrinterSettings(s: PrinterSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+export function savePrinterSettings(s: PrinterSettings, scope?: PrinterScope): void {
+  const payload = { ...s, migratedFromLegacy: undefined };
+  if (scope?.tenantId && scope.outletId) {
+    localStorage.setItem(scopedSettingsKey(scope), JSON.stringify(payload));
+    return;
+  }
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
 }
 
 // ─── ESC/POS Builder ─────────────────────────────────────────────────────────
@@ -344,21 +393,27 @@ export class UniversalPrinter {
   bluetooth = new BluetoothPrinter();
 
   get connected(): boolean {
-    const s = getPrinterSettings();
+    return this.isConnected();
+  }
+  isConnected(scope?: PrinterScope): boolean {
+    const s = getPrinterSettings(scope);
     if (s.connectionType === "usb") return this.usb.connected;
     if (s.connectionType === "bluetooth") return this.bluetooth.connected;
     return !!s.wifiIp;
   }
 
   get connectionLabel(): string {
-    const s = getPrinterSettings();
+    return this.getConnectionLabel();
+  }
+  getConnectionLabel(scope?: PrinterScope): string {
+    const s = getPrinterSettings(scope);
     if (s.connectionType === "usb") return this.usb.connected ? `USB Terhubung` : "USB Belum Terhubung";
     if (s.connectionType === "bluetooth") return this.bluetooth.connected ? `BT: ${this.bluetooth.deviceName}` : "Bluetooth Belum Terhubung";
     return s.wifiIp ? `WiFi: ${s.wifiIp}:${s.wifiPort}` : "WiFi Belum Dikonfigurasi";
   }
 
   async printReceipt(receipt: ReceiptData, copiesOverride?: number): Promise<void> {
-    const s = getPrinterSettings();
+    const s = getPrinterSettings(receipt.printerScope);
     const copies = Math.max(1, copiesOverride ?? (s.printCopies || 1));
     const bytes = buildReceiptBytes(receipt, s.paperWidth);
 
@@ -367,8 +422,8 @@ export class UniversalPrinter {
     }
   }
 
-  async testPrint(): Promise<void> {
-    const s = getPrinterSettings();
+  async testPrint(scope?: PrinterScope): Promise<void> {
+    const s = getPrinterSettings(scope);
     const W = s.paperWidth === 58 ? 32 : 42;
     const bytes: number[] = [];
     bytes.push(ESC, 0x40); // init
@@ -420,7 +475,7 @@ export class ThermalPrinter extends USBPrinter {
   }
 
   async printReceipt(receipt: ReceiptData): Promise<void> {
-    const s = getPrinterSettings();
+    const s = getPrinterSettings(receipt.printerScope);
     const bytes = buildReceiptBytes(receipt, s.paperWidth);
     await this.send(bytes);
   }
@@ -515,7 +570,11 @@ export interface ReceiptData {
   saleNumber?: string;
   createdAt?: string;
   outletId?: string;
+  printerScope?: PrinterScope;
   jobId?: string;
+  printIntent?: 'auto' | 'manual' | 'reprint' | 'retry';
+  attemptId?: string;
+  requestedAt?: string;
   storeName?: string;
   storeAddress?: string;
   storePhone?: string;

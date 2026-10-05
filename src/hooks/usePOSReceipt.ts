@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { printBridgeClient } from '@/lib/printBridgeClient';
 import { createPrintJob } from '@/lib/receiptDomain';
 import { printReceiptWithContract } from '@/lib/receiptPrintContract';
-import { getPrinterSettings, getUniversalPrinter } from '@/lib/thermalPrinter';
+import { getPrinterSettings, getUniversalPrinter, getPrinterScope } from '@/lib/thermalPrinter';
 import { isAndroidPrintServiceSupported } from '@/lib/androidPrintService';
 import type { ReceiptStore, LastSale } from '@/components/pos/kasir/types';
 
@@ -21,7 +21,7 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
   const connectThermalPrinter = useCallback(async () => {
     setThermalConnecting(true);
     try {
-      const settings = getPrinterSettings();
+      const settings = getPrinterSettings(tenant?.id && lastSale?.outletId ? getPrinterScope(tenant.id, lastSale.outletId) : undefined);
       if (settings.connectionType === 'android_bluetooth') {
         if (!isAndroidPrintServiceSupported()) throw new Error('Mode ini hanya tersedia di tablet Android.');
         setThermalConnected(true);
@@ -68,11 +68,11 @@ export function usePOSReceipt({ tenant, outletReady, lastSale, userEmail }: UseP
     } finally {
       setThermalConnecting(false);
     }
-  }, []);
+  }, [tenant?.id, lastSale?.outletId]);
 
   const printReceipt = useCallback(async () => {
     if (!lastSale || !tenant || !outletReady) return false;
-    const receiptJob = createPrintJob({ store: tenant, sale: lastSale }, userEmail);
+    const receiptJob = createPrintJob({ store: tenant, sale: lastSale }, userEmail, undefined, { printIntent: 'auto' });
     const result = await printReceiptWithContract(receiptJob.receipt);
     if (result.status === 'queued') {
       setThermalConnected(false);

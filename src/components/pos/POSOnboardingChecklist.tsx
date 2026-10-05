@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, ExternalLink, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { getPrinterSettings } from '@/lib/thermalPrinter';
+import { getPrinterSettings, getPrinterScope } from '@/lib/thermalPrinter';
 import { Button } from '@/components/ui/button';
 
 interface POSOnboardingChecklistProps {
@@ -10,6 +10,7 @@ interface POSOnboardingChecklistProps {
   tenantName: string;
   outletCount: number;
   activeOutletName?: string;
+  activeOutletId?: string;
   enabledModuleCount: number;
 }
 
@@ -18,6 +19,7 @@ export function POSOnboardingChecklist({
   tenantName,
   outletCount,
   activeOutletName,
+  activeOutletId,
   enabledModuleCount,
 }: POSOnboardingChecklistProps) {
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ export function POSOnboardingChecklist({
     return () => { mounted = false; };
   }, [tenantId]);
 
-  const printerReady = getPrinterSettings().autoPrint;
+  const printerReady = getPrinterSettings(activeOutletId ? getPrinterScope(tenantId, activeOutletId) : undefined).autoPrint;
   const checks = useMemo(() => [
     { label: 'Workspace POS aktif', detail: tenantName, done: true, href: '/merchant/pos/pengaturan' },
     { label: 'Outlet pertama siap', detail: activeOutletName || `${outletCount} outlet terdaftar`, done: outletCount > 0, href: '/merchant/pos/pengaturan' },

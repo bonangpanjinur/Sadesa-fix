@@ -98,13 +98,14 @@ export const printBridgeClient = {
     return { health, printers };
   },
 
-  async testPrint(): Promise<PrintBridgeJob> {
+  async testPrint(scope?: import('@/lib/thermalPrinter').PrinterScope): Promise<PrintBridgeJob> {
     const now = new Date().toISOString();
     return this.submitReceipt({
       saleId: `test-${Date.now()}`,
       saleNumber: 'TEST-PRINT',
       createdAt: now,
-      outletId: 'test',
+      outletId: scope?.outletId || 'test',
+      printerScope: scope,
       jobId: `test-print:${Date.now()}`,
       storeName: 'SaDesa POS',
       receiptHeader: 'PRINT BRIDGE TEST',
@@ -123,7 +124,7 @@ export const printBridgeClient = {
   },
 
   async submitReceipt(receipt: ReceiptData): Promise<PrintBridgeJob> {
-    const settings = getPrinterSettings();
+    const settings = getPrinterSettings(receipt.printerScope);
     const result = await request<PrintBridgeJob>('/jobs', {
       method: 'POST',
       body: JSON.stringify({

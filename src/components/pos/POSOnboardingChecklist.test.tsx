@@ -14,6 +14,7 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 vi.mock('@/lib/thermalPrinter', () => ({
   getPrinterSettings: mocks.getPrinterSettings,
+  getPrinterScope: (tenantId: string, outletId: string) => ({ tenantId, outletId, deviceId: 'test-device' }),
 }));
 
 describe('POSOnboardingChecklist', () => {

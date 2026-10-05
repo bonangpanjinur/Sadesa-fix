@@ -48,6 +48,7 @@ export interface LastSale {
 }
 
 export interface ReceiptStore {
+  id?: string;
   name?: string;
   address?: string;
   phone?: string;

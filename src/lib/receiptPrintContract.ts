@@ -25,9 +25,9 @@ export async function printReceiptWithContract(
   options: { allowBrowserFallback?: boolean } = {},
 ): Promise<ReceiptPrintResult> {
   const allowBrowserFallback = options.allowBrowserFallback ?? true;
-  const settings = getPrinterSettings();
+  const settings = getPrinterSettings(receipt.printerScope);
   const nativeWasConnected = (settings.connectionType === 'usb' || settings.connectionType === 'bluetooth')
-    && getUniversalPrinter().connected;
+    && getUniversalPrinter().isConnected(receipt.printerScope);
   const job = enqueueReceiptData(receipt);
 
   try {

@@ -15,6 +15,8 @@ import { id as idLocale } from 'date-fns/locale';
 import { toast } from 'sonner';
 import type { ReceiptData } from '@/lib/thermalPrinter';
 import { printReceiptWithContract } from '@/lib/receiptPrintContract';
+import { createAttemptId, createReceiptReprintJobId } from '@/lib/receiptDomain';
+import { getPrinterScope } from '@/lib/thermalPrinter';
 import { isMissingPOSHistoryViewError } from '@/lib/posTransactionHistory';
 
 interface Sale {
@@ -163,12 +165,17 @@ export default function POSTransaksiPage() {
 
   const reprintReceipt = async () => {
     if (!selected || !tenant || !activeOutlet) return;
+    const attemptId = createAttemptId();
     const receipt: ReceiptData = {
       saleId: selected.id,
       saleNumber: selected.sale_number,
       createdAt: selected.created_at,
       outletId: activeOutlet.id,
-      jobId: `receipt:reprint:${selected.id}:${selected.created_at}`,
+      printerScope: getPrinterScope(tenant.id, activeOutlet.id),
+      jobId: createReceiptReprintJobId(selected.id, attemptId),
+      printIntent: 'reprint',
+      attemptId,
+      requestedAt: new Date().toISOString(),
       storeName: tenant.name || 'Toko',
       storeAddress: (tenant as unknown as { address?: string }).address,
       storePhone: (tenant as unknown as { phone?: string }).phone,
@@ -351,7 +358,7 @@ export default function POSTransaksiPage() {
                 {selected.change_amount > 0 && <div className="flex justify-between text-muted-foreground"><span>Kembalian</span><span>{formatCurrency(selected.change_amount)}</span></div>}
               </div>
 
-              <Button variant="outline" className="w-full" onClick={() => void reprintReceipt().then(() => toast.success('Struk dikirim ke printer')).catch(error => toast.error(error instanceof Error ? error.message : 'Gagal mencetak ulang'))}>
+              <Button variant="outline" className="w-full" onClick={() => void reprintReceipt().then(() => toast.success('Struk dikirim untuk dicetak ulang')).catch(error => toast.error(error instanceof Error ? error.message : 'Gagal mencetak ulang'))}>
                 <Printer className="h-4 w-4 mr-2" />Cetak Ulang ke Printer
               </Button>
             </div>

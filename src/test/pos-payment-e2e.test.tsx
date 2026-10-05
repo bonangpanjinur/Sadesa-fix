@@ -96,6 +96,7 @@ vi.mock('@/lib/posOfflineDB', () => ({
 
 vi.mock('@/lib/thermalPrinter', () => ({
   getPrinterSettings: mocks.getPrinterSettings,
+  getPrinterScope: (tenantId: string, outletId: string) => ({ tenantId, outletId, deviceId: 'test-device' }),
   getUniversalPrinter: mocks.getUniversalPrinter,
   buildReceiptBytes: mocks.buildReceiptBytes,
   printReceiptBrowser: mocks.printReceiptBrowser,

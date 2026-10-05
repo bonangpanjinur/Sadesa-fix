@@ -49,7 +49,7 @@ describe('receipt print contract', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getPrinterSettings.mockReturnValue({ connectionType: 'wifi', printCopies: 1 });
-    mocks.getUniversalPrinter.mockReturnValue({ connected: false });
+    mocks.getUniversalPrinter.mockReturnValue({ connected: false, isConnected: vi.fn().mockReturnValue(false) });
     mocks.enqueueReceiptData.mockReturnValue(receipt);
     mocks.getReceiptJobStatus.mockReturnValue('failed');
     mocks.printReceiptBrowser.mockResolvedValue(undefined);

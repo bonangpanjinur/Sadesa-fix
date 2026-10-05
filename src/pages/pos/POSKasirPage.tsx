@@ -3,7 +3,7 @@ import DOMPurify from 'dompurify';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getPrinterSettings } from '@/lib/thermalPrinter';
+import { getPrinterSettings, getPrinterScope } from '@/lib/thermalPrinter';
 import { createPrintJobId } from '@/lib/receiptDomain';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -638,11 +638,11 @@ export default function POSKasirPage() {
 
   const autoPrintedJobRef = useRef<string | null>(null);
   useEffect(() => {
-    const settings = getPrinterSettings();
+    const settings = tenant && activeOutlet ? getPrinterSettings(getPrinterScope(tenant.id, activeOutlet.id)) : getPrinterSettings();
     if (!successDialog || !lastSale || !settings.autoPrint || autoPrintedJobRef.current === lastSale.printJobId) return;
     autoPrintedJobRef.current = lastSale.printJobId;
     void printReceipt();
-  }, [successDialog, lastSale, printReceipt]);
+  }, [successDialog, lastSale, printReceipt, tenant, activeOutlet]);
 
   const sendReceiptViaWhatsApp = () => {
     if (!lastSale) return;
@@ -986,7 +986,7 @@ export default function POSKasirPage() {
               </Button>
             </div>
             {(() => {
-              const ps = getPrinterSettings();
+              const ps = tenant && activeOutlet ? getPrinterSettings(getPrinterScope(tenant.id, activeOutlet.id)) : getPrinterSettings();
               const typeLabel = ps.connectionType === 'wifi' ? `WiFi (${ps.wifiIp || 'belum diatur'})` : ps.connectionType === 'bluetooth' ? 'Bluetooth' : 'USB';
               return (
                 <Button variant="ghost" size="sm" className={`w-full mt-1 text-xs ${thermalConnected ? 'text-emerald-600' : 'text-muted-foreground'}`}

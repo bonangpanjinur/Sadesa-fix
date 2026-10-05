@@ -238,7 +238,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
     },
     {
       id: 'insights', label: 'Laporan & Keuangan', icon: <BarChart3 className="h-4 w-4" />, items: [
-        { label: 'Analitik', href: '/merchant/analytics', icon: <BarChart3 className="h-4 w-4" /> },
+        { label: 'Ringkasan Penjualan', href: '/merchant/analytics', icon: <BarChart3 className="h-4 w-4" /> },
         { label: 'Statistik Pengunjung', href: '/merchant/visitor-stats', icon: <Eye className="h-4 w-4" /> },
         { label: 'Insight Bisnis', href: '/merchant/insight', icon: <Lightbulb className="h-4 w-4" /> },
         { label: 'Laporan Keuangan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
