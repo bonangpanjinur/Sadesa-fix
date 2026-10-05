@@ -177,7 +177,7 @@ export function shouldPlayOrderNotificationSound(settings: OrderNotificationSoun
 }
 
 /** Call from a user gesture before a realtime callback needs to play audio. */
-export async function unlockOrderNotificationAudio(): Promise<boolean> {
+export async function unlockOrderNotificationAudio(options: { playConfirmationTone?: boolean } = {}): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   // WebAudio can be suspended when a mobile browser backgrounds the page.
   // Keep a user-gesture-unlocked media element as a best-effort background
@@ -192,7 +192,7 @@ export async function unlockOrderNotificationAudio(): Promise<boolean> {
     if (backgroundAudio) backgroundAudio.currentTime = 0;
     backgroundAudioUnlocked = true;
   }).catch(() => undefined);
-  const webAudioUnlock = enableAudio().then(flushPendingSoundAudiences).catch(() => undefined);
+  const webAudioUnlock = enableAudio(options).then(flushPendingSoundAudiences).catch(() => undefined);
   await Promise.all([backgroundUnlock, webAudioUnlock]);
   return isAudioEnabled() || backgroundAudioUnlocked;
 }

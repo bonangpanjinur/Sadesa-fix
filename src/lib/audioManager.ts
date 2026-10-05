@@ -88,14 +88,14 @@ export function subscribeAudioManager(event: AudioManagerEvent, listener: () => 
   return () => listeners[event].delete(listener);
 }
 
-/** Must be called from an explicit user gesture, such as the permission button. */
-export async function enableAudio() {
+/** Must be called from a user gesture; confirmation tone is optional for silent autoplay unlocks. */
+export async function enableAudio(options: { playConfirmationTone?: boolean } = {}) {
   if (!isWebAudioSupported()) throw new Error('Web Audio API tidak didukung oleh browser ini.');
   const context = ensureAudioContext();
   if (!context) throw new Error('Web Audio API tidak tersedia.');
   if (context.state === 'suspended') await context.resume();
   if (context.state !== 'running') throw new Error(`AudioContext tidak dapat diaktifkan (status: ${context.state}).`);
-  await playTestSound();
+  if (options.playConfirmationTone !== false) await playTestSound();
   writePermissionPreference(true);
   emit('statechange');
   return true;

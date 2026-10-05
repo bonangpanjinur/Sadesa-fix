@@ -11,8 +11,8 @@ In-app alarm audio is only available while the page is running and audio has bee
 ## Merchant setup on the device
 
 1. Open SaDesa in a supported, current browser over HTTPS. On Android, Chrome's **Install app** or **Add to Home screen** option provides an app-like launch surface. On iOS, add the site to the Home Screen if using Web Push.
-2. Sign in to the merchant account on the device that will receive order alerts.
-3. In the merchant page header, tap **Aktifkan Alarm & Notifikasi**. This user-initiated action requests notification permission, registers/reuses the browser's Push API subscription, and saves it for the signed-in account. Allow notifications when the browser asks.
+2. Sign in to the merchant account on the device that will receive order alerts. The first pointer or keyboard interaction in the merchant area silently unlocks foreground order audio; the browser may block audio until this gesture occurs.
+3. In the merchant page header, tap **Aktifkan Alarm & Notifikasi** to request notification permission, register/reuse the browser's Push API subscription, and save it for the signed-in account. Allow notifications when the browser asks. This permission is only for system notifications; it is not requested by the silent audio unlock.
 4. Confirm the app reports that background notifications are active. If permission was previously denied, change the site's notification permission in browser settings to **Allow**, return to SaDesa, and tap the activation button again.
 5. In the device's system settings, allow SaDesa/browser notifications and their sound. On Android, set SaDesa or the browser to **Unrestricted** battery use (wording varies by device), allow background data, and enable autostart/background operation when the manufacturer provides those controls. Battery Saver, Data Saver, or OEM task-killer settings can still delay delivery.
 6. Place a test order from a separate test account, then background/close the PWA and verify the system notification arrives.
