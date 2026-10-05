@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; RLS ride fix appended",
-  "migration_count": 350,
-  "bundle_count": 50,
+  "migration_count": 352,
+  "bundle_count": 51,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -703,6 +703,14 @@
       ],
       "sha256": "57842a248eb3ee838f166e34151bbf13e385b674ffdd20b5075f47a6ab6cb14c",
       "bytes": 3755
+    },
+    {
+      "file": "78_20261005150000_notification_delivery_worker_cron.sql",
+      "source_files": [
+        "20261005150000_notification_delivery_worker_cron.sql"
+      ],
+      "sha256": "51d61976fe38e4944d8a446ee2c45a2761a7b9d8929ebdcb6ca9089cad8b7c9b",
+      "bytes": 2874
     }
   ],
   "idempotent": true,

@@ -27,6 +27,7 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
     let disposed = false;
     let retryTimer: number | undefined;
     let channel: ReturnType<typeof supabase.channel> | null = null;
+    let hasSeededPendingOrders = false;
 
     const isMerchantActive = () => Boolean(merchantRef.current?.id) && merchantRef.current?.status === 'ACTIVE';
 
@@ -43,7 +44,7 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
       merchantRef.current = data as MerchantState;
     };
 
-    const seedPendingOrders = async () => {
+    const seedPendingOrders = async (announceNewOrders = false) => {
       if (!isMerchantActive()) {
         pendingOrderIds.current.clear();
         stopOrderNotificationSound('merchant');
@@ -52,12 +53,24 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
       const merchantId = merchantRef.current!.id;
       const { data, error } = await supabase
         .from('orders')
-        .select('id')
+        .select('id, status, delivery_name')
         .eq('merchant_id', merchantId)
         .in('status', PENDING_STATUSES)
         .limit(100);
-      if (error || disposed) return;
-      pendingOrderIds.current = new Set((data || []).map((row: { id: string }) => row.id));
+      if (error || disposed) {
+        if (error) console.warn('[merchant-order-alarm] pending order refresh failed', error.message);
+        return;
+      }
+
+      const pendingOrders = (data || []) as OrderAlarmPayload[];
+      if (announceNewOrders && hasSeededPendingOrders) {
+        pendingOrders.forEach((order) => {
+          if (!pendingOrderIds.current.has(order.id)) handleOrderChange(order);
+        });
+      }
+
+      pendingOrderIds.current = new Set(pendingOrders.map((order) => order.id));
+      hasSeededPendingOrders = true;
       if (pendingOrderIds.current.size === 0) stopOrderNotificationSound('merchant');
     };
 
@@ -85,6 +98,11 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
       if (pendingOrderIds.current.size === 0) stopOrderNotificationSound('merchant');
     };
 
+    const reconcilePendingOrders = async (announceNewOrders: boolean) => {
+      await loadMerchant();
+      if (!disposed) await seedPendingOrders(announceNewOrders);
+    };
+
     const subscribe = () => {
       if (disposed || !merchantRef.current?.id) return;
       const merchantId = merchantRef.current.id;
@@ -101,7 +119,7 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
           event: 'UPDATE', schema: 'public', table: 'merchants', filter: `user_id=eq.${userId}`,
         }, async (payload) => {
           merchantRef.current = payload.new as MerchantState;
-          if (isMerchantActive()) await seedPendingOrders();
+          if (isMerchantActive()) await seedPendingOrders(true);
           else {
             pendingOrderIds.current.clear();
             stopOrderNotificationSound('merchant');
@@ -110,11 +128,15 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
 
       channel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          void seedPendingOrders();
+          if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+          retryTimer = undefined;
+          void reconcilePendingOrders(true);
           return;
         }
-        if (!disposed && (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
+        if (!disposed && retryTimer === undefined
+          && (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
           retryTimer = window.setTimeout(() => {
+            retryTimer = undefined;
             if (channel) void supabase.removeChannel(channel);
             channel = null;
             subscribe();
@@ -122,6 +144,16 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
         }
       });
     };
+
+    const reconcileWhenResumed = () => {
+      if (!disposed && navigator.onLine) void reconcilePendingOrders(true);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') reconcileWhenResumed();
+    };
+
+    window.addEventListener('online', reconcileWhenResumed);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const start = async () => {
       await loadMerchant();
@@ -132,6 +164,8 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
 
     return () => {
       disposed = true;
+      window.removeEventListener('online', reconcileWhenResumed);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (retryTimer) window.clearTimeout(retryTimer);
       if (channel) void supabase.removeChannel(channel);
       stopOrderNotificationSound('merchant');

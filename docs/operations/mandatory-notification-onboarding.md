@@ -27,9 +27,19 @@ A complete background notification path has three parts:
 2. The `process-notification-queue` Edge Function polls and delivers queued jobs.
 3. The registered PWA service worker handles the Web Push event and calls `showNotification`.
 
-The Edge Function requires `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. Deploy it and configure both as Edge Function secrets. The push-subscription endpoint must use the matching public VAPID key. The queue worker must also be invoked by a trusted scheduler (for example, Supabase Cron) on a recurring interval; deploying the function alone does not run it. **This repository does not define a scheduled invocation for `process-notification-queue`**, so the target project's scheduler and its secret/auth configuration must be verified separately before relying on closed-app alerts.
+The Edge Function requires `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `WORKER_CRON_SECRET` as Edge Function secrets. `push-subscription` must use the matching public VAPID key. The migration `20261005150000_notification_delivery_worker_cron.sql` schedules the worker every minute and reads its credentials from Supabase Vault; missing Vault values produce a warning and skip dispatch instead of exposing credentials or failing bootstrap.
 
-The worker treats missing VAPID credentials as a delivery failure so a queued job can be retried instead of being marked complete without a notification. Inspect Edge Function logs and notification-job status during the test. Never put a service-role key or worker secret in frontend code.
+Before applying that migration, add these named values in Supabase Vault:
+
+- `sadesa_project_url`: the project's `https://<project-ref>.supabase.co` URL.
+- `sadesa_publishable_key`: the project's publishable/anon key.
+- `sadesa_notification_worker_secret`: the same random value configured as the Edge Function secret `WORKER_CRON_SECRET`.
+
+Deploy `process-notification-queue` with the checked-in `verify_jwt = false` setting. Its handler still rejects requests without the matching `x-worker-secret`; the publishable key is not privileged. Configure the VAPID secrets before expecting push delivery; the worker retries missing VAPID or subscription failures instead of marking those jobs sent.
+
+Verify that `cron.job` contains `sadesa-notification-delivery`, then create a test order after the merchant has activated push on that device. Check the Edge Function logs and `notification_delivery_jobs` status if the system notification does not arrive.
+
+Never put a service-role key or worker secret in frontend code.
 
 ## Permission and security boundaries
 

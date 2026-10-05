@@ -12,6 +12,10 @@ verify_jwt = true
 [functions.send-push-notification]
 verify_jwt = true
 
+[functions.process-notification-queue]
+# The handler validates WORKER_CRON_SECRET before accessing the service-role-backed queue.
+verify_jwt = false
+
 [functions.xendit-payment]
 verify_jwt = true
 

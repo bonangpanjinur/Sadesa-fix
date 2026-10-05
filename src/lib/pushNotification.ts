@@ -54,6 +54,24 @@ export async function isPushSupported(): Promise<boolean> {
   return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
 }
 
+export async function waitForPushServiceWorkerRegistration(timeoutMs = 10_000): Promise<ServiceWorkerRegistration> {
+  let timeoutId: number | undefined;
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => {
+          reject(new Error(
+            'Service worker belum aktif. Notifikasi background hanya dapat diuji pada build production atau PWA yang terpasang.',
+          ));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  }
+}
+
 export async function getPushPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) return 'denied';
   return Notification.permission;
@@ -91,8 +109,8 @@ export async function subscribeToPush(_userId: string): Promise<boolean> {
     const sessionToken = await getSessionToken();
     if (!sessionToken) throw new Error('Sesi login tidak ditemukan. Silakan masuk ulang.');
 
+    const registration = await waitForPushServiceWorkerRegistration();
     const publicKey = await getVapidPublicKey(sessionToken);
-    const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
@@ -131,7 +149,7 @@ export async function subscribeToPush(_userId: string): Promise<boolean> {
 
 export async function unsubscribeFromPush(userId: string): Promise<boolean> {
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await waitForPushServiceWorkerRegistration();
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) return true;
 
@@ -158,7 +176,7 @@ export async function unsubscribeFromPush(userId: string): Promise<boolean> {
 export async function hasActiveBrowserPushSubscription(): Promise<boolean> {
   try {
     if (!(await isPushSupported()) || (await getPushPermission()) !== 'granted') return false;
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await waitForPushServiceWorkerRegistration();
     return Boolean(await registration.pushManager.getSubscription());
   } catch (error) {
     console.error('Error checking browser push subscription:', error);
@@ -170,7 +188,7 @@ export async function getSubscriptionStatus(userId: string): Promise<boolean> {
   try {
     if (!(await isPushSupported())) return false;
 
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await waitForPushServiceWorkerRegistration();
     const subscription = await registration.pushManager.getSubscription();
     if (!subscription) return false;
 

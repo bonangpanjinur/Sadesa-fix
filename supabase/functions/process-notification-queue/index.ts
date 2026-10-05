@@ -127,7 +127,9 @@ async function sendPush(job: NotificationJob): Promise<ProviderResult> {
     .select("id, endpoint, p256dh, auth")
     .eq("user_id", recipientId);
   if (subscriptionError) throw subscriptionError;
-  if (!subscriptions?.length) return {};
+  if (!subscriptions?.length) {
+    throw new Error("No active push subscriptions for recipient");
+  }
 
   webpush.setVapidDetails("mailto:admin@sadesa.id", vapidPublicKey, vapidPrivateKey);
   const title = typeof job.payload.title === "string" ? job.payload.title.trim() : "Notifikasi Baru";
@@ -161,7 +163,9 @@ async function sendPush(job: NotificationJob): Promise<ProviderResult> {
       errors.push(error instanceof Error ? error.message.slice(0, 240) : "Push provider error");
     }
   }
-  if (delivered === 0 && errors.length > 0) throw new Error(errors.join("; "));
+  if (delivered === 0) {
+    throw new Error(errors.length > 0 ? errors.join("; ") : "No active push subscriptions for recipient");
+  }
   return {};
 }
 

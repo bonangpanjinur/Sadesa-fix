@@ -11,7 +11,13 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-import { getLastPushError, getSubscriptionStatus, hasActiveBrowserPushSubscription, subscribeToPush } from './pushNotification';
+import {
+  getLastPushError,
+  getSubscriptionStatus,
+  hasActiveBrowserPushSubscription,
+  subscribeToPush,
+  waitForPushServiceWorkerRegistration,
+} from './pushNotification';
 
 describe('subscribeToPush', () => {
   beforeEach(() => {
@@ -65,6 +71,45 @@ describe('subscribeToPush', () => {
       .mockResolvedValueOnce(new Response('{}', { status: 500 }));
 
     await expect(subscribeToPush('user-1')).resolves.toBe(false);
+  });
+
+  it('returns an actionable error when a service worker never becomes ready', async () => {
+    vi.useFakeTimers();
+    try {
+      Object.defineProperty(navigator, 'serviceWorker', {
+        configurable: true,
+        value: { ready: new Promise<ServiceWorkerRegistration>(() => {}) },
+      });
+
+      const result = waitForPushServiceWorkerRegistration(250);
+      const rejection = expect(result).rejects.toThrow('Service worker belum aktif');
+      await vi.advanceTimersByTimeAsync(250);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails activation clearly without requesting a VAPID key when the service worker is missing', async () => {
+    vi.useFakeTimers();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    try {
+      Object.defineProperty(navigator, 'serviceWorker', {
+        configurable: true,
+        value: { ready: new Promise<ServiceWorkerRegistration>(() => {}) },
+      });
+
+      const activation = subscribeToPush('user-1');
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      await expect(activation).resolves.toBe(false);
+      expect(getLastPushError()).toContain('Service worker belum aktif');
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('includes gateway auth details when the VAPID-key request is rejected', async () => {
