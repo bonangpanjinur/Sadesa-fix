@@ -34,6 +34,7 @@ import {
   HOMEPAGE_SERVICE_CARDS,
   parseHomepageServiceCardImageOverrides,
 } from '@/lib/homeServiceCards';
+import { DEFAULT_HOMEPAGE_SECTIONS } from '@/lib/homepageLayout';
 
 type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
@@ -126,15 +127,6 @@ const COMMON_PAGES = [
   { path: '/shops', label: 'Toko' },
   { path: '/search', label: 'Pencarian' },
   { path: '/auth', label: 'Login' },
-];
-
-const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
-  { id: 'hero', name: 'Hero Banner', enabled: true, order: 0 },
-  { id: 'categories', name: 'Kategori', enabled: true, order: 1 },
-  { id: 'popular_tourism', name: 'Wisata Populer', enabled: true, order: 2 },
-  { id: 'promo', name: 'Promo Spesial', enabled: true, order: 3 },
-  { id: 'recommendations', name: 'Rekomendasi Pilihan', enabled: true, order: 4 },
-  { id: 'villages', name: 'Jelajahi Desa', enabled: true, order: 5 },
 ];
 
 // Categories are now loaded dynamically from the database

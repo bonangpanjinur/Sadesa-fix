@@ -72,9 +72,6 @@ function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
 }
 
 const Index = () => {
-  // Sementara fokus publik diarahkan ke kuliner dan ojek. Data, route, dan
-  // pengaturan desa wisata tetap dipertahankan agar bisa diaktifkan kembali.
-  const HIDDEN_VILLAGE_FEATURES = new Set(['popular_tourism', 'villages']);
   const navigate = useNavigate();
   
   const { getEnabledSections } = useHomepageLayout();
@@ -173,7 +170,7 @@ const Index = () => {
       fetchVillages()
     ),
     staleTime: 60_000,
-    enabled: enabledSectionIds.has('villages') && !HIDDEN_VILLAGE_FEATURES.has('villages'),
+    enabled: enabledSectionIds.has('villages'),
   });
 
   const {
@@ -187,7 +184,7 @@ const Index = () => {
       fetchTourism()
     ),
     staleTime: 60_000,
-    enabled: enabledSectionIds.has('popular_tourism') && !HIDDEN_VILLAGE_FEATURES.has('popular_tourism'),
+    enabled: enabledSectionIds.has('popular_tourism'),
   });
 
   const {
@@ -213,8 +210,7 @@ const Index = () => {
     staleTime: 120_000,
   });
 
-  // Only visible homepage data should hold the empty state open. Village and
-  // tourism sections are hidden while their features are being reworked.
+  // Only visible homepage data should hold the empty state open.
   const loading = productsLoading;
 
   // Sort data by proximity to user location
@@ -248,20 +244,9 @@ const Index = () => {
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
-  // Build sections in order based on admin settings
+  // Build sections in the exact order configured by the admin.
   const enabledSections = getEnabledSections();
-  const sectionPriority: Record<string, number> = {
-    // Banner menjadi discovery/promo lanjutan, bukan konten pertama yang menghalangi tugas utama.
-    hero: 6,
-    categories: 1,
-    promo: 3,
-    recommendations: 4,
-    popular_tourism: 5,
-    villages: 7,
-  };
-  const orderedSections = [...enabledSections].sort(
-    (a, b) => (sectionPriority[a.id] ?? 99) - (sectionPriority[b.id] ?? 99),
-  );
+  const orderedSections = enabledSections;
 
   const getProductDistance = (product: Product) => {
     if (!userLocation || userLocation.source === 'default' || product.locationLat == null || product.locationLng == null) return undefined;
@@ -277,6 +262,8 @@ const Index = () => {
 
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
+      case 'categories':
+        return <HomeServiceCards />;
       case 'hero':
         return (
           <HeroCarousel
@@ -448,10 +435,6 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
-          <div className="pb-3 pt-3">
-            <HomeServiceCards />
-          </div>
-          {enabledSections.some((section) => section.id === 'hero') && renderSection('hero')}
           <div className="mt-6 space-y-6 pb-6">
           {activeOrder && (
             <Dialog>
@@ -487,7 +470,7 @@ const Index = () => {
               </DialogContent>
             </Dialog>
           )}
-          {orderedSections.filter((section) => !HIDDEN_VILLAGE_FEATURES.has(section.id) && section.id !== 'hero' && section.id !== 'categories' && section.id !== 'contextual-recommendation').map((section) => {
+          {orderedSections.filter((section) => section.id !== 'contextual-recommendation').map((section) => {
             const content = renderSection(section.id);
             return content ? <div key={section.id}>{content}</div> : null;
           })}

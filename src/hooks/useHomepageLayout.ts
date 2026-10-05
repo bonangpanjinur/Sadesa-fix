@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { cloneDefaultHomepageLayout } from '@/lib/homepageLayout';
 
 export interface HomepageSection {
   id: string;
@@ -13,21 +14,8 @@ export interface HomepageLayoutSettings {
   visible_categories: string[];
 }
 
-const DEFAULT_SETTINGS: HomepageLayoutSettings = {
-  sections: [
-    { id: 'hero', name: 'Hero Banner', enabled: true, order: 0 },
-    { id: 'categories', name: 'Kategori', enabled: true, order: 1 },
-    // Fitur tetap dipertahankan di kode/admin, tetapi sementara tidak tampil publik.
-    { id: 'popular_tourism', name: 'Wisata Populer', enabled: false, order: 2 },
-    { id: 'promo', name: 'Promo Spesial', enabled: true, order: 3 },
-    { id: 'recommendations', name: 'Rekomendasi Pilihan', enabled: true, order: 4 },
-    { id: 'villages', name: 'Jelajahi Desa', enabled: false, order: 5 },
-  ],
-  visible_categories: ['kuliner', 'ojek'],
-};
-
 export function useHomepageLayout() {
-  const [settings, setSettings] = useState<HomepageLayoutSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<HomepageLayoutSettings>(() => cloneDefaultHomepageLayout());
   // Start with defaults already usable so the homepage can paint immediately;
   // remote settings are applied as soon as they arrive.
   const [loading, setLoading] = useState(false);
@@ -51,9 +39,10 @@ export function useHomepageLayout() {
 
       if (data?.value) {
         const loadedSettings = data.value as unknown as HomepageLayoutSettings;
+        const defaults = cloneDefaultHomepageLayout();
         setSettings({
-          sections: loadedSettings.sections?.sort((a, b) => a.order - b.order) || DEFAULT_SETTINGS.sections,
-          visible_categories: loadedSettings.visible_categories || DEFAULT_SETTINGS.visible_categories,
+          sections: loadedSettings.sections?.slice().sort((a, b) => a.order - b.order) || defaults.sections,
+          visible_categories: loadedSettings.visible_categories || defaults.visible_categories,
         });
       }
     } catch (error) {
@@ -76,6 +65,7 @@ export function useHomepageLayout() {
   const getEnabledSections = (): HomepageSection[] => {
     return settings.sections
       .filter(s => s.enabled)
+      .slice()
       .sort((a, b) => a.order - b.order);
   };
 
