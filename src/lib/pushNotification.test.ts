@@ -210,6 +210,21 @@ describe('subscribeToPush', () => {
     consoleError.mockRestore();
   });
 
+  it('includes the server request ID when the push endpoint returns an internal error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        error: 'Internal server error',
+        requestId: 'push-request-123',
+      }), { status: 500 }),
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(subscribeToPush('user-1')).resolves.toBe(false);
+    expect(getLastPushError()).toContain('Server push tidak siap (500)');
+    expect(getLastPushError()).toContain('request ID push-request-123');
+    consoleError.mockRestore();
+  });
+
   it('recognizes an existing browser subscription when permission is granted', async () => {
     Object.defineProperty(navigator, 'serviceWorker', {
       configurable: true,

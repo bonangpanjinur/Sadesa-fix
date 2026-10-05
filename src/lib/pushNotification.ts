@@ -20,6 +20,29 @@ async function getSessionToken(): Promise<string> {
   return data.session?.access_token || '';
 }
 
+async function readPushErrorDetails(response: Response): Promise<string> {
+  try {
+    const payload = await response.json() as {
+      error?: unknown;
+      message?: unknown;
+      requestId?: unknown;
+    };
+    const message = typeof payload.error === 'string'
+      ? payload.error
+      : typeof payload.message === 'string'
+        ? payload.message
+        : null;
+    const details = [
+      message?.slice(0, 200),
+      typeof payload.requestId === 'string' ? `request ID ${payload.requestId.slice(0, 100)}` : null,
+    ].filter((value): value is string => Boolean(value));
+    return details.length > 0 ? `: ${details.join(' — ')}` : '';
+  } catch {
+    // Keep the HTTP status when the gateway returns a non-JSON error.
+    return '';
+  }
+}
+
 async function getVapidPublicKey(sessionToken: string): Promise<string> {
   const response = await fetch(PUSH_SUBSCRIPTION_API, {
     headers: {
@@ -28,15 +51,7 @@ async function getVapidPublicKey(sessionToken: string): Promise<string> {
     },
   });
   if (!response.ok) {
-    let serverMessage = '';
-    try {
-      const payload = await response.json() as { error?: unknown; message?: unknown };
-      const message = typeof payload.error === 'string' ? payload.error : payload.message;
-      if (typeof message === 'string') serverMessage = `: ${message.slice(0, 200)}`;
-    } catch {
-      // Keep the HTTP status when the gateway returns a non-JSON error.
-    }
-    throw new Error(`Server push tidak siap (${response.status})${serverMessage}`);
+    throw new Error(`Server push tidak siap (${response.status})${await readPushErrorDetails(response)}`);
   }
 
   const payload = await response.json() as {
@@ -73,7 +88,9 @@ async function removeSubscriptionFromServer(endpoint: string, sessionToken: stri
     },
     body: JSON.stringify({ endpoint }),
   });
-  if (!response.ok) throw new Error(`Failed to remove subscription (${response.status})`);
+  if (!response.ok) {
+    throw new Error(`Failed to remove subscription (${response.status})${await readPushErrorDetails(response)}`);
+  }
 }
 
 async function unsubscribeBrowserSubscription(
@@ -184,14 +201,7 @@ export async function subscribeToPush(
       body: JSON.stringify({ subscription: subscription.toJSON() }),
     });
     if (!response.ok) {
-      let serverMessage = '';
-      try {
-        const payload = await response.json() as { error?: unknown };
-        if (typeof payload.error === 'string') serverMessage = `: ${payload.error}`;
-      } catch {
-        // Keep the HTTP status when the edge function returns a non-JSON error.
-      }
-      throw new Error(`Subscription belum tersimpan (${response.status})${serverMessage}`);
+      throw new Error(`Subscription belum tersimpan (${response.status})${await readPushErrorDetails(response)}`);
     }
 
     return true;
