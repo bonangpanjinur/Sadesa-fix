@@ -11,7 +11,7 @@ import {
 export function HomeServiceCards() {
   const { data: imageOverrides = EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES } = useQuery({
     queryKey: ['homepage-service-card-images'],
-    staleTime: 60_000,
+    staleTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('app_settings')

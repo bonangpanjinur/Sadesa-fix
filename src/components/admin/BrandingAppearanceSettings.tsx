@@ -955,7 +955,6 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                       maxSizeMB={15}
                       compressionOptions={{ maxWidth: 1120, maxHeight: 1000, quality: 0.82, force: true }}
                       aspectRatioValidation={{ ratio: 1.12, tolerance: 0.01 }}
-                      stableFileName
                       placeholder={`Upload gambar ${card.title}`}
                     />
                     <p className="text-xs text-muted-foreground">Unggah JPG, PNG, WEBP, atau GIF hingga 15 MB. Gambar otomatis dikompres ke JPEG maksimal 1120 × 1000 px; GIF animasi menjadi gambar statis. Tombol hapus mengembalikan gambar bawaan.</p>
@@ -973,6 +972,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">Setelah mengunggah gambar, klik tombol di bawah agar URL gambar baru tersimpan dan tampil di beranda.</p>
               <Button onClick={handleSaveHomepageServiceCardImages} disabled={saving === 'service-card-images'} className="w-full">
                 {saving === 'service-card-images' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Simpan Gambar Menu Utama

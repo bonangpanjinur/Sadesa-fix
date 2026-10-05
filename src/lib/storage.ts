@@ -25,9 +25,8 @@ export async function uploadFile({ bucket, path, file, fileName, upsert = false 
   const context = { bucket, fileType: file.type || 'unknown', sizeBytes: file.size };
   try {
     return await observe('upload', 'file_upload', async () => {
-    // Settings images use a stable name so repeated saves replace the same
-    // object instead of accumulating orphaned files. Other callers retain the
-    // existing unique-file behavior.
+    // Callers may pass a stable filename when overwriting is desired;
+    // otherwise each upload receives a unique object name.
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const objectName = fileName
       ? `${path}/${fileName}`
