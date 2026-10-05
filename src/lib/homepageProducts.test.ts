@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { selectNewestProducts, selectTopSellingProducts } from './homepageProducts';
+import {
+  hasEnoughBestSellingHistory,
+  selectNewestProducts,
+  selectTopSellingProducts,
+} from './homepageProducts';
 
 describe('selectNewestProducts', () => {
   it('keeps stored products visible regardless of active or orderable status', () => {
@@ -66,5 +70,18 @@ describe('selectTopSellingProducts', () => {
     expect(selectTopSellingProducts(products.slice(0, 1), new Set(['newest-top-seller'])).map((product) => product.id)).toEqual([
       'newest-top-seller',
     ]);
+  });
+});
+
+describe('hasEnoughBestSellingHistory', () => {
+  it('hides the section until the active catalog reaches ten total sold units', () => {
+    expect(hasEnoughBestSellingHistory([
+      { id: 'item-a', sold_count: 6 },
+      { id: 'item-b', sold_count: 3 },
+    ])).toBe(false);
+    expect(hasEnoughBestSellingHistory([
+      { id: 'item-a', sold_count: 6 },
+      { id: 'item-b', sold_count: 4 },
+    ])).toBe(true);
   });
 });

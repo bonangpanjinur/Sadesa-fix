@@ -17,7 +17,11 @@ import {
   fetchTourism,
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
-import { selectNewestProducts, selectTopSellingProducts } from '@/lib/homepageProducts';
+import {
+  hasEnoughBestSellingHistory,
+  selectNewestProducts,
+  selectTopSellingProducts,
+} from '@/lib/homepageProducts';
 import { groupNewestProductsByCategory } from '@/lib/homepageProductCategories';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
@@ -85,6 +89,8 @@ const Index = () => {
     refetch: refetchProductCategories,
   } = useAdminCategories();
   const enabledSectionIds = new Set(getEnabledSections().map((section) => section.id));
+  const promoSectionEnabled = enabledSectionIds.has('promo');
+  const recommendationSectionEnabled = enabledSectionIds.has('recommendations');
   const handleBannerView = useCallback((id: string) => { void incrementPromotionView(id); }, []);
   const handleBannerClick = useCallback((id: string) => { void incrementPromotionClick(id); }, []);
 
@@ -142,7 +148,6 @@ const Index = () => {
 
   const {
     data: bestSellingCandidates = [],
-    isLoading: bestSellingLoading,
     isError: bestSellingError,
     refetch: refetchBestSelling,
   } = useQuery<Product[]>({
@@ -157,7 +162,7 @@ const Index = () => {
       sort: 'best-selling',
     })),
     staleTime: 60_000,
-    enabled: enabledSectionIds.has('recommendations'),
+    enabled: promoSectionEnabled || recommendationSectionEnabled,
   });
 
   const homepageProductIds = useMemo(
@@ -264,7 +269,6 @@ const Index = () => {
   ), [products]);
   // Keep discovery sections complementary: products already highlighted in
   // the promo block should not appear again immediately in the newest grid.
-  const promoSectionEnabled = enabledSectionIds.has('promo');
   const newestProducts = useMemo(() => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
@@ -276,19 +280,34 @@ const Index = () => {
     [newestProducts, activeProductCategories],
   );
   const productsAlreadyHighlighted = useMemo(() => new Set([
-    ...promoProducts.map((product) => product.id),
-    ...newestProductRows.flatMap((row) => row.products.map((product) => product.id)),
-  ]), [promoProducts, newestProductRows]);
+    ...(promoSectionEnabled ? promoProducts.map((product) => product.id) : []),
+    ...(recommendationSectionEnabled
+      ? newestProductRows.flatMap((row) => row.products.map((product) => product.id))
+      : []),
+  ]), [promoProducts, promoSectionEnabled, recommendationSectionEnabled, newestProductRows]);
   const topSellingProducts = useMemo(
     () => selectTopSellingProducts(bestSellingCandidates, productsAlreadyHighlighted),
     [bestSellingCandidates, productsAlreadyHighlighted],
   );
+  const bestSellingThresholdReached = useMemo(
+    () => hasEnoughBestSellingHistory(bestSellingCandidates),
+    [bestSellingCandidates],
+  );
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
-  // Build sections in the exact order configured by the admin.
-  const enabledSections = getEnabledSections();
-  const orderedSections = enabledSections;
+  // Keep promo discovery ahead of the newest-product section so best sellers
+  // can sit between them, while preserving the configured order of other rows.
+  const orderedSections = getEnabledSections();
+  const promoIndex = orderedSections.findIndex((section) => section.id === 'promo');
+  const recommendationsIndex = orderedSections.findIndex((section) => section.id === 'recommendations');
+  if (promoIndex > recommendationsIndex && recommendationsIndex >= 0) {
+    const [promoSection] = orderedSections.splice(promoIndex, 1);
+    const updatedRecommendationsIndex = orderedSections.findIndex((section) => section.id === 'recommendations');
+    if (promoSection && updatedRecommendationsIndex >= 0) {
+      orderedSections.splice(updatedRecommendationsIndex, 0, promoSection);
+    }
+  }
 
   const getProductDistance = (product: Product) => {
     if (!userLocation || userLocation.source === 'default' || product.locationLat == null || product.locationLng == null) return undefined;
@@ -300,6 +319,55 @@ const Index = () => {
     if (distanceKm < 1) return '15–25 menit';
     if (distanceKm < 3) return '20–30 menit';
     return '30–45 menit';
+  };
+
+  const renderBestSellingSection = () => {
+    if (bestSellingError) {
+      return (
+        <SectionError
+          title="Produk terlaris gagal dimuat"
+          message="Daftar produk dengan penjualan terbanyak tidak dapat diambil."
+          onRetry={() => void refetchBestSelling()}
+        />
+      );
+    }
+    if (!bestSellingThresholdReached || topSellingProducts.length === 0) return null;
+
+    return (
+      <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="best-selling-products-title">
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Flame className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 id="best-selling-products-title" className="font-heading text-base font-bold text-foreground">Produk terlaris</h2>
+            <p className="text-[10px] text-muted-foreground">Paling banyak dibeli</p>
+          </div>
+        </div>
+        <div
+          className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 hide-scrollbar"
+          aria-label="Produk terlaris"
+          data-testid="list-best-selling-products"
+        >
+          {topSellingProducts.map((product, idx) => (
+            <div
+              key={product.id}
+              className="w-[48%] shrink-0 snap-start sm:w-[32%]"
+              data-testid={`best-selling-product-${product.id}`}
+            >
+              <ProductCard
+                product={product}
+                index={idx}
+                showCategoryBadge
+                flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
+                distanceKm={getProductDistance(product)}
+                deliveryEta={getDeliveryEta(getProductDistance(product))}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
   };
 
   const renderSection = (sectionId: string) => {
@@ -354,29 +422,33 @@ const Index = () => {
         ) : null;
       
       case 'promo':
-        if (promoProducts.length === 0) return null;
         return (
-          <section className="mx-4 rounded-[1.35rem] border border-red-100 bg-red-50/60 px-4 py-3" aria-labelledby="promo-title">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
-              </div>
-              <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products?promoOnly=1">Lihat promo</Link></Button>
-            </div>
-            <div className="mt-3 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
-              {promoProducts.map((product, idx) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  index={idx}
-                  showCategoryBadge
-                  flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
-                  distanceKm={getProductDistance(product)}
-                  deliveryEta={getDeliveryEta(getProductDistance(product))}
-                />
-              ))}
-            </div>
-          </section>
+          <div className="space-y-5">
+            {promoProducts.length > 0 ? (
+              <section className="mx-4 rounded-[1.35rem] border border-red-100 bg-red-50/60 px-4 py-3" aria-labelledby="promo-title">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products?promoOnly=1">Lihat promo</Link></Button>
+                </div>
+                <div className="mt-3 grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3">
+                  {promoProducts.map((product, idx) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      index={idx}
+                      showCategoryBadge
+                      flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
+                      distanceKm={getProductDistance(product)}
+                      deliveryEta={getDeliveryEta(getProductDistance(product))}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+            {renderBestSellingSection()}
+          </div>
         );
       
       case 'recommendations':
@@ -394,6 +466,7 @@ const Index = () => {
         }
         return (
           <div className="space-y-5">
+          {!promoSectionEnabled ? renderBestSellingSection() : null}
           <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
             <div className="mb-3 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
@@ -474,58 +547,6 @@ const Index = () => {
               </div>
             )}
           </section>
-          {bestSellingError ? (
-            <SectionError
-              title="Produk terlaris gagal dimuat"
-              message="Daftar produk dengan penjualan terbanyak tidak dapat diambil."
-              onRetry={() => void refetchBestSelling()}
-            />
-          ) : (
-            <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="best-selling-products-title">
-              <div className="mb-3 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Flame className="h-4 w-4" />
-                </div>
-                <div>
-                  <h2 id="best-selling-products-title" className="font-heading text-base font-bold text-foreground">Produk terlaris</h2>
-                  <p className="text-[10px] text-muted-foreground">Paling banyak dibeli</p>
-                </div>
-              </div>
-              {bestSellingLoading ? (
-                <ProductGridSkeleton count={4} />
-              ) : topSellingProducts.length > 0 ? (
-                <div
-                  className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 hide-scrollbar"
-                  aria-label="Produk terlaris"
-                  data-testid="list-best-selling-products"
-                >
-                  {topSellingProducts.map((product, idx) => (
-                    <div
-                      key={product.id}
-                      className="w-[48%] shrink-0 snap-start sm:w-[32%]"
-                      data-testid={`best-selling-product-${product.id}`}
-                    >
-                      <ProductCard
-                        product={product}
-                        index={idx}
-                        showCategoryBadge
-                        flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
-                        distanceKm={getProductDistance(product)}
-                        deliveryEta={getDeliveryEta(getProductDistance(product))}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-center">
-                  <h3 className="font-heading text-sm font-extrabold text-foreground">Belum ada produk terlaris</h3>
-                  <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
-                    Produk dengan pesanan selesai akan tampil di sini.
-                  </p>
-                </div>
-              )}
-            </section>
-          )}
           </div>
         );
       

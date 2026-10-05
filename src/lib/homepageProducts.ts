@@ -6,6 +6,8 @@ interface HomepageSalesProduct extends HomepageProduct {
   sold_count?: number | null;
 }
 
+export const HOMEPAGE_BEST_SELLER_MIN_UNITS = 10;
+
 export function selectNewestProducts<T extends HomepageProduct>(
   products: T[],
   featuredProductIds: ReadonlySet<string>,
@@ -36,4 +38,16 @@ export function selectTopSellingProducts<T extends HomepageSalesProduct>(
   // Prefer products not shown elsewhere, but keep this section populated when
   // the best sellers are also among the newest or current promotions.
   return [...notAlreadyHighlighted, ...alreadyHighlighted].slice(0, limit);
+}
+
+export function hasEnoughBestSellingHistory<T extends HomepageSalesProduct>(
+  products: T[],
+  minimumUnits = HOMEPAGE_BEST_SELLER_MIN_UNITS,
+): boolean {
+  const totalUnitsSold = products.reduce((total, product) => {
+    const soldCount = Number(product.sold_count ?? 0);
+    return total + (Number.isFinite(soldCount) ? Math.max(0, soldCount) : 0);
+  }, 0);
+
+  return totalUnitsSold >= minimumUnits;
 }
