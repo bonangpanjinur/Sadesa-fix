@@ -23,7 +23,7 @@ import {
 import type { PrinterSettings, ConnectionType } from '@/lib/thermalPrinter';
 import { printBridgeClient } from '@/lib/printBridgeClient';
 import { flushReceiptOutbox, getPendingReceiptCount } from '@/lib/printOutbox';
-import { testPrintViaAndroidService } from '@/lib/androidPrintService';
+import { isAndroidPrintServiceSupported, testPrintViaAndroidService } from '@/lib/androidPrintService';
 
 interface Outlet {
   id: string;
@@ -151,8 +151,8 @@ export default function POSPengaturanPage() {
       if (printerSettings.connectionType === 'android_bluetooth') {
         await testPrintViaAndroidService();
         toast.success('Perintah test print dikirim ke ESC/POS Bluetooth Print Service');
-        setPrinterStatus('connected');
-        setPrinterMsg('Perintah cetak dikirim ke aplikasi Android');
+        setPrinterStatus('idle');
+        setPrinterMsg('Perintah dikirim ke aplikasi Android. Periksa kertas secara fisik.');
         return;
       }
       const nativeSelected = printerSettings.connectionType === 'usb' || printerSettings.connectionType === 'bluetooth';
@@ -737,6 +737,24 @@ export default function POSPengaturanPage() {
                     <p className="text-xs text-blue-600 mt-1">✓ Install dan pilih printer sekali di aplikasi ESC/POS Bluetooth Print Service.</p>
                   </div>
                 </button>
+
+                {printerSettings.connectionType === 'android_bluetooth' && (
+                  <div className="rounded-xl border-2 border-sky-300 bg-sky-50 p-4 text-sm text-sky-950">
+                    <p className="font-semibold">Panduan Android + aplikasi pihak ketiga</p>
+                    <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-xs leading-relaxed text-sky-900">
+                      <li>Instal aplikasi <strong>ESCPOS Bluetooth Print Service</strong> dari Looped Labs di tablet Android.</li>
+                      <li>Aktifkan Bluetooth, pasangkan printer di pengaturan Android, lalu buka aplikasi tersebut.</li>
+                      <li>Di aplikasi pihak ketiga, pilih printer, ukuran kertas, tipe printer ESC/POS, dan jalankan test print dari aplikasinya.</li>
+                      <li>Kembali ke SaDesa melalui Chrome Android, pastikan outlet aktif benar, lalu tekan <strong>Simpan Pengaturan Printer</strong>.</li>
+                      <li>Tekan <strong>Test Print</strong>. SaDesa membuka app link <code className="rounded bg-white px-1">print://</code>; aplikasi pihak ketiga menerima HTML dan mengirimkannya ke printer.</li>
+                    </ol>
+                    <div className="mt-3 space-y-1 border-t border-sky-200 pt-2 text-xs text-sky-800">
+                      <p><strong>Syarat:</strong> tablet Android, HTTPS, aplikasi versi yang mendukung app links (minimal 2.1.6; parameter jumlah salinan memerlukan 2.3.2+), dan printer Bluetooth ESC/POS.</p>
+                      <p><strong>Penting:</strong> status “perintah dikirim” bukan bukti kertas sudah keluar. Periksa kertas dan lakukan test print fisik. Bila tidak ada respons, buka kembali aplikasi pihak ketiga dan pastikan printer yang dipilih benar.</p>
+                      {!isAndroidPrintServiceSupported() && <p className="font-semibold text-amber-700">Perangkat ini bukan Android; mode ini hanya dapat dites dari tablet Android.</p>}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
