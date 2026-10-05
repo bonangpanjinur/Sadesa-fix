@@ -116,8 +116,7 @@ async function sendPush(job: NotificationJob): Promise<ProviderResult> {
   const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
   const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
   if (!vapidPrivateKey || !vapidPublicKey) {
-    console.warn(JSON.stringify({ event: "push_skipped", reason: "VAPID keys are not configured", job_id: job.id }));
-    return {};
+    throw new Error("VAPID keys are not configured");
   }
 
   const recipientId = job.recipient_id;

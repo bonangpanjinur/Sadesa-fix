@@ -1,64 +1,39 @@
-# Mandatory Notification Onboarding Sadesa
+# Merchant Background Order Notifications
 
-## Tujuan
+## What the app can and cannot do
 
-Setelah pengguna berhasil login, Sadesa menampilkan onboarding wajib untuk mengaktifkan push notification. Notifikasi digunakan untuk menyampaikan update pesanan dan informasi penting. Akses aplikasi ditahan sampai browser memiliki subscription push yang aktif, dengan pengecualian ketika browser tidak mendukung teknologi push dan pengguna perlu berpindah browser.
+SaDesa is a Progressive Web App (PWA), not a native Android foreground-service app. A browser/PWA cannot keep its page JavaScript or audio running indefinitely after the app is closed; Android and iOS control and may suspend or stop page processes to save power.
 
-## Perilaku pengguna
+The supported way to receive orders while the page is backgrounded or closed is **Web Push**. The browser's service worker can display a system notification without keeping the app page alive, provided the device, browser subscription, and server delivery worker are all configured. Delivery can still be delayed or suppressed by OS battery/data restrictions, revoked permission, or a disconnected device.
 
-| Kondisi | Perilaku aplikasi | Aksi pengguna |
-| --- | --- | --- |
-| Belum ada keputusan izin (`default`) | Menampilkan layar onboarding penuh; tidak meminta izin saat halaman dibuka | Menekan **Aktifkan Notifikasi**; hanya aksi ini yang memicu dialog browser |
-| Izin `granted`, subscription belum tersimpan | Menampilkan onboarding dengan opsi aktivasi ulang | Menekan **Aktifkan Notifikasi** untuk memakai subscription yang sudah ada atau membuat subscription baru |
-| Izin `granted`, subscription aktif | Aplikasi dibuka normal | Tidak ada aksi tambahan |
-| Izin `denied`/Block | Menampilkan petunjuk pengaturan browser dan tidak memanggil `requestPermission()` | Mengubah izin situs menjadi **Allow**, kemudian menekan **Cek ulang izin** |
-| Browser tidak mendukung Notification API, Service Worker, atau Push API | Menampilkan pesan bahwa push tidak tersedia | Menggunakan browser modern yang mendukung push notification |
-| Aktivasi gagal karena jaringan/backend | Tetap menahan akses dan menampilkan pesan gagal | Mencoba aktivasi kembali |
+In-app alarm audio is only available while the page is running and audio has been unlocked by a user gesture. When the app is closed, the user will get the operating system's notification behavior (sound/vibration depends on device notification settings), not continuous app audio.
 
-## Batasan keamanan dan platform
+## Merchant setup on the device
 
-Aplikasi **tidak** meminta izin secara otomatis pada saat landing page atau saat komponen pertama kali dirender. Pemanggilan `Notification.requestPermission()` hanya terjadi di rantai aksi tombol **Aktifkan Notifikasi**. Aplikasi juga tidak dapat mengubah izin `denied` menjadi `granted`, mengaktifkan notifikasi tanpa persetujuan pengguna, atau mengirim push ketika permission belum `granted`.
+1. Open SaDesa in a supported, current browser over HTTPS. On Android, Chrome's **Install app** or **Add to Home screen** option provides an app-like launch surface. On iOS, add the site to the Home Screen if using Web Push.
+2. Sign in to the merchant account on the device that will receive order alerts.
+3. In the merchant page header, tap **Aktifkan Alarm & Notifikasi**. This user-initiated action requests notification permission, registers/reuses the browser's Push API subscription, and saves it for the signed-in account. Allow notifications when the browser asks.
+4. Confirm the app reports that background notifications are active. If permission was previously denied, change the site's notification permission in browser settings to **Allow**, return to SaDesa, and tap the activation button again.
+5. In the device's system settings, allow SaDesa/browser notifications and their sound. On Android, set SaDesa or the browser to **Unrestricted** battery use (wording varies by device), allow background data, and enable autostart/background operation when the manufacturer provides those controls. Battery Saver, Data Saver, or OEM task-killer settings can still delay delivery.
+6. Place a test order from a separate test account, then background/close the PWA and verify the system notification arrives.
 
-Saat browser sudah mengembalikan `denied`, helper push langsung berhenti dan tidak memanggil dialog izin lagi. Pengguna diarahkan secara tekstual ke pengaturan situs browser: **Site Settings → Notifications → Sadesa → Allow**. Setelah kembali ke aplikasi, tombol **Cek ulang izin** membaca ulang permission dan subscription.
+Do not expect the browser page itself to remain permanently running. The service worker is woken for a push event and displays the notification; it does not keep the full app process alive.
 
-## Implementasi
+## Server prerequisites
 
-Komponen `src/components/notifications/NotificationOnboardingGate.tsx` ditempatkan di dalam `AuthProvider` dan `PWAProvider`, sebelum router dan halaman aplikasi. Dengan posisi ini, pengguna anonim tetap dapat membuka halaman publik/login, sedangkan pengguna terautentikasi tidak dapat menggunakan konten aplikasi sebelum onboarding selesai.
+A complete background notification path has three parts:
 
-Helper `src/lib/pushNotification.ts` memakai service worker yang sudah ada, mempertahankan subscription browser yang sudah tersedia, dan menyimpan endpoint beserta kunci `p256dh`/`auth` ke tabel `push_subscriptions`. Subscription diverifikasi menggunakan `user_id`, endpoint, dan status permission.
+1. The order database trigger queues a `push` job for the merchant.
+2. The `process-notification-queue` Edge Function polls and delivers queued jobs.
+3. The registered PWA service worker handles the Web Push event and calls `showNotification`.
 
-## Alur teknis
+The Edge Function requires `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. Deploy it and configure both as Edge Function secrets. The push-subscription endpoint must use the matching public VAPID key. The queue worker must also be invoked by a trusted scheduler (for example, Supabase Cron) on a recurring interval; deploying the function alone does not run it. **This repository does not define a scheduled invocation for `process-notification-queue`**, so the target project's scheduler and its secret/auth configuration must be verified separately before relying on closed-app alerts.
 
-1. `AuthProvider` menyelesaikan pemuatan session.
-2. Gate memeriksa dukungan push dan membaca `Notification.permission` tanpa meminta izin.
-3. Untuk permission `default`, gate menunggu klik eksplisit pengguna.
-4. Klik tombol memanggil `subscribeToPush(user.id)`.
-5. Helper meminta izin hanya bila status masih `default`; bila `denied`, helper mengembalikan gagal tanpa prompt.
-6. Setelah permission `granted`, helper mengambil subscription yang sudah ada atau membuat subscription melalui `PushManager`.
-7. Subscription disimpan melalui upsert ke `push_subscriptions`.
-8. Gate membuka aplikasi hanya setelah subscription terverifikasi tersimpan.
+The worker treats missing VAPID credentials as a delivery failure so a queued job can be retried instead of being marked complete without a notification. Inspect Edge Function logs and notification-job status during the test. Never put a service-role key or worker secret in frontend code.
 
-## Acceptance criteria
+## Permission and security boundaries
 
-- Pengguna yang belum login tidak melihat onboarding wajib.
-- Pengguna login dengan permission `default` melihat teks “Aktifkan notifikasi untuk menerima update pesanan”.
-- Tidak ada `Notification.requestPermission()` yang berjalan dari `useEffect`, landing page, atau render awal.
-- Tombol **Aktifkan Notifikasi** memicu permission prompt browser.
-- Permission `denied` tidak memicu prompt kedua dan menampilkan instruksi pengaturan browser.
-- Permission `granted` dengan subscription aktif tidak melihat gate.
-- Gagal menyimpan subscription tidak membuka akses aplikasi secara diam-diam.
-- Service worker tetap menangani event `push` dan klik notifikasi yang sudah ada.
-
-## Verifikasi manual
-
-Gunakan browser dengan DevTools untuk menguji tiga kondisi permission: `default`, `granted`, dan `denied`. Setelah login, pastikan gate muncul untuk `default`; klik tombol dan konfirmasikan bahwa dialog browser hanya muncul setelah klik. Untuk `denied`, ubah izin melalui pengaturan situs, kembali ke tab aplikasi, lalu pilih **Cek ulang izin**.
-
-Jalankan pemeriksaan otomatis dari root repository:
-
-```bash
-npm run lint
-npm run test -- --run
-npm run build
-```
-
-Jika proyek dijalankan menggunakan Bun, perintah ekuivalennya adalah `bun run lint`, `bun run test -- --run`, dan `bun run build`.
+- The app does not request notification permission automatically. A merchant must tap the activation button to trigger the browser prompt.
+- The subscription is authenticated and stored for the signed-in user; do not share a device's subscription between merchant accounts.
+- The app cannot change a browser permission from **Block** to **Allow** or override OS battery/data restrictions.
+- A service worker and successful local build do not prove that the production VAPID secrets, scheduler, database trigger, and push subscription are configured.

@@ -8,6 +8,7 @@ const courierLayout = readFileSync(resolve(process.cwd(), 'src/components/courie
 const merchantLayout = readFileSync(resolve(process.cwd(), 'src/components/merchant/MerchantLayout.tsx'), 'utf8');
 const merchantPushMigration = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005124500_merchant_order_push_notification.sql'), 'utf8');
 const merchantSettingsPage = readFileSync(resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'), 'utf8');
+const notificationWorker = readFileSync(resolve(process.cwd(), 'supabase/functions/process-notification-queue/index.ts'), 'utf8');
 
 describe('courier background alarm contract', () => {
   it('keeps a user-gesture-unlocked media fallback for hidden tabs', () => {
@@ -36,6 +37,11 @@ describe('courier background alarm contract', () => {
     expect(merchantPushMigration).toContain("'new_merchant_order'");
     expect(merchantPushMigration).toContain("'push'");
     expect(merchantPushMigration).toContain('notification_delivery_jobs');
+  });
+
+  it('retries instead of acknowledging push jobs when VAPID configuration is missing', () => {
+    expect(notificationWorker).toContain('if (!vapidPrivateKey || !vapidPublicKey)');
+    expect(notificationWorker).toContain('throw new Error("VAPID keys are not configured")');
   });
 
   it('keeps Web Push as the fallback when the PWA is backgrounded or closed', () => {
