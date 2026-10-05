@@ -131,7 +131,7 @@ export function OrderAlarmSettingsControl({ audience }: OrderAlarmSettingsContro
             </Button>
             <div className="flex w-full gap-2 sm:w-auto">
               <Button className="min-w-0 flex-1 whitespace-nowrap sm:flex-none" variant="outline" onClick={handlePreview} disabled={loading || !profile || !globalSettings}>
-                <Volume2 className="mr-2 h-4 w-4" /> Preview
+                <Volume2 className="mr-2 h-4 w-4" /> Uji Suara
               </Button>
               <Button className="min-w-0 flex-1 whitespace-nowrap sm:flex-none" onClick={handleSave} disabled={loading || saving || !profile}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
             </div>

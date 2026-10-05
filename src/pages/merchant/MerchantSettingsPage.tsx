@@ -21,6 +21,7 @@ import { AddressDropdowns } from '@/components/admin/AddressDropdowns';
 import { MerchantLocationPicker } from '@/components/merchant/MerchantLocationPicker';
 import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages } from '@/lib/addressApi';
 import { MerchantOperatingHoursCard } from '@/components/merchant/MerchantOperatingHoursCard';
+import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 
 interface MerchantData {
   id: string;
@@ -555,12 +556,15 @@ export default function MerchantSettingsPage() {
             <CardDescription>Atur suara notifikasi pesanan masuk</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
+            <div className="flex flex-col gap-4 rounded-lg bg-secondary/50 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium text-sm">Suara Notifikasi Pesanan Baru</p>
-                <p className="text-xs text-muted-foreground">Bunyikan suara saat pesanan baru masuk</p>
+                <p className="text-xs text-muted-foreground">Pilih jenis suara, atur volume, lalu uji langsung sebelum menyimpan.</p>
               </div>
-              <Switch checked={formData.notification_sound_enabled} onCheckedChange={v => setFormData(p => ({ ...p, notification_sound_enabled: v }))} />
+              <div className="flex flex-wrap items-center gap-2">
+                <Switch checked={formData.notification_sound_enabled} onCheckedChange={v => setFormData(p => ({ ...p, notification_sound_enabled: v }))} />
+                <OrderAlarmSettingsControl audience="merchant" />
+              </div>
             </div>
           </CardContent>
         </Card>

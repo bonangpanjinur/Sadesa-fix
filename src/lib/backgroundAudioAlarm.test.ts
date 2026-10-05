@@ -7,6 +7,7 @@ const serviceWorker = readFileSync(resolve(process.cwd(), 'src/sw.ts'), 'utf8');
 const courierLayout = readFileSync(resolve(process.cwd(), 'src/components/courier/CourierLayout.tsx'), 'utf8');
 const merchantLayout = readFileSync(resolve(process.cwd(), 'src/components/merchant/MerchantLayout.tsx'), 'utf8');
 const merchantPushMigration = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005124500_merchant_order_push_notification.sql'), 'utf8');
+const merchantSettingsPage = readFileSync(resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'), 'utf8');
 
 describe('courier background alarm contract', () => {
   it('keeps a user-gesture-unlocked media fallback for hidden tabs', () => {
@@ -24,6 +25,11 @@ describe('courier background alarm contract', () => {
   it('activates merchant Web Push from the merchant header gesture', () => {
     expect(merchantLayout).toContain('subscribeToPush(user.id)');
     expect(merchantLayout).toContain('Aktifkan Alarm &amp; Notifikasi');
+  });
+
+  it('exposes the merchant alarm test control from store settings', () => {
+    expect(merchantSettingsPage).toContain('OrderAlarmSettingsControl');
+    expect(merchantSettingsPage).toContain('Pilih jenis suara, atur volume, lalu uji langsung');
   });
 
   it('queues merchant order push delivery on the server', () => {
