@@ -3667,6 +3667,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_create_merchant_atomic: {
+        Args: { p_category_ids: string[]; p_merchant: Json; p_schedule: Json }
+        Returns: string
+      }
       accept_ride: {
         Args: { p_courier_id: string; p_ride_id: string }
         Returns: boolean
@@ -3806,6 +3810,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      save_merchant_operating_hours_atomic: {
+        Args: { p_merchant_id: string; p_schedule: Json }
+        Returns: undefined
       }
       update_cod_trust_score: {
         Args: { p_buyer_id: string; p_success: boolean }

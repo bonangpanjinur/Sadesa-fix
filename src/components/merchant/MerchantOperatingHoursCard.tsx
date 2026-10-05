@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Save, Loader2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
+import { getJakartaParts, getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 const DAYS = [
   { index: 0, label: 'Minggu', short: 'Min' },
@@ -55,17 +55,38 @@ export function isCurrentlyOpen(schedule: DaySchedule[]): boolean {
 export function MerchantOperatingHoursCard({ merchantId }: Props) {
   const queryClient = useQueryClient();
   const [schedule, setSchedule] = useState<DaySchedule[]>(DEFAULT_SCHEDULE);
+  const [isManuallyOpen, setIsManuallyOpen] = useState(true);
+  const [legacyOpenTime, setLegacyOpenTime] = useState('08:00');
+  const [legacyCloseTime, setLegacyCloseTime] = useState('17:00');
+  const [hasLegacyFallbackDays, setHasLegacyFallbackDays] = useState(false);
+  const [hasIncompleteWeeklySchedule, setHasIncompleteWeeklySchedule] = useState(false);
 
   const { isLoading } = useQuery({
     queryKey: ['merchant-operating-hours', merchantId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('merchant_operating_hours')
-        .select('day_of_week, open_time, close_time, is_closed')
-        .eq('merchant_id', merchantId)
-        .order('day_of_week', { ascending: true });
+      const [{ data, error }, { data: merchant, error: merchantError }] = await Promise.all([
+        supabase
+          .from('merchant_operating_hours')
+          .select('day_of_week, open_time, close_time, is_closed')
+          .eq('merchant_id', merchantId)
+          .order('day_of_week', { ascending: true }),
+        supabase
+          .from('merchants')
+          .select('is_open, open_time, close_time')
+          .eq('id', merchantId)
+          .single(),
+      ]);
 
       if (error) throw error;
+      if (merchantError) throw merchantError;
+      const fallbackOpenTime = merchant.open_time?.slice(0, 5) || '08:00';
+      const fallbackCloseTime = merchant.close_time?.slice(0, 5) || '17:00';
+      setIsManuallyOpen(merchant.is_open);
+      setLegacyOpenTime(fallbackOpenTime);
+      setLegacyCloseTime(fallbackCloseTime);
+      setHasLegacyFallbackDays((data || []).length === 0);
+      setHasIncompleteWeeklySchedule((data || []).length > 0 && (data || []).length < 7);
+
       if (data && data.length > 0) {
         const merged = DEFAULT_SCHEDULE.map(def => {
           const found = (data as DaySchedule[]).find(d => d.day_of_week === def.day_of_week);
@@ -74,12 +95,25 @@ export function MerchantOperatingHoursCard({ merchantId }: Props) {
             open_time: (found.open_time as string).slice(0, 5),
             close_time: (found.close_time as string).slice(0, 5),
             is_closed: found.is_closed,
-          } : def;
+          } : {
+            ...def,
+            open_time: fallbackOpenTime,
+            close_time: fallbackCloseTime,
+            is_closed: true,
+          };
         });
         setSchedule(merged);
         return merged;
       }
-      return DEFAULT_SCHEDULE;
+
+      const legacySchedule = DEFAULT_SCHEDULE.map(day => ({
+        ...day,
+        open_time: fallbackOpenTime,
+        close_time: fallbackCloseTime,
+        is_closed: false,
+      }));
+      setSchedule(legacySchedule);
+      return legacySchedule;
     },
     staleTime: 60_000,
   });
@@ -87,25 +121,26 @@ export function MerchantOperatingHoursCard({ merchantId }: Props) {
   const { mutate: saveSchedule, isPending: saving } = useMutation({
     mutationFn: async (newSchedule: DaySchedule[]) => {
       const rows = newSchedule.map(s => ({
-        merchant_id: merchantId,
         day_of_week: s.day_of_week,
         open_time: s.open_time,
         close_time: s.close_time,
         is_closed: s.is_closed,
-        updated_at: new Date().toISOString(),
       }));
 
-      const { error } = await supabase
-        .from('merchant_operating_hours')
-        .upsert(rows, { onConflict: 'merchant_id,day_of_week' });
+      const { error } = await supabase.rpc('save_merchant_operating_hours_atomic', {
+        p_merchant_id: merchantId,
+        p_schedule: rows,
+      });
 
       if (error) throw error;
     },
     onSuccess: () => {
+      setHasLegacyFallbackDays(false);
+      setHasIncompleteWeeklySchedule(false);
       toast.success('Jadwal operasional berhasil disimpan');
       queryClient.invalidateQueries({ queryKey: ['merchant-operating-hours', merchantId] });
     },
-    onError: () => toast.error('Gagal menyimpan jadwal'),
+    onError: (error) => toast.error(error.message || 'Gagal menyimpan jadwal'),
   });
 
   const updateDay = (dayIndex: number, field: keyof DaySchedule, value: string | boolean) => {
@@ -114,8 +149,13 @@ export function MerchantOperatingHoursCard({ merchantId }: Props) {
     );
   };
 
-  const isOpen = isCurrentlyOpen(schedule);
-  const todayIndex = new Date().getDay();
+  const isOpen = getMerchantOperatingStatus(
+    isManuallyOpen,
+    legacyOpenTime,
+    legacyCloseTime,
+    schedule as OperatingDaySchedule[],
+  ).isCurrentlyOpen;
+  const todayIndex = getJakartaParts().dayOfWeek;
   const todaySchedule = schedule.find(s => s.day_of_week === todayIndex);
 
   if (isLoading) {
@@ -140,14 +180,25 @@ export function MerchantOperatingHoursCard({ merchantId }: Props) {
             <CardDescription className="mt-0.5">
               Atur jam buka/tutup toko per hari
             </CardDescription>
+            {hasLegacyFallbackDays && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Belum ada jadwal mingguan; jam umum lama dipakai sebagai titik awal untuk setiap hari.
+              </p>
+            )}
+            {hasIncompleteWeeklySchedule && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Jadwal mingguan belum lengkap; hari tanpa data dianggap tutup.
+              </p>
+            )}
           </div>
           <Badge variant={isOpen ? 'default' : 'secondary'} className="shrink-0">
             {isOpen ? '🟢 Buka Sekarang' : '🔴 Tutup'}
           </Badge>
         </div>
-        {todaySchedule && !todaySchedule.is_closed && (
+        {todaySchedule && (
           <p className="text-xs text-muted-foreground">
-            Hari ini: {DAYS[todayIndex].label} {todaySchedule.open_time} – {todaySchedule.close_time}
+            Hari ini: {DAYS[todayIndex].label}{' '}
+            {todaySchedule.is_closed ? 'Tutup' : `${todaySchedule.open_time} – ${todaySchedule.close_time}`}
           </p>
         )}
       </CardHeader>

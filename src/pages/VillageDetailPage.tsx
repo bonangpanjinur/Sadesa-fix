@@ -13,7 +13,7 @@ import {
   Eye,
   Check,
   Calendar,
-  Map,
+  Map as MapIcon,
   Star,
   Clock
 } from 'lucide-react';
@@ -25,6 +25,7 @@ import { TourismCard } from '@/components/TourismCard';
 import { TourismMap } from '@/components/village/TourismMap';
 import { VerifiedBadge } from '@/components/merchant/VerifiedBadge';
 import type { Tourism } from '@/types';
+import { getJakartaParts, getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 interface VillageData {
   id: string;
@@ -53,6 +54,8 @@ interface MerchantData {
   is_open: boolean;
   open_time: string | null;
   close_time: string | null;
+  isCurrentlyOpen: boolean;
+  todayHoursLabel: string | null;
   product_count?: number;
   is_verified?: boolean;
   badge?: string | null;
@@ -132,13 +135,22 @@ export default function VillageDetailPage() {
 
         // Get product counts for all merchants in one query
         const merchantIds = (merchantsData || []).map(m => m.id);
-        const { data: productCounts } = merchantIds.length > 0 
-          ? await supabase
+        const [productCountsResult, weeklyHoursResult] = merchantIds.length > 0
+          ? await Promise.all([
+              supabase
               .from('products')
               .select('merchant_id')
               .in('merchant_id', merchantIds)
-              .eq('is_active', true)
-          : { data: [] };
+              .eq('is_active', true),
+              supabase
+                .from('merchant_operating_hours')
+                .select('merchant_id, day_of_week, open_time, close_time, is_closed')
+                .in('merchant_id', merchantIds),
+            ])
+          : [{ data: [], error: null }, { data: [], error: null }];
+        if (productCountsResult.error) throw productCountsResult.error;
+        if (weeklyHoursResult.error) throw weeklyHoursResult.error;
+        const productCounts = productCountsResult.data;
 
         // Count products per merchant
         const countMap: Record<string, number> = {};
@@ -146,10 +158,42 @@ export default function VillageDetailPage() {
           countMap[p.merchant_id] = (countMap[p.merchant_id] || 0) + 1;
         });
 
-        const merchantsWithCounts: MerchantData[] = (merchantsData || []).map(merchant => ({
-          ...merchant,
-          product_count: countMap[merchant.id] || 0
-        }));
+        const weeklyHoursByMerchant = new Map<string, OperatingDaySchedule[]>();
+        (weeklyHoursResult.data || []).forEach((row) => {
+          const schedule = weeklyHoursByMerchant.get(row.merchant_id) || [];
+          schedule.push({
+            day_of_week: row.day_of_week,
+            open_time: row.open_time,
+            close_time: row.close_time,
+            is_closed: row.is_closed,
+          });
+          weeklyHoursByMerchant.set(row.merchant_id, schedule);
+        });
+        const todayIndex = getJakartaParts().dayOfWeek;
+        const merchantsWithCounts: MerchantData[] = (merchantsData || []).map(merchant => {
+          const weeklySchedule = weeklyHoursByMerchant.get(merchant.id) || [];
+          const todaySchedule = weeklySchedule.find((day) => day.day_of_week === todayIndex);
+          const todayHoursLabel = todaySchedule
+            ? todaySchedule.is_closed
+              ? 'Tutup hari ini'
+              : `${todaySchedule.open_time?.slice(0, 5)}-${todaySchedule.close_time?.slice(0, 5)}`
+            : weeklySchedule.length === 0 && merchant.open_time && merchant.close_time
+              ? `${merchant.open_time.slice(0, 5)}-${merchant.close_time.slice(0, 5)}`
+              : weeklySchedule.length > 0
+                ? 'Jadwal belum tersedia'
+                : null;
+          return {
+            ...merchant,
+            isCurrentlyOpen: getMerchantOperatingStatus(
+              merchant.is_open,
+              merchant.open_time,
+              merchant.close_time,
+              weeklySchedule,
+            ).isCurrentlyOpen,
+            todayHoursLabel,
+            product_count: countMap[merchant.id] || 0,
+          };
+        });
         setMerchants(merchantsWithCounts);
 
         // Stats
@@ -321,7 +365,7 @@ export default function VillageDetailPage() {
           <div className="bg-card rounded-2xl p-4 shadow-sm border border-border mb-4">
             <h3 className="font-semibold text-foreground mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Map className="h-4 w-4 text-primary" />
+                <MapIcon className="h-4 w-4 text-primary" />
                 Lokasi Desa & Wisata
               </div>
               {village.location_lat && village.location_lng && (
@@ -410,10 +454,10 @@ export default function VillageDetailPage() {
                                 )}
                               </div>
                               <Badge 
-                                variant={merchant.is_open ? 'default' : 'secondary'} 
+                                variant={merchant.isCurrentlyOpen ? 'default' : 'secondary'} 
                                 className="text-xs flex-shrink-0"
                               >
-                                {merchant.is_open ? 'Buka' : 'Tutup'}
+                                {merchant.isCurrentlyOpen ? 'Buka' : 'Tutup'}
                               </Badge>
                             </div>
                             {merchant.business_category && (
@@ -430,10 +474,10 @@ export default function VillageDetailPage() {
                               <div className="text-xs text-muted-foreground">
                                 {merchant.product_count} produk
                               </div>
-                              {merchant.open_time && merchant.close_time && (
+                              {merchant.todayHoursLabel && (
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                   <Clock className="h-3 w-3" />
-                                  <span>{merchant.open_time}-{merchant.close_time}</span>
+                                  <span>{merchant.todayHoursLabel}</span>
                                 </div>
                               )}
                             </div>

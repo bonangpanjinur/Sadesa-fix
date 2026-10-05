@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { isWithinOperatingHours } from '@/lib/merchantOperatingHours';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 export interface Promotion {
   id: string;
@@ -36,6 +36,42 @@ export interface MerchantAd {
   locationLng?: number | null;
 }
 
+async function getMerchantOpenStatuses(merchantIds: string[]): Promise<Map<string, boolean>> {
+  const uniqueIds = [...new Set(merchantIds)];
+  if (uniqueIds.length === 0) return new Map();
+  const [{ data: merchants, error: merchantsError }, { data: weeklyHours, error: hoursError }] = await Promise.all([
+    supabase.from('merchants').select('id, is_open, open_time, close_time').in('id', uniqueIds),
+    supabase
+      .from('merchant_operating_hours')
+      .select('merchant_id, day_of_week, open_time, close_time, is_closed')
+      .in('merchant_id', uniqueIds),
+  ]);
+  if (merchantsError) throw merchantsError;
+  if (hoursError) throw hoursError;
+
+  const schedulesByMerchant = new Map<string, OperatingDaySchedule[]>();
+  for (const row of weeklyHours || []) {
+    const schedule = schedulesByMerchant.get(row.merchant_id) || [];
+    schedule.push({
+      day_of_week: row.day_of_week,
+      open_time: row.open_time,
+      close_time: row.close_time,
+      is_closed: row.is_closed,
+    });
+    schedulesByMerchant.set(row.merchant_id, schedule);
+  }
+
+  return new Map((merchants || []).map((merchant) => [
+    merchant.id,
+    getMerchantOperatingStatus(
+      merchant.is_open,
+      merchant.open_time,
+      merchant.close_time,
+      schedulesByMerchant.get(merchant.id),
+    ).isCurrentlyOpen,
+  ]));
+}
+
 export async function fetchActiveHomepageAds(): Promise<MerchantAd[]> {
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -52,9 +88,17 @@ export async function fetchActiveHomepageAds(): Promise<MerchantAd[]> {
     return [];
   }
 
+  let openStatuses: Map<string, boolean>;
+  try {
+    openStatuses = await getMerchantOpenStatuses((data || []).map((ad) => ad.merchant_id));
+  } catch (statusError) {
+    console.error('Unable to verify merchant operating hours for homepage ads:', statusError);
+    return [];
+  }
+
   return (data || []).flatMap((ad) => {
     const merchant = Array.isArray(ad.merchant) ? ad.merchant[0] : ad.merchant;
-    if (!merchant?.is_open || !isWithinOperatingHours(merchant.open_time || '08:00', merchant.close_time || '17:00')) return [];
+    if (!merchant || !openStatuses.get(ad.merchant_id)) return [];
     return [{
       id: ad.id,
       merchantId: ad.merchant_id,
@@ -142,7 +186,17 @@ export async function fetchBannerPromotions(): Promise<Promotion[]> {
     return adminBanners;
   }
 
-  const paidBanners: Promotion[] = (merchantAds || []).map((ad) => ({
+  let openStatuses: Map<string, boolean>;
+  try {
+    openStatuses = await getMerchantOpenStatuses((merchantAds || []).map((ad) => ad.merchant_id));
+  } catch (statusError) {
+    console.error('Unable to verify merchant operating hours for banner ads:', statusError);
+    return adminBanners;
+  }
+
+  const paidBanners: Promotion[] = (merchantAds || [])
+    .filter((ad) => openStatuses.get(ad.merchant_id))
+    .map((ad) => ({
     id: `merchant-ad-${ad.id}`,
     type: 'banner',
     title: ad.title,
@@ -157,7 +211,7 @@ export async function fetchBannerPromotions(): Promise<Promotion[]> {
     sortOrder: ad.sort_order || 0,
     viewCount: ad.view_count || 0,
     clickCount: ad.click_count || 0,
-  }));
+    }));
 
   return [...paidBanners, ...adminBanners];
 }

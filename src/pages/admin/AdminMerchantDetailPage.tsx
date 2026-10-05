@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, Store, MapPin, Phone, Clock, Star, Package, 
+import {
+  ArrowLeft, Store, MapPin, Phone, Star, Package, 
   ShoppingCart, Check, X, Edit, MoreHorizontal, Tag, Users,
   Calendar, CreditCard, TrendingUp, Plus, Trash2, User, ImageIcon
 } from 'lucide-react';
@@ -52,8 +52,6 @@ interface MerchantDetail {
   subdistrict: string | null;
   business_category: string | null;
   business_description: string | null;
-  open_time: string | null;
-  close_time: string | null;
   image_url: string | null;
   cover_image_url: string | null;
   is_open: boolean;
@@ -431,7 +429,7 @@ export default function AdminMerchantDetailPage() {
                 {getStatusBadge(merchant.status, merchant.registration_status)}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="h-4 w-4 text-muted-foreground" />
                   <span>{merchant.phone || '-'}</span>
@@ -439,10 +437,6 @@ export default function AdminMerchantDetailPage() {
                 <div className="flex items-center gap-2 text-sm">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <span className="truncate">{merchant.villages?.name || merchant.subdistrict || '-'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span>{merchant.open_time || '08:00'} - {merchant.close_time || '17:00'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
@@ -783,8 +777,6 @@ export default function AdminMerchantDetailPage() {
           city: merchant.city,
           district: merchant.district,
           subdistrict: merchant.subdistrict,
-          open_time: merchant.open_time,
-          close_time: merchant.close_time,
           business_category: merchant.business_category,
           business_description: merchant.business_description,
           is_open: merchant.is_open,

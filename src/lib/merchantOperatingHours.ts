@@ -55,19 +55,42 @@ export function getMerchantOperatingStatus(
   const legacyOpen = openTime || '08:00';
   const legacyClose = closeTime || '17:00';
   const jakarta = getJakartaParts(now);
+  const hasWeeklySchedule = Boolean(weeklySchedule?.length);
   const today = weeklySchedule?.find((schedule) => schedule.day_of_week === jakarta.dayOfWeek);
-  const effectiveOpen = today?.open_time || legacyOpen;
-  const effectiveClose = today?.close_time || legacyClose;
-  const withinHours = today?.is_closed ? false : isWithinOperatingHours(effectiveOpen, effectiveClose, jakarta.minutes);
+  const yesterdayIndex = (jakarta.dayOfWeek + 6) % 7;
+  const yesterday = weeklySchedule?.find((schedule) => schedule.day_of_week === yesterdayIndex);
+  const yesterdayOpen = toMinutes(yesterday?.open_time);
+  const yesterdayClose = toMinutes(yesterday?.close_time);
+  const continuingFromYesterday = Boolean(
+    yesterday &&
+    !yesterday.is_closed &&
+    yesterdayOpen !== null &&
+    yesterdayClose !== null &&
+    yesterdayClose < yesterdayOpen &&
+    jakarta.minutes < yesterdayClose
+  );
+  const activeSchedule = continuingFromYesterday ? yesterday : today;
+  const effectiveOpen = activeSchedule?.open_time || (hasWeeklySchedule ? '' : legacyOpen);
+  const effectiveClose = activeSchedule?.close_time || (hasWeeklySchedule ? '' : legacyClose);
+  const hasActiveTimeRange = Boolean(activeSchedule?.open_time && activeSchedule.close_time);
+  const withinHours = continuingFromYesterday
+    ? true
+    : today?.is_closed
+      ? false
+      : activeSchedule
+        ? !activeSchedule.is_closed && hasActiveTimeRange && isWithinOperatingHours(effectiveOpen, effectiveClose, jakarta.minutes)
+        : !hasWeeklySchedule && isWithinOperatingHours(legacyOpen, legacyClose, jakarta.minutes);
   const isCurrentlyOpen = isManuallyOpen && withinHours;
 
   let reason = 'Toko sedang buka';
   let nextOpenAt: string | undefined;
   if (!isManuallyOpen) reason = 'Toko sedang tutup sementara';
-  else if (today?.is_closed) reason = 'Toko tutup hari ini';
+  else if (today?.is_closed && !continuingFromYesterday) reason = 'Toko tutup hari ini';
+  else if (hasWeeklySchedule && !today && !continuingFromYesterday) reason = 'Jadwal toko belum tersedia hari ini';
+  else if (activeSchedule && !activeSchedule.is_closed && !hasActiveTimeRange) reason = 'Jadwal operasional toko belum lengkap';
   else if (!withinHours) {
     reason = `Toko buka pukul ${formatTime(effectiveOpen)} - ${formatTime(effectiveClose)}`;
-    nextOpenAt = effectiveOpen;
+    nextOpenAt = effectiveOpen || undefined;
   }
 
   return { isCurrentlyOpen, isManuallyOpen, openTime: effectiveOpen, closeTime: effectiveClose, nextOpenAt, reason };

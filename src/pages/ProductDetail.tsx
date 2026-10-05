@@ -20,7 +20,7 @@ import { formatPrice, safeGoBack } from '@/lib/utils';
 import { WishlistButton } from '@/components/WishlistButton';
 import { ShareProduct } from '@/components/product/ShareProduct';
 import { MerchantClosedBanner, MerchantStatusBadge } from '@/components/merchant/MerchantClosedBanner';
-import { getMerchantOperatingStatus, formatTime } from '@/lib/merchantOperatingHours';
+import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { trackPageView } from '@/lib/pageViewTracker';
@@ -48,6 +48,7 @@ interface MerchantInfo {
   halalStatus: string | null;
   slug: string | null;
   imageUrl: string | null;
+  weeklySchedule: OperatingDaySchedule[];
 }
 
 interface ProductToppingRow {
@@ -96,12 +97,19 @@ export default function ProductDetail() {
     queryKey: ['product-merchant', product?.merchantId],
     queryFn: async () => {
       if (!product?.merchantId) return { merchant: null, hasActiveQuota: true };
-      const { data: merchantData } = await supabase
+      const { data: merchantData, error: merchantError } = await supabase
         .from('merchants')
         .select(`id, name, phone, address, image_url, rating_avg, rating_count, badge, is_open, open_time, close_time, is_verified, halal_status, slug, villages (name)`)
         .eq('id', product.merchantId)
         .maybeSingle();
+      if (merchantError) throw merchantError;
       if (!merchantData) return { merchant: null, hasActiveQuota: true };
+      const { data: weeklySchedule, error: scheduleError } = await supabase
+        .from('merchant_operating_hours')
+        .select('day_of_week, open_time, close_time, is_closed')
+        .eq('merchant_id', product.merchantId)
+        .order('day_of_week', { ascending: true });
+      if (scheduleError) throw scheduleError;
       const merchant: MerchantInfo = {
         id: merchantData.id,
         name: merchantData.name,
@@ -118,6 +126,7 @@ export default function ProductDetail() {
         halalStatus: merchantData.halal_status || null,
         slug: merchantData.slug || null,
         imageUrl: merchantData.image_url || null,
+        weeklySchedule: (weeklySchedule || []) as OperatingDaySchedule[],
       };
       const hasActiveQuota = await checkMerchantHasActiveQuota(merchantData.id);
       return { merchant, hasActiveQuota };
@@ -166,7 +175,7 @@ export default function ProductDetail() {
 
   // Get merchant operating status
   const merchantStatus = merchant 
-    ? getMerchantOperatingStatus(merchant.isOpen, merchant.openTime, merchant.closeTime)
+    ? getMerchantOperatingStatus(merchant.isOpen, merchant.openTime, merchant.closeTime, merchant.weeklySchedule)
     : null;
   
   if (loading) {
@@ -339,6 +348,7 @@ export default function ProductDetail() {
                 openTime={merchant.openTime}
                 closeTime={merchant.closeTime}
                 merchantName={merchant.name}
+                weeklySchedule={merchant.weeklySchedule}
               />
             </div>
           )}
@@ -369,6 +379,7 @@ export default function ProductDetail() {
                       openTime={merchant.openTime}
                       closeTime={merchant.closeTime}
                       hasQuota={hasActiveQuota}
+                      weeklySchedule={merchant.weeklySchedule}
                     />
                   </div>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">

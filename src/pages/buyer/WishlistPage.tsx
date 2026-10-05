@@ -11,6 +11,7 @@ import { formatPrice } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 interface WishlistItemData {
   id: string;
@@ -34,6 +35,9 @@ interface FavoriteMerchant {
     rating_avg: number | null;
     rating_count: number | null;
     is_open: boolean;
+    open_time: string | null;
+    close_time: string | null;
+    merchant_operating_hours: OperatingDaySchedule[] | null;
   } | {
     id: string;
     name: string;
@@ -41,6 +45,9 @@ interface FavoriteMerchant {
     rating_avg: number | null;
     rating_count: number | null;
     is_open: boolean;
+    open_time: string | null;
+    close_time: string | null;
+    merchant_operating_hours: OperatingDaySchedule[] | null;
   }[] | null;
 }
 
@@ -70,7 +77,7 @@ export default function WishlistPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('merchant_favorites')
-        .select(`id, merchant_id, merchants(id, name, image_url, rating_avg, rating_count, is_open)`)
+        .select(`id, merchant_id, merchants(id, name, image_url, rating_avg, rating_count, is_open, open_time, close_time, merchant_operating_hours(day_of_week, open_time, close_time, is_closed))`)
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -109,13 +116,22 @@ export default function WishlistPage() {
     try {
       const { data: productData, error } = await supabase
         .from('products')
-        .select('stock, is_active, merchant_id')
+        .select('stock, is_active, merchant_id, merchants(is_open, open_time, close_time, merchant_operating_hours(day_of_week, open_time, close_time, is_closed))')
         .eq('id', item.products.id)
         .maybeSingle();
 
       if (error || !productData) { toast.error('Gagal memuat data produk'); return; }
       if (!productData.is_active) { toast.error('Produk sudah tidak tersedia'); return; }
       if (productData.stock <= 0) { toast.error('Stok produk habis'); return; }
+
+      const merchantSchedule = Array.isArray(productData.merchants) ? productData.merchants[0] : productData.merchants;
+      if (!merchantSchedule) { toast.error('Toko tidak ditemukan'); return; }
+      const isMerchantOpen = getMerchantOperatingStatus(
+        merchantSchedule.is_open ?? true,
+        merchantSchedule.open_time,
+        merchantSchedule.close_time,
+        merchantSchedule.merchant_operating_hours,
+      ).isCurrentlyOpen;
 
       const productMerchant = Array.isArray(item.products.merchants) ? item.products.merchants[0] : item.products.merchants;
       addToCart({
@@ -129,8 +145,8 @@ export default function WishlistPage() {
         image: item.products.image_url || '',
         category: 'kuliner',
         isActive: productData.is_active,
-        isAvailable: true,
-        isMerchantOpen: true,
+        isAvailable: isMerchantOpen,
+        isMerchantOpen,
         hasQuota: true,
       });
       toast.success('Ditambahkan ke keranjang');
@@ -274,6 +290,12 @@ export default function WishlistPage() {
                   {favorites.map((fav, index) => {
                     const m = Array.isArray(fav.merchants) ? fav.merchants[0] : fav.merchants;
                     if (!m) return null;
+                    const isOpen = getMerchantOperatingStatus(
+                      m.is_open,
+                      m.open_time,
+                      m.close_time,
+                      m.merchant_operating_hours,
+                    ).isCurrentlyOpen;
                     return (
                       <motion.div
                         key={fav.id}
@@ -299,8 +321,8 @@ export default function WishlistPage() {
                             <h3 className="font-semibold text-sm truncate hover:text-primary transition">{m.name}</h3>
                           </button>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className={`text-xs font-medium ${m.is_open ? 'text-green-600' : 'text-red-500'}`}>
-                              {m.is_open ? 'Buka' : 'Tutup'}
+                            <span className={`text-xs font-medium ${isOpen ? 'text-green-600' : 'text-red-500'}`}>
+                              {isOpen ? 'Buka' : 'Tutup'}
                             </span>
                             {m.rating_avg && (
                               <>

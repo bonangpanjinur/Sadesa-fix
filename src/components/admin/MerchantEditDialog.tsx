@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, Save, CreditCard, QrCode, UserCheck, Shield, Check, X } from 'lucide-react';
+import { Save, CreditCard, QrCode, UserCheck, Shield, Check, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -45,8 +45,6 @@ interface MerchantEditDialogProps {
     city: string | null;
     district: string | null;
     subdistrict: string | null;
-    open_time: string | null;
-    close_time: string | null;
     business_category: string | null;
     business_description: string | null;
     is_open: boolean;
@@ -148,8 +146,6 @@ export function MerchantEditDialog({
     district_name: '',
     village_code: '',
     village_name: '',
-    open_time: '08:00',
-    close_time: '17:00',
     business_category: 'kuliner',
     business_description: '',
     is_open: true,
@@ -345,8 +341,6 @@ export function MerchantEditDialog({
       district_name: initialData.district || '',
       village_code: '',
       village_name: initialData.subdistrict || '',
-      open_time: initialData.open_time || '08:00',
-      close_time: initialData.close_time || '17:00',
       business_category: initialData.business_category || 'kuliner',
       business_description: initialData.business_description || '',
       is_open: initialData.is_open ?? true,
@@ -479,8 +473,6 @@ export function MerchantEditDialog({
           city: formData.regency_name || null,
           district: formData.district_name || null,
           subdistrict: formData.village_name || null,
-          open_time: formData.open_time,
-          close_time: formData.close_time,
           business_category: formData.business_category,
           business_description: formData.business_description || null,
           is_open: formData.is_open,
@@ -832,31 +824,6 @@ export function MerchantEditDialog({
           {/* Operational */}
           <div className="space-y-4 border-t pt-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Operasional & Sistem</h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Jam Buka
-                </Label>
-                <Input
-                  type="time"
-                  value={formData.open_time}
-                  onChange={(e) => setFormData({ ...formData, open_time: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Jam Tutup
-                </Label>
-                <Input
-                  type="time"
-                  value={formData.close_time}
-                  onChange={(e) => setFormData({ ...formData, close_time: e.target.value })}
-                />
-              </div>
-            </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">

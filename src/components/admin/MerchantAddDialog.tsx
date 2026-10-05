@@ -110,26 +110,31 @@ export function MerchantAddDialog({ open, onOpenChange, onSuccess }: MerchantAdd
     if (formData.verifikator_code && verifikatorValid !== true) return toast.error('Kode verifikator tidak valid');
     setLoading(true);
     try {
-      const legacy = schedule[1] || schedule[openDays[0].day];
-      const { data: merchant, error } = await supabase.from('merchants').insert({
-        name: formData.name.trim(), user_id: formData.user_id || null, phone: formData.phone.trim(), address: formData.address.trim() || null,
-        province: formData.province_name, city: formData.regency_name, district: formData.district_name, subdistrict: formData.village_name,
-        village_id: formData.village_id || null, business_category: selectedCategories[0].slug, business_description: formData.business_description.trim() || null,
-        open_time: legacy.open_time, close_time: legacy.close_time, is_open: formData.is_open, status: 'ACTIVE',
-        // The database auto-approval trigger changes this to APPROVED; PENDING keeps compatibility with older deployed policies.
-        registration_status: 'PENDING', order_mode: 'ADMIN_ASSISTED', image_url: formData.image_url, cover_image_url: formData.cover_image_url,
-        location_lat: formData.location_lat, location_lng: formData.location_lng, verifikator_code: formData.verifikator_code || null,
-        trade_group: verifikatorName,
-        registered_at: new Date().toISOString(),
-      }).select('id').single();
-      if (error || !merchant) throw error || new Error('Pedagang tidak berhasil dibuat');
-      const { error: categoryError } = await supabase.from('merchant_categories').insert(selectedCategories.map((category) => ({ merchant_id: merchant.id, category_id: category.id })));
-      if (categoryError) throw categoryError;
-      const { error: scheduleError } = await supabase.from('merchant_operating_hours').insert(DAYS.map(({ day }) => ({ merchant_id: merchant.id, day_of_week: day, ...schedule[day] })));
-      if (scheduleError) throw scheduleError;
-      if (formData.user_id) {
-        await supabase.from('user_roles').upsert([{ user_id: formData.user_id, role: 'buyer' }, { user_id: formData.user_id, role: 'merchant' }], { onConflict: 'user_id,role' });
-      }
+      const { data: merchantId, error } = await supabase.rpc('admin_create_merchant_atomic', {
+        p_merchant: {
+          name: formData.name.trim(),
+          user_id: formData.user_id || null,
+          phone: formData.phone.trim(),
+          address: formData.address.trim() || null,
+          province: formData.province_name,
+          city: formData.regency_name,
+          district: formData.district_name,
+          subdistrict: formData.village_name,
+          village_id: formData.village_id || null,
+          business_category: selectedCategories[0].slug,
+          business_description: formData.business_description.trim() || null,
+          is_open: formData.is_open,
+          image_url: formData.image_url,
+          cover_image_url: formData.cover_image_url,
+          location_lat: formData.location_lat,
+          location_lng: formData.location_lng,
+          verifikator_code: formData.verifikator_code || null,
+          trade_group: verifikatorName,
+        },
+        p_category_ids: selectedCategories.map((category) => category.id),
+        p_schedule: DAYS.map(({ day }) => ({ day_of_week: day, ...schedule[day] })),
+      });
+      if (error || !merchantId) throw error || new Error('Pedagang tidak berhasil dibuat');
       toast.success('Pedagang baru berhasil ditambahkan'); onSuccess(); onOpenChange(false);
     } catch (error) {
       console.error('Error adding merchant:', error);

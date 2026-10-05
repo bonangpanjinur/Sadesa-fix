@@ -1,7 +1,7 @@
 {
-  "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; RLS ride fix appended",
-  "migration_count": 352,
-  "bundle_count": 51,
+  "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment appended",
+  "migration_count": 353,
+  "bundle_count": 52,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -711,6 +711,14 @@
       ],
       "sha256": "51d61976fe38e4944d8a446ee2c45a2761a7b9d8929ebdcb6ca9089cad8b7c9b",
       "bytes": 2874
+    },
+    {
+      "file": "79_20261005160000_merchant_operating_hours_canonical.sql",
+      "source_files": [
+        "20261005160000_merchant_operating_hours_canonical.sql"
+      ],
+      "sha256": "aa27700d797aba9d58d715ebc2881420dedef59ab711e44acb9d65df8a5b6396",
+      "bytes": 23645
     }
   ],
   "idempotent": true,

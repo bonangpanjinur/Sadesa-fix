@@ -17,10 +17,11 @@ import { ViewToggle, ViewMode } from '@/components/explore/ViewToggle';
 import { EmptyState } from '@/components/explore/EmptyState';
 import { supabase } from '@/integrations/supabase/client';
 import type { Village, Tourism, Product } from '@/types';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 interface SearchProductRow {
   id: string; name: string; description: string | null; price: number; image_url: string | null; stock: number | null; category: string | null; is_active: boolean; is_promo: boolean | null; original_price: number | null; merchant_id: string;
-  merchants: { name: string | null; village_id: string | null; villages: { name: string | null } | { name: string | null }[] | null; location_lat: number | null; location_lng: number | null; is_open: boolean | null; halal_status: string | null } | { name: string | null; village_id: string | null; villages: { name: string | null } | { name: string | null }[] | null; location_lat: number | null; location_lng: number | null; is_open: boolean | null; halal_status: string | null }[] | null;
+  merchants: { name: string | null; village_id: string | null; villages: { name: string | null } | { name: string | null }[] | null; location_lat: number | null; location_lng: number | null; is_open: boolean | null; open_time: string | null; close_time: string | null; halal_status: string | null } | { name: string | null; village_id: string | null; villages: { name: string | null } | { name: string | null }[] | null; location_lat: number | null; location_lng: number | null; is_open: boolean | null; open_time: string | null; close_time: string | null; halal_status: string | null }[] | null;
 }
 
 interface SearchVillageRow { id: string; name: string; district: string | null; regency: string | null; description: string | null; image_url: string | null; is_active: boolean; }
@@ -53,19 +54,48 @@ export default function SearchResultsPage() {
       if (!searchQuery || searchQuery.length < 2) return { products: [], villages: [], tourismSpots: [] };
       const searchTerm = `%${searchQuery}%`;
       const [productsRes, villagesRes, tourismRes] = await Promise.all([
-        supabase.from('products').select('id, name, description, price, image_url, stock, category, is_active, is_promo, original_price, merchant_id, merchants(name, village_id, villages(name), location_lat, location_lng, is_open, halal_status)').ilike('name', searchTerm).eq('is_active', true).limit(50),
+        supabase.from('products').select('id, name, description, price, image_url, stock, category, is_active, is_promo, original_price, merchant_id, merchants(name, village_id, villages(name), location_lat, location_lng, is_open, open_time, close_time, halal_status)').ilike('name', searchTerm).eq('is_active', true).limit(50),
         supabase.from('villages').select('id, name, district, regency, description, image_url, is_active').ilike('name', searchTerm).eq('is_active', true).limit(20),
         supabase.from('tourism').select('id, name, description, image_url, village_id, villages(name), location_lat, location_lng, wa_link, facilities, is_active, view_count').ilike('name', searchTerm).eq('is_active', true).limit(20),
       ]);
-      const products: Product[] = (productsRes.data || []).map((p: SearchProductRow) => ({
-        id: p.id, name: p.name, description: p.description || '', price: p.price, image: p.image_url || '/placeholder.svg',
-        stock: p.stock || 0, category: p.category || '', isActive: p.is_active, isPromo: p.is_promo,
-        originalPrice: p.original_price, merchantId: p.merchant_id, merchantName: (Array.isArray(p.merchants) ? p.merchants[0]?.name : p.merchants?.name) || '',
-        merchantVillage: (() => { const villages = Array.isArray(p.merchants) ? p.merchants[0]?.villages : p.merchants?.villages; return (Array.isArray(villages) ? villages[0]?.name : villages?.name) || ''; })(),
-        locationLat: Array.isArray(p.merchants) ? p.merchants[0]?.location_lat : p.merchants?.location_lat, locationLng: Array.isArray(p.merchants) ? p.merchants[0]?.location_lng : p.merchants?.location_lng,
-        isMerchantOpen: Array.isArray(p.merchants) ? p.merchants[0]?.is_open : p.merchants?.is_open, isAvailable: p.is_active && p.stock > 0,
-        halal_status: Array.isArray(p.merchants) ? p.merchants[0]?.halal_status as Product['halal_status'] : p.merchants?.halal_status as Product['halal_status'],
-      }));
+      const merchantIds = [...new Set((productsRes.data || []).map((product) => product.merchant_id).filter(Boolean))];
+      const weeklyHoursByMerchant = new Map<string, OperatingDaySchedule[]>();
+      if (merchantIds.length > 0) {
+        const { data: weeklyHours, error: weeklyHoursError } = await supabase
+          .from('merchant_operating_hours')
+          .select('merchant_id, day_of_week, open_time, close_time, is_closed')
+          .in('merchant_id', merchantIds);
+        if (weeklyHoursError) throw weeklyHoursError;
+        for (const row of weeklyHours || []) {
+          const schedule = weeklyHoursByMerchant.get(row.merchant_id) || [];
+          schedule.push({
+            day_of_week: row.day_of_week,
+            open_time: row.open_time,
+            close_time: row.close_time,
+            is_closed: row.is_closed,
+          });
+          weeklyHoursByMerchant.set(row.merchant_id, schedule);
+        }
+      }
+      const products: Product[] = (productsRes.data || []).map((p: SearchProductRow) => {
+        const merchant = Array.isArray(p.merchants) ? p.merchants[0] : p.merchants;
+        const merchantOpen = getMerchantOperatingStatus(
+          merchant?.is_open ?? true,
+          merchant?.open_time || '08:00',
+          merchant?.close_time || '17:00',
+          weeklyHoursByMerchant.get(p.merchant_id),
+        ).isCurrentlyOpen;
+        const merchantVillage = Array.isArray(merchant?.villages) ? merchant.villages[0]?.name : merchant?.villages?.name;
+        return {
+          id: p.id, name: p.name, description: p.description || '', price: p.price, image: p.image_url || '/placeholder.svg',
+          stock: p.stock || 0, category: p.category || '', isActive: p.is_active, isPromo: p.is_promo,
+          originalPrice: p.original_price, merchantId: p.merchant_id, merchantName: merchant?.name || '',
+          merchantVillage: merchantVillage || '',
+          locationLat: merchant?.location_lat, locationLng: merchant?.location_lng,
+          isMerchantOpen: merchantOpen, isAvailable: p.is_active && (p.stock || 0) > 0 && merchantOpen,
+          halal_status: merchant?.halal_status as Product['halal_status'],
+        };
+      });
       const villages: Village[] = (villagesRes.data || []).map((v: SearchVillageRow) => ({
         id: v.id, name: v.name, district: v.district || '', regency: v.regency || '',
         description: v.description || '', image: v.image_url || '/placeholder.svg', isActive: v.is_active,

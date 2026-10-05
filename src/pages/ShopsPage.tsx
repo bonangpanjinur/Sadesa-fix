@@ -12,6 +12,7 @@ import { Button } from '../components/ui/button';
 import { ShopFilterSheet, type ShopFilters } from '../components/shop/ShopFilterSheet';
 import { supabase } from '../integrations/supabase/client';
 import { useUserLocation, calculateDistance } from '../hooks/useUserLocation';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 interface ShopProductCategory {
   category: string | null;
@@ -60,7 +61,7 @@ export default function ShopsPage() {
       const { data: merchantsData, error } = await supabase
         .from('merchants')
         .select(`
-          id, name, address, phone, rating_avg, rating_count, is_open, badge, image_url,
+          id, name, address, phone, rating_avg, rating_count, is_open, open_time, close_time, badge, image_url,
           village_id, location_lat, location_lng, slug, business_category,
           villages(name, location_lat, location_lng),
           products(id, category)
@@ -69,6 +70,26 @@ export default function ShopsPage() {
         .eq('registration_status', 'APPROVED');
 
       if (error) throw error;
+
+      const merchantIds = (merchantsData || []).map((merchant) => merchant.id);
+      const weeklyHoursByMerchant = new Map<string, OperatingDaySchedule[]>();
+      if (merchantIds.length > 0) {
+        const { data: weeklyHours, error: weeklyHoursError } = await supabase
+          .from('merchant_operating_hours')
+          .select('merchant_id, day_of_week, open_time, close_time, is_closed')
+          .in('merchant_id', merchantIds);
+        if (weeklyHoursError) throw weeklyHoursError;
+        for (const row of weeklyHours || []) {
+          const schedule = weeklyHoursByMerchant.get(row.merchant_id) || [];
+          schedule.push({
+            day_of_week: row.day_of_week,
+            open_time: row.open_time,
+            close_time: row.close_time,
+            is_closed: row.is_closed,
+          });
+          weeklyHoursByMerchant.set(row.merchant_id, schedule);
+        }
+      }
 
       return (merchantsData || []).map((m) => {
         const prods = m.products || [];
@@ -83,7 +104,13 @@ export default function ShopsPage() {
         return {
           id: m.id, name: m.name, address: m.address, phone: m.phone,
           ratingAvg: Number(m.rating_avg) || 0, ratingCount: m.rating_count || 0,
-          isOpen: m.is_open, badge: m.badge, imageUrl: m.image_url,
+          isOpen: getMerchantOperatingStatus(
+            m.is_open,
+            m.open_time,
+            m.close_time,
+            weeklyHoursByMerchant.get(m.id),
+          ).isCurrentlyOpen,
+          badge: m.badge, imageUrl: m.image_url,
           villageId: m.village_id, villageName: village?.name || null,
           productCount: prods.length, categories: cats,
           locationLat, locationLng, slug: m.slug || null,

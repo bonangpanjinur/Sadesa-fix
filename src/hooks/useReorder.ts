@@ -4,12 +4,31 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
 import type { Product } from '@/types';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 interface ReorderProduct extends Product {
   is_active: boolean;
   image_url: string | null;
   merchant_id: string;
-  merchants: { id: string; name: string; is_open: boolean | null; status: string | null; registration_status: string | null } | { id: string; name: string; is_open: boolean | null; status: string | null; registration_status: string | null }[] | null;
+  merchants: {
+    id: string;
+    name: string;
+    is_open: boolean | null;
+    open_time: string | null;
+    close_time: string | null;
+    status: string | null;
+    registration_status: string | null;
+    merchant_operating_hours: OperatingDaySchedule[] | null;
+  } | {
+    id: string;
+    name: string;
+    is_open: boolean | null;
+    open_time: string | null;
+    close_time: string | null;
+    status: string | null;
+    registration_status: string | null;
+    merchant_operating_hours: OperatingDaySchedule[] | null;
+  }[] | null;
 }
 
 interface ReorderItem {
@@ -44,7 +63,8 @@ export function useReorder() {
         .from('products')
         .select(
           `id, name, description, price, stock, is_active, image_url, category, merchant_id,
-           merchants(id, name, is_open, status, registration_status)`,
+           merchants(id, name, is_open, open_time, close_time, status, registration_status,
+             merchant_operating_hours(day_of_week, open_time, close_time, is_closed))`,
         )
         .in('id', productIds);
 
@@ -85,7 +105,12 @@ export function useReorder() {
             merchantName: merchant?.name || '',
             isActive: product.is_active,
             isAvailable: true,
-            isMerchantOpen: merchant?.is_open ?? true,
+            isMerchantOpen: getMerchantOperatingStatus(
+              merchant?.is_open ?? true,
+              merchant?.open_time || '08:00',
+              merchant?.close_time || '17:00',
+              merchant?.merchant_operating_hours,
+            ).isCurrentlyOpen,
             hasQuota: true,
           } satisfies Product,
           Math.min(item.quantity, stock),

@@ -21,6 +21,7 @@ import { useTranslation, useFormatters } from '@/lib/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
+import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 
 interface StockProductRow {
   id: string;
@@ -45,25 +46,52 @@ export default function CartPage() {
 
   // Fetch merchant open/close statuses
   useEffect(() => {
-    const merchantNames = [...new Set(items.map(i => i.product.merchantName || 'Toko'))];
     const merchantIds = [...new Set(items.map(i => i.product.merchantId).filter(Boolean))];
     
     if (merchantIds.length === 0) return;
 
     const fetchStatuses = async () => {
-      const { data } = await supabase
-        .from('merchants')
-        .select('id, is_open')
-        .in('id', merchantIds);
-      
-      if (data) {
-        const statuses: Record<string, boolean> = {};
-        data.forEach(m => { statuses[m.id] = m.is_open; });
-        setMerchantStatuses(statuses);
+      const [{ data: merchants, error: merchantsError }, { data: weeklyHours, error: weeklyHoursError }] = await Promise.all([
+        supabase
+          .from('merchants')
+          .select('id, is_open, open_time, close_time')
+          .in('id', merchantIds),
+        supabase
+          .from('merchant_operating_hours')
+          .select('merchant_id, day_of_week, open_time, close_time, is_closed')
+          .in('merchant_id', merchantIds),
+      ]);
+
+      if (merchantsError || weeklyHoursError) {
+        console.error('Unable to refresh cart merchant operating status:', merchantsError || weeklyHoursError);
+        return;
       }
+
+      const weeklyHoursByMerchant = new Map<string, OperatingDaySchedule[]>();
+      for (const row of weeklyHours || []) {
+        const schedule = weeklyHoursByMerchant.get(row.merchant_id) || [];
+        schedule.push({
+          day_of_week: row.day_of_week,
+          open_time: row.open_time,
+          close_time: row.close_time,
+          is_closed: row.is_closed,
+        });
+        weeklyHoursByMerchant.set(row.merchant_id, schedule);
+      }
+
+      const statuses: Record<string, boolean> = {};
+      (merchants || []).forEach((merchant) => {
+        statuses[merchant.id] = getMerchantOperatingStatus(
+          merchant.is_open,
+          merchant.open_time,
+          merchant.close_time,
+          weeklyHoursByMerchant.get(merchant.id),
+        ).isCurrentlyOpen;
+      });
+      setMerchantStatuses(statuses);
     };
 
-    fetchStatuses();
+    void fetchStatuses();
   }, [items]);
 
   // Validate stock in real-time
