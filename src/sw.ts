@@ -120,6 +120,8 @@ self.addEventListener('push', (event) => {
 
   const notificationType = data.data?.type;
   const merchantOrderId = typeof data.data?.order_id === 'string' ? data.data.order_id : null;
+  const deliveryAssignmentId = typeof data.data?.assignment_id === 'string' ? data.data.assignment_id : null;
+  const rideId = typeof data.data?.ride_id === 'string' ? data.data.ride_id : null;
   const isPersistentOrderAlert = notificationType === 'new_ride_request'
     || notificationType === 'new_delivery_offer'
     || notificationType === 'new_merchant_order';
@@ -139,7 +141,13 @@ self.addEventListener('push', (event) => {
       requireInteraction: isPersistentOrderAlert,
       tag: notificationType === 'new_merchant_order' && merchantOrderId
         ? `merchant-order-${merchantOrderId}`
-        : isPersistentOrderAlert ? `order-${notificationType}` : undefined,
+        : notificationType === 'new_delivery_offer' && deliveryAssignmentId
+          ? `delivery-offer-${deliveryAssignmentId}`
+          : notificationType === 'new_ride_request' && rideId
+            ? `ride-offer-${rideId}`
+            : isPersistentOrderAlert
+              ? `order-${notificationType}`
+              : undefined,
       renotify: true,
       vibrate: [...COURIER_ALARM_VIBRATION_PATTERN],
       data: { url: notificationUrl },

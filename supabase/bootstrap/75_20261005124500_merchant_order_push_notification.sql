@@ -76,7 +76,7 @@ CREATE TRIGGER order_notification_trigger
 AFTER INSERT OR UPDATE ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.notify_order_change();
-$$$bootstrap_sql_merchant_order_push$;
+$bootstrap_sql_merchant_order_push$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR unique_violation THEN NULL;
 END $bootstrap_do_merchant_order_push$;

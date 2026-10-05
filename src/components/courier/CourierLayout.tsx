@@ -12,6 +12,8 @@ import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarm
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 import { supabase } from '@/integrations/supabase/client';
 import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
+import { getLastPushError, subscribeToPush } from '@/lib/pushNotification';
+import { toast } from 'sonner';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -123,11 +125,36 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
             variant="outline"
             size="sm"
             className="min-h-10 shrink-0 gap-1.5 text-xs sm:min-h-9"
-            onClick={() => { unlockOrderNotificationAudio(); vibrateCourierAlarm(); }}
-            aria-label="Aktifkan bunyi dan getar alarm pesanan"
+            onClick={() => {
+              vibrateCourierAlarm();
+              void Promise.all([
+                unlockOrderNotificationAudio(),
+                user ? subscribeToPush(user.id) : Promise.resolve(false),
+              ]).then(([audioActivated, pushActivated]) => {
+                if (audioActivated && pushActivated) {
+                  toast.success('Langganan push dan alarm Ojek tersimpan', {
+                    description: 'Saat aplikasi ditutup, push memerlukan worker dan kunci VAPID Supabase aktif. Bunyi mengikuti pengaturan notifikasi perangkat.',
+                  });
+                } else if (pushActivated) {
+                  toast.warning('Langganan push tersimpan; audio halaman belum aktif', {
+                    description: 'Bunyi saat aplikasi ditutup mengikuti pengaturan notifikasi perangkat.',
+                  });
+                } else if (audioActivated) {
+                  toast.warning('Audio alarm aktif; push belum terdaftar', {
+                    description: getLastPushError() || 'Izinkan notifikasi browser agar tawaran Ojek dapat masuk saat aplikasi ditutup.',
+                  });
+                } else {
+                  toast.error('Push dan alarm belum aktif', {
+                    description: getLastPushError() || 'Izinkan audio dan notifikasi browser, lalu tekan tombol ini kembali.',
+                  });
+                }
+              });
+            }}
+            aria-label="Aktifkan notifikasi push dan alarm Ojek"
+            title="Aktifkan notifikasi push dan alarm Ojek"
           >
             <Volume2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Aktifkan Bunyi &amp; Getar</span>
+            <span className="hidden sm:inline">Aktifkan Push &amp; Alarm</span>
           </Button>
           <OrderAlarmSettingsControl audience="courier" />
         </header>

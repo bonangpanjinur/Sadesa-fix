@@ -7,6 +7,7 @@ const serviceWorker = readFileSync(resolve(process.cwd(), 'src/sw.ts'), 'utf8');
 const courierLayout = readFileSync(resolve(process.cwd(), 'src/components/courier/CourierLayout.tsx'), 'utf8');
 const merchantLayout = readFileSync(resolve(process.cwd(), 'src/components/merchant/MerchantLayout.tsx'), 'utf8');
 const merchantPushMigration = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005124500_merchant_order_push_notification.sql'), 'utf8');
+const merchantPushBundle = readFileSync(resolve(process.cwd(), 'supabase/bootstrap/75_20261005124500_merchant_order_push_notification.sql'), 'utf8');
 const merchantSettingsPage = readFileSync(resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'), 'utf8');
 const notificationWorker = readFileSync(resolve(process.cwd(), 'supabase/functions/process-notification-queue/index.ts'), 'utf8');
 const merchantAlarmHook = readFileSync(resolve(process.cwd(), 'src/hooks/useMerchantOrderAlarm.ts'), 'utf8');
@@ -14,6 +15,8 @@ const audioManager = readFileSync(resolve(process.cwd(), 'src/lib/audioManager.t
 const notificationWorkerSchedule = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005150000_notification_delivery_worker_cron.sql'), 'utf8');
 const supabaseFunctionConfig = readFileSync(resolve(process.cwd(), 'supabase/config.toml'), 'utf8');
 const orderAlarmSettingsControl = readFileSync(resolve(process.cwd(), 'src/components/notifications/OrderAlarmSettingsControl.tsx'), 'utf8');
+const courierRideDispatch = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20260929011000_nearest_courier_sequential_ride_dispatch.sql'), 'utf8');
+const courierDeliveryOfferPush = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20260929133000_courier_delivery_offer_push.sql'), 'utf8');
 
 describe('courier background alarm contract', () => {
   it('keeps a user-gesture-unlocked media fallback for hidden tabs', () => {
@@ -23,9 +26,17 @@ describe('courier background alarm contract', () => {
     expect(soundManager).toContain('unlockOrderNotificationAudio');
   });
 
-  it('requires an explicit courier gesture to unlock background audio', () => {
-    expect(courierLayout).toContain('unlockOrderNotificationAudio();');
-    expect(courierLayout).toContain('Aktifkan Bunyi &amp; Getar');
+  it('activates courier push and page alarm from a user gesture', () => {
+    expect(courierLayout).toContain('unlockOrderNotificationAudio()');
+    expect(courierLayout).toContain('subscribeToPush(user.id)');
+    expect(courierLayout).toContain('Aktifkan Push &amp; Alarm');
+  });
+
+  it('queues push for targeted Ojek rides and delivery offers', () => {
+    expect(courierRideDispatch).toContain("'new_ride_request'");
+    expect(courierRideDispatch).toContain("'offer_id', v_offer_id::text");
+    expect(courierDeliveryOfferPush).toContain("'new_delivery_offer'");
+    expect(courierDeliveryOfferPush).toContain('AFTER INSERT ON public.delivery_assignments');
   });
 
   it('activates merchant Web Push from the merchant header gesture', () => {
@@ -73,6 +84,8 @@ describe('courier background alarm contract', () => {
     expect(merchantPushMigration).toContain('notification_delivery_jobs');
     expect(merchantPushMigration).toContain("'/merchant/orders?orderId=' || NEW.id::TEXT");
     expect(merchantPushMigration).toContain('CREATE TRIGGER order_notification_trigger');
+    expect(merchantPushBundle).toContain('EXECUTE FUNCTION public.notify_order_change();\n$bootstrap_sql_merchant_order_push$;');
+    expect(merchantPushBundle).not.toContain('$$$bootstrap_sql_merchant_order_push$;');
   });
 
   it('retries instead of acknowledging push jobs when VAPID configuration is missing', () => {
@@ -102,6 +115,8 @@ describe('courier background alarm contract', () => {
     expect(serviceWorker).toContain('vibrate: [...COURIER_ALARM_VIBRATION_PATTERN]');
     expect(serviceWorker).toContain('new_merchant_order');
     expect(serviceWorker).toContain('`merchant-order-${merchantOrderId}`');
+    expect(serviceWorker).toContain('`delivery-offer-${deliveryAssignmentId}`');
+    expect(serviceWorker).toContain('`ride-offer-${rideId}`');
     expect(serviceWorker).toContain('encodeURIComponent(merchantOrderId)');
   });
 });
