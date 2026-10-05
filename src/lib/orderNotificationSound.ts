@@ -204,9 +204,10 @@ function stopBackgroundAudioPlayback() {
   if (backgroundAudio) backgroundAudio.currentTime = 0;
 }
 
-async function playBackgroundAudio(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, volume: number) {
+async function playBackgroundAudio(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, volume: number, customAudioUrl?: string) {
   if (!backgroundAudioUnlocked || !backgroundAudio) return false;
   stopBackgroundAudioPlayback();
+  backgroundAudio.src = customAudioUrl || '/notification.wav';
   let stopped = false;
   let resolveStop: (() => void) | null = null;
   const playback = {
@@ -368,7 +369,12 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   // Prefer a media element while hidden: mobile browsers commonly suspend
   // WebAudio in background tabs, while an already-unlocked media element can
   // continue. If it cannot play, continue with the normal WebAudio path.
-  if (document.hidden && await playBackgroundAudio(settings, audience, profile.volume)) return;
+  if (document.hidden && await playBackgroundAudio(
+    settings,
+    audience,
+    profile.volume,
+    profile.preset === 'custom' ? profile.custom_audio_url : undefined,
+  )) return;
   if (!isAudioEnabled()) {
     pendingSoundAudiences.add(audience);
     requestAudioPermission();

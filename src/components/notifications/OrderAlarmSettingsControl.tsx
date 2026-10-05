@@ -111,13 +111,13 @@ export function OrderAlarmSettingsControl({ audience }: OrderAlarmSettingsContro
                   </p>
                 </div>
                 <div>
-                  <label htmlFor={`${audience}-local-preset`} className="text-sm font-medium">Nada dering</label>
+                  <label htmlFor={`${audience}-local-preset`} className="text-sm font-medium">Jenis suara alarm</label>
                   <select id={`${audience}-local-preset`} value={profile.preset} onChange={(event) => setProfile({ ...profile, preset: event.target.value as OrderSoundProfile['preset'] })} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     {Object.entries(ORDER_SOUND_PRESET_LABELS).map(([value, optionLabel]) => <option key={value} value={value}>{optionLabel}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor={`${audience}-local-volume`} className="text-sm font-medium">Volume: {Math.round(profile.volume * 100)}%</label>
+                  <label htmlFor={`${audience}-local-volume`} className="text-sm font-medium">Volume alarm: {Math.round(profile.volume * 100)}%</label>
                   <input id={`${audience}-local-volume`} type="range" min="0.1" max="1" step="0.05" value={profile.volume} onChange={(event) => setProfile({ ...profile, volume: Number(event.target.value) })} className="mt-3 w-full accent-primary" />
                 </div>
                 {profile.custom_audio_url && <p className="truncate text-xs text-muted-foreground">Audio custom global: {profile.custom_audio_url}</p>}
