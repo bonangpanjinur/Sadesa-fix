@@ -177,8 +177,8 @@ export function shouldPlayOrderNotificationSound(settings: OrderNotificationSoun
 }
 
 /** Call from a user gesture before a realtime callback needs to play audio. */
-export function unlockOrderNotificationAudio() {
-  if (typeof window === 'undefined') return;
+export async function unlockOrderNotificationAudio(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
   // WebAudio can be suspended when a mobile browser backgrounds the page.
   // Keep a user-gesture-unlocked media element as a best-effort background
   // fallback. A service worker cannot play audio itself; it uses Web Push.
@@ -187,12 +187,14 @@ export function unlockOrderNotificationAudio() {
     backgroundAudio.preload = 'auto';
     backgroundAudio.setAttribute('aria-hidden', 'true');
   }
-  void backgroundAudio.play().then(() => {
+  const backgroundUnlock = backgroundAudio.play().then(() => {
     backgroundAudio?.pause();
     if (backgroundAudio) backgroundAudio.currentTime = 0;
     backgroundAudioUnlocked = true;
   }).catch(() => undefined);
-  void enableAudio().then(flushPendingSoundAudiences).catch(() => undefined);
+  const webAudioUnlock = enableAudio().then(flushPendingSoundAudiences).catch(() => undefined);
+  await Promise.all([backgroundUnlock, webAudioUnlock]);
+  return isAudioEnabled() || backgroundAudioUnlocked;
 }
 
 function stopBackgroundAudioPlayback() {

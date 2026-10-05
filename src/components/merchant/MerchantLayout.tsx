@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { MerchantCardError } from './MerchantDataState';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
+import { toast } from 'sonner';
 
 interface MerchantLayoutProps {
   children: ReactNode;
@@ -162,12 +163,25 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
             <Button
               variant="outline"
               size="sm"
-              className="min-h-9 gap-1.5 text-xs"
-              onClick={unlockOrderNotificationAudio}
-              aria-label="Aktifkan nada alarm pesanan"
+              className="min-h-9 gap-1.5 text-xs font-semibold"
+              onClick={() => {
+                void unlockOrderNotificationAudio().then((activated) => {
+                  if (activated) {
+                    toast.success('Audio alarm pesanan merchant aktif', {
+                      description: 'Alarm akan berbunyi saat ada pesanan baru, termasuk ketika berpindah halaman.',
+                    });
+                  } else {
+                    toast.error('Audio belum aktif', {
+                      description: 'Izinkan audio browser lalu tekan tombol ini kembali.',
+                    });
+                  }
+                });
+              }}
+              aria-label="Aktifkan audio alarm pesanan merchant"
+              title="Aktifkan audio alarm pesanan merchant"
             >
               <Volume2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Aktifkan Nada</span>
+              <span>Aktifkan Audio Alarm</span>
             </Button>
             <OrderAlarmSettingsControl audience="merchant" />
             <NotificationDropdown />
