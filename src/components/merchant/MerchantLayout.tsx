@@ -1,16 +1,14 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { MerchantSidebar } from './MerchantSidebar';
 import { MerchantBottomNavigation } from './MerchantBottomNavigation';
-import { Bell, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { MerchantCardError } from './MerchantDataState';
-import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
-import { toast } from 'sonner';
-import { requestPushPermission } from '@/lib/pushNotification';
+import { AlarmActivationDialog } from '@/components/notifications/AlarmActivationDialog';
 
 interface MerchantLayoutProps {
   children: ReactNode;
@@ -161,36 +159,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
           </div>
           <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:gap-2">
             {actions}
-            <Button
-              variant="outline"
-              size="sm"
-              className="min-h-9 gap-1.5 text-xs font-semibold"
-              onClick={() => {
-                void Promise.all([
-                  unlockOrderNotificationAudio({ playConfirmationTone: false }),
-                  requestPushPermission(),
-                ]).then(([audioActivated, notificationsAllowed]) => {
-                  if (audioActivated && notificationsAllowed) {
-                    toast.success('Alarm pesanan aktif', {
-                      description: 'Bunyi dan notifikasi browser akan muncul saat halaman merchant menerima pesanan baru.',
-                    });
-                  } else if (audioActivated) {
-                    toast.warning('Alarm audio aktif', {
-                      description: 'Izin notifikasi browser belum diberikan. Bunyi tetap berjalan selama halaman merchant terbuka.',
-                    });
-                  } else {
-                    toast.error('Alarm audio belum aktif', {
-                      description: 'Izinkan audio browser lalu tekan tombol ini kembali.',
-                    });
-                  }
-                });
-              }}
-              aria-label="Aktifkan audio dan notifikasi pesanan merchant"
-              title="Aktifkan audio dan notifikasi pesanan merchant"
-            >
-              <Bell className="h-3.5 w-3.5" />
-              <span>Aktifkan Alarm &amp; Notifikasi</span>
-            </Button>
+            <AlarmActivationDialog audience="merchant" />
             <OrderAlarmSettingsControl audience="merchant" />
             <NotificationDropdown />
           </div>

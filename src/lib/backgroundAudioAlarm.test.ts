@@ -6,6 +6,7 @@ const soundManager = readFileSync(resolve(process.cwd(), 'src/lib/orderNotificat
 const serviceWorker = readFileSync(resolve(process.cwd(), 'src/sw.ts'), 'utf8');
 const courierLayout = readFileSync(resolve(process.cwd(), 'src/components/courier/CourierLayout.tsx'), 'utf8');
 const merchantLayout = readFileSync(resolve(process.cwd(), 'src/components/merchant/MerchantLayout.tsx'), 'utf8');
+const alarmActivationDialog = readFileSync(resolve(process.cwd(), 'src/components/notifications/AlarmActivationDialog.tsx'), 'utf8');
 const merchantPushMigration = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005124500_merchant_order_push_notification.sql'), 'utf8');
 const merchantPushBundle = readFileSync(resolve(process.cwd(), 'supabase/bootstrap/75_20261005124500_merchant_order_push_notification.sql'), 'utf8');
 const merchantSettingsPage = readFileSync(resolve(process.cwd(), 'src/pages/merchant/MerchantSettingsPage.tsx'), 'utf8');
@@ -40,10 +41,8 @@ describe('courier background alarm contract', () => {
   });
 
   it('activates courier page alarm without depending on Web Push backend', () => {
-    expect(courierLayout).toContain('unlockOrderNotificationAudio()');
-    expect(courierLayout).toContain('requestPushPermission()');
-    expect(courierLayout).not.toContain('subscribeToPush(user.id)');
-    expect(courierLayout).toContain('Aktifkan Alarm Ojek');
+    expect(courierLayout).toContain('<AlarmActivationDialog audience="courier" />');
+    expect(alarmActivationDialog).toContain("audience === 'courier'");
     expect(courierAlarmHook).toContain('new Notification');
   });
 
@@ -55,10 +54,9 @@ describe('courier background alarm contract', () => {
   });
 
   it('activates merchant page alarm without depending on Web Push backend', () => {
-    expect(merchantLayout).toContain('requestPushPermission()');
-    expect(merchantLayout).not.toContain('subscribeToPush(user.id)');
-    expect(merchantLayout).toContain('Aktifkan Alarm &amp; Notifikasi');
-    expect(merchantLayout).toContain('Alarm pesanan aktif');
+    expect(merchantLayout).toContain('<AlarmActivationDialog audience="merchant" />');
+    expect(alarmActivationDialog).toContain('merchant: {');
+    expect(alarmActivationDialog).toContain('Aktifkan Sekarang');
   });
 
   it('automatically plays the merchant alarm for a newly pending realtime order', () => {

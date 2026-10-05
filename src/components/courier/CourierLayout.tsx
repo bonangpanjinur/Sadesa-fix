@@ -1,19 +1,16 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet, MessageCircle, Volume2 } from 'lucide-react';
+import { Menu, X, LayoutDashboard, Bike, Package, History, Wallet, MessageCircle } from 'lucide-react';
 import { CourierSidebar } from './CourierSidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useChatUnread } from '@/hooks/useChatUnread';
 import { useAuth } from '@/contexts/AuthContext';
-import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
-import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 import { supabase } from '@/integrations/supabase/client';
 import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
-import { requestPushPermission } from '@/lib/pushNotification';
-import { toast } from 'sonner';
+import { AlarmActivationDialog } from '@/components/notifications/AlarmActivationDialog';
 
 interface CourierLayoutProps { children: ReactNode; title: string; subtitle?: string; }
 
@@ -121,37 +118,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
             <h1 className="truncate text-base font-semibold sm:text-xl">{title}</h1>
             {subtitle && <p className="hidden truncate text-xs text-muted-foreground sm:block">{subtitle}</p>}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-h-10 shrink-0 gap-1.5 text-xs sm:min-h-9"
-            onClick={() => {
-              vibrateCourierAlarm();
-              void Promise.all([
-                unlockOrderNotificationAudio(),
-                requestPushPermission(),
-              ]).then(([audioActivated, notificationsAllowed]) => {
-                if (audioActivated && notificationsAllowed) {
-                  toast.success('Alarm Ojek aktif', {
-                    description: 'Bunyi dan notifikasi browser akan muncul saat tawaran order atau perjalanan baru masuk.',
-                  });
-                } else if (audioActivated) {
-                  toast.warning('Alarm audio Ojek aktif', {
-                    description: 'Izin notifikasi browser belum diberikan. Bunyi tetap berjalan selama halaman kurir terbuka.',
-                  });
-                } else {
-                  toast.error('Alarm audio Ojek belum aktif', {
-                    description: 'Izinkan audio browser lalu tekan tombol ini kembali.',
-                  });
-                }
-              });
-            }}
-            aria-label="Aktifkan notifikasi dan alarm Ojek"
-            title="Aktifkan notifikasi dan alarm Ojek"
-          >
-            <Volume2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Aktifkan Alarm Ojek</span>
-          </Button>
+          <AlarmActivationDialog audience="courier" />
           <OrderAlarmSettingsControl audience="courier" />
         </header>
 
