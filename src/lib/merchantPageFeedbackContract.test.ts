@@ -20,12 +20,14 @@ describe('merchant operational feedback contract', () => {
   });
 
   it('shows loading, retryable error, and valid empty states for order items and proof', () => {
+    expect(ordersPage.match(/<DialogDescription/g)).toHaveLength(3);
     expect(ordersPage).toContain('Memuat item pesanan...');
     expect(ordersPage).toContain('orderItemsQuery.isError');
     expect(ordersPage).toContain('onRetry={() => void orderItemsQuery.refetch()}');
     expect(ordersPage).toContain('Belum ada item pesanan yang dapat ditampilkan.');
     expect(ordersPage).toContain('Memuat bukti pembayaran...');
     expect(ordersPage).toContain('onRetry={() => void paymentProofQuery.refetch()}');
+    expect(ordersPage).toContain('minta pembeli mengunggah ulang bukti pembayaran');
     expect(ordersPage).toContain('orderItemsQuery.isError || orderItems.length === 0');
   });
 

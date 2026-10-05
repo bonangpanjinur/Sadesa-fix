@@ -3773,6 +3773,17 @@ export type Database = {
       is_order_merchant:
         | { Args: { _order_id: string }; Returns: boolean }
         | { Args: { _merchant_id: string; _user_id: string }; Returns: boolean }
+      merchant_order_summary: {
+        Args: { p_merchant_id: string }
+        Returns: {
+          completed_orders: number
+          new_orders: number
+          processed_orders: number
+          shipping_orders: number
+          total_orders: number
+          total_revenue: number
+        }[]
+      }
       is_verifikator: { Args: never; Returns: boolean }
       process_verifikator_withdrawal: {
         Args: {

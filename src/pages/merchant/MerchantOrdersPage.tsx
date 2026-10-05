@@ -18,6 +18,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -121,10 +122,9 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
   const { data: serverSummary } = useQuery<{ total_orders: number; new_orders: number; processed_orders: number; shipping_orders: number; completed_orders: number; total_revenue: number }>({
     queryKey: ['merchant-order-summary', merchantId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('merchant_order_summary' as never, { p_merchant_id: merchantId } as never);
+      const { data, error } = await supabase.rpc('merchant_order_summary', { p_merchant_id: merchantId! });
       if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      return (row || { total_orders: 0, new_orders: 0, processed_orders: 0, shipping_orders: 0, completed_orders: 0, total_revenue: 0 }) as { total_orders: number; new_orders: number; processed_orders: number; shipping_orders: number; completed_orders: number; total_revenue: number };
+      return data[0] ?? { total_orders: 0, new_orders: 0, processed_orders: 0, shipping_orders: 0, completed_orders: 0, total_revenue: 0 };
     }, enabled: !!merchantId, staleTime: 30_000, retry: false,
   });
   const orderItemsErrorMessage = 'Item pesanan gagal dimuat. Periksa koneksi lalu coba lagi.';
@@ -644,6 +644,9 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
             <DialogTitle>
               Detail Pesanan #{selectedOrder?.id.slice(0, 8).toUpperCase()}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              Status, informasi pengiriman, item, dan bukti pembayaran pesanan.
+            </DialogDescription>
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-4 py-4">
@@ -750,7 +753,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
                     <MerchantCardLoading label="Memuat bukti pembayaran..." />
                   ) : paymentProofQuery.isError ? (
                     <MerchantCardError
-                      message="Bukti pembayaran gagal dimuat. Periksa koneksi lalu coba lagi."
+                      message="Bukti pembayaran tidak dapat dimuat. Coba lagi; jika tetap gagal, minta pembeli mengunggah ulang bukti pembayaran."
                       onRetry={() => void paymentProofQuery.refetch()}
                     />
                   ) : paymentProofQuery.data ? (
@@ -961,6 +964,9 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Tolak Pesanan</DialogTitle>
+            <DialogDescription className="sr-only">
+              Isi alasan penolakan yang akan menjelaskan keputusan kepada pembeli.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground mb-3">
@@ -989,6 +995,9 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
         <DialogContent className="grid max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden p-4 sm:max-h-[calc(100dvh-2rem)] sm:w-full sm:p-6">
           <DialogHeader>
             <DialogTitle>Cetak Struk</DialogTitle>
+            <DialogDescription className="sr-only">
+              Pratinjau dan cetak struk untuk pesanan yang dipilih.
+            </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 overflow-y-auto overscroll-contain py-3 sm:py-4">
             {selectedOrder && (

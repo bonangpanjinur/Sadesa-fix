@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
+  SUPABASE_URL: 'https://test.supabase.co',
   supabase: {
     from: mocks.from,
     rpc: mocks.rpc,
