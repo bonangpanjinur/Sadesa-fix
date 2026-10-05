@@ -11,7 +11,10 @@ import {
 export function HomeServiceCards() {
   const { data: imageOverrides = EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES } = useQuery({
     queryKey: ['homepage-service-card-images'],
-    staleTime: 0,
+    // This setting changes infrequently and is already invalidated by the
+    // admin update flow. Avoid a refetch on every navigation back to Home.
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('app_settings')
@@ -41,6 +44,8 @@ export function HomeServiceCards() {
             <img
               src={imageOverrides[card.id] || card.fallbackImage}
               alt={card.imageAlt}
+              loading={card.id === 'food' ? 'eager' : 'lazy'}
+              decoding="async"
               className="absolute inset-0 h-full w-full object-cover object-right transition-transform duration-300 group-hover:scale-[1.03]"
             />
             <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
+import { DEFAULT_HERO_SLIDES } from '@/components/home/heroDefaults';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
 import { HomeServiceCards } from '@/components/home/HomeServiceCards';
 import { 
@@ -127,7 +128,10 @@ const Index = () => {
   } = useQuery<Product[]>({
     queryKey: ['homepage-products'],
     queryFn: withErrorLog('products', 'homepage-products', { staleTime: 60_000 }, () =>
-      fetchProducts({ limit: 48, includeReviews: false, cacheKey: 'homepage-products' })
+      // The home screen renders at most six promo cards and four newest cards.
+      // Keep a small buffer for overlap filtering instead of downloading a full
+      // catalogue before the user has asked to browse it.
+      fetchProducts({ limit: 16, includeReviews: false, cacheKey: 'homepage-products' })
     ),
     staleTime: 60_000,
   });
@@ -274,8 +278,14 @@ const Index = () => {
   const renderSection = (sectionId: string) => {
     switch (sectionId) {
       case 'hero':
-        if (bannerSlides.length === 0) return null;
-        return <HeroCarousel slides={bannerSlides} autoPlayInterval={5000} onView={handleBannerView} onClick={handleBannerClick} />;
+        return (
+          <HeroCarousel
+            slides={bannerSlides.length > 0 ? bannerSlides : DEFAULT_HERO_SLIDES}
+            autoPlayInterval={5000}
+            onView={bannerSlides.length > 0 ? handleBannerView : undefined}
+            onClick={bannerSlides.length > 0 ? handleBannerClick : undefined}
+          />
+        );
       
       case 'popular_tourism':
         if (tourismLoading) return <CarouselSkeleton count={3} />;

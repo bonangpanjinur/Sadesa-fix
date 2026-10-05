@@ -1,0 +1,1000 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "title": "Beranda"
+    },
+    {
+      "path": "/products",
+      "title": "Produk"
+    },
+    {
+      "path": "/product/:id",
+      "title": "product · id"
+    },
+    {
+      "path": "/tourism",
+      "title": "Wisata Desa"
+    },
+    {
+      "path": "/tourism/:id",
+      "title": "tourism · id"
+    },
+    {
+      "path": "/tourism/booking/:packageId",
+      "title": "tourism · booking · packageId"
+    },
+    {
+      "path": "/village/:id",
+      "title": "village · id"
+    },
+    {
+      "path": "/merchant/:slugOrId",
+      "title": "merchant · slugOrId"
+    },
+    {
+      "path": "/shops",
+      "title": "Belanja"
+    },
+    {
+      "path": "/search",
+      "title": "search"
+    },
+    {
+      "path": "/auth",
+      "title": "Masuk"
+    },
+    {
+      "path": "/login",
+      "title": "login"
+    },
+    {
+      "path": "/auth/login",
+      "title": "auth · login"
+    },
+    {
+      "path": "/masuk",
+      "title": "masuk"
+    },
+    {
+      "path": "/forgot-password",
+      "title": "forgot-password"
+    },
+    {
+      "path": "/reset-password",
+      "title": "reset-password"
+    },
+    {
+      "path": "/register",
+      "title": "register"
+    },
+    {
+      "path": "/register/village",
+      "title": "register · village"
+    },
+    {
+      "path": "/register/merchant",
+      "title": "register · merchant"
+    },
+    {
+      "path": "/register/courier",
+      "title": "register · courier"
+    },
+    {
+      "path": "/install",
+      "title": "install"
+    },
+    {
+      "path": "/share-target",
+      "title": "share-target"
+    },
+    {
+      "path": "/file-handler",
+      "title": "file-handler"
+    },
+    {
+      "path": "/protocol-handler",
+      "title": "protocol-handler"
+    },
+    {
+      "path": "/services",
+      "title": "Layanan"
+    },
+    {
+      "path": "/services/requests",
+      "title": "services · requests"
+    },
+    {
+      "path": "/services/provider-history",
+      "title": "services · provider-history"
+    },
+    {
+      "path": "/help",
+      "title": "Bantuan"
+    },
+    {
+      "path": "/contact",
+      "title": "contact"
+    },
+    {
+      "path": "/about",
+      "title": "Tentang SaDesa"
+    },
+    {
+      "path": "/tentang-kami",
+      "title": "tentang-kami"
+    },
+    {
+      "path": "/pricing",
+      "title": "pricing"
+    },
+    {
+      "path": "/privacy",
+      "title": "privacy"
+    },
+    {
+      "path": "/privacy-policy",
+      "title": "privacy-policy"
+    },
+    {
+      "path": "/account-deletion",
+      "title": "account-deletion"
+    },
+    {
+      "path": "/delete-account",
+      "title": "delete-account"
+    },
+    {
+      "path": "/terms",
+      "title": "terms"
+    },
+    {
+      "path": "/transaction-policy",
+      "title": "transaction-policy"
+    },
+    {
+      "path": "/refund-policy",
+      "title": "refund-policy"
+    },
+    {
+      "path": "/email-confirmation",
+      "title": "email-confirmation"
+    },
+    {
+      "path": "/unauthorized",
+      "title": "unauthorized"
+    },
+    {
+      "path": "/dashboard",
+      "title": "dashboard"
+    },
+    {
+      "path": "/cart",
+      "title": "Keranjang"
+    },
+    {
+      "path": "/checkout-info",
+      "title": "checkout-info"
+    },
+    {
+      "path": "/checkout",
+      "title": "checkout"
+    },
+    {
+      "path": "/payment/:orderId",
+      "title": "payment · orderId"
+    },
+    {
+      "path": "/guest-orders/:orderId",
+      "title": "guest-orders · orderId"
+    },
+    {
+      "path": "/guest-order/:orderId",
+      "title": "guest-order · orderId"
+    },
+    {
+      "path": "/orders",
+      "title": "Pesanan"
+    },
+    {
+      "path": "/orders/:orderId",
+      "title": "orders · orderId"
+    },
+    {
+      "path": "/orders/:orderId/tracking",
+      "title": "orders · orderId · tracking"
+    },
+    {
+      "path": "/account",
+      "title": "Akun"
+    },
+    {
+      "path": "/profile",
+      "title": "profile"
+    },
+    {
+      "path": "/settings",
+      "title": "settings"
+    },
+    {
+      "path": "/addresses",
+      "title": "addresses"
+    },
+    {
+      "path": "/courier",
+      "title": "courier"
+    },
+    {
+      "path": "/courier/earnings",
+      "title": "courier · earnings"
+    },
+    {
+      "path": "/courier/history",
+      "title": "courier · history"
+    },
+    {
+      "path": "/courier/withdrawal",
+      "title": "courier · withdrawal"
+    },
+    {
+      "path": "/courier/performa",
+      "title": "courier · performa"
+    },
+    {
+      "path": "/courier/deposit",
+      "title": "courier · deposit"
+    },
+    {
+      "path": "/courier/chat",
+      "title": "courier · chat"
+    },
+    {
+      "path": "/courier/rides",
+      "title": "courier · rides"
+    },
+    {
+      "path": "/courier/deliveries",
+      "title": "courier · deliveries"
+    },
+    {
+      "path": "/courier/slip",
+      "title": "courier · slip"
+    },
+    {
+      "path": "/courier/store",
+      "title": "courier · store"
+    },
+    {
+      "path": "/ride",
+      "title": "Ojek Desa"
+    },
+    {
+      "path": "/ride/passenger",
+      "title": "ride · passenger"
+    },
+    {
+      "path": "/ride/courier",
+      "title": "ride · courier"
+    },
+    {
+      "path": "/ride/history",
+      "title": "ride · history"
+    },
+    {
+      "path": "/ride/:id",
+      "title": "ride · id"
+    },
+    {
+      "path": "/orders/:orderId/review",
+      "title": "orders · orderId · review"
+    },
+    {
+      "path": "/merchant/:merchantId/review",
+      "title": "merchant · merchantId · review"
+    },
+    {
+      "path": "/wishlist",
+      "title": "wishlist"
+    },
+    {
+      "path": "/reviews/mine",
+      "title": "reviews · mine"
+    },
+    {
+      "path": "/recently-viewed",
+      "title": "recently-viewed"
+    },
+    {
+      "path": "/buyer/chat",
+      "title": "buyer · chat"
+    },
+    {
+      "path": "/flash-sale",
+      "title": "flash-sale"
+    },
+    {
+      "path": "/compare",
+      "title": "compare"
+    },
+    {
+      "path": "/loyalty",
+      "title": "loyalty"
+    },
+    {
+      "path": "/vouchers",
+      "title": "vouchers"
+    },
+    {
+      "path": "/rekomendasi",
+      "title": "rekomendasi"
+    },
+    {
+      "path": "/cashback",
+      "title": "cashback"
+    },
+    {
+      "path": "/referral",
+      "title": "referral"
+    },
+    {
+      "path": "/support",
+      "title": "support"
+    },
+    {
+      "path": "/langganan",
+      "title": "langganan"
+    },
+    {
+      "path": "/orders/:orderId/dispute",
+      "title": "orders · orderId · dispute"
+    },
+    {
+      "path": "/orders/:orderId/invoice",
+      "title": "orders · orderId · invoice"
+    },
+    {
+      "path": "/admin",
+      "title": "admin"
+    },
+    {
+      "path": "/admin/chat",
+      "title": "admin · chat"
+    },
+    {
+      "path": "/admin/settings",
+      "title": "admin · settings"
+    },
+    {
+      "path": "/admin/merchants",
+      "title": "admin · merchants"
+    },
+    {
+      "path": "/admin/halal",
+      "title": "admin · halal"
+    },
+    {
+      "path": "/admin/halal-regulation",
+      "title": "admin · halal-regulation"
+    },
+    {
+      "path": "/admin/merchants/:id",
+      "title": "admin · merchants · id"
+    },
+    {
+      "path": "/admin/villages",
+      "title": "admin · villages"
+    },
+    {
+      "path": "/admin/villages/:id",
+      "title": "admin · villages · id"
+    },
+    {
+      "path": "/admin/couriers",
+      "title": "admin · couriers"
+    },
+    {
+      "path": "/admin/expeditions",
+      "title": "admin · expeditions"
+    },
+    {
+      "path": "/admin/promotions",
+      "title": "admin · promotions"
+    },
+    {
+      "path": "/admin/codes",
+      "title": "admin · codes"
+    },
+    {
+      "path": "/admin/orders",
+      "title": "admin · orders"
+    },
+    {
+      "path": "/admin/users",
+      "title": "admin · users"
+    },
+    {
+      "path": "/admin/reports",
+      "title": "admin · reports"
+    },
+    {
+      "path": "/admin/refunds",
+      "title": "admin · refunds"
+    },
+    {
+      "path": "/admin/approval-center",
+      "title": "admin · approval-center"
+    },
+    {
+      "path": "/admin/disputes",
+      "title": "admin · disputes"
+    },
+    {
+      "path": "/admin/service-disputes",
+      "title": "admin · service-disputes"
+    },
+    {
+      "path": "/admin/logs",
+      "title": "admin · logs"
+    },
+    {
+      "path": "/admin/withdrawals",
+      "title": "admin · withdrawals"
+    },
+    {
+      "path": "/admin/transaction-quota",
+      "title": "admin · transaction-quota"
+    },
+    {
+      "path": "/admin/free-quota",
+      "title": "admin · free-quota"
+    },
+    {
+      "path": "/admin/verifikator-commissions",
+      "title": "admin · verifikator-commissions"
+    },
+    {
+      "path": "/admin/verifier-commerce",
+      "title": "admin · verifier-commerce"
+    },
+    {
+      "path": "/admin/finance",
+      "title": "admin · finance"
+    },
+    {
+      "path": "/admin/services",
+      "title": "admin · services"
+    },
+    {
+      "path": "/admin/banners",
+      "title": "admin · banners"
+    },
+    {
+      "path": "/admin/broadcast",
+      "title": "admin · broadcast"
+    },
+    {
+      "path": "/admin/roles",
+      "title": "admin · roles"
+    },
+    {
+      "path": "/admin/verifikator-teams",
+      "title": "admin · verifikator-teams"
+    },
+    {
+      "path": "/admin/backup",
+      "title": "admin · backup"
+    },
+    {
+      "path": "/admin/categories",
+      "title": "admin · categories"
+    },
+    {
+      "path": "/admin/scheduled-backup",
+      "title": "admin · scheduled-backup"
+    },
+    {
+      "path": "/admin/verifikator-withdrawals",
+      "title": "admin · verifikator-withdrawals"
+    },
+    {
+      "path": "/admin/pos",
+      "title": "admin · pos"
+    },
+    {
+      "path": "/admin/komisi",
+      "title": "admin · komisi"
+    },
+    {
+      "path": "/admin/audit-log",
+      "title": "admin · audit-log"
+    },
+    {
+      "path": "/admin/rides",
+      "title": "admin · rides"
+    },
+    {
+      "path": "/admin/realtime",
+      "title": "admin · realtime"
+    },
+    {
+      "path": "/admin/system-health",
+      "title": "admin · system-health"
+    },
+    {
+      "path": "/admin/whatsapp",
+      "title": "admin · whatsapp"
+    },
+    {
+      "path": "/admin/api-keys",
+      "title": "admin · api-keys"
+    },
+    {
+      "path": "/admin/pwa-devices",
+      "title": "admin · pwa-devices"
+    },
+    {
+      "path": "/admin/fraud-blocks",
+      "title": "admin · fraud-blocks"
+    },
+    {
+      "path": "/admin/push-notification",
+      "title": "admin · push-notification"
+    },
+    {
+      "path": "/admin/cashback",
+      "title": "admin · cashback"
+    },
+    {
+      "path": "/admin/iklan",
+      "title": "admin · iklan"
+    },
+    {
+      "path": "/admin/iklan/laporan",
+      "title": "admin · iklan · laporan"
+    },
+    {
+      "path": "/admin/support-tickets",
+      "title": "admin · support-tickets"
+    },
+    {
+      "path": "/admin/seo",
+      "title": "admin · seo"
+    },
+    {
+      "path": "/verifikator",
+      "title": "verifikator"
+    },
+    {
+      "path": "/verifikator/team",
+      "title": "verifikator · team"
+    },
+    {
+      "path": "/verifikator/merchants",
+      "title": "verifikator · merchants"
+    },
+    {
+      "path": "/verifikator/couriers",
+      "title": "verifikator · couriers"
+    },
+    {
+      "path": "/verifikator/service-providers",
+      "title": "verifikator · service-providers"
+    },
+    {
+      "path": "/verifikator/ekonomi",
+      "title": "verifikator · ekonomi"
+    },
+    {
+      "path": "/verifikator/event-desa",
+      "title": "verifikator · event-desa"
+    },
+    {
+      "path": "/verifikator/kas-report",
+      "title": "verifikator · kas-report"
+    },
+    {
+      "path": "/verifikator/earnings",
+      "title": "verifikator · earnings"
+    },
+    {
+      "path": "/merchant",
+      "title": "merchant"
+    },
+    {
+      "path": "/merchant/products",
+      "title": "merchant · products"
+    },
+    {
+      "path": "/merchant/products/:productId",
+      "title": "merchant · products · productId"
+    },
+    {
+      "path": "/merchant/orders",
+      "title": "merchant · orders"
+    },
+    {
+      "path": "/merchant/fulfillment",
+      "title": "merchant · fulfillment"
+    },
+    {
+      "path": "/merchant/price-book",
+      "title": "merchant · price-book"
+    },
+    {
+      "path": "/merchant/loyalty-rules",
+      "title": "merchant · loyalty-rules"
+    },
+    {
+      "path": "/merchant/settings",
+      "title": "merchant · settings"
+    },
+    {
+      "path": "/merchant/analytics",
+      "title": "merchant · analytics"
+    },
+    {
+      "path": "/merchant/reviews",
+      "title": "merchant · reviews"
+    },
+    {
+      "path": "/merchant/promo",
+      "title": "merchant · promo"
+    },
+    {
+      "path": "/merchant/withdrawal",
+      "title": "merchant · withdrawal"
+    },
+    {
+      "path": "/merchant/refunds",
+      "title": "merchant · refunds"
+    },
+    {
+      "path": "/merchant/gallery",
+      "title": "merchant · gallery"
+    },
+    {
+      "path": "/merchant/finance",
+      "title": "merchant · finance"
+    },
+    {
+      "path": "/merchant/stock",
+      "title": "merchant · stock"
+    },
+    {
+      "path": "/merchant/subscription",
+      "title": "merchant · subscription"
+    },
+    {
+      "path": "/merchant/flash-sale",
+      "title": "merchant · flash-sale"
+    },
+    {
+      "path": "/merchant/vouchers",
+      "title": "merchant · vouchers"
+    },
+    {
+      "path": "/merchant/scheduled-promo",
+      "title": "merchant · scheduled-promo"
+    },
+    {
+      "path": "/merchant/visitor-stats",
+      "title": "merchant · visitor-stats"
+    },
+    {
+      "path": "/merchant/chat",
+      "title": "merchant · chat"
+    },
+    {
+      "path": "/merchant/store",
+      "title": "merchant · store"
+    },
+    {
+      "path": "/merchant/pos/subscribe",
+      "title": "merchant · pos · subscribe"
+    },
+    {
+      "path": "/merchant/pos/settings",
+      "title": "merchant · pos · settings"
+    },
+    {
+      "path": "/merchant/dues",
+      "title": "merchant · dues"
+    },
+    {
+      "path": "/merchant/notifikasi-wa",
+      "title": "merchant · notifikasi-wa"
+    },
+    {
+      "path": "/merchant/import-export",
+      "title": "merchant · import-export"
+    },
+    {
+      "path": "/merchant/insight",
+      "title": "merchant · insight"
+    },
+    {
+      "path": "/merchant/iklan",
+      "title": "merchant · iklan"
+    },
+    {
+      "path": "/merchant/bundle",
+      "title": "merchant · bundle"
+    },
+    {
+      "path": "/merchant/preorder",
+      "title": "merchant · preorder"
+    },
+    {
+      "path": "/merchant/grosir",
+      "title": "merchant · grosir"
+    },
+    {
+      "path": "/merchant/pajak",
+      "title": "merchant · pajak"
+    },
+    {
+      "path": "/desa",
+      "title": "desa"
+    },
+    {
+      "path": "/desa/chat",
+      "title": "desa · chat"
+    },
+    {
+      "path": "/desa/tourism",
+      "title": "desa · tourism"
+    },
+    {
+      "path": "/desa/ekonomi",
+      "title": "desa · ekonomi"
+    },
+    {
+      "path": "/desa/event",
+      "title": "desa · event"
+    },
+    {
+      "path": "/desa/keanggotaan",
+      "title": "desa · keanggotaan"
+    },
+    {
+      "path": "/desa/broadcast",
+      "title": "desa · broadcast"
+    },
+    {
+      "path": "/desa/peta",
+      "title": "desa · peta"
+    },
+    {
+      "path": "/desa/laporan-wisata",
+      "title": "desa · laporan-wisata"
+    },
+    {
+      "path": "/desa/donasi",
+      "title": "desa · donasi"
+    },
+    {
+      "path": "/desa/merchants",
+      "title": "desa · merchants"
+    },
+    {
+      "path": "/desa/profil",
+      "title": "desa · profil"
+    },
+    {
+      "path": "/desa/paket-wisata",
+      "title": "desa · paket-wisata"
+    },
+    {
+      "path": "/desa/pemandu",
+      "title": "desa · pemandu"
+    },
+    {
+      "path": "/desa/laporan-keuangan",
+      "title": "desa · laporan-keuangan"
+    },
+    {
+      "path": "/notifications",
+      "title": "notifications"
+    },
+    {
+      "path": "/s/:slug",
+      "title": "s · slug"
+    },
+    {
+      "path": "/pos/*",
+      "title": "pos · *"
+    },
+    {
+      "path": "/merchant/pos/setup",
+      "title": "merchant · pos · setup"
+    },
+    {
+      "path": "/merchant/pos",
+      "title": "merchant · pos"
+    },
+    {
+      "path": "/merchant/pos/kasir",
+      "title": "merchant · pos · kasir"
+    },
+    {
+      "path": "/merchant/pos/transaksi",
+      "title": "merchant · pos · transaksi"
+    },
+    {
+      "path": "/merchant/pos/retur",
+      "title": "merchant · pos · retur"
+    },
+    {
+      "path": "/merchant/pos/produk",
+      "title": "merchant · pos · produk"
+    },
+    {
+      "path": "/merchant/pos/kategori",
+      "title": "merchant · pos · kategori"
+    },
+    {
+      "path": "/merchant/pos/customer",
+      "title": "merchant · pos · customer"
+    },
+    {
+      "path": "/merchant/pos/supplier",
+      "title": "merchant · pos · supplier"
+    },
+    {
+      "path": "/merchant/pos/hutang",
+      "title": "merchant · pos · hutang"
+    },
+    {
+      "path": "/merchant/pos/gudang",
+      "title": "merchant · pos · gudang"
+    },
+    {
+      "path": "/merchant/pos/stok",
+      "title": "merchant · pos · stok"
+    },
+    {
+      "path": "/merchant/pos/laporan",
+      "title": "merchant · pos · laporan"
+    },
+    {
+      "path": "/merchant/pos/pengguna",
+      "title": "merchant · pos · pengguna"
+    },
+    {
+      "path": "/merchant/pos/pengaturan",
+      "title": "merchant · pos · pengaturan"
+    },
+    {
+      "path": "/merchant/pos/pembelian",
+      "title": "merchant · pos · pembelian"
+    },
+    {
+      "path": "/merchant/pos/kas",
+      "title": "merchant · pos · kas"
+    },
+    {
+      "path": "/merchant/pos/laporan/laba-rugi",
+      "title": "merchant · pos · laporan · laba-rugi"
+    },
+    {
+      "path": "/merchant/pos/laporan/kasir",
+      "title": "merchant · pos · laporan · kasir"
+    },
+    {
+      "path": "/merchant/pos/laporan/stok",
+      "title": "merchant · pos · laporan · stok"
+    },
+    {
+      "path": "/merchant/pos/laporan/cashflow",
+      "title": "merchant · pos · laporan · cashflow"
+    },
+    {
+      "path": "/merchant/pos/analitik",
+      "title": "merchant · pos · analitik"
+    },
+    {
+      "path": "/merchant/pos/transfer-stok",
+      "title": "merchant · pos · transfer-stok"
+    },
+    {
+      "path": "/merchant/pos/laporan/outlet",
+      "title": "merchant · pos · laporan · outlet"
+    },
+    {
+      "path": "/merchant/pos/audit",
+      "title": "merchant · pos · audit"
+    },
+    {
+      "path": "/merchant/pos/offline-conflicts",
+      "title": "merchant · pos · offline-conflicts"
+    },
+    {
+      "path": "/merchant/pos/akses",
+      "title": "merchant · pos · akses"
+    },
+    {
+      "path": "/merchant/pos/promosi",
+      "title": "merchant · pos · promosi"
+    },
+    {
+      "path": "/merchant/pos/loyalty",
+      "title": "merchant · pos · loyalty"
+    },
+    {
+      "path": "/merchant/pos/integrasi",
+      "title": "merchant · pos · integrasi"
+    },
+    {
+      "path": "/merchant/pos/analitik-produk",
+      "title": "merchant · pos · analitik-produk"
+    },
+    {
+      "path": "/merchant/pos/kiosk",
+      "title": "merchant · pos · kiosk"
+    },
+    {
+      "path": "/merchant/pos/akuntansi",
+      "title": "merchant · pos · akuntansi"
+    },
+    {
+      "path": "/merchant/pos/bahan-baku",
+      "title": "merchant · pos · bahan-baku"
+    },
+    {
+      "path": "/merchant/pos/resep",
+      "title": "merchant · pos · resep"
+    },
+    {
+      "path": "/merchant/pos/meja",
+      "title": "merchant · pos · meja"
+    },
+    {
+      "path": "/merchant/pos/kds",
+      "title": "merchant · pos · kds"
+    },
+    {
+      "path": "/merchant/pos/jadwal",
+      "title": "merchant · pos · jadwal"
+    },
+    {
+      "path": "/merchant/pos/absensi",
+      "title": "merchant · pos · absensi"
+    },
+    {
+      "path": "/merchant/pos/penggajian",
+      "title": "merchant · pos · penggajian"
+    },
+    {
+      "path": "/merchant/pos/hutang-piutang",
+      "title": "merchant · pos · hutang-piutang"
+    },
+    {
+      "path": "/merchant/pos/target-omzet",
+      "title": "merchant · pos · target-omzet"
+    },
+    {
+      "path": "/merchant/pos/harga",
+      "title": "merchant · pos · harga"
+    },
+    {
+      "path": "/merchant/pos/menu-qr",
+      "title": "merchant · pos · menu-qr"
+    },
+    {
+      "path": "/menu/:tenantId/:tableId",
+      "title": "menu · tenantId · tableId"
+    },
+    {
+      "path": "/menu/:tenantId",
+      "title": "menu · tenantId"
+    },
+    {
+      "path": "/order/:tenantId/:orderId",
+      "title": "order · tenantId · orderId"
+    },
+    {
+      "path": "/qrpay/:token",
+      "title": "qrpay · token"
+    }
+  ]
+}
