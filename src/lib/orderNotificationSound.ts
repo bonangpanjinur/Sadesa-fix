@@ -48,6 +48,10 @@ const LOCAL_OVERRIDE_KEY = 'order_notification_sound_override';
 let settingsCache: { value: OrderNotificationSoundSettings; expiresAt: number } | null = null;
 let activePlayback: { audience: OrderSoundAudience; stop: () => void } | null = null;
 let activeCustomAudio: { audience: OrderSoundAudience; stop: () => void } | null = null;
+let backgroundAudio: HTMLAudioElement | null = null;
+let backgroundAudioUnlocked = false;
+let backgroundAudioTimer: number | null = null;
+let activeBackgroundAudio: { audience: OrderSoundAudience; stop: () => void } | null = null;
 const soundRequestGenerations: Record<OrderSoundAudience, number> = { merchant: 0, courier: 0 };
 const pendingSoundAudiences = new Set<OrderSoundAudience>();
 
@@ -65,6 +69,10 @@ export function stopOrderNotificationSound(audience?: OrderSoundAudience) {
   if (activeCustomAudio && (!audience || activeCustomAudio.audience === audience)) {
     activeCustomAudio.stop();
     activeCustomAudio = null;
+  }
+  if (activeBackgroundAudio && (!audience || activeBackgroundAudio.audience === audience)) {
+    activeBackgroundAudio.stop();
+    activeBackgroundAudio = null;
   }
 }
 
@@ -171,7 +179,75 @@ export function shouldPlayOrderNotificationSound(settings: OrderNotificationSoun
 /** Call from a user gesture before a realtime callback needs to play audio. */
 export function unlockOrderNotificationAudio() {
   if (typeof window === 'undefined') return;
+  // WebAudio can be suspended when a mobile browser backgrounds the page.
+  // Keep a user-gesture-unlocked media element as a best-effort background
+  // fallback. A service worker cannot play audio itself; it uses Web Push.
+  if (!backgroundAudio) {
+    backgroundAudio = new Audio('/notification.wav');
+    backgroundAudio.preload = 'auto';
+    backgroundAudio.setAttribute('aria-hidden', 'true');
+  }
+  void backgroundAudio.play().then(() => {
+    backgroundAudio?.pause();
+    if (backgroundAudio) backgroundAudio.currentTime = 0;
+    backgroundAudioUnlocked = true;
+  }).catch(() => undefined);
   void enableAudio().then(flushPendingSoundAudiences).catch(() => undefined);
+}
+
+function stopBackgroundAudioPlayback() {
+  if (backgroundAudioTimer !== null) {
+    window.clearTimeout(backgroundAudioTimer);
+    backgroundAudioTimer = null;
+  }
+  backgroundAudio?.pause();
+  if (backgroundAudio) backgroundAudio.currentTime = 0;
+}
+
+async function playBackgroundAudio(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, volume: number) {
+  if (!backgroundAudioUnlocked || !backgroundAudio) return false;
+  stopBackgroundAudioPlayback();
+  let stopped = false;
+  let resolveStop: (() => void) | null = null;
+  const playback = {
+    audience,
+    stop: () => {
+      stopped = true;
+      stopBackgroundAudioPlayback();
+      resolveStop?.();
+    },
+  };
+  activeBackgroundAudio = playback;
+  try {
+    for (let index = 0; index < settings.repeat_count && !stopped; index += 1) {
+      const audio = backgroundAudio;
+      audio.volume = Math.max(0.1, Math.min(1, volume));
+      audio.currentTime = 0;
+      await new Promise<void>((resolve) => {
+        resolveStop = resolve;
+        const onEnded = () => {
+          audio.removeEventListener('ended', onEnded);
+          resolveStop = null;
+          resolve();
+        };
+        audio.addEventListener('ended', onEnded, { once: true });
+        void audio.play().catch(() => resolve());
+      });
+      if (index < settings.repeat_count - 1 && !stopped) {
+        await new Promise<void>((resolve) => {
+          backgroundAudioTimer = window.setTimeout(() => {
+            backgroundAudioTimer = null;
+            resolve();
+          }, settings.repeat_gap_ms);
+          resolveStop = resolve;
+        });
+      }
+    }
+    return true;
+  } finally {
+    stopBackgroundAudioPlayback();
+    if (activeBackgroundAudio === playback) activeBackgroundAudio = null;
+  }
 }
 
 function flushPendingSoundAudiences() {
@@ -285,6 +361,14 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
 
 export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   if (typeof window === 'undefined') return;
+  const settings = await fetchOrderNotificationSoundSettings();
+  const generation = soundRequestGenerations[audience];
+  const profile = resolveOrderSoundProfile(settings, audience);
+  if (soundRequestGenerations[audience] !== generation) return;
+  // Prefer a media element while hidden: mobile browsers commonly suspend
+  // WebAudio in background tabs, while an already-unlocked media element can
+  // continue. If it cannot play, continue with the normal WebAudio path.
+  if (document.hidden && await playBackgroundAudio(settings, audience, profile.volume)) return;
   if (!isAudioEnabled()) {
     pendingSoundAudiences.add(audience);
     requestAudioPermission();
@@ -296,9 +380,6 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
     requestAudioPermission();
     return;
   }
-  const generation = soundRequestGenerations[audience];
-  const settings = await fetchOrderNotificationSoundSettings();
-  if (soundRequestGenerations[audience] !== generation) return;
   return playNotificationWithSettings(settings, audience);
 }
 

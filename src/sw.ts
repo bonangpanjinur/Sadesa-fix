@@ -107,6 +107,7 @@ self.addEventListener('push', (event) => {
     body: 'Anda memiliki notifikasi baru',
     icon: '/branding/sadesa-favicon.png',
     url: '/',
+    data: {} as Record<string, unknown>,
   };
 
   try {
@@ -125,6 +126,11 @@ self.addEventListener('push', (event) => {
       icon: data.icon,
       badge: '/branding/sadesa-favicon.png',
       silent: false,
+      requireInteraction: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer',
+      tag: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer'
+        ? `courier-order-${data.data.type}`
+        : undefined,
+      renotify: true,
       vibrate: [...COURIER_ALARM_VIBRATION_PATTERN],
       data: { url: data.url },
       actions: [
