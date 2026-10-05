@@ -3,11 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { logRealtimeStatus, type RealtimeStatus } from '@/lib/realtimeTelemetry';
+import { isAudioEnabled, playToneSequence, requestAudioPermission } from '@/lib/audioManager';
 
 export function useChatNotification() {
   const { user } = useAuth();
   const userId = user?.id;
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isEnabled, setIsEnabled] = useState(true);
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('idle');
   const isEnabledRef = useRef(isEnabled);
@@ -19,30 +19,17 @@ export function useChatNotification() {
     isEnabledRef.current = isEnabled;
   }, [isEnabled]);
 
-  // Initialize audio element
-  useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio('/notification.wav');
-      audioRef.current.preload = 'auto';
-    }
-    return () => {
-      audioRef.current?.pause();
-      audioRef.current = null;
-    };
-  }, []);
-
   // Play notification sound
   const playNotificationSound = useCallback(() => {
-    if (!isEnabledRef.current || !audioRef.current) return;
-
-    try {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((error) => {
-        console.warn('Failed to play notification sound:', error);
-      });
-    } catch (error) {
-      console.warn('Error playing notification:', error);
+    if (!isEnabledRef.current) return;
+    if (!isAudioEnabled()) {
+      requestAudioPermission();
+      return;
     }
+    void playToneSequence([
+      { frequency: 740, at: 0, duration: 0.1 },
+      { frequency: 988, at: 0.12, duration: 0.16 },
+    ], 0.2);
   }, []);
 
   // Set up real-time listener for incoming messages

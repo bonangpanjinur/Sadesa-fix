@@ -22,6 +22,7 @@ import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { PublicFooter } from "@/components/layout/PublicFooter";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { SplashScreen } from "@/components/SplashScreen";
+import { AudioPermissionModal } from "@/components/audio/AudioPermissionModal";
 import { POSProvider } from "./contexts/POSContext";
 import { POSAccessRoute } from "@/components/pos/posPermissions";
 import { logUnhandledErrors, reportObservability } from '@/lib/observability';
@@ -469,6 +470,7 @@ const App = () => (
               <PWAProvider>
               <Toaster />
               <Sonner />
+              <AudioPermissionModal />
               <OfflineIndicator />
               <RestockNotificationHandler />
               <ObservabilityBootstrap />

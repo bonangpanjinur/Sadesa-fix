@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { playOrderNotificationSound, stopOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { playOrderNotificationSound, stopOrderNotificationSound } from '@/lib/orderNotificationSound';
 
 interface MerchantState {
   id: string;
@@ -130,16 +130,9 @@ export function useMerchantOrderAlarm(userId: string | null | undefined) {
     };
     void start();
 
-    // Any interaction unlocks Web Audio before a realtime event needs to alert.
-    const unlockOnInteraction = () => unlockOrderNotificationAudio();
-    document.addEventListener('pointerdown', unlockOnInteraction, { passive: true });
-    document.addEventListener('keydown', unlockOnInteraction);
-
     return () => {
       disposed = true;
       if (retryTimer) window.clearTimeout(retryTimer);
-      document.removeEventListener('pointerdown', unlockOnInteraction);
-      document.removeEventListener('keydown', unlockOnInteraction);
       if (channel) void supabase.removeChannel(channel);
       stopOrderNotificationSound('merchant');
       merchantRef.current = null;

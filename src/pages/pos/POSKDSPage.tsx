@@ -12,6 +12,7 @@ import { id as idLocale } from 'date-fns/locale';
 import { formatPOSDateTime, formatPOSTime } from '@/lib/posDateTime';
 import { useNavigate } from 'react-router-dom';
 import { posBridgeFetch } from '@/lib/posBridge';
+import { isAudioEnabled, playToneSequence, requestAudioPermission } from '@/lib/audioManager';
 
 interface OrderStatusUpdate {
   status: TableOrder['status'];
@@ -98,28 +99,17 @@ export default function POSKDSPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const prevOrderIds = useRef<Set<string>>(new Set());
-  const audioCtxRef = useRef<AudioContext | null>(null);
 
   const playBeep = useCallback((pattern: 'new' | 'action' = 'new') => {
     if (!soundEnabled) return;
-    try {
-      if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
-      const ctx = audioCtxRef.current;
-      const notes = pattern === 'new'
-        ? [{ f: 880, t: 0, d: 0.12 }, { f: 1100, t: 0.14, d: 0.12 }, { f: 1320, t: 0.28, d: 0.18 }]
-        : [{ f: 660, t: 0, d: 0.15 }];
-      notes.forEach(({ f, t, d }) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = f; osc.type = 'sine';
-        gain.gain.setValueAtTime(0, ctx.currentTime + t);
-        gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + t + 0.02);
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + t + d);
-        osc.start(ctx.currentTime + t);
-        osc.stop(ctx.currentTime + t + d + 0.05);
-      });
-    } catch { /* ignore */ }
+    if (!isAudioEnabled()) {
+      requestAudioPermission();
+      return;
+    }
+    const notes = pattern === 'new'
+      ? [{ frequency: 880, at: 0, duration: 0.12 }, { frequency: 1100, at: 0.14, duration: 0.12 }, { frequency: 1320, at: 0.28, duration: 0.18 }]
+      : [{ frequency: 660, at: 0, duration: 0.15 }];
+    void playToneSequence(notes);
   }, [soundEnabled]);
 
   const fetchOrders = useCallback(async () => {

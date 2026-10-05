@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { resolveNotificationLink } from '@/lib/notificationRouting';
-import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
 
 interface Notification {
   id: string;
@@ -159,16 +159,10 @@ export function NotificationDropdown() {
     };
 
     subscribe();
-    const unlockOnInteraction = () => unlockOrderNotificationAudio();
-    document.addEventListener('pointerdown', unlockOnInteraction, { once: true, passive: true });
-    document.addEventListener('keydown', unlockOnInteraction, { once: true });
-
     return () => {
       disposed = true;
       if (retryTimer) window.clearTimeout(retryTimer);
       retryTimer = undefined;
-      document.removeEventListener('pointerdown', unlockOnInteraction);
-      document.removeEventListener('keydown', unlockOnInteraction);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [userId, refreshNotifications]);

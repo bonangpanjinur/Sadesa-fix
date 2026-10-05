@@ -1,3 +1,5 @@
+import { enableAudio, getAudioContext, isAudioEnabled, requestAudioPermission } from '@/lib/audioManager';
+
 export type OrderSoundAudience = 'merchant' | 'courier';
 export type OrderSoundPreset = 'urgent' | 'bell' | 'chime' | 'custom';
 export interface OrderSoundProfile {
@@ -45,11 +47,9 @@ const SETTINGS_KEY = 'order_notification_sound_settings';
 const LOCAL_OVERRIDE_KEY = 'order_notification_sound_override';
 let settingsCache: { value: OrderNotificationSoundSettings; expiresAt: number } | null = null;
 let activePlayback: { audience: OrderSoundAudience; stop: () => void } | null = null;
-let activeCustomAudio: { audience: OrderSoundAudience; audio: HTMLAudioElement } | null = null;
+let activeCustomAudio: { audience: OrderSoundAudience; stop: () => void } | null = null;
 const soundRequestGenerations: Record<OrderSoundAudience, number> = { merchant: 0, courier: 0 };
 const pendingSoundAudiences = new Set<OrderSoundAudience>();
-let audioUnlocked = false;
-let sharedAudioContext: AudioContext | null = null;
 
 /** Stop the current short alert without changing saved settings. */
 export function stopOrderNotificationSound(audience?: OrderSoundAudience) {
@@ -63,7 +63,7 @@ export function stopOrderNotificationSound(audience?: OrderSoundAudience) {
     activePlayback = null;
   }
   if (activeCustomAudio && (!audience || activeCustomAudio.audience === audience)) {
-    activeCustomAudio.audio.pause();
+    activeCustomAudio.stop();
     activeCustomAudio = null;
   }
 }
@@ -164,31 +164,14 @@ export function shouldPlayOrderNotificationSound(settings: OrderNotificationSoun
   return audience === 'courier' || (settings.enabled && profile.enabled);
 }
 
-function getAudioContext() {
-  if (sharedAudioContext && sharedAudioContext.state !== 'closed') return sharedAudioContext;
-  const AudioContextConstructor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  sharedAudioContext = AudioContextConstructor ? new AudioContextConstructor() : null;
-  return sharedAudioContext;
-}
-
 /** Call from a user gesture before a realtime callback needs to play audio. */
 export function unlockOrderNotificationAudio() {
   if (typeof window === 'undefined') return;
-  audioUnlocked = true;
-  const context = getAudioContext();
-  if (!context) {
-    audioUnlocked = false;
-    return;
-  }
-  if (context.state === 'suspended') {
-    void context.resume().then(flushPendingSoundAudiences).catch(() => { audioUnlocked = false; });
-  } else {
-    flushPendingSoundAudiences();
-  }
+  void enableAudio().then(flushPendingSoundAudiences).catch(() => undefined);
 }
 
 function flushPendingSoundAudiences() {
-  if (!audioUnlocked || sharedAudioContext?.state !== 'running') return;
+  if (!isAudioEnabled() || getAudioContext()?.state !== 'running') return;
   const audiences = [...pendingSoundAudiences];
   pendingSoundAudiences.clear();
   audiences.forEach((audience) => { void playOrderNotificationSound(audience); });
@@ -196,8 +179,7 @@ function flushPendingSoundAudiences() {
 
 async function playPreset(preset: Exclude<OrderSoundPreset, 'custom'>, volume: number) {
   const context = getAudioContext();
-  if (!context) return;
-  if (context.state === 'suspended') await context.resume();
+  if (!context || context.state !== 'running') return;
 
   const notes = preset === 'urgent'
     ? [{ frequency: 880, at: 0 }, { frequency: 1175, at: 0.18 }, { frequency: 880, at: 0.36 }]
@@ -226,25 +208,24 @@ async function playPreset(preset: Exclude<OrderSoundPreset, 'custom'>, volume: n
 
 }
 
-async function playCustomAudio(url: string, volume: number, audience: OrderSoundAudience, onAudio?: (audio: HTMLAudioElement) => void) {
-  const audio = new Audio(url);
-  audio.preload = 'auto';
-  audio.volume = volume;
-  audio.currentTime = 0;
-  activeCustomAudio = { audience, audio };
-  onAudio?.(audio);
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const finish = () => resolve();
-      const fail = () => reject(new Error('Custom notification audio failed to play'));
-      audio.addEventListener('ended', finish, { once: true });
-      audio.addEventListener('pause', finish, { once: true });
-      audio.addEventListener('error', fail, { once: true });
-      void audio.play().catch(fail);
-    });
-  } finally {
-    if (activeCustomAudio?.audio === audio) activeCustomAudio = null;
-  }
+async function playCustomAudio(url: string, volume: number, audience: OrderSoundAudience) {
+  const context = getAudioContext();
+  if (!context || context.state !== 'running') throw new Error('AudioContext is not running');
+  const response = await fetch(url);
+  if (!response.ok) throw new Error('Custom notification audio failed to load');
+  const buffer = await context.decodeAudioData(await response.arrayBuffer());
+  const source = context.createBufferSource();
+  const gain = context.createGain();
+  source.buffer = buffer;
+  gain.gain.value = Math.max(0, Math.min(1, volume));
+  source.connect(gain);
+  gain.connect(context.destination);
+  activeCustomAudio = { audience, stop: () => source.stop() };
+  await new Promise<void>((resolve) => {
+    source.addEventListener('ended', () => resolve(), { once: true });
+    source.start();
+  });
+  if (activeCustomAudio?.audience === audience) activeCustomAudio = null;
 }
 
 async function playNotificationWithSettings(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience, ignoreLocalOverride = false) {
@@ -253,13 +234,11 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
 
   activePlayback?.stop();
   let stopped = false;
-  let currentAudio: HTMLAudioElement | null = null;
   let wakeDelay: (() => void) | null = null;
   const playback = {
     audience,
     stop: () => {
       stopped = true;
-      currentAudio?.pause();
       wakeDelay?.();
     },
   };
@@ -269,7 +248,7 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
     for (let index = 0; index < settings.repeat_count && !stopped; index += 1) {
       if (profile.preset === 'custom' && profile.custom_audio_url) {
         try {
-          await playCustomAudio(profile.custom_audio_url, profile.volume, audience, (audio) => { currentAudio = audio; });
+          await playCustomAudio(profile.custom_audio_url, profile.volume, audience);
         } catch {
           // A remote custom file can be blocked by mobile autoplay/CORS. Keep
           // the alarm responsive by falling back to a local Web Audio preset.
@@ -294,7 +273,7 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
     }
   } catch {
     // Browser autoplay policy or an unavailable custom file should not break order updates.
-    if (!stopped && sharedAudioContext?.state === 'suspended') pendingSoundAudiences.add(audience);
+    if (!stopped && getAudioContext()?.state === 'suspended') pendingSoundAudiences.add(audience);
   } finally {
     if (activePlayback === playback) activePlayback = null;
   }
@@ -302,13 +281,15 @@ async function playNotificationWithSettings(settings: OrderNotificationSoundSett
 
 export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   if (typeof window === 'undefined') return;
-  if (!audioUnlocked) {
+  if (!isAudioEnabled()) {
     pendingSoundAudiences.add(audience);
+    requestAudioPermission();
     return;
   }
   const context = getAudioContext();
   if (!context || context.state !== 'running') {
     pendingSoundAudiences.add(audience);
+    requestAudioPermission();
     return;
   }
   const generation = soundRequestGenerations[audience];
@@ -317,8 +298,8 @@ export async function playOrderNotificationSound(audience: OrderSoundAudience) {
   return playNotificationWithSettings(settings, audience);
 }
 
-export function previewOrderNotificationSound(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience = 'merchant') {
-  unlockOrderNotificationAudio();
+export async function previewOrderNotificationSound(settings: OrderNotificationSoundSettings, audience: OrderSoundAudience = 'merchant') {
+  await enableAudio();
   return playNotificationWithSettings(normalizeOrderNotificationSoundSettings(settings), audience, true);
 }
 

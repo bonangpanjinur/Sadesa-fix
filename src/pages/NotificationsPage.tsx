@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { resolveNotificationLink } from '@/lib/notificationRouting';
-import { playOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
 
 interface Notification {
   id: string;
@@ -85,9 +85,6 @@ export default function NotificationsPage() {
   // Realtime subscription untuk notifikasi baru
   useEffect(() => {
     if (!user) return;
-    const unlockOnInteraction = () => unlockOrderNotificationAudio();
-    document.addEventListener('pointerdown', unlockOnInteraction, { once: true, passive: true });
-    document.addEventListener('keydown', unlockOnInteraction, { once: true });
     const channel = supabase
       .channel(`all-notifications-${user.id}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', {
@@ -102,8 +99,6 @@ export default function NotificationsPage() {
       })
       .subscribe();
     return () => {
-      document.removeEventListener('pointerdown', unlockOnInteraction);
-      document.removeEventListener('keydown', unlockOnInteraction);
       void supabase.removeChannel(channel);
     };
   }, [user, queryClient]);

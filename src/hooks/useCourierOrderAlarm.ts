@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { playOrderNotificationSound, stopOrderNotificationSound, unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
+import { playOrderNotificationSound, stopOrderNotificationSound } from '@/lib/orderNotificationSound';
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 
 interface CourierState {
@@ -237,16 +237,10 @@ export function useCourierOrderAlarm(userId: string | null | undefined) {
     };
     void start();
 
-    const unlockOnInteraction = () => unlockOrderNotificationAudio();
-    document.addEventListener('pointerdown', unlockOnInteraction, { passive: true });
-    document.addEventListener('keydown', unlockOnInteraction);
-
     return () => {
       disposed = true;
       if (retryTimer) window.clearTimeout(retryTimer);
       if (refreshTimer) window.clearInterval(refreshTimer);
-      document.removeEventListener('pointerdown', unlockOnInteraction);
-      document.removeEventListener('keydown', unlockOnInteraction);
       if (channel) void supabase.removeChannel(channel);
       stopOrderNotificationSound('courier');
       courierRef.current = null;
