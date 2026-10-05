@@ -87,6 +87,7 @@ export interface Product {
   categoryId?: string | null;
   isActive: boolean;
   isPromo?: boolean;
+  sold_count?: number;
   // Availability fields
   isAvailable?: boolean;
   isMerchantOpen?: boolean;

@@ -17,7 +17,7 @@ import {
   fetchTourism,
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
-import { selectNewestProducts } from '@/lib/homepageProducts';
+import { selectNewestProducts, selectTopSellingProducts } from '@/lib/homepageProducts';
 import { groupNewestProductsByCategory } from '@/lib/homepageProductCategories';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
@@ -140,7 +140,30 @@ const Index = () => {
     staleTime: 60_000,
   });
 
-  const homepageProductIds = useMemo(() => products.map((product) => product.id), [products]);
+  const {
+    data: bestSellingCandidates = [],
+    isLoading: bestSellingLoading,
+    isError: bestSellingError,
+    refetch: refetchBestSelling,
+  } = useQuery<Product[]>({
+    queryKey: ['homepage-best-selling-products'],
+    queryFn: withErrorLog('best_sellers', 'homepage-best-selling-products', {
+      limit: 24,
+      sort: 'best-selling',
+    }, () => fetchProducts({
+      limit: 24,
+      includeReviews: false,
+      cacheKey: 'homepage-best-selling-products',
+      sort: 'best-selling',
+    })),
+    staleTime: 60_000,
+    enabled: enabledSectionIds.has('recommendations'),
+  });
+
+  const homepageProductIds = useMemo(
+    () => [...new Set([...products, ...bestSellingCandidates].map((product) => product.id))],
+    [products, bestSellingCandidates],
+  );
   const { data: homepageFlashSales = [] } = useQuery<HomepageFlashSaleRow[]>({
     queryKey: ['homepage-flash-sales', homepageProductIds],
     queryFn: async () => {
@@ -252,6 +275,14 @@ const Index = () => {
     () => groupNewestProductsByCategory(newestProducts, activeProductCategories),
     [newestProducts, activeProductCategories],
   );
+  const productsAlreadyHighlighted = useMemo(() => new Set([
+    ...promoProducts.map((product) => product.id),
+    ...newestProductRows.flatMap((row) => row.products.map((product) => product.id)),
+  ]), [promoProducts, newestProductRows]);
+  const topSellingProducts = useMemo(
+    () => selectTopSellingProducts(bestSellingCandidates, productsAlreadyHighlighted),
+    [bestSellingCandidates, productsAlreadyHighlighted],
+  );
   // Sort tourism by proximity first, then by view count
   const popularTourism = sortedTourism;
   
@@ -362,6 +393,7 @@ const Index = () => {
           );
         }
         return (
+          <div className="space-y-5">
           <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
             <div className="mb-3 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
@@ -442,6 +474,59 @@ const Index = () => {
               </div>
             )}
           </section>
+          {bestSellingError ? (
+            <SectionError
+              title="Produk terlaris gagal dimuat"
+              message="Daftar produk dengan penjualan terbanyak tidak dapat diambil."
+              onRetry={() => void refetchBestSelling()}
+            />
+          ) : (
+            <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="best-selling-products-title">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Flame className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 id="best-selling-products-title" className="font-heading text-base font-bold text-foreground">Produk terlaris</h2>
+                  <p className="text-[10px] text-muted-foreground">Paling banyak dibeli</p>
+                </div>
+              </div>
+              {bestSellingLoading ? (
+                <ProductGridSkeleton count={4} />
+              ) : topSellingProducts.length > 0 ? (
+                <div
+                  className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 hide-scrollbar"
+                  aria-label="Produk terlaris"
+                  data-testid="list-best-selling-products"
+                >
+                  {topSellingProducts.map((product, idx) => (
+                    <div
+                      key={product.id}
+                      className="w-[48%] shrink-0 snap-start sm:w-[32%]"
+                      data-testid={`best-selling-product-${product.id}`}
+                    >
+                      <ProductCard
+                        product={product}
+                        index={idx}
+                        showCategoryBadge
+                        flashSaleOverride={flashSalesByProduct.get(product.id) ?? null}
+                        distanceKm={getProductDistance(product)}
+                        deliveryEta={getDeliveryEta(getProductDistance(product))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-center">
+                  <h3 className="font-heading text-sm font-extrabold text-foreground">Belum ada produk terlaris</h3>
+                  <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
+                    Produk dengan pesanan selesai akan tampil di sini.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+          </div>
         );
       
       case 'villages':

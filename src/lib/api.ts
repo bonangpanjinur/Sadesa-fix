@@ -223,7 +223,7 @@ interface FetchProductsOptions {
   promoOnly?: boolean;
   inStockOnly?: boolean;
   maxPrice?: number;
-  sort?: 'nearest' | 'cheapest' | 'expensive' | 'newest';
+  sort?: 'nearest' | 'cheapest' | 'expensive' | 'newest' | 'best-selling';
 }
 
 export interface ProductPage {
@@ -316,7 +316,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
         `;
   let query = supabase
     .from('products')
-    .select(`id, merchant_id, name, description, price, stock, category, category_id, image_url, is_active, is_promo, discount_percent, created_at, merchants (${merchantFields})`, { count: 'exact' })
+    .select(`id, merchant_id, name, description, price, stock, category, category_id, image_url, is_active, is_promo, discount_percent, sold_count, created_at, merchants (${merchantFields})`, { count: 'exact' })
     .eq('is_active', true);
   let merchantSearchIds: string[] = [];
   if (search.trim()) {
@@ -333,6 +333,11 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
   if (maxPrice != null && maxPrice < 100000) query = query.lte('price', maxPrice);
   if (sort === 'cheapest') query = query.order('price', { ascending: true });
   else if (sort === 'expensive') query = query.order('price', { ascending: false });
+  else if (sort === 'best-selling') {
+    query = query
+      .order('sold_count', { ascending: false })
+      .order('created_at', { ascending: false });
+  }
   else query = query.order('created_at', { ascending: false });
   query = query.order('id', { ascending: true }).range(offset, offset + normalizedLimit - 1);
 
@@ -390,7 +395,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
     }
   }
   const mappedProducts = (data || []).map((rawProduct) => {
-    const p = rawProduct as typeof rawProduct & { sold_count?: number };
+    const p = rawProduct;
     const hasQuota = merchantsWithQuota.has(p.merchant_id);
     const merchant = (Array.isArray(p.merchants) ? p.merchants[0] : p.merchants) as CatalogMerchant | null;
     
@@ -467,7 +472,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
       unavailableReason,
       locationLat,
       locationLng,
-      sold_count: p.sold_count || 0,
+      sold_count: Number(p.sold_count || 0),
     };
   });
 
