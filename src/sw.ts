@@ -126,9 +126,9 @@ self.addEventListener('push', (event) => {
       icon: data.icon,
       badge: '/branding/sadesa-favicon.png',
       silent: false,
-      requireInteraction: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer',
-      tag: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer'
-        ? `courier-order-${data.data.type}`
+      requireInteraction: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer' || data.data?.type === 'new_merchant_order',
+      tag: data.data?.type === 'new_ride_request' || data.data?.type === 'new_delivery_offer' || data.data?.type === 'new_merchant_order'
+        ? `order-${data.data.type}`
         : undefined,
       renotify: true,
       vibrate: [...COURIER_ALARM_VIBRATION_PATTERN],

@@ -1,7 +1,7 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { MerchantSidebar } from './MerchantSidebar';
 import { MerchantBottomNavigation } from './MerchantBottomNavigation';
-import { Menu, Volume2 } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,8 @@ import { MerchantCardError } from './MerchantDataState';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { getLastPushError, subscribeToPush } from '@/lib/pushNotification';
 
 interface MerchantLayoutProps {
   children: ReactNode;
@@ -20,6 +22,7 @@ interface MerchantLayoutProps {
 }
 
 export function MerchantLayout({ children, title, subtitle, actions, fullWidth = false }: MerchantLayoutProps) {
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(() => (
     typeof window !== 'undefined'
@@ -165,23 +168,34 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
               size="sm"
               className="min-h-9 gap-1.5 text-xs font-semibold"
               onClick={() => {
-                void unlockOrderNotificationAudio().then((activated) => {
-                  if (activated) {
+                void Promise.all([
+                  unlockOrderNotificationAudio(),
+                  user ? subscribeToPush(user.id) : Promise.resolve(false),
+                ]).then(([audioActivated, pushActivated]) => {
+                  if (audioActivated && pushActivated) {
                     toast.success('Audio alarm pesanan merchant aktif', {
-                      description: 'Alarm akan berbunyi saat ada pesanan baru, termasuk ketika berpindah halaman.',
+                      description: 'Banner dan suara sistem akan tetap muncul meskipun aplikasi ditutup.',
+                    });
+                  } else if (audioActivated) {
+                    toast.warning('Audio aktif, notifikasi background belum aktif', {
+                      description: getLastPushError() || 'Izinkan notifikasi browser agar banner tetap muncul saat aplikasi ditutup.',
+                    });
+                  } else if (pushActivated) {
+                    toast.warning('Notifikasi background aktif, audio belum aktif', {
+                      description: 'Izinkan audio browser lalu tekan tombol ini kembali.',
                     });
                   } else {
-                    toast.error('Audio belum aktif', {
-                      description: 'Izinkan audio browser lalu tekan tombol ini kembali.',
+                    toast.error('Audio dan notifikasi belum aktif', {
+                      description: getLastPushError() || 'Izinkan audio dan notifikasi browser lalu tekan tombol ini kembali.',
                     });
                   }
                 });
               }}
-              aria-label="Aktifkan audio alarm pesanan merchant"
-              title="Aktifkan audio alarm pesanan merchant"
+              aria-label="Aktifkan audio dan notifikasi background pesanan merchant"
+              title="Aktifkan audio dan notifikasi background pesanan merchant"
             >
-              <Volume2 className="h-3.5 w-3.5" />
-              <span>Aktifkan Audio Alarm</span>
+              <Bell className="h-3.5 w-3.5" />
+              <span>Aktifkan Alarm &amp; Notifikasi</span>
             </Button>
             <OrderAlarmSettingsControl audience="merchant" />
             <NotificationDropdown />

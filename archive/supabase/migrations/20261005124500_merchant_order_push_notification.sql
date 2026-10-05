@@ -1,0 +1,69 @@
+-- Queue a durable Web Push notification when a new order reaches a merchant.
+-- The notification worker delivers the banner even when the merchant app is closed.
+CREATE OR REPLACE FUNCTION public.notify_order_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  merchant_user_id UUID;
+  order_status_text TEXT;
+BEGIN
+  SELECT user_id INTO merchant_user_id
+  FROM merchants
+  WHERE id = NEW.merchant_id;
+
+  CASE NEW.status
+    WHEN 'NEW' THEN order_status_text := 'Pesanan Baru';
+    WHEN 'PENDING_CONFIRMATION' THEN order_status_text := 'Menunggu Konfirmasi';
+    WHEN 'PROCESSED' THEN order_status_text := 'Sedang Diproses';
+    WHEN 'SENT' THEN order_status_text := 'Sedang Dikirim';
+    WHEN 'DONE' THEN order_status_text := 'Selesai';
+    WHEN 'CANCELED' THEN order_status_text := 'Dibatalkan';
+    ELSE order_status_text := NEW.status;
+  END CASE;
+
+  IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    PERFORM send_notification(
+      NEW.buyer_id,
+      'Status Pesanan Diperbarui',
+      'Pesanan #' || LEFT(NEW.id::TEXT, 8) || ' ' || order_status_text,
+      'order',
+      '/orders/' || NEW.id
+    );
+  END IF;
+
+  IF TG_OP = 'INSERT' AND merchant_user_id IS NOT NULL THEN
+    PERFORM send_notification(
+      merchant_user_id,
+      'Pesanan Baru',
+      'Anda menerima pesanan baru senilai Rp ' || NEW.total::TEXT,
+      'order',
+      '/merchant/orders'
+    );
+
+    INSERT INTO public.notification_delivery_jobs (
+      recipient_id,
+      channel,
+      template_key,
+      payload
+    ) VALUES (
+      merchant_user_id,
+      'push',
+      'new_merchant_order',
+      jsonb_build_object(
+        'title', 'Pesanan Baru',
+        'body', 'Anda menerima pesanan baru senilai Rp ' || NEW.total::TEXT || '. Buka aplikasi untuk memproses pesanan.',
+        'url', '/merchant/orders',
+        'data', jsonb_build_object(
+          'type', 'new_merchant_order',
+          'order_id', NEW.id::TEXT
+        )
+      )
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
