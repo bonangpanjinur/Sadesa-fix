@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getPOSSubscriptionState, isPOSSubscriptionActive } from './posSubscription';
+import {
+  getPOSSubscriptionState,
+  isPOSSubscriptionActive,
+  shouldShowPOSSubscriptionStatusOnly,
+  shouldStartPOSSetup,
+} from './posSubscription';
 
 const now = new Date('2026-08-28T00:00:00.000Z');
 
@@ -33,5 +38,31 @@ describe('POS subscription lifecycle', () => {
       status: 'cancelled',
       expired_at: '2026-09-30T00:00:00.000Z',
     }, now)).toBe('EXPIRED');
+  });
+
+  it('routes entitled merchants without a workspace into setup, but not suspended or grace subscriptions', () => {
+    expect(shouldStartPOSSetup({
+      status: 'ACTIVE',
+      expired_at: '2026-09-30T00:00:00.000Z',
+    }, false, now)).toBe(true);
+    expect(shouldStartPOSSetup({
+      status: 'ACTIVE',
+      expired_at: '2026-09-30T00:00:00.000Z',
+    }, true, now)).toBe(false);
+    expect(shouldStartPOSSetup({
+      status: 'GRACE',
+      expired_at: '2026-08-27T23:59:59.000Z',
+      grace_ends_at: '2026-09-02T00:00:00.000Z',
+    }, false, now)).toBe(false);
+    expect(shouldStartPOSSetup({ status: 'SUSPENDED' }, false, now)).toBe(false);
+  });
+
+  it('lets suspended subscriptions return to package selection instead of status-only view', () => {
+    expect(shouldShowPOSSubscriptionStatusOnly({ status: 'SUSPENDED' }, now)).toBe(false);
+    expect(shouldShowPOSSubscriptionStatusOnly({ status: 'PENDING' }, now)).toBe(true);
+    expect(shouldShowPOSSubscriptionStatusOnly({
+      status: 'ACTIVE',
+      expired_at: '2026-09-30T00:00:00.000Z',
+    }, now)).toBe(true);
   });
 });

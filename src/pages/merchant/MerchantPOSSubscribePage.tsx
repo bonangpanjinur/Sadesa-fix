@@ -12,7 +12,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { formatPrice } from '@/lib/utils';
 import { getSettingByKey } from '@/lib/adminApi';
-import { getPOSSubscriptionState, isPOSSubscriptionActive, POS_SUBSCRIPTION_STATE_LABEL } from '@/lib/posSubscription';
+import {
+  getPOSSubscriptionState,
+  POS_SUBSCRIPTION_STATE_LABEL,
+  shouldShowPOSSubscriptionStatusOnly,
+  shouldStartPOSSetup,
+} from '@/lib/posSubscription';
 
 interface POSSubscription {
   id: string;
@@ -107,28 +112,15 @@ export default function MerchantPOSSubscribePage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        setExistingSub(sub as POSSubscription | null);
+        const currentSubscription = sub as POSSubscription | null;
+        setExistingSub(currentSubscription);
 
-        // A manual admin grant can leave older deployments with an active
-        // entitlement but no POS tenant. Repair that gap through the
-        // server-side entitlement check instead of making the merchant repeat
-        // setup before the POS menu becomes available.
-        if (!tenant && sub && isPOSSubscriptionActive(sub)) {
-          const { error: provisioningError } = await supabase.rpc('ensure_merchant_pos_workspace' as never, {
-            p_name: merchant.name || 'Toko Merchant',
-            p_phone: merchant.phone || null,
-            p_address: merchant.address || null,
-            p_timezone: 'Asia/Jakarta',
-            p_currency: 'IDR',
-            p_outlet_name: `${merchant.name || 'Toko Merchant'} - Outlet Utama`,
-            p_outlet_address: merchant.address || null,
-            p_outlet_phone: merchant.phone || null,
-          } as never);
-          if (!provisioningError) {
-            window.location.reload();
-            return;
-          }
-          console.warn('POS subscription is active but workspace provisioning failed:', provisioningError);
+        // Keep the merchant's explicit setup choices in the activation path.
+        // The setup RPC provisions the workspace after the merchant selects
+        // business type, modules, and the first outlet.
+        if (shouldStartPOSSetup(currentSubscription, Boolean(tenant))) {
+          navigate('/merchant/pos/setup', { replace: true });
+          return;
         }
 
         // Check if trial was used
@@ -152,7 +144,7 @@ export default function MerchantPOSSubscribePage() {
       }
     }
     loadData();
-  }, [user]);
+  }, [user, navigate]);
 
   const handleActivateTrial = async () => {
     if (!merchantId) return;
@@ -251,13 +243,14 @@ export default function MerchantPOSSubscribePage() {
     );
   }
 
-  // Active and pending subscriptions have a status-first view. Rejected/expired subscriptions can be renewed or resubmitted below.
+  // Operational and pending subscriptions have a status-first view. Suspended,
+  // rejected, and expired subscriptions can choose a package and resubmit below.
   if (existingSub) {
     const subscriptionState = getPOSSubscriptionState(existingSub);
     const isActive = subscriptionState === 'ACTIVE' || subscriptionState === 'EXPIRING_SOON' || subscriptionState === 'GRACE_PERIOD';
     const isPending = subscriptionState === 'PENDING_REVIEW';
 
-    if (isActive || isPending || subscriptionState === 'SUSPENDED') return (
+    if (shouldShowPOSSubscriptionStatusOnly(existingSub)) return (
       <MerchantLayout title="Langganan POS" subtitle="Status paket dan akses operasional kasir">
         <div className="max-w-lg mx-auto space-y-6">
           <Card>
@@ -299,10 +292,15 @@ export default function MerchantPOSSubscribePage() {
               <Button variant="outline" className="w-full" onClick={handleExportSubscription}>
                 <Download className="mr-2 h-4 w-4" /> Export Data Subscription
               </Button>
-              {isActive && !hasPOSWorkspace && (
+              {shouldStartPOSSetup(existingSub, hasPOSWorkspace) && (
                 <Button className="w-full" onClick={() => navigate('/merchant/pos/setup')}>
                   Siapkan workspace POS
                 </Button>
+              )}
+              {subscriptionState === 'GRACE_PERIOD' && !hasPOSWorkspace && (
+                <p className="rounded-lg bg-warning/10 p-3 text-sm text-warning-foreground">
+                  Workspace POS belum siap dan masa tenggang tidak dapat digunakan untuk setup baru. Hubungi admin untuk memulihkan akses sebelum menyiapkan POS.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -310,6 +308,10 @@ export default function MerchantPOSSubscribePage() {
       </MerchantLayout>
     );
   }
+
+  const hasSuspendedSubscription = existingSub
+    ? getPOSSubscriptionState(existingSub) === 'SUSPENDED'
+    : false;
 
   return (
     <MerchantLayout title="Langganan POS" subtitle="Pilih paket dan aktifkan operasional kasir">
@@ -319,7 +321,11 @@ export default function MerchantPOSSubscribePage() {
             <CardContent className="p-4">
               <p className="font-semibold">Langganan sebelumnya: {POS_SUBSCRIPTION_STATE_LABEL[getPOSSubscriptionState(existingSub)]}</p>
               {existingSub.rejection_reason && <p className="mt-1 text-sm text-muted-foreground">Catatan admin: {existingSub.rejection_reason}</p>}
-              <p className="mt-2 text-xs text-muted-foreground">Anda dapat memilih paket baru dan mengirim permintaan kembali. Masa aktif baru dimulai setelah disetujui admin.</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {hasSuspendedSubscription
+                  ? 'Akses POS saat ini ditangguhkan. Pilih paket baru di bawah untuk mengajukan aktivasi kembali. Akses baru dimulai setelah permintaan disetujui admin.'
+                  : 'Anda dapat memilih paket baru dan mengirim permintaan kembali. Masa aktif baru dimulai setelah disetujui admin.'}
+              </p>
             </CardContent>
           </Card>
         )}
@@ -454,7 +460,7 @@ export default function MerchantPOSSubscribePage() {
         {selectedPkg && (
           <Button onClick={handleSubscribe} disabled={submitting} className="w-full" size="lg">
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CreditCard className="h-4 w-4 mr-2" />}
-            Kirim Permintaan Langganan
+            {hasSuspendedSubscription ? 'Ajukan Langganan Baru' : 'Kirim Permintaan Langganan'}
           </Button>
         )}
       </div>

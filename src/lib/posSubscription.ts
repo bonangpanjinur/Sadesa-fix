@@ -43,6 +43,24 @@ export function isPOSSubscriptionActive(subscription: POSSubscriptionRecord | nu
   return state === 'ACTIVE' || state === 'EXPIRING_SOON' || state === 'GRACE_PERIOD';
 }
 
+export function shouldStartPOSSetup(
+  subscription: POSSubscriptionRecord | null,
+  hasWorkspace: boolean,
+  now = new Date(),
+) {
+  if (hasWorkspace) return false;
+  const state = getPOSSubscriptionState(subscription, now);
+  return state === 'ACTIVE' || state === 'EXPIRING_SOON';
+}
+
+export function shouldShowPOSSubscriptionStatusOnly(subscription: POSSubscriptionRecord | null, now = new Date()) {
+  const state = getPOSSubscriptionState(subscription, now);
+  return state === 'ACTIVE'
+    || state === 'EXPIRING_SOON'
+    || state === 'GRACE_PERIOD'
+    || state === 'PENDING_REVIEW';
+}
+
 export const POS_SUBSCRIPTION_STATE_LABEL: Record<POSSubscriptionState, string> = {
   NO_SUBSCRIPTION: 'Belum berlangganan',
   PENDING_REVIEW: 'Menunggu verifikasi admin',
