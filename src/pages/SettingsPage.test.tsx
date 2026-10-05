@@ -2,14 +2,12 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { setLocale } from '@/lib/i18n';
 import SettingsPage from './SettingsPage';
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: vi.fn() }));
-vi.mock('next-themes', () => ({ useTheme: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: { auth: { updateUser: vi.fn() } },
 }));
@@ -17,8 +15,6 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/components/layout/Header', () => ({ Header: () => null }));
 vi.mock('@/components/layout/BottomNav', () => ({ BottomNav: () => null }));
 vi.mock('@/components/settings/PushNotificationSettings', () => ({ PushNotificationSettings: () => null }));
-
-const setTheme = vi.fn();
 
 function renderSettings() {
   return render(
@@ -36,21 +32,13 @@ describe('SettingsPage', () => {
       user: { id: 'user-1', email: 'user@example.test' },
       isCourier: false,
     } as ReturnType<typeof useAuth>);
-    vi.mocked(useTheme).mockReturnValue({
-      theme: 'system',
-      resolvedTheme: 'dark',
-      setTheme,
-    } as unknown as ReturnType<typeof useTheme>);
     vi.mocked(supabase.auth.updateUser).mockResolvedValue({ data: { user: null }, error: null } as never);
   });
 
-  it('reflects the effective system theme and names the dark-mode switch accessibly', () => {
+  it('does not offer a dark-mode switch', () => {
     renderSettings();
 
-    const darkModeSwitch = screen.getByRole('switch', { name: 'Mode Gelap' });
-    expect(darkModeSwitch).toBeChecked();
-    fireEvent.click(darkModeSwitch);
-    expect(setTheme).toHaveBeenCalledWith('light');
+    expect(screen.queryByRole('switch', { name: 'Mode Gelap' })).not.toBeInTheDocument();
   });
 
   it('localizes the settings headings when the user selects English', () => {
@@ -59,7 +47,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'English' }));
 
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
-    expect(screen.getByText('Appearance')).toBeInTheDocument();
+    expect(screen.getByText('Language')).toBeInTheDocument();
     expect(screen.getByText('Privacy & Security')).toBeInTheDocument();
   });
 

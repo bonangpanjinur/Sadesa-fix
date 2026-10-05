@@ -457,7 +457,7 @@ function CheckoutRoute() {
 }
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+  <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light">
     <SplashScreen>
       <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

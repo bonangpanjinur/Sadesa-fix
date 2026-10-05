@@ -2,19 +2,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Bell, Moon, Sun, Globe, Shield, Lock, Loader2, Mail } from 'lucide-react';
+import { ArrowLeft, Bell, Globe, Shield, Lock, Loader2, Mail } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PushNotificationSettings } from '@/components/settings/PushNotificationSettings';
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher';
 import { useTranslation } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { passwordSchema } from '@/lib/validationSchemas';
@@ -23,7 +21,6 @@ import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, isCourier } = useAuth();
-  const { resolvedTheme, setTheme } = useTheme();
   const { t } = useTranslation();
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -96,8 +93,6 @@ export default function SettingsPage() {
     }
   };
 
-  const isDark = resolvedTheme === 'dark';
-
   return (
     <div className="mobile-shell flex min-h-screen flex-col bg-background">
       <Header />
@@ -139,26 +134,6 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             )}
-
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  {isDark ? <Moon className="h-5 w-5 text-primary" /> : <Sun className="h-5 w-5 text-primary" />}
-                  <CardTitle className="text-base">{t('settings.theme.title')}</CardTitle>
-                </div>
-                <CardDescription>{t('settings.theme.description')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="dark-mode" className="text-sm">{t('settings.theme.dark_mode')}</Label>
-                  <Switch
-                    id="dark-mode"
-                    checked={isDark}
-                    onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
-                  />
-                </div>
-              </CardContent>
-            </Card>
 
             <Card>
               <CardHeader className="pb-3">
