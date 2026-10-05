@@ -56,6 +56,26 @@ describe('order notification sound settings', () => {
     expect(result.courier_volume).toBe(0.8);
   });
 
+  it('resolves independent merchant and courier profiles', () => {
+    const settings = normalizeOrderNotificationSoundSettings({
+      merchant_preset: 'bell',
+      merchant_volume: 0.35,
+      courier_preset: 'chime',
+      courier_volume: 0.85,
+    });
+
+    expect(resolveOrderSoundProfile(settings, 'merchant', null)).toMatchObject({
+      enabled: true,
+      preset: 'bell',
+      volume: 0.35,
+    });
+    expect(resolveOrderSoundProfile(settings, 'courier', null)).toMatchObject({
+      enabled: true,
+      preset: 'chime',
+      volume: 0.85,
+    });
+  });
+
   it('keeps courier sound mandatory despite old disabled settings or local overrides', () => {
     const settings = normalizeOrderNotificationSoundSettings({ enabled: false, courier_enabled: false, courier_volume: 0 });
     const courierProfile = resolveOrderSoundProfile(settings, 'courier', { enabled: false, volume: 0 });
