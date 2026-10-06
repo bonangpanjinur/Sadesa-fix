@@ -6,14 +6,16 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/utils';
-import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle, Package } from 'lucide-react';
+import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle, Package, ImageIcon, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getPaymentProofSignedUrl } from '@/lib/paymentProof';
 
 interface OrderItem {
   id: string;
@@ -27,6 +29,7 @@ interface OrderRow {
   id: string;
   status: string;
   payment_status: string | null;
+  payment_proof_url?: string | null;
   payment_method?: string | null;
   delivery_type: string;
   delivery_name: string | null;
@@ -79,6 +82,16 @@ export function OrderDetailsDialog({
   const [trackingNumber, setTrackingNumber] = useState('');
   const [expeditionProviderId, setExpeditionProviderId] = useState('');
   const [expeditionProviders, setExpeditionProviders] = useState<ExpeditionProvider[]>([]);
+  const paymentProofQuery = useQuery<string>({
+    queryKey: ['admin-order-payment-proof', order?.id, order?.payment_proof_url],
+    queryFn: async () => {
+      const signedUrl = await getPaymentProofSignedUrl(order?.payment_proof_url);
+      if (!signedUrl) throw new Error('Bukti pembayaran tidak dapat dimuat.');
+      return signedUrl;
+    },
+    enabled: open && !!order?.payment_proof_url,
+    retry: false,
+  });
 
   useEffect(() => {
     if (!open || order?.delivery_type !== 'EXPEDITION') return;
@@ -375,6 +388,39 @@ export function OrderDetailsDialog({
               <p className="text-muted-foreground mb-1">Catatan:</p>
               <p>{order.notes}</p>
             </div>
+          )}
+
+          {order.payment_proof_url && (
+            <section className="space-y-2" aria-label="Bukti Pembayaran">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <p className="text-sm font-medium">Bukti Pembayaran</p>
+              </div>
+              {paymentProofQuery.isLoading || (paymentProofQuery.isError && paymentProofQuery.isFetching) ? (
+                <div role="status" className="flex min-h-32 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+                  Memuat bukti pembayaran...
+                </div>
+              ) : paymentProofQuery.isError ? (
+                <div role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm">
+                  <p className="text-muted-foreground">Bukti pembayaran tidak dapat dimuat. Coba lagi.</p>
+                  <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void paymentProofQuery.refetch()}>
+                    <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+                    Coba lagi
+                  </Button>
+                </div>
+              ) : paymentProofQuery.data ? (
+                <div className="space-y-1">
+                  <a href={paymentProofQuery.data} target="_blank" rel="noopener noreferrer" aria-label="Buka bukti pembayaran ukuran penuh">
+                    <img
+                      src={paymentProofQuery.data}
+                      alt="Bukti pembayaran yang diunggah pembeli"
+                      className="max-h-64 w-full cursor-zoom-in rounded-lg border border-border bg-secondary/30 object-contain"
+                    />
+                  </a>
+                  <p className="text-center text-xs text-muted-foreground">Klik gambar untuk memperbesar</p>
+                </div>
+              ) : null}
+            </section>
           )}
 
           {/* Cost Breakdown */}
