@@ -38,4 +38,12 @@ describe('push notification delivery hardening', () => {
     expect(notificationWorker).toContain('status: "cancelled"');
     expect(notificationWorker).toContain('ride?.status === "SEARCHING"');
   });
+
+  it('installs the lease metadata and service-role recovery RPC needed by the worker', () => {
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS processing_started_at timestamptz');
+    expect(migration).toContain('processing_started_at = now()');
+    expect(migration).toContain('processing_started_at = NULL');
+    expect(migration).toContain("processing_started_at IS NULL");
+    expect(migration).toContain('GRANT EXECUTE ON FUNCTION public.recover_stuck_notification_delivery_jobs(integer) TO service_role');
+  });
 });

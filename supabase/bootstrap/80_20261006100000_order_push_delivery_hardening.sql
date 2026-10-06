@@ -5,6 +5,146 @@ BEGIN
   EXECUTE $bootstrap_sql_order_push_delivery_hardening$-- ===== BEGIN SOURCE: 20261006100000_order_push_delivery_hardening.sql =====
 -- Queue buyer order-status pushes from the database so merchants do not need
 -- permission to call the admin-only send-push-notification Edge Function.
+-- Keep the notification queue's worker lease contract current on staging
+-- projects where the earlier recovery bundle has not been applied yet.
+ALTER TABLE public.notification_delivery_jobs
+  ADD COLUMN IF NOT EXISTS processing_started_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_notification_jobs_processing
+  ON public.notification_delivery_jobs(status, processing_started_at)
+  WHERE status = 'processing';
+
+CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_job public.notification_delivery_jobs%ROWTYPE;
+BEGIN
+  IF auth.role() <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Notification job claim requires admin access' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.notification_delivery_jobs
+  SET status = 'processing',
+      attempts = attempts + 1,
+      processing_started_at = now()
+  WHERE id = p_job_id
+    AND status IN ('queued', 'failed')
+    AND next_attempt_at <= now()
+    AND attempts < max_attempts
+  RETURNING * INTO v_job;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000';
+  END IF;
+
+  RETURN v_job;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(
+  p_job_id uuid,
+  p_success boolean,
+  p_provider_message_id text DEFAULT NULL,
+  p_error text DEFAULT NULL
+)
+RETURNS public.notification_delivery_jobs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_job public.notification_delivery_jobs%ROWTYPE;
+  v_status text;
+  v_next timestamptz;
+BEGIN
+  IF auth.role() <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Notification job completion requires admin access' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_job
+  FROM public.notification_delivery_jobs
+  WHERE id = p_job_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR v_job.status <> 'processing' THEN
+    RAISE EXCEPTION 'Notification job is not processing' USING ERRCODE = '55000';
+  END IF;
+
+  IF p_success THEN
+    v_status := 'sent';
+  ELSE
+    v_status := CASE WHEN v_job.attempts >= v_job.max_attempts THEN 'dead_letter' ELSE 'failed' END;
+  END IF;
+  v_next := CASE
+    WHEN v_status = 'failed'
+      THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7))))
+    ELSE NULL
+  END;
+
+  UPDATE public.notification_delivery_jobs
+  SET status = v_status,
+      provider_message_id = COALESCE(p_provider_message_id, provider_message_id),
+      last_error = NULLIF(trim(p_error), ''),
+      next_attempt_at = COALESCE(v_next, next_attempt_at),
+      sent_at = CASE WHEN p_success THEN now() ELSE sent_at END,
+      dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END,
+      processing_started_at = NULL
+  WHERE id = p_job_id
+  RETURNING * INTO v_job;
+
+  RETURN v_job;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.recover_stuck_notification_delivery_jobs(
+  p_lease_seconds integer DEFAULT 900
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_count integer;
+BEGIN
+  IF auth.role() <> 'service_role' AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN
+    RAISE EXCEPTION 'Notification recovery requires admin access' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.notification_delivery_jobs
+  SET status = CASE WHEN attempts >= max_attempts THEN 'dead_letter' ELSE 'failed' END,
+      last_error = COALESCE(last_error, 'Recovered after worker lease expired'),
+      next_attempt_at = CASE WHEN attempts >= max_attempts THEN next_attempt_at ELSE now() END,
+      dead_letter_at = CASE
+        WHEN attempts >= max_attempts THEN COALESCE(dead_letter_at, now())
+        ELSE dead_letter_at
+      END,
+      processing_started_at = NULL
+  WHERE status = 'processing'
+    AND (
+      processing_started_at < now() - make_interval(secs => GREATEST(60, p_lease_seconds))
+      OR (
+        processing_started_at IS NULL
+        AND created_at < now() - make_interval(secs => GREATEST(60, p_lease_seconds))
+      )
+    );
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO service_role, authenticated;
+REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO service_role, authenticated;
+REVOKE ALL ON FUNCTION public.recover_stuck_notification_delivery_jobs(integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.recover_stuck_notification_delivery_jobs(integer) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.notify_buyer_order_status_push()
 RETURNS trigger
 LANGUAGE plpgsql

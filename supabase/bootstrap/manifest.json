@@ -725,8 +725,8 @@
       "source_files": [
         "20261006100000_order_push_delivery_hardening.sql"
       ],
-      "sha256": "9e169c99844e96ecf883b25fc060f2a399d6cc2faef7a32994df9105ba8ebf3c",
-      "bytes": 3905
+      "sha256": "c597c01b515e989c42b4b4e1477bb89905980a7c3b6e9383e948827de412f771",
+      "bytes": 8775
     }
   ],
   "idempotent": true,
