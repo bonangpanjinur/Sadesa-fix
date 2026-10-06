@@ -247,7 +247,7 @@ export function OrderDetailSheet({ orderId, open, onOpenChange }: OrderDetailShe
                   {order.payment_method === 'COD' ? 'Bayar di Tempat' : order.payment_method || 'Transfer'}
                 </Badge>
                 <Badge variant={order.payment_status === 'PAID' ? 'default' : 'destructive'}>
-                  {order.payment_status === 'PAID' ? 'Lunas' : 'Belum Bayar'}
+                  {order.payment_status === 'PAID' ? 'Lunas' : order.payment_status === 'FAILED' ? 'Bukti Ditolak' : 'Belum Bayar'}
                 </Badge>
               </div>
             </div>

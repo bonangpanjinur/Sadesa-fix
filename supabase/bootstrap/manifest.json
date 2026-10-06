@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment appended",
-  "migration_count": 355,
-  "bundle_count": 54,
+  "migration_count": 356,
+  "bundle_count": 55,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -735,6 +735,14 @@
       ],
       "sha256": "9b3d04cd7b2be4db805d571b4b766f501693e8b7ab892a878d87ad67d5337755",
       "bytes": 3863
+    },
+    {
+      "file": "82_20261006170000_admin_order_payment_review.sql",
+      "source_files": [
+        "82_20261006170000_admin_order_payment_review.sql"
+      ],
+      "sha256": "7fad6fbd46043dc918aab10216ba0284c3cdc4bbbd7229d586cf2d0a5cec7103",
+      "bytes": 8108
     }
   ],
   "idempotent": true,

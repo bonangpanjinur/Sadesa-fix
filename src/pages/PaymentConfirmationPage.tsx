@@ -254,11 +254,17 @@ export default function PaymentConfirmationPage() {
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
+              {order.payment_status === 'FAILED' && (
+                <p role="alert" className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
+                  Bukti sebelumnya ditolak. Ganti dengan bukti transfer yang benar; status akan kembali menunggu verifikasi setelah berhasil diunggah.
+                </p>
+              )}
               <PaymentProofUpload
                 orderId={order.id}
                 guestAccessToken={!user ? guestToken : undefined}
                 currentProofUrl={order.payment_proof_url}
-                onUploaded={(url) => setOrder(prev => prev ? { ...prev, payment_proof_url: url } : prev)}
+                isRejected={order.payment_status === 'FAILED'}
+                onUploaded={(url) => setOrder(prev => prev ? { ...prev, payment_proof_url: url, payment_status: 'PENDING_TRANSFER' } : prev)}
               />
             </CardContent>
           </Card>

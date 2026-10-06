@@ -54,6 +54,7 @@ interface OrderRow {
   id: string;
   status: string;
   payment_status: string | null;
+  payment_method: string | null;
   payment_proof_url: string | null;
   delivery_type: string;
   delivery_name: string | null;
@@ -195,24 +196,36 @@ export default function AdminOrdersPage() {
 
   const verifyPayment = async (orderId: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          payment_status: 'PAID',
-          payment_paid_at: new Date().toISOString(),
-          status: 'PROCESSED',
-          confirmed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-
+      const { error } = await supabase.rpc('merchant_verify_order_payment' as never, { p_order_id: orderId } as never);
       if (error) throw error;
       
       toast.success('Pembayaran berhasil diverifikasi');
       setDetailDialogOpen(false);
-      fetchOrders();
+      await fetchOrders();
+      return true;
     } catch (error) {
+      console.error('Admin payment verification failed:', error);
       toast.error('Gagal memverifikasi pembayaran');
+      return false;
+    }
+  };
+
+  const rejectPayment = async (orderId: string, reason: string) => {
+    try {
+      const { error } = await supabase.rpc('admin_reject_order_payment' as never, {
+        p_order_id: orderId,
+        p_reason: reason,
+      } as never);
+      if (error) throw error;
+
+      toast.success('Bukti pembayaran ditolak. Pembeli dapat mengunggah bukti baru.');
+      setDetailDialogOpen(false);
+      await fetchOrders();
+      return true;
+    } catch (error) {
+      console.error('Admin payment rejection failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal menolak bukti pembayaran');
+      return false;
     }
   };
 
@@ -265,6 +278,7 @@ export default function AdminOrdersPage() {
       'SENT': { label: 'Dikirim', variant: 'pending' },
       'DELIVERED': { label: 'Sampai', variant: 'warning' },
       'DONE': { label: 'Selesai', variant: 'success' },
+      'REJECTED': { label: 'Ditolak', variant: 'destructive' },
       'CANCELLED': { label: 'Dibatalkan', variant: 'destructive' },
       'CANCELED': { label: 'Dibatalkan', variant: 'destructive' },
     };
@@ -277,7 +291,9 @@ export default function AdminOrdersPage() {
     const statusMap: Record<string, { label: string; variant: 'warning' | 'info' | 'success' | 'destructive' | 'pending' }> = {
       'UNPAID': { label: 'Belum Bayar', variant: 'warning' },
       'PENDING': { label: 'Menunggu', variant: 'info' },
+      'PENDING_TRANSFER': { label: 'Menunggu verifikasi', variant: 'info' },
       'PAID': { label: 'Lunas', variant: 'success' },
+      'FAILED': { label: 'Ditolak', variant: 'destructive' },
       'EXPIRED': { label: 'Expired', variant: 'destructive' },
       'COD': { label: 'COD', variant: 'pending' },
     };
@@ -406,10 +422,16 @@ export default function AdminOrdersPage() {
             )}
             <DropdownMenuSeparator />
             {/* Payment verification */}
-            {item.status === 'PENDING_PAYMENT' && item.payment_proof_url && (
+            {item.status === 'PENDING_PAYMENT' && item.payment_proof_url && item.payment_status !== 'FAILED' && (
               <DropdownMenuItem onClick={() => verifyPayment(item.id)}>
                 <Check className="h-4 w-4 mr-2" />
                 Verifikasi Pembayaran
+              </DropdownMenuItem>
+            )}
+            {item.status === 'PENDING_PAYMENT' && item.payment_status === 'FAILED' && (
+              <DropdownMenuItem disabled className="text-muted-foreground">
+                <Clock className="h-4 w-4 mr-2" />
+                Menunggu Bukti Baru
               </DropdownMenuItem>
             )}
             {item.status === 'PENDING_PAYMENT' && !item.payment_proof_url && (
@@ -470,6 +492,7 @@ export default function AdminOrdersPage() {
         { value: 'DELIVERED', label: 'Sampai' },
         { value: 'DONE', label: 'Selesai' },
         { value: 'CANCELLED', label: 'Dibatalkan' },
+        { value: 'REJECTED', label: 'Ditolak' },
       ],
     },
     {
@@ -478,7 +501,9 @@ export default function AdminOrdersPage() {
       options: [
         { value: 'UNPAID', label: 'Belum Bayar' },
         { value: 'PENDING', label: 'Menunggu' },
+        { value: 'PENDING_TRANSFER', label: 'Menunggu verifikasi' },
         { value: 'PAID', label: 'Lunas' },
+        { value: 'FAILED', label: 'Ditolak' },
         { value: 'COD', label: 'COD' },
       ],
     },
@@ -607,6 +632,8 @@ export default function AdminOrdersPage() {
         onOpenAssignCourier={openAssignDialog}
         getStatusBadge={getStatusBadge}
         getPaymentBadge={getPaymentBadge}
+        onVerifyPayment={verifyPayment}
+        onRejectPayment={rejectPayment}
       />
 
       {selectedOrder && (

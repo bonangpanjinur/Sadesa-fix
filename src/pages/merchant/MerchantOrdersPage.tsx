@@ -330,6 +330,8 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
     const statusMap: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'destructive' }> = {
       'PAID': { label: 'Lunas', variant: 'success' },
       'PENDING': { label: 'Menunggu', variant: 'warning' },
+      'PENDING_TRANSFER': { label: 'Menunggu verifikasi', variant: 'warning' },
+      'FAILED': { label: 'Bukti ditolak', variant: 'destructive' },
       'UNPAID': { label: 'Belum Bayar', variant: 'destructive' },
     };
     const config = statusMap[status || 'UNPAID'] || { label: status || '-', variant: 'outline' as const };
@@ -436,10 +438,16 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {/* Payment verification for PENDING_PAYMENT orders */}
-            {item.status === 'PENDING_PAYMENT' && item.payment_proof_url && (
+            {item.status === 'PENDING_PAYMENT' && item.payment_proof_url && item.payment_status !== 'FAILED' && (
               <DropdownMenuItem onClick={() => handleVerifyPayment(item.id)}>
                 <Check className="h-4 w-4 mr-2" />
                 Verifikasi Pembayaran
+              </DropdownMenuItem>
+            )}
+            {item.status === 'PENDING_PAYMENT' && item.payment_status === 'FAILED' && (
+              <DropdownMenuItem disabled className="text-muted-foreground">
+                <Clock className="h-4 w-4 mr-2" />
+                Menunggu Bukti Baru
               </DropdownMenuItem>
             )}
             {item.status === 'PENDING_PAYMENT' && !item.payment_proof_url && (
@@ -806,7 +814,11 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
               {/* Payment Verification for PENDING_PAYMENT */}
               {selectedOrder.status === 'PENDING_PAYMENT' && (
                 <div className="space-y-3">
-                  {selectedOrder.payment_proof_url ? (
+                  {selectedOrder.payment_status === 'FAILED' ? (
+                    <div role="status" className="w-full rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Bukti pembayaran ditolak. Menunggu pembeli mengunggah bukti baru.</p>
+                    </div>
+                  ) : selectedOrder.payment_proof_url ? (
                     <Button 
                       className="w-full"
                       onClick={() => handleVerifyPayment(selectedOrder.id)}

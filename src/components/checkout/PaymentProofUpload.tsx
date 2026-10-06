@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, Loader2, CheckCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { uploadFile, deleteFile, validateFile, compressImage } from '@/lib/storage';
@@ -15,9 +15,10 @@ interface PaymentProofUploadProps {
   onUploaded: (url: string) => void;
   disabled?: boolean;
   guestAccessToken?: string;
+  isRejected?: boolean;
 }
 
-export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disabled = false, guestAccessToken }: PaymentProofUploadProps) {
+export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disabled = false, guestAccessToken, isRejected = false }: PaymentProofUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(currentProofUrl || null);
   const [displayUrl, setDisplayUrl] = useState<string | null>(null);
@@ -121,9 +122,9 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
               className="w-full h-48 object-cover"
             />
             <div className="absolute top-2 left-2">
-              <div className="flex items-center gap-1 bg-success/90 text-white px-2 py-1 rounded-full text-xs font-medium">
-                <CheckCircle className="h-3 w-3" />
-                Terupload
+              <div className={cn('flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white', isRejected ? 'bg-destructive/90' : 'bg-success/90')}>
+                {isRejected ? <XCircle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
+                {isRejected ? 'Ditolak — unggah ulang' : 'Terupload'}
               </div>
             </div>
           </div>

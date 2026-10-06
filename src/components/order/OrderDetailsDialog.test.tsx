@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mocks = vi.hoisted(() => ({
   getPaymentProofSignedUrl: vi.fn(),
+  onVerifyPayment: vi.fn().mockResolvedValue(true),
+  onRejectPayment: vi.fn().mockResolvedValue(true),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
@@ -51,19 +53,21 @@ const order = {
 
 const orderItems = [{ id: 'item-1', product_name: 'Mie ayam Pangsit', quantity: 4, product_price: 10000, subtotal: 40000 }];
 
-function renderOrderDetails(items = orderItems) {
+function renderOrderDetails(items = orderItems, orderOverride: Partial<typeof order> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <OrderDetailsDialog
         open
         onOpenChange={vi.fn()}
-        order={order}
+        order={{ ...order, ...orderOverride }}
         orderItems={items}
         onUpdateStatus={vi.fn()}
         onOpenAssignCourier={vi.fn()}
         getStatusBadge={() => <span>Selesai</span>}
         getPaymentBadge={() => <span>Lunas</span>}
+        onVerifyPayment={mocks.onVerifyPayment}
+        onRejectPayment={mocks.onRejectPayment}
       />
     </QueryClientProvider>,
   );
@@ -128,5 +132,42 @@ describe('OrderDetailsDialog payment proof', () => {
     await waitFor(() => expect(clickedDownloads).toEqual(['bukti-pembayaran-665F3CB3.png']));
     expect(fetchMock).toHaveBeenCalledWith('https://storage.example/signed-proof.jpg');
     expect(mocks.toast.success).toHaveBeenCalledWith('Bukti pembayaran berhasil diunduh');
+  });
+
+  it('lets an admin confirm a pending transfer with uploaded proof', async () => {
+    renderOrderDetails([], { status: 'PENDING_PAYMENT', payment_status: 'PENDING_TRANSFER' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Konfirmasi Pembayaran' }));
+
+    await waitFor(() => expect(mocks.onVerifyPayment).toHaveBeenCalledWith(order.id));
+  });
+
+  it('requires a reason before rejecting the uploaded payment proof', async () => {
+    renderOrderDetails([], { status: 'PENDING_PAYMENT', payment_status: 'PENDING_TRANSFER' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tolak Bukti Pembayaran' }));
+    const reason = screen.getByRole('textbox', { name: 'Alasan penolakan (wajib)' });
+    const submit = screen.getByRole('button', { name: 'Konfirmasi Penolakan' });
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(reason, { target: { value: 'Nominal transfer tidak sesuai' } });
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(mocks.onRejectPayment).toHaveBeenCalledWith(order.id, 'Nominal transfer tidak sesuai'));
+  });
+
+  it('does not show payment review actions when no proof is uploaded', () => {
+    renderOrderDetails([], { status: 'PENDING_PAYMENT', payment_status: 'PENDING_TRANSFER', payment_proof_url: null });
+
+    expect(screen.queryByRole('button', { name: 'Konfirmasi Pembayaran' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tolak Bukti Pembayaran' })).not.toBeInTheDocument();
+  });
+
+  it('waits for a replacement proof after the current proof has been rejected', () => {
+    renderOrderDetails([], { status: 'PENDING_PAYMENT', payment_status: 'FAILED' });
+
+    expect(screen.getByText('Bukti sebelumnya ditolak. Menunggu pembeli mengunggah bukti pembayaran baru.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Konfirmasi Pembayaran' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tolak Bukti Pembayaran' })).not.toBeInTheDocument();
   });
 });

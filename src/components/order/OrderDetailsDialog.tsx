@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/utils';
 import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle, Package, ImageIcon, RefreshCw, Download, Share2, Loader2 } from 'lucide-react';
@@ -66,6 +67,8 @@ interface OrderDetailsDialogProps {
   onOpenAssignCourier: (order: OrderRow) => void;
   getStatusBadge: (status: string) => React.ReactNode;
   getPaymentBadge: (paymentStatus: string | null) => React.ReactNode;
+  onVerifyPayment: (orderId: string) => Promise<boolean>;
+  onRejectPayment: (orderId: string, reason: string) => Promise<boolean>;
 }
 
 export function OrderDetailsDialog({
@@ -77,8 +80,13 @@ export function OrderDetailsDialog({
   onOpenAssignCourier,
   getStatusBadge,
   getPaymentBadge,
+  onVerifyPayment,
+  onRejectPayment,
 }: OrderDetailsDialogProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isReviewingPayment, setIsReviewingPayment] = useState(false);
+  const [isRejectingPayment, setIsRejectingPayment] = useState(false);
+  const [paymentRejectionReason, setPaymentRejectionReason] = useState('');
   const [isDownloadingProof, setIsDownloadingProof] = useState(false);
   const [isSharingOrder, setIsSharingOrder] = useState(false);
   const [deliveryType, setDeliveryType] = useState<"courier" | "self">("courier");
@@ -299,6 +307,30 @@ export function OrderDetailsDialog({
     }
   };
 
+  const handleVerifyPayment = async () => {
+    setIsReviewingPayment(true);
+    try {
+      await onVerifyPayment(order.id);
+    } finally {
+      setIsReviewingPayment(false);
+    }
+  };
+
+  const handleRejectPayment = async () => {
+    const reason = paymentRejectionReason.trim();
+    if (reason.length < 3) return;
+    setIsReviewingPayment(true);
+    try {
+      const rejected = await onRejectPayment(order.id, reason);
+      if (rejected) {
+        setIsRejectingPayment(false);
+        setPaymentRejectionReason('');
+      }
+    } finally {
+      setIsReviewingPayment(false);
+    }
+  };
+
   // Custom handler for processing order and setting the self delivery flag
   const handleProcessOrder = async () => {
     try {
@@ -503,6 +535,59 @@ export function OrderDetailsDialog({
               ) : null}
             </section>
           )}
+
+          {order.status === 'PENDING_PAYMENT' && order.payment_status === 'FAILED' && (
+            <div role="status" className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
+              Bukti sebelumnya ditolak. Menunggu pembeli mengunggah bukti pembayaran baru.
+            </div>
+          )}
+
+          {order.status === 'PENDING_PAYMENT'
+            && order.payment_method === 'TRANSFER'
+            && !!order.payment_proof_url
+            && !['PAID', 'FAILED'].includes(order.payment_status || '') && (
+              <section className="space-y-3 rounded-lg border border-border p-4" aria-label="Tinjau pembayaran">
+                <div>
+                  <p className="text-sm font-semibold">Tinjau Pembayaran</p>
+                  <p className="text-xs text-muted-foreground">Periksa bukti transfer sebelum mengonfirmasi atau menolaknya.</p>
+                </div>
+                {isRejectingPayment ? (
+                  <div className="space-y-2">
+                    <p className="rounded-md bg-destructive/5 p-2 text-xs text-muted-foreground" role="note">
+                      Penolakan hanya menolak bukti ini. Pesanan tetap menunggu pembayaran sehingga pembeli dapat mengunggah bukti baru.
+                    </p>
+                    <Label htmlFor="payment-rejection-reason">Alasan penolakan (wajib)</Label>
+                    <Textarea
+                      id="payment-rejection-reason"
+                      value={paymentRejectionReason}
+                      onChange={(event) => setPaymentRejectionReason(event.target.value)}
+                      placeholder="Contoh: nominal transfer tidak sesuai"
+                      maxLength={1000}
+                      disabled={isReviewingPayment}
+                    />
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" className="flex-1" onClick={() => { setIsRejectingPayment(false); setPaymentRejectionReason(''); }} disabled={isReviewingPayment}>
+                        Batal
+                      </Button>
+                      <Button type="button" variant="destructive" className="flex-1" onClick={() => void handleRejectPayment()} disabled={isReviewingPayment || paymentRejectionReason.trim().length < 3}>
+                        {isReviewingPayment ? 'Memproses...' : 'Konfirmasi Penolakan'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button type="button" className="flex-1" onClick={() => void handleVerifyPayment()} disabled={isReviewingPayment}>
+                      {isReviewingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                      Konfirmasi Pembayaran
+                    </Button>
+                    <Button type="button" variant="destructive" className="flex-1" onClick={() => setIsRejectingPayment(true)} disabled={isReviewingPayment}>
+                      <X className="mr-2 h-4 w-4" />
+                      Tolak Bukti Pembayaran
+                    </Button>
+                  </div>
+                )}
+              </section>
+            )}
 
           {/* Cost Breakdown */}
           <div className="border-t border-border pt-4 space-y-2">
