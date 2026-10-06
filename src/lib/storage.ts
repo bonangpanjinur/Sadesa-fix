@@ -15,6 +15,7 @@ interface UploadOptions {
 
 interface UploadResult {
   url: string | null;
+  path: string | null;
   error: string | null;
 }
 
@@ -46,11 +47,11 @@ export async function uploadFile({ bucket, path, file, fileName, upsert = false 
       .from(bucket)
       .getPublicUrl(objectName);
 
-    return { url: urlData.publicUrl, error: null };
+    return { url: urlData.publicUrl, path: objectName, error: null };
     }, context);
   } catch (err) {
     reportObservability('upload', 'file_upload_result_error', 'error', context, err);
-    return { url: null, error: 'Gagal mengupload file' };
+    return { url: null, path: null, error: 'Gagal mengupload file' };
   }
 }
 
@@ -61,11 +62,14 @@ export async function deleteFile(bucket: StorageBucket, url: string): Promise<bo
   try {
     reportObservability('upload', 'file_delete_started', 'info', { bucket });
     // Extract path from URL
-    const urlObj = new URL(url);
-    const pathParts = urlObj.pathname.split(`/storage/v1/object/public/${bucket}/`);
-    if (pathParts.length < 2) return false;
-    
-    const filePath = decodeURIComponent(pathParts[1]);
+    let filePath = url;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split(`/storage/v1/object/public/${bucket}/`);
+      if (pathParts.length < 2) return false;
+      filePath = decodeURIComponent(pathParts[1]);
+    }
+    if (!filePath || filePath.startsWith('/') || filePath.includes('..')) return false;
     
     const { error } = await supabase.storage
       .from(bucket)

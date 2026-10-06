@@ -32,6 +32,12 @@ describe('service payment proof storage', () => {
     expect(createSignedUrl).toHaveBeenCalledWith('services/request/uploader/proof.jpg', 900);
   });
 
+  it('creates a signed URL from the canonical marketplace order path', async () => {
+    createSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://signed.example/order-proof' }, error: null });
+    await expect(getPaymentProofSignedUrl('orders/order-id/receipt.jpg')).resolves.toBe('https://signed.example/order-proof');
+    expect(createSignedUrl).toHaveBeenCalledWith('orders/order-id/receipt.jpg', 3600);
+  });
+
   it('signs legacy payment-proofs URLs but rejects arbitrary URLs and signing failures', async () => {
     createSignedUrl.mockResolvedValueOnce({ data: { signedUrl: 'https://signed.example/legacy' }, error: null });
     createSignedUrl.mockResolvedValueOnce({ data: null, error: { message: 'missing object' } });

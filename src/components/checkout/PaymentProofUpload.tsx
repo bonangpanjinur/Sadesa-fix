@@ -59,16 +59,20 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
         return;
       }
 
-      if (result.url) {
+      if (result.url && result.path) {
+        // Store the bucket-relative object path. The bucket is private, so the
+        // merchant/admin must resolve it through a signed URL instead of
+        // relying on a public URL that may stop working after bucket hardening.
+        const storedProofPath = result.path;
         const { error: updateError } = guestAccessToken
           ? await supabase.rpc('guest_submit_payment_proof', {
               p_order_id: orderId,
               p_guest_access_token: guestAccessToken,
-              p_payment_proof_url: result.url,
+              p_payment_proof_url: storedProofPath,
             })
           : await supabase.rpc('buyer_submit_payment_proof', {
               p_order_id: orderId,
-              p_payment_proof_url: result.url,
+              p_payment_proof_url: storedProofPath,
             });
 
         if (updateError) {
@@ -78,8 +82,8 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
           return;
         }
 
-        setProofUrl(result.url);
-        onUploaded(result.url);
+        setProofUrl(storedProofPath);
+        onUploaded(storedProofPath);
         reportObservability('upload', 'payment_proof_uploaded', 'info', { hasOrderId: Boolean(orderId) });
         toast.success('Bukti pembayaran berhasil diupload');
       }

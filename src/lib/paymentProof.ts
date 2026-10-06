@@ -1,13 +1,12 @@
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 function extractPaymentProofPath(value: string): string | null {
   try {
     if (!value.startsWith('http://') && !value.startsWith('https://')) {
-      const path = decodeURIComponent(value).replace(/^\/+/, '');
+      const path = decodeURIComponent(value).replace(/^\/+/, '').replace(/^payment-proofs\//, '');
       return path.startsWith('services/') || path.startsWith('orders/') ? path : null;
     }
     const parsed = new URL(value);
-    if (parsed.origin !== new URL(SUPABASE_URL).origin) return null;
     const marker = '/payment-proofs/';
     const idx = parsed.pathname.indexOf(marker);
     if (idx === -1) return null;
