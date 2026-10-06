@@ -295,6 +295,7 @@ export function AddressSelector({
 
   return (
     <div className="space-y-3">
+      <p className="rounded-lg bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">Isi dari atas ke bawah: provinsi, kota/kabupaten, kecamatan, lalu desa/kelurahan.</p>
       {/* Province */}
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">Provinsi</Label>
@@ -303,7 +304,7 @@ export function AddressSelector({
           onValueChange={handleProvinceChange}
           disabled={disabled || loadingProvinces}
         >
-          <SelectTrigger className="h-10">
+          <SelectTrigger className="h-12 text-sm">
             {loadingProvinces ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -331,7 +332,7 @@ export function AddressSelector({
           onValueChange={handleCityChange}
           disabled={disabled || !value.province || loadingCities}
         >
-          <SelectTrigger className="h-10">
+          <SelectTrigger className="h-12 text-sm">
             {loadingCities ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -359,7 +360,7 @@ export function AddressSelector({
           onValueChange={handleDistrictChange}
           disabled={disabled || !value.city || loadingDistricts}
         >
-          <SelectTrigger className="h-10">
+          <SelectTrigger className="h-12 text-sm">
             {loadingDistricts ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -387,7 +388,7 @@ export function AddressSelector({
           onValueChange={handleVillageChange}
           disabled={disabled || !value.district || loadingVillages}
         >
-          <SelectTrigger className={`h-10 ${!value.village && value.district && !loadingVillages && villages.length === 0 ? 'border-warning' : ''}`}>
+          <SelectTrigger className={`h-12 text-sm ${!value.village && value.district && !loadingVillages && villages.length === 0 ? 'border-warning' : ''}`}>
             {loadingVillages ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />

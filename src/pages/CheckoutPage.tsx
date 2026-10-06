@@ -440,7 +440,8 @@ export default function CheckoutPage() {
       });
       // Scroll to first error
       setTimeout(() => {
-        document.querySelector('.text-destructive')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const firstErrorField = Object.keys(errors).find((key) => errors[key]);
+        document.getElementById(`error-${firstErrorField || 'address'}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
       return;
     }
@@ -662,9 +663,9 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="mobile-shell bg-secondary flex flex-col min-h-screen">
+    <div className="mobile-shell bg-secondary flex flex-col min-h-screen min-h-[100dvh]">
       {/* Sticky Header & Step Indicator */}
-      <div className="sticky top-0 z-50 bg-card shadow-sm">
+      <div className="sticky top-0 z-50 bg-card/95 shadow-sm backdrop-blur-md">
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center gap-3">
           <button
@@ -682,8 +683,8 @@ export default function CheckoutPage() {
         </div>
 
         {/* Step Indicator */}
-        <div className="px-4 pt-3 pb-1 border-b border-border">
-          <div className="flex items-center justify-between">
+        <div className="px-3 pt-2 pb-2 border-b border-border" aria-label="Tahapan checkout">
+          <div className="flex items-center justify-between gap-1">
             {[
               { icon: Package, label: 'Pesanan', done: items.length > 0 },
               { icon: MapPin, label: 'Alamat', done: !!(addressData.address.province && addressData.address.city && addressData.address.district && addressData.address.village) },
@@ -705,14 +706,14 @@ export default function CheckoutPage() {
                   </div>
                   <span className={`text-[9px] font-medium ${step.done ? 'text-primary' : 'text-muted-foreground'}`}>{step.label}</span>
                 </div>
-                {i < 3 && <div className={`w-6 h-px mx-1 mb-4 ${step.done ? 'bg-primary' : 'bg-border'}`} />}
+                {i < 3 && <div className={`h-px flex-1 min-w-2 mx-1 mb-4 ${step.done ? 'bg-primary' : 'bg-border'}`} />}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 pb-56">
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 pb-56 overscroll-contain">
         {/* Closed Merchants Alert */}
         {!operatingHoursLoading && closedMerchants.length > 0 && (
           <motion.div
@@ -773,7 +774,7 @@ export default function CheckoutPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-card rounded-xl p-4 border border-border shadow-sm mb-4"
+          className="bg-card rounded-xl p-3 sm:p-4 border border-border shadow-sm mb-3 sm:mb-4"
         >
           <div className="flex items-center gap-2 mb-4">
             <Package className="h-5 w-5 text-primary" />
@@ -804,7 +805,7 @@ export default function CheckoutPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="bg-card rounded-xl p-4 border border-border shadow-sm mb-4"
+          className="bg-card rounded-xl p-3 sm:p-4 border border-border shadow-sm mb-3 sm:mb-4"
         >
           <div className="flex items-center gap-2 mb-4">
             <MapPin className="h-5 w-5 text-primary" />
@@ -880,7 +881,7 @@ export default function CheckoutPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-card rounded-xl p-4 border border-border shadow-sm mb-4"
+          className="bg-card rounded-xl p-3 sm:p-4 border border-border shadow-sm mb-3 sm:mb-4"
         >
           <div className="flex items-center gap-2 mb-4">
             <Truck className="h-5 w-5 text-primary" />
@@ -941,7 +942,7 @@ export default function CheckoutPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="bg-card rounded-xl p-4 border border-border shadow-sm mb-4"
+          className="bg-card rounded-xl p-3 sm:p-4 border border-border shadow-sm mb-3 sm:mb-4"
         >
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="h-5 w-5 text-primary" />
@@ -1021,7 +1022,7 @@ export default function CheckoutPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="bg-card rounded-xl p-4 border border-border shadow-sm mb-4"
+          className="bg-card rounded-xl p-3 sm:p-4 border border-border shadow-sm mb-3 sm:mb-4"
         >
           {!user ? (
             <p className="text-sm text-muted-foreground">Voucher akun dan diskon tersimpan hanya tersedia setelah login.</p>
@@ -1059,7 +1060,7 @@ export default function CheckoutPage() {
       </form>
 
         {/* Checkout Summary */}
-      <div className="mobile-action-safe fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-card border-t border-border p-5 shadow-lg">
+      <div className="mobile-action-safe fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto z-40 bg-card/95 border-t border-border px-3 pt-2 shadow-lg backdrop-blur-md sm:p-5">
         {(knownStockConflict || stockConflict) && (
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
@@ -1073,11 +1074,11 @@ export default function CheckoutPage() {
             <span>{t('shipping.freeMinOrder', { min: formatCurrency(shippingSettings.free_shipping_min_order) })}</span>
           </div>
         )}
-        <div className="flex justify-between items-center mb-1 text-sm">
+        <div className="hidden sm:flex justify-between items-center mb-1 text-sm">
           <span className="text-muted-foreground">{t('shipping.subtotal')}</span>
           <span className="font-bold">{formatCurrency(subtotal)}</span>
         </div>
-        <div className="flex justify-between items-center mb-1 text-sm">
+        <div className="hidden sm:flex justify-between items-center mb-1 text-sm">
           <span className="text-muted-foreground">{t('shipping.fee')}</span>
           <span className="font-bold">{formatCurrency(shippingCost)}</span>
         </div>
@@ -1087,12 +1088,12 @@ export default function CheckoutPage() {
             <span className="font-bold text-primary">-{formatCurrency(voucherDiscount)}</span>
           </div>
         )}
-        <div className="flex justify-between items-center mb-3 pt-3 border-t border-border">
-          <span className="text-lg font-bold">{t('shipping.total')}</span>
-          <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
+        <div className="flex justify-between items-center mb-2 pt-2 sm:mb-3 sm:pt-3 border-t border-border">
+          <span className="text-base sm:text-lg font-bold">{t('shipping.total')}</span>
+          <span className="text-lg sm:text-xl font-bold text-primary">{formatCurrency(total)}</span>
         </div>
         {/* Payment method label */}
-        <div className="flex items-center gap-1.5 mb-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] text-muted-foreground">
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
@@ -1102,7 +1103,6 @@ export default function CheckoutPage() {
         </div>
         <Button
           type="submit"
-          onClick={handleSubmit}
           className={`w-full shadow-brand font-bold transition-all ${
             !loading && items.length > 0 && allMerchantsOpen ? 'animate-pulse hover:animate-none' : ''
           }`}

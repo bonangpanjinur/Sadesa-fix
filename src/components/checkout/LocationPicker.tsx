@@ -180,8 +180,8 @@ export function LocationPicker({
 
       {/* OpenStreetMap Container - Enhanced UI */}
       <div 
-        className="relative rounded-lg border-2 border-primary/30 overflow-hidden bg-muted shadow-sm hover:border-primary/50 transition-colors cursor-crosshair"
-        style={{ height: '280px', width: '100%', zIndex: 0 }}
+        className="relative h-[220px] overflow-hidden rounded-lg border-2 border-primary/30 bg-muted shadow-sm transition-colors hover:border-primary/50 sm:h-[280px] cursor-crosshair"
+        style={{ width: '100%', zIndex: 0 }}
       >
         <style>
           {`
@@ -230,28 +230,28 @@ export function LocationPicker({
         </MapContainer>
       </div>
 
-      {/* Helper text */}
-      <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
-        <Navigation className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-        <div className="text-xs text-blue-700 space-y-1">
-          <p className="font-medium">Cara menggunakan peta:</p>
-          <ul className="list-disc list-inside space-y-0.5">
-            <li>Klik pada peta untuk menentukan titik pengiriman</li>
-            <li>Gunakan tombol "Lokasi Saya" untuk GPS otomatis</li>
-            <li>Geser peta untuk melihat area lain</li>
-          </ul>
-        </div>
-      </div>
+      {/* Helper text is collapsible on mobile to keep the address flow short. */}
+      <details className="group rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700">
+        <summary className="flex cursor-pointer list-none items-center gap-2 font-medium [&::-webkit-details-marker]:hidden">
+          <Navigation className="h-4 w-4 flex-shrink-0" />
+          <span>Cara mengatur titik lokasi</span>
+          <span className="ml-auto text-blue-500 transition group-open:rotate-180">⌄</span>
+        </summary>
+        <ul className="mt-2 list-disc space-y-0.5 pl-5">
+          <li>Alamat manual akan memberi titik awal secara otomatis.</li>
+          <li>Gunakan GPS atau ketuk peta untuk memperhalus titik.</li>
+        </ul>
+      </details>
 
       {/* Location status - Enhanced */}
-      <div className="rounded-lg border-2 p-4 bg-card">
+      <div className="rounded-lg border p-3 bg-card">
         {value ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-primary">
               <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-sm font-semibold">Lokasi Dipilih</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div className="bg-muted p-2 rounded">
                 <p className="text-muted-foreground">Latitude</p>
                 <p className="font-mono font-medium">{value.lat.toFixed(6)}</p>

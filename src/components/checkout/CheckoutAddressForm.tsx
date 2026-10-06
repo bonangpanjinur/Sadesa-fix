@@ -64,7 +64,6 @@ export function CheckoutAddressForm({
   const isAddressComplete = !!(value.address.province && value.address.city && value.address.district && value.address.village);
   const isContactComplete = !!(value.name && value.phone);
   const hasDetectedLocation = !!(value.location && detectedAddress);
-  const combinedFullAddress = [formatFullAddress(value.address), value.detailAddress?.trim()].filter(Boolean).join(', ');
 
   // Auto-populate from default saved address or profile on mount
   useEffect(() => {
@@ -197,6 +196,16 @@ export function CheckoutAddressForm({
         );
         if (coords) {
           setMapCenter({ lat: coords.lat, lng: coords.lng });
+          // A complete manual address is also a usable delivery point. Keep the
+          // pin editable, but do not force mobile users to repeat the same data
+          // on the map before they can continue.
+          if (!value.location) {
+            onChange({
+              ...value,
+              location: { lat: coords.lat, lng: coords.lng },
+              fullAddress: [formatFullAddress(value.address), value.detailAddress?.trim()].filter(Boolean).join(', '),
+            });
+          }
         }
       };
       geocodeAddress();
@@ -433,7 +442,7 @@ export function CheckoutAddressForm({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-checkout-address-form>
       {/* Saved Address Picker */}
       {(savedAddresses.length > 0 || profileAddress) && (
         <div className="space-y-3">
@@ -531,10 +540,10 @@ export function CheckoutAddressForm({
       </div>
 
       {/* Manual region address input: keep checkout state, stepper, validation and payload in sync. */}
-      <div className="space-y-3" id="error-address">
+      <div className="space-y-3 scroll-mt-36" id="error-address">
         <div className="flex items-center gap-2">
           {isAddressComplete ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <MapPin className="h-4 w-4 text-primary" />}
-          <h4 className="font-medium text-sm">Wilayah Alamat</h4>
+          <div className="min-w-0"><h4 className="font-medium text-sm">Wilayah Alamat</h4><p className="text-[11px] text-muted-foreground mt-0.5">Pilih berurutan agar alamat cepat terisi</p></div>
           {isAddressComplete && <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">Lengkap</span>}
         </div>
         <AddressSelector value={value.address} onChange={handleAddressChange} showDetailInput={false} />
@@ -542,7 +551,7 @@ export function CheckoutAddressForm({
 
       {/* Map-First Address Input */}
       {!hideMap && (
-        <div className="space-y-4" id="error-location">
+        <div className="space-y-4 scroll-mt-36" id="error-location">
           <div className="flex items-center gap-2">
             {hasDetectedLocation ? (
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -598,7 +607,7 @@ export function CheckoutAddressForm({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          <h4 className="font-medium text-sm">Detail Alamat</h4>
+          <div><h4 className="font-medium text-sm">Detail Alamat</h4><p className="text-[11px] text-muted-foreground mt-0.5">Nomor rumah dan patokan membantu kurir</p></div>
         </div>
 
         <div className="space-y-1.5">
