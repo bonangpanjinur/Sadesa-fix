@@ -41,4 +41,4 @@ VITE_VAPID_PUBLIC_KEY = "BBQAF5PSov1CegFK_XLJYcqiE1z7vrmq0rJva5akTpbuOP5Bmq9zCWQ
 VITE_SUPABASE_URL = "https://xqdbnlcvboelvkdotilj.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_GGm4KeLx3PfUM2JYXldI1Q_lE4noIGz"
 VITE_SUPABASE_PROJECT_ID = "xqdbnlcvboelvkdotilj"
-SUPABASE_PROJECT_REF = "projectsadesaidtaraju"
+SUPABASE_PROJECT_REF = "xqdbnlcvboelvkdotilj"
