@@ -20,7 +20,7 @@ import { createEmptyCheckoutAddress } from '@/components/checkout/checkoutAddres
 import { formatFullAddress } from '@/components/AddressSelector';
 import { validatePhone } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
-import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
+import { getDeliveryRestriction, MAX_OJEK_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
 import { requestRequiredLocation } from '@/lib/requiredLocation';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
@@ -56,7 +56,7 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
-  const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
+  const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
@@ -108,10 +108,6 @@ export default function CheckoutPage() {
 
   // Get merchant location state (will be loaded after merchantIds are computed)
   const [merchantLocation, setMerchantLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [merchantRegion, setMerchantRegion] = useState<{
-    cityName: string | null;
-    districtName: string | null;
-  }>({ cityName: null, districtName: null });
 
   const subtotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   const knownStockConflict = items.some((item) =>
@@ -143,19 +139,9 @@ export default function CheckoutPage() {
   const total = subtotal + shippingCost - voucherDiscount;
 
   const deliveryRestriction = useMemo(
-    () => getDeliveryRestriction(
-      distanceKm,
-      addressData.address,
-      merchantRegion,
-    ),
-    [distanceKm, addressData.address, merchantRegion],
+    () => getDeliveryRestriction(distanceKm),
+    [distanceKm],
   );
-
-  useEffect(() => {
-    if (deliveryRestriction.requiresExpedition && deliveryType === 'INTERNAL') {
-      setDeliveryType('EXPEDITION');
-    }
-  }, [deliveryRestriction.requiresExpedition, deliveryType]);
 
   // Group items by merchant
   const itemsByMerchant = useMemo(() => items.reduce((acc, item) => {
@@ -196,7 +182,7 @@ export default function CheckoutPage() {
       // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
       const { data } = await supabase
         .from('merchants')
-        .select('location_lat, location_lng, province, city, district, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
+        .select('location_lat, location_lng, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
         .eq('id', firstMerchantId)
         .maybeSingle();
 
@@ -208,11 +194,6 @@ export default function CheckoutPage() {
           });
         }
         if (cancelled) return;
-        setMerchantRegion({
-          cityName: data.city ?? null,
-          districtName: data.district ?? null,
-        });
-
         // If merchant has no bank info, load admin defaults
         let bankName = data.bank_name;
         let bankAccountNumber = data.bank_account_number;
@@ -338,7 +319,12 @@ export default function CheckoutPage() {
     Number.isFinite(addressData.location.lat) &&
     Number.isFinite(addressData.location.lng),
   );
-  const isDeliveryReady = deliveryType === 'PICKUP' || (hasCompleteDeliveryAddress && hasValidDeliveryLocation);
+  const isDeliveryReady = deliveryType === 'PICKUP' || (
+    hasCompleteDeliveryAddress &&
+    hasValidDeliveryLocation &&
+    distanceKm !== null &&
+    !deliveryRestriction.exceedsMaxDistance
+  );
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -381,8 +367,10 @@ export default function CheckoutPage() {
       newErrors.location = 'Tentukan titik lokasi pengiriman di peta';
     }
 
-    if (deliveryType === 'INTERNAL' && deliveryRestriction.requiresExpedition) {
-      newErrors.delivery = 'Alamat ini wajib menggunakan ekspedisi.';
+    if (deliveryType === 'INTERNAL' && distanceKm === null) {
+      newErrors.delivery = 'Tunggu sampai jarak rute selesai dihitung sebelum memilih pengiriman Ojek.';
+    } else if (deliveryType === 'INTERNAL' && deliveryRestriction.exceedsMaxDistance) {
+      newErrors.delivery = `Jarak rute melebihi batas Ojek ${MAX_OJEK_DELIVERY_DISTANCE_KM} km. Pilih ambil sendiri atau gunakan alamat lain.`;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -854,7 +842,7 @@ export default function CheckoutPage() {
           </motion.div>
         )}
 
-        {deliveryType !== 'PICKUP' && deliveryRestriction.requiresExpedition && (
+        {deliveryType === 'INTERNAL' && deliveryRestriction.exceedsMaxDistance && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -864,12 +852,9 @@ export default function CheckoutPage() {
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm">
-                <p className="font-semibold text-amber-900">Alamat ini wajib menggunakan ekspedisi</p>
+                <p className="font-semibold text-amber-900">Pengiriman Ojek tidak tersedia untuk alamat ini</p>
                 <p className="text-xs text-amber-800 mt-1">
-                  Ojek/kurir lokal hanya tersedia sampai {MAX_LOCAL_DELIVERY_DISTANCE_KM} km dan dalam kecamatan serta kabupaten/kota yang sama.
-                </p>
-                <p className="text-xs text-amber-800 mt-1">
-                  Alasan: {deliveryRestriction.reasons.join(' dan ')}.
+                  Jarak rute {distanceKm?.toFixed(1)} km melebihi batas maksimal Ojek {MAX_OJEK_DELIVERY_DISTANCE_KM} km. Pilih ambil sendiri atau ubah alamat pengiriman.
                 </p>
               </div>
             </div>
@@ -890,32 +875,21 @@ export default function CheckoutPage() {
 
           <RadioGroup
             value={deliveryType}
-            onValueChange={(value) => setDeliveryType(value as 'PICKUP' | 'INTERNAL' | 'EXPEDITION')}
+            onValueChange={(value) => setDeliveryType(value as 'PICKUP' | 'INTERNAL')}
             className="space-y-2"
           >
             <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
               deliveryType === 'INTERNAL' ? 'border-primary bg-primary/5' : 'border-border'
-            } ${deliveryRestriction.requiresExpedition ? 'opacity-60 cursor-not-allowed' : ''}`}>
-              <RadioGroupItem value="INTERNAL" id="internal" disabled={deliveryRestriction.requiresExpedition} />
+            } ${distanceKm === null || deliveryRestriction.exceedsMaxDistance ? 'opacity-60 cursor-not-allowed' : ''}`}>
+              <RadioGroupItem value="INTERNAL" id="internal" disabled={distanceKm === null || deliveryRestriction.exceedsMaxDistance} />
               <div className="flex-1">
                 <p className="font-bold text-sm">{t('shipping.delivery')}</p>
                 <p className="text-xs text-muted-foreground">
-                  {deliveryRestriction.requiresExpedition
-                    ? 'Tidak tersedia untuk alamat di luar jangkauan kurir lokal'
-                    : t('shipping.deliveryDesc')}
-                </p>
-              </div>
-              <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
-            </label>
-
-            <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
-              deliveryType === 'EXPEDITION' ? 'border-primary bg-primary/5' : 'border-border'
-            }`}>
-              <RadioGroupItem value="EXPEDITION" id="expedition" />
-              <div className="flex-1">
-                <p className="font-bold text-sm">Ekspedisi</p>
-                <p className="text-xs text-muted-foreground">
-                  Untuk jarak lebih dari {MAX_LOCAL_DELIVERY_DISTANCE_KM} km atau beda kecamatan/kabupaten
+                  {distanceKm === null
+                    ? 'Menunggu perhitungan jarak rute…'
+                    : deliveryRestriction.exceedsMaxDistance
+                      ? `Tidak tersedia: jarak melewati batas Ojek ${MAX_OJEK_DELIVERY_DISTANCE_KM} km`
+                      : t('shipping.deliveryDesc')}
                 </p>
               </div>
               <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
@@ -1134,7 +1108,11 @@ export default function CheckoutPage() {
         </Button>
         {!isDeliveryReady && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            Lengkapi wilayah alamat dan tentukan titik lokasi di peta untuk melanjutkan.
+            {deliveryType === 'INTERNAL' && deliveryRestriction.exceedsMaxDistance
+              ? `Jarak rute melebihi batas Ojek ${MAX_OJEK_DELIVERY_DISTANCE_KM} km. Pilih ambil sendiri atau ubah alamat.`
+              : deliveryType === 'INTERNAL' && hasValidDeliveryLocation && distanceKm === null
+                ? 'Tunggu sampai perhitungan jarak rute selesai untuk memastikan Ojek dapat menjangkau alamat.'
+                : 'Lengkapi wilayah alamat dan tentukan titik lokasi di peta untuk melanjutkan.'}
           </p>
         )}
       </div>

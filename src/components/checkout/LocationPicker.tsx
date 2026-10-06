@@ -20,7 +20,7 @@ interface LocationPickerProps {
   value: { lat: number; lng: number } | null;
   onChange: (location: { lat: number; lng: number }) => void;
   merchantLocation?: { lat: number; lng: number } | null;
-  onDistanceChange?: (distanceKm: number) => void;
+  onDistanceChange?: (distanceKm: number | null) => void;
   onLocationSelected?: (lat: number, lng: number) => void;
   disabled?: boolean;
   externalCenter?: { lat: number; lng: number } | null;
@@ -71,7 +71,9 @@ export function LocationPicker({
   // Calculate the drivable delivery distance. Abort old requests so a slower
   // response for a previous pin can never overwrite the current checkout.
   useEffect(() => {
-    if (!value || !merchantLocation || !onDistanceChange) return;
+    if (!onDistanceChange) return;
+    onDistanceChange(null);
+    if (!value || !merchantLocation) return;
     const controller = new AbortController();
     void getDeliveryDistanceKm(merchantLocation, value, controller.signal)
       .then(({ distanceKm }) => onDistanceChange(distanceKm))

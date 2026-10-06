@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment appended",
-  "migration_count": 357,
-  "bundle_count": 56,
+  "migration_count": 358,
+  "bundle_count": 57,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -751,6 +751,14 @@
       ],
       "sha256": "712c7738d9f5cccfa02aaac95d674162e1bd21d71bb9cd67ac1a8acf71d23a3a",
       "bytes": 6089
+    },
+    {
+      "file": "84_20261006180000_checkout_ojek_20km_limit.sql",
+      "source_files": [
+        "20261006180000_checkout_ojek_20km_limit.sql"
+      ],
+      "sha256": "1efc5b192826ba0cb651d40913111f1d3ddf64aad2dd6961ed3c941026259d75",
+      "bytes": 2839
     }
   ],
   "idempotent": true,

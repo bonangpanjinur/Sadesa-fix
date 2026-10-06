@@ -28,7 +28,7 @@ export interface CheckoutAddressData {
 interface CheckoutAddressFormProps {
   value: CheckoutAddressData;
   onChange: (data: CheckoutAddressData) => void;
-  onDistanceChange?: (distanceKm: number) => void;
+  onDistanceChange?: (distanceKm: number | null) => void;
   merchantLocation?: { lat: number; lng: number } | null;
   hideMap?: boolean;
   errors?: {
