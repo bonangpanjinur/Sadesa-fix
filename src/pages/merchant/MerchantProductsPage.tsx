@@ -50,6 +50,11 @@ interface ProductSummary {
   promo: number;
 }
 
+interface MissingPhotoProduct {
+  id: string;
+  name: string;
+}
+
 type ProductStatusFilter = 'all' | 'active' | 'inactive' | 'out_of_stock' | 'low_stock' | 'promo';
 
 const PAGE_SIZE = 25;
@@ -211,6 +216,29 @@ export default function MerchantProductsPage() {
     staleTime: 60_000,
   });
 
+  const { data: missingPhotoProducts = [] } = useQuery<MissingPhotoProduct[]>({
+    queryKey: ['merchant-products-missing-photos', merchantId],
+    queryFn: async () => {
+      if (!merchantId) return [];
+      const { data: rows, error } = await supabase.from('products').select('id, name, image_url').eq('merchant_id', merchantId);
+      if (error) throw error;
+      const productIds = (rows || []).map((row) => row.id);
+      const galleryResult = productIds.length
+        ? await supabase.from('product_images' as never).select('product_id, image_url').in('product_id', productIds)
+        : { data: [], error: null };
+      const galleryProductIds = new Set(
+        ((galleryResult.data || []) as unknown as Array<{ product_id: string; image_url: string | null }>)
+          .filter((row) => Boolean(row.image_url?.trim()))
+          .map((row) => row.product_id),
+      );
+      return (rows || [])
+        .filter((row) => !row.image_url?.trim() && !galleryProductIds.has(row.id))
+        .map((row) => ({ id: row.id, name: row.name }));
+    },
+    enabled: !!merchantId && !guardLoading,
+    staleTime: 60_000,
+  });
+
   const products = productsPage.rows;
   const totalProducts = productsPage.total;
   const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
@@ -232,6 +260,10 @@ export default function MerchantProductsPage() {
         });
         setFormErrors(nextErrors);
         throw new Error('Periksa kembali data produk');
+      }
+      if (!editingProduct && !form.image_url?.trim()) {
+        setFormErrors({ image_url: 'Foto produk wajib diunggah sebelum diterbitkan.' });
+        throw new Error('Foto produk wajib diunggah sebelum diterbitkan');
       }
       const selectedProductCategory = getCategoryBySlug(categories as ProductCategory[], parsed.data.category);
       if (selectedProductCategory && getCategoryChildren(categories as ProductCategory[], selectedProductCategory.id).length > 0) {
@@ -279,6 +311,7 @@ export default function MerchantProductsPage() {
       setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['merchant-products', merchantId] });
       queryClient.invalidateQueries({ queryKey: ['merchant-product-summary', merchantId] });
+      queryClient.invalidateQueries({ queryKey: ['merchant-products-missing-photos', merchantId] });
       queryClient.invalidateQueries({ queryKey: ['pos-products'] });
     },
     onError: (err: unknown) => {
@@ -449,6 +482,17 @@ export default function MerchantProductsPage() {
         <Button onClick={openCreateDialog} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Tambah Produk</Button>
       </div>
 
+      {missingPhotoProducts.length > 0 && (
+        <div role="alert" className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div className="min-w-0">
+            <p className="font-semibold">{missingPhotoProducts.length} produk perlu ditambahkan foto</p>
+            <p className="mt-1 text-sm text-amber-900/80">Produk lama tanpa foto tetap tersimpan, tetapi tidak akan masuk bagian Produk terbaru sampai datanya dilengkapi.</p>
+            <p className="mt-2 text-xs text-amber-900/70">{missingPhotoProducts.slice(0, 3).map((product) => product.name).join(', ')}{missingPhotoProducts.length > 3 ? ` dan ${missingPhotoProducts.length - 3} lainnya` : ''}</p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" aria-label="Ringkasan status katalog">
         {[
           { key: 'all' as const, label: 'Semua', value: summary.total, tone: 'text-foreground' },
@@ -586,7 +630,7 @@ export default function MerchantProductsPage() {
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="space-y-3">
-              <Label className="text-base font-semibold">Gambar Produk</Label>
+              <Label className="text-base font-semibold">Gambar Produk {!editingProduct && '*'}</Label>
               <div className="space-y-2">
                 <ImageUpload bucket="product-images" path={`merchants/${merchantId}/products`} value={form.image_url}
                   onChange={url => setForm(p => ({ ...p, image_url: url }))} aspectRatio="square" maxSizeMB={5} placeholder="Upload gambar produk" />
@@ -594,6 +638,7 @@ export default function MerchantProductsPage() {
                   <AlertCircle className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
                   <p className="text-[10px] text-muted-foreground leading-tight">Gunakan gambar berkualitas tinggi (1:1). Jika upload gagal, periksa ukuran file dan koneksi, lalu coba lagi.</p>
                 </div>
+                {formErrors.image_url && <p role="alert" className="text-xs text-destructive">{formErrors.image_url}</p>}
               </div>
             </div>
             <div className="space-y-4">

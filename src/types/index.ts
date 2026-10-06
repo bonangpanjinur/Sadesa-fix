@@ -85,6 +85,8 @@ export interface Product {
   category: ProductCategory;
   /** Stable database identity; category slug is retained for legacy display only. */
   categoryId?: string | null;
+  /** True only when the product has an uploaded legacy or gallery photo. */
+  hasImage?: boolean;
   isActive: boolean;
   isPromo?: boolean;
   sold_count?: number;

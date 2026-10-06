@@ -1,17 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import {
   hasEnoughBestSellingHistory,
+  isCompleteProduct,
   selectNewestProducts,
   selectTopSellingProducts,
 } from './homepageProducts';
 
 describe('selectNewestProducts', () => {
-  it('keeps stored products visible regardless of active or orderable status', () => {
+  const complete = (id: string, overrides: Record<string, unknown> = {}) => ({
+    id,
+    name: 'Produk lengkap',
+    description: 'Deskripsi produk lengkap',
+    price: 15000,
+    category: 'makanan',
+    hasImage: true,
+    ...overrides,
+  });
+
+  it('only includes products with complete data and a photo', () => {
     const products = [
-      { id: 'open', isActive: true, isAvailable: true },
-      { id: 'closed', isActive: true, isAvailable: false, unavailableReason: 'Toko Tutup' },
-      { id: 'out-of-stock', isActive: true, isAvailable: false, unavailableReason: 'Stok Habis' },
-      { id: 'inactive', isActive: false, isAvailable: false, unavailableReason: 'Produk Nonaktif' },
+      complete('open', { isActive: true, isAvailable: true }),
+      complete('closed', { isActive: true, isAvailable: false, unavailableReason: 'Toko Tutup' }),
+      complete('out-of-stock', { isActive: true, isAvailable: false, unavailableReason: 'Stok Habis' }),
+      complete('inactive', { isActive: false, isAvailable: false, unavailableReason: 'Produk Nonaktif' }),
+      complete('no-photo', { hasImage: false }),
+      complete('no-description', { description: '' }),
     ];
 
     expect(selectNewestProducts(products, new Set()).map((product) => product.id)).toEqual([
@@ -22,17 +35,23 @@ describe('selectNewestProducts', () => {
     ]);
   });
 
+  it('recognizes the required listing fields', () => {
+    expect(isCompleteProduct(complete('valid'))).toBe(true);
+    expect(isCompleteProduct(complete('missing-image', { hasImage: false }))).toBe(false);
+    expect(isCompleteProduct(complete('missing-category', { category: '' }))).toBe(false);
+  });
+
   it('does not repeat products already shown in the promo section', () => {
     const products = [
-      { id: 'promo', isActive: true },
-      { id: 'newest', isActive: true },
+      complete('promo', { isActive: true }),
+      complete('newest', { isActive: true }),
     ];
 
     expect(selectNewestProducts(products, new Set(['promo'])).map((product) => product.id)).toEqual(['newest']);
   });
 
   it('limits the section to the requested number of products', () => {
-    const products = Array.from({ length: 8 }, (_, index) => ({ id: `product-${index}`, isActive: true }));
+    const products = Array.from({ length: 8 }, (_, index) => complete(`product-${index}`, { isActive: true }));
 
     expect(selectNewestProducts(products, new Set(), 3)).toHaveLength(3);
   });

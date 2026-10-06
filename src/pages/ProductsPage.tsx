@@ -32,6 +32,7 @@ import { FlashSaleTimer } from '../components/FlashSaleTimer';
 import { formatPrice } from '../lib/utils';
 import { fetchBannerPromotions, fetchCategoryBannerPromotions, incrementPromotionClick, incrementPromotionView, type Promotion } from '../lib/promotions';
 import { HeroCarousel, type BannerSlide } from '../components/home/HeroCarousel';
+import { isCompleteProduct } from '../lib/homepageProducts';
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';
@@ -515,7 +516,7 @@ export default function ProductsPage() {
         break;
       case 'cheapest': break;
       case 'expensive': break;
-      case 'newest': result = [...result].sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
+      case 'newest': result = result.filter(isCompleteProduct).sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
     }
     return result;
   }, [products, foodFilters, sortMode, userLocation, categoryIds]);

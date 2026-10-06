@@ -1,5 +1,10 @@
 interface HomepageProduct {
   id: string;
+  name?: string | null;
+  description?: string | null;
+  price?: number | null;
+  category?: string | null;
+  hasImage?: boolean;
 }
 
 interface HomepageSalesProduct extends HomepageProduct {
@@ -8,12 +13,23 @@ interface HomepageSalesProduct extends HomepageProduct {
 
 export const HOMEPAGE_BEST_SELLER_MIN_UNITS = 10;
 
+export function isCompleteProduct(product: HomepageProduct): boolean {
+  return Boolean(
+    product.hasImage
+    && product.name?.trim()
+    && product.description?.trim()
+    && Number(product.price) > 0
+    && product.category?.trim(),
+  );
+}
+
 export function selectNewestProducts<T extends HomepageProduct>(
   products: T[],
   featuredProductIds: ReadonlySet<string>,
   limit = 6,
 ): T[] {
   return products
+    .filter(isCompleteProduct)
     .filter((product) => !featuredProductIds.has(product.id))
     .slice(0, limit);
 }

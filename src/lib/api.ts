@@ -462,6 +462,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
       // Jangan tampilkan foto menu lain ketika merchant belum mengunggah foto.
       // Placeholder netral lebih jujur daripada membuat dimsum terlihat seperti keripik.
       image: productImages[p.id] || p.image_url || galleryImageByProduct.get(p.id) || '/placeholder.svg',
+      hasImage: Boolean(productImages[p.id] || p.image_url || galleryImageByProduct.get(p.id)),
       category: p.category as Product['category'],
       categoryId: p.category_id || null,
       isActive: p.is_active,
