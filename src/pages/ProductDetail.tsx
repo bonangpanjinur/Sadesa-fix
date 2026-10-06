@@ -331,9 +331,9 @@ export default function ProductDetail() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-bold text-destructive text-sm">Produk Tidak Dapat Dipesan</p>
+                  <p className="font-bold text-destructive text-sm">{product.stock <= 0 ? 'Stok Produk Habis' : 'Produk Tidak Dapat Dipesan'}</p>
                   <p className="text-xs text-destructive/80 mt-1">
-                    {unavailableReason}. Silakan cari produk serupa dari toko lain.
+                    {product.stock <= 0 ? 'Stok produk ini sudah habis dan tidak dapat ditambahkan ke keranjang.' : `${unavailableReason}. Silakan cari produk serupa dari toko lain.`}
                   </p>
                 </div>
               </div>

@@ -61,6 +61,7 @@ export default function CheckoutPage() {
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
   const [retryingPayment, setRetryingPayment] = useState(false);
+  const [stockConflict, setStockConflict] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [appliedVoucher, setAppliedVoucher] = useState<{ id: string; name: string; discount: number } | null>(null);
@@ -113,6 +114,10 @@ export default function CheckoutPage() {
   }>({ cityName: null, districtName: null });
 
   const subtotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const knownStockConflict = items.some((item) =>
+    item.product.stock <= 0 || item.quantity > item.product.stock ||
+    (item.toppings || []).some((topping) => topping.product.stock < item.quantity * topping.quantity),
+  );
 
   // Calculate shipping based on distance
   const shippingCost = useMemo(() => {
@@ -446,6 +451,7 @@ export default function CheckoutPage() {
     }
 
     setLoading(true);
+    setStockConflict(null);
 
     try {
       checkoutKeyRef.current ??= crypto.randomUUID();
@@ -474,10 +480,12 @@ export default function CheckoutPage() {
       }
 
       if (outOfStockItems.length > 0) {
+        const message = outOfStockItems.join(', ');
+        setStockConflict(message);
         setLoading(false);
         toast({
           title: 'Stok tidak mencukupi',
-          description: outOfStockItems.join(', '),
+          description: message,
           variant: 'destructive',
         });
         return;
@@ -581,6 +589,9 @@ export default function CheckoutPage() {
           errorMessage = 'Data merchant atau produk tidak valid.';
         } else if (rawMessage.includes('null value')) {
           errorMessage = 'Data belum lengkap. Pastikan semua field terisi.';
+        } else if (/insufficient stock|stock is unavailable|marketplace stock/i.test(rawMessage)) {
+          errorMessage = 'Stok produk sudah habis atau berubah. Perbarui keranjang lalu coba lagi.';
+          setStockConflict(errorMessage);
         } else {
           errorMessage = rawMessage;
         }
@@ -1047,8 +1058,14 @@ export default function CheckoutPage() {
         </motion.div>
       </form>
 
-      {/* Checkout Summary */}
+        {/* Checkout Summary */}
       <div className="mobile-action-safe fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto bg-card border-t border-border p-5 shadow-lg">
+        {(knownStockConflict || stockConflict) && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span>{stockConflict || 'Stok produk atau topping sudah habis. Kembali ke keranjang dan sesuaikan jumlahnya sebelum checkout.'}</span>
+          </div>
+        )}
         {/* Free shipping badge */}
         {shippingSettings && subtotal >= shippingSettings.free_shipping_min_order && deliveryType !== 'PICKUP' && (
           <div className="flex items-center gap-1.5 mb-2 text-xs text-emerald-600 font-medium">
@@ -1090,7 +1107,7 @@ export default function CheckoutPage() {
             !loading && items.length > 0 && allMerchantsOpen ? 'animate-pulse hover:animate-none' : ''
           }`}
           size="lg"
-          disabled={loading || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
+          disabled={loading || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>
@@ -1109,6 +1126,8 @@ export default function CheckoutPage() {
               <Clock className="h-4 w-4 mr-2" />
               Ada Toko Tutup
             </>
+          ) : knownStockConflict || stockConflict ? (
+            'Stok Tidak Tersedia'
           ) : (
             user ? 'Pesan' : 'Pesan tanpa Login'
           )}

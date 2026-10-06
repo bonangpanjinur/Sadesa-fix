@@ -340,6 +340,12 @@ export default function CartPage() {
 
       {/* Checkout Summary */}
       <div className="mobile-action-safe fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] border-t border-border bg-card p-5 shadow-lg">
+        {Object.keys(stockWarnings).length > 0 && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span>Checkout diblokir. Hapus atau sesuaikan produk yang stoknya habis atau berubah.</span>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-1 text-sm">
           <span className="text-muted-foreground">{t('shipping.feeLong')}</span>
           <span className="text-xs text-muted-foreground italic">{t('shipping.calculatedAtCheckout')}</span>
@@ -353,9 +359,11 @@ export default function CartPage() {
           onClick={handleCheckout}
           className="w-full shadow-brand font-bold"
           size="lg"
-          disabled={guestCheckoutFlagLoading}
+          disabled={guestCheckoutFlagLoading || Object.keys(stockWarnings).length > 0}
         >
-          {guestCheckoutFlagLoading
+          {Object.keys(stockWarnings).length > 0
+            ? 'Periksa Stok Produk'
+            : guestCheckoutFlagLoading
             ? 'Memeriksa Checkout...'
             : user
             ? 'Lanjut ke Checkout'

@@ -135,11 +135,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             : topping;
         });
         const maxQuantity = getMaxQuantityAgainstOtherLines(nextProduct, nextToppings, nextItems);
-        const nextQuantity = Math.min(item.quantity, maxQuantity);
-        if (nextQuantity <= 0) {
-          changed = true;
-          return;
-        }
+        // Keep one stale line visible when stock reaches zero so the cart can
+        // explain why checkout is blocked; the minus/remove action can clear it.
+        const nextQuantity = maxQuantity > 0 ? Math.min(item.quantity, maxQuantity) : 1;
         if (nextProduct.stock !== item.product.stock || nextQuantity !== item.quantity || nextToppings?.some((topping, index) => topping.product.stock !== item.toppings?.[index]?.product.stock)) {
           changed = true;
         }
