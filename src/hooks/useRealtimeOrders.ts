@@ -187,22 +187,6 @@ export function useRealtimeOrders({
       // and trigger-generated values cannot remain stale in the merchant UI.
       await fetchOrders();
 
-      // Kirim push notification ke pembeli secara background (fire-and-forget)
-      const order = orders.find((o) => o.id === orderId);
-      if (order?.buyer_id) {
-        supabase.functions
-          .invoke('send-push-notification', {
-            body: {
-              user_id: order.buyer_id,
-              title: 'Status Pesanan Diperbarui',
-              body: `Pesanan #${orderId.slice(0, 8)} sekarang: ${newStatus}`,
-              url: `/orders?orderId=${orderId}`,
-            },
-          })
-          .catch(() => { /* push gagal tidak memblokir UX */ });
-      }
-
-      
       toast.success('Status pesanan diperbarui');
       return true;
     } catch (error) {

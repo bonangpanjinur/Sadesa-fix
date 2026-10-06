@@ -26,6 +26,51 @@ type NotificationJob = {
 
 type ProviderResult = { providerMessageId?: string };
 
+async function isRideOfferActive(job: NotificationJob): Promise<boolean> {
+  if (job.template_key !== "new_ride_request") return true;
+
+  const data = job.payload.data;
+  const rideId = typeof data === "object" && data !== null && "ride_id" in data
+    && typeof data.ride_id === "string"
+    ? data.ride_id
+    : null;
+  const offerId = typeof data === "object" && data !== null && "offer_id" in data
+    && typeof data.offer_id === "string"
+    ? data.offer_id
+    : null;
+  if (!rideId || !job.recipient_id) return false;
+
+  const { data: courier, error: courierError } = await supabase
+    .from("couriers")
+    .select("id")
+    .eq("user_id", job.recipient_id)
+    .maybeSingle();
+  if (courierError) throw courierError;
+  if (!courier) return false;
+
+  let offerQuery = supabase
+    .from("ride_request_offers")
+    .select("id")
+    .eq("ride_id", rideId)
+    .eq("courier_id", courier.id)
+    .eq("status", "PENDING")
+    .gt("expires_at", new Date().toISOString());
+  if (offerId) offerQuery = offerQuery.eq("id", offerId);
+
+  const { data: offer, error: offerError } = await offerQuery.limit(1).maybeSingle();
+  if (offerError) throw offerError;
+  if (!offer) return false;
+
+  const { data: ride, error: rideError } = await supabase
+    .from("ride_requests")
+    .select("status, driver_id")
+    .eq("id", rideId)
+    .maybeSingle();
+  if (rideError) throw rideError;
+
+  return ride?.status === "SEARCHING" && ride.driver_id === null;
+}
+
 async function syncCampaignDelivery(job: NotificationJob, success: boolean, providerMessageId?: string, errorMessage?: string) {
   const deliveryId = typeof job.payload.delivery_id === "string" ? job.payload.delivery_id : null;
   const campaignId = typeof job.payload.campaign_id === "string" ? job.payload.campaign_id : null;
@@ -177,6 +222,12 @@ async function sendJob(job: NotificationJob): Promise<ProviderResult> {
 }
 
 async function processBatch() {
+  const { data: recoveredJobs, error: recoveryError } = await supabase.rpc(
+    "recover_stuck_notification_delivery_jobs",
+    { p_lease_seconds: 900 },
+  );
+  if (recoveryError) throw recoveryError;
+
   const { error: dispatchError } = await supabase.rpc("enqueue_due_crm_campaign_jobs", { p_limit: maxBatch });
   if (dispatchError) throw dispatchError;
   const { data: candidates, error: candidateError } = await supabase
@@ -191,11 +242,33 @@ async function processBatch() {
   let sent = 0;
   let failed = 0;
   let claimed = 0;
+  let cancelled = 0;
   for (const candidate of candidates ?? []) {
     const { data: job, error: claimError } = await supabase.rpc("claim_notification_delivery_job", { p_job_id: candidate.id });
     if (claimError || !job) continue;
     claimed++;
     try {
+      const notificationJob = job as NotificationJob;
+      if (!(await isRideOfferActive(notificationJob))) {
+        const { data: cancelledJob, error: cancelError } = await supabase
+          .from("notification_delivery_jobs")
+          .update({
+            status: "cancelled",
+            last_error: "Skipped because the targeted ride offer is no longer active",
+            processing_started_at: null,
+          })
+          .eq("id", notificationJob.id)
+          .eq("status", "processing")
+          .select("id")
+          .maybeSingle();
+        if (cancelError) throw cancelError;
+        if (cancelledJob) cancelled++;
+        console.info(JSON.stringify({
+          event: "notification_delivery_skipped_stale_ride_offer",
+          job_id: notificationJob.id,
+        }));
+        continue;
+      }
       if ((job as NotificationJob).channel === "whatsapp") {
         const { error: entitlementError } = await supabase.rpc("consume_whatsapp_delivery_usage", { p_job_id: job.id });
         if (entitlementError) throw entitlementError;
@@ -223,7 +296,7 @@ async function processBatch() {
       console.error(JSON.stringify({ event: "notification_delivery_failed", job_id: job.id, channel: job.channel, attempts: job.attempts, error: message }));
     }
   }
-  return { candidates: candidates?.length ?? 0, claimed, sent, failed };
+  return { candidates: candidates?.length ?? 0, claimed, sent, failed, cancelled, recovered: recoveredJobs ?? 0 };
 }
 
 Deno.serve(async (req) => {

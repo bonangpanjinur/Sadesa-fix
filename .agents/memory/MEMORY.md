@@ -14,3 +14,4 @@
 - [Courier rating sources](courier-rating-sources.md) — courier profile ratings aggregate marketplace courier reviews and completed Ojek ride ratings together.
 - [Courier offer lifecycle](courier-delivery-offer-lifecycle.md) — an unaccepted delivery offer must not establish buyer-facing courier chat or tracking.
 - [Incoming-order alarms](incoming-order-alarm.md) — merchants and Ojek couriers both require audible alerts for incoming orders or targeted offers.
+- [Ride-offer push timing](ride-offer-push-timing.md) — 30-second courier offers need event-triggered push dispatch plus stale-offer checks; the minute cron is the retry path.
