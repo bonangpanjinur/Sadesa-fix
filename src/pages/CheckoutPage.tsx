@@ -24,6 +24,7 @@ import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/de
 import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
 import { requestRequiredLocation } from '@/lib/requiredLocation';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
+import { getCartStockDemand } from '@/lib/productAvailability';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
 
@@ -461,16 +462,14 @@ export default function CheckoutPage() {
 
       const stockMap = new Map((currentStocks ?? []).map((product) => [product.id, product]));
       const outOfStockItems: string[] = [];
-
-      for (const item of items) {
-        const product = stockMap.get(item.product.id);
-        if (!product || product.stock < item.quantity) {
-          outOfStockItems.push(`${item.product.name} (tersisa: ${product?.stock ?? 0}, diminta: ${item.quantity})`);
-        }
-        for (const topping of item.toppings || []) {
-          const toppingProduct = stockMap.get(topping.product.id);
-          const requested = item.quantity * topping.quantity;
-          if (!toppingProduct || toppingProduct.stock < requested) outOfStockItems.push(`${topping.product.name} (tersisa: ${toppingProduct?.stock ?? 0}, diminta: ${requested})`);
+      const demand = getCartStockDemand(items);
+      for (const [productId, requested] of demand) {
+        const product = stockMap.get(productId);
+        if (!product || product.stock < requested) {
+          const cartItem = items.find((item) => item.product.id === productId);
+          const topping = items.flatMap((item) => item.toppings || []).find((candidate) => candidate.product.id === productId);
+          const productName = product?.name || cartItem?.product.name || topping?.product.name || 'Produk';
+          outOfStockItems.push(`${productName} (tersisa: ${product?.stock ?? 0}, diminta: ${requested})`);
         }
       }
 

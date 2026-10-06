@@ -14,6 +14,31 @@ export interface OrderQuantityTopping {
   quantity: number;
 }
 
+export interface StockDemandItem {
+  product: { id: string };
+  quantity: number;
+  toppings?: Array<{ product: { id: string }; quantity: number }>;
+}
+
+/** Aggregate demand because one product may occur in multiple topping lines. */
+export function getCartStockDemand(items: StockDemandItem[]): Map<string, number> {
+  const demand = new Map<string, number>();
+  const add = (productId: string, quantity: number) => {
+    const safeQuantity = Math.max(0, Math.trunc(Number(quantity) || 0));
+    demand.set(productId, (demand.get(productId) || 0) + safeQuantity);
+  };
+
+  items.forEach((item) => {
+    const parentQuantity = Math.max(0, Math.trunc(Number(item.quantity) || 0));
+    add(item.product.id, parentQuantity);
+    (item.toppings || []).forEach((topping) => add(
+      topping.product.id,
+      parentQuantity * Math.max(0, Math.trunc(Number(topping.quantity) || 0)),
+    ));
+  });
+  return demand;
+}
+
 /** Largest parent quantity supported by the currently known database stock. */
 export function getMaxOrderQuantity(
   product: OrderQuantityProduct,

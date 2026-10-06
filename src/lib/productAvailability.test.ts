@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getMaxOrderQuantity, getProductUnavailableReason } from './productAvailability';
+import { getCartStockDemand, getMaxOrderQuantity, getProductUnavailableReason } from './productAvailability';
 
 describe('getProductUnavailableReason', () => {
   it.each([
@@ -35,5 +35,17 @@ describe('getMaxOrderQuantity', () => {
   it('never returns a negative or fractional order quantity', () => {
     expect(getMaxOrderQuantity({ stock: -1 })).toBe(0);
     expect(getMaxOrderQuantity({ stock: 3.9 })).toBe(3);
+  });
+});
+
+describe('getCartStockDemand', () => {
+  it('aggregates repeated products and toppings across separate cart lines', () => {
+    const demand = getCartStockDemand([
+      { product: { id: 'p1' }, quantity: 1, toppings: [{ product: { id: 't1' }, quantity: 2 }] },
+      { product: { id: 'p1' }, quantity: 2, toppings: [{ product: { id: 't1' }, quantity: 1 }] },
+    ]);
+
+    expect(demand.get('p1')).toBe(3);
+    expect(demand.get('t1')).toBe(4);
   });
 });

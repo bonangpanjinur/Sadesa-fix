@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import type { CartItem, CartTopping, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
-import { getMaxOrderQuantity, getProductUnavailableReason } from '@/lib/productAvailability';
+import { getCartStockDemand, getProductUnavailableReason } from '@/lib/productAvailability';
 
 interface CartContextType {
   items: CartItem[];
@@ -11,8 +11,8 @@ interface CartContextType {
   selectAllItems: () => void;
   clearItemSelection: () => void;
   addToCart: (product: Product, quantity?: number, toppings?: CartTopping[]) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeFromCart: (productId: string, toppings?: CartTopping[]) => void;
+  updateQuantity: (productId: string, quantity: number, toppings?: CartTopping[]) => void;
   syncProductStock: (stockByProductId: Record<string, number>) => void;
   clearCart: () => void;
   getCartTotal: () => number;
@@ -22,6 +22,21 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 const CART_STORAGE_KEY = 'desawisata_cart';
 const MAX_CART_QUANTITY = 1000;
+
+function getToppingKey(toppings: CartTopping[] = []): string {
+  return toppings.map(t => `${t.product.id}:${t.quantity}`).sort().join('|');
+}
+
+function getMaxQuantityAgainstOtherLines(product: Product, toppings: CartTopping[] | undefined, otherItems: CartItem[]): number {
+  const demand = getCartStockDemand(otherItems);
+  let maxQuantity = Math.max(0, Math.trunc(Number(product.stock) || 0) - (demand.get(product.id) || 0));
+  for (const topping of toppings || []) {
+    const perItem = Math.max(1, Math.trunc(Number(topping.quantity) || 1));
+    const available = Math.max(0, Math.trunc(Number(topping.product.stock) || 0) - (demand.get(topping.product.id) || 0));
+    maxQuantity = Math.min(maxQuantity, Math.floor(available / perItem));
+  }
+  return Math.max(0, maxQuantity);
+}
 
 function loadCartFromStorage(): CartItem[] {
   try {
@@ -64,46 +79,51 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const normalizedToppings = toppings.filter(t => t.product.id !== product.id && t.quantity > 0).map(t => ({ ...t, quantity: Math.min(MAX_CART_QUANTITY, Math.max(1, Math.trunc(t.quantity))) }));
-    const maxQuantity = getMaxOrderQuantity(product, normalizedToppings);
-    if (maxQuantity <= 0) {
-      toast({ title: 'Stok tidak mencukupi', description: 'Stok produk atau topping sudah habis.', variant: 'destructive' });
-      return;
-    }
-    const safeQuantity = Math.min(maxQuantity, MAX_CART_QUANTITY, Math.max(1, Math.trunc(quantity) || 1));
     setItems(prev => {
-      const toppingKey = normalizedToppings.map(t => `${t.product.id}:${t.quantity}`).sort().join('|');
-      const existingItem = prev.find(item => item.product.id === product.id && (item.toppings || []).map(t => `${t.product.id}:${t.quantity}`).sort().join('|') === toppingKey);
+      const toppingKey = getToppingKey(normalizedToppings);
+      const existingItem = prev.find(item => item.product.id === product.id && getToppingKey(item.toppings) === toppingKey);
+      const otherItems = existingItem ? prev.filter(item => item !== existingItem) : prev;
+      const maxQuantity = getMaxQuantityAgainstOtherLines(product, normalizedToppings, otherItems);
+      const requestedQuantity = Math.max(1, Math.trunc(quantity) || 1);
       if (existingItem) {
-        const nextQuantity = Math.min(maxQuantity, MAX_CART_QUANTITY, existingItem.quantity + safeQuantity);
+        const nextQuantity = Math.min(maxQuantity, MAX_CART_QUANTITY, existingItem.quantity + requestedQuantity);
+        if (nextQuantity <= 0) return prev.filter(item => item !== existingItem);
         if (nextQuantity === existingItem.quantity) {
           toast({ title: 'Jumlah maksimal tercapai', description: `Stok ${product.name} hanya ${maxQuantity}.`, variant: 'destructive' });
           return prev;
         }
         return prev.map(item => item === existingItem ? { ...item, quantity: nextQuantity } : item);
       }
+      const safeQuantity = Math.min(maxQuantity, MAX_CART_QUANTITY, requestedQuantity);
+      if (safeQuantity <= 0) {
+        toast({ title: 'Stok tidak mencukupi', description: 'Stok produk atau topping sudah habis.', variant: 'destructive' });
+        return prev;
+      }
       setSelectedItemIds(current => current.includes(product.id) ? current : [...current, product.id]);
       return [...prev, { product, quantity: safeQuantity, toppings: normalizedToppings.length ? normalizedToppings : undefined }];
     });
   }, []);
 
-  const removeFromCart = useCallback((productId: string) => {
-    setItems(prev => prev.filter(item => item.product.id !== productId));
-    setSelectedItemIds(prev => prev.filter(id => id !== productId));
+  const removeFromCart = useCallback((productId: string, toppings?: CartTopping[]) => {
+    setItems(prev => prev.filter(item => item.product.id !== productId || (toppings && getToppingKey(item.toppings) !== getToppingKey(toppings))));
+    if (!toppings) setSelectedItemIds(prev => prev.filter(id => id !== productId));
   }, []);
 
-  const updateQuantity = useCallback((productId: string, quantity: number) => {
-    if (quantity <= 0) { removeFromCart(productId); return; }
+  const updateQuantity = useCallback((productId: string, quantity: number, toppings?: CartTopping[]) => {
+    if (quantity <= 0) { removeFromCart(productId, toppings); return; }
     setItems(prev => prev.map(item => {
-      if (item.product.id !== productId) return item;
-      const maxQuantity = getMaxOrderQuantity(item.product, item.toppings);
-      return { ...item, quantity: Math.min(maxQuantity || 1, MAX_CART_QUANTITY, Math.max(1, Math.trunc(quantity))) };
-    }));
+      if (item.product.id !== productId || (toppings && getToppingKey(item.toppings) !== getToppingKey(toppings))) return item;
+      const otherItems = prev.filter(candidate => candidate !== item);
+      const maxQuantity = getMaxQuantityAgainstOtherLines(item.product, item.toppings, otherItems);
+      return { ...item, quantity: Math.min(maxQuantity, MAX_CART_QUANTITY, Math.max(1, Math.trunc(quantity))) };
+    }).filter(item => item.quantity > 0));
   }, [removeFromCart]);
 
   const syncProductStock = useCallback((stockByProductId: Record<string, number>) => {
     setItems(prev => {
       let changed = false;
-      const nextItems = prev.map(item => {
+      const nextItems: CartItem[] = [];
+      prev.forEach(item => {
         const productStock = stockByProductId[item.product.id];
         const nextProduct = Number.isFinite(productStock)
           ? { ...item.product, stock: Math.max(0, Math.trunc(productStock)) }
@@ -114,12 +134,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             ? { ...topping, product: { ...topping.product, stock: Math.max(0, Math.trunc(toppingStock)) } }
             : topping;
         });
-        const maxQuantity = getMaxOrderQuantity(nextProduct, nextToppings);
-        const nextQuantity = maxQuantity > 0 ? Math.min(item.quantity, maxQuantity) : item.quantity;
+        const maxQuantity = getMaxQuantityAgainstOtherLines(nextProduct, nextToppings, nextItems);
+        const nextQuantity = Math.min(item.quantity, maxQuantity);
+        if (nextQuantity <= 0) {
+          changed = true;
+          return;
+        }
         if (nextProduct.stock !== item.product.stock || nextQuantity !== item.quantity || nextToppings?.some((topping, index) => topping.product.stock !== item.toppings?.[index]?.product.stock)) {
           changed = true;
         }
-        return { ...item, product: nextProduct, toppings: nextToppings, quantity: nextQuantity };
+        nextItems.push({ ...item, product: nextProduct, toppings: nextToppings, quantity: nextQuantity });
       });
       return changed ? nextItems : prev;
     });

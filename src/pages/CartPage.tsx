@@ -22,6 +22,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
+import { getCartStockDemand } from '@/lib/productAvailability';
 
 interface StockProductRow {
   id: string;
@@ -108,20 +109,23 @@ export default function CartPage() {
       if (products) {
         syncProductStock(Object.fromEntries(products.map((product) => [product.id, Number(product.stock) || 0])));
         const warnings: Record<string, string> = {};
+        const demand = getCartStockDemand(items);
         products.forEach((p: StockProductRow) => {
-          const cartItem = items.find(i => i.product.id === p.id);
-          const toppingParent = items.find(i => (i.toppings || []).some(t => t.product.id === p.id));
-          const topping = toppingParent?.toppings?.find(t => t.product.id === p.id);
-          const requestedQuantity = topping ? topping.quantity * toppingParent!.quantity : cartItem?.quantity;
-          if (topping && (p.stock < (requestedQuantity || 0) || p.price !== topping.product.price)) warnings[p.id] = p.stock < (requestedQuantity || 0) ? `Stok topping ${p.name} hanya ${p.stock}` : `Harga topping berubah menjadi Rp ${p.price.toLocaleString('id-ID')}`;
-          if (!cartItem) return;
+          const requestedQuantity = demand.get(p.id) || 0;
+          const cartItems = items.filter(i => i.product.id === p.id);
+          const toppingUses = items.flatMap(i => (i.toppings || []).filter(t => t.product.id === p.id).map(t => t.product));
+          const baseItem = cartItems[0];
+          if (toppingUses.length > 0 && (p.stock < requestedQuantity || toppingUses.some(t => p.price !== t.price))) {
+            warnings[p.id] = p.stock < requestedQuantity ? `Stok ${p.name} hanya ${p.stock} (diminta ${requestedQuantity})` : `Harga topping berubah menjadi Rp ${p.price.toLocaleString('id-ID')}`;
+          }
+          if (!baseItem) return;
           if (!p.is_active) {
             warnings[p.id] = 'Produk sudah tidak tersedia';
           } else if (p.stock <= 0) {
             warnings[p.id] = 'Stok habis';
-          } else if (cartItem.quantity > p.stock) {
-            warnings[p.id] = `Sisa stok hanya ${p.stock}`;
-          } else if (p.price !== cartItem.product.price) {
+          } else if (requestedQuantity > p.stock) {
+            warnings[p.id] = `Sisa stok hanya ${p.stock} (diminta ${requestedQuantity})`;
+          } else if (p.price !== baseItem.product.price) {
             warnings[p.id] = `Harga berubah menjadi Rp ${p.price.toLocaleString('id-ID')}`;
           }
         });
@@ -258,7 +262,7 @@ export default function CartPage() {
               <div className="space-y-3">
                 {merchantItems.map((item, index) => (
                   <motion.div
-                    key={item.product.id}
+                    key={`${item.product.id}-${(item.toppings || []).map(topping => `${topping.product.id}:${topping.quantity}`).sort().join('|') || 'base'}-${index}`}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
@@ -301,7 +305,7 @@ export default function CartPage() {
                     
                     <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
                       <button
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => removeFromCart(item.product.id, item.toppings)}
                         className="text-destructive hover:bg-destructive/10 p-2 rounded-lg transition"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -309,7 +313,7 @@ export default function CartPage() {
                       
                       <div className="flex items-center border border-border rounded-lg">
                         <button 
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.toppings)}
                           className="w-8 h-8 text-muted-foreground hover:text-primary transition"
                         >
                           <Minus className="h-4 w-4 mx-auto" />
@@ -318,7 +322,7 @@ export default function CartPage() {
                           {item.quantity}
                         </span>
                         <button 
-                          onClick={() => updateQuantity(item.product.id, Math.min(item.product.stock, item.quantity + 1))}
+                          onClick={() => updateQuantity(item.product.id, Math.min(item.product.stock, item.quantity + 1), item.toppings)}
                           className="w-8 h-8 text-muted-foreground hover:text-primary transition"
                           disabled={item.quantity >= item.product.stock}
                         >
