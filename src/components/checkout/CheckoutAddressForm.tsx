@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { type AddressData, formatFullAddress } from '@/components/AddressSelector';
+import { AddressSelector, type AddressData, formatFullAddress } from '@/components/AddressSelector';
 import { LocationPicker } from './LocationPicker';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -64,6 +64,7 @@ export function CheckoutAddressForm({
   const isAddressComplete = !!(value.address.province && value.address.city && value.address.district && value.address.village);
   const isContactComplete = !!(value.name && value.phone);
   const hasDetectedLocation = !!(value.location && detectedAddress);
+  const combinedFullAddress = [formatFullAddress(value.address), value.detailAddress?.trim()].filter(Boolean).join(', ');
 
   // Auto-populate from default saved address or profile on mount
   useEffect(() => {
@@ -253,7 +254,12 @@ export function CheckoutAddressForm({
   };
 
   const handleDetailAddressChange = (detail: string) => {
-    onChange({ ...value, detailAddress: detail });
+    onChange({
+      ...value,
+      detailAddress: detail,
+      address: { ...value.address, detail },
+      fullAddress: [formatFullAddress(value.address), detail.trim()].filter(Boolean).join(', '),
+    });
   };
 
   const handleLocationChange = (location: { lat: number; lng: number }) => {
@@ -522,6 +528,16 @@ export function CheckoutAddressForm({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Manual region address input: keep checkout state, stepper, validation and payload in sync. */}
+      <div className="space-y-3" id="error-address">
+        <div className="flex items-center gap-2">
+          {isAddressComplete ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <MapPin className="h-4 w-4 text-primary" />}
+          <h4 className="font-medium text-sm">Wilayah Alamat</h4>
+          {isAddressComplete && <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">Lengkap</span>}
+        </div>
+        <AddressSelector value={value.address} onChange={handleAddressChange} showDetailInput={false} />
       </div>
 
       {/* Map-First Address Input */}

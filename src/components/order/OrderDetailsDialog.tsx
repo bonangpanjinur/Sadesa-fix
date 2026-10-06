@@ -481,11 +481,17 @@ export function OrderDetailsDialog({
               </Button>
             )}
 
+            {order.status === 'READY' && order.delivery_type === 'PICKUP' && (
+              <Button className="w-full bg-green-600 hover:bg-green-700" onClick={() => onUpdateStatus(order.id, 'DONE')} disabled={isProcessing}>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Tandai Sudah Diambil / Selesai
+              </Button>
+            )}
             {/* Opsi standar jika bukan kirim mandiri */}
-            {order.status === 'PROCESSED' && !order.is_self_delivery && order.delivery_type !== 'EXPEDITION' && (
+            {order.status === 'PROCESSED' && !order.is_self_delivery && order.delivery_type !== 'EXPEDITION' && order.delivery_type !== 'PICKUP' && (
               <Button 
                 className="w-full"
-                onClick={() => onUpdateStatus(order.id, 'SENT')}
+                onClick={() => onUpdateStatus(order.id, order.delivery_type === 'PICKUP' ? 'READY' : 'SENT')}
               >
                 <Truck className="h-4 w-4 mr-2" />
                 Kirim

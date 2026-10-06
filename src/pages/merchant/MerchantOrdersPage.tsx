@@ -861,7 +861,7 @@ export function MerchantOrdersWorkspace({ embedded = false, merchantIdOverride }
                 selectedOrder.delivery_type === 'PICKUP' ? (
                   <Button 
                     className="w-full"
-                    onClick={() => handleUpdateStatus(selectedOrder.id, 'SENT')}
+                    onClick={() => handleUpdateStatus(selectedOrder.id, 'READY')}
                   >
                     <Package className="h-4 w-4 mr-2" />
                     Siap Diambil

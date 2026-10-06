@@ -491,7 +491,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      const fullAddress = formatFullAddress(addressData.address);
+      const fullAddress = [formatFullAddress(addressData.address), addressData.detailAddress?.trim()].filter(Boolean).join(', ');
       const checkoutPayload = {
         p_items: items.flatMap((item) => [
           { product_id: item.product.id, quantity: Math.trunc(item.quantity) },
@@ -686,7 +686,7 @@ export default function CheckoutPage() {
           <div className="flex items-center justify-between">
             {[
               { icon: Package, label: 'Pesanan', done: items.length > 0 },
-              { icon: MapPin, label: 'Alamat', done: !!(addressData.address.province && addressData.address.city && addressData.address.district) },
+              { icon: MapPin, label: 'Alamat', done: !!(addressData.address.province && addressData.address.city && addressData.address.district && addressData.address.village) },
               { icon: Truck, label: 'Pengiriman', done: true },
               { icon: CreditCard, label: 'Bayar', done: !!paymentMethod },
             ].map((step, i) => (
@@ -1134,7 +1134,7 @@ export default function CheckoutPage() {
         </Button>
         {!isDeliveryReady && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            Pilih alamat pengiriman dan tentukan titik lokasi di peta untuk melanjutkan.
+            Lengkapi wilayah alamat dan tentukan titik lokasi di peta untuk melanjutkan.
           </p>
         )}
       </div>

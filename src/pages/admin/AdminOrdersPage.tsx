@@ -427,9 +427,15 @@ export default function AdminOrdersPage() {
               </>
             )}
             {item.status === 'PROCESSED' && (
-              <DropdownMenuItem onClick={() => updateOrderStatus(item.id, 'SENT')}>
+              <DropdownMenuItem onClick={() => updateOrderStatus(item.id, item.delivery_type === 'PICKUP' ? 'READY' : 'SENT')}>
                 <Truck className="h-4 w-4 mr-2" />
-                Kirim
+                {item.delivery_type === 'PICKUP' ? 'Siap Diambil' : 'Kirim'}
+              </DropdownMenuItem>
+            )}
+            {item.status === 'READY' && item.delivery_type === 'PICKUP' && (
+              <DropdownMenuItem onClick={() => updateOrderStatus(item.id, 'DONE')}>
+                <Check className="h-4 w-4 mr-2" />
+                Tandai Sudah Diambil / Selesai
               </DropdownMenuItem>
             )}
             {ADMIN_CANCELLABLE_ORDER_STATUSES.includes(item.status as typeof ADMIN_CANCELLABLE_ORDER_STATUSES[number]) && (
