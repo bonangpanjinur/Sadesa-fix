@@ -40,6 +40,7 @@ import { formatDistance, calculateDistance } from '@/lib/etaCalculation';
 import { formatPrice } from '@/lib/utils';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
 import { usePushNotification } from '@/hooks/usePushNotification';
+import { MorningOperationsReminder } from '@/components/notifications/MorningOperationsReminder';
 
 interface CourierData {
   id: string;
@@ -477,6 +478,7 @@ export default function CourierDashboardPage() {
   return (
     <CourierLayout title="Dashboard Kurir" subtitle="Kelola pengiriman dan perjalanan">
       <div className="space-y-6">
+        <MorningOperationsReminder audience="courier" userId={user?.id} />
         {/* Courier Profile Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -44,6 +44,7 @@ import { toast } from 'sonner';
 import { cn, formatPrice } from '@/lib/utils';
 import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
 import { MerchantCardError } from '@/components/merchant/MerchantDataState';
+import { MorningOperationsReminder } from '@/components/notifications/MorningOperationsReminder';
 
 interface MerchantData {
   id: string;
@@ -322,6 +323,7 @@ export default function MerchantDashboardPage() {
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
       <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
+        <MorningOperationsReminder audience="merchant" userId={user?.id} />
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
           <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] via-card to-card p-5 shadow-sm sm:p-7">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
