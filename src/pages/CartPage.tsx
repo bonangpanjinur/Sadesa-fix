@@ -34,7 +34,7 @@ interface StockProductRow {
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, selectedItems, selectedItemIds, toggleItemSelection, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { items, selectedItems, selectedItemIds, toggleItemSelection, updateQuantity, syncProductStock, removeFromCart, clearCart } = useCart();
   const { enabled: guestCheckoutEnabled, loading: guestCheckoutFlagLoading } = useGuestCheckoutEnabled(Boolean(user));
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
@@ -106,6 +106,7 @@ export default function CartPage() {
         .in('id', productIds);
 
       if (products) {
+        syncProductStock(Object.fromEntries(products.map((product) => [product.id, Number(product.stock) || 0])));
         const warnings: Record<string, string> = {};
         products.forEach((p: StockProductRow) => {
           const cartItem = items.find(i => i.product.id === p.id);
@@ -129,7 +130,7 @@ export default function CartPage() {
     };
 
     validateStock();
-  }, [items]);
+  }, [items, syncProductStock]);
 
   const handleCheckout = () => {
     if (selectedItems.length === 0) {
