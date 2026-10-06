@@ -2,13 +2,14 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/utils';
-import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle, Package, ImageIcon, RefreshCw } from 'lucide-react';
+import { User, Phone, MapPin, CreditCard, Check, X, Truck, Printer, Store, CheckCircle, Package, ImageIcon, RefreshCw, Download, Share2, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -78,6 +79,8 @@ export function OrderDetailsDialog({
   getPaymentBadge,
 }: OrderDetailsDialogProps) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDownloadingProof, setIsDownloadingProof] = useState(false);
+  const [isSharingOrder, setIsSharingOrder] = useState(false);
   const [deliveryType, setDeliveryType] = useState<"courier" | "self">("courier");
   const [trackingNumber, setTrackingNumber] = useState('');
   const [expeditionProviderId, setExpeditionProviderId] = useState('');
@@ -231,6 +234,71 @@ export function OrderDetailsDialog({
     printWindow.document.close();
   };
 
+  const handleDownloadPaymentProof = async () => {
+    if (!paymentProofQuery.data) return;
+    setIsDownloadingProof(true);
+    let objectUrl: string | null = null;
+    try {
+      const response = await fetch(paymentProofQuery.data);
+      if (!response.ok) throw new Error('Unduhan bukti pembayaran gagal.');
+      const blob = await response.blob();
+      const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+      objectUrl = URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = objectUrl;
+      downloadLink.download = `bukti-pembayaran-${order.id.slice(0, 8).toUpperCase()}.${extension}`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.setTimeout(() => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }, 1000);
+      toast.success('Bukti pembayaran berhasil diunduh');
+    } catch {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      toast.error('Gagal mengunduh bukti pembayaran. Coba lagi.');
+    } finally {
+      setIsDownloadingProof(false);
+    }
+  };
+
+  const handleShareOrder = async () => {
+    const orderNumber = order.id.slice(0, 8).toUpperCase();
+    const shareText = [
+      `Detail Pesanan #${orderNumber}`,
+      order.merchants?.name ? `Merchant: ${order.merchants.name}` : null,
+      `Status pesanan: ${order.status}`,
+      `Pembayaran: ${order.payment_method || '-'} (${order.payment_status || '-'})`,
+      '',
+      'Item pesanan:',
+      ...(orderItems.length > 0
+        ? orderItems.map((item) => `- ${item.product_name} × ${item.quantity}: ${formatPrice(item.subtotal)}`)
+        : ['- Rincian item tidak tersedia']),
+      `Subtotal produk: ${formatPrice(order.subtotal)}`,
+      `Ongkos kirim: ${formatPrice(order.shipping_cost)}`,
+      `Total: ${formatPrice(order.total)}`,
+      `Pengiriman: ${order.delivery_type === 'PICKUP' ? 'Ambil sendiri' : order.delivery_type === 'EXPEDITION' ? 'Ekspedisi' : 'Diantar'}`,
+    ].filter((line): line is string => line !== null).join('\n');
+
+    setIsSharingOrder(true);
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: `Detail Pesanan #${orderNumber}`, text: shareText });
+        toast.success('Detail pesanan siap dibagikan');
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+        toast.success('Detail pesanan disalin. Silakan tempel untuk membagikannya.');
+      } else {
+        throw new Error('Fitur berbagi tidak tersedia di perangkat ini.');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      toast.error(error instanceof Error ? error.message : 'Gagal membagikan detail pesanan.');
+    } finally {
+      setIsSharingOrder(false);
+    }
+  };
+
   // Custom handler for processing order and setting the self delivery flag
   const handleProcessOrder = async () => {
     try {
@@ -301,13 +369,22 @@ export function OrderDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader className="flex flex-row items-center justify-between space-y-0">
+          <DialogDescription className="sr-only">
+            Informasi pesanan, pembayaran, item, serta tindakan pengelolaan pesanan.
+          </DialogDescription>
           <DialogTitle>
             Detail Pesanan #{order.id.slice(0, 8).toUpperCase()}
           </DialogTitle>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="h-4 w-4 mr-2" />
-            Cetak
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => void handleShareOrder()} disabled={isSharingOrder}>
+              {isSharingOrder ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Share2 className="h-4 w-4 mr-2" />}
+              Bagikan
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Cetak
+            </Button>
+          </div>
         </DialogHeader>
         <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto" id="order-print-content">
           {/* Status Row */}
@@ -418,6 +495,10 @@ export function OrderDetailsDialog({
                     />
                   </a>
                   <p className="text-center text-xs text-muted-foreground">Klik gambar untuk memperbesar</p>
+                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => void handleDownloadPaymentProof()} disabled={isDownloadingProof}>
+                    {isDownloadingProof ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {isDownloadingProof ? 'Mengunduh bukti...' : 'Unduh bukti pembayaran'}
+                  </Button>
                 </div>
               ) : null}
             </section>
