@@ -33,10 +33,21 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: TypeScript
         run: pnpm exec tsc --noEmit
+
+      - name: Lint changed reliability surfaces
+        run: >-
+          pnpm exec eslint
+          src/lib/observability.ts
+          src/lib/observability.test.ts
+          src/hooks/usePOSOfflineSync.ts
+          src/lib/posOfflineDB.ts
+          src/pages/pos/POSKasirPage.tsx
+          src/sw.ts
+          --max-warnings=0
 
       - name: Unit tests
         run: pnpm test -- --run
@@ -46,3 +57,6 @@ jobs:
 
       - name: Dependency audit
         run: pnpm audit --audit-level high
+
+      - name: Package manager consistency
+        run: pnpm run validate:package-manager

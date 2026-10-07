@@ -15,27 +15,37 @@ export interface ObservabilityEvent {
 
 const MAX_EVENTS = 100;
 const events: ObservabilityEvent[] = [];
-const SENSITIVE_KEY = /(token|secret|password|authorization|cookie|api[-_]?key|signature|proof|phone|email)/i;
+const SENSITIVE_KEY = /(token|secret|password|authorization|cookie|api[-_]?key|signature|proof|phone|email|address|location|latitude|longitude|recipient|payload)/i;
+const MAX_CONTEXT_KEYS = 24;
+
+/** Keep diagnostics useful without copying credentials or obvious PII to logs. */
+export function sanitizeObservabilityText(value: string): string {
+  return value
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[REDACTED_EMAIL]')
+    .replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, '[REDACTED_PHONE]')
+    .replace(/(bearer\s+|token[=:]\s*|secret[=:]\s*)[^\s,;]+/gi, '$1[REDACTED]')
+    .slice(0, 240);
+}
 
 function safeError(error: unknown): ObservabilityEvent['error'] | undefined {
   if (error === undefined || error === null) return undefined;
-  if (error instanceof Error) return { name: error.name, message: error.message.slice(0, 240) };
+  if (error instanceof Error) return { name: error.name, message: sanitizeObservabilityText(error.message) };
   if (typeof error === 'object') {
     const details = error as { name?: unknown; message?: unknown; code?: unknown; hint?: unknown };
     const name = typeof details.name === 'string' ? details.name : 'UnknownError';
     const message = typeof details.message === 'string' ? details.message : 'Unknown error';
     const code = typeof details.code === 'string' ? ` [code: ${details.code}]` : '';
     const hint = typeof details.hint === 'string' && details.hint ? ` Hint: ${details.hint}` : '';
-    return { name, message: `${message}${code}${hint}`.slice(0, 240) };
+    return { name, message: sanitizeObservabilityText(`${message}${code}${hint}`) };
   }
-  return { name: 'UnknownError', message: String(error).slice(0, 240) };
+  return { name: 'UnknownError', message: sanitizeObservabilityText(String(error)) };
 }
 
 function safeContext(context?: Record<string, ObservabilityValue>): Record<string, ObservabilityValue> | undefined {
   if (!context) return undefined;
-  return Object.fromEntries(Object.entries(context).map(([key, value]) => [
+  return Object.fromEntries(Object.entries(context).slice(0, MAX_CONTEXT_KEYS).map(([key, value]) => [
     key,
-    SENSITIVE_KEY.test(key) ? '[REDACTED]' : typeof value === 'string' ? value.slice(0, 240) : value,
+    SENSITIVE_KEY.test(key) ? '[REDACTED]' : typeof value === 'string' ? sanitizeObservabilityText(value) : value,
   ]));
 }
 
