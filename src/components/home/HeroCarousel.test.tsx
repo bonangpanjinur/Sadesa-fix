@@ -12,6 +12,12 @@ afterEach(() => {
 });
 
 describe('HeroCarousel iklan kategori', () => {
+  it('tidak menampilkan banner ketika daftar banner kosong', () => {
+    const { container } = render(<HeroCarousel slides={[]} />);
+
+    expect(container.firstChild).toBeNull();
+  });
+
   it('menampilkan label Iklan untuk slide bersponsor', () => {
     render(<HeroCarousel slides={slides} ariaLabel="Iklan kategori makanan" />);
 

@@ -1,11 +1,7 @@
-import foodImage from '@/assets/home/service-food-optimized.jpg';
-import ojekImage from '@/assets/home/service-ojek-optimized.jpg';
-import shoppingImage from '@/assets/home/service-shopping-optimized.jpg';
-
 export const HOMEPAGE_SERVICE_CARDS = [
-  { id: 'food', title: 'Makanan & Minuman', href: '/products?type=kuliner', fallbackImage: foodImage, imageAlt: 'Aneka makanan dan minuman' },
-  { id: 'ojek', title: 'Ojek', href: '/ride', fallbackImage: ojekImage, imageAlt: 'Layanan ojek desa' },
-  { id: 'shopping', title: 'Belanja', href: '/products?type=belanja', fallbackImage: shoppingImage, imageAlt: 'Sayuran dan kebutuhan belanja' },
+  { id: 'food', title: 'Makanan & Minuman', href: '/products?type=kuliner', imageAlt: 'Aneka makanan dan minuman' },
+  { id: 'ojek', title: 'Ojek', href: '/ride', imageAlt: 'Layanan ojek desa' },
+  { id: 'shopping', title: 'Belanja', href: '/products?type=belanja', imageAlt: 'Kebutuhan belanja' },
 ] as const;
 
 export type HomepageServiceCardId = (typeof HOMEPAGE_SERVICE_CARDS)[number]['id'];

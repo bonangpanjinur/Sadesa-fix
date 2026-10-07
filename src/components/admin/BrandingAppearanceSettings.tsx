@@ -930,7 +930,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
           <Card className="mt-6">
             <CardHeader>
               <CardTitle>Gambar Menu Utama</CardTitle>
-              <CardDescription>Atur gambar untuk kartu Makanan &amp; Minuman, Ojek, dan Belanja yang tampil di halaman beranda.</CardDescription>
+              <CardDescription>Atur gambar untuk kartu Makanan &amp; Minuman, Ojek, dan Belanja di beranda. Tanpa gambar, kartu menampilkan ikon.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <p className="text-sm text-muted-foreground">Ukuran yang disarankan: <span className="font-semibold text-foreground">1120 × 1000 px</span> (rasio 1,12:1). Unggahan hanya menerima rasio 1,11–1,13:1 agar gambar tampil pas tanpa distorsi atau pemotongan besar; crop gambar terlebih dahulu jika rasionya berbeda.</p>
@@ -941,7 +941,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                     <ImageUpload
                       bucket="admin-assets"
                       path={`homepage/service-cards/${card.id}`}
-                      value={homepageServiceCardImages[card.id] || card.fallbackImage}
+                      value={homepageServiceCardImages[card.id]}
                       onChange={(url) => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: url }))}
                       aspectRatio="home-card"
                       maxSizeMB={15}
@@ -949,7 +949,7 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                       aspectRatioValidation={{ ratio: 1.12, tolerance: 0.01 }}
                       placeholder={`Upload gambar ${card.title}`}
                     />
-                    <p className="text-xs text-muted-foreground">Unggah JPG, PNG, WEBP, atau GIF hingga 15 MB. Gambar otomatis dikompres ke JPEG maksimal 1120 × 1000 px; GIF animasi menjadi gambar statis. Tombol hapus mengembalikan gambar bawaan.</p>
+                    <p className="text-xs text-muted-foreground">Unggah JPG, PNG, WEBP, atau GIF hingga 15 MB. Gambar otomatis dikompres ke JPEG maksimal 1120 × 1000 px; GIF animasi menjadi gambar statis. Hapus gambar untuk menampilkan ikon pada kartu.</p>
                     {homepageServiceCardImages[card.id] && (
                       <Button
                         type="button"

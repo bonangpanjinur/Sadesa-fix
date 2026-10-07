@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
-import { DEFAULT_HERO_SLIDES } from '@/components/home/heroDefaults';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
 import { HomeServiceCards } from '@/components/home/HomeServiceCards';
 import { 
@@ -230,6 +229,7 @@ const Index = () => {
       const promotionsData = await fetchBannerPromotions();
       return promotionsData
         .filter((promotion) => {
+          if (!promotion.imageUrl?.trim()) return false;
           const searchText = `${promotion.title || ''} ${promotion.subtitle || ''} ${promotion.linkUrl || ''}`.toLowerCase();
           return !promotion.linkUrl?.includes('/tourism') && !searchText.includes('wisata');
         })
@@ -377,7 +377,7 @@ const Index = () => {
       case 'hero':
         return (
           <HeroCarousel
-            slides={bannerSlides.length > 0 ? bannerSlides : DEFAULT_HERO_SLIDES}
+            slides={bannerSlides}
             autoPlayInterval={5000}
             onView={bannerSlides.length > 0 ? handleBannerView : undefined}
             onClick={bannerSlides.length > 0 ? handleBannerClick : undefined}

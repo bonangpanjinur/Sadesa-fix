@@ -14,6 +14,10 @@ describe('homepage service cards', () => {
     ]);
   });
 
+  it('does not define local image fallbacks for homepage cards', () => {
+    expect(HOMEPAGE_SERVICE_CARDS.every((card) => !('fallbackImage' in card))).toBe(true);
+  });
+
   it('uses no overrides when admin settings are absent or malformed', () => {
     expect(parseHomepageServiceCardImageOverrides(null)).toEqual(EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES);
     expect(parseHomepageServiceCardImageOverrides(['not', 'an', 'object'])).toEqual(EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES);
