@@ -47,6 +47,10 @@ jobs:
           src/lib/pilotRollout.test.ts
           src/lib/pilotReadiness.ts
           src/lib/pilotReadiness.test.ts
+          src/lib/phase8GoNoGo.ts
+          src/lib/phase8GoNoGo.test.ts
+          src/lib/chat/rollout.ts
+          src/lib/chat/phase8Acceptance.test.ts
           src/hooks/usePOSOfflineSync.ts
           src/lib/posOfflineDB.ts
           src/pages/pos/POSKasirPage.tsx
@@ -55,6 +59,9 @@ jobs:
 
       - name: Unit tests
         run: pnpm test -- --run
+
+      - name: Phase 8 acceptance matrix
+        run: pnpm run test:chat:phase8 && pnpm exec vitest run src/lib/phase8GoNoGo.test.ts
 
       - name: Build
         run: pnpm build

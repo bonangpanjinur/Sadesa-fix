@@ -78,4 +78,10 @@ describe('chat phase 8 acceptance matrix contract', () => {
     expect(getChatRolloutReason({ role: 'buyer', context: 'direct', environment: 'production' }, 'buyer-a', pilotConfig)).toBe('context_not_allowed');
     expect(getChatRolloutReason({ role: 'buyer', context: 'order', environment: 'production' }, 'buyer-b', pilotConfig)).toBe('pilot_not_allowed');
   });
+
+  it('fails closed when production pilot allowlist is missing', () => {
+    const config = { ...pilotConfig, pilotUserIds: [] };
+    expect(isChatRolloutAllowed({ role: 'buyer', context: 'order', environment: 'production' }, 'buyer-a', config)).toBe(false);
+    expect(getChatRolloutReason({ role: 'buyer', context: 'order', environment: 'production' }, 'buyer-a', config)).toBe('pilot_not_configured');
+  });
 });

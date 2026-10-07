@@ -1,28 +1,38 @@
-# Evidence implementasi Fase 8 — Testing, pilot, dan rollout
 
-Fase 8 menambahkan acceptance matrix executable dan kontrol rollout yang fail-closed. Test `src/lib/chat/phase8Acceptance.test.ts` memeriksa kontrak security/database, realtime/reliability, retention, notification/observability, serta feature flag pilot. Test ini adalah guardrail repository; ia tidak menggantikan uji staging terhadap RLS, Supabase Realtime, storage, scheduler, atau provider push.
+## Penguatan tahap 8
 
-## Acceptance matrix
+### Kontrak go/no-go executable
 
-| Kelompok | Kontrak yang diuji di repository | Evidence staging yang masih wajib |
-|---|---|---|
-| Security | Pair isolation, participant validation, immutable send RPC, authenticated caller | Buyer A/B pada merchant sama, cross-order/ride, spoof sender/receiver, admin audit |
-| Database | Unique pair, RPC authorization, client ID idempotency, restricted mutation | Constraint/RLS SELECT-INSERT-UPDATE-DELETE dan race condition pada clone staging |
-| Realtime | Subscribe, timeout, channel error, closed, reconnect metric, delivery latency | Dua tab, background tab, network switch, duplicate event, catch-up setelah reconnect |
-| Reliability | Retry recovery dan client message ID | Timeout setelah commit, reload setelah event, cursor pagination |
-| Retention | Claims dengan `SKIP LOCKED`, batch worker, attachment path validation | Simulasi H+13/H+14/H+29/H+30, retry cleanup, scheduler failure, storage cleanup |
-| UI | Existing chat UI states dan shared repository contracts | Mobile keyboard, screen reader, focus management, offline/closed state |
-| Performance | Query latency/active conversation metrics | Inbox/history besar, concurrent send, rate limit, cleanup batch |
-| Domain | Rollout role/context matrix | Buyer–merchant, buyer–courier, passenger–courier, merchant–courier end-to-end |
+`evaluatePhase8Decision` memeriksa evidence berikut sebelum release:
 
-## Rollout control
+- test lokal dan production build;
+- migration checksum staging;
+- RLS matrix dan concurrency test;
+- realtime reconnect/recovery;
+- retention evidence;
+- visual regression baseline;
+- alert operasional aktif;
+- rollback drill berhasil.
 
-`src/lib/chat/rollout.ts` membaca `VITE_CHAT_ROLLOUT_ENABLED`, `VITE_CHAT_ROLLOUT_ROLES`, `VITE_CHAT_ROLLOUT_CONTEXTS`, dan `VITE_CHAT_PILOT_USER_IDS`. Production default-nya disabled. Pilot production hanya mengizinkan role, context, dan user ID yang tercantum. Rekomendasi wave adalah order chat internal/staging terlebih dahulu, lalu satu cohort buyer–merchant–courier yang disetujui. Ride (`ride`) dan direct pra-order tidak dibuka pada wave awal.
+Hasilnya bersifat fail-closed:
 
-Feature flag harus dievaluasi sebelum entry point chat dibuat. Perubahan environment variables harus melalui release record dan tidak boleh menjadi cara untuk melewati RLS. RLS/RPC tetap otorisasi final.
+- **GO** hanya jika seluruh gate lulus;
+- **HOLD** jika evidence wajib belum lengkap;
+- **ROLLBACK** jika terdapat mismatch uang/data, kebocoran security/tenant, duplikasi pesan/transaksi, atau P0 terbuka.
 
-## Go/no-go checklist
+Keputusan `GO` hanya menghasilkan rekomendasi readiness. Ia tidak mengubah feature flag atau traffic production secara otomatis.
 
-Go hanya jika seluruh test lokal lulus, migration checksum staging cocok, RLS matrix tidak memiliki leakage, reconnect dan retry tidak menggandakan pesan, retention evidence tersedia, alert aktif, rollback drill berhasil, dan product/operations/security/privacy memberikan sign-off. Jika salah satu guardrail gagal, keputusan adalah **hold** atau **rollback**, bukan memperluas cohort.
+### Production chat allowlist hardening
 
-Staging/pilot execution belum diklaim selesai oleh commit ini karena memerlukan project Supabase staging, data uji terisolasi, scheduler, storage, dan approver bisnis. Runbook eksekusi dan rollback tersedia pada `docs/operations/chat-phase-8-runbook.md`.
+Production chat sekarang menolak akses jika `VITE_CHAT_PILOT_USER_IDS` kosong. Sebelumnya, allowlist kosong dapat membuat request yang role dan context-nya valid lolos saat rollout enabled. Alasan penolakan baru adalah `pilot_not_configured`, sehingga operator dapat membedakan konfigurasi pilot yang belum siap dari user yang tidak termasuk cohort.
+
+### Quality gate
+
+CI menjalankan acceptance matrix chat dan kontrak go/no-go tahap 8 sebagai test terpisah melalui:
+
+```bash
+pnpm run test:chat:phase8
+pnpm exec vitest run src/lib/phase8GoNoGo.test.ts
+```
+
+Dynamic staging test, RLS runtime, provider sandbox, visual device matrix, scheduler/retention, dan rollback drill tetap harus dijalankan pada environment staging terisolasi sebelum production sign-off.

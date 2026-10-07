@@ -50,7 +50,7 @@ export function isChatRolloutAllowed(
   config = getChatRolloutConfig(request.environment ?? 'development'),
 ): boolean {
   if (!config.enabled || !config.allowedRoles.includes(request.role) || !config.allowedContexts.includes(request.context)) return false;
-  if (request.environment === 'production' && config.pilotUserIds.length > 0 && (!userId || !config.pilotUserIds.includes(userId))) return false;
+  if (request.environment === 'production' && (!userId || config.pilotUserIds.length === 0 || !config.pilotUserIds.includes(userId))) return false;
   return true;
 }
 
@@ -58,10 +58,11 @@ export function getChatRolloutReason(
   request: ChatRolloutRequest,
   userId?: string,
   config = getChatRolloutConfig(request.environment ?? 'development'),
-): 'enabled' | 'disabled' | 'role_not_allowed' | 'context_not_allowed' | 'pilot_not_allowed' {
+): 'enabled' | 'disabled' | 'role_not_allowed' | 'context_not_allowed' | 'pilot_not_configured' | 'pilot_not_allowed' {
   if (!config.enabled) return 'disabled';
   if (!config.allowedRoles.includes(request.role)) return 'role_not_allowed';
   if (!config.allowedContexts.includes(request.context)) return 'context_not_allowed';
-  if (request.environment === 'production' && config.pilotUserIds.length > 0 && (!userId || !config.pilotUserIds.includes(userId))) return 'pilot_not_allowed';
+  if (request.environment === 'production' && config.pilotUserIds.length === 0) return 'pilot_not_configured';
+  if (request.environment === 'production' && (!userId || !config.pilotUserIds.includes(userId))) return 'pilot_not_allowed';
   return 'enabled';
 }
