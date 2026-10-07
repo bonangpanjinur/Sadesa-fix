@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -31,8 +31,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
 import { NavigationButton } from '@/components/courier/NavigationButton';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
-import { ProofOfDelivery } from '@/components/courier/ProofOfDelivery';
-import { OrderBatchingPanel } from '@/components/courier/OrderBatchingPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -83,6 +81,13 @@ interface DeliveryOffer {
   orders?: DeliveryOfferCardData['order'];
 }
 
+const LazyProofOfDelivery = lazy(() =>
+  import('@/components/courier/ProofOfDelivery').then(({ ProofOfDelivery: Component }) => ({ default: Component })),
+);
+const LazyOrderBatchingPanel = lazy(() =>
+  import('@/components/courier/OrderBatchingPanel').then(({ OrderBatchingPanel: Component }) => ({ default: Component })),
+);
+
 export default function CourierDashboardPage() {
   const navigate = useNavigate();
   const { user, signOut, loading: authLoading } = useAuth();
@@ -93,6 +98,8 @@ export default function CourierDashboardPage() {
   const [releasingOrder, setReleasingOrder] = useState<string | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [realtimeOnline, setRealtimeOnline] = useState(false);
+  const [batchingPanelVisible, setBatchingPanelVisible] = useState(false);
+  const batchingPanelRef = useRef<HTMLDivElement>(null);
   const { isSupported: pushSupported, permission: pushPermission, subscribe: subscribeToPush } = usePushNotification();
 
   // Query: profil kurir + status registrasi
@@ -221,6 +228,25 @@ export default function CourierDashboardPage() {
       });
     return () => { supabase.removeChannel(channel); };
   }, [courier?.id, queryClient]);
+
+  useEffect(() => {
+    const target = batchingPanelRef.current;
+    if (!courier?.id || !target || batchingPanelVisible) return;
+
+    if (typeof IntersectionObserver === 'undefined') {
+      setBatchingPanelVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setBatchingPanelVisible(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '300px 0px' });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [courier?.id, batchingPanelVisible]);
 
   const toggleAvailability = async (checked: boolean) => {
     if (!courier) return;
@@ -734,19 +760,30 @@ export default function CourierDashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.19 }}
           >
-            <OrderBatchingPanel
-              activeOrders={orders.map(o => ({
-                id: o.id,
-                order_number: o.id.slice(0, 8).toUpperCase(),
-                buyer_name: o.delivery_name || 'Pembeli',
-                buyer_address: o.delivery_address || '-',
-                merchant_name: '-',
-                total: o.total,
-                status: o.status,
-                created_at: o.created_at,
-              }))}
-              onRefresh={fetchCourierData}
-            />
+            <div ref={batchingPanelRef}>
+              {batchingPanelVisible ? (
+                <Suspense fallback={<div className="h-32 animate-pulse rounded-xl border border-border bg-muted/40" aria-label="Memuat panel batching" />}>
+                  <LazyOrderBatchingPanel
+                    activeOrders={orders.map(o => ({
+                      id: o.id,
+                      order_number: o.id.slice(0, 8).toUpperCase(),
+                      buyer_name: o.delivery_name || 'Pembeli',
+                      buyer_address: o.delivery_address || '-',
+                      merchant_name: '-',
+                      total: o.total,
+                      status: o.status,
+                      created_at: o.created_at,
+                    }))}
+                    onRefresh={fetchCourierData}
+                  />
+                </Suspense>
+              ) : (
+                <div className="h-32 rounded-xl border border-border bg-card p-4" aria-label="Panel batching dimuat saat didekati">
+                  <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+                  <div className="mt-3 h-3 w-full max-w-xs animate-pulse rounded bg-muted" />
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
@@ -913,15 +950,19 @@ export default function CourierDashboardPage() {
       </div>
 
       {/* POD Dialog */}
-      <ProofOfDelivery
-        orderId={podOrderId || ''}
-        open={!!podOrderId}
-        onOpenChange={(open) => !open && setPodOrderId(null)}
-        onSuccess={() => {
-          setPodOrderId(null);
-          fetchCourierData();
-        }}
-      />
+      {podOrderId && (
+        <Suspense fallback={<div role="status" className="fixed inset-0 z-50 grid place-items-center bg-background/70 text-sm">Menyiapkan formulir bukti pengiriman…</div>}>
+          <LazyProofOfDelivery
+            orderId={podOrderId}
+            open
+            onOpenChange={(open) => !open && setPodOrderId(null)}
+            onSuccess={() => {
+              setPodOrderId(null);
+              fetchCourierData();
+            }}
+          />
+        </Suspense>
+      )}
     </CourierLayout>
   );
 }
