@@ -586,3 +586,30 @@ export async function retryPendingSale(id: string): Promise<void> {
   };
   await waitForTransaction(tx);
 }
+
+/** Re-queues every permanently failed sale in one tenant/outlet scope. */
+export async function retryPendingSales(tenantId: string, outletId: string): Promise<number> {
+  if (!tenantId || !outletId) throw new Error('Offline retry scope is required');
+  const db = await openDB();
+  const tx = db.transaction(STORES.PENDING_SALES, 'readwrite');
+  const store = tx.objectStore(STORES.PENDING_SALES);
+  const request = store.index('scope').openCursor(IDBKeyRange.only([tenantId, outletId]));
+  let retried = 0;
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) return;
+    const record = cursor.value as PendingSale;
+    if (!record.synced && record.status === 'failed') {
+      cursor.update({
+        ...record,
+        status: 'queued',
+        next_attempt_at: 0,
+        sync_error: undefined,
+      });
+      retried++;
+    }
+    cursor.continue();
+  };
+  await waitForTransaction(tx);
+  return retried;
+}

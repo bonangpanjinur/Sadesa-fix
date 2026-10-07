@@ -10,8 +10,12 @@ precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 clientsClaim();
 
-const SCRIPT_CACHE = 'sadesa-script-cache-v1';
-const IMAGE_CACHE = 'sadesa-image-cache-v1';
+const CACHE_VERSION = 'v2';
+const SCRIPT_CACHE = `sadesa-script-cache-${CACHE_VERSION}`;
+const IMAGE_CACHE = `sadesa-image-cache-${CACHE_VERSION}`;
+const MAX_SCRIPT_ENTRIES = 80;
+const MAX_IMAGE_ENTRIES = 120;
+const MAX_IMAGE_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isPublicImage(url: URL): boolean {
   const isPublicStorage = url.hostname.includes('supabase')
@@ -24,10 +28,27 @@ function isPublicImage(url: URL): boolean {
     || url.pathname === '/motor-icon_original.png';
 }
 
-async function putInCache(cacheName: string, request: Request, response: Response): Promise<Response> {
+async function pruneCache(cacheName: string, maxEntries: number, maxAgeMs?: number): Promise<void> {
+  const cache = await caches.open(cacheName);
+  const requests = await cache.keys();
+  const now = Date.now();
+  for (const request of requests) {
+    const response = await cache.match(request);
+    const dateHeader = response?.headers.get('date');
+    const isExpired = Boolean(maxAgeMs && dateHeader && now - new Date(dateHeader).getTime() > maxAgeMs);
+    if (isExpired) await cache.delete(request);
+  }
+  const remaining = await cache.keys();
+  if (remaining.length > maxEntries) {
+    await Promise.all(remaining.slice(0, remaining.length - maxEntries).map((request) => cache.delete(request)));
+  }
+}
+
+async function putInCache(cacheName: string, request: Request, response: Response, maxEntries: number, maxAgeMs?: number): Promise<Response> {
   if (response.ok) {
     const cache = await caches.open(cacheName);
     await cache.put(request, response.clone());
+    await pruneCache(cacheName, maxEntries, maxAgeMs);
   }
   return response;
 }
@@ -51,13 +72,21 @@ self.addEventListener('fetch', (event) => {
     if (cached && isScript) {
       // Stale-while-revalidate for route chunks: show the cached route now,
       // but refresh it for the next navigation.
-      event.waitUntil(fetch(request).then((response) => putInCache(cacheName, request, response)).catch(() => undefined));
+      event.waitUntil(fetch(request).then((response) => putInCache(cacheName, request, response, isScript ? MAX_SCRIPT_ENTRIES : MAX_IMAGE_ENTRIES, isImage ? MAX_IMAGE_AGE_MS : undefined)).catch(() => undefined));
       return cached;
     }
 
     if (cached) return cached;
-    return putInCache(cacheName, request, await fetch(request));
+    return putInCache(cacheName, request, await fetch(request), isScript ? MAX_SCRIPT_ENTRIES : MAX_IMAGE_ENTRIES, isImage ? MAX_IMAGE_AGE_MS : undefined);
   })());
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(caches.keys().then((keys) => Promise.all(
+    keys
+      .filter((key) => (key.startsWith('sadesa-script-cache-') || key.startsWith('sadesa-image-cache-')) && !key.endsWith(CACHE_VERSION))
+      .map((key) => caches.delete(key)),
+  )));
 });
 
 const refreshPublicPwaMetadata = async () => {

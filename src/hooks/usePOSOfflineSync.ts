@@ -6,6 +6,8 @@ import {
   recoverCheckoutCheckpoints,
   syncPendingSales,
   getOfflineQueueSummary,
+  retryPendingSale,
+  retryPendingSales,
   PRODUCT_CACHE_MAX_AGE_MS,
   type OfflineProduct,
   type OfflineVariant,
@@ -126,6 +128,19 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     const interval = window.setInterval(() => setClock(Date.now()), 60_000);
     return () => window.clearInterval(interval);
   }, []);
+
+  // Background Sync is best-effort. Warn the cashier before closing the POS
+  // while a sale still exists only in this browser's durable queue.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (pendingCount <= 0) return;
+      event.preventDefault();
+      event.returnValue = 'Masih ada transaksi POS yang menunggu sinkronisasi.';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [pendingCount]);
 
   const refreshProductCache = useCallback(async () => {
     if (!outletId || !tenantId || !isOnline) return;
@@ -310,6 +325,17 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     }
   }, [tenantId, outletId, isOnline, recoveryReady, refreshQueueSummary]);
 
+  const retryFailedSale = useCallback(async (saleId: string) => {
+    if (saleId === 'all') {
+      if (!tenantId || !outletId) return;
+      await retryPendingSales(tenantId, outletId);
+    } else {
+      await retryPendingSale(saleId);
+    }
+    await refreshQueueSummary();
+    if (isOnline) void triggerSync();
+  }, [isOnline, outletId, refreshQueueSummary, tenantId, triggerSync]);
+
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -353,6 +379,7 @@ export function usePOSOfflineSync({ outletId, tenantId, autoSyncOnReconnect = tr
     refreshProductCache,
     saveOfflineSale,
     triggerSync,
+    retryFailedSale,
     loadCachedProducts,
   };
 }

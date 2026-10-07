@@ -40,7 +40,7 @@ export default function POSKasirPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const {
-    isOnline, isSyncing, pendingCount, queueSummary, triggerSync, saveOfflineSale, refreshProductCache,
+    isOnline, isSyncing, pendingCount, queueSummary, triggerSync, retryFailedSale, saveOfflineSale, refreshProductCache,
     cachedProducts, cacheAgeMs, isCacheStale,
   } = usePOSOfflineSync({ tenantId: tenant?.id ?? null, outletId: activeOutlet?.id ?? null });
 
@@ -816,16 +816,31 @@ export default function POSKasirPage() {
               </div>
                <div className={cn('hidden sm:flex items-center gap-1 text-[10px] whitespace-nowrap', isOnline ? 'text-emerald-600' : 'text-amber-600')}>
                 <span className={cn('h-2 w-2 rounded-full', isOnline ? 'bg-emerald-500' : 'bg-amber-500')} />
-                {isOnline ? (isSyncing ? 'Sync...' : pendingCount > 0 ? `${pendingCount} antrean` : 'Online') : 'Offline'}
-                {pendingCount > 0 && isOnline && <button type="button" className="underline" onClick={() => void triggerSync()}>sync</button>}
+                {isOnline
+                  ? (isSyncing ? 'Sinkronisasi...' : pendingCount > 0 ? `${pendingCount} menunggu sinkronisasi` : 'Online')
+                  : pendingCount > 0 ? `${pendingCount} tersimpan lokal` : 'Offline'}
+                {pendingCount > 0 && isOnline && <button type="button" className="underline" onClick={() => void triggerSync()}>Sinkronkan sekarang</button>}
               </div>
                <div className={cn('hidden md:block text-[10px] whitespace-nowrap', isCacheStale ? 'text-amber-600' : 'text-muted-foreground')}>
                  {cacheAgeMs === null ? 'Cache belum ada' : `Cache ${Math.max(1, Math.round(cacheAgeMs / 60_000))}m`}
                </div>
                {(queueSummary.failed > 0 || queueSummary.conflict > 0) && (
-                 <button type="button" className="hidden md:block text-[10px] text-destructive underline whitespace-nowrap" onClick={() => navigate('/merchant/pos/offline-conflicts')}>
-                   {queueSummary.conflict + queueSummary.failed} perlu ditinjau
-                 </button>
+                 <div className="hidden md:flex items-center gap-1 text-[10px] text-destructive whitespace-nowrap">
+                   <button type="button" className="underline" onClick={() => navigate('/merchant/pos/offline-conflicts')}>
+                     {queueSummary.conflict + queueSummary.failed} perlu ditinjau
+                   </button>
+                   {queueSummary.failed > 0 && (
+                     <button
+                       type="button"
+                       className="underline"
+                       onClick={() => {
+                         void retryFailedSale('all').then(() => toast.success('Transaksi gagal dimasukkan kembali ke antrean.'));
+                       }}
+                     >
+                       retry
+                     </button>
+                   )}
+                 </div>
                )}
               <Button variant="outline" size="icon" className="h-9 w-9 flex-shrink-0" onClick={() => setScannerOpen(true)} title="Scan Barcode Kamera">
                 <Barcode className="h-4 w-4 text-emerald-600" />
