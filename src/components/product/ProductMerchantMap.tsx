@@ -329,7 +329,7 @@ export function ProductMerchantMap({ products, center, userLocation }: ProductMe
                 className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 transition hover:border-primary/40 hover:bg-primary/5"
               >
                 {merchant.imageUrl ? (
-                  <img src={merchant.imageUrl} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" />
+                  <img src={merchant.imageUrl} alt="" className="h-11 w-11 shrink-0 rounded-xl object-cover" loading="lazy" decoding="async" />
                 ) : (
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Store className="h-5 w-5" /></div>
                 )}

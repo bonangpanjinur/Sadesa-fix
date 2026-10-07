@@ -1,7 +1,6 @@
 import { BarChart3, Download, Eye, FileDown, MousePointerClick, TrendingUp } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { loadPdfExportLibraries } from '@/lib/loadPdfExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -89,7 +88,8 @@ export function MerchantAdsPerformance({ ads }: MerchantAdsPerformanceProps) {
     URL.revokeObjectURL(url);
   };
 
-  const exportPdf = () => {
+  const exportPdf = async () => {
+    const { jsPDF, autoTable } = await loadPdfExportLibraries();
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(16);
     doc.text('Laporan Performa Iklan Merchant', 14, 16);

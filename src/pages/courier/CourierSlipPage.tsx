@@ -15,13 +15,12 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
+import { loadPdfExportLibraries } from '@/lib/loadPdfExport';
 import {
   startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   format, subWeeks, subMonths, eachDayOfInterval
 } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface EarningRecord {
   id: string;
@@ -155,8 +154,9 @@ export default function CourierSlipPage() {
     setSelectedPeriod(val === 'week' ? 'week-0' : 'month-0');
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!data) return;
+    const { jsPDF, autoTable } = await loadPdfExportLibraries();
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const { courier, profile, stats, dailySummary } = data;
     const courierName = profile?.full_name || courier.name || 'Kurir';

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useDeferredValue, useCallback } from 'react';
+import { lazy, Suspense, useState, useMemo, useEffect, useDeferredValue, useCallback, type ComponentProps } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,7 +13,6 @@ import { calculateDistance, useUserLocation, sortByDistance } from '../hooks/use
 import { cn } from '../lib/utils';
 import { FoodFilterSheet } from '../components/product/FoodFilterSheet';
 import { defaultFoodFilters, getCatalogTypeFromSearchParams, type FoodFilters, type FoodType } from '../components/product/foodFilters';
-import { ProductMerchantMap } from '../components/product/ProductMerchantMap';
 import { useAdminCategories } from '../hooks/useAdminCategories';
 import {
   Select,
@@ -33,6 +32,24 @@ import { formatPrice } from '../lib/utils';
 import { fetchBannerPromotions, fetchCategoryBannerPromotions, incrementPromotionClick, incrementPromotionView, type Promotion } from '../lib/promotions';
 import { HeroCarousel, type BannerSlide } from '../components/home/HeroCarousel';
 import { isCompleteProduct } from '../lib/homepageProducts';
+
+const LazyProductMerchantMap = lazy(() =>
+  import('../components/product/ProductMerchantMap').then(({ ProductMerchantMap: Component }) => ({ default: Component })),
+);
+
+function ProductMapLoading() {
+  return (
+    <div role="status" aria-label="Memuat peta toko" className="h-[390px] w-full animate-pulse rounded-2xl border border-border bg-muted/50" />
+  );
+}
+
+function ProductMerchantMap(props: ComponentProps<typeof LazyProductMerchantMap>) {
+  return (
+    <Suspense fallback={<ProductMapLoading />}>
+      <LazyProductMerchantMap {...props} />
+    </Suspense>
+  );
+}
 
 type SortMode = 'nearest' | 'cheapest' | 'expensive' | 'newest';
 type ViewMode = 'products' | 'map';

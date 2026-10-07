@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
+import { loadPdfExportLibraries } from '@/lib/loadPdfExport';
 import { toast } from 'sonner';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface SalesOrderItem {
   product_name: string;
@@ -69,6 +68,7 @@ export function SalesExport({ merchantId, merchantName }: SalesExportProps) {
         return;
       }
 
+      const { jsPDF, autoTable } = await loadPdfExportLibraries();
       const doc = new jsPDF();
 
       // Header

@@ -15,10 +15,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useQuery } from '@tanstack/react-query';
 import { formatPrice } from '@/lib/utils';
+import { loadPdfExportLibraries } from '@/lib/loadPdfExport';
 import { format, startOfMonth, endOfMonth, subMonths, getMonth, getYear } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 // Tarif pajak Indonesia / Indonesian tax rates
 const PPN_RATE = 0.11;         // PPN 11%
@@ -131,7 +130,8 @@ export default function MerchantPajakPage() {
   }, [orders, selectedMonth]);
 
   // Export PDF SPT / Export PDF tax report
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    const { jsPDF, autoTable } = await loadPdfExportLibraries();
     const doc = new jsPDF();
     doc.setFontSize(14);
     doc.text('LAPORAN PAJAK UMKM', 105, 15, { align: 'center' });

@@ -24,8 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
 import { calculateAdminFinancials, calculateOrderPlatformFee } from '@/lib/adminFinance';
 import { SalesAreaChart } from '@/components/admin/SalesChart';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { loadPdfExportLibraries } from '@/lib/loadPdfExport';
 
 interface FinancialData {
   totalRevenue: number;
@@ -144,7 +143,8 @@ export default function AdminFinancePage() {
       .map(([date, data]) => ({ date, ...data }));
   }, [orders]);
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
+    const { jsPDF, autoTable } = await loadPdfExportLibraries();
     const doc = new jsPDF();
     const { start, end } = getDateRange();
     

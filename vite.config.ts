@@ -203,14 +203,8 @@ export default defineConfig(() => ({
             if (id.includes('@radix-ui') || id.includes('cmdk') || id.includes('vaul')) {
               return 'ui-vendor';
             }
-            if (id.includes('recharts')) {
-              return 'recharts-vendor';
-            }
             if (id.includes('framer-motion')) {
               return 'motion-vendor';
-            }
-            if (id.includes('jspdf') || id.includes('jspdf-autotable')) {
-              return 'pdf-vendor';
             }
             if (id.includes('date-fns') || id.includes('react-day-picker')) {
               return 'date-vendor';
