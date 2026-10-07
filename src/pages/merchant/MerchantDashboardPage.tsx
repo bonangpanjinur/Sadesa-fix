@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -22,7 +22,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
-import { SalesAreaChart, OrdersBarChart } from '@/components/admin/SalesChart';
 import { QuickStats } from '@/components/merchant/QuickStats';
 import { StockAlerts } from '@/components/merchant/StockAlerts';
 import { CustomerReviews } from '@/components/merchant/CustomerReviews';
@@ -63,6 +62,13 @@ interface OrderData {
   subtotal?: number;
   created_at: string;
 }
+
+const SalesAreaChart = lazy(() =>
+  import('@/components/admin/SalesChart').then((module) => ({ default: module.SalesAreaChart })),
+);
+const OrdersBarChart = lazy(() =>
+  import('@/components/admin/SalesChart').then((module) => ({ default: module.OrdersBarChart })),
+);
 
 export default function MerchantDashboardPage() {
   const navigate = useNavigate();
@@ -424,7 +430,7 @@ export default function MerchantDashboardPage() {
                 <Eye className="mr-1.5 h-3.5 w-3.5" />
                 Lihat toko
               </Button>
-              <StoreQRCode merchantId={merchant.id} merchantName={merchant.name} merchantImage={merchant.image_url} slug={merchant.slug} />
+              <StoreQRCode merchantId={merchant.id} merchantName={merchant.name} slug={merchant.slug} />
               <div className="flex w-full items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 sm:w-auto sm:flex-1">
                 <Label className="cursor-pointer text-xs font-medium" htmlFor="store-status">
                   {merchant.is_open ? 'Buka' : 'Tutup'}
@@ -569,14 +575,21 @@ export default function MerchantDashboardPage() {
                 <p className="text-xs text-muted-foreground">
                 Grafik 14 hari memakai data pada periode yang sama; ringkasan angka pesanan di atas menggunakan hitungan server.
                 </p>
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
-                  <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                    <SalesAreaChart data={salesChartData} title="Pendapatan 14 hari terakhir" />
+                <Suspense fallback={
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]" aria-label="Memuat grafik">
+                    <div className="h-[310px] animate-pulse rounded-2xl bg-muted" />
+                    <div className="h-[310px] animate-pulse rounded-2xl bg-muted" />
                   </div>
-                  <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
-                    <OrdersBarChart data={salesChartData} title="Pesanan 14 hari terakhir" />
+                }>
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+                    <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                      <SalesAreaChart data={salesChartData} title="Pendapatan 14 hari terakhir" />
+                    </div>
+                    <div className="overflow-hidden rounded-2xl border border-border bg-card p-1 shadow-sm">
+                      <OrdersBarChart data={salesChartData} title="Pesanan 14 hari terakhir" />
+                    </div>
                   </div>
-                </div>
+                </Suspense>
               </div>
             )}
 

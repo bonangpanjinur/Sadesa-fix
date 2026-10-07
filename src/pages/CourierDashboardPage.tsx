@@ -173,7 +173,8 @@ export default function CourierDashboardPage() {
       return (data || []) as unknown as DeliveryOffer[];
     },
     enabled: !!courier,
-    refetchInterval: 30_000,
+    // Realtime invalidations keep this fresh while connected; poll only as a fallback.
+    refetchInterval: realtimeOnline ? false : 30_000,
   });
 
   // Real-time notification for new assigned orders

@@ -16,11 +16,10 @@ import { toast } from '@/hooks/use-toast';
 interface StoreQRCodeProps {
   merchantId: string;
   merchantName: string;
-  merchantImage?: string | null;
   slug?: string | null;
 }
 
-export function StoreQRCode({ merchantId, merchantName, merchantImage, slug }: StoreQRCodeProps) {
+export function StoreQRCode({ merchantId, merchantName, slug }: StoreQRCodeProps) {
   const [copied, setCopied] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
   
@@ -214,12 +213,12 @@ export function StoreQRCode({ merchantId, merchantName, merchantImage, slug }: S
                 size={200}
                 level="H"
                 includeMargin
-                imageSettings={merchantImage ? {
-                  src: merchantImage,
+                imageSettings={{
+                  src: '/branding/sadesa-mark.png',
                   height: 40,
                   width: 40,
                   excavate: true,
-                } : undefined}
+                }}
               />
             </CardContent>
           </Card>
