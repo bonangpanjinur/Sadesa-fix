@@ -209,7 +209,7 @@ export default function CourierChatPage() {
               <CardContent className="flex min-h-[76px] items-center gap-3 p-3 sm:p-4">
                 <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                   {thread.productImage ? (
-                    <img src={thread.productImage} alt={thread.productName || ''} className="w-full h-full object-cover" />
+                    <img src={thread.productImage} alt={thread.productName || ''} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <ShoppingBag className="h-5 w-5 text-muted-foreground" />

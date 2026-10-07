@@ -63,6 +63,8 @@ describe('PodImage', () => {
     render(<PodImage storedUrl="https://x/pod-images/foo.jpg" alt="Bukti" />);
     const img = await screen.findByAltText('Bukti');
     expect(img).toHaveAttribute('src', 'https://signed.example/foo.jpg');
+    expect(img).toHaveAttribute('loading', 'lazy');
+    expect(img).toHaveAttribute('decoding', 'async');
   });
 
   it('renders English copy when locale is "en"', async () => {

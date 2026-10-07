@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bike, MapPin, Navigation, CheckCircle, Loader2, RefreshCw, User, MessageCircle, X, Package } from 'lucide-react';
@@ -10,10 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
-import { MapContainer, TileLayer, Marker, Polyline } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { OrderChat } from '@/components/chat/OrderChat';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
@@ -23,17 +19,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
-const pickupIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: markerShadow,
-  iconSize: [20, 33], iconAnchor: [10, 33], popupAnchor: [1, -28], shadowSize: [33, 33],
-});
-
-const destIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: markerShadow,
-  iconSize: [20, 33], iconAnchor: [10, 33], popupAnchor: [1, -28], shadowSize: [33, 33],
-});
+const CourierRideRouteMap = lazy(() =>
+  import('@/components/courier/CourierRideRouteMap').then(({ CourierRideRouteMap: Component }) => ({ default: Component })),
+);
 
 interface RideRequest {
   id: string;
@@ -600,21 +588,16 @@ export default function CourierRidesPage() {
 
                     {expandedMap === ride.id && (
                       <div className="h-[150px] border-t border-border">
-                        <MapContainer
-                          center={[(ride.pickup_lat + ride.destination_lat) / 2, (ride.pickup_lng + ride.destination_lng) / 2]}
-                          zoom={13}
-                          style={{ height: '100%', width: '100%' }}
-                          zoomControl={false}
-                          dragging={false}
-                          scrollWheelZoom={false}
-                          doubleClickZoom={false}
-                          attributionControl={false}
-                        >
-                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                          <Marker position={[ride.pickup_lat, ride.pickup_lng]} icon={pickupIcon} />
-                          <Marker position={[ride.destination_lat, ride.destination_lng]} icon={destIcon} />
-                          <Polyline positions={roadRoute} pathOptions={{ color: routeFallback ? 'hsl(45,90%,45%)' : 'hsl(160,84%,39%)', weight: 3, dashArray: routeFallback ? '8, 6' : undefined, opacity: 0.8 }} />
-                        </MapContainer>
+                        <Suspense fallback={<div role="status" className="grid h-full place-items-center bg-muted/30 text-xs text-muted-foreground">Memuat peta rute…</div>}>
+                          <CourierRideRouteMap
+                            pickupLat={ride.pickup_lat}
+                            pickupLng={ride.pickup_lng}
+                            destinationLat={ride.destination_lat}
+                            destinationLng={ride.destination_lng}
+                            roadRoute={roadRoute}
+                            routeFallback={routeFallback}
+                          />
+                        </Suspense>
                       </div>
                     )}
                   </Card>

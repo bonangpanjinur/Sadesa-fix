@@ -130,6 +130,7 @@ export function ProofOfDelivery({ orderId, onSuccess, open, onOpenChange }: Proo
                   src={preview}
                   alt="Preview"
                   className="w-full h-48 object-cover rounded-xl border border-border"
+                  decoding="async"
                 />
                 <Button
                   variant="destructive"

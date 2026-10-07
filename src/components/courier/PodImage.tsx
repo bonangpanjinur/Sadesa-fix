@@ -105,5 +105,5 @@ export function PodImage({ storedUrl, alt, className }: PodImageProps) {
     );
   }
 
-  return <img src={src!} alt={safeAlt} className={className} loading="lazy" onError={() => setStatus('error')} />;
+  return <img src={src!} alt={safeAlt} className={className} loading="lazy" decoding="async" onError={() => setStatus('error')} />;
 }
