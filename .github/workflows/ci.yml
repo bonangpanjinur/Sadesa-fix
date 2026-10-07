@@ -49,6 +49,8 @@ jobs:
           src/lib/pilotReadiness.test.ts
           src/lib/phase8GoNoGo.ts
           src/lib/phase8GoNoGo.test.ts
+          src/lib/phase9ScaleUp.ts
+          src/lib/phase9ScaleUp.test.ts
           src/lib/chat/rollout.ts
           src/lib/chat/phase8Acceptance.test.ts
           src/hooks/usePOSOfflineSync.ts
@@ -62,6 +64,9 @@ jobs:
 
       - name: Phase 8 acceptance matrix
         run: pnpm run test:chat:phase8 && pnpm exec vitest run src/lib/phase8GoNoGo.test.ts
+
+      - name: Phase 9 scale-up gate
+        run: pnpm exec vitest run src/lib/phase9ScaleUp.test.ts
 
       - name: Build
         run: pnpm build
