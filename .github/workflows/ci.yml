@@ -53,6 +53,8 @@ jobs:
           src/lib/phase9ScaleUp.test.ts
           src/lib/phase10Governance.ts
           src/lib/phase10Governance.test.ts
+          src/lib/phase11FinancialIntegrity.ts
+          src/lib/phase11FinancialIntegrity.test.ts
           src/lib/chat/rollout.ts
           src/lib/chat/phase8Acceptance.test.ts
           src/hooks/usePOSOfflineSync.ts
@@ -72,6 +74,9 @@ jobs:
 
       - name: Phase 10 governance gate
         run: pnpm exec vitest run src/lib/phase10Governance.test.ts
+
+      - name: Phase 11 financial integrity gate
+        run: pnpm exec vitest run src/lib/phase11FinancialIntegrity.test.ts
 
       - name: Build
         run: pnpm build
