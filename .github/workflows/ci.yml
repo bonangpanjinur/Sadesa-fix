@@ -43,6 +43,10 @@ jobs:
           pnpm exec eslint
           src/lib/observability.ts
           src/lib/observability.test.ts
+          src/lib/pilotRollout.ts
+          src/lib/pilotRollout.test.ts
+          src/lib/pilotReadiness.ts
+          src/lib/pilotReadiness.test.ts
           src/hooks/usePOSOfflineSync.ts
           src/lib/posOfflineDB.ts
           src/pages/pos/POSKasirPage.tsx
