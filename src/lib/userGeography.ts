@@ -3,6 +3,7 @@ export interface UserGeographyRecord {
   province_name: string | null;
   city_name: string | null;
   district_name: string | null;
+  address?: string | null;
 }
 
 export type GeographyLevel = 'province' | 'city' | 'district';
@@ -11,6 +12,14 @@ export interface GeographyBucket {
   key: string;
   name: string;
   count: number;
+}
+
+export interface UserMapPoint {
+  key: string;
+  lat: number;
+  lng: number;
+  count: number;
+  areas: string[];
 }
 
 export const UNKNOWN_LOCATION_KEY = '__unknown_location__';
@@ -88,4 +97,61 @@ export function getGeographyMetrics(records: UserGeographyRecord[]) {
     cityCount: cityKeys.size,
     districtCount: districtKeys.size,
   };
+}
+
+export function parseProfileMapCoordinates(address: string | null | undefined): { lat: number; lng: number } | null {
+  if (!address) return null;
+
+  const patterns = [
+    /[?&](?:q|query)=(-?\d{1,2}(?:\.\d+)?)(?:,|%2c)(-?\d{1,3}(?:\.\d+)?)/i,
+    /@(-?\d{1,2}(?:\.\d+)?),\s*(-?\d{1,3}(?:\.\d+)?)/,
+    /!3d(-?\d{1,2}(?:\.\d+)?).*?!4d(-?\d{1,3}(?:\.\d+)?)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = address.match(pattern);
+    if (!match) continue;
+    const lat = Number(match[1]);
+    const lng = Number(match[2]);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+      return { lat, lng };
+    }
+  }
+
+  return null;
+}
+
+export function aggregateUserMapPoints(
+  records: UserGeographyRecord[],
+  provinceName?: string,
+  cityName?: string,
+): UserMapPoint[] {
+  const selectedProvince = normalizeLocationName(provinceName);
+  const selectedCity = normalizeLocationName(cityName);
+  const points = new Map<string, UserMapPoint>();
+
+  uniqueUsers(records).forEach((user) => {
+    if (selectedProvince && normalizeLocationName(user.province_name) !== selectedProvince) return;
+    if (selectedCity && normalizeLocationName(user.city_name) !== selectedCity) return;
+    const coordinates = parseProfileMapCoordinates(user.address);
+    if (!coordinates) return;
+
+    // Round before displaying: one cell is roughly 10–11 km at Indonesian latitudes.
+    const lat = Math.round(coordinates.lat * 10) / 10;
+    const lng = Math.round(coordinates.lng * 10) / 10;
+    const key = `${lat.toFixed(1)},${lng.toFixed(1)}`;
+    const area = [user.province_name, user.city_name, user.district_name]
+      .map(cleanName)
+      .filter(Boolean)
+      .join(' · ');
+    const point = points.get(key);
+    if (point) {
+      point.count += 1;
+      if (area && !point.areas.includes(area)) point.areas.push(area);
+    } else {
+      points.set(key, { key, lat, lng, count: 1, areas: area ? [area] : [] });
+    }
+  });
+
+  return [...points.values()].sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 }

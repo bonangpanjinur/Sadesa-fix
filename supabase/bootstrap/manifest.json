@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment appended",
-  "migration_count": 356,
-  "bundle_count": 55,
+  "migration_count": 358,
+  "bundle_count": 57,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -751,6 +751,14 @@
       ],
       "sha256": "3adeee25088c97e3d593f05d350bc2836ea9795cdcbd1beb54cc4838d7312c5d",
       "bytes": 1325
+    },
+    {
+      "file": "84_20261008180000_publish_profiles_for_admin_geography_realtime.sql",
+      "source_files": [
+        "20261008180000_publish_profiles_for_admin_geography_realtime.sql"
+      ],
+      "sha256": "27fd5f3660fa185631de499dc5b1b64c31f3e5edb41ed87f4d3dd071d63524ce",
+      "bytes": 1163
     }
   ],
   "idempotent": true,

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, ArrowLeft, Building2, Map, MapPin, RefreshCw, Users } from 'lucide-react';
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,14 +10,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import {
   aggregateGeography,
+  aggregateUserMapPoints,
   getGeographyMetrics,
   normalizeLocationName,
   UNKNOWN_LOCATION_KEY,
   type GeographyLevel,
   type UserGeographyRecord,
+  type UserMapPoint,
 } from '@/lib/userGeography';
 
 const PAGE_SIZE = 1000;
+const INDONESIA_CENTER: [number, number] = [-2.5, 118];
 
 async function fetchAllUserLocations(): Promise<UserGeographyRecord[]> {
   const rows: UserGeographyRecord[] = [];
@@ -23,7 +29,7 @@ async function fetchAllUserLocations(): Promise<UserGeographyRecord[]> {
   while (true) {
     const { data, error } = await supabase
       .from('profiles')
-      .select('user_id, province_name, city_name, district_name')
+      .select('user_id, province_name, city_name, district_name, address')
       .order('user_id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
 
@@ -39,6 +45,49 @@ async function fetchAllUserLocations(): Promise<UserGeographyRecord[]> {
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat('id-ID').format(value);
+}
+
+function MapViewport({ points }: { points: UserMapPoint[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], 7, { animate: true });
+    } else if (points.length > 1) {
+      map.fitBounds(L.latLngBounds(points.map((point) => [point.lat, point.lng])), { padding: [28, 28], maxZoom: 7 });
+    }
+  }, [map, points]);
+  return null;
+}
+
+function UserDistributionMap({ points }: { points: UserMapPoint[] }) {
+  return (
+    <div className="h-[340px] w-full overflow-hidden rounded-lg border sm:h-[440px]">
+      <MapContainer center={INDONESIA_CENTER} zoom={4} minZoom={3} scrollWheelZoom className="h-full w-full">
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapViewport points={points} />
+        {points.map((point) => (
+          <CircleMarker
+            key={point.key}
+            center={[point.lat, point.lng]}
+            radius={Math.min(24, 8 + Math.sqrt(point.count) * 2)}
+            pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#137c68', fillOpacity: 0.8 }}
+          >
+            <Popup>
+              <div className="space-y-1">
+                <p className="font-semibold">{formatCount(point.count)} pengguna</p>
+                <p className="whitespace-pre-line text-xs">{point.areas.length ? point.areas.slice(0, 5).join('\n') : 'Wilayah tidak tercantum'}</p>
+                {point.areas.length > 5 && <p className="text-xs">+{point.areas.length - 5} wilayah lain</p>}
+                <p className="text-[10px] text-slate-500">Titik dibulatkan untuk menjaga privasi</p>
+              </div>
+            </Popup>
+          </CircleMarker>
+        ))}
+      </MapContainer>
+    </div>
+  );
 }
 
 function StatCard({ label, value, detail, icon: Icon }: {
@@ -67,6 +116,7 @@ export default function AdminUserGeographyPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -83,12 +133,39 @@ export default function AdminUserGeographyPage() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  useEffect(() => {
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const refreshDebounced = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => { void refresh(); }, 500);
+    };
+    const channel = supabase
+      .channel('admin-user-geography-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, refreshDebounced)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, refreshDebounced)
+      .subscribe((status) => setRealtimeStatus(status === 'SUBSCRIBED' ? 'live' : 'offline'));
+
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [refresh]);
+
   const metrics = useMemo(() => getGeographyMetrics(records), [records]);
   const level: GeographyLevel = selectedCity ? 'district' : selectedProvince ? 'city' : 'province';
   const buckets = useMemo(
     () => aggregateGeography(records, level, selectedProvince ?? undefined, selectedCity ?? undefined),
     [records, level, selectedProvince, selectedCity],
   );
+  const mapPoints = useMemo(
+    () => aggregateUserMapPoints(records, selectedProvince ?? undefined, selectedCity ?? undefined),
+    [records, selectedProvince, selectedCity],
+  );
+  const selectedScopeUserCount = records.filter((record) =>
+    (!selectedProvince || normalizeLocationName(record.province_name) === selectedProvince)
+    && (!selectedCity || normalizeLocationName(record.city_name) === selectedCity),
+  ).length;
+  const mappedUserCount = mapPoints.reduce((total, point) => total + point.count, 0);
   const scopeTotal = buckets.reduce((sum, bucket) => sum + bucket.count, 0);
   const maxCount = Math.max(1, ...buckets.map((bucket) => bucket.count));
   const selectedProvinceLabel = useMemo(
@@ -142,6 +219,30 @@ export default function AdminUserGeographyPage() {
           <StatCard label="Lokasi belum lengkap" value={metrics.incompleteUsers} detail="Minimal satu tingkat lokasi kosong" icon={AlertCircle} />
           <StatCard label="Cakupan wilayah" value={metrics.provinceCount} detail={`${formatCount(metrics.cityCount)} kota/kabupaten · ${formatCount(metrics.districtCount)} kecamatan`} icon={Building2} />
         </div>
+
+        <Card>
+          <CardHeader className="gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>Peta interaktif sebaran pengguna</CardTitle>
+              <CardDescription>Marker menunjukkan kelompok akun pada area perkiraan; pilih provinsi atau kota di bawah untuk memfilter peta.</CardDescription>
+            </div>
+            <Badge variant={realtimeStatus === 'live' ? 'default' : 'secondary'} className="w-fit">
+              {realtimeStatus === 'live' ? 'Realtime aktif' : realtimeStatus === 'connecting' ? 'Menghubungkan…' : 'Realtime terputus'}
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loading && records.length === 0 ? (
+              <div className="flex h-[340px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">Memuat titik sebaran…</div>
+            ) : errorMessage ? (
+              <div className="flex h-48 items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">Peta tidak tersedia sampai data profil berhasil dimuat.</div>
+            ) : (
+              <UserDistributionMap points={mapPoints} />
+            )}
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {formatCount(mappedUserCount)} dari {formatCount(selectedScopeUserCount)} pengguna pada tampilan ini memiliki titik peta di profil. Peta diperbarui otomatis saat profil ditambah atau diperbarui; setelah akun dihapus, tekan “Perbarui data”. Titik diringkas ke grid ±0,1° (sekitar 10 km), tanpa alamat persis atau identitas akun. Peta dasar dari OpenStreetMap.
+            </p>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
