@@ -36,13 +36,15 @@ interface AddressSelectorProps {
   onChange: (data: AddressData) => void;
   disabled?: boolean;
   showDetailInput?: boolean;
+  requiredFields?: boolean;
 }
 
 export function AddressSelector({ 
   value, 
   onChange, 
   disabled,
-  showDetailInput = true 
+  showDetailInput = true,
+  requiredFields = false,
 }: AddressSelectorProps) {
   const [provinces, setProvinces] = useState<Region[]>([]);
   const [cities, setCities] = useState<Region[]>([]);
@@ -298,7 +300,7 @@ export function AddressSelector({
       <p className="rounded-lg bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">Isi dari atas ke bawah: provinsi, kota/kabupaten, kecamatan, lalu desa/kelurahan.</p>
       {/* Province */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Provinsi</Label>
+        <Label className="text-xs text-muted-foreground">Provinsi{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.province}
           onValueChange={handleProvinceChange}
@@ -326,7 +328,7 @@ export function AddressSelector({
 
       {/* City */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Kota/Kabupaten</Label>
+        <Label className="text-xs text-muted-foreground">Kota/Kabupaten{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.city}
           onValueChange={handleCityChange}
@@ -354,7 +356,7 @@ export function AddressSelector({
 
       {/* District */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Kecamatan</Label>
+        <Label className="text-xs text-muted-foreground">Kecamatan{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.district}
           onValueChange={handleDistrictChange}
@@ -382,7 +384,7 @@ export function AddressSelector({
 
       {/* Village */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Kelurahan/Desa</Label>
+        <Label className="text-xs text-muted-foreground">Kelurahan/Desa{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.village}
           onValueChange={handleVillageChange}

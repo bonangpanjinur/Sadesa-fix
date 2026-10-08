@@ -12,6 +12,7 @@ import { getRedirectPathForRoles } from '@/types/auth';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { createOtpExpiration, getOtpExpirationKey } from '@/lib/otp';
+import { AddressSelector, createEmptyAddressData, type AddressData } from '@/components/AddressSelector';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -22,6 +23,12 @@ const signUpSchema = z.object({
     .regex(/[A-Za-z]/, 'Password harus mengandung huruf')
     .regex(/[0-9]/, 'Password harus mengandung angka'),
   confirmPassword: z.string(),
+  address: z.object({
+    province: z.string().min(1, 'Provinsi wajib dipilih'),
+    city: z.string().min(1, 'Kabupaten/Kota wajib dipilih'),
+    district: z.string().min(1, 'Kecamatan wajib dipilih'),
+    village: z.string().min(1, 'Desa/Kelurahan wajib dipilih'),
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Password tidak sama',
   path: ['confirmPassword'],
@@ -40,6 +47,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [addressData, setAddressData] = useState<AddressData>(createEmptyAddressData);
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -61,7 +69,7 @@ export default function AuthPage() {
 
   const validateForm = (values = formData) => {
     const schema = isLogin ? signInSchema : signUpSchema;
-    const result = schema.safeParse(values);
+    const result = schema.safeParse(isLogin ? values : { ...values, address: addressData });
     if (result.success) {
       setErrors({});
       return true;
@@ -133,6 +141,7 @@ export default function AuthPage() {
           signupEmail,
           formData.password,
           formData.fullName.trim(),
+          addressData,
         );
         if (error) {
           toast({
@@ -231,6 +240,24 @@ export default function AuthPage() {
               {errors.fullName && (
                 <p id="fullName-error" role="alert" className="text-xs text-destructive">{errors.fullName}</p>
               )}
+            </div>
+          )}
+
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label>Alamat Utama <span className="text-destructive">*</span></Label>
+              <p className="text-xs text-muted-foreground">Pilih seluruh wilayah: provinsi, kabupaten/kota, kecamatan, dan desa/kelurahan.</p>
+              <AddressSelector
+                value={addressData}
+                onChange={(nextAddress) => {
+                  setAddressData(nextAddress);
+                  setErrors((previous) => ({ ...previous, address: '' }));
+                }}
+                showDetailInput={false}
+                requiredFields
+                disabled={loading}
+              />
+              {errors.address && <p role="alert" className="text-xs text-destructive">{errors.address}</p>}
             </div>
           )}
 

@@ -29,6 +29,7 @@ export function ProtectedRoute({
   const isCourierWorkspaceRoute = location.pathname === '/courier'
     || location.pathname.startsWith('/courier/');
   const requiresApprovedMerchant = isMerchantWorkspaceRoute && location.pathname !== '/merchant';
+  const addressUserId = user?.id;
   const requiredRoles = allowedRoles
     ?? (isPOSRoute ? posRouteRoles : isMerchantWorkspaceRoute ? ['merchant'] : undefined);
   const routeRequiredRoles = requiredRoles
@@ -36,6 +37,38 @@ export function ProtectedRoute({
   const registeredBusinessRole = roles.find((role) => ['merchant', 'courier', 'service_provider'].includes(role));
   const [merchantAccessLoading, setMerchantAccessLoading] = useState(false);
   const [merchantAccessAllowed, setMerchantAccessAllowed] = useState(true);
+  const [addressStatus, setAddressStatus] = useState<'checking' | 'complete' | 'incomplete' | 'error'>('checking');
+  const requiresAddressCompletion = Boolean(addressUserId)
+    && location.pathname !== '/account'
+    && location.pathname !== '/profile';
+
+  useEffect(() => {
+    if (!addressUserId || !requiresAddressCompletion) {
+      setAddressStatus('complete');
+      return;
+    }
+
+    let cancelled = false;
+    setAddressStatus('checking');
+    void supabase
+      .from('profiles')
+      .select('province_id, city_id, district_id, village_id')
+      .eq('user_id', addressUserId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.warn('Unable to verify required profile address:', error);
+          setAddressStatus('error');
+          return;
+        }
+        setAddressStatus(data?.province_id && data?.city_id && data?.district_id && data?.village_id
+          ? 'complete'
+          : 'incomplete');
+      });
+
+    return () => { cancelled = true; };
+  }, [addressUserId, requiresAddressCompletion]);
 
   useEffect(() => {
     if (!requiresApprovedMerchant || !user || rolesLoading || !roles.includes('merchant')) {
@@ -71,7 +104,7 @@ export function ProtectedRoute({
     || (isMerchantWorkspaceRoute && !roles.includes('merchant') && merchantRoleRecoveryLoading)
     || merchantAccessLoading;
 
-  if (authLoading || waitingForRequiredRoles) {
+  if (authLoading || waitingForRequiredRoles || (requiresAddressCompletion && addressStatus === 'checking')) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -85,6 +118,10 @@ export function ProtectedRoute({
   // Redirect to auth if not logged in
   if (!user) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  }
+
+  if (requiresAddressCompletion && addressStatus === 'incomplete') {
+    return <Navigate to="/account?completeAddress=1" state={{ from: location, reason: 'profile_address_required' }} replace />;
   }
 
   if (exclusiveRegistration && registeredBusinessRole) {

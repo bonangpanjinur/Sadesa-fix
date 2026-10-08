@@ -99,8 +99,10 @@ export default function AccountPage() {
       if (data) {
         setProfile(data);
         // Foto profil adalah rekomendasi, bukan syarat akses akun atau route.
-        const complete = Boolean(data.full_name?.trim());
+        const completeAddress = Boolean(data.province_id && data.city_id && data.district_id && data.village_id);
+        const complete = Boolean(data.full_name?.trim()) && completeAddress;
         setProfileRequired(!complete);
+        if (!completeAddress) setEditing(true);
         const courierIncomplete = Boolean(
           isCourier && (!data.phone || !isValidIndonesianPhone(data.phone)),
         );
@@ -113,6 +115,7 @@ export default function AccountPage() {
         if (merchantIncomplete) setEditing(true);
       } else {
         setProfileRequired(true);
+        setEditing(true);
         setCourierProfileRequired(isCourier);
         if (isCourier) setEditing(true);
         setMerchantProfileRequired(isMerchant);
@@ -342,6 +345,7 @@ export default function AccountPage() {
                     onSave={handleProfileSave}
                     onCancel={() => setEditing(false)}
                     forceCompletion={profileRequired || courierProfileRequired || merchantProfileRequired}
+                    requiredAddress={profileRequired && !(profile?.province_id && profile?.city_id && profile?.district_id && profile?.village_id)}
                     requireCourierProfile={courierProfileRequired}
                     requireMerchantProfile={merchantProfileRequired}
                   />
@@ -353,7 +357,7 @@ export default function AccountPage() {
                           ? 'Lengkapi nomor KTP dan WhatsApp aktif untuk mengoptimalkan fitur pedagang. Foto profil tetap opsional.'
                           : courierProfileRequired
                           ? 'Tambahkan nomor WhatsApp aktif untuk mengoptimalkan fitur kurir. Foto profil tetap opsional.'
-                          : 'Profil Anda belum lengkap. Tambahkan alamat atau foto profil kapan saja, tanpa mengunci akses menu.'}
+                        : 'Alamat utama wajib dilengkapi sampai provinsi, kabupaten/kota, kecamatan, dan desa/kelurahan sebelum menggunakan fitur akun.'}
                       </p>
                     )}
                     {profile?.phone && (
