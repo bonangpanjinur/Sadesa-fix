@@ -743,6 +743,14 @@
       ],
       "sha256": "7fad6fbd46043dc918aab10216ba0284c3cdc4bbbd7229d586cf2d0a5cec7103",
       "bytes": 8108
+    },
+    {
+      "file": "83_20261008130000_admin_merchant_delete.sql",
+      "source_files": [
+        "83_20261008130000_admin_merchant_delete.sql"
+      ],
+      "sha256": "3adeee25088c97e3d593f05d350bc2836ea9795cdcbd1beb54cc4838d7312c5d",
+      "bytes": 1325
     }
   ],
   "idempotent": true,
