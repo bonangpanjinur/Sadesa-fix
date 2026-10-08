@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Star, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ReviewImageGallery } from '@/components/reviews/ReviewImageGallery';
 
 interface Review {
   id: string;
   rating: number;
   comment: string | null;
   created_at: string;
+  image_urls: string[] | null;
   buyer_name?: string;
 }
 
@@ -18,7 +20,7 @@ export function ProductReviews({ merchantId }: { merchantId: string }) {
     async function load() {
       const { data } = await supabase
         .from('reviews')
-        .select('id, rating, comment, created_at')
+        .select('id, rating, comment, created_at, image_urls')
         .eq('merchant_id', merchantId)
         .order('created_at', { ascending: false })
         .limit(5);
@@ -54,6 +56,7 @@ export function ProductReviews({ merchantId }: { merchantId: string }) {
             {review.comment && (
               <p className="text-xs text-foreground/80 leading-relaxed">{review.comment}</p>
             )}
+            <ReviewImageGallery imageUrls={review.image_urls} className="mt-2 flex flex-wrap gap-2" />
             <p className="text-[10px] text-muted-foreground mt-1">
               {new Date(review.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
             </p>

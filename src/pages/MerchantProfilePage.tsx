@@ -22,6 +22,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { ProductCard } from '../components/ProductCard';
+import { ReviewImageGallery } from '@/components/reviews/ReviewImageGallery';
 import { supabase } from '../integrations/supabase/client';
 import { VerifiedBadge } from '../components/merchant/VerifiedBadge';
 import { MerchantClosedBanner, MerchantStatusBadge } from '../components/merchant/MerchantClosedBanner';
@@ -79,6 +80,7 @@ interface ReviewData {
   rating: number;
   comment: string | null;
   created_at: string;
+  image_urls: string[] | null;
   buyer_id: string;
   profiles?: { full_name: string } | null;
 }
@@ -211,7 +213,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
             .order('created_at', { ascending: false }),
           supabase
             .from('reviews')
-            .select('id, rating, comment, created_at, buyer_id')
+            .select('id, rating, comment, created_at, buyer_id, image_urls')
             .eq('merchant_id', id)
             .eq('is_visible', true)
             .order('created_at', { ascending: false })
@@ -748,6 +750,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                       {review.comment && (
                         <p className="text-xs text-muted-foreground">{review.comment}</p>
                       )}
+                      <ReviewImageGallery imageUrls={review.image_urls} className="mt-2 flex flex-wrap gap-2" />
                     </div>
                   ))
                 ) : (

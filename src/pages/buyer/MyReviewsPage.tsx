@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { ReviewImageGallery } from '@/components/reviews/ReviewImageGallery';
 
 interface ReviewRow {
   id: string;
@@ -15,6 +16,7 @@ interface ReviewRow {
   comment: string | null;
   created_at: string;
   merchant_reply: string | null;
+  image_urls: string[] | null;
   product_id: string | null;
   merchant_id: string | null;
 }
@@ -36,6 +38,7 @@ interface ReviewItem {
   comment: string | null;
   created_at: string;
   merchant_reply: string | null;
+  image_urls: string[] | null;
   product: { name: string; image_url: string | null } | null;
   merchant: { name: string } | null;
 }
@@ -49,7 +52,7 @@ export default function MyReviewsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('reviews')
-        .select('id, rating, comment, created_at, merchant_reply, product_id, merchant_id')
+        .select('id, rating, comment, created_at, merchant_reply, image_urls, product_id, merchant_id')
         .eq('buyer_id', user!.id)
         .order('created_at', { ascending: false });
 
@@ -133,6 +136,7 @@ export default function MyReviewsPage() {
                     </div>
                   </div>
                   {review.comment && <p className="text-sm text-foreground mb-3">{review.comment}</p>}
+                  <ReviewImageGallery imageUrls={review.image_urls} className="mb-3 flex flex-wrap gap-2" />
                   {review.merchant_reply && (
                     <div className="bg-secondary/50 rounded-lg p-3 border-l-2 border-primary">
                       <div className="flex items-center gap-1 mb-1">
