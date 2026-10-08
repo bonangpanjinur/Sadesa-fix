@@ -78,7 +78,7 @@ function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
 
 const Index = () => {
   const navigate = useNavigate();
-  const [promoMaxDistance, setPromoMaxDistance] = useState('all');
+  const [promoMaxDistance, setPromoMaxDistance] = useState('10');
   const [newestMaxDistance, setNewestMaxDistance] = useState('all');
   
   const { getEnabledSections } = useHomepageLayout();
@@ -266,18 +266,15 @@ const Index = () => {
   const promoProducts = useMemo(() => (
     (() => {
       const availablePromos = products.filter((product) => product.isPromo === true && product.isAvailable === true);
-      // A real GPS/profile location takes priority; the generic Tasikmalaya
-      // fallback must not be presented as the user's actual nearby ranking.
+      // Never show distant promotions on the homepage. Require a real GPS or
+      // saved-profile location; the generic fallback is not the user's location.
       if (userLocation && userLocation.source !== 'default') {
         const nearbyPromos = availablePromos.filter((product) => (
-          promoMaxDistance === 'all'
-          || calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= Number(promoMaxDistance)
+          calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= Number(promoMaxDistance)
         ));
         return sortByDistance(nearbyPromos, userLocation.lat, userLocation.lng).slice(0, 6);
       }
-      return availablePromos
-        .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
-        .slice(0, 6);
+      return [];
     })()
   ), [products, userLocation, promoMaxDistance]);
   // Keep discovery sections complementary: products already highlighted in
@@ -448,7 +445,7 @@ const Index = () => {
       case 'promo':
         return (
           <div className="space-y-5">
-            {promoProducts.length > 0 || promoMaxDistance !== 'all' ? (
+            {promoProducts.length > 0 || !userLocation || userLocation.source === 'default' || promoMaxDistance !== '10' ? (
               <section className="mx-4 rounded-[1.35rem] border border-red-100 bg-red-50/60 px-4 py-3" aria-labelledby="promo-title">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -457,7 +454,7 @@ const Index = () => {
                       <MapPin className="h-3 w-3" />
                       Maks. jarak
                       <select aria-label="Filter jarak maksimum promo" value={promoMaxDistance} onChange={(event) => setPromoMaxDistance(event.target.value)} disabled={!userLocation || userLocation.source === 'default'} className="rounded-md border border-red-200 bg-white px-1.5 py-1 text-[10px] text-foreground disabled:opacity-50">
-                        <option value="all">Semua</option><option value="1">1 km</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option>
+                        <option value="1">1 km</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option>
                       </select>
                     </label>
                   </div>
@@ -475,7 +472,7 @@ const Index = () => {
                       deliveryEta={getDeliveryEta(getProductDistance(product))}
                     />
                   ))}
-                  {promoProducts.length === 0 && <p className="col-span-2 py-3 text-center text-xs text-muted-foreground">Belum ada promo dalam jarak yang dipilih.</p>}
+                  {promoProducts.length === 0 && <p className="col-span-2 py-3 text-center text-xs text-muted-foreground">{!userLocation || userLocation.source === 'default' ? 'Aktifkan atau izinkan lokasi GPS agar promo terdekat dapat ditampilkan.' : `Belum ada promo dalam jarak ${promoMaxDistance} km.`}</p>}
                 </div>
               </section>
             ) : null}
