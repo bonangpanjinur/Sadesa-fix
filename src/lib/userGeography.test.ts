@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   aggregateGeography,
+  aggregateRegistrationTrend,
   aggregateUserMapPoints,
   getRegistrationDateBounds,
   getGeographyMetrics,
@@ -53,6 +54,30 @@ describe('user geography aggregation', () => {
     expect(bounds.toExclusive).toBe(new Date(2026, 9, 4).toISOString());
     expect(getRegistrationDateBounds(undefined, '2026-10-03').toExclusive).toBe(new Date(2026, 9, 4).toISOString());
     expect(() => getRegistrationDateBounds('2026-02-30')).toThrow('Tanggal pendaftaran tidak valid.');
+  });
+
+  it('builds daily and monthly signup trends with unique accounts and zero-count gaps', () => {
+    const atLocalNoon = (month: number, day: number) => new Date(2026, month - 1, day, 12).toISOString();
+    const dailyRecords: UserGeographyRecord[] = [
+      { user_id: 'a', province_name: 'Banten', city_name: 'Serang', district_name: null, created_at: atLocalNoon(4, 1) },
+      { user_id: 'b', province_name: 'Banten', city_name: 'Serang', district_name: null, created_at: atLocalNoon(4, 1) },
+      { user_id: 'b', province_name: 'Banten', city_name: 'Serang', district_name: null, created_at: atLocalNoon(4, 1) },
+      { user_id: 'c', province_name: 'Jawa Barat', city_name: 'Tasikmalaya', district_name: null, created_at: atLocalNoon(4, 3) },
+    ];
+    const monthlyRecords: UserGeographyRecord[] = [
+      ...dailyRecords.slice(0, 3),
+      { user_id: 'd', province_name: 'Jawa Barat', city_name: 'Tasikmalaya', district_name: null, created_at: atLocalNoon(6, 8) },
+    ];
+
+    expect(aggregateRegistrationTrend(dailyRecords, 'daily').map(({ key, count }) => [key, count])).toEqual([
+      ['2026-04-01', 2], ['2026-04-02', 0], ['2026-04-03', 1],
+    ]);
+    expect(aggregateRegistrationTrend(monthlyRecords, 'monthly').map(({ key, count }) => [key, count])).toEqual([
+      ['2026-04', 2], ['2026-05', 0], ['2026-06', 1],
+    ]);
+    expect(aggregateRegistrationTrend(monthlyRecords, 'monthly', 'BANTEN').map(({ key, count }) => [key, count])).toEqual([
+      ['2026-04', 2],
+    ]);
   });
 
   it('parses supported Google Maps coordinate URL formats only when coordinates are valid', () => {

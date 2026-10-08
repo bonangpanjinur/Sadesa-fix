@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, ArrowLeft, Building2, CalendarDays, Map, MapPin, RefreshCw, Users } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Building2, CalendarDays, Map, MapPin, RefreshCw, TrendingUp, Users } from 'lucide-react';
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -10,10 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { supabase } from '@/integrations/supabase/client';
 import {
   aggregateGeography,
+  aggregateRegistrationTrend,
   aggregateUserMapPoints,
   getRegistrationDateBounds,
   getGeographyMetrics,
   normalizeLocationName,
+  type RegistrationTrendGranularity,
   UNKNOWN_LOCATION_KEY,
   type GeographyLevel,
   type UserGeographyRecord,
@@ -31,7 +34,7 @@ async function fetchAllUserLocations(startDate?: string, endDate?: string): Prom
   while (true) {
     let query = supabase
       .from('profiles')
-      .select('user_id, province_name, city_name, district_name, address')
+      .select('user_id, province_name, city_name, district_name, address, created_at');
     if (from) query = query.gte('created_at', from);
     if (toExclusive) query = query.lt('created_at', toExclusive);
     const { data, error } = await query
@@ -123,6 +126,7 @@ export default function AdminUserGeographyPage() {
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [trendGranularity, setTrendGranularity] = useState<RegistrationTrendGranularity>('monthly');
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
   const invalidDateRange = Boolean(startDate && endDate && startDate > endDate);
   const requestVersion = useRef(0);
@@ -183,6 +187,10 @@ export default function AdminUserGeographyPage() {
   const mapPoints = useMemo(
     () => aggregateUserMapPoints(records, selectedProvince ?? undefined, selectedCity ?? undefined),
     [records, selectedProvince, selectedCity],
+  );
+  const registrationTrend = useMemo(
+    () => aggregateRegistrationTrend(records, trendGranularity, selectedProvince ?? undefined, selectedCity ?? undefined),
+    [records, trendGranularity, selectedProvince, selectedCity],
   );
   const selectedScopeUserCount = records.filter((record) =>
     (!selectedProvince || normalizeLocationName(record.province_name) === selectedProvince)
@@ -281,6 +289,43 @@ export default function AdminUserGeographyPage() {
           <StatCard label="Lokasi belum lengkap" value={metrics.incompleteUsers} detail="Minimal satu tingkat lokasi kosong" icon={AlertCircle} />
           <StatCard label="Cakupan wilayah" value={metrics.provinceCount} detail={`${formatCount(metrics.cityCount)} kota/kabupaten · ${formatCount(metrics.districtCount)} kecamatan`} icon={Building2} />
         </div>
+
+        <Card>
+          <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base"><TrendingUp className="h-4 w-4 text-primary" />Tren pendaftaran pengguna</CardTitle>
+              <CardDescription>Jumlah akun baru per periode; mengikuti filter tanggal dan wilayah yang sedang dipilih.</CardDescription>
+            </div>
+            <div className="inline-flex w-fit rounded-md border p-1" role="group" aria-label="Periode grafik pendaftaran">
+              <Button type="button" size="sm" variant={trendGranularity === 'daily' ? 'secondary' : 'ghost'} aria-pressed={trendGranularity === 'daily'} onClick={() => setTrendGranularity('daily')}>Harian</Button>
+              <Button type="button" size="sm" variant={trendGranularity === 'monthly' ? 'secondary' : 'ghost'} aria-pressed={trendGranularity === 'monthly'} onClick={() => setTrendGranularity('monthly')}>Bulanan</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading && records.length === 0 ? (
+              <div className="flex h-[280px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">Memuat tren pendaftaran…</div>
+            ) : errorMessage ? (
+              <div className="flex h-[280px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">Tren tidak tersedia sampai data profil berhasil dimuat.</div>
+            ) : registrationTrend.length === 0 ? (
+              <div className="flex h-[280px] items-center justify-center rounded-lg border bg-muted/20 text-sm text-muted-foreground">Belum ada data tanggal pendaftaran pada filter ini.</div>
+            ) : (
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={registrationTrend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="label" interval="preserveStartEnd" minTickGap={24} fontSize={11} tickLine={false} axisLine={false} className="fill-muted-foreground" />
+                    <YAxis allowDecimals={false} width={36} fontSize={11} tickLine={false} axisLine={false} className="fill-muted-foreground" />
+                    <Tooltip
+                      formatter={(value) => [formatCount(Number(value) || 0), 'Pendaftaran']}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                    />
+                    <Bar dataKey="count" name="Pendaftaran" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="gap-2 sm:flex-row sm:items-start sm:justify-between">

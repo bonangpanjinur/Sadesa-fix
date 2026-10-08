@@ -4,6 +4,7 @@ export interface UserGeographyRecord {
   city_name: string | null;
   district_name: string | null;
   address?: string | null;
+  created_at?: string | null;
 }
 
 export type GeographyLevel = 'province' | 'city' | 'district';
@@ -25,6 +26,14 @@ export interface UserMapPoint {
 export interface RegistrationDateBounds {
   from?: string;
   toExclusive?: string;
+}
+
+export type RegistrationTrendGranularity = 'daily' | 'monthly';
+
+export interface RegistrationTrendPoint {
+  key: string;
+  label: string;
+  count: number;
 }
 
 export const UNKNOWN_LOCATION_KEY = '__unknown_location__';
@@ -127,6 +136,59 @@ export function getRegistrationDateBounds(startDate?: string, endDate?: string):
     ...(start ? { from: start.toISOString() } : {}),
     ...(end ? { toExclusive: end.toISOString() } : {}),
   };
+}
+
+export function aggregateRegistrationTrend(
+  records: UserGeographyRecord[],
+  granularity: RegistrationTrendGranularity,
+  provinceName?: string,
+  cityName?: string,
+): RegistrationTrendPoint[] {
+  const counts = new Map<string, number>();
+  let firstDate: Date | null = null;
+  let lastDate: Date | null = null;
+  const selectedProvince = normalizeLocationName(provinceName);
+  const selectedCity = normalizeLocationName(cityName);
+
+  for (const user of uniqueUsers(records)) {
+    if (selectedProvince && normalizeLocationName(user.province_name) !== selectedProvince) continue;
+    if (selectedCity && normalizeLocationName(user.city_name) !== selectedCity) continue;
+    if (!user.created_at) continue;
+    const createdAt = new Date(user.created_at);
+    if (Number.isNaN(createdAt.getTime())) continue;
+    const periodDate = granularity === 'monthly'
+      ? new Date(createdAt.getFullYear(), createdAt.getMonth(), 1)
+      : new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate());
+    const key = granularity === 'monthly'
+      ? `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}`
+      : `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}-${String(periodDate.getDate()).padStart(2, '0')}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (!firstDate || periodDate < firstDate) firstDate = periodDate;
+    if (!lastDate || periodDate > lastDate) lastDate = periodDate;
+  }
+
+  if (!firstDate || !lastDate) return [];
+
+  const spansYears = firstDate.getFullYear() !== lastDate.getFullYear();
+  const cursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate());
+  const points: RegistrationTrendPoint[] = [];
+  while (cursor <= lastDate) {
+    const key = granularity === 'monthly'
+      ? `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`
+      : `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    const label = granularity === 'monthly'
+      ? new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(cursor)
+      : new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        ...(spansYears ? { year: 'numeric' as const } : {}),
+      }).format(cursor);
+    points.push({ key, label, count: counts.get(key) ?? 0 });
+    if (granularity === 'monthly') cursor.setMonth(cursor.getMonth() + 1);
+    else cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return points;
 }
 
 export function parseProfileMapCoordinates(address: string | null | undefined): { lat: number; lng: number } | null {
