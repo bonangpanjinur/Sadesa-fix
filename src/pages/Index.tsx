@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, Receipt, Truck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -78,6 +78,8 @@ function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
 
 const Index = () => {
   const navigate = useNavigate();
+  const [promoMaxDistance, setPromoMaxDistance] = useState('all');
+  const [newestMaxDistance, setNewestMaxDistance] = useState('all');
   
   const { getEnabledSections } = useHomepageLayout();
   const { user } = useAuth();
@@ -267,26 +269,36 @@ const Index = () => {
       // A real GPS/profile location takes priority; the generic Tasikmalaya
       // fallback must not be presented as the user's actual nearby ranking.
       if (userLocation && userLocation.source !== 'default') {
-        return sortByDistance(availablePromos, userLocation.lat, userLocation.lng).slice(0, 6);
+        const nearbyPromos = availablePromos.filter((product) => (
+          promoMaxDistance === 'all'
+          || calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= Number(promoMaxDistance)
+        ));
+        return sortByDistance(nearbyPromos, userLocation.lat, userLocation.lng).slice(0, 6);
       }
       return availablePromos
         .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
         .slice(0, 6);
     })()
-  ), [products, userLocation]);
+  ), [products, userLocation, promoMaxDistance]);
   // Keep discovery sections complementary: products already highlighted in
   // the promo block should not appear again immediately in the newest grid.
   const newestProducts = useMemo(() => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    const selectedNewest = selectNewestProducts(products, highlightedProductIds, 48);
+    let selectedNewest = selectNewestProducts(products, highlightedProductIds, 48);
     // Keep freshness as the candidate pool, then prioritize nearby merchants
     // within that pool when we know the user's actual location.
-    return userLocation && userLocation.source !== 'default'
-      ? sortByDistance(selectedNewest, userLocation.lat, userLocation.lng)
-      : selectedNewest;
-  }, [products, promoProducts, promoSectionEnabled, userLocation]);
+    if (userLocation && userLocation.source !== 'default') {
+      if (newestMaxDistance !== 'all') {
+        selectedNewest = selectedNewest.filter((product) => (
+          calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= Number(newestMaxDistance)
+        ));
+      }
+      return sortByDistance(selectedNewest, userLocation.lat, userLocation.lng);
+    }
+    return selectedNewest;
+  }, [products, promoProducts, promoSectionEnabled, userLocation, newestMaxDistance]);
   const newestProductRows = useMemo(
     () => groupNewestProductsByCategory(newestProducts, activeProductCategories),
     [newestProducts, activeProductCategories],
@@ -436,11 +448,18 @@ const Index = () => {
       case 'promo':
         return (
           <div className="space-y-5">
-            {promoProducts.length > 0 ? (
+            {promoProducts.length > 0 || promoMaxDistance !== 'all' ? (
               <section className="mx-4 rounded-[1.35rem] border border-red-100 bg-red-50/60 px-4 py-3" aria-labelledby="promo-title">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 id="promo-title" className="font-heading text-base font-bold text-foreground">Promo spesial</h2>
+                    <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      Maks. jarak
+                      <select aria-label="Filter jarak maksimum promo" value={promoMaxDistance} onChange={(event) => setPromoMaxDistance(event.target.value)} disabled={!userLocation || userLocation.source === 'default'} className="rounded-md border border-red-200 bg-white px-1.5 py-1 text-[10px] text-foreground disabled:opacity-50">
+                        <option value="all">Semua</option><option value="1">1 km</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option>
+                      </select>
+                    </label>
                   </div>
                   <Button asChild size="sm" variant="outline" className="shrink-0 rounded-full text-xs"><Link to="/products?promoOnly=1">Lihat promo</Link></Button>
                 </div>
@@ -456,6 +475,7 @@ const Index = () => {
                       deliveryEta={getDeliveryEta(getProductDistance(product))}
                     />
                   ))}
+                  {promoProducts.length === 0 && <p className="col-span-2 py-3 text-center text-xs text-muted-foreground">Belum ada promo dalam jarak yang dipilih.</p>}
                 </div>
               </section>
             ) : null}
@@ -480,13 +500,20 @@ const Index = () => {
           <div className="space-y-5">
           {!promoSectionEnabled ? renderBestSellingSection() : null}
           <section className="mx-4 rounded-[1.35rem] border border-orange-100 bg-white px-4 py-4 shadow-[0_16px_36px_-28px_hsl(4_78%_47%_/_0.35)]" aria-labelledby="newest-products-title">
-            <div className="mb-3 flex items-center gap-2">
+              <div className="mb-3 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(43_96%_55%_/_0.2)] text-[hsl(28_84%_36%)]">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
-              </div>
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
+                  <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    Maks. jarak
+                    <select aria-label="Filter jarak maksimum produk terbaru" value={newestMaxDistance} onChange={(event) => setNewestMaxDistance(event.target.value)} disabled={!userLocation || userLocation.source === 'default'} className="rounded-md border border-border bg-white px-1.5 py-1 text-[10px] text-foreground disabled:opacity-50">
+                      <option value="all">Semua</option><option value="1">1 km</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option>
+                    </select>
+                  </label>
+                </div>
               <Link to="/products" className="ml-auto flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline">Lihat semua <ChevronRight className="h-3 w-3" /></Link>
             </div>
             {newestProductRows.length > 0 ? (
@@ -544,10 +571,12 @@ const Index = () => {
                   <Store className="h-5 w-5" />
                 </div>
                 <h3 className="font-heading text-sm font-extrabold text-foreground">
-                  {products.length > 0 ? 'Belum ada produk terbaru lainnya' : 'Belum ada produk baru'}
+                  {newestMaxDistance !== 'all' ? 'Belum ada produk dalam jarak ini' : products.length > 0 ? 'Belum ada produk terbaru lainnya' : 'Belum ada produk baru'}
                 </h3>
                 <p className="mx-auto mt-1.5 max-w-[260px] text-[11px] leading-relaxed text-muted-foreground">
-                  {products.length > 0
+                  {newestMaxDistance !== 'all'
+                    ? 'Perluas batas jarak untuk melihat lebih banyak produk terdekat.'
+                    : products.length > 0
                     ? 'Produk yang ada mungkin sudah tampil di bagian promo. Jelajahi katalog untuk melihat semuanya.'
                     : 'Produk dari merchant lokal akan muncul di sini setelah ditambahkan.'}
                 </p>
