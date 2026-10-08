@@ -290,7 +290,7 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#e4eae2] bg-white px-3 py-2 text-xs text-[#637168]">
         <MapPin className="h-3.5 w-3.5 text-[#0b7549]" />
         <span>{locationLabel} dalam</span>
-        <Select value={nearbyRadius} onValueChange={(value) => onNearbyRadiusChange(value as FoodRadius)} disabled={!userLocation || userLocation.source === 'default'}><SelectTrigger className="h-7 w-[112px] border-0 bg-transparent p-0 text-xs shadow-none focus:ring-0"><SelectValue /></SelectTrigger><SelectContent>{catalogType !== 'kuliner' && <SelectItem value="all">Semua jarak</SelectItem>}<SelectItem value="1">1 km</SelectItem><SelectItem value="3">3 km</SelectItem><SelectItem value="5">5 km</SelectItem><SelectItem value="10">10 km</SelectItem></SelectContent></Select>
+        <Select value={nearbyRadius} onValueChange={(value) => onNearbyRadiusChange(value as FoodRadius)} disabled={!userLocation || userLocation.source === 'default'}><SelectTrigger className="h-7 w-[112px] border-0 bg-transparent p-0 text-xs shadow-none focus:ring-0"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">1 km</SelectItem><SelectItem value="3">3 km</SelectItem><SelectItem value="5">5 km</SelectItem><SelectItem value="10">10 km</SelectItem></SelectContent></Select>
         <button type="button" onClick={onRefreshLocation} disabled={locationLoading} className="ml-auto rounded-full px-2 py-1 font-semibold text-[#0b7549] hover:bg-[#eef6e9]">{locationLoading ? 'Memuat...' : userLocation?.source === 'gps' ? 'Lokasi GPS aktif' : 'Gunakan lokasi saya'}</button>
       </div>
       <section className="space-y-2">
@@ -324,7 +324,7 @@ function FoodCatalogView({ products, filteredProducts, searchQuery, setSearchQue
           <div className="grid grid-cols-2 rounded-xl bg-[#e9f2e5] p-1" role="tablist" aria-label={`Tampilan katalog ${catalogTitle.toLowerCase()}`}><button type="button" role="tab" aria-selected={viewMode === 'products'} onClick={() => onViewModeChange('products')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'products' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>{catalogType === 'kuliner' ? 'Menu' : 'Produk'}</button><button type="button" role="tab" aria-selected={viewMode === 'map'} onClick={() => onViewModeChange('map')} className={cn('rounded-lg text-xs font-semibold', viewMode === 'map' ? 'bg-white py-1.5 text-[#0b7549] shadow-sm' : 'text-[#637168]')}>Peta</button></div>
         </div>
       </div>
-      {viewMode === 'map' && <div className="flex items-center gap-2 rounded-xl border border-[#e4eae2] bg-white px-3 py-2 text-xs"><MapPin className="h-3.5 w-3.5 text-[#0b7549]" /><span>Radius peta</span><Select value={mapRadius} onValueChange={(value) => onMapRadiusChange(value as MapRadius)}><SelectTrigger className="ml-auto h-7 w-[150px] border-0 p-0 text-xs shadow-none"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua jarak</SelectItem><SelectItem value="1">Maks. 1 km</SelectItem><SelectItem value="3">Maks. 3 km</SelectItem><SelectItem value="5">Maks. 5 km</SelectItem><SelectItem value="10">Maks. 10 km</SelectItem></SelectContent></Select></div>}
+      {viewMode === 'map' && <div className="flex items-center gap-2 rounded-xl border border-[#e4eae2] bg-white px-3 py-2 text-xs"><MapPin className="h-3.5 w-3.5 text-[#0b7549]" /><span>Radius peta</span><Select value={mapRadius} onValueChange={(value) => onMapRadiusChange(value as MapRadius)} disabled={!userLocation || userLocation.source === 'default'}><SelectTrigger className="ml-auto h-7 w-[150px] border-0 p-0 text-xs shadow-none"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1">Maks. 1 km</SelectItem><SelectItem value="3">Maks. 3 km</SelectItem><SelectItem value="5">Maks. 5 km</SelectItem><SelectItem value="10">Maks. 10 km</SelectItem></SelectContent></Select></div>}
       {viewMode === 'map' && !loading && !isError ? <ProductMerchantMap products={mapProducts} center={userLocation || { lat: -7.3274, lng: 108.2207 }} userLocation={userLocation} /> : loading ? <div className="grid grid-cols-2 gap-3">{Array.from({ length: 4 }).map((_, index) => <ProductSkeleton key={index} />)}</div> : isError ? <div className="rounded-2xl bg-white px-5 py-10 text-center shadow-sm"><p className="font-semibold">{itemLabel[0].toUpperCase() + itemLabel.slice(1)} belum dapat dimuat</p><Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3 rounded-full">Coba lagi</Button></div> : <>
         {showDiscoverySections && promotions.length > 0 && <section className="-mx-1 overflow-hidden rounded-[1.35rem] border border-[#ffd3c5] bg-gradient-to-br from-[#fff4ed] via-[#fffaf5] to-white p-3 shadow-[0_12px_28px_-20px_rgba(205,71,27,0.65)]"><div className="mb-3 flex items-start justify-between gap-3"><div><div className="mb-1 inline-flex items-center gap-1 rounded-full bg-[#e94724] px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.08em] text-white"><span className="h-1.5 w-1.5 rounded-full bg-white" />Promo spesial</div><h2 className="text-[16px] font-extrabold text-[#7c2417]">Hemat lebih banyak hari ini</h2><p className="mt-0.5 text-[10px] text-[#9b6358]">{itemLabel[0].toUpperCase() + itemLabel.slice(1)} pilihan dengan harga spesial untukmu</p></div><button type="button" onClick={() => { onFiltersChange({ ...filters, promoOnly: true }); requestAnimationFrame(scrollToCatalog); }} className="mt-1 flex shrink-0 items-center gap-1 text-[11px] font-bold text-[#d43f23]">Lihat semua <ChevronRight className="h-3.5 w-3.5" /></button></div><div className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{promotions.map((product, index) => { const distanceKm = userLocation && product.locationLat != null && product.locationLng != null ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) : undefined; return <div key={product.id} className="w-[10.25rem] shrink-0"><ProductCard product={product} index={index} distanceKm={distanceKm} deliveryEta={getDeliveryEta(distanceKm)} flashSaleOverride={flashSalesByProduct.get(product.id) ?? null} /></div>; })}</div></section>}
 {showDiscoverySections && <section><div className="mb-3 flex items-center justify-between"><h2 className="text-[15px] font-extrabold">Rekomendasi untuk kamu</h2><button type="button" onClick={scrollToCatalog} className="flex items-center gap-1 text-[11px] font-bold text-[#0b7549]">Lihat semua {itemLabel} <ChevronRight className="h-3.5 w-3.5" /></button></div>{recommendations.length ? <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">{recommendations.map((product, index) => { const distanceKm = userLocation && product.locationLat != null && product.locationLng != null ? calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) : undefined; return <div key={product.id} className="w-[10.25rem] shrink-0"><ProductCard product={product} index={index} distanceKm={distanceKm} deliveryEta={getDeliveryEta(distanceKm)} flashSaleOverride={flashSalesByProduct.get(product.id) ?? null} /></div>; })}</div> : <div className="rounded-2xl bg-white p-6 text-center text-sm text-[#7d887f]"><p>{searchQuery ? `Tidak ada ${itemLabel} untuk “${searchQuery}”${filters.openNow ? ' yang sedang buka' : ''}.` : filters.openNow ? `Tidak ada ${itemLabel} yang sedang buka.` : `Belum ada ${itemLabel} yang cocok dengan filter ini.`}</p>{hasActiveDiscoveryFilters && <button type="button" onClick={onResetFilters} className="mt-3 rounded-full bg-[#e8f5e3] px-4 py-2 text-xs font-bold text-[#0b7549]">Reset pencarian & filter</button>}</div>}</section>}
@@ -365,9 +365,10 @@ export default function ProductsPage() {
   const [foodFilters, setFoodFilters] = useState<FoodFilters>({ type: initialType, openNow: searchParams.get('openNow') === '1', inStockOnly: searchParams.get('inStock') === '1', promoOnly: searchParams.get('promoOnly') === '1', halalOnly: searchParams.get('halalOnly') === '1', maxPrice: Number(searchParams.get('maxPrice')) || defaultFoodFilters.maxPrice });
   const [sortMode, setSortMode] = useState<SortMode>(asAllowed(searchParams.get('sort'), SORT_MODES, 'newest'));
   const [viewMode, setViewMode] = useState<ViewMode>(asAllowed(searchParams.get('view'), VIEW_MODES, 'products'));
-  const [mapRadius, setMapRadius] = useState<MapRadius>(asAllowed(searchParams.get('mapRadius'), RADII, 'all'));
-  const radiusFromUrl = asAllowed(searchParams.get('radius'), RADII, initialType === 'kuliner' ? '10' : 'all');
-  const [nearbyRadius, setNearbyRadius] = useState<FoodRadius>(initialType === 'kuliner' && radiusFromUrl === 'all' ? '10' : radiusFromUrl);
+  const mapRadiusFromUrl = asAllowed(searchParams.get('mapRadius'), RADII, '10');
+  const [mapRadius, setMapRadius] = useState<MapRadius>(mapRadiusFromUrl === 'all' ? '10' : mapRadiusFromUrl);
+  const radiusFromUrl = asAllowed(searchParams.get('radius'), RADII, '10');
+  const [nearbyRadius, setNearbyRadius] = useState<FoodRadius>(radiusFromUrl === 'all' ? '10' : radiusFromUrl);
   const merchantId = searchParams.get('merchant');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const { location: userLocation, loading: locationLoading, refreshLocation } = useUserLocation();
@@ -543,8 +544,14 @@ export default function ProductsPage() {
       case 'expensive': break;
       case 'newest': result = result.filter(isCompleteProduct).sort((a, b) => (Date.parse(b.createdAt || '') || 0) - (Date.parse(a.createdAt || '') || 0)); break;
     }
+    if (nearbyRadius !== 'all') {
+      if (!userLocation || userLocation.source === 'default') return [];
+      result = sortByDistance(result.filter((product) => (
+        calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= Number(nearbyRadius)
+      )), userLocation.lat, userLocation.lng);
+    }
     return result;
-  }, [products, foodFilters, sortMode, userLocation, categoryIds]);
+  }, [products, foodFilters, sortMode, userLocation, categoryIds, nearbyRadius]);
 
   const activeFilterCount = useMemo(() => (
     (foodFilters.type !== 'all' ? 1 : 0) +
@@ -556,7 +563,7 @@ export default function ProductsPage() {
   ), [foodFilters]);
 
   const mapProducts = useMemo(() => {
-    if (mapRadius === 'all' || !userLocation) return filteredAndSortedProducts;
+    if (mapRadius === 'all' || !userLocation || userLocation.source === 'default') return [];
     const radiusKm = Number(mapRadius);
     return filteredAndSortedProducts.filter((product) => (
       calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= radiusKm
@@ -608,10 +615,10 @@ export default function ProductsPage() {
   const resetDiscoveryFilters = () => {
     setSearchQuery('');
     setFoodFilters({ ...defaultFoodFilters, type: catalogProfile.isFood ? 'kuliner' : catalogProfile.isAgriculture ? 'pertanian' : 'belanja' });
-    setNearbyRadius(catalogProfile.isFood ? '10' : 'all');
+    setNearbyRadius('10');
     setSortMode('newest');
     setViewMode('products');
-    setMapRadius('all');
+    setMapRadius('10');
   };
 
   const selectedParentCategory = getCategoryParent(categories as ProductCategory[], selectedCategory || null) || selectedCategory;
@@ -749,8 +756,13 @@ export default function ProductsPage() {
               <SelectItem value="expensive">Harga tertinggi</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={nearbyRadius} onValueChange={(value) => setNearbyRadius(value as FoodRadius)} disabled={!userLocation || userLocation.source === 'default'}>
+            <SelectTrigger className="h-9 flex-1 rounded-xl text-xs"><MapPin className="mr-1.5 h-3.5 w-3.5" /><SelectValue placeholder="Radius" /></SelectTrigger>
+            <SelectContent><SelectItem value="1">Maks. 1 km</SelectItem><SelectItem value="3">Maks. 3 km</SelectItem><SelectItem value="5">Maks. 5 km</SelectItem><SelectItem value="10">Maks. 10 km</SelectItem></SelectContent>
+          </Select>
           <div className="flex items-center gap-1 text-xs text-muted-foreground"><SlidersHorizontal className="h-3.5 w-3.5" />{activeFilterCount ? `${activeFilterCount} filter aktif` : 'Filter katalog'}</div>
         </div>
+        {(!userLocation || userLocation.source === 'default') && <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground"><span>Izinkan lokasi agar katalog menampilkan produk terdekat.</span><button type="button" onClick={() => void refreshLocation()} disabled={locationLoading} className="shrink-0 font-semibold text-primary">{locationLoading ? 'Memuat...' : 'Gunakan GPS'}</button></div>}
 
         {viewMode === 'map' && (
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -763,10 +775,9 @@ export default function ProductsPage() {
                 {categoryOptions.map((category) => <SelectItem key={category.slug} value={category.slug}>{category.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={mapRadius} onValueChange={(value) => setMapRadius(value as MapRadius)}>
+            <Select value={mapRadius} onValueChange={(value) => setMapRadius(value as MapRadius)} disabled={!userLocation || userLocation.source === 'default'}>
               <SelectTrigger className="h-9 rounded-xl text-xs"><MapPin className="mr-1.5 h-3.5 w-3.5" /><SelectValue placeholder="Jarak toko" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua jarak</SelectItem>
                 <SelectItem value="1">Terdekat, maksimal 1 km</SelectItem>
                 <SelectItem value="3">Maksimal 3 km</SelectItem>
                 <SelectItem value="5">Maksimal 5 km</SelectItem>
