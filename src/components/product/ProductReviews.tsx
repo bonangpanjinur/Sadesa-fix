@@ -12,30 +12,59 @@ interface Review {
   buyer_name?: string;
 }
 
+type ReviewSort = 'newest' | 'highest' | 'lowest';
+
 export function ProductReviews({ merchantId }: { merchantId: string }) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<ReviewSort>('newest');
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
-      const { data } = await supabase
+      setLoading(true);
+      const baseQuery = supabase
         .from('reviews')
         .select('id, rating, comment, created_at, image_urls')
-        .eq('merchant_id', merchantId)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      setReviews(data || []);
-      setLoading(false);
+        .eq('merchant_id', merchantId);
+      const orderedQuery = sortBy === 'highest'
+        ? baseQuery.order('rating', { ascending: false }).order('created_at', { ascending: false })
+        : sortBy === 'lowest'
+          ? baseQuery.order('rating', { ascending: true }).order('created_at', { ascending: false })
+          : baseQuery.order('created_at', { ascending: false });
+
+      try {
+        const { data } = await orderedQuery.limit(5);
+        if (!cancelled) setReviews(data || []);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    load();
-  }, [merchantId]);
+    void load();
+    return () => { cancelled = true; };
+  }, [merchantId, sortBy]);
 
   if (loading) return null;
   if (reviews.length === 0) return null;
 
   return (
     <div className="mb-6">
-      <h3 className="font-bold text-sm text-foreground mb-3">Ulasan Pembeli</h3>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="font-bold text-sm text-foreground">Ulasan Pembeli</h3>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="shrink-0">Urutkan</span>
+          <select
+            aria-label="Urutkan ulasan produk"
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value as ReviewSort)}
+            className="rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <option value="newest">Terbaru</option>
+            <option value="highest">Rating tertinggi</option>
+            <option value="lowest">Rating terendah</option>
+          </select>
+        </label>
+      </div>
       <div className="space-y-3">
         {reviews.map((review) => (
           <div key={review.id} className="bg-secondary rounded-xl p-3 border border-border">
