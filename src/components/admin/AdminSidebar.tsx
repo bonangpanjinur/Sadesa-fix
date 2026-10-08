@@ -141,6 +141,7 @@ export function AdminSidebar({
       label: 'Compliance',
       items: [
         { label: 'Pengguna', href: '/admin/users', icon: <Users className="h-4 w-4" /> },
+        { label: 'Sebaran Pengguna', href: '/admin/users/geography', icon: <MapPin className="h-4 w-4" /> },
         { label: 'Role & Permission', href: '/admin/roles', icon: <Shield className="h-4 w-4" /> },
         { label: 'Tim Verifikator', href: '/admin/verifikator-teams', icon: <Users className="h-4 w-4" /> },
         { label: 'Sertifikasi Halal', href: '/admin/halal', icon: <ShieldCheck className="h-4 w-4" /> },
@@ -176,7 +177,7 @@ export function AdminSidebar({
     .filter((group) => group.items.length > 0);
 
   const pendingCount = pendingMerchants + pendingVillages + pendingCouriers + pendingOrders + pendingRefunds + pendingWithdrawals + pendingVerifikatorWithdrawals;
-  const isActive = (href: string) => location.pathname === href || (href !== '/admin' && location.pathname.startsWith(href));
+  const isActive = (href: string) => location.pathname === href || (href !== '/admin' && href !== '/admin/users' && location.pathname.startsWith(href));
 
   const toggleGroup = (label: string) => {
     setOpenGroups((current) => ({ ...current, [label]: !current[label] }));
