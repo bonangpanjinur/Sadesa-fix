@@ -262,19 +262,31 @@ const Index = () => {
   // Beranda masih tahap validasi awal: tanpa transaksi/rating, gunakan sinyal
   // yang netral dan mudah dipahami pengguna, yaitu produk yang baru ditambahkan.
   const promoProducts = useMemo(() => (
-    products
-      .filter((product) => product.isPromo === true && product.isAvailable === true)
-      .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
-      .slice(0, 6)
-  ), [products]);
+    (() => {
+      const availablePromos = products.filter((product) => product.isPromo === true && product.isAvailable === true);
+      // A real GPS/profile location takes priority; the generic Tasikmalaya
+      // fallback must not be presented as the user's actual nearby ranking.
+      if (userLocation && userLocation.source !== 'default') {
+        return sortByDistance(availablePromos, userLocation.lat, userLocation.lng).slice(0, 6);
+      }
+      return availablePromos
+        .sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0))
+        .slice(0, 6);
+    })()
+  ), [products, userLocation]);
   // Keep discovery sections complementary: products already highlighted in
   // the promo block should not appear again immediately in the newest grid.
   const newestProducts = useMemo(() => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    return selectNewestProducts(products, highlightedProductIds, 48);
-  }, [products, promoProducts, promoSectionEnabled]);
+    const selectedNewest = selectNewestProducts(products, highlightedProductIds, 48);
+    // Keep freshness as the candidate pool, then prioritize nearby merchants
+    // within that pool when we know the user's actual location.
+    return userLocation && userLocation.source !== 'default'
+      ? sortByDistance(selectedNewest, userLocation.lat, userLocation.lng)
+      : selectedNewest;
+  }, [products, promoProducts, promoSectionEnabled, userLocation]);
   const newestProductRows = useMemo(
     () => groupNewestProductsByCategory(newestProducts, activeProductCategories),
     [newestProducts, activeProductCategories],
