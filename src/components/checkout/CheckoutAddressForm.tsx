@@ -15,6 +15,7 @@ import { useSavedAddresses, type SavedAddress } from '@/hooks/useSavedAddresses'
 import { AddressCard } from '@/components/address/AddressCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useProfileAddress } from '@/hooks/useProfileAddress';
+import { createCheckoutProfileAddressPayload, hasCompleteRegionAddress } from './checkoutAddressProfile';
 
 export interface CheckoutAddressData {
   name: string;
@@ -49,7 +50,11 @@ export function CheckoutAddressForm({
 }: CheckoutAddressFormProps) {
   const { user } = useAuth();
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const [profileWasEmpty, setProfileWasEmpty] = useState(false);
+  const [syncProfileAddress, setSyncProfileAddress] = useState(false);
+  const [profileSaveState, setProfileSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
+  const [profileSaveRetry, setProfileSaveRetry] = useState(0);
+  const profileSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const profileSaveRevisionRef = useRef(0);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [reverseGeocodingLoading, setReverseGeocodingLoading] = useState(false);
   const [detectedAddress, setDetectedAddress] = useState<ReverseGeocodingResult | null>(null);
@@ -90,6 +95,12 @@ export function CheckoutAddressForm({
           : selectedSavedAddress || defaultAddress || profileAddress || savedAddresses[0] || null;
         
         if (preferredAddress) {
+          setSyncProfileAddress(!profileAddress || !hasCompleteRegionAddress({
+            province: profileAddress.province_id || '',
+            city: profileAddress.city_id || '',
+            district: profileAddress.district_id || '',
+            village: profileAddress.village_id || '',
+          }));
           const addrData: AddressData = {
             province: preferredAddress.province_id || '',
             provinceName: preferredAddress.province_name || '',
@@ -131,10 +142,18 @@ export function CheckoutAddressForm({
           .maybeSingle();
 
         if (profile) {
-          const profileHasAddress = profile.province_id || profile.city_id || profile.district_id;
-          setProfileWasEmpty(!profileHasAddress);
+          const profileHasCompleteAddress = hasCompleteRegionAddress({
+            province: profile.province_id || '',
+            city: profile.city_id || '',
+            district: profile.district_id || '',
+            village: profile.village_id || '',
+          });
+          setSyncProfileAddress(!profileHasCompleteAddress);
+          const profileHasAnyAddress = Boolean(
+            profile.province_id || profile.city_id || profile.district_id || profile.village_id || profile.address_detail,
+          );
 
-          if (profileHasAddress) {
+          if (profileHasAnyAddress) {
             const addrData: AddressData = {
               province: profile.province_id || '',
               provinceName: profile.province_name || '',
@@ -163,6 +182,8 @@ export function CheckoutAddressForm({
               phone: profile.phone || '',
             });
           }
+        } else {
+          setSyncProfileAddress(true);
         }
         setProfileLoaded(true);
       } catch (error) {
@@ -211,33 +232,43 @@ export function CheckoutAddressForm({
   }, [value.location, value.address.district, value.address.village, value.address.districtName, value.address.villageName, value.address.cityName, value.address.provinceName, getCoordinatesFromAddress, onChange]);
 
   const saveAddressToProfile = useCallback(async (addressData: CheckoutAddressData) => {
-    if (!user || !profileWasEmpty) return;
-    if (!addressData.address.province || !addressData.address.city) return;
+    if (!user || !syncProfileAddress || !hasCompleteRegionAddress(addressData.address)) return;
+    const revision = ++profileSaveRevisionRef.current;
+    const payload = createCheckoutProfileAddressPayload(user.id, addressData);
+    setProfileSaveState('saving');
 
-    try {
-      await supabase
+    const save = async () => {
+      await profileSaveQueueRef.current.catch(() => undefined);
+      // Drop stale queued snapshots; serialize edits already in flight.
+      if (revision !== profileSaveRevisionRef.current) return;
+      const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: addressData.name || undefined,
-          phone: addressData.phone || undefined,
-          province_id: addressData.address.province,
-          province_name: addressData.address.provinceName,
-          city_id: addressData.address.city,
-          city_name: addressData.address.cityName,
-          district_id: addressData.address.district || null,
-          district_name: addressData.address.districtName || null,
-          village_id: addressData.address.village || null,
-          village_name: addressData.address.villageName || null,
-          address_detail: addressData.address.detail || null,
-        })
-        .eq('user_id', user.id);
-      
-      setProfileWasEmpty(false);
-      window.dispatchEvent(new Event('sadesa-profile-address-updated'));
+        .upsert(payload, { onConflict: 'user_id' });
+      if (error) throw error;
+      if (revision === profileSaveRevisionRef.current) {
+        setProfileSaveState('saved');
+        window.dispatchEvent(new Event('sadesa-profile-address-updated'));
+      }
+    };
+
+    const pendingSave = save();
+    profileSaveQueueRef.current = pendingSave;
+    try {
+      await pendingSave;
     } catch (error) {
       console.error('Error saving address to profile:', error);
+      if (revision === profileSaveRevisionRef.current) setProfileSaveState('error');
     }
-  }, [user, profileWasEmpty]);
+  }, [user, syncProfileAddress]);
+
+  // Save only after all four region levels are selected, then keep profile
+  // details and the precise map pin in sync as checkout address entry continues.
+  useEffect(() => {
+    if (!user || !syncProfileAddress || !hasCompleteRegionAddress(latestValueRef.current.address)) return;
+    setProfileSaveState('pending');
+    const timeout = window.setTimeout(() => { void saveAddressToProfile(latestValueRef.current); }, 500);
+    return () => window.clearTimeout(timeout);
+  }, [user, syncProfileAddress, profileSaveRetry, value.name, value.phone, value.address.province, value.address.provinceName, value.address.city, value.address.cityName, value.address.district, value.address.districtName, value.address.village, value.address.villageName, value.address.detail, value.detailAddress, value.location?.lat, value.location?.lng, saveAddressToProfile]);
 
   const handleNameChange = (name: string) => {
     onChange({ ...value, name });
@@ -254,10 +285,6 @@ export function CheckoutAddressForm({
       fullAddress: formatFullAddress(address),
     };
     onChange(newData);
-    
-    if (profileWasEmpty && address.province && address.city) {
-      saveAddressToProfile(newData);
-    }
   };
 
   const handleDetailAddressChange = (detail: string) => {
@@ -545,6 +572,22 @@ export function CheckoutAddressForm({
           {isAddressComplete && <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">Lengkap</span>}
         </div>
         <AddressSelector value={value.address} onChange={handleAddressChange} showDetailInput={false} />
+        {user && syncProfileAddress && isAddressComplete && profileSaveState !== 'idle' && (
+          <div aria-live="polite" className="flex items-center justify-between gap-2 text-xs">
+            {profileSaveState === 'pending' || profileSaveState === 'saving' ? (
+              <p className="text-muted-foreground">Alamat lengkap sedang disimpan ke profil...</p>
+            ) : profileSaveState === 'saved' ? (
+              <p role="status" className="text-emerald-700">Alamat berhasil disimpan ke profil Anda.</p>
+            ) : (
+              <p role="alert" className="text-destructive">Alamat belum tersimpan ke profil.</p>
+            )}
+            {profileSaveState === 'error' && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setProfileSaveRetry((attempt) => attempt + 1)}>
+                Coba lagi
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Map-First Address Input */}
