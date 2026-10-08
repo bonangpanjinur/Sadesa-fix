@@ -34,31 +34,74 @@ const NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
 const NOMINATIM_MIN_INTERVAL_MS = 1100;
 const NOMINATIM_429_COOLDOWN_MS = 30_000;
 const geocodingCache = new Map<string, unknown>();
+const inFlightRequests = new Map<string, Promise<unknown | null>>();
 let nextNominatimRequestAt = 0;
 let nominatimCooldownUntil = 0;
+let nominatimRequestQueue: Promise<void> = Promise.resolve();
 
 async function fetchNominatim<T>(url: string, cacheKey: string): Promise<T | null> {
-  const cached = geocodingCache.get(cacheKey);
-  if (cached !== undefined) return cached as T;
-  if (Date.now() < nominatimCooldownUntil) return null;
+  if (geocodingCache.has(cacheKey)) return (geocodingCache.get(cacheKey) ?? null) as T | null;
+  const existingRequest = inFlightRequests.get(cacheKey);
+  if (existingRequest) return existingRequest as Promise<T | null>;
 
-  const waitMs = Math.max(0, nextNominatimRequestAt - Date.now());
-  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
-  nextNominatimRequestAt = Date.now() + NOMINATIM_MIN_INTERVAL_MS;
+  const request = (async (): Promise<T | null> => {
+    let releaseQueue!: () => void;
+    const previousRequest = nominatimRequestQueue;
+    nominatimRequestQueue = new Promise<void>((resolve) => { releaseQueue = resolve; });
+    await previousRequest;
 
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'PasarDesa/1.0' },
-  });
-  if (response.status === 429) {
-    nominatimCooldownUntil = Date.now() + NOMINATIM_429_COOLDOWN_MS;
-    console.warn('Nominatim rate limit reached; geocoding paused temporarily');
-    return null;
+    try {
+      if (Date.now() < nominatimCooldownUntil) return null;
+      const waitMs = Math.max(0, nextNominatimRequestAt - Date.now());
+      if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+      if (Date.now() < nominatimCooldownUntil) return null;
+
+      nextNominatimRequestAt = Date.now() + NOMINATIM_MIN_INTERVAL_MS;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      let response: Response;
+      try {
+        response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+      } catch (error) {
+        // Nominatim 429 responses may surface in browsers as CORS/network errors.
+        // Back off on transport failures as well, and return a soft miss so
+        // address entry and checkout remain usable without map lookup.
+        nominatimCooldownUntil = Date.now() + NOMINATIM_429_COOLDOWN_MS;
+        console.warn('Nominatim unavailable; geocoding paused temporarily', error instanceof Error ? error.message : 'network error');
+        return null;
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers.get('Retry-After'));
+        const retryDelay = Number.isFinite(retryAfter) && retryAfter > 0
+          ? Math.min(retryAfter * 1000, 5 * 60_000)
+          : NOMINATIM_429_COOLDOWN_MS;
+        nominatimCooldownUntil = Date.now() + retryDelay;
+        console.warn('Nominatim rate limit reached; geocoding paused temporarily');
+        return null;
+      }
+      if (!response.ok) {
+        if (response.status >= 500) nominatimCooldownUntil = Date.now() + NOMINATIM_429_COOLDOWN_MS;
+        return null;
+      }
+
+      const result = await response.json() as T;
+      // Cache empty results too, so an unknown address is not queried on every render.
+      geocodingCache.set(cacheKey, result);
+      return result;
+    } finally {
+      releaseQueue();
+    }
+  })();
+
+  inFlightRequests.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    inFlightRequests.delete(cacheKey);
   }
-  if (!response.ok) throw new Error('Geocoding failed');
-
-  const result = await response.json() as T;
-  geocodingCache.set(cacheKey, result);
-  return result;
 }
 
 /**

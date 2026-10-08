@@ -56,6 +56,8 @@ export function CheckoutAddressForm({
   
   const { loading: geocodingLoading, getCoordinatesFromAddress } = useGeocoding();
   const isUpdatingFromMap = useRef(false);
+  const latestValueRef = useRef(value);
+  useEffect(() => { latestValueRef.current = value; }, [value]);
   const [showSavedAddresses, setShowSavedAddresses] = useState(false);
   const { addresses: savedAddresses, loading: savedAddressesLoading } = useSavedAddresses();
   const { address: profileAddress, loading: profileAddressLoading } = useProfileAddress();
@@ -110,17 +112,15 @@ export function CheckoutAddressForm({
             fullAddress: preferredAddress.full_address || formatFullAddress(addrData),
             detailAddress: preferredAddress.address_detail || '',
           });
+          // Mark initialization complete before awaiting reverse geocoding so
+          // the profile effect cannot repeat the same lookup on a rerender.
+          setProfileLoaded(true);
 
           if (loc) {
             setMapCenter(loc);
             const detected = await reverseGeocode(loc.lat, loc.lng);
             setDetectedAddress(detected);
-          } else if (addrData.district && addrData.districtName) {
-            const coords = await getCoordinatesFromAddress(addrData.districtName, addrData.villageName, addrData.cityName, addrData.provinceName);
-            if (coords) setMapCenter({ lat: coords.lat, lng: coords.lng });
           }
-
-          setProfileLoaded(true);
           return;
         }
 
@@ -156,10 +156,6 @@ export function CheckoutAddressForm({
               detailAddress: profile.address_detail || '',
             });
 
-            if (addrData.district && addrData.districtName) {
-              const coords = await getCoordinatesFromAddress(addrData.districtName, addrData.villageName, addrData.cityName, addrData.provinceName);
-              if (coords) setMapCenter({ lat: coords.lat, lng: coords.lng });
-            }
           } else {
             onChange({
               ...value,
@@ -181,12 +177,13 @@ export function CheckoutAddressForm({
   }, [user, profileLoaded, savedAddressesLoading, profileAddressLoading, savedAddresses, profileAddress, onChange, value, getCoordinatesFromAddress]);
 
   useEffect(() => {
+    let cancelled = false;
     if (isUpdatingFromMap.current) {
       isUpdatingFromMap.current = false;
       return;
     }
 
-    if (value.address.district && value.address.districtName) {
+    if (!value.location && value.address.district && value.address.districtName) {
       const geocodeAddress = async () => {
         const coords = await getCoordinatesFromAddress(
           value.address.districtName,
@@ -194,23 +191,24 @@ export function CheckoutAddressForm({
           value.address.cityName,
           value.address.provinceName
         );
-        if (coords) {
+        if (coords && !cancelled) {
           setMapCenter({ lat: coords.lat, lng: coords.lng });
           // A complete manual address is also a usable delivery point. Keep the
           // pin editable, but do not force mobile users to repeat the same data
           // on the map before they can continue.
-          if (!value.location) {
+          if (!latestValueRef.current.location) {
             onChange({
-              ...value,
+              ...latestValueRef.current,
               location: { lat: coords.lat, lng: coords.lng },
-              fullAddress: [formatFullAddress(value.address), value.detailAddress?.trim()].filter(Boolean).join(', '),
+              fullAddress: [formatFullAddress(latestValueRef.current.address), latestValueRef.current.detailAddress?.trim()].filter(Boolean).join(', '),
             });
           }
         }
       };
       geocodeAddress();
     }
-  }, [value.address.district, value.address.village, value.address.districtName, value.address.villageName, value.address.cityName, value.address.provinceName, getCoordinatesFromAddress]);
+    return () => { cancelled = true; };
+  }, [value.location, value.address.district, value.address.village, value.address.districtName, value.address.villageName, value.address.cityName, value.address.provinceName, getCoordinatesFromAddress, onChange]);
 
   const saveAddressToProfile = useCallback(async (addressData: CheckoutAddressData) => {
     if (!user || !profileWasEmpty) return;
