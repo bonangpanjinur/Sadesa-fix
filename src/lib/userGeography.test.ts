@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aggregateGeography,
   aggregateUserMapPoints,
+  getRegistrationDateBounds,
   getGeographyMetrics,
   parseProfileMapCoordinates,
   type UserGeographyRecord,
@@ -44,6 +45,14 @@ describe('user geography aggregation', () => {
       cityCount: 2,
       districtCount: 2,
     });
+  });
+
+  it('builds local calendar bounds with an inclusive end date', () => {
+    const bounds = getRegistrationDateBounds('2026-10-01', '2026-10-03');
+    expect(bounds.from).toBe(new Date(2026, 9, 1).toISOString());
+    expect(bounds.toExclusive).toBe(new Date(2026, 9, 4).toISOString());
+    expect(getRegistrationDateBounds(undefined, '2026-10-03').toExclusive).toBe(new Date(2026, 9, 4).toISOString());
+    expect(() => getRegistrationDateBounds('2026-02-30')).toThrow('Tanggal pendaftaran tidak valid.');
   });
 
   it('parses supported Google Maps coordinate URL formats only when coordinates are valid', () => {

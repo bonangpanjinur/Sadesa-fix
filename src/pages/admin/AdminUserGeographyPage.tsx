@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Building2, Map, MapPin, RefreshCw, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, ArrowLeft, Building2, CalendarDays, Map, MapPin, RefreshCw, Users } from 'lucide-react';
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   aggregateGeography,
   aggregateUserMapPoints,
+  getRegistrationDateBounds,
   getGeographyMetrics,
   normalizeLocationName,
   UNKNOWN_LOCATION_KEY,
@@ -22,14 +23,18 @@ import {
 const PAGE_SIZE = 1000;
 const INDONESIA_CENTER: [number, number] = [-2.5, 118];
 
-async function fetchAllUserLocations(): Promise<UserGeographyRecord[]> {
+async function fetchAllUserLocations(startDate?: string, endDate?: string): Promise<UserGeographyRecord[]> {
   const rows: UserGeographyRecord[] = [];
   let offset = 0;
+  const { from, toExclusive } = getRegistrationDateBounds(startDate, endDate);
 
   while (true) {
-    const { data, error } = await supabase
+    let query = supabase
       .from('profiles')
       .select('user_id, province_name, city_name, district_name, address')
+    if (from) query = query.gte('created_at', from);
+    if (toExclusive) query = query.lt('created_at', toExclusive);
+    const { data, error } = await query
       .order('user_id', { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
 
@@ -116,28 +121,46 @@ export default function AdminUserGeographyPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
+  const invalidDateRange = Boolean(startDate && endDate && startDate > endDate);
+  const requestVersion = useRef(0);
 
   const refresh = useCallback(async () => {
+    const currentRequest = ++requestVersion.current;
+    if (invalidDateRange) {
+      setRecords([]);
+      setErrorMessage(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setErrorMessage(null);
+    setRecords([]);
     try {
-      setRecords(await fetchAllUserLocations());
+      const result = await fetchAllUserLocations(startDate || undefined, endDate || undefined);
+      if (currentRequest === requestVersion.current) setRecords(result);
     } catch (error) {
-      console.error('Gagal memuat audit lokasi pengguna:', error);
-      setErrorMessage('Data lokasi pengguna gagal dimuat. Periksa koneksi atau izin admin, lalu coba lagi.');
+      if (currentRequest === requestVersion.current) {
+        console.error('Gagal memuat audit lokasi pengguna:', error);
+        setErrorMessage('Data lokasi pengguna gagal dimuat. Periksa koneksi atau izin admin, lalu coba lagi.');
+      }
     } finally {
-      setLoading(false);
+      if (currentRequest === requestVersion.current) setLoading(false);
     }
-  }, []);
+  }, [startDate, endDate, invalidDateRange]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  const refreshRef = useRef(refresh);
+  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
 
   useEffect(() => {
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const refreshDebounced = () => {
       if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => { void refresh(); }, 500);
+      refreshTimer = setTimeout(() => { void refreshRef.current(); }, 500);
     };
     const channel = supabase
       .channel('admin-user-geography-live')
@@ -149,7 +172,7 @@ export default function AdminUserGeographyPage() {
       if (refreshTimer) clearTimeout(refreshTimer);
       void supabase.removeChannel(channel);
     };
-  }, [refresh]);
+  }, []);
 
   const metrics = useMemo(() => getGeographyMetrics(records), [records]);
   const level: GeographyLevel = selectedCity ? 'district' : selectedProvince ? 'city' : 'province';
@@ -208,10 +231,49 @@ export default function AdminUserGeographyPage() {
               Lihat jumlah pengguna dari provinsi, kota/kabupaten, hingga kecamatan. Setiap akun dihitung satu kali dari lokasi pada profilnya.
             </p>
           </div>
-          <Button variant="outline" onClick={() => void refresh()} disabled={loading} className="gap-2 self-start sm:self-auto">
+          <Button variant="outline" onClick={() => void refresh()} disabled={loading || invalidDateRange} className="gap-2 self-start sm:self-auto">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Perbarui data
           </Button>
         </div>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base"><CalendarDays className="h-4 w-4 text-primary" />Rentang tanggal pendaftaran</CardTitle>
+            <CardDescription>Filter ini diterapkan ke statistik, diagram wilayah, dan peta. Tanggal awal dan akhir sama-sama dihitung penuh.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+            <div className="space-y-2">
+              <label htmlFor="user-signup-start" className="text-sm font-medium">Dari tanggal</label>
+              <input
+                id="user-signup-start"
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="user-signup-end" className="text-sm font-medium">Sampai tanggal</label>
+              <input
+                id="user-signup-end"
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { setStartDate(''); setEndDate(''); }}
+              disabled={!startDate && !endDate}
+              className="w-full lg:w-auto"
+            >
+              Hapus filter tanggal
+            </Button>
+            {invalidDateRange && <p role="alert" className="text-sm text-destructive sm:col-span-2 lg:col-span-3">Tanggal akhir harus sama dengan atau setelah tanggal mulai.</p>}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Total pengguna" value={metrics.totalUsers} detail="Akun unik dalam profil" icon={Users} />

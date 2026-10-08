@@ -22,6 +22,11 @@ export interface UserMapPoint {
   areas: string[];
 }
 
+export interface RegistrationDateBounds {
+  from?: string;
+  toExclusive?: string;
+}
+
 export const UNKNOWN_LOCATION_KEY = '__unknown_location__';
 
 export function normalizeLocationName(value: string | null | undefined): string {
@@ -96,6 +101,31 @@ export function getGeographyMetrics(records: UserGeographyRecord[]) {
     provinceCount: provinceKeys.size,
     cityCount: cityKeys.size,
     districtCount: districtKeys.size,
+  };
+}
+
+function parseLocalCalendarDate(value: string): Date | null {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return date;
+}
+
+export function getRegistrationDateBounds(startDate?: string, endDate?: string): RegistrationDateBounds {
+  const start = startDate ? parseLocalCalendarDate(startDate) : null;
+  const end = endDate ? parseLocalCalendarDate(endDate) : null;
+  if ((startDate && !start) || (endDate && !end)) throw new Error('Tanggal pendaftaran tidak valid.');
+
+  if (end) end.setDate(end.getDate() + 1);
+  return {
+    ...(start ? { from: start.toISOString() } : {}),
+    ...(end ? { toExclusive: end.toISOString() } : {}),
   };
 }
 
