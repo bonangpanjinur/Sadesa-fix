@@ -1,6 +1,6 @@
 # Peralihan kuota tier ke saldo rupiah dan komisi persentase
 
-**Status implementasi:** fase inti telah ditambahkan ke repository: wallet pedagang/ojek, pemotongan komisi atomik, ledger dan pencatatan tagihan, dashboard admin, pengajuan top-up manual dan invoice Xendit, refund komisi prorata, peringatan saldo rendah, guard transaksi baru saat ada tagihan, serta penghentian UI tier lama. **Belum diterapkan ke database Supabase production.** Terapkan dan uji di staging terlebih dahulu.
+**Status implementasi:** fase inti telah ditambahkan ke repository: wallet pedagang/ojek, pemotongan komisi atomik, ledger dan pencatatan tagihan, dashboard admin, pengajuan top-up manual dan invoice Xendit, refund komisi prorata, peringatan saldo rendah serta notifikasi in-app sekali per siklus, guard transaksi baru saat ada tagihan, dan penghentian UI tier lama. **Belum diterapkan ke database Supabase production.** Terapkan dan uji di staging terlebih dahulu.
 
 ## Sasaran
 
@@ -37,6 +37,7 @@
 ### Top-up dan antarmuka
 
 - Merchant dan courier mendapat halaman wallet dengan saldo, debt, tarif, mutasi yang dapat difilter per tanggal, ringkasan komisi/top-up/refund, ekspor CSV pemilik wallet, peringatan saldo rendah, simulator potongan transaksi, status top-up, dan pengajuan manual/Xendit.
+- Notifikasi in-app pada lonceng memberi tahu pemilik wallet ketika saldo melewati ambang atau tagihan baru timbul, hanya saat tarif komisi role itu aktif dan lebih dari 0%. Setiap siklus hanya mengirim satu peringatan; gate notifikasi di-reset saat saldo kembali di atas ambang dan tagihan lunas. Perubahan ambang atau status/tarif komisi segera mengevaluasi ulang wallet yang ada.
 - Dashboard admin mengelola tarif pedagang/ojek, tarif courier delivery, ambang saldo, jendela refund, ringkasan total saldo/debt, wallet berisiko, permintaan top-up, dan ekspor hingga 1.000 mutasi ledger ke CSV.
 - Invoice Xendit memakai reservasi database/idempotency; webhook memverifikasi nominal, invoice, pemilik, dan status sebelum mengkreditkan wallet. Ini tidak mengubah pembelian checkout order yang telah ada.
 - Saldo courier wallet tetap terpisah dari `courier_deposits`/deposit operasional.
@@ -45,7 +46,7 @@
 
 1. Pastikan backup database dan deploy seluruh fungsi Edge Function/payment webhook terkait.
 2. Di database produksi, audit `merchant_subscriptions` yang status atau payment status-nya pending. Selesaikan/reconcile dahulu; jika masih tersisa, migration cutover memang akan gagal aman.
-3. Terapkan migration berurutan di staging: wallet, manual top-up, operasi/cutover, Xendit top-up, refund policy. Bootstrap bundle untuk instalasi database baru harus dihasilkan ulang dari arsip migration.
+3. Terapkan bundle berurutan di staging: wallet, manual top-up, operasi/cutover, Xendit top-up, refund policy, lalu alert wallet. Semua SQL wallet/komisi deployment tersedia di `supabase/bootstrap`.
 4. Siapkan credential Xendit aktif, webhook/callback URL, konfigurasi `admin_payment_info` sebagai jalur manual cadangan, dan uji callback signature menggunakan lingkungan staging.
 5. Uji fee contoh: Rp10.000 × 5% = Rp500; Rp20.000 × 5% = Rp1.000. Uji pula order komisi lebih besar dari saldo, debt ditahan, pelunasan debt oleh top-up, retry/double webhook, invoice creation yang diulang, refund penuh/parsial, penguncian order baru, RLS, dan ekspor ledger.
 6. Komunikasikan bahwa tier/kuota lama tidak bisa dipakai dan tidak bernilai saldo baru. Aktifkan setiap tarif secara eksplisit setelah pembayaran/top-up dan rekonsiliasi siap.
@@ -65,3 +66,4 @@
 - `supabase/bootstrap/88_20261009092000_commission_wallet_operations.sql`
 - `supabase/bootstrap/89_20261009093000_xendit_commission_wallet_topups.sql`
 - `supabase/bootstrap/90_20261009094000_commission_refund_policy.sql`
+- `supabase/bootstrap/91_20261009100000_commission_wallet_alerts.sql`
