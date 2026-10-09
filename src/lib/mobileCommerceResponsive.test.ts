@@ -21,7 +21,8 @@ describe('mobile commerce responsive contract', () => {
     expect(checkoutPage).toContain('flex-1 overflow-y-auto p-4 pb-56');
     expect(checkoutPage).toContain('mobile-action-safe fixed bottom-0 left-0 right-0');
     expect(checkoutPage).toContain('max-w-[480px]');
-    expect(checkoutPage).toContain('className={`w-full shadow-brand font-bold transition-all');
+    expect(checkoutPage).toContain('className="w-full shadow-brand font-bold transition-all"');
+    expect(checkoutPage).toContain('className="flex justify-between items-center mb-1 text-xs sm:text-sm"');
     expect(checkoutPage).toContain('className="flex-1 min-w-0"');
   });
 

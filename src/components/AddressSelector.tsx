@@ -18,6 +18,7 @@ import {
   preloadAddressChain,
   type Region,
 } from '@/lib/addressApi';
+import { translate, useTranslation } from '@/lib/i18n';
 
 export interface AddressData {
   province: string;
@@ -36,14 +37,17 @@ interface AddressSelectorProps {
   onChange: (data: AddressData) => void;
   disabled?: boolean;
   showDetailInput?: boolean;
+  requiredFields?: boolean;
 }
 
 export function AddressSelector({ 
   value, 
   onChange, 
   disabled,
-  showDetailInput = true 
+  showDetailInput = true,
+  requiredFields = false,
 }: AddressSelectorProps) {
+  const { t } = useTranslation();
   const [provinces, setProvinces] = useState<Region[]>([]);
   const [cities, setCities] = useState<Region[]>([]);
   const [districts, setDistricts] = useState<Region[]>([]);
@@ -84,7 +88,7 @@ export function AddressSelector({
           setDistricts(result.districts);
           setVillages(result.villages);
         } catch (err) {
-          setError('Gagal memuat data alamat');
+          setError(translate('address.loadFailed'));
           console.error('Error preloading address chain:', err);
         } finally {
           setLoadingProvinces(false);
@@ -99,10 +103,10 @@ export function AddressSelector({
           const data = await fetchProvinces();
           setProvinces(data);
           if (data.length === 0) {
-            setError('Tidak dapat memuat data provinsi');
+            setError(translate('address.provinceUnavailable'));
           }
         } catch (err) {
-          setError('Gagal memuat data provinsi');
+          setError(translate('address.provinceFailed'));
         } finally {
           setLoadingProvinces(false);
         }
@@ -177,7 +181,7 @@ export function AddressSelector({
         }
       } catch (err) {
         console.error('Error loading villages:', err);
-        setError('Gagal memuat data desa/kelurahan. Silakan coba lagi.');
+        setError(translate('address.villageFailed'));
       } finally {
         setLoadingVillages(false);
       }
@@ -197,10 +201,10 @@ export function AddressSelector({
       initialLoadDone.current = true;
       
       if (data.length === 0) {
-        setError('Tidak dapat memuat data provinsi');
+        setError(translate('address.provinceUnavailable'));
       }
     } catch (err) {
-      setError('Gagal memuat data provinsi');
+      setError(translate('address.provinceFailed'));
     } finally {
       setLoadingProvinces(false);
     }
@@ -285,7 +289,7 @@ export function AddressSelector({
           ) : (
             <RefreshCw className="h-4 w-4 mr-2" />
           )}
-          Coba Lagi
+          {t('address.retry')}
         </Button>
       </div>
     );
@@ -295,10 +299,10 @@ export function AddressSelector({
 
   return (
     <div className="space-y-3">
-      <p className="rounded-lg bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">Isi dari atas ke bawah: provinsi, kota/kabupaten, kecamatan, lalu desa/kelurahan.</p>
+      <p className="rounded-lg bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">{t('address.stepHint')}</p>
       {/* Province */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Provinsi</Label>
+        <Label className="text-xs text-muted-foreground">{t('address.province')}{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.province}
           onValueChange={handleProvinceChange}
@@ -308,10 +312,10 @@ export function AddressSelector({
             {loadingProvinces ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground">Memuat provinsi...</span>
+                <span className="text-muted-foreground">{t('address.loadingProvince')}</span>
               </div>
             ) : (
-              <SelectValue placeholder="Pilih Provinsi" />
+              <SelectValue placeholder={t('address.selectProvince')} />
             )}
           </SelectTrigger>
           <SelectContent>
@@ -326,7 +330,7 @@ export function AddressSelector({
 
       {/* City */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Kota/Kabupaten</Label>
+        <Label className="text-xs text-muted-foreground">{t('address.city')}{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.city}
           onValueChange={handleCityChange}
@@ -336,10 +340,10 @@ export function AddressSelector({
             {loadingCities ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground">Memuat kota...</span>
+                <span className="text-muted-foreground">{t('address.loadingCity')}</span>
               </div>
             ) : (
-              <SelectValue placeholder="Pilih Kota/Kabupaten" />
+              <SelectValue placeholder={t('address.selectCity')} />
             )}
           </SelectTrigger>
           <SelectContent>
@@ -354,7 +358,7 @@ export function AddressSelector({
 
       {/* District */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Kecamatan</Label>
+        <Label className="text-xs text-muted-foreground">{t('address.district')}{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.district}
           onValueChange={handleDistrictChange}
@@ -364,10 +368,10 @@ export function AddressSelector({
             {loadingDistricts ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground">Memuat kecamatan...</span>
+                <span className="text-muted-foreground">{t('address.loadingDistrict')}</span>
               </div>
             ) : (
-              <SelectValue placeholder="Pilih Kecamatan" />
+              <SelectValue placeholder={t('address.selectDistrict')} />
             )}
           </SelectTrigger>
           <SelectContent>
@@ -382,7 +386,7 @@ export function AddressSelector({
 
       {/* Village */}
       <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Kelurahan/Desa</Label>
+        <Label className="text-xs text-muted-foreground">{t('address.village')}{requiredFields && <span className="text-destructive"> *</span>}</Label>
         <Select
           value={value.village}
           onValueChange={handleVillageChange}
@@ -392,10 +396,10 @@ export function AddressSelector({
             {loadingVillages ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground">Memuat desa...</span>
+                <span className="text-muted-foreground">{t('address.loadingVillage')}</span>
               </div>
             ) : (
-              <SelectValue placeholder={villages.length === 0 && value.district ? "Data desa tidak tersedia" : "Pilih Kelurahan/Desa"} />
+              <SelectValue placeholder={villages.length === 0 && value.district ? t('address.villageUnavailable') : t('address.selectVillage')} />
             )}
           </SelectTrigger>
           <SelectContent>
@@ -407,14 +411,14 @@ export function AddressSelector({
               ))
             ) : (
               <div className="p-2 text-xs text-center text-muted-foreground">
-                {value.district ? "Tidak ada data desa" : "Pilih kecamatan terlebih dahulu"}
+                {value.district ? t('address.villageEmpty') : t('address.chooseDistrict')}
               </div>
             )}
           </SelectContent>
         </Select>
         {value.district && !loadingVillages && villages.length === 0 && (
           <p className="text-[10px] text-amber-600 mt-1">
-            Jika data desa tidak muncul, coba pilih ulang kecamatan atau refresh halaman.
+            {t('address.villageHelp')}
           </p>
         )}
       </div>
@@ -422,11 +426,11 @@ export function AddressSelector({
       {/* Detail Address */}
       {showDetailInput && (
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Detail Alamat (RT/RW, Nama Jalan, dll)</Label>
+          <Label className="text-xs text-muted-foreground">{t('address.detail')}</Label>
           <Textarea
             value={value.detail}
             onChange={(e) => handleDetailChange(e.target.value)}
-            placeholder="Contoh: Jl. Merdeka No. 10, RT 01/RW 02"
+            placeholder={t('address.detailPlaceholder')}
             className="min-h-[70px] resize-none"
             disabled={disabled}
           />

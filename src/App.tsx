@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useNavigationType } from "react-router-dom";
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -27,6 +27,7 @@ import { POSProvider } from "./contexts/POSContext";
 import { POSAccessRoute } from "@/components/pos/posPermissions";
 import { logUnhandledErrors, reportObservability } from '@/lib/observability';
 import { getRedirectPathForRoles } from '@/types/auth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   PwaFileHandlerPage,
   PwaProtocolHandlerPage,
@@ -401,6 +402,8 @@ function HomeRoute() {
   const location = useLocation();
   const navigationType = useNavigationType();
   const { user, roles, loading, rolesLoading } = useAuth();
+  const addressUserId = user?.id;
+  const [addressStatus, setAddressStatus] = useState<'checking' | 'complete' | 'incomplete' | 'error'>('checking');
   const skipRoleRedirect = (location.state as { skipRoleRedirect?: boolean } | null)?.skipRoleRedirect === true;
   const isManualHomeNavigation = manualHomeNavigationKeys.has(location.key)
     || (skipRoleRedirect && navigationType !== 'POP');
@@ -415,11 +418,42 @@ function HomeRoute() {
       manualHomeNavigationKeys.add(location.key);
     }
   }, [location.key, navigationType, skipRoleRedirect]);
+  useEffect(() => {
+    if (!addressUserId) {
+      setAddressStatus('complete');
+      return;
+    }
+
+    let cancelled = false;
+    setAddressStatus('checking');
+    void supabase
+      .from('profiles')
+      .select('province_id, city_id, district_id, village_id')
+      .eq('user_id', addressUserId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.warn('Unable to verify profile address on home route:', error);
+          setAddressStatus('error');
+          return;
+        }
+        setAddressStatus(data?.province_id && data?.city_id && data?.district_id && data?.village_id
+          ? 'complete'
+          : 'incomplete');
+      });
+
+    return () => { cancelled = true; };
+  }, [addressUserId]);
 
   if (isRecoveryCallback) {
     return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
   }
   if (loading || (user && rolesLoading)) return <PageLoading />;
+  if (user && addressStatus === 'checking') return <PageLoading />;
+  if (user && addressStatus === 'incomplete') {
+    return <Navigate to="/account?completeAddress=1" state={{ reason: 'profile_address_required' }} replace />;
+  }
   if (user && !isManualHomeNavigation) {
     const dashboardPath = getRedirectPathForRoles(roles);
     if (dashboardPath !== '/') return <Navigate to={dashboardPath} replace />;

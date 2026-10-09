@@ -22,9 +22,9 @@ import { validatePhone } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
-import { requestRequiredLocation } from '@/lib/requiredLocation';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
+import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
 
@@ -58,6 +58,8 @@ export default function CheckoutPage() {
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [hasChosenDelivery, setHasChosenDelivery] = useState(false);
+  const [hasChosenPayment, setHasChosenPayment] = useState(false);
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
   const [retryingPayment, setRetryingPayment] = useState(false);
@@ -113,7 +115,8 @@ export default function CheckoutPage() {
     districtName: string | null;
   }>({ cityName: null, districtName: null });
 
-  const subtotal = selectedItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = getCartItemsSubtotal(selectedItems);
+  const selectedItemCount = items.reduce((count, item) => count + item.quantity, 0);
   const knownStockConflict = items.some((item) =>
     item.product.stock <= 0 || item.quantity > item.product.stock ||
     (item.toppings || []).some((topping) => topping.product.stock < item.quantity * topping.quantity),
@@ -339,6 +342,11 @@ export default function CheckoutPage() {
     Number.isFinite(addressData.location.lng),
   );
   const isDeliveryReady = deliveryType === 'PICKUP' || (hasCompleteDeliveryAddress && hasValidDeliveryLocation);
+  const contactStepComplete = Boolean(addressData.name.trim().length >= 2 && validatePhone(addressData.phone).isValid);
+  const addressStepComplete = contactStepComplete && isDeliveryReady;
+  const deliveryStepComplete = addressStepComplete && hasChosenDelivery;
+  const paymentStepComplete = deliveryStepComplete && hasChosenPayment;
+  const currentStepIndex = !items.length ? 0 : !addressStepComplete ? 1 : !deliveryStepComplete ? 2 : !paymentStepComplete ? 3 : 3;
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -356,33 +364,33 @@ export default function CheckoutPage() {
     const newErrors: Record<string, string> = {};
 
     if (!addressData.name || addressData.name.trim().length < 2) {
-      newErrors.name = 'Nama minimal 2 karakter';
+      newErrors.name = t('checkout.validation.name');
     }
 
     if (!addressData.phone || !validatePhone(addressData.phone).isValid) {
-      newErrors.phone = 'Nomor telepon tidak valid';
+      newErrors.phone = t('checkout.validation.phone');
     }
 
     // Only validate address fields for delivery, not pickup
     if (deliveryType !== 'PICKUP') {
       if (!addressData.address.province) {
-        newErrors.address = 'Pilih provinsi';
+        newErrors.address = t('checkout.validation.province');
       } else if (!addressData.address.city) {
-        newErrors.address = 'Pilih kota/kabupaten';
+        newErrors.address = t('checkout.validation.city');
       } else if (!addressData.address.district) {
-        newErrors.address = 'Pilih kecamatan';
+        newErrors.address = t('checkout.validation.district');
       } else if (!addressData.address.village) {
-        newErrors.address = 'Pilih kelurahan/desa';
+        newErrors.address = t('checkout.validation.village');
       }
     }
 
     // Only require map location for delivery, not pickup
     if (deliveryType !== 'PICKUP' && !addressData.location) {
-      newErrors.location = 'Tentukan titik lokasi pengiriman di peta';
+      newErrors.location = t('checkout.validation.location');
     }
 
     if (deliveryType === 'INTERNAL' && deliveryRestriction.requiresExpedition) {
-      newErrors.delivery = 'Alamat ini wajib menggunakan ekspedisi.';
+      newErrors.delivery = t('checkout.validation.expedition');
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -434,8 +442,8 @@ export default function CheckoutPage() {
 
     if (!validateForm()) {
       toast({
-        title: 'Data belum lengkap',
-        description: 'Silakan lengkapi form checkout',
+        title: t('checkout.form.errorTitle'),
+        description: t('checkout.form.errorDescription'),
         variant: 'destructive',
       });
       // Scroll to first error
@@ -443,11 +451,6 @@ export default function CheckoutPage() {
         const firstErrorField = Object.keys(errors).find((key) => errors[key]);
         document.getElementById(`error-${firstErrorField || 'address'}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
-      return;
-    }
-
-    if (deliveryType !== 'PICKUP' && !await requestRequiredLocation()) {
-      toast({ title: 'GPS wajib diaktifkan', description: 'Aktifkan Lokasi untuk menghitung alamat dan melanjutkan pengiriman.', variant: 'destructive' });
       return;
     }
 
@@ -662,6 +665,26 @@ export default function CheckoutPage() {
     );
   }
 
+  if (items.length === 0) {
+    return (
+      <div className="mobile-shell bg-background min-h-screen p-6">
+        <div className="flex min-h-[80dvh] flex-col items-center justify-center text-center">
+          <Package className="h-12 w-12 text-muted-foreground mb-4" aria-hidden="true" />
+          <h1 className="text-xl font-bold">{t('checkout.empty.title')}</h1>
+          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+            {t('checkout.empty.description')}
+          </p>
+          <Button className="mt-6 w-full max-w-xs" onClick={() => navigate('/cart')}>
+            {t('checkout.empty.backToCart')}
+          </Button>
+          <Button variant="ghost" className="mt-2 w-full max-w-xs" onClick={() => navigate('/products')}>
+            {t('checkout.empty.continueShopping')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mobile-shell bg-secondary flex flex-col min-h-screen min-h-[100dvh]">
       {/* Sticky Header & Step Indicator */}
@@ -675,28 +698,28 @@ export default function CheckoutPage() {
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h2 className="font-bold text-lg text-foreground">
-            Checkout
+            {t('checkout.title')}
             {items.length > 0 && (
-              <Badge variant="secondary" className="ml-2 text-xs">{items.length} item</Badge>
+              <Badge variant="secondary" className="ml-2 text-xs">{t('checkout.productCount', { count: selectedItemCount })}</Badge>
             )}
           </h2>
         </div>
 
         {/* Step Indicator */}
-        <div className="px-3 pt-2 pb-2 border-b border-border" aria-label="Tahapan checkout">
+        <div role="group" className="px-3 pt-2 pb-2 border-b border-border" aria-label={t('checkout.steps')}>
           <div className="flex items-center justify-between gap-1">
             {[
-              { icon: Package, label: 'Pesanan', done: items.length > 0 },
-              { icon: MapPin, label: 'Alamat', done: !!(addressData.address.province && addressData.address.city && addressData.address.district && addressData.address.village) },
-              { icon: Truck, label: 'Pengiriman', done: true },
-              { icon: CreditCard, label: 'Bayar', done: !!paymentMethod },
+              { icon: Package, label: t('checkout.step.order'), done: items.length > 0, current: currentStepIndex === 0 },
+              { icon: MapPin, label: t('checkout.step.address'), done: addressStepComplete, current: currentStepIndex === 1 },
+              { icon: Truck, label: t('checkout.step.delivery'), done: deliveryStepComplete, current: currentStepIndex === 2 },
+              { icon: CreditCard, label: t('checkout.step.payment'), done: paymentStepComplete, current: currentStepIndex === 3 },
             ].map((step, i) => (
-              <div key={step.label} className="flex items-center">
+              <div key={step.label} className="flex items-center" aria-current={step.current && !step.done ? 'step' : undefined}>
                 <div className="flex flex-col items-center gap-0.5">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
                     step.done
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
+                      : step.current ? 'bg-primary/10 text-primary ring-1 ring-primary' : 'bg-muted text-muted-foreground'
                   }`}>
                     {step.done ? (
                       <CheckCircle className="h-3.5 w-3.5" />
@@ -704,7 +727,7 @@ export default function CheckoutPage() {
                       <step.icon className="h-3.5 w-3.5" />
                     )}
                   </div>
-                  <span className={`text-[9px] font-medium ${step.done ? 'text-primary' : 'text-muted-foreground'}`}>{step.label}</span>
+                  <span className={`text-[9px] font-medium ${step.done || step.current ? 'text-primary' : 'text-muted-foreground'}`}>{step.label}</span>
                 </div>
                 {i < 3 && <div className={`h-px flex-1 min-w-2 mx-1 mb-4 ${step.done ? 'bg-primary' : 'bg-border'}`} />}
               </div>
@@ -714,6 +737,15 @@ export default function CheckoutPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 pb-56 overscroll-contain">
+        {merchantIds.length > 1 && (
+          <div role="alert" className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+            <h3 className="font-bold text-amber-900 text-sm">{t('checkout.multiStore.title')}</h3>
+            <p className="text-xs text-amber-800 mt-1">{t('checkout.multiStore.description')}</p>
+            <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => navigate('/cart')}>
+              {t('checkout.multiStore.action')}
+            </Button>
+          </div>
+        )}
         {/* Closed Merchants Alert */}
         {!operatingHoursLoading && closedMerchants.length > 0 && (
           <motion.div
@@ -778,8 +810,8 @@ export default function CheckoutPage() {
         >
           <div className="flex items-center gap-2 mb-4">
             <Package className="h-5 w-5 text-primary" />
-            <h3 className="font-bold text-foreground">Ringkasan Pesanan</h3>
-            <Badge variant="secondary" className="text-xs ml-auto">{items.length} produk</Badge>
+            <h3 className="font-bold text-foreground">{t('checkout.orderSummary')}</h3>
+            <Badge variant="secondary" className="text-xs ml-auto">{t('checkout.productCount', { count: selectedItemCount })}</Badge>
           </div>
 
           <div className="space-y-3">
@@ -792,9 +824,14 @@ export default function CheckoutPage() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium line-clamp-1">{item.product.name}</p>
-                  <p className="text-xs text-muted-foreground">{item.quantity}x {formatPrice(item.product.price)}</p>
+                  <p className="text-xs text-muted-foreground">{item.quantity} × {formatPrice(item.product.price)}</p>
+                  {item.toppings?.map(topping => (
+                    <p key={topping.product.id} className="text-[11px] text-muted-foreground">
+                      {t('checkout.itemTopping', { name: topping.product.name, quantity: topping.quantity, price: formatPrice(topping.product.price) })}
+                    </p>
+                  ))}
                 </div>
-                <p className="text-sm font-bold">{formatPrice(item.product.price * item.quantity)}</p>
+                <p className="text-sm font-bold">{formatPrice(getCartItemSubtotal(item))}</p>
               </div>
             ))}
           </div>
@@ -809,7 +846,7 @@ export default function CheckoutPage() {
         >
           <div className="flex items-center gap-2 mb-4">
             <MapPin className="h-5 w-5 text-primary" />
-            <h3 className="font-bold text-foreground">Alamat Pengiriman</h3>
+            <h3 className="font-bold text-foreground">{t('checkout.address.title')}</h3>
           </div>
 
           <CheckoutAddressForm
@@ -890,7 +927,10 @@ export default function CheckoutPage() {
 
           <RadioGroup
             value={deliveryType}
-            onValueChange={(value) => setDeliveryType(value as 'PICKUP' | 'INTERNAL' | 'EXPEDITION')}
+            onValueChange={(value) => {
+              setDeliveryType(value as 'PICKUP' | 'INTERNAL' | 'EXPEDITION');
+              setHasChosenDelivery(true);
+            }}
             className="space-y-2"
           >
             <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
@@ -946,12 +986,15 @@ export default function CheckoutPage() {
         >
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="h-5 w-5 text-primary" />
-            <h3 className="font-bold text-foreground">Metode Pembayaran</h3>
+            <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
           <RadioGroup
             value={paymentMethod}
-            onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+            onValueChange={(value) => {
+              setPaymentMethod(value as PaymentMethod);
+              setHasChosenPayment(true);
+            }}
             className="space-y-2"
           >
             {/* Transfer Option - Based on merchant settings */}
@@ -962,13 +1005,13 @@ export default function CheckoutPage() {
                 <RadioGroupItem value="TRANSFER" id="transfer" disabled={merchantIds.length > 1} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="font-bold text-sm">Transfer Bank</p>
+                  <p className="font-bold text-sm">{t('checkout.payment.transfer')}</p>
                   <p className="text-xs text-muted-foreground">
                     {merchantIds.length > 1
-                      ? 'Tersedia untuk checkout satu toko saja'
+                      ? t('checkout.payment.oneStoreOnly')
                       : merchantPaymentSettings?.bankName
                       ? `Transfer ke ${merchantPaymentSettings.bankName}`
-                      : 'Transfer ke rekening penjual'}
+                      : t('checkout.payment.transferToSeller')}
                   </p>
                 </div>
               </label>
@@ -982,8 +1025,8 @@ export default function CheckoutPage() {
                 <RadioGroupItem value="ONLINE" id="online" disabled={merchantIds.length > 1} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="font-bold text-sm">Bayar Online</p>
-                  <p className="text-xs text-muted-foreground">QRIS, Transfer Bank, E-Wallet</p>
+                  <p className="font-bold text-sm">{t('checkout.payment.online')}</p>
+                  <p className="text-xs text-muted-foreground">{t('checkout.payment.onlineMethods')}</p>
                 </div>
               </label>
             )}
@@ -992,7 +1035,7 @@ export default function CheckoutPage() {
           {/* Bank Transfer Info */}
           {paymentMethod === 'TRANSFER' && merchantPaymentSettings?.bankName && (
             <div className="mt-3 p-3 bg-secondary/50 rounded-lg space-y-1">
-              <p className="text-xs font-medium text-foreground">Informasi Rekening:</p>
+              <p className="text-xs font-medium text-foreground">{t('checkout.payment.accountInfo')}</p>
               <p className="text-sm font-bold">{merchantPaymentSettings.bankName}</p>
               <p className="text-sm font-mono">{merchantPaymentSettings.bankAccountNumber}</p>
               <p className="text-xs text-muted-foreground">a.n. {merchantPaymentSettings.bankAccountName}</p>
@@ -1025,9 +1068,9 @@ export default function CheckoutPage() {
           className="bg-card rounded-xl p-3 sm:p-4 border border-border shadow-sm mb-3 sm:mb-4"
         >
           {!user ? (
-            <p className="text-sm text-muted-foreground">Voucher akun dan diskon tersimpan hanya tersedia setelah login.</p>
+            <p className="text-sm text-muted-foreground">{t('checkout.voucher.loginRequired')}</p>
           ) : merchantIds.length > 1 ? (
-            <p className="text-sm text-muted-foreground">Voucher hanya dapat digunakan untuk checkout satu toko.</p>
+            <p className="text-sm text-muted-foreground">{t('checkout.voucher.oneStoreOnly')}</p>
           ) : (
             <VoucherInput
               orderTotal={subtotal}
@@ -1047,10 +1090,10 @@ export default function CheckoutPage() {
           transition={{ delay: 0.3 }}
           className="bg-card rounded-xl p-4 border border-border shadow-sm"
         >
-          <Label htmlFor="notes">Catatan (opsional)</Label>
+          <Label htmlFor="notes">{t('checkout.notes.label')}</Label>
           <Textarea
             id="notes"
-            placeholder="Catatan untuk penjual..."
+            placeholder={t('checkout.notes.placeholder')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
@@ -1064,7 +1107,7 @@ export default function CheckoutPage() {
         {(knownStockConflict || stockConflict) && (
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <span>{stockConflict || 'Stok produk atau topping sudah habis. Kembali ke keranjang dan sesuaikan jumlahnya sebelum checkout.'}</span>
+            <span>{stockConflict || t('checkout.cta.stockHelp')}</span>
           </div>
         )}
         {/* Free shipping badge */}
@@ -1074,11 +1117,11 @@ export default function CheckoutPage() {
             <span>{t('shipping.freeMinOrder', { min: formatCurrency(shippingSettings.free_shipping_min_order) })}</span>
           </div>
         )}
-        <div className="hidden sm:flex justify-between items-center mb-1 text-sm">
+        <div className="flex justify-between items-center mb-1 text-xs sm:text-sm">
           <span className="text-muted-foreground">{t('shipping.subtotal')}</span>
           <span className="font-bold">{formatCurrency(subtotal)}</span>
         </div>
-        <div className="hidden sm:flex justify-between items-center mb-1 text-sm">
+        <div className="flex justify-between items-center mb-1 text-xs sm:text-sm">
           <span className="text-muted-foreground">{t('shipping.fee')}</span>
           <span className="font-bold">{formatCurrency(shippingCost)}</span>
         </div>
@@ -1097,44 +1140,50 @@ export default function CheckoutPage() {
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              {paymentMethod === 'TRANSFER' ? 'Transfer Bank' : 'Online Payment'}
+              {paymentMethod === 'TRANSFER' ? t('checkout.payment.transfer') : t('checkout.payment.online')}
             </span>
           </span>
         </div>
         <Button
           type="submit"
-          className={`w-full shadow-brand font-bold transition-all ${
-            !loading && items.length > 0 && allMerchantsOpen ? 'animate-pulse hover:animate-none' : ''
-          }`}
+          className="w-full shadow-brand font-bold transition-all"
           size="lg"
           disabled={loading || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Memproses...
+              {t('checkout.cta.processing')}
             </>
           ) : operatingHoursLoading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Memeriksa Toko...
+              {t('checkout.cta.checkingStore')}
             </>
           ) : operatingHoursError ? (
-            'Ketersediaan Belum Terverifikasi'
+            t('checkout.cta.storeUnverified')
           ) : !allMerchantsOpen ? (
             <>
               <Clock className="h-4 w-4 mr-2" />
-              Ada Toko Tutup
+              {t('checkout.cta.storeClosed')}
             </>
           ) : knownStockConflict || stockConflict ? (
-            'Stok Tidak Tersedia'
+            t('checkout.cta.stockUnavailable')
           ) : (
-            user ? 'Pesan' : 'Pesan tanpa Login'
+            user ? t('checkout.cta.placeOrder') : t('checkout.cta.guestOrder')
           )}
         </Button>
         {!isDeliveryReady && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            Lengkapi wilayah alamat dan tentukan titik lokasi di peta untuk melanjutkan.
+            {t('checkout.cta.addressNeeded')}
+          </p>
+        )}
+        {merchantIds.length > 1 && (
+          <p className="mt-2 text-center text-xs text-amber-800">
+            {t('checkout.multiStore.inline')}{' '}
+            <button type="button" className="underline font-medium" onClick={() => navigate('/cart')}>
+              {t('checkout.multiStore.adjust')}
+            </button>
           </p>
         )}
       </div>

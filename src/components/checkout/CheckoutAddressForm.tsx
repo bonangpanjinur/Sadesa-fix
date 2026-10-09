@@ -16,6 +16,7 @@ import { AddressCard } from '@/components/address/AddressCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useProfileAddress } from '@/hooks/useProfileAddress';
 import { createCheckoutProfileAddressPayload, hasCompleteRegionAddress } from './checkoutAddressProfile';
+import { useTranslation } from '@/lib/i18n';
 
 export interface CheckoutAddressData {
   name: string;
@@ -49,6 +50,7 @@ export function CheckoutAddressForm({
   errors,
 }: CheckoutAddressFormProps) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [syncProfileAddress, setSyncProfileAddress] = useState(false);
   const [profileSaveState, setProfileSaveState] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
@@ -478,7 +480,7 @@ export function CheckoutAddressForm({
           >
             <div className="flex items-center gap-2">
               <BookMarked className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Pilih Alamat Profil atau Tersimpan</span>
+              <span className="text-sm font-medium text-primary">{t('checkout.savedAddress.pick')}</span>
             </div>
             <ChevronDown className={`h-4 w-4 text-primary transition-transform ${showSavedAddresses ? 'rotate-180' : ''}`} />
           </button>
@@ -513,20 +515,20 @@ export function CheckoutAddressForm({
           ) : (
             <User className="h-4 w-4 text-primary" />
           )}
-          <h4 className="font-medium text-sm">Info Penerima</h4>
+          <h4 className="font-medium text-sm">{t('checkout.address.recipientInfo')}</h4>
           {isContactComplete && (
-            <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">Lengkap</span>
+            <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">{t('checkout.address.complete')}</span>
           )}
         </div>
 
         <div className="space-y-3">
           <div className="space-y-1.5" id="error-name">
             <Label htmlFor="checkout-name" className="text-xs text-muted-foreground">
-              Nama Penerima
+              {t('checkout.address.name')}
             </Label>
             <Input
               id="checkout-name"
-              placeholder="Nama lengkap penerima"
+              placeholder={t('checkout.address.namePlaceholder')}
               value={value.name}
               onChange={(e) => handleNameChange(e.target.value)}
               autoComplete="name"
@@ -544,7 +546,7 @@ export function CheckoutAddressForm({
 
           <div className="space-y-1.5" id="error-phone">
             <Label htmlFor="checkout-phone" className="text-xs text-muted-foreground">
-              No. Telepon (WhatsApp)
+              {t('checkout.address.phone')}
             </Label>
             <PhoneInput
               value={value.phone}
@@ -568,22 +570,22 @@ export function CheckoutAddressForm({
       <div className="space-y-3 scroll-mt-36" id="error-address">
         <div className="flex items-center gap-2">
           {isAddressComplete ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <MapPin className="h-4 w-4 text-primary" />}
-          <div className="min-w-0"><h4 className="font-medium text-sm">Wilayah Alamat</h4><p className="text-[11px] text-muted-foreground mt-0.5">Pilih berurutan agar alamat cepat terisi</p></div>
-          {isAddressComplete && <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">Lengkap</span>}
+          <div className="min-w-0"><h4 className="font-medium text-sm">{t('checkout.address.region')}</h4><p className="text-[11px] text-muted-foreground mt-0.5">{t('checkout.address.regionHint')}</p></div>
+          {isAddressComplete && <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">{t('checkout.address.complete')}</span>}
         </div>
-        <AddressSelector value={value.address} onChange={handleAddressChange} showDetailInput={false} />
+        <AddressSelector value={value.address} onChange={handleAddressChange} showDetailInput={false} requiredFields />
         {user && syncProfileAddress && isAddressComplete && profileSaveState !== 'idle' && (
           <div aria-live="polite" className="flex items-center justify-between gap-2 text-xs">
             {profileSaveState === 'pending' || profileSaveState === 'saving' ? (
-              <p className="text-muted-foreground">Alamat lengkap sedang disimpan ke profil...</p>
+              <p className="text-muted-foreground">{t('checkout.address.saving')}</p>
             ) : profileSaveState === 'saved' ? (
-              <p role="status" className="text-emerald-700">Alamat berhasil disimpan ke profil Anda.</p>
+              <p role="status" className="text-emerald-700">{t('checkout.address.saved')}</p>
             ) : (
-              <p role="alert" className="text-destructive">Alamat belum tersimpan ke profil.</p>
+              <p role="alert" className="text-destructive">{t('checkout.address.saveError')}</p>
             )}
             {profileSaveState === 'error' && (
               <Button type="button" variant="outline" size="sm" onClick={() => setProfileSaveRetry((attempt) => attempt + 1)}>
-                Coba lagi
+                {t('checkout.address.retry')}
               </Button>
             )}
           </div>
@@ -599,12 +601,12 @@ export function CheckoutAddressForm({
             ) : (
               <MapPin className="h-4 w-4 text-primary" />
             )}
-            <h4 className="font-medium text-sm">Titik Lokasi Pengiriman</h4>
+            <h4 className="font-medium text-sm">{t('checkout.address.locationTitle')}</h4>
             {(geocodingLoading || reverseGeocodingLoading) && (
               <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
             )}
             {hasDetectedLocation && (
-              <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">Terdeteksi</span>
+              <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">{t('checkout.address.locationDetected')}</span>
             )}
           </div>
 
@@ -630,13 +632,13 @@ export function CheckoutAddressForm({
           <div className="flex items-start gap-3">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-emerald-700 font-medium mb-1">Alamat Terdeteksi:</p>
+              <p className="text-xs text-emerald-700 font-medium mb-1">{t('checkout.address.summaryDetected')}</p>
               <p className="text-sm font-medium text-emerald-900 break-words">
                 {formatAddressSummary(detectedAddress)}
               </p>
               {detectedAddress.postcode && (
                 <p className="text-xs text-emerald-600 mt-1">
-                  Kode Pos: {detectedAddress.postcode}
+                  {t('checkout.address.postalCode')} {detectedAddress.postcode}
                 </p>
               )}
             </div>
@@ -648,16 +650,16 @@ export function CheckoutAddressForm({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          <div><h4 className="font-medium text-sm">Detail Alamat</h4><p className="text-[11px] text-muted-foreground mt-0.5">Nomor rumah dan patokan membantu kurir</p></div>
+          <div><h4 className="font-medium text-sm">{t('checkout.address.detailTitle')}</h4><p className="text-[11px] text-muted-foreground mt-0.5">{t('checkout.address.detailHint')}</p></div>
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="checkout-detail" className="text-xs text-muted-foreground">
-            Nomor Rumah, Patokan, atau Informasi Tambahan
+            {t('checkout.address.detailLabel')}
           </Label>
           <Textarea
             id="checkout-detail"
-            placeholder="Contoh: Rumah nomor 42, depan toko kelontong, sebelah masjid"
+            placeholder={t('checkout.address.detailPlaceholder')}
             value={value.detailAddress || ''}
             onChange={(e) => handleDetailAddressChange(e.target.value)}
             maxLength={500}
@@ -665,7 +667,7 @@ export function CheckoutAddressForm({
             className={`min-h-20 resize-none ${!value.detailAddress && value.location ? 'border-amber-300 focus:border-amber-400' : ''}`}
           />
           <p id="checkout-detail-hint" className="text-xs text-muted-foreground">
-            Informasi ini membantu kurir menemukan lokasi Anda dengan lebih mudah ({(value.detailAddress || '').length}/500)
+            {t('checkout.address.detailHelp', { count: (value.detailAddress || '').length })}
           </p>
         </div>
       </div>
@@ -676,7 +678,7 @@ export function CheckoutAddressForm({
           <div className="flex items-start gap-2 min-w-0">
             <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
             <div className="min-w-0">
-              <p className="text-xs text-emerald-700 font-medium">Wilayah Terdeteksi:</p>
+              <p className="text-xs text-emerald-700 font-medium">{t('checkout.address.regionDetected')}</p>
               <p className="text-sm text-foreground truncate">
                 {value.address.villageName}, {value.address.districtName}, {value.address.cityName}, {value.address.provinceName}
               </p>

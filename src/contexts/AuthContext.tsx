@@ -4,6 +4,18 @@ import type { AppRole } from '@/types/auth';
 import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from '@/lib/authRoles';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 
+interface SignupAddress {
+  province: string;
+  provinceName: string;
+  city: string;
+  cityName: string;
+  district: string;
+  districtName: string;
+  village: string;
+  villageName: string;
+  detail: string;
+}
+
 const AUTH_CHANNEL_NAME = 'desamart_auth';
 const AUTH_INIT_TIMEOUT_MS = 8_000;
 const AUTH_ROLE_RECOVERY_TIMEOUT_MS = 8_000;
@@ -46,7 +58,7 @@ interface AuthContextType {
   loading: boolean;
   rolesLoading: boolean;
   merchantRoleRecoveryLoading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{
+  signUp: (email: string, password: string, fullName: string, address: SignupAddress) => Promise<{
     data: { user: unknown; session: unknown };
     error: Error | null;
   }>;
@@ -281,7 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchUserRoles]);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, address: SignupAddress) => {
     const emailResult = signupEmailSchema.safeParse(email);
     if (!emailResult.success) {
       return {
@@ -297,6 +309,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: window.location.origin,
         data: {
           full_name: fullName,
+          province_id: address.province,
+          province_name: address.provinceName,
+          city_id: address.city,
+          city_name: address.cityName,
+          district_id: address.district,
+          district_name: address.districtName,
+          village_id: address.village,
+          village_name: address.villageName,
+          address_detail: address.detail.trim() || null,
+          address: [address.detail.trim(), address.villageName, address.districtName, address.cityName, address.provinceName]
+            .filter(Boolean)
+            .join(', '),
         },
       },
     });

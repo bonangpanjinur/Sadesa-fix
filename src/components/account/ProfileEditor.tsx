@@ -45,11 +45,12 @@ interface ProfileEditorProps {
   onSave: (data: { full_name: string; phone: string | null; address: string | null; avatar_url?: string | null; ktp_number?: string | null }) => void;
   onCancel: () => void;
   forceCompletion?: boolean;
+  requiredAddress?: boolean;
   requireCourierProfile?: boolean;
   requireMerchantProfile?: boolean;
 }
 
-export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false, requireCourierProfile = false, requireMerchantProfile = false }: ProfileEditorProps) {
+export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false, requiredAddress = false, requireCourierProfile = false, requireMerchantProfile = false }: ProfileEditorProps) {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatar_url || '');
@@ -237,8 +238,16 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       addressData.province || addressData.city || addressData.district || addressData.village || addressData.detail.trim(),
     );
     const hasCompleteAddress = Boolean(
-      addressData.province && addressData.city && addressData.district && addressData.village && addressData.detail.trim(),
+      addressData.province && addressData.city && addressData.district && addressData.village,
     );
+    if (requiredAddress && !hasCompleteAddress) {
+      toast({
+        title: 'Alamat utama wajib dilengkapi',
+        description: 'Pilih provinsi, kabupaten/kota, kecamatan, dan desa/kelurahan sebelum melanjutkan.',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (hasAnyAddressValue && !hasCompleteAddress) {
       toast({
         title: 'Alamat belum lengkap',
@@ -332,11 +341,13 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
     <div className="space-y-4">
       {forceCompletion && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
-          {requireCourierProfile
+          {requiredAddress
+            ? 'Alamat utama wajib dilengkapi hingga provinsi, kabupaten/kota, kecamatan, dan desa/kelurahan. Detail jalan dan foto profil tetap opsional.'
+            : requireCourierProfile
             ? 'Nomor WhatsApp aktif membantu pelanggan menghubungi Anda. Foto selfie dianjurkan, tetapi tidak wajib.'
             : requireMerchantProfile
               ? 'Nomor KTP dan WhatsApp membantu proses merchant. Foto selfie dianjurkan, tetapi tidak wajib.'
-            : 'Lengkapi profil secara bertahap. Foto selfie dianjurkan untuk membangun kepercayaan, tetapi tetap opsional.'}
+              : 'Lengkapi profil secara bertahap. Foto selfie dianjurkan untuk membangun kepercayaan, tetapi tetap opsional.'}
         </div>
       )}
       {/* Optional profile photo */}
@@ -421,11 +432,12 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       )}
 
       <div className="space-y-2">
-        <Label>Alamat</Label>
+        <Label>Alamat Utama{requiredAddress && <span className="text-destructive"> *</span>}</Label>
         <AddressSelector
           value={addressData}
           onChange={setAddressData}
           disabled={saving}
+          requiredFields={requiredAddress}
         />
       </div>
 

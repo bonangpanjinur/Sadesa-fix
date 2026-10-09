@@ -3,6 +3,7 @@ import { Download, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWA } from '@/hooks/usePWA';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from '@/lib/i18n';
 
 const DISMISS_KEY = 'pwa-install-dismissed';
 const DISMISS_HOURS = 24;
@@ -23,6 +24,7 @@ function isDismissedRecently(): boolean {
 export function InstallBanner() {
   const { canInstall, isInstalled, installApp } = usePWA();
   const location = useLocation();
+  const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(isDismissedRecently);
   const [open, setOpen] = useState(false);
 
@@ -30,7 +32,10 @@ export function InstallBanner() {
     // Discovery dan checkout membutuhkan first visit yang tidak terinterupsi.
     // Opsi install tetap tersedia dari halaman /install dan navigasi aplikasi.
     const isFocusedFlow = ['/products', '/cart', '/checkout', '/orders'].some((path) => location.pathname.startsWith(path));
-    if (isInstalled || dismissed || location.pathname === '/install' || isFocusedFlow) return;
+    if (isInstalled || dismissed || location.pathname === '/install' || isFocusedFlow) {
+      setOpen(false);
+      return;
+    }
 
     // Let visitors explore first; the reminder below is non-modal and does not
     // block the storefront or take focus away from the current task.
@@ -80,12 +85,12 @@ export function InstallBanner() {
           <Smartphone className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 id="install-prompt-title" className="text-sm font-bold text-foreground">Install Aplikasi SaDesa</h2>
+          <h2 id="install-prompt-title" className="text-sm font-bold text-foreground">{t('install.title')}</h2>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Akses lebih cepat dari homescreen dan tetap nyaman saat koneksi tidak stabil.
+            {t('install.description')}
           </p>
         </div>
-        <Button type="button" variant="ghost" size="icon" onClick={handleDismiss} className="-mr-2 -mt-2 h-8 w-8 shrink-0" aria-label="Tutup pengingat instalasi">
+        <Button type="button" variant="ghost" size="icon" onClick={handleDismiss} className="-mr-2 -mt-2 h-8 w-8 shrink-0" aria-label={t('install.dismiss')}>
           <span aria-hidden="true">×</span>
         </Button>
       </div>
@@ -93,14 +98,14 @@ export function InstallBanner() {
         {canInstall ? (
           <Button onClick={handleInstall} className="flex-1">
             <Download className="mr-2 h-4 w-4" aria-hidden="true" />
-            Install Sekarang
+            {t('install.now')}
           </Button>
         ) : (
           <Button asChild className="flex-1">
-            <Link to="/install" onClick={() => setOpen(false)}>Cara Install</Link>
+            <Link to="/install" onClick={() => setOpen(false)}>{t('install.how')}</Link>
           </Button>
         )}
-        <Button type="button" variant="outline" onClick={handleDismiss}>Nanti</Button>
+        <Button type="button" variant="outline" onClick={handleDismiss}>{t('install.later')}</Button>
       </div>
     </aside>
   );
