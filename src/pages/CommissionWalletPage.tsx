@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { AlertCircle, ArrowDownToLine, Clock3, FileUp, RefreshCw, Wallet } from 'lucide-react';
+import { AlertCircle, ArrowDownToLine, Clock3, Download, FileUp, RefreshCw, Wallet } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { CourierLayout } from '@/components/courier/CourierLayout';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
@@ -16,28 +16,35 @@ import { useCourierGuard } from '@/hooks/useCourierGuard';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { createWalletTopupInvoice, isXenditEnabled } from '@/lib/paymentApi';
 import { formatPrice } from '@/lib/utils';
+import { downloadCsv } from '@/lib/csv';
 import { toast } from 'sonner';
 
 type OwnerType = 'MERCHANT' | 'COURIER';
 type WalletRow = { id: string; balance_rupiah: number; debt_rupiah: number; is_active: boolean };
-type LedgerRow = { id: string; entry_type: string; amount_delta_rupiah: number; debt_delta_rupiah: number; base_amount_rupiah: number | null; fee_percent: number | null; note: string | null; created_at: string };
+type LedgerRow = { id: string; entry_type: string; source_type: string; source_id: string | null; amount_delta_rupiah: number; debt_delta_rupiah: number; base_amount_rupiah: number | null; fee_percent: number | null; note: string | null; created_at: string };
 type TopupRow = { id: string; amount_rupiah: number; status: string; admin_notes: string | null; created_at: string; payment_provider: string; payment_status: string; payment_invoice_url: string | null };
 type FeeRow = { fee_percent: number; is_enabled: boolean; charge_courier_delivery?: boolean };
 type PolicyRow = { low_balance_threshold_rupiah: number };
 type BankInfo = { bank_name?: string; bank_account_number?: string; bank_account_name?: string; qris_image_url?: string };
 type WalletData = { wallet: WalletRow | null; ledger: LedgerRow[]; requests: TopupRow[]; fee: FeeRow | null; policy: PolicyRow | null; bank: BankInfo | null; xenditEnabled: boolean };
 
+const localDateValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const currentMonthStart = () => { const date = new Date(); date.setDate(1); return localDateValue(date); };
+const todayValue = () => localDateValue(new Date());
+
 function WalletPanel({ ownerType, ownerId, ownerName, loading: guardLoading }: { ownerType: OwnerType; ownerId: string | null; ownerName: string; loading: boolean }) {
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [estimateBase, setEstimateBase] = useState('');
   const [estimateActivity, setEstimateActivity] = useState<'RIDE' | 'DELIVERY'>('RIDE');
+  const [ledgerFrom, setLedgerFrom] = useState(currentMonthStart);
+  const [ledgerTo, setLedgerTo] = useState(todayValue);
   const [note, setNote] = useState('');
   const [proof, setProof] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [payingAutomatically, setPayingAutomatically] = useState(false);
   const title = ownerType === 'MERCHANT' ? 'Saldo Komisi Pedagang' : 'Saldo Komisi Ojek';
-  const queryKey = ['commission-wallet-account', ownerType, ownerId];
+  const queryKey = ['commission-wallet-account', ownerType, ownerId, ledgerFrom, ledgerTo];
   const { data, isLoading, error, refetch } = useQuery<WalletData>({
     queryKey,
     enabled: !!ownerId,
@@ -56,10 +63,16 @@ function WalletPanel({ ownerType, ownerId, ownerName, loading: guardLoading }: {
       if (requestError) throw requestError;
       const wallet = walletData as unknown as WalletRow | null;
       let ledger: LedgerRow[] = [];
-      if (wallet?.id) {
+      if (wallet?.id && ledgerFrom && ledgerTo && ledgerFrom <= ledgerTo) {
+        const fromTimestamp = new Date(`${ledgerFrom}T00:00:00`).toISOString();
+        const toExclusive = new Date(`${ledgerTo}T00:00:00`);
+        toExclusive.setDate(toExclusive.getDate() + 1);
         const { data: ledgerData, error: ledgerError } = await supabase.from('commission_wallet_ledger' as never)
-          .select('id,entry_type,amount_delta_rupiah,debt_delta_rupiah,base_amount_rupiah,fee_percent,note,created_at')
-          .eq('wallet_id' as never, wallet.id as never).order('created_at' as never, { ascending: false } as never).limit(25);
+          .select('id,entry_type,source_type,source_id,amount_delta_rupiah,debt_delta_rupiah,base_amount_rupiah,fee_percent,note,created_at')
+          .eq('wallet_id' as never, wallet.id as never)
+          .gte('created_at' as never, fromTimestamp as never)
+          .lt('created_at' as never, toExclusive.toISOString() as never)
+          .order('created_at' as never, { ascending: false } as never).limit(1000);
         if (ledgerError) throw ledgerError;
         ledger = (ledgerData ?? []) as unknown as LedgerRow[];
       }
@@ -91,6 +104,24 @@ function WalletPanel({ ownerType, ownerId, ownerName, loading: guardLoading }: {
     ? Number(data.fee.fee_percent)
     : 0;
   const estimateFee = Number.isSafeInteger(estimateValue) && estimateValue > 0 ? Math.round(estimateValue * estimateRate / 100) : null;
+  const invalidLedgerRange = !ledgerFrom || !ledgerTo || ledgerFrom > ledgerTo;
+  const ledgerSummary = useMemo(() => {
+    const rows = data?.ledger ?? [];
+    return {
+      commission: rows.filter((row) => row.entry_type === 'COMMISSION').reduce((sum, row) => sum - Number(row.amount_delta_rupiah) + Number(row.debt_delta_rupiah), 0),
+      topups: rows.filter((row) => row.entry_type === 'TOPUP').reduce((sum, row) => sum + Number(row.amount_delta_rupiah) - Number(row.debt_delta_rupiah), 0),
+      refunds: rows.filter((row) => row.entry_type === 'REFUND').reduce((sum, row) => sum + Number(row.amount_delta_rupiah) - Number(row.debt_delta_rupiah), 0),
+    };
+  }, [data?.ledger]);
+
+  const exportLedger = () => {
+    const rows = [
+      ['Waktu', 'Jenis mutasi', 'Jenis transaksi', 'ID transaksi', 'Nilai dasar (Rp)', 'Tarif (%)', 'Perubahan saldo (Rp)', 'Perubahan tagihan (Rp)', 'Catatan'],
+      ...(data?.ledger ?? []).map((entry) => [entry.created_at, entry.entry_type, entry.source_type, entry.source_id ?? '', entry.base_amount_rupiah ?? '', entry.fee_percent ?? '', entry.amount_delta_rupiah, entry.debt_delta_rupiah, entry.note ?? '']),
+    ];
+    const account = ownerType === 'MERCHANT' ? 'pedagang' : 'ojek';
+    downloadCsv(`laporan-komisi-${account}-${ledgerFrom}-${ledgerTo}.csv`, rows);
+  };
 
   const submitTopup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -221,9 +252,24 @@ function WalletPanel({ ownerType, ownerId, ownerName, loading: guardLoading }: {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle>Riwayat saldo</CardTitle><CardDescription>Saldo tersedia dan tagihan komisi ditampilkan sebagai mutasi terpisah.</CardDescription></CardHeader>
+        <CardHeader className="gap-4 md:flex-row md:items-end md:justify-between">
+          <div><CardTitle>Laporan komisi dan riwayat saldo</CardTitle><CardDescription>Filter periode, lihat ringkasan, lalu unduh CSV untuk rekonsiliasi.</CardDescription></div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1"><Label htmlFor="ledger-from">Dari tanggal</Label><Input id="ledger-from" type="date" required value={ledgerFrom} max={ledgerTo || undefined} onChange={(event) => { if (event.target.value) setLedgerFrom(event.target.value); }} /></div>
+            <div className="space-y-1"><Label htmlFor="ledger-to">Sampai tanggal</Label><Input id="ledger-to" type="date" required value={ledgerTo} min={ledgerFrom || undefined} max={todayValue()} onChange={(event) => { if (event.target.value) setLedgerTo(event.target.value); }} /></div>
+            <Button variant="outline" onClick={exportLedger} disabled={invalidLedgerRange || !data?.ledger.length}><Download className="mr-2 h-4 w-4" />Ekspor CSV</Button>
+          </div>
+        </CardHeader>
         <CardContent>
-          {!data?.ledger.length ? <p className="py-6 text-center text-sm text-muted-foreground">Belum ada mutasi.</p> : <div className="space-y-2">{data.ledger.map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 border-b py-3 last:border-0"><div><p className="font-medium">{entry.entry_type === 'COMMISSION' ? 'Komisi transaksi' : entry.entry_type === 'TOPUP' ? 'Top-up' : entry.entry_type === 'REFUND' ? 'Pembalikan komisi refund' : entry.entry_type}</p><p className="text-xs text-muted-foreground">{new Date(entry.created_at).toLocaleString('id-ID')}{entry.fee_percent !== null ? ` · tarif ${entry.fee_percent}% dari ${formatPrice(entry.base_amount_rupiah ?? 0)}` : ''}</p>{entry.debt_delta_rupiah !== 0 && <p className={entry.debt_delta_rupiah > 0 ? 'text-xs text-destructive' : 'text-xs text-primary'}>{entry.debt_delta_rupiah > 0 ? 'Tagihan bertambah ' : 'Tagihan berkurang '}{formatPrice(Math.abs(entry.debt_delta_rupiah))}</p>}{entry.note && <p className="text-xs text-muted-foreground">{entry.note}</p>}</div><span className={entry.amount_delta_rupiah < 0 ? 'font-semibold text-destructive' : 'font-semibold text-primary'}>{entry.amount_delta_rupiah < 0 ? '−' : '+'}{formatPrice(Math.abs(entry.amount_delta_rupiah))}</span></div>)}</div>}
+          {invalidLedgerRange ? <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Rentang tanggal tidak valid</AlertTitle><AlertDescription>Tanggal awal harus sebelum atau sama dengan tanggal akhir.</AlertDescription></Alert> : <>
+            <p className="mb-3 text-xs text-muted-foreground">Periode {ledgerFrom} sampai {ledgerTo} · maksimal 1.000 mutasi per permintaan. Gunakan rentang yang lebih pendek untuk menelusuri riwayat yang lebih besar.</p>
+            <div className="mb-4 grid gap-2 sm:grid-cols-3">
+              <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Komisi dipotong</p><p className="font-semibold">{formatPrice(ledgerSummary.commission)}</p></div>
+              <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Top-up diterima</p><p className="font-semibold">{formatPrice(ledgerSummary.topups)}</p></div>
+              <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Komisi dibalik karena refund</p><p className="font-semibold">{formatPrice(ledgerSummary.refunds)}</p></div>
+            </div>
+            {!data?.ledger.length ? <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada mutasi pada periode ini.</p> : <div className="space-y-2">{data.ledger.map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 border-b py-3 last:border-0"><div><p className="font-medium">{entry.entry_type === 'COMMISSION' ? 'Komisi transaksi' : entry.entry_type === 'TOPUP' ? 'Top-up' : entry.entry_type === 'REFUND' ? 'Pembalikan komisi refund' : entry.entry_type}</p><p className="text-xs text-muted-foreground">{new Date(entry.created_at).toLocaleString('id-ID')} · {entry.source_type}{entry.source_id ? ` · ${entry.source_id}` : ''}{entry.fee_percent !== null ? ` · tarif ${entry.fee_percent}% dari ${formatPrice(entry.base_amount_rupiah ?? 0)}` : ''}</p>{entry.debt_delta_rupiah !== 0 && <p className={entry.debt_delta_rupiah > 0 ? 'text-xs text-destructive' : 'text-xs text-primary'}>{entry.debt_delta_rupiah > 0 ? 'Tagihan bertambah ' : 'Tagihan berkurang '}{formatPrice(Math.abs(entry.debt_delta_rupiah))}</p>}{entry.note && <p className="text-xs text-muted-foreground">{entry.note}</p>}</div><span className={entry.amount_delta_rupiah < 0 ? 'font-semibold text-destructive' : 'font-semibold text-primary'}>{entry.amount_delta_rupiah < 0 ? '−' : '+'}{formatPrice(Math.abs(entry.amount_delta_rupiah))}</span></div>)}</div>}
+          </>}
         </CardContent>
       </Card>
       <p className="flex items-start gap-2 text-xs text-muted-foreground"><ArrowDownToLine className="mt-0.5 h-3.5 w-3.5 shrink-0" />Saldo kuota lama tidak dikonversi dan paket lama dihentikan. Bukti transfer manual disimpan privat; kredit manual menunggu persetujuan admin.</p>

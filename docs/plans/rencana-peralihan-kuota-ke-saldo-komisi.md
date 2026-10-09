@@ -36,7 +36,7 @@
 
 ### Top-up dan antarmuka
 
-- Merchant dan courier mendapat halaman wallet dengan saldo, debt, tarif, mutasi, peringatan saldo rendah, simulator potongan transaksi, status top-up, dan pengajuan manual/Xendit.
+- Merchant dan courier mendapat halaman wallet dengan saldo, debt, tarif, mutasi yang dapat difilter per tanggal, ringkasan komisi/top-up/refund, ekspor CSV pemilik wallet, peringatan saldo rendah, simulator potongan transaksi, status top-up, dan pengajuan manual/Xendit.
 - Dashboard admin mengelola tarif pedagang/ojek, tarif courier delivery, ambang saldo, jendela refund, ringkasan total saldo/debt, wallet berisiko, permintaan top-up, dan ekspor hingga 1.000 mutasi ledger ke CSV.
 - Invoice Xendit memakai reservasi database/idempotency; webhook memverifikasi nominal, invoice, pemilik, dan status sebelum mengkreditkan wallet. Ini tidak mengubah pembelian checkout order yang telah ada.
 - Saldo courier wallet tetap terpisah dari `courier_deposits`/deposit operasional.
@@ -56,7 +56,7 @@
 - Belum ada sandbox/staging Xendit live transaction atau uji concurrency terhadap database Postgres aktual dari sesi ini.
 - Angka dasar merchant tetap `orders.subtotal`; sebelum production, konfirmasi dengan sampel order bahwa kolom tersebut merupakan basis komisi yang dikehendaki terhadap voucher/diskon. Sistem juga belum menerapkan tarif minimum atau batas rupiah maksimum.
 - Refund prorata diterapkan atas `orders.total`; kebijakan ini perlu ditinjau untuk kombinasi refund produk, ongkir, dan subsidi/voucher.
-- CSV admin membatasi query pada 1.000 ledger terbaru per pemuatan; ekspor laporan historis lebih besar memerlukan pagination/server-side reporting.
+- Ekspor CSV pemilik wallet dan admin dibatasi maksimal 1.000 ledger per permintaan; pemilik dapat mempersempit periode tanggal. Riwayat lebih besar memerlukan pagination/server-side reporting.
 
 ## Berkas SQL deployment utama
 
