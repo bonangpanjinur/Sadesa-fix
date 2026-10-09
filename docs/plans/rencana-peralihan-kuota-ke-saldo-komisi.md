@@ -58,10 +58,10 @@
 - Refund prorata diterapkan atas `orders.total`; kebijakan ini perlu ditinjau untuk kombinasi refund produk, ongkir, dan subsidi/voucher.
 - CSV admin membatasi query pada 1.000 ledger terbaru per pemuatan; ekspor laporan historis lebih besar memerlukan pagination/server-side reporting.
 
-## Berkas migration utama
+## Berkas SQL deployment utama
 
-- `archive/supabase/migrations/20261009090000_commission_wallet_system.sql`
-- `archive/supabase/migrations/20261009091000_commission_wallet_topups.sql`
-- `archive/supabase/migrations/20261009092000_commission_wallet_operations.sql`
-- `archive/supabase/migrations/20261009093000_xendit_commission_wallet_topups.sql`
-- `archive/supabase/migrations/20261009094000_commission_refund_policy.sql`
+- `supabase/bootstrap/86_20261009090000_commission_wallet_system.sql`
+- `supabase/bootstrap/87_20261009091000_commission_wallet_topups.sql`
+- `supabase/bootstrap/88_20261009092000_commission_wallet_operations.sql`
+- `supabase/bootstrap/89_20261009093000_xendit_commission_wallet_topups.sql`
+- `supabase/bootstrap/90_20261009094000_commission_refund_policy.sql`
