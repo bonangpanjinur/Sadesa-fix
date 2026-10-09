@@ -17,6 +17,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { DashboardRoute } from "@/components/auth/DashboardRoute";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { SEO } from "@/components/SEO";
+import { FeatureTour } from "@/components/onboarding/FeatureTour";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { UpdatePrompt } from "@/components/pwa/UpdatePrompt";
 import { PublicFooter } from "@/components/layout/PublicFooter";
@@ -1417,6 +1418,7 @@ const App = () => (
               </Routes>
               </RouteTransition>
                 </Suspense>
+            <FeatureTour />
             <PublicFooter />
           </BrowserRouter>
               </PWAProvider>
