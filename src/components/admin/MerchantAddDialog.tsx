@@ -96,8 +96,11 @@ export function MerchantAddDialog({ open, onOpenChange, onSuccess }: MerchantAdd
   const validateCode = async (value: string) => {
     const code = value.trim().toUpperCase(); update('verifikator_code', code);
     if (!code) { setVerifikatorValid(null); setVerifikatorName(null); return; }
-    const { data, error } = await supabase.from('verifikator_codes').select('trade_group').eq('code', code).eq('is_active', true).maybeSingle();
-    setVerifikatorValid(!error && Boolean(data)); setVerifikatorName(data?.trade_group || null);
+    const { data, error } = await (supabase as any).rpc('check_merchant_referral_code', { p_code: code });
+    const result = data as { valid?: boolean; owner_role?: string } | null;
+    const valid = !error && result?.valid === true;
+    setVerifikatorValid(valid);
+    setVerifikatorName(valid ? (result?.owner_role === 'ADMIN_DESA' ? 'Admin Desa' : 'Verifikator') : null);
   };
 
   const handleSubmit = async () => {

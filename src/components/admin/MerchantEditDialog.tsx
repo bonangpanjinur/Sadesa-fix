@@ -189,22 +189,12 @@ export function MerchantEditDialog({
 
     setIsValidatingCode(true);
     try {
-      const { data, error } = await supabase
-        .from('verifikator_codes')
-        .select('trade_group')
-        .eq('code', code)
-        .eq('is_active', true)
-        .maybeSingle();
-
+      const { data, error } = await (supabase as any).rpc('check_merchant_referral_code', { p_code: code });
       if (error) throw error;
-
-      if (data) {
-        setTradeGroupName(data.trade_group);
-        setIsCodeValid(true);
-      } else {
-        setTradeGroupName(null);
-        setIsCodeValid(false);
-      }
+      const result = data as { valid?: boolean; owner_role?: string } | null;
+      const valid = result?.valid === true;
+      setTradeGroupName(valid ? (result?.owner_role === 'ADMIN_DESA' ? 'Admin Desa' : 'Verifikator') : null);
+      setIsCodeValid(valid);
     } catch (error) {
       console.error('Error validating code:', error);
       setIsCodeValid(false);

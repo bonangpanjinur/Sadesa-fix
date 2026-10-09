@@ -107,6 +107,7 @@ const AdminHalalManagementPage = lazy(() => import("./pages/admin/AdminHalalMana
 const AdminHalalRegulationPage = lazy(() => import("./pages/admin/AdminHalalRegulationPage"));
 const AdminTransactionQuotaPage = lazy(() => import("./pages/admin/AdminTransactionQuotaPage"));
 const AdminWalletCommissionPage = lazy(() => import("./pages/admin/AdminWalletCommissionPage"));
+const AdminReferralCommissionsPage = lazy(() => import("./pages/admin/AdminReferralCommissionsPage"));
 const AdminFreeQuotaPage = lazy(() => import("./pages/admin/AdminFreeQuotaPage"));
 const AdminVerifikatorCommissionsPage = lazy(() => import("./pages/admin/AdminVerifikatorCommissionsPage"));
 const AdminVerifierCommercePage = lazy(() => import("./pages/admin/AdminVerifierCommercePage"));
@@ -281,6 +282,7 @@ const DesaProfilPage = lazy(() => import("./pages/desa/DesaProfilPage"));
 const DesaPaketWisataPage = lazy(() => import("./pages/desa/DesaPaketWisataPage"));
 const DesaPemanduPage = lazy(() => import("./pages/desa/DesaPemanduPage"));
 const DesaLaporanKeuanganPage = lazy(() => import("./pages/desa/DesaLaporanKeuanganPage"));
+const DesaReferralEarningsPage = lazy(() => import("./pages/desa/DesaReferralEarningsPage"));
 
 // P3: Buyer Tourism Booking
 const TourismBookingPage = lazy(() => import("./pages/buyer/TourismBookingPage"));
@@ -895,6 +897,11 @@ const App = () => (
                   <AdminWalletCommissionPage />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/referral-commissions" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminReferralCommissionsPage />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/free-quota" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminFreeQuotaPage />
@@ -1341,6 +1348,11 @@ const App = () => (
               <Route path="/desa/laporan-keuangan" element={
                 <ProtectedRoute allowedRoles={['admin_desa', 'admin']}>
                   <DesaLaporanKeuanganPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/desa/komisi-referral" element={
+                <ProtectedRoute allowedRoles={['admin_desa', 'admin']}>
+                  <DesaReferralEarningsPage />
                 </ProtectedRoute>
               } />
 

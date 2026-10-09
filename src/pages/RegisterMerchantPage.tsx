@@ -354,26 +354,17 @@ export default function RegisterMerchantPage() {
     }
     setReferralInfo(prev => ({ ...prev, isLoading: true }));
     try {
-      const { data, error } = await supabase
-        .from('verifikator_codes')
-        .select('*')
-        .eq('code', code.toUpperCase())
-        .eq('is_active', true)
-        .maybeSingle();
-
+      const { data, error } = await (supabase as any).rpc('check_merchant_referral_code', { p_code: code.toUpperCase() });
       if (requestId !== referralValidationRequestRef.current) return;
-      if (error || !data) {
-        setReferralInfo({ isValid: false, tradeGroup: '', description: '', isLoading: false });
-        return;
-      }
-      if (data.max_usage && data.usage_count >= data.max_usage) {
-        setReferralInfo({ isValid: false, tradeGroup: '', description: 'Kode sudah mencapai batas maksimal penggunaan', isLoading: false });
+      const result = data as { valid?: boolean; owner_role?: string } | null;
+      if (error || result?.valid !== true) {
+        setReferralInfo({ isValid: false, tradeGroup: '', description: 'Kode referral tidak valid, tidak aktif, atau sudah mencapai batas penggunaan', isLoading: false });
         return;
       }
       setReferralInfo({
         isValid: true,
-        tradeGroup: data.trade_group,
-        description: data.description || '',
+        tradeGroup: result.owner_role === 'ADMIN_DESA' ? 'Admin Desa' : 'Verifikator',
+        description: '',
         isLoading: false,
       });
       setValue('referralCode', code.toUpperCase());

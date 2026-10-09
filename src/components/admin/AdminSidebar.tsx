@@ -121,6 +121,7 @@ export function AdminSidebar({
         { label: 'WD Verifikator', href: '/admin/verifikator-withdrawals', icon: <Wallet className="h-4 w-4" /> },
         { label: 'Komisi Platform', href: '/admin/komisi', icon: <DollarSign className="h-4 w-4" /> },
         { label: 'Komisi Verifikator', href: '/admin/verifikator-commissions', icon: <Percent className="h-4 w-4" />, badge: pendingVerifikatorWithdrawals },
+        { label: 'Komisi Referral Merchant', href: '/admin/referral-commissions', icon: <DollarSign className="h-4 w-4" /> },
         { label: 'Laporan Keuangan', href: '/admin/finance', icon: <DollarSign className="h-4 w-4" /> },
         { label: 'Escrow Jasa', href: '/admin/services', icon: <ShieldCheck className="h-4 w-4" /> },
         { label: 'Program Cashback', href: '/admin/cashback', icon: <Gift className="h-4 w-4" /> },

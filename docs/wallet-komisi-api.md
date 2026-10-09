@@ -184,7 +184,7 @@ Ringkasan yang ditampilkan dan CSV yang diunduh berlaku untuk halaman aktif, buk
 3. Jangan mengkreditkan wallet hanya berdasarkan redirect sukses browser. Untuk Xendit, sumber kebenaran kredit adalah webhook terautentikasi dan nominal cocok.
 4. Jangan menulis langsung ke `commission_wallets` atau `commission_wallet_ledger` dari client; gunakan RPC terotorisasi.
 5. Simpan bukti transfer hanya di bucket privat `commission-topup-proofs`. File diterima JPG/PNG/WebP/PDF maksimal 8 MB; bukti yang terikat request tidak dapat dihapus pemilik.
-6. Saldo kuota lama tidak otomatis ditukar menjadi saldo wallet. Jangan aktifkan tarif sampai top-up, kebijakan, dan rekonsiliasi cutover telah diuji.
+6. Saldo kuota lama tidak otomatis ditukar menjadi saldo wallet. Tarif referral default 0% dan nonaktif; aktifkan di production hanya setelah bundle 92 dan skenario rekonsiliasi referral diuji di staging.
 
 ## 7. Bundle deployment
 
@@ -196,5 +196,38 @@ Semua SQL wallet/komisi berada di `supabase/bootstrap` dan diterapkan berurutan:
 - `89_20261009093000_xendit_commission_wallet_topups.sql`
 - `90_20261009094000_commission_refund_policy.sql`
 - `91_20261009100000_commission_wallet_alerts.sql`
+- `92_20261009110000_merchant_referral_commissions.sql` (bundle standalone untuk kode referral, accrual, reversal refund, dan payout)
 
 Sebelum production: deploy Edge Functions, set credential/callback Xendit, uji di staging, dan audit basis komisi/refund terhadap aturan bisnis aktual. Kode repository saja tidak membuktikan bundle telah diterapkan ke project Supabase tertentu.
+
+
+## 8. Komisi referral pedagang (bundle 92)
+Basis komisi adalah **fee platform merchant yang benar-benar tertagih**. Nilai fee yang masih menjadi debt tidak memberi earning referral; jika kemudian dibayar oleh top-up, alokasi debt fee diproses FIFO dan earning baru dicatat sebesar bagian yang tertagih. Tarif `VERIFIKATOR` dan `ADMIN_DESA` independen, `0%` dan nonaktif secara default. Tarif/referrer disnapshot pada fee source; perubahan tarif berikutnya hanya berlaku pada transaksi baru.
+
+### Objek dan atribusi
+- `merchant_referral_commission_settings`: tarif dan toggle per role.
+- `merchant_referral_codes`: kode generik; kode verifikator lama dimirror, sementara admin desa membuat kode melalui RPC. Kode harus aktif dan belum mencapai batas pakai.
+- `merchants.referral_owner_user_id`, `referral_owner_role`, `referral_code_id`: attribution pedagang yang tidak dapat diganti lewat edit biasa setelah kode terpasang.
+- `merchant_referral_fee_sources` dan `merchant_referral_fee_collection_allocations`: rekonsiliasi fee merchant, debt, pembayaran debt, basis earning, jendela refund, dan fee lama non-referral.
+- `merchant_referral_commission_ledger`: signed ledger `EARNING`, `REFUND_REVERSAL`, dan `WITHDRAWAL`; idempotency key unik.
+- `merchant_referral_payout_requests`: permintaan, approval/rejection, status pembayaran, dan referensi transfer. Pembayaran dilakukan manual di luar aplikasi.
+
+### RPC referral
+| RPC | Akses | Parameter | Peran |
+|---|---|---|---|
+| `check_merchant_referral_code` | `anon`, `authenticated` | `p_code text` | Mengembalikan `{valid, owner_role}` saja; tidak memaparkan ID pemilik. Dipakai validasi registrasi. |
+| `create_admin_desa_referral_code` | `authenticated` dengan role `admin_desa` dan desa approved | `p_code text`, `p_description text DEFAULT NULL` | Membuat kode unik 3–32 karakter. Desa dipilih dari relasi akun yang disetujui. |
+| `get_merchant_referral_commission_summary` | `authenticated`, user hanya untuk role miliknya | `p_owner_role text` | Ringkasan rate, enabled, pending, tersedia, reservasi payout, net ledger. |
+| `get_merchant_referral_merchants` | `authenticated`, user hanya untuk role miliknya | `p_owner_role text` | Daftar nama/status merchant yang memakai kodenya, fee tertagih, earning net, jumlah fee events; tanpa data kontak. |
+| `create_merchant_referral_payout_request` | `authenticated`, role pemilik harus cocok | `p_owner_role text`, `p_amount_rupiah bigint`, `p_bank_name text`, `p_account_number text`, `p_account_holder text` | Minimal Rp10.000; mengunci akun agar request concurrent tidak melebihi saldo tersedia dan mereservasi saldo selama pending/approved. |
+| `process_merchant_referral_payout` | `authenticated`, wajib `public.is_admin()` | `p_request_id uuid`, `p_status text`, `p_admin_notes text DEFAULT NULL`, `p_payout_reference text DEFAULT NULL` | `APPROVED`, `REJECTED`, atau `PAID`; PAID mensyaratkan referensi transfer dan menulis debit ledger idempoten. |
+
+### Peristiwa internal
+Trigger `process_merchant_referral_wallet_ledger` membuat fee source pada komisi merchant, mengalokasikan pelunasan debt dari top-up, lalu memanggil `post_merchant_referral_fee_collection` untuk menghitung delta earning. `reverse_commission_for_refund` tetap internal dan hanya dipanggil oleh `complete_refund_settlement` setelah settlement berhasil; ia menyesuaikan fee wallet dan membuat `REFUND_REVERSAL` referral secara idempoten. RPC `get_merchant_referral_*` dan payout memeriksa `auth.uid()`/role; ledger dan payout menerapkan RLS owner/admin, sedangkan fee source/allocations hanya dapat dibaca admin.
+
+UI terkait:
+- Admin: `/admin/referral-commissions`
+- Verifikator: tab **Komisi Referral Merchant** pada halaman earnings
+- Admin desa: `/desa/komisi-referral`
+
+Bundle 92 berdiri sendiri di `supabase/bootstrap` dan tidak ditambahkan ke `archive/supabase/migrations`, sesuai ketentuan repository. Jalankan bundle setelah bundle 91. `validate:db-bootstrap` memeriksa manifest/marker; validasi tersebut bukan pengganti eksekusi dan integrasi test terhadap database staging.

@@ -110,7 +110,7 @@ export default function DesaLaporanKeuanganPage() {
 
   const handleExportCSV = () => {
     if (!stats) return;
-    const headers = ['Bulan', 'Pesanan Pedagang', 'Omzet Pedagang', 'Komisi Desa (3%)', 'Booking Wisata', 'Pendapatan Wisata'];
+    const headers = ['Bulan', 'Pesanan Pedagang', 'Omzet Pedagang', 'Estimasi kontribusi desa (3% omzet)', 'Booking Wisata', 'Pendapatan Wisata'];
     const rows = (stats.months || []).map(m => [
       m.month, m.merchant_orders, m.merchant_revenue, m.commission, m.tourism_bookings, m.tourism_revenue,
     ]);
@@ -127,7 +127,7 @@ export default function DesaLaporanKeuanganPage() {
   return (
     <DesaLayout
       title="Laporan Keuangan Desa"
-      subtitle="Rekap pendapatan pedagang, wisata, dan komisi desa"
+      subtitle="Omzet desa dan estimasi 3% omzet merchant; bukan komisi referral/payout aktual"
       actions={
         <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!stats}>
           <Download className="h-4 w-4 mr-2" /> Export CSV
@@ -181,7 +181,7 @@ export default function DesaLaporanKeuanganPage() {
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground">Komisi Desa (3%)</span>
+                    <span className="text-xs text-muted-foreground">Estimasi kontribusi desa (3% omzet)</span>
                     <TrendingUp className="h-4 w-4 text-emerald-500" />
                   </div>
                   <p className="text-xl font-bold text-emerald-600">{formatPrice(stats.totalCommission)}</p>
@@ -216,7 +216,7 @@ export default function DesaLaporanKeuanganPage() {
             <Card>
               <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart2 className="h-5 w-5" /> Omzet Pedagang & Komisi Desa
+                  <BarChart2 className="h-5 w-5" /> Omzet Pedagang & Estimasi Kontribusi Desa
                 </CardTitle>
                 <CardDescription>Rekap transaksi marketplace pedagang di desa ini</CardDescription>
               </CardHeader>
@@ -228,7 +228,7 @@ export default function DesaLaporanKeuanganPage() {
                     <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
                     <Tooltip formatter={(v: number) => formatPrice(v)} />
                     <Bar dataKey="merchant_revenue" name="Omzet Pedagang" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="commission" name="Komisi Desa" fill="hsl(160, 60%, 45%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="commission" name="Estimasi kontribusi 3% omzet" fill="hsl(160, 60%, 45%)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -265,7 +265,7 @@ export default function DesaLaporanKeuanganPage() {
                         <th className="text-left py-2 font-medium text-muted-foreground">Bulan</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Pesanan</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Omzet Pedagang</th>
-                        <th className="text-right py-2 font-medium text-muted-foreground">Komisi Desa</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Estimasi 3% omzet*</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Booking Wisata</th>
                         <th className="text-right py-2 font-medium text-muted-foreground">Pend. Wisata</th>
                       </tr>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { VerifikatorLayout } from '@/components/verifikator/VerifikatorLayout';
+import { ReferralCommissionPanel } from '@/components/referral/ReferralCommissionPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -407,6 +408,9 @@ export default function VerifikatorEarningsPage() {
           </TabsTrigger>
           <TabsTrigger value="withdrawals" className="gap-2">
             <History className="h-4 w-4" /> Riwayat Withdrawal
+          </TabsTrigger>
+          <TabsTrigger value="referral" className="gap-2">
+            <Store className="h-4 w-4" /> Komisi Referral Merchant
           </TabsTrigger>
         </TabsList>
 

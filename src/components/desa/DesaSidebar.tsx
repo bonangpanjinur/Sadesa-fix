@@ -69,6 +69,7 @@ export function DesaSidebar() {
     { label: 'Broadcast',           href: '/desa/broadcast',           icon: <Megaphone className="h-4 w-4" /> },
     { label: 'Peta Interaktif',     href: '/desa/peta',                icon: <Map className="h-4 w-4" /> },
     { label: 'Laporan Wisata',      href: '/desa/laporan-wisata',      icon: <BarChart3 className="h-4 w-4" /> },
+    { label: 'Komisi Referral Pedagang', href: '/desa/komisi-referral', icon: <DollarSign className="h-4 w-4" /> },
     { label: 'Donasi & Crowdfunding', href: '/desa/donasi',            icon: <Heart className="h-4 w-4" /> },
   ];
   const normalizedSearch = searchTerm.trim().toLowerCase();
