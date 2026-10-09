@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/utils';
+import { COMMISSION_WALLET_LEDGER_PAGE_SIZE, commissionWalletLedgerCursorFilter, hasNextCommissionWalletLedgerPage, type CommissionWalletLedgerCursor } from '@/lib/commissionWalletLedger';
 import { toast } from 'sonner';
 
 type OwnerType = 'MERCHANT' | 'COURIER';
@@ -27,6 +28,10 @@ export default function AdminWalletCommissionPage() {
   const [requests, setRequests] = useState<TopupRequest[]>([]);
   const [wallets, setWallets] = useState<WalletAccount[]>([]);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
+  const [ledgerCount, setLedgerCount] = useState(0);
+  const [ledgerPage, setLedgerPage] = useState(0);
+  const [ledgerCursors, setLedgerCursors] = useState<Array<CommissionWalletLedgerCursor | null>>([null]);
+  const ledgerCursor = ledgerCursors[ledgerPage] ?? null;
   const [policy, setPolicy] = useState<PolicySetting>(defaultPolicy);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<OwnerType | 'POLICY' | null>(null);
@@ -39,7 +44,14 @@ export default function AdminWalletCommissionPage() {
       supabase.from('commission_fee_settings' as never).select('*'),
       supabase.from('commission_wallet_topup_requests' as never).select('*').order('created_at' as never, { ascending: false } as never).limit(100),
       supabase.from('commission_wallets' as never).select('id,owner_type,merchant_id,courier_id,balance_rupiah,debt_rupiah,is_active,updated_at').order('updated_at' as never, { ascending: false } as never).limit(1000),
-      supabase.from('commission_wallet_ledger' as never).select('id,wallet_id,entry_type,source_type,source_id,amount_delta_rupiah,debt_delta_rupiah,base_amount_rupiah,fee_percent,note,created_at').order('created_at' as never, { ascending: false } as never).limit(1000),
+      (() => {
+        let query = supabase.from('commission_wallet_ledger' as never)
+          .select('id,wallet_id,entry_type,source_type,source_id,amount_delta_rupiah,debt_delta_rupiah,base_amount_rupiah,fee_percent,note,created_at', { count: 'exact' });
+        if (ledgerCursor) query = query.or(commissionWalletLedgerCursorFilter(ledgerCursor) as never);
+        return query.order('created_at' as never, { ascending: false } as never)
+          .order('id' as never, { ascending: false } as never)
+          .limit(COMMISSION_WALLET_LEDGER_PAGE_SIZE);
+      })(),
       supabase.from('commission_wallet_policy_settings' as never).select('refund_window_days,low_balance_threshold_rupiah').eq('id' as never, true as never).maybeSingle(),
     ]);
     if (feeResult.error) {
@@ -53,14 +65,17 @@ export default function AdminWalletCommissionPage() {
     if (walletResult.error) console.error('Gagal memuat wallet:', walletResult.error);
     else setWallets((walletResult.data ?? []) as unknown as WalletAccount[]);
     if (ledgerResult.error) console.error('Gagal memuat ledger:', ledgerResult.error);
-    else setLedger((ledgerResult.data ?? []) as unknown as LedgerRow[]);
+    else {
+      setLedger((ledgerResult.data ?? []) as unknown as LedgerRow[]);
+      setLedgerCount(ledgerResult.count ?? 0);
+    }
     if (policyResult.error) console.error('Gagal memuat kebijakan wallet:', policyResult.error);
     else {
       const policyData = (policyResult as unknown as { data: PolicySetting | null }).data;
       if (policyData) setPolicy(policyData);
     }
     setLoading(false);
-  }, []);
+  }, [ledgerCursor]);
 
   useEffect(() => { void loadData(); }, [loadData]);
 
@@ -143,7 +158,14 @@ export default function AdminWalletCommissionPage() {
     const rows = [['created_at', 'wallet_id', 'entry_type', 'source_type', 'source_id', 'balance_delta_rupiah', 'debt_delta_rupiah', 'base_amount_rupiah', 'fee_percent', 'note'], ...ledger.map((entry) => [entry.created_at, entry.wallet_id, entry.entry_type, entry.source_type, entry.source_id ?? '', entry.amount_delta_rupiah, entry.debt_delta_rupiah, entry.base_amount_rupiah ?? '', entry.fee_percent ?? '', entry.note ?? ''])];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\r\n');
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a'); link.href = url; link.download = `commission-wallet-ledger-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.href = url; link.download = `commission-wallet-ledger-${new Date().toISOString().slice(0, 10)}-page-${ledgerPage + 1}.csv`; link.click(); URL.revokeObjectURL(url);
+  };
+
+  const goToNextLedgerPage = () => {
+    const lastEntry = ledger[ledger.length - 1];
+    if (!lastEntry || !hasNextCommissionWalletLedgerPage(ledgerCount, ledger.length)) return;
+    setLedgerCursors((current) => [...current.slice(0, ledgerPage + 1), { created_at: lastEntry.created_at, id: lastEntry.id }]);
+    setLedgerPage((current) => current + 1);
   };
 
   const configCard = (ownerType: OwnerType) => {
@@ -185,7 +207,7 @@ export default function AdminWalletCommissionPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Wallet dan tunggakan</CardTitle><CardDescription>Owner dengan utang tidak dapat menerima transaksi/penugasan baru; top-up melunasi tunggakan lebih dahulu.</CardDescription></div><Button variant="outline" onClick={exportLedger}><Download className="mr-2 h-4 w-4" />Ekspor ledger CSV</Button></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Wallet dan tunggakan</CardTitle><CardDescription>Owner dengan utang tidak dapat menerima transaksi/penugasan baru; top-up melunasi tunggakan lebih dahulu.</CardDescription></div></CardHeader>
           <CardContent>
             {!wallets.length ? <p className="py-6 text-center text-sm text-muted-foreground">Belum ada wallet terdaftar.</p> : <div className="space-y-2">{wallets.map((wallet) => <div key={wallet.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm"><div><p className="font-medium">{wallet.owner_type === 'MERCHANT' ? 'Pedagang' : 'Ojek'} · {wallet.merchant_id ?? wallet.courier_id}</p><p className="text-xs text-muted-foreground">Wallet {wallet.is_active ? 'aktif' : 'nonaktif'} · diperbarui {new Date(wallet.updated_at).toLocaleString('id-ID')}</p></div><div className="flex flex-wrap gap-2"><Badge variant="outline">Saldo {formatPrice(wallet.balance_rupiah)}</Badge><Badge variant={Number(wallet.debt_rupiah) > 0 ? 'destructive' : 'secondary'}>Tagihan {formatPrice(wallet.debt_rupiah)}</Badge>{Number(wallet.balance_rupiah) <= policy.low_balance_threshold_rupiah && <Badge variant="outline">Saldo rendah</Badge>}</div></div>)}</div>}
           </CardContent>
@@ -201,7 +223,7 @@ export default function AdminWalletCommissionPage() {
             ))}</div>}
           </CardContent>
         </Card>
-        <Card><CardHeader><CardTitle>Ledger terbaru</CardTitle><CardDescription>Menampilkan hingga 1.000 mutasi; gunakan ekspor CSV untuk rekonsiliasi.</CardDescription></CardHeader><CardContent>{ledger.length ? <div className="space-y-2">{ledger.slice(0, 30).map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2 text-sm last:border-0"><div><p className="font-medium">{entry.entry_type} · {entry.source_type}</p><p className="text-xs text-muted-foreground">{entry.wallet_id} · {new Date(entry.created_at).toLocaleString('id-ID')}</p></div><div className="text-right"><p>Saldo: {formatPrice(entry.amount_delta_rupiah)}</p><p className={entry.debt_delta_rupiah > 0 ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>Tagihan: {formatPrice(entry.debt_delta_rupiah)}</p></div></div>)}</div> : <p className="py-6 text-center text-sm text-muted-foreground">Belum ada mutasi.</p>}</CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Ledger terbaru</CardTitle><CardDescription>Halaman {ledgerPage + 1}; memuat {ledger.length} dari {ledgerCount} mutasi pada halaman ini dan sesudahnya. CSV mengekspor halaman aktif.</CardDescription></div><Button variant="outline" onClick={exportLedger} disabled={!ledger.length}><Download className="mr-2 h-4 w-4" />Ekspor halaman CSV</Button></CardHeader><CardContent>{ledger.length ? <><div className="space-y-2">{ledger.map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2 text-sm last:border-0"><div><p className="font-medium">{entry.entry_type} · {entry.source_type}</p><p className="text-xs text-muted-foreground">{entry.wallet_id} · {new Date(entry.created_at).toLocaleString('id-ID')}</p></div><div className="text-right"><p>Saldo: {formatPrice(entry.amount_delta_rupiah)}</p><p className={entry.debt_delta_rupiah > 0 ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>Tagihan: {formatPrice(entry.debt_delta_rupiah)}</p></div></div>)}</div><div className="mt-4 flex items-center justify-between border-t pt-3"><Button variant="outline" onClick={() => setLedgerPage((current) => Math.max(0, current - 1))} disabled={loading || ledgerPage === 0}>Sebelumnya</Button><span className="text-xs text-muted-foreground">{COMMISSION_WALLET_LEDGER_PAGE_SIZE} mutasi per halaman</span><Button variant="outline" onClick={goToNextLedgerPage} disabled={loading || !hasNextCommissionWalletLedgerPage(ledgerCount, ledger.length)}>Berikutnya</Button></div></> : <p className="py-6 text-center text-sm text-muted-foreground">Belum ada mutasi.</p>}</CardContent></Card>
       </div>
     </AdminLayout>
   );
