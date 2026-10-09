@@ -41,6 +41,8 @@ interface CheckoutAddressFormProps {
   };
 }
 
+export type CheckoutLocationSource = 'gps' | 'manual' | 'saved' | 'estimated';
+
 export function CheckoutAddressForm({
   value,
   onChange,
@@ -58,6 +60,7 @@ export function CheckoutAddressForm({
   const profileSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const profileSaveRevisionRef = useRef(0);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationSource, setLocationSource] = useState<CheckoutLocationSource>('estimated');
   const [reverseGeocodingLoading, setReverseGeocodingLoading] = useState(false);
   const [detectedAddress, setDetectedAddress] = useState<ReverseGeocodingResult | null>(null);
   
@@ -130,6 +133,7 @@ export function CheckoutAddressForm({
           setProfileLoaded(true);
 
           if (loc) {
+            setLocationSource('saved');
             setMapCenter(loc);
             const detected = await reverseGeocode(loc.lat, loc.lng);
             setDetectedAddress(detected);
@@ -220,6 +224,7 @@ export function CheckoutAddressForm({
           // pin editable, but do not force mobile users to repeat the same data
           // on the map before they can continue.
           if (!latestValueRef.current.location) {
+            setLocationSource('estimated');
             onChange({
               ...latestValueRef.current,
               location: { lat: coords.lat, lng: coords.lng },
@@ -334,7 +339,9 @@ export function CheckoutAddressForm({
       detail: address.address_detail || '',
     };
 
-    const location = address.lat && address.lng ? { lat: address.lat, lng: address.lng } : value.location;
+    const location = address.lat && address.lng ? { lat: address.lat, lng: address.lng } : null;
+    setDetectedAddress(null);
+    setLocationSource(address.lat && address.lng ? 'saved' : 'estimated');
 
     onChange({
       name: address.recipient_name,
@@ -362,7 +369,7 @@ export function CheckoutAddressForm({
     }
 
     setShowSavedAddresses(false);
-  }, [value, onChange, getCoordinatesFromAddress]);
+  }, [onChange, getCoordinatesFromAddress]);
 
   const handleLocationSelected = useCallback(async (lat: number, lng: number) => {
     isUpdatingFromMap.current = true;
@@ -574,6 +581,9 @@ export function CheckoutAddressForm({
           {isAddressComplete && <span className="text-[10px] text-emerald-600 font-medium bg-emerald-50 px-1.5 py-0.5 rounded">{t('checkout.address.complete')}</span>}
         </div>
         <AddressSelector value={value.address} onChange={handleAddressChange} showDetailInput={false} requiredFields />
+        {errors?.address && (
+          <p role="alert" className="rounded-md bg-destructive/5 px-2 py-1.5 text-xs text-destructive">{errors.address}</p>
+        )}
         {user && syncProfileAddress && isAddressComplete && profileSaveState !== 'idle' && (
           <div aria-live="polite" className="flex items-center justify-between gap-2 text-xs">
             {profileSaveState === 'pending' || profileSaveState === 'saving' ? (
@@ -617,11 +627,19 @@ export function CheckoutAddressForm({
               merchantLocation={merchantLocation}
               onDistanceChange={onDistanceChange}
               onLocationSelected={handleLocationSelected}
+              onLocationSourceChange={setLocationSource}
               externalCenter={mapCenter}
             />
           </div>
+          <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-xs" role="status" aria-live="polite">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <p className="font-semibold text-foreground">{!value.location ? 'Titik lokasi belum dipilih' : locationSource === 'gps' ? 'Lokasi GPS terdeteksi' : locationSource === 'manual' ? 'Pin dipilih manual' : locationSource === 'saved' ? 'Lokasi dari alamat tersimpan' : 'Titik lokasi perkiraan'}</p>
+              <p className="mt-0.5 text-muted-foreground">{!value.location ? 'Gunakan GPS atau ketuk peta untuk menentukan lokasi pengiriman.' : locationSource === 'estimated' ? 'Periksa posisi pin dan geser atau ketuk peta bila belum tepat di rumah Anda.' : 'Pastikan pin berada di titik rumah atau lokasi penerimaan yang benar.'}</p>
+            </div>
+          </div>
           {errors?.location && (
-            <p className="text-xs text-destructive">{errors.location}</p>
+            <p role="alert" className="text-xs text-destructive">{errors.location}</p>
           )}
         </div>
       )}
@@ -671,6 +689,15 @@ export function CheckoutAddressForm({
           </p>
         </div>
       </div>
+
+      {isAddressComplete && value.location && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3" aria-label="Ringkasan alamat pengiriman">
+          <p className="text-xs font-semibold text-primary">Alamat pengiriman siap digunakan</p>
+          <p className="mt-1 text-sm font-semibold text-foreground">{value.name} · {value.phone}</p>
+          <p className="mt-1 break-words text-sm text-foreground">{[formatFullAddress(value.address), value.detailAddress?.trim()].filter(Boolean).join(', ')}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Periksa nama penerima, patokan, dan posisi pin sebelum menekan Pesan.</p>
+        </div>
+      )}
 
       {/* Wilayah summary - show if address detected from map */}
       {isAddressComplete && (

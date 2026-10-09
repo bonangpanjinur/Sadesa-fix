@@ -23,6 +23,7 @@ interface LocationPickerProps {
   merchantLocation?: { lat: number; lng: number } | null;
   onDistanceChange?: (distanceKm: number) => void;
   onLocationSelected?: (lat: number, lng: number) => void;
+  onLocationSourceChange?: (source: 'gps' | 'manual') => void;
   disabled?: boolean;
   externalCenter?: { lat: number; lng: number } | null;
 }
@@ -54,6 +55,7 @@ export function LocationPicker({
   merchantLocation,
   onDistanceChange,
   onLocationSelected,
+  onLocationSourceChange,
   disabled,
   externalCenter,
 }: LocationPickerProps) {
@@ -99,6 +101,7 @@ export function LocationPicker({
           lng: position.coords.longitude,
         };
         onChange(location);
+        onLocationSourceChange?.('gps');
         setMapCenter(location);
         
         // Notify parent to update address based on coordinates
@@ -119,19 +122,20 @@ export function LocationPicker({
         maximumAge: 0,
       }
     );
-  }, [onChange, onLocationSelected, t]);
+  }, [onChange, onLocationSelected, onLocationSourceChange, t]);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
     if (!disabled) {
       const location = { lat, lng };
       onChange(location);
+      onLocationSourceChange?.('manual');
       
       // Notify parent to update address based on coordinates
       if (onLocationSelected) {
         onLocationSelected(lat, lng);
       }
     }
-  }, [onChange, onLocationSelected, disabled]);
+  }, [onChange, onLocationSelected, onLocationSourceChange, disabled]);
 
   return (
     <div className="space-y-3">
