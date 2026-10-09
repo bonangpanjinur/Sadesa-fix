@@ -58,8 +58,10 @@ export default function CheckoutPage() {
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
-  const [hasChosenDelivery, setHasChosenDelivery] = useState(false);
-  const [hasChosenPayment, setHasChosenPayment] = useState(false);
+  // The first available options are visibly selected by default, so the step
+  // indicator and CTA should not pretend the buyer still needs to choose them.
+  const [hasChosenDelivery, setHasChosenDelivery] = useState(true);
+  const [hasChosenPayment, setHasChosenPayment] = useState(true);
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
   const [retryingPayment, setRetryingPayment] = useState(false);
@@ -347,6 +349,10 @@ export default function CheckoutPage() {
   const deliveryStepComplete = addressStepComplete && hasChosenDelivery;
   const paymentStepComplete = deliveryStepComplete && hasChosenPayment;
   const currentStepIndex = !items.length ? 0 : !addressStepComplete ? 1 : !deliveryStepComplete ? 2 : !paymentStepComplete ? 3 : 3;
+  const transferDetailsAvailable = Boolean(merchantPaymentSettings?.bankName && merchantPaymentSettings?.bankAccountNumber);
+  const paymentReady = paymentMethod === 'ONLINE'
+    ? Boolean(user && xenditAvailable)
+    : transferDetailsAvailable;
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -446,11 +452,6 @@ export default function CheckoutPage() {
         description: t('checkout.form.errorDescription'),
         variant: 'destructive',
       });
-      // Scroll to first error
-      setTimeout(() => {
-        const firstErrorField = Object.keys(errors).find((key) => errors[key]);
-        document.getElementById(`error-${firstErrorField || 'address'}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
       return;
     }
 
@@ -1056,6 +1057,12 @@ export default function CheckoutPage() {
             </div>
           )}
 
+          {merchantPaymentSettings && paymentMethod === 'TRANSFER' && !transferDetailsAvailable && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
+              Rekening transfer belum tersedia untuk toko ini. Pilih pembayaran online jika tersedia atau hubungi penjual.
+            </div>
+          )}
+
         </motion.div>
 
         {/* Order Summary moved to top of form */}
@@ -1148,7 +1155,7 @@ export default function CheckoutPage() {
           type="submit"
           className="w-full shadow-brand font-bold transition-all"
           size="lg"
-          disabled={loading || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
+          disabled={loading || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>
@@ -1176,6 +1183,11 @@ export default function CheckoutPage() {
         {!isDeliveryReady && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {t('checkout.cta.addressNeeded')}
+          </p>
+        )}
+        {!paymentReady && !loading && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            {merchantPaymentSettings ? 'Pilih metode pembayaran yang tersedia untuk melanjutkan.' : 'Menyiapkan metode pembayaran...'}
           </p>
         )}
         {merchantIds.length > 1 && (

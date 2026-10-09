@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Copy, CheckCircle, CreditCard, QrCode, Clock, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, CreditCard, QrCode, Clock, ExternalLink, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,9 +41,12 @@ export default function PaymentConfirmationPage() {
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const loadOrderAndPaymentInfo = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
     try {
       if (!orderId) return;
       let orderData: OrderInfo | null = null;
@@ -95,6 +98,7 @@ export default function PaymentConfirmationPage() {
       setPaymentInfo({ bankName, bankAccountNumber, bankAccountName, qrisImageUrl });
     } catch (error) {
       console.error('Error loading payment info:', error);
+      setLoadError(error instanceof Error ? error.message : 'Data pembayaran tidak dapat dimuat');
     } finally {
       setLoading(false);
     }
@@ -129,14 +133,24 @@ export default function PaymentConfirmationPage() {
     );
   }
 
-  if (!order || !paymentInfo) {
+  if (loadError || !order || !paymentInfo) {
     return (
       <div className="mobile-shell bg-background flex flex-col min-h-screen items-center justify-center p-8">
-        <p className="text-muted-foreground">Data tidak ditemukan</p>
-        <Button onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))} className="mt-4">{user ? 'Ke Pesanan Saya' : 'Ke Status Pesanan'}</Button>
+        <AlertTriangle className="h-10 w-10 text-amber-600" />
+        <p className="mt-3 text-center font-semibold">Pembayaran belum dapat dimuat</p>
+        <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">{loadError || 'Data pesanan tidak ditemukan atau link sudah kedaluwarsa.'}</p>
+        <div className="mt-4 flex w-full max-w-xs flex-col gap-2">
+          <Button onClick={() => void loadOrderAndPaymentInfo()}>Coba lagi</Button>
+          <Button variant="outline" onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))}>{user ? 'Ke Pesanan Saya' : 'Ke Status Pesanan'}</Button>
+        </div>
       </div>
     );
   }
+
+  const paymentStatus = order.payment_status.toUpperCase();
+  const isPaymentComplete = ['PAID', 'VERIFIED', 'COMPLETED', 'SUCCESS'].includes(paymentStatus);
+  const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
+  const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
     <div className="mobile-shell bg-secondary flex flex-col min-h-screen">
@@ -161,9 +175,9 @@ export default function PaymentConfirmationPage() {
                   <p className="text-sm text-muted-foreground">Pesanan untuk</p>
                   <p className="font-bold">{order.merchant_name}</p>
                 </div>
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Menunggu Pembayaran
+                <Badge variant={isPaymentComplete ? 'default' : isPaymentRejected ? 'destructive' : 'secondary'} className="flex items-center gap-1">
+                  {isPaymentComplete ? <CheckCircle className="h-3 w-3" /> : isPaymentRejected ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                  {statusLabel}
                 </Badge>
               </div>
               {order.confirmation_deadline && (
@@ -182,8 +196,17 @@ export default function PaymentConfirmationPage() {
           </Card>
         </motion.div>
 
+        {isPaymentComplete && (
+          <Card className="border-emerald-200 bg-emerald-50/70">
+            <CardContent className="flex items-start gap-3 p-4 text-sm text-emerald-900">
+              <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              <div><p className="font-bold">Pembayaran sudah diterima</p><p className="mt-1">Pesanan akan diproses sesuai status terbaru dari penjual.</p></div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Bank Transfer Info */}
-        {paymentInfo.bankName && (
+        {!isPaymentComplete && paymentInfo.bankName && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Card>
               <CardContent className="p-4">
@@ -225,7 +248,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* QRIS */}
-        {paymentInfo.qrisImageUrl && (
+        {!isPaymentComplete && paymentInfo.qrisImageUrl && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card>
               <CardContent className="p-4">
@@ -250,7 +273,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* Upload Bukti Pembayaran */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        {!isPaymentComplete && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
@@ -268,10 +291,10 @@ export default function PaymentConfirmationPage() {
               />
             </CardContent>
           </Card>
-        </motion.div>
+        </motion.div>}
 
         {/* Instructions */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        {!isPaymentComplete && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
@@ -283,7 +306,7 @@ export default function PaymentConfirmationPage() {
               </ol>
             </CardContent>
           </Card>
-        </motion.div>
+        </motion.div>}
       </div>
 
       {/* Bottom Actions */}
