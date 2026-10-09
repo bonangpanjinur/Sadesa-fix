@@ -338,6 +338,8 @@ export default function RideBookingPage() {
             variant="outline" size="sm"
             className="h-8 text-xs"
             onClick={handleGps} disabled={gettingGps}
+            aria-label="Gunakan lokasi saya"
+            title="Gunakan lokasi saya"
           >
             {gettingGps ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5" />}
           </Button>
@@ -474,7 +476,7 @@ export default function RideBookingPage() {
           </div>
           <p className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
             <MapPin className="h-3 w-3 text-primary" />
-            Pilih titik langsung di peta atau ketik alamat untuk mencari otomatis.
+            Ketuk peta atau ketik alamat.
           </p>
 
           {/* Fare estimation + Order */}

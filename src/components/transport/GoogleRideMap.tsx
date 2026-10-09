@@ -58,7 +58,6 @@ function OpenStreetMapRideFallback({
   destinationLocation,
   drivers,
   route,
-  mode,
   onMapClick,
   nearestDriverId,
 }: GoogleRideMapProps) {
@@ -81,9 +80,6 @@ function OpenStreetMapRideFallback({
         })}
         {route.length > 1 && <Polyline positions={route} pathOptions={{ color: '#059669', weight: 4, opacity: 0.85 }} />}
       </MapContainer>
-      <div className="pointer-events-none absolute left-3 top-3 z-[400] rounded-full border border-border/60 bg-background/90 px-3 py-1.5 text-[10px] font-semibold shadow-sm backdrop-blur">
-        Tap peta untuk pilih {mode === 'pickup' ? 'pickup' : 'tujuan'} · OpenStreetMap
-      </div>
     </div>
   );
 }
