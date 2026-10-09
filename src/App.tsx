@@ -1351,7 +1351,7 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/desa/komisi-referral" element={
-                <ProtectedRoute allowedRoles={['admin_desa', 'admin']}>
+                <ProtectedRoute allowedRoles={['admin_desa']}>
                   <DesaReferralEarningsPage />
                 </ProtectedRoute>
               } />

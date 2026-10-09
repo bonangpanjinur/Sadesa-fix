@@ -24,6 +24,7 @@ export default function AdminReferralCommissionsPage() {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [references, setReferences] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [settingsReady, setSettingsReady] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -33,8 +34,11 @@ export default function AdminReferralCommissionsPage() {
       (supabase as any).from('merchant_referral_payout_requests').select('*').order('created_at', { ascending: false }).limit(200),
       (supabase as any).from('merchant_referral_commission_ledger').select('*').order('created_at', { ascending: false }).limit(100),
     ]);
-    if (settingsResult.error) toast.error(settingsResult.error.message);
     const nextSettings = (settingsResult.data || []) as Setting[];
+    const hasBothSettings = (['VERIFIKATOR', 'ADMIN_DESA'] as Role[]).every(role => nextSettings.some(item => item.owner_role === role));
+    setSettingsReady(!settingsResult.error && hasBothSettings);
+    if (settingsResult.error) toast.error(settingsResult.error.message);
+    else if (!hasBothSettings) toast.error('Pengaturan referral belum lengkap. Pastikan bundle SQL 92 sudah diterapkan.');
     setSettings(nextSettings);
     setPercentages({
       VERIFIKATOR: String(nextSettings.find(item => item.owner_role === 'VERIFIKATOR')?.commission_percent ?? 0),
@@ -51,6 +55,7 @@ export default function AdminReferralCommissionsPage() {
   useEffect(() => { void loadData(); }, [loadData]);
 
   const saveSettings = async (role: Role) => {
+    if (!settingsReady) return toast.error('Pengaturan belum berhasil dimuat; coba muat ulang sebelum menyimpan.');
     const rate = Number(percentages[role]);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) return toast.error('Tarif harus antara 0 sampai 100 persen');
     setBusy(`setting-${role}`);
@@ -77,6 +82,7 @@ export default function AdminReferralCommissionsPage() {
   return (
     <AdminLayout title="Komisi Referral Merchant" subtitle="Tarif referral dari fee merchant tertagih dan payout untuk verifikator/admin desa">
       <div className="space-y-6 p-4 lg:p-8">
+        {!loading && !settingsReady && <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm"><span>Pengaturan tarif referral tidak lengkap atau gagal dimuat. Penyimpanan dinonaktifkan agar nilai default tidak menimpa tarif tersimpan.</span><Button variant="outline" size="sm" onClick={() => void loadData()}>Coba muat ulang</Button></div>}
         <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
           Basis komisi adalah <strong>fee platform pedagang yang benar-benar berhasil dipotong/ditagih dari wallet</strong>. Tarif disimpan sebagai snapshot pada transaksi; mengubah tarif hanya berdampak pada fee berikutnya. Refund mengurangi komisi referral secara proporsional. Payout manual harus disertai nomor referensi transfer.
         </div>
@@ -85,9 +91,9 @@ export default function AdminReferralCommissionsPage() {
             <CardHeader><CardTitle>{role === 'VERIFIKATOR' ? 'Verifikator' : 'Admin Desa'}</CardTitle><CardDescription>Tarif bagi hasil atas fee merchant yang tertagih.</CardDescription></CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap items-end gap-4">
-                <div className="w-40 space-y-1"><Label htmlFor={`rate-${role}`}>Persentase referral</Label><div className="flex items-center gap-2"><Input id={`rate-${role}`} type="number" min="0" max="100" step="0.01" value={percentages[role]} onChange={e => setPercentages(current => ({ ...current, [role]: e.target.value }))} /><span>%</span></div></div>
-                <label className="mb-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={enabled[role]} onChange={e => setEnabled(current => ({ ...current, [role]: e.target.checked }))} />Aktifkan komisi referral</label>
-                <Button onClick={() => void saveSettings(role)} disabled={busy === `setting-${role}`}>Simpan</Button>
+                <div className="w-40 space-y-1"><Label htmlFor={`rate-${role}`}>Persentase referral</Label><div className="flex items-center gap-2"><Input id={`rate-${role}`} type="number" min="0" max="100" step="0.01" value={percentages[role]} disabled={loading || !settingsReady || busy === `setting-${role}`} onChange={e => setPercentages(current => ({ ...current, [role]: e.target.value }))} /><span>%</span></div></div>
+                <label className="mb-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={enabled[role]} disabled={loading || !settingsReady || busy === `setting-${role}`} onChange={e => setEnabled(current => ({ ...current, [role]: e.target.checked }))} />Aktifkan komisi referral</label>
+                <Button onClick={() => void saveSettings(role)} disabled={loading || !settingsReady || busy === `setting-${role}`}>Simpan</Button>
               </div>
               <p className="text-xs text-muted-foreground">Tarif tersimpan: {settings.find(item => item.owner_role === role)?.commission_percent ?? 0}% · {(settings.find(item => item.owner_role === role)?.is_enabled ?? false) ? 'aktif' : 'nonaktif'}</p>
             </CardContent>
