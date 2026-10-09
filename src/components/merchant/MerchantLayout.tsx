@@ -153,7 +153,7 @@ export function MerchantLayout({ children, title, subtitle, actions, fullWidth =
               <Menu className="h-5 w-5" />
             </Button>
             <div className="min-w-0">
-              <h1 className="font-semibold lg:text-xl truncate">{title}</h1>
+              <h1 className="font-semibold lg:text-xl truncate" data-feature-tour="page-title">{title}</h1>
               {subtitle && <p className="hidden lg:block text-muted-foreground text-xs">{subtitle}</p>}
             </div>
           </div>

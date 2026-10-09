@@ -39,7 +39,7 @@ export function HomeServiceCards() {
   });
 
   return (
-    <section className="mx-4" aria-label="Kategori utama">
+    <section className="mx-4" aria-label="Kategori utama" data-feature-tour="buyer-discover">
       <div className="grid grid-cols-3 gap-2.5">
         {HOMEPAGE_SERVICE_CARDS.map((card) => {
           const Icon = serviceCardIcons[card.id];

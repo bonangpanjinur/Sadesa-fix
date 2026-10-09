@@ -8,34 +8,40 @@ export interface FeatureTourStep {
   description: string;
   href: string;
   linkLabel: string;
+  target: 'page-title' | 'buyer-discover';
 }
 
 export const FEATURE_TOUR_STEPS: Record<FeatureTourRole, FeatureTourStep[]> = {
   buyer: [
-    { id: 'discover', title: 'Temukan produk dan toko lokal', description: 'Jelajahi katalog, cari barang atau makanan, lalu buka halaman toko untuk melihat produk dan detailnya.', href: '/products', linkLabel: 'Jelajahi produk' },
-    { id: 'checkout', title: 'Keranjang dan checkout', description: 'Produk pilihan tersimpan di keranjang. Periksa alamat pengantaran, pilih metode pembayaran, lalu pantau proses pesanan.', href: '/cart', linkLabel: 'Buka keranjang' },
-    { id: 'orders', title: 'Pantau pesanan', description: 'Lihat status pesanan, pelacakan pengiriman, riwayat, dan tindakan lanjutan dari halaman Pesanan.', href: '/orders', linkLabel: 'Lihat pesanan' },
-    { id: 'transport', title: 'Pesan ojek atau layanan antar', description: 'Gunakan menu transportasi untuk memesan perjalanan ojek atau layanan pengiriman yang tersedia di wilayah Anda.', href: '/ride', linkLabel: 'Lihat layanan antar' },
-    { id: 'tourism-services', title: 'Wisata dan jasa lokal', description: 'Temukan destinasi wisata, layanan profesional, dan kebutuhan lain yang ditawarkan mitra di sekitar Anda.', href: '/services', linkLabel: 'Jelajahi jasa' },
-    { id: 'account-support', title: 'Akun, alamat, dan bantuan', description: 'Kelola profil serta alamat pengantaran dari Akun. Jika membutuhkan bantuan, buka Pusat Bantuan dari menu dukungan.', href: '/account', linkLabel: 'Kelola akun' },
+    { id: 'discover', title: 'Temukan produk dan toko lokal', description: 'Pilih kategori di sini untuk mulai menjelajahi makanan, ojek, dan kebutuhan belanja lokal.', href: '/', linkLabel: 'Lihat kategori utama', target: 'buyer-discover' },
+    { id: 'checkout', title: 'Keranjang dan checkout', description: 'Di Keranjang, tinjau produk pilihan, alamat pengantaran, dan lanjutkan ke pembayaran.', href: '/cart', linkLabel: 'Buka keranjang', target: 'page-title' },
+    { id: 'orders', title: 'Pantau pesanan', description: 'Di Pesanan, lihat status order, pelacakan pengiriman, riwayat, dan tindakan lanjutan.', href: '/orders', linkLabel: 'Lihat pesanan', target: 'page-title' },
+    { id: 'transport', title: 'Pesan ojek atau layanan antar', description: 'Halaman ini membantu Anda menemukan layanan perjalanan ojek atau pengiriman yang tersedia di wilayah Anda.', href: '/ride', linkLabel: 'Lihat layanan antar', target: 'page-title' },
+    { id: 'tourism-services', title: 'Wisata dan jasa lokal', description: 'Jelajahi destinasi wisata dan layanan profesional yang ditawarkan mitra di sekitar Anda.', href: '/services', linkLabel: 'Jelajahi jasa', target: 'page-title' },
+    { id: 'account-support', title: 'Akun, alamat, dan bantuan', description: 'Kelola profil serta alamat pengantaran dari halaman Akun. Pusat Bantuan tersedia dari menu dukungan.', href: '/account', linkLabel: 'Kelola akun', target: 'page-title' },
   ],
   merchant: [
-    { id: 'merchant-orders', title: 'Kelola pesanan', description: 'Dashboard menampilkan aktivitas toko. Buka Pesanan untuk menerima, memproses, dan memantau order pelanggan.', href: '/merchant/orders', linkLabel: 'Buka pesanan' },
-    { id: 'merchant-catalog', title: 'Atur katalog dan stok', description: 'Tambah atau ubah produk, harga, foto, dan ketersediaan. Pantau stok menipis agar katalog tetap akurat.', href: '/merchant/products', linkLabel: 'Kelola produk' },
-    { id: 'merchant-fulfillment', title: 'Fulfillment, refund, dan chat', description: 'Gunakan Fulfillment untuk pengiriman bertahap, Refund untuk meninjau permintaan pengembalian, dan Chat untuk pelanggan.', href: '/merchant/fulfillment', linkLabel: 'Buka fulfillment' },
-    { id: 'merchant-promotions', title: 'Promosi dan pelanggan', description: 'Buat promo, flash sale, voucher, dan program loyalitas untuk membantu pelanggan menemukan serta membeli produk Anda.', href: '/merchant/promo', linkLabel: 'Kelola promosi' },
-    { id: 'merchant-insights', title: 'Laporan penjualan dan keuangan', description: 'Gunakan analitik dan laporan keuangan untuk memantau performa penjualan, pengunjung, pemasukan, dan penarikan.', href: '/merchant/analytics', linkLabel: 'Lihat analitik' },
-    { id: 'merchant-wallet', title: 'Saldo komisi dan top-up', description: 'Wallet menampilkan saldo, komisi, tagihan, dan riwayat. Top-up menambah saldo; paket kuota lama hanya tersedia sebagai histori.', href: '/merchant/wallet', linkLabel: 'Buka wallet' },
+    { id: 'merchant-dashboard', title: 'Dashboard toko', description: 'Ringkasan di dashboard menampilkan aktivitas dan kondisi toko Anda.', href: '/merchant', linkLabel: 'Lihat dashboard', target: 'page-title' },
+    { id: 'merchant-orders', title: 'Kelola pesanan', description: 'Di Pesanan, terima, proses, dan pantau order pelanggan.', href: '/merchant/orders', linkLabel: 'Buka pesanan', target: 'page-title' },
+    { id: 'merchant-catalog', title: 'Atur katalog dan stok', description: 'Tambah atau ubah produk, harga, foto, dan ketersediaan. Pantau stok agar katalog tetap akurat.', href: '/merchant/products', linkLabel: 'Kelola produk', target: 'page-title' },
+    { id: 'merchant-fulfillment', title: 'Fulfillment, refund, dan chat', description: 'Kelola pengiriman bertahap, tinjau permintaan refund, dan koordinasikan pesanan melalui chat.', href: '/merchant/fulfillment', linkLabel: 'Buka fulfillment', target: 'page-title' },
+    { id: 'merchant-promotions', title: 'Promosi dan pelanggan', description: 'Atur promo, flash sale, voucher, serta program loyalitas untuk pelanggan.', href: '/merchant/promo', linkLabel: 'Kelola promosi', target: 'page-title' },
+    { id: 'merchant-insights', title: 'Laporan penjualan dan keuangan', description: 'Pantau performa penjualan, pengunjung, pemasukan, dan penarikan melalui laporan.', href: '/merchant/analytics', linkLabel: 'Lihat analitik', target: 'page-title' },
+    { id: 'merchant-wallet', title: 'Saldo komisi dan top-up', description: 'Periksa saldo, komisi, tagihan, top-up, dan riwayat di Wallet.', href: '/merchant/wallet', linkLabel: 'Buka wallet', target: 'page-title' },
   ],
   courier: [
-    { id: 'courier-dashboard', title: 'Dashboard dan status kerja', description: 'Dashboard merangkum aktivitas. Pastikan status dan izin lokasi sesuai sebelum menerima penawaran pekerjaan.', href: '/courier', linkLabel: 'Buka dashboard' },
-    { id: 'courier-rides', title: 'Ambil pekerjaan ojek', description: 'Di Ojek Desa, lihat penawaran perjalanan, informasi penumpang dan tujuan, lalu ikuti tahapan penyelesaian order.', href: '/courier/rides', linkLabel: 'Lihat pekerjaan ojek' },
-    { id: 'courier-deliveries', title: 'Pengiriman barang', description: 'Menu Pengiriman Barang berisi penawaran antar paket atau order marketplace yang dapat Anda ambil dan selesaikan.', href: '/courier/deliveries', linkLabel: 'Lihat pengiriman' },
-    { id: 'courier-earnings', title: 'Riwayat dan pendapatan', description: 'Periksa pekerjaan terdahulu, pendapatan, dan performa untuk memahami aktivitas serta hasil kerja Anda.', href: '/courier/earnings', linkLabel: 'Lihat pendapatan' },
-    { id: 'courier-wallet', title: 'Saldo komisi dan top-up', description: 'Wallet komisi terpisah dari Setor Saldo operasional. Pantau potongan komisi, tagihan, top-up, dan riwayat wallet.', href: '/courier/commission-wallet', linkLabel: 'Buka wallet komisi' },
-    { id: 'courier-chat-withdrawal', title: 'Chat dan pencairan', description: 'Gunakan Chat untuk koordinasi order. Penarikan saldo dan setoran operasional tersedia di menu keuangan masing-masing.', href: '/courier/withdrawal', linkLabel: 'Buka penarikan' },
+    { id: 'courier-dashboard', title: 'Dashboard dan status kerja', description: 'Dashboard merangkum aktivitas. Atur status kerja dan izin lokasi sebelum menerima tawaran.', href: '/courier', linkLabel: 'Buka dashboard', target: 'page-title' },
+    { id: 'courier-rides', title: 'Ambil pekerjaan ojek', description: 'Di Ojek Desa, lihat tawaran perjalanan, informasi penumpang dan tujuan, lalu ikuti tahapan penyelesaian order.', href: '/courier/rides', linkLabel: 'Lihat pekerjaan ojek', target: 'page-title' },
+    { id: 'courier-deliveries', title: 'Pengiriman barang', description: 'Di Pengiriman Barang, lihat tawaran antar paket atau order marketplace yang dapat Anda ambil dan selesaikan.', href: '/courier/deliveries', linkLabel: 'Lihat pengiriman', target: 'page-title' },
+    { id: 'courier-earnings', title: 'Riwayat dan pendapatan', description: 'Periksa pekerjaan terdahulu, pendapatan, dan performa di halaman ini.', href: '/courier/earnings', linkLabel: 'Lihat pendapatan', target: 'page-title' },
+    { id: 'courier-wallet', title: 'Saldo komisi dan top-up', description: 'Pantau potongan komisi, tagihan, top-up, dan riwayat wallet komisi.', href: '/courier/commission-wallet', linkLabel: 'Buka wallet komisi', target: 'page-title' },
+    { id: 'courier-chat-withdrawal', title: 'Chat dan pencairan', description: 'Gunakan Chat untuk koordinasi order. Penarikan dan setoran operasional tersedia di menu keuangan.', href: '/courier/withdrawal', linkLabel: 'Buka penarikan', target: 'page-title' },
   ],
 };
+
+export const PUBLIC_BUYER_FEATURE_TOUR_STEPS = FEATURE_TOUR_STEPS.buyer.filter(
+  (step) => step.id !== 'orders' && step.id !== 'account-support',
+);
 
 const STAFF_ROLES: AppRole[] = ['admin', 'admin_desa', 'verifikator'];
 const MERCHANT_WORKSPACE_ROUTES = [
@@ -81,15 +87,20 @@ export function getFeatureTourRoleForVisitor(
   pathname: string,
   isAuthenticated: boolean,
 ): FeatureTourRole | null {
-  return getFeatureTourRole(isAuthenticated ? roles : ['buyer'], pathname);
+  if (isAuthenticated) return getFeatureTourRole(roles, pathname);
+  const normalizedPath = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  if (['/orders', '/account', '/profile', '/addresses'].some((route) => matchesRoute(normalizedPath, route))) {
+    return null;
+  }
+  return getFeatureTourRole(['buyer'], pathname);
 }
 
 export function getFeatureTourStorageKey(userId: string, role: FeatureTourRole): string {
-  return `sadesa:feature-tour:v1:${userId}:${role}`;
+  return `sadesa:feature-tour:v2:${userId}:${role}`;
 }
 
 export function getFeatureTourSessionKey(userId: string, role: FeatureTourRole): string {
-  return `sadesa:feature-tour-deferred:v1:${userId}:${role}`;
+  return `sadesa:feature-tour-deferred:v2:${userId}:${role}`;
 }
 
 type KeyValueStorage = Pick<Storage, 'getItem' | 'setItem'>;

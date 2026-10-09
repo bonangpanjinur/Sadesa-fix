@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FEATURE_TOUR_STEPS,
+  PUBLIC_BUYER_FEATURE_TOUR_STEPS,
   getFeatureTourRole,
   getFeatureTourRoleForVisitor,
   getFeatureTourStorageKey,
@@ -33,7 +34,18 @@ describe('feature tour targeting and progress', () => {
     expect(getFeatureTourRoleForVisitor([], '/merchant/orders', false)).toBeNull();
     expect(getFeatureTourRoleForVisitor([], '/courier', false)).toBeNull();
     expect(getFeatureTourRoleForVisitor([], '/auth', false)).toBeNull();
+    expect(getFeatureTourRoleForVisitor([], '/orders', false)).toBeNull();
+    expect(getFeatureTourRoleForVisitor([], '/account', false)).toBeNull();
     expect(getFeatureTourRoleForVisitor([], '/', true)).toBeNull();
+  });
+
+  it('anchors every step to a feature and keeps the guest guide on public destinations', () => {
+    for (const step of Object.values(FEATURE_TOUR_STEPS).flat()) {
+      expect(step.target).toBeTruthy();
+      expect(step.href.startsWith('/')).toBe(true);
+    }
+    expect(PUBLIC_BUYER_FEATURE_TOUR_STEPS.map((step) => step.id)).not.toContain('orders');
+    expect(PUBLIC_BUYER_FEATURE_TOUR_STEPS.map((step) => step.id)).not.toContain('account-support');
   });
 
   it('keeps progress isolated by account and role', () => {

@@ -115,7 +115,7 @@ export function CourierLayout({ children, title, subtitle }: CourierLayoutProps)
             <Menu className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1 basis-[calc(100%-5rem)]">
-            <h1 className="truncate text-base font-semibold sm:text-xl">{title}</h1>
+            <h1 className="truncate text-base font-semibold sm:text-xl" data-feature-tour="page-title">{title}</h1>
             {subtitle && <p className="hidden truncate text-xs text-muted-foreground sm:block">{subtitle}</p>}
           </div>
           <AlarmActivationDialog audience="courier" />
