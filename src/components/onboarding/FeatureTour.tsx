@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   FEATURE_TOUR_STEPS,
   getFirstUnseenFeatureTip,
-  getFeatureTourRole,
+  getFeatureTourRoleForVisitor,
   getFeatureTourSessionKey,
   getFeatureTourStorageKey,
   markFeatureTipSeen,
@@ -26,11 +26,12 @@ const emptySteps: typeof FEATURE_TOUR_STEPS.buyer = [];
 export function FeatureTour() {
   const { user, roles, loading, rolesLoading, merchantRoleRecoveryLoading } = useAuth();
   const { pathname } = useLocation();
-  const role = user ? getFeatureTourRole(roles, pathname) : null;
-  const steps = role ? FEATURE_TOUR_STEPS[role] : emptySteps;
-  const storageKey = user && role ? getFeatureTourStorageKey(user.id, role) : null;
-  const sessionKey = user && role ? getFeatureTourSessionKey(user.id, role) : null;
   const authReady = !loading && !rolesLoading && !merchantRoleRecoveryLoading;
+  const role = authReady ? getFeatureTourRoleForVisitor(roles, pathname, Boolean(user)) : null;
+  const steps = role ? FEATURE_TOUR_STEPS[role] : emptySteps;
+  const visitorId = user?.id ?? 'guest';
+  const storageKey = role ? getFeatureTourStorageKey(visitorId, role) : null;
+  const sessionKey = role ? getFeatureTourSessionKey(visitorId, role) : null;
   const [tour, setTour] = useState<TourState>(closedTour);
   const currentStep = tour.key === storageKey ? steps.find((step) => step.id === tour.stepId) : undefined;
   const currentStepIndex = currentStep ? steps.findIndex((step) => step.id === currentStep.id) : -1;
@@ -40,7 +41,7 @@ export function FeatureTour() {
       setTour(closedTour);
       return;
     }
-    if (!user || !role || !storageKey || !sessionKey) {
+    if (!role || !storageKey || !sessionKey) {
       setTour(closedTour);
       return;
     }
@@ -68,7 +69,7 @@ export function FeatureTour() {
     setTour({ key: storageKey, stepId: firstUnseen?.id ?? null, open: !deferred && Boolean(firstUnseen) });
   }, [authReady, role, sessionKey, steps, storageKey, user]);
 
-  if (!authReady || !user || !role || !storageKey || !sessionKey || !tour.open || !currentStep) return null;
+  if (!authReady || !role || !storageKey || !sessionKey || !tour.open || !currentStep) return null;
 
   const closeForNow = () => {
     try {

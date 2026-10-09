@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   FEATURE_TOUR_STEPS,
   getFeatureTourRole,
+  getFeatureTourRoleForVisitor,
   getFeatureTourStorageKey,
   getFirstUnseenFeatureTip,
   markFeatureTipSeen,
@@ -24,6 +25,15 @@ describe('feature tour targeting and progress', () => {
     expect(getFeatureTourRole(['admin', 'buyer'], '/')).toBeNull();
     expect(getFeatureTourRole(['admin_desa', 'buyer'], '/')).toBeNull();
     expect(getFeatureTourRole(['verifikator', 'buyer'], '/')).toBeNull();
+  });
+
+  it('shows the buyer guide to signed-out visitors on public pages, but not role workspaces', () => {
+    expect(getFeatureTourRoleForVisitor([], '/', false)).toBe('buyer');
+    expect(getFeatureTourRoleForVisitor([], '/products', false)).toBe('buyer');
+    expect(getFeatureTourRoleForVisitor([], '/merchant/orders', false)).toBeNull();
+    expect(getFeatureTourRoleForVisitor([], '/courier', false)).toBeNull();
+    expect(getFeatureTourRoleForVisitor([], '/auth', false)).toBeNull();
+    expect(getFeatureTourRoleForVisitor([], '/', true)).toBeNull();
   });
 
   it('keeps progress isolated by account and role', () => {

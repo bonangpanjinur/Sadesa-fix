@@ -75,6 +75,15 @@ export function getFeatureTourRole(roles: readonly AppRole[], pathname: string):
   return null;
 }
 
+/** Unauthenticated visitors use the public buyer guide; staff workspaces remain excluded. */
+export function getFeatureTourRoleForVisitor(
+  roles: readonly AppRole[],
+  pathname: string,
+  isAuthenticated: boolean,
+): FeatureTourRole | null {
+  return getFeatureTourRole(isAuthenticated ? roles : ['buyer'], pathname);
+}
+
 export function getFeatureTourStorageKey(userId: string, role: FeatureTourRole): string {
   return `sadesa:feature-tour:v1:${userId}:${role}`;
 }
