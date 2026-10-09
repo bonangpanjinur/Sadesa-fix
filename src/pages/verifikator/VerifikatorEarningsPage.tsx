@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { VerifikatorLayout } from '@/components/verifikator/VerifikatorLayout';
 import { ReferralCommissionPanel } from '@/components/referral/ReferralCommissionPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,6 +79,18 @@ const BANKS = [
 export default function VerifikatorEarningsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabValues = ['earnings', 'courier-earnings', 'withdrawals', 'referral'] as const;
+  const requestedTab = searchParams.get('tab');
+  const activeTab = tabValues.includes(requestedTab as typeof tabValues[number])
+    ? requestedTab as typeof tabValues[number]
+    : 'earnings';
+  const changeTab = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === 'earnings') next.delete('tab');
+    else next.set('tab', value);
+    setSearchParams(next, { replace: true });
+  };
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [trendMode, setTrendMode] = useState<'daily' | 'monthly'>('daily');
   const [breakdownMode, setBreakdownMode] = useState<'region' | 'status'>('region');
@@ -398,7 +411,7 @@ export default function VerifikatorEarningsPage() {
         )}
       </div>
 
-      <Tabs defaultValue="earnings" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={changeTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="earnings" className="gap-2">
             <TrendingUp className="h-4 w-4" /> Riwayat Komisi

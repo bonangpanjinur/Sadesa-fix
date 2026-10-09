@@ -61,4 +61,14 @@ describe('resolveNotificationLink', () => {
     expect(resolveNotificationLink({ type: 'chat', link: '/buyer/chat?conversationId=admin-1' }, ['admin']))
       .toBe('/admin/chat?conversationId=admin-1');
   });
+
+  it('preserves the verifier referral-tab link from commission notifications', () => {
+    expect(resolveNotificationLink({ type: 'success', link: '/verifikator/earnings?tab=referral' }, ['verifikator']))
+      .toBe('/verifikator/earnings?tab=referral');
+  });
+
+  it('preserves the village-admin referral page link from payout notifications', () => {
+    expect(resolveNotificationLink({ type: 'withdrawal', link: '/desa/komisi-referral' }, ['admin_desa']))
+      .toBe('/desa/komisi-referral');
+  });
 });

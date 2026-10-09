@@ -197,6 +197,7 @@ Semua SQL wallet/komisi berada di `supabase/bootstrap` dan diterapkan berurutan:
 - `90_20261009094000_commission_refund_policy.sql`
 - `91_20261009100000_commission_wallet_alerts.sql`
 - `92_20261009110000_merchant_referral_commissions.sql` (bundle standalone untuk kode referral, accrual, reversal refund, dan payout)
+- `93_20261009120000_referral_in_app_notifications.sql` (notifikasi in-app idempoten untuk earning referral dan transisi status payout)
 
 Sebelum production: deploy Edge Functions, set credential/callback Xendit, uji di staging, dan audit basis komisi/refund terhadap aturan bisnis aktual. Kode repository saja tidak membuktikan bundle telah diterapkan ke project Supabase tertentu.
 
@@ -231,3 +232,15 @@ UI terkait:
 - Admin desa: `/desa/komisi-referral`
 
 Bundle 92 berdiri sendiri di `supabase/bootstrap` dan tidak ditambahkan ke `archive/supabase/migrations`, sesuai ketentuan repository. Jalankan bundle setelah bundle 91. `validate:db-bootstrap` memeriksa manifest/marker; validasi tersebut bukan pengganti eksekusi dan integrasi test terhadap database staging.
+
+
+## 9. Notifikasi in-app referral (bundle 93)
+Bundle 93 menggunakan tabel `public.notifications` yang sudah ada, `idempotency_key` serta publikasi Realtime yang sudah dikonfigurasi. Tidak menambah akses baca baru atau mengubah RLS notifikasi.
+
+- Trigger `notify_referral_commission_earned` membuat notifikasi hanya untuk ledger `EARNING` positif. Fee/debt/refund event lain dan entry `WITHDRAWAL` tidak menghasilkan notifikasi earning. `idempotency_key` berbentuk `referral:earning:<ledger_id>`.
+- Trigger `notify_referral_payout_status_change` mengirim notifikasi owner saat status berubah menjadi `APPROVED`, `REJECTED`, atau `PAID`. Perubahan catatan tanpa perubahan status tidak mengirim notifikasi. Key berbentuk `referral:payout:<request_id>:<status>`.
+- Insert notifikasi berlangsung di transaksi yang sama dengan ledger/status; kegagalan insert membatalkan sumber event agar tidak ada perubahan tanpa notifikasi.
+- `VERIFIKATOR` diarahkan ke `/verifikator/earnings?tab=referral`; halaman verifikator membaca query `tab` dan membuka panel referral. `ADMIN_DESA` diarahkan ke `/desa/komisi-referral`.
+- UI dropdown sudah menangani event `INSERT` Realtime, menampilkan jenis `success`/`withdrawal`, dan membuka link role-specific tersebut.
+
+Trigger tidak mengirim notifikasi ke admin saat request payout pertama kali dibuat; request baru tetap terlihat di dashboard admin. Bundle 93 berdiri sendiri dan harus diterapkan setelah bundle 92.

@@ -72,6 +72,7 @@ Pengguna menyetujui basis **persentase dari fee platform merchant yang benar-ben
 - `reverse_commission_for_refund` diperluas untuk reversal fee/referral secara proporsional dan idempoten setelah settlement refund berhasil. Pengaruh refund terhadap fee debt tercatat tanpa mengkreditkan komisi referral yang belum tertagih.
 - Disediakan RPC ringkasan, daftar pedagang referral tanpa data kontak, pengajuan payout, dan pemrosesan admin (approve/reject/paid). Status paid wajib mencatat referensi transfer; transfer bank tetap proses manual di luar aplikasi.
 - UI admin mengatur tarif per role dan memproses payout. Verifikator dan admin desa memiliki panel kode, merchant referral, saldo pending/tersedia, ledger, dan payout. Laporan keuangan desa yang lama memberi label 3% omzet sebagai **estimasi non-payout**, bukan earning referral.
+- Notifikasi in-app idempoten dikirim saat ledger komisi referral baru tercatat dan saat status payout berubah menjadi disetujui/ditolak/dibayar. Notifikasi payout hanya untuk pemilik payout; admin tetap memantau request baru dari dashboard. Tautan mengarah ke panel referral, termasuk tab referral verifikator.
 - Semua SQL baru ada di `supabase/bootstrap`; manifest mendaftarkan bundle 92 sebagai bundle standalone, tidak ditambahkan ke arsip migrasi.
 
 ### Masih perlu sebelum mengaktifkan tarif di production
@@ -81,6 +82,5 @@ Pengguna menyetujui basis **persentase dari fee platform merchant yang benar-ben
 
 ### Sisa peningkatan (di luar cutover awal)
 - Ekspor CSV dan pagination tanggal untuk ledger referral berskala besar.
-- Notifikasi in-app saat earning/payout berubah status.
 - Koreksi attribution merchant melalui workflow admin yang ter-audit; untuk saat ini kode yang sudah terpasang sengaja immutable.
 - Otomatisasi transfer bank/API payout (tidak tersedia pada implementasi ini; payout saat ini dicatat manual oleh admin).
