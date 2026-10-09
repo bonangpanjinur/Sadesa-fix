@@ -407,7 +407,7 @@ function ObservabilityBootstrap() {
 function HomeRoute() {
   const location = useLocation();
   const navigationType = useNavigationType();
-  const { user, roles, loading, rolesLoading } = useAuth();
+  const { user, roles, loading, rolesLoading, merchantRoleRecoveryLoading } = useAuth();
   const addressUserId = user?.id;
   const [addressStatus, setAddressStatus] = useState<'checking' | 'complete' | 'incomplete' | 'error'>('checking');
   const skipRoleRedirect = (location.state as { skipRoleRedirect?: boolean } | null)?.skipRoleRedirect === true;
@@ -455,7 +455,7 @@ function HomeRoute() {
   if (isRecoveryCallback) {
     return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
   }
-  if (loading || (user && rolesLoading)) return <PageLoading />;
+  if (loading || (user && (rolesLoading || merchantRoleRecoveryLoading))) return <PageLoading />;
   if (user && addressStatus === 'checking') return <PageLoading />;
   if (user && addressStatus === 'incomplete') {
     return <Navigate to="/account?completeAddress=1" state={{ reason: 'profile_address_required' }} replace />;
