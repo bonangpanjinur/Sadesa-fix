@@ -18,6 +18,10 @@ interface CreateInvoiceRequest {
   order_id: string;
 }
 
+interface CreateWalletTopupInvoiceRequest {
+  topup_request_id: string;
+}
+
 interface OrderRecord {
   id: string;
   buyer_id: string;
@@ -96,6 +100,88 @@ serve(async (req) => {
     const authHeader = `Basic ${btoa(`${settings.secret_key}:`)}`;
     const url = new URL(req.url);
     const action = url.pathname.split("/").pop();
+
+    if (action === "create-wallet-topup-invoice" && req.method === "POST") {
+      const body = (await req.json()) as Partial<CreateWalletTopupInvoiceRequest>;
+      if (!body.topup_request_id || !/^[0-9a-f-]{36}$/i.test(body.topup_request_id)) {
+        return json({ error: "Invalid top-up request" }, 400, req);
+      }
+      const { data: topup, error: topupError } = await supabaseAdmin
+        .from("commission_wallet_topup_requests")
+        .select("id, owner_type, merchant_id, courier_id, amount_rupiah, status, payment_provider, payment_status, payment_invoice_id, payment_invoice_url")
+        .eq("id", body.topup_request_id)
+        .maybeSingle();
+      if (topupError || !topup) return json({ error: "Top-up request not found" }, 404, req);
+      if (topup.status !== "PENDING" || topup.payment_provider !== "XENDIT") {
+        return json({ error: "Top-up request cannot be paid" }, 409, req);
+      }
+      const ownerTable = topup.owner_type === "MERCHANT" ? "merchants" : "couriers";
+      const ownerId = topup.owner_type === "MERCHANT" ? topup.merchant_id : topup.courier_id;
+      const { data: owner } = await supabaseAdmin.from(ownerTable).select("id").eq("id", ownerId).eq("user_id", user.id).maybeSingle();
+      if (!owner) return json({ error: "Top-up request not found" }, 404, req);
+
+      if (topup.payment_status === "PENDING" && topup.payment_invoice_id && topup.payment_invoice_url) {
+        return json({ success: true, invoice_id: topup.payment_invoice_id, invoice_url: topup.payment_invoice_url }, 200, req);
+      }
+      const amount = Number(topup.amount_rupiah);
+      if (!Number.isSafeInteger(amount) || amount < 10000) return json({ error: "Invalid top-up amount" }, 409, req);
+      const { data: reservationData, error: reservationError } = await supabaseAdmin.rpc('reserve_commission_wallet_topup_invoice', {
+        p_request_id: topup.id,
+      });
+      if (reservationError || !reservationData) {
+        console.error('Failed to reserve wallet top-up invoice', { requestId: topup.id });
+        return json({ error: 'Unable to initialize payment' }, 503, req);
+      }
+      const reservation = reservationData as { can_process?: boolean; invoice_id?: string; invoice_url?: string; request_key?: string; processing?: boolean };
+      if (reservation.invoice_id && reservation.invoice_url) {
+        return json({ success: true, invoice_id: reservation.invoice_id, invoice_url: reservation.invoice_url }, 200, req);
+      }
+      if (!reservation.can_process || !reservation.request_key) {
+        return json({ error: reservation.processing ? 'Payment initialization already in progress' : 'Unable to initialize payment' }, 409, req);
+      }
+      const requestKey = reservation.request_key;
+      const walletPath = topup.owner_type === "MERCHANT" ? "/merchant/wallet" : "/courier/commission-wallet";
+      const response = await fetch("https://api.xendit.co/v2/invoices", {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json", "Idempotency-Key": requestKey },
+        body: JSON.stringify({
+          external_id: `wallet-topup-${topup.id}`,
+          amount,
+          payer_email: user.email,
+          description: `Top-up wallet komisi ${topup.id}`,
+          invoice_duration: 86400,
+          currency: "IDR",
+          success_redirect_url: `https://sadesa.id${walletPath}?wallet_topup=success`,
+          failure_redirect_url: `https://sadesa.id${walletPath}?wallet_topup=failed`,
+        }),
+      });
+      if (!response.ok) {
+        await supabaseAdmin.rpc('complete_commission_wallet_topup_invoice', {
+          p_request_id: topup.id, p_success: false, p_error: `provider:${response.status}`,
+        });
+        console.error("Xendit wallet top-up invoice request failed", { status: response.status, requestId: topup.id });
+        return json({ error: "Payment provider error" }, 502, req);
+      }
+      const invoice = await response.json() as { id?: string; invoice_url?: string; expiry_date?: string };
+      if (!invoice.id || !invoice.invoice_url) {
+        await supabaseAdmin.rpc('complete_commission_wallet_topup_invoice', {
+          p_request_id: topup.id, p_success: false, p_error: 'provider:invalid_invoice_response',
+        });
+        return json({ error: "Invalid payment provider response" }, 502, req);
+      }
+      const { data: completion, error: completionError } = await supabaseAdmin.rpc('complete_commission_wallet_topup_invoice', {
+        p_request_id: topup.id,
+        p_success: true,
+        p_invoice_id: invoice.id,
+        p_invoice_url: invoice.invoice_url,
+        p_expires_at: invoice.expiry_date ?? null,
+      });
+      if (completionError || !completion) {
+        console.error("Failed to persist wallet top-up invoice", { requestId: topup.id });
+        return json({ error: "Unable to initialize payment" }, 500, req);
+      }
+      return json({ success: true, invoice_id: invoice.id, invoice_url: invoice.invoice_url, expiry_date: invoice.expiry_date }, 200, req);
+    }
 
     if (action === "create-invoice" && req.method === "POST") {
       const body = (await req.json()) as Partial<CreateInvoiceRequest>;

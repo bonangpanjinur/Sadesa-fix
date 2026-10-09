@@ -6,6 +6,10 @@ export interface CreatePaymentRequest {
   idempotencyKey?: string;
 }
 
+export interface CreateWalletTopupInvoiceRequest {
+  topupRequestId: string;
+}
+
 export interface PaymentInvoice {
   success: boolean;
   invoice_id: string;
@@ -65,6 +69,23 @@ export async function checkPaymentStatus(invoiceId: string): Promise<PaymentStat
   }
 
   reportObservability('payment', 'status_check_succeeded');
+  return response.json();
+}
+
+export async function createWalletTopupInvoice(request: CreateWalletTopupInvoiceRequest): Promise<PaymentInvoice> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const response = await fetch(`${API_BASE}/create-wallet-topup-invoice`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify({ topup_request_id: request.topupRequestId }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Gagal membuat invoice top-up' }));
+    throw new Error(error.error || 'Gagal membuat invoice top-up');
+  }
   return response.json();
 }
 

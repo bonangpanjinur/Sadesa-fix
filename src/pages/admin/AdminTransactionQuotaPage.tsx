@@ -507,28 +507,24 @@ export default function AdminTransactionQuotaPage() {
   };
 
   return (
-    <AdminLayout title="Paket Kuota" subtitle="Kelola paket, pengaturan kuota, dan verifikasi permintaan">
+    <AdminLayout title="Histori Kuota Legacy" subtitle="Data paket lama untuk audit; seluruh penjualan dan aktivasi telah dihentikan">
       <div className="space-y-6">
+        <Alert className="border-primary/20 bg-primary/5">
+          <Info className="h-4 w-4 text-primary" />
+          <AlertTitle>Mode read-only</AlertTitle>
+          <AlertDescription>Paket tier kuota sudah dipensiunkan. Jangan mengaktifkan permintaan lama; saldo lama tidak dikonversi. Rekonsiliasi bukti pembayaran sebelum cutover. Permintaan belum dibayar dapat ditolak dengan catatan; pembayaran yang sudah lunas harus diselesaikan secara finansial terlebih dahulu.</AlertDescription>
+        </Alert>
         <Tabs defaultValue="requests">
-          <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
-            <TabsTrigger value="requests">Manajemen Permintaan</TabsTrigger>
-            <TabsTrigger value="packages">Paket Kuota</TabsTrigger>
-            <TabsTrigger value="tiers">Pengaturan Kuota</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-1 max-w-[300px]">
+            <TabsTrigger value="requests">Histori Permintaan</TabsTrigger>
           </TabsList>
 
           {/* TAB: REQUESTS */}
           <TabsContent value="requests" className="space-y-4 pt-4">
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={() => setSettingsDialogOpen(true)}>
-                <CreditCard className="h-4 w-4 mr-2" />
-                Pengaturan Pembayaran
-              </Button>
-            </div>
-
             <Card>
               <CardHeader>
-                <CardTitle>Daftar Permintaan Paket</CardTitle>
-                <CardDescription>Verifikasi bukti pembayaran dari merchant untuk aktivasi kuota</CardDescription>
+                <CardTitle>Daftar Permintaan Paket Legacy</CardTitle>
+                <CardDescription>Riwayat pembayaran lama; permintaan tidak dapat mengaktifkan tier baru.</CardDescription>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -817,10 +813,10 @@ export default function AdminTransactionQuotaPage() {
                     <p className="font-bold text-primary text-xl">{formatPrice(selectedRequest.payment_amount)}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="adminNotes">Catatan Admin (Wajib jika ditolak)</Label>
+                    <Label htmlFor="adminNotes">Catatan Admin (wajib jika ditolak)</Label>
                     <Textarea 
                       id="adminNotes"
-                      placeholder="Masukkan catatan atau alasan penolakan..."
+                      placeholder="Masukkan catatan atau alasan penolakan setelah verifikasi..."
                       value={adminNotes}
                       onChange={(e) => setAdminNotes(e.target.value)}
                     />
@@ -844,10 +840,10 @@ export default function AdminTransactionQuotaPage() {
               </div>
             )}
             <DialogFooter className="flex justify-between items-center sm:justify-between">
-              <div className="text-sm text-muted-foreground">Status: {selectedRequest && getPaymentStatusBadge(selectedRequest.payment_status)}</div>
+              <div className="text-sm text-muted-foreground">Status: {selectedRequest && getPaymentStatusBadge(selectedRequest.payment_status)} · histori saja</div>
               <div className="flex gap-2">
-                <Button variant="outline" className="text-destructive hover:bg-destructive/10" onClick={() => selectedRequest && handleRejectRequest(selectedRequest)} disabled={processing || !selectedRequest || selectedRequest.payment_status === 'PAID' || selectedRequest.payment_status === 'REJECTED'}><X className="h-4 w-4 mr-1" />Tolak</Button>
-                <Button onClick={() => selectedRequest && handleApproveRequest(selectedRequest)} disabled={processing || !selectedRequest || selectedRequest.payment_status === 'PAID' || selectedRequest.payment_status === 'REJECTED'}><Check className="h-4 w-4 mr-1" />Setujui & Aktifkan</Button>
+                <Button variant="outline" className="text-destructive hover:bg-destructive/10" onClick={() => selectedRequest && handleRejectRequest(selectedRequest)} disabled={processing || !selectedRequest || selectedRequest.payment_status === 'PAID' || selectedRequest.payment_status === 'REJECTED'}><X className="h-4 w-4 mr-1" />Tolak setelah rekonsiliasi</Button>
+                <Button disabled onClick={() => selectedRequest && handleApproveRequest(selectedRequest)}><Check className="h-4 w-4 mr-1" />Aktivasi dihentikan</Button>
               </div>
             </DialogFooter>
           </DialogContent>

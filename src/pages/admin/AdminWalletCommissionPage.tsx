@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Eye, Percent, RefreshCw, Save, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Download, Eye, Percent, RefreshCw, Save, XCircle } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -14,35 +14,62 @@ import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
 
 type OwnerType = 'MERCHANT' | 'COURIER';
-type FeeSetting = { owner_type: OwnerType; fee_percent: number; is_enabled: boolean; updated_at: string };
-type TopupRequest = { id: string; owner_type: OwnerType; merchant_id: string | null; courier_id: string | null; amount_rupiah: number; proof_path: string; note: string | null; status: string; admin_notes: string | null; created_at: string };
+type FeeSetting = { owner_type: OwnerType; fee_percent: number; is_enabled: boolean; charge_courier_delivery: boolean; updated_at: string };
+type TopupRequest = { id: string; owner_type: OwnerType; merchant_id: string | null; courier_id: string | null; amount_rupiah: number; proof_path: string | null; note: string | null; status: string; admin_notes: string | null; created_at: string; payment_provider: string; payment_status: string; payment_invoice_url: string | null };
+type PolicySetting = { refund_window_days: number; low_balance_threshold_rupiah: number };
+type WalletAccount = { id: string; owner_type: OwnerType; merchant_id: string | null; courier_id: string | null; balance_rupiah: number; debt_rupiah: number; is_active: boolean; updated_at: string };
+type LedgerRow = { id: string; wallet_id: string; entry_type: string; source_type: string; source_id: string | null; amount_delta_rupiah: number; debt_delta_rupiah: number; base_amount_rupiah: number | null; fee_percent: number | null; note: string | null; created_at: string };
+
+const defaultPolicy: PolicySetting = { refund_window_days: 7, low_balance_threshold_rupiah: 10_000 };
 
 export default function AdminWalletCommissionPage() {
   const [settings, setSettings] = useState<FeeSetting[]>([]);
   const [requests, setRequests] = useState<TopupRequest[]>([]);
+  const [wallets, setWallets] = useState<WalletAccount[]>([]);
+  const [ledger, setLedger] = useState<LedgerRow[]>([]);
+  const [policy, setPolicy] = useState<PolicySetting>(defaultPolicy);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<OwnerType | null>(null);
+  const [saving, setSaving] = useState<OwnerType | 'POLICY' | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [{ data, error }, { data: requestData, error: requestError }] = await Promise.all([
+    const [feeResult, requestResult, walletResult, ledgerResult, policyResult] = await Promise.all([
       supabase.from('commission_fee_settings' as never).select('*'),
-      supabase.from('commission_wallet_topup_requests' as never).select('*').order('created_at' as never, { ascending: false } as never).limit(50),
+      supabase.from('commission_wallet_topup_requests' as never).select('*').order('created_at' as never, { ascending: false } as never).limit(100),
+      supabase.from('commission_wallets' as never).select('id,owner_type,merchant_id,courier_id,balance_rupiah,debt_rupiah,is_active,updated_at').order('updated_at' as never, { ascending: false } as never).limit(1000),
+      supabase.from('commission_wallet_ledger' as never).select('id,wallet_id,entry_type,source_type,source_id,amount_delta_rupiah,debt_delta_rupiah,base_amount_rupiah,fee_percent,note,created_at').order('created_at' as never, { ascending: false } as never).limit(1000),
+      supabase.from('commission_wallet_policy_settings' as never).select('refund_window_days,low_balance_threshold_rupiah').eq('id' as never, true as never).maybeSingle(),
     ]);
-    if (error) {
-      console.error('Gagal memuat tarif komisi wallet:', error);
+    if (feeResult.error) {
+      console.error('Gagal memuat tarif komisi wallet:', feeResult.error);
       toast.error('Pengaturan komisi belum tersedia. Terapkan migration wallet lebih dahulu.');
-    } else setSettings((data ?? []) as unknown as FeeSetting[]);
-    if (requestError) {
-      console.error('Gagal memuat permintaan top-up:', requestError);
-      toast.error('Gagal memuat permintaan top-up. Pastikan migration top-up diterapkan.');
-    } else setRequests((requestData ?? []) as unknown as TopupRequest[]);
+    } else setSettings((feeResult.data ?? []) as unknown as FeeSetting[]);
+    if (requestResult.error) {
+      console.error('Gagal memuat permintaan top-up:', requestResult.error);
+      toast.error('Gagal memuat antrean top-up. Pastikan migration top-up diterapkan.');
+    } else setRequests((requestResult.data ?? []) as unknown as TopupRequest[]);
+    if (walletResult.error) console.error('Gagal memuat wallet:', walletResult.error);
+    else setWallets((walletResult.data ?? []) as unknown as WalletAccount[]);
+    if (ledgerResult.error) console.error('Gagal memuat ledger:', ledgerResult.error);
+    else setLedger((ledgerResult.data ?? []) as unknown as LedgerRow[]);
+    if (policyResult.error) console.error('Gagal memuat kebijakan wallet:', policyResult.error);
+    else {
+      const policyData = (policyResult as unknown as { data: PolicySetting | null }).data;
+      if (policyData) setPolicy(policyData);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { void loadData(); }, [loadData]);
+
+  const summary = useMemo(() => ({
+    balance: wallets.reduce((sum, wallet) => sum + Number(wallet.balance_rupiah || 0), 0),
+    debt: wallets.reduce((sum, wallet) => sum + Number(wallet.debt_rupiah || 0), 0),
+    low: wallets.filter((wallet) => Number(wallet.balance_rupiah || 0) <= Number(policy.low_balance_threshold_rupiah || 0)).length,
+    pending: requests.filter((request) => request.status === 'PENDING').length,
+  }), [wallets, policy.low_balance_threshold_rupiah, requests]);
 
   const updateSetting = (ownerType: OwnerType, changes: Partial<FeeSetting>) => {
     setSettings((current) => current.map((item) => item.owner_type === ownerType ? { ...item, ...changes } : item));
@@ -56,7 +83,7 @@ export default function AdminWalletCommissionPage() {
     }
     setSaving(setting.owner_type);
     const { error } = await supabase.from('commission_fee_settings' as never)
-      .update({ fee_percent: percent, is_enabled: setting.is_enabled, updated_by: (await supabase.auth.getUser()).data.user?.id ?? null, updated_at: new Date().toISOString() } as never)
+      .update({ fee_percent: percent, is_enabled: setting.is_enabled, charge_courier_delivery: setting.charge_courier_delivery, updated_by: (await supabase.auth.getUser()).data.user?.id ?? null, updated_at: new Date().toISOString() } as never)
       .eq('owner_type' as never, setting.owner_type as never);
     if (error) {
       console.error('Gagal menyimpan tarif komisi:', error);
@@ -68,32 +95,55 @@ export default function AdminWalletCommissionPage() {
     setSaving(null);
   };
 
+  const savePolicy = async () => {
+    const days = Number(policy.refund_window_days);
+    const threshold = Number(policy.low_balance_threshold_rupiah);
+    if (!Number.isInteger(days) || days < 1 || days > 365 || !Number.isSafeInteger(threshold) || threshold < 0) {
+      toast.error('Jendela refund harus 1–365 hari dan ambang saldo harus Rp0 atau lebih');
+      return;
+    }
+    setSaving('POLICY');
+    const { error } = await supabase.from('commission_wallet_policy_settings' as never)
+      .update({ refund_window_days: days, low_balance_threshold_rupiah: threshold, updated_by: (await supabase.auth.getUser()).data.user?.id ?? null, updated_at: new Date().toISOString() } as never)
+      .eq('id' as never, true as never);
+    if (error) toast.error(error.message || 'Gagal menyimpan kebijakan wallet');
+    else { toast.success('Kebijakan wallet berhasil disimpan'); await loadData(); }
+    setSaving(null);
+  };
+
   const reviewTopup = async (request: TopupRequest, approve: boolean) => {
+    if (request.payment_provider !== 'MANUAL' || !request.proof_path) {
+      toast.error('Invoice Xendit diproses otomatis dari webhook dan tidak dapat disetujui manual.');
+      return;
+    }
     const action = approve ? 'menyetujui dan mengkredit saldo' : 'menolak';
     if (!window.confirm(`Yakin ${action} top-up ${formatPrice(request.amount_rupiah)}? Periksa bukti transfer sebelum menyetujui.`)) return;
     setProcessing(request.id);
     const { error } = await supabase.rpc('process_commission_wallet_topup' as never, {
-      p_request_id: request.id,
-      p_approve: approve,
-      p_admin_notes: notes[request.id]?.trim() || null,
+      p_request_id: request.id, p_approve: approve, p_admin_notes: notes[request.id]?.trim() || null,
     } as never);
     if (error) {
       console.error('Gagal memproses top-up:', error);
       toast.error(error.message || 'Gagal memproses top-up');
     } else {
-      toast.success(approve ? 'Top-up disetujui dan saldo telah dikreditkan' : 'Top-up ditolak');
+      toast.success(approve ? 'Top-up disetujui; tagihan lama dilunasi lebih dahulu bila ada' : 'Top-up ditolak');
       await loadData();
     }
     setProcessing(null);
   };
 
-  const openProof = async (proofPath: string) => {
+  const openProof = async (proofPath: string | null) => {
+    if (!proofPath) return;
     const { data, error } = await supabase.storage.from('commission-topup-proofs').createSignedUrl(proofPath, 300);
-    if (error || !data?.signedUrl) {
-      toast.error('Bukti tidak dapat dibuka');
-      return;
-    }
+    if (error || !data?.signedUrl) { toast.error('Bukti tidak dapat dibuka'); return; }
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const exportLedger = () => {
+    const rows = [['created_at', 'wallet_id', 'entry_type', 'source_type', 'source_id', 'balance_delta_rupiah', 'debt_delta_rupiah', 'base_amount_rupiah', 'fee_percent', 'note'], ...ledger.map((entry) => [entry.created_at, entry.wallet_id, entry.entry_type, entry.source_type, entry.source_id ?? '', entry.amount_delta_rupiah, entry.debt_delta_rupiah, entry.base_amount_rupiah ?? '', entry.fee_percent ?? '', entry.note ?? ''])];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = `commission-wallet-ledger-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
   };
 
   const configCard = (ownerType: OwnerType) => {
@@ -101,11 +151,12 @@ export default function AdminWalletCommissionPage() {
     const label = ownerType === 'MERCHANT' ? 'Pedagang' : 'Ojek';
     return (
       <Card key={ownerType}>
-        <CardHeader><CardTitle>{label}</CardTitle><CardDescription>{ownerType === 'MERCHANT' ? 'Basis: subtotal order, di luar ongkir.' : 'Basis: tarif final perjalanan ojek.'}</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{label}</CardTitle><CardDescription>{ownerType === 'MERCHANT' ? 'Basis: subtotal produk pada order, tidak termasuk ongkir.' : 'Basis: tarif final perjalanan. Pengiriman barang memakai estimasi penghasilan courier (fallback ongkir) bila diaktifkan.'}</CardDescription></CardHeader>
         <CardContent className="space-y-5">
           {!setting ? <p className="text-sm text-muted-foreground">Konfigurasi belum dibuat di database.</p> : <>
             <div className="space-y-2"><Label htmlFor={`fee-${ownerType}`}>Persentase komisi</Label><div className="flex max-w-xs items-center gap-2"><Input id={`fee-${ownerType}`} type="number" min="0" max="100" step="0.01" value={setting.fee_percent} onChange={(event) => updateSetting(ownerType, { fee_percent: Number(event.target.value) })} /><span className="text-sm">%</span></div></div>
-            <div className="flex items-center justify-between gap-3 rounded-md border p-3"><div><Label htmlFor={`enabled-${ownerType}`}>Aktifkan pemotongan</Label><p className="text-xs text-muted-foreground">Tarif nonaktif tidak memotong saldo dan tidak memblokir transaksi.</p></div><Switch id={`enabled-${ownerType}`} checked={setting.is_enabled} onCheckedChange={(checked) => updateSetting(ownerType, { is_enabled: checked })} /></div>
+            <div className="flex items-center justify-between gap-3 rounded-md border p-3"><div><Label htmlFor={`enabled-${ownerType}`}>Aktifkan pemotongan</Label><p className="text-xs text-muted-foreground">Transaksi selesai tetap tercatat jika saldo kurang; kekurangan menjadi tagihan dan aktivitas baru ditahan sampai lunas.</p></div><Switch id={`enabled-${ownerType}`} checked={setting.is_enabled} onCheckedChange={(checked) => updateSetting(ownerType, { is_enabled: checked })} /></div>
+            {ownerType === 'COURIER' && <div className="flex items-center justify-between gap-3 rounded-md border p-3"><div><Label htmlFor="courier-delivery-fee">Kenakan juga pada pengiriman barang</Label><p className="text-xs text-muted-foreground">Tarif ojek yang sama dikenakan atas penghasilan courier dari pengiriman marketplace/paket.</p></div><Switch id="courier-delivery-fee" checked={setting.charge_courier_delivery} onCheckedChange={(checked) => updateSetting(ownerType, { charge_courier_delivery: checked })} /></div>}
             <p className="text-sm text-muted-foreground">Contoh: transaksi Rp20.000 pada tarif 5% memotong Rp1.000.</p>
             <Button onClick={() => void saveSetting(setting)} disabled={saving !== null}><Save className="mr-2 h-4 w-4" />{saving === ownerType ? 'Menyimpan…' : 'Simpan tarif'}</Button>
           </>}
@@ -115,21 +166,42 @@ export default function AdminWalletCommissionPage() {
   };
 
   return (
-    <AdminLayout title="Komisi Saldo" subtitle="Atur persentase komisi dan verifikasi top-up wallet">
+    <AdminLayout title="Komisi Saldo" subtitle="Tarif, saldo, tunggakan, refund, dan top-up wallet">
       <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-        <Alert><Percent className="h-4 w-4" /><AlertTitle>Berbeda dari komisi verifikator</AlertTitle><AlertDescription>Komisi ini memotong saldo wallet saat transaksi selesai. Sebelum mengaktifkan tarif, pastikan merchant/ojek sudah mengetahui kebijakan, saldo awal/top-up siap, dan pembayaran tier lama yang masih pending sudah direkonsiliasi. Saldo kuota lama tidak dikonversi; aktivasi tarif pedagang mengalihkan ketersediaan katalog ke wallet dan menghentikan pembelian tier baru. Persetujuan top-up akan langsung mengkredit saldo dan mencatat ledger.</AlertDescription></Alert>
+        <Alert><Percent className="h-4 w-4" /><AlertTitle>Peralihan dari paket kuota</AlertTitle><AlertDescription>Saldo kuota lama tidak dikonversi dan paket aktif dihentikan saat migration diterapkan. Saldo wallet pedagang/ojek dimulai dari top-up atau kredit terverifikasi. Selesaikan rekonsiliasi permintaan paket lama yang masih pending sebelum cutover.</AlertDescription></Alert>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card><CardHeader className="pb-2"><CardDescription>Total saldo tersedia</CardDescription><CardTitle>{formatPrice(summary.balance)}</CardTitle></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>Total tagihan komisi</CardDescription><CardTitle className="text-destructive">{formatPrice(summary.debt)}</CardTitle></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>Akun pada/di bawah ambang saldo</CardDescription><CardTitle>{summary.low}</CardTitle></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>Top-up menunggu</CardDescription><CardTitle>{summary.pending}</CardTitle></CardHeader></Card>
+        </div>
         {loading ? <div className="py-12 text-center text-muted-foreground">Memuat data…</div> : <div className="grid gap-4 md:grid-cols-2">{configCard('MERCHANT')}{configCard('COURIER')}</div>}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Permintaan top-up</CardTitle><CardDescription>Verifikasi bukti pembayaran sebelum menyetujui. Saldo dikreditkan sekali secara atomik.</CardDescription></div><Button variant="outline" size="icon" onClick={() => void loadData()} aria-label="Muat ulang"><RefreshCw className="h-4 w-4" /></Button></CardHeader>
+          <CardHeader><CardTitle>Kebijakan wallet</CardTitle><CardDescription>Jendela pengajuan refund dan ambang notifikasi saldo dapat diubah tanpa migration.</CardDescription></CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3 md:items-end">
+            <div className="space-y-2"><Label htmlFor="refund-window">Batas pengajuan refund (hari)</Label><Input id="refund-window" type="number" min="1" max="365" value={policy.refund_window_days} onChange={(event) => setPolicy((current) => ({ ...current, refund_window_days: Number(event.target.value) }))} /></div>
+            <div className="space-y-2"><Label htmlFor="low-balance-threshold">Ambang saldo rendah (Rp)</Label><Input id="low-balance-threshold" type="number" min="0" step="1000" value={policy.low_balance_threshold_rupiah} onChange={(event) => setPolicy((current) => ({ ...current, low_balance_threshold_rupiah: Number(event.target.value) }))} /></div>
+            <Button onClick={() => void savePolicy()} disabled={saving !== null}><Save className="mr-2 h-4 w-4" />{saving === 'POLICY' ? 'Menyimpan…' : 'Simpan kebijakan'}</Button>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Wallet dan tunggakan</CardTitle><CardDescription>Owner dengan utang tidak dapat menerima transaksi/penugasan baru; top-up melunasi tunggakan lebih dahulu.</CardDescription></div><Button variant="outline" onClick={exportLedger}><Download className="mr-2 h-4 w-4" />Ekspor ledger CSV</Button></CardHeader>
+          <CardContent>
+            {!wallets.length ? <p className="py-6 text-center text-sm text-muted-foreground">Belum ada wallet terdaftar.</p> : <div className="space-y-2">{wallets.map((wallet) => <div key={wallet.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm"><div><p className="font-medium">{wallet.owner_type === 'MERCHANT' ? 'Pedagang' : 'Ojek'} · {wallet.merchant_id ?? wallet.courier_id}</p><p className="text-xs text-muted-foreground">Wallet {wallet.is_active ? 'aktif' : 'nonaktif'} · diperbarui {new Date(wallet.updated_at).toLocaleString('id-ID')}</p></div><div className="flex flex-wrap gap-2"><Badge variant="outline">Saldo {formatPrice(wallet.balance_rupiah)}</Badge><Badge variant={Number(wallet.debt_rupiah) > 0 ? 'destructive' : 'secondary'}>Tagihan {formatPrice(wallet.debt_rupiah)}</Badge>{Number(wallet.balance_rupiah) <= policy.low_balance_threshold_rupiah && <Badge variant="outline">Saldo rendah</Badge>}</div></div>)}</div>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Permintaan top-up</CardTitle><CardDescription>Transfer manual perlu diverifikasi; invoice Xendit hanya dikreditkan dari callback provider yang valid.</CardDescription></div><Button variant="outline" size="icon" onClick={() => void loadData()} aria-label="Muat ulang"><RefreshCw className="h-4 w-4" /></Button></CardHeader>
           <CardContent>
             {!requests.length ? <p className="py-8 text-center text-sm text-muted-foreground">Belum ada permintaan top-up.</p> : <div className="space-y-3">{requests.map((request) => (
               <div key={request.id} className="space-y-3 rounded-md border p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{formatPrice(request.amount_rupiah)}</p><Badge variant={request.status === 'APPROVED' ? 'default' : request.status === 'REJECTED' ? 'destructive' : 'secondary'}>{request.status}</Badge><Badge variant="outline">{request.owner_type === 'MERCHANT' ? 'Pedagang' : 'Ojek'}</Badge></div><p className="mt-1 text-xs text-muted-foreground">ID pemilik: {request.merchant_id ?? request.courier_id} · {new Date(request.created_at).toLocaleString('id-ID')}</p>{request.note && <p className="mt-1 text-sm">Referensi: {request.note}</p>}</div><Button variant="outline" size="sm" onClick={() => void openProof(request.proof_path)}><Eye className="mr-2 h-4 w-4" />Buka bukti</Button></div>
-                {request.status === 'PENDING' ? <><Textarea placeholder="Catatan verifikasi/penolakan (opsional)" value={notes[request.id] ?? ''} maxLength={500} onChange={(event) => setNotes((current) => ({ ...current, [request.id]: event.target.value }))} /><div className="flex flex-wrap gap-2"><Button onClick={() => void reviewTopup(request, true)} disabled={processing !== null}><CheckCircle2 className="mr-2 h-4 w-4" />{processing === request.id ? 'Memproses…' : 'Setujui & kreditkan saldo'}</Button><Button variant="destructive" onClick={() => void reviewTopup(request, false)} disabled={processing !== null}><XCircle className="mr-2 h-4 w-4" />Tolak</Button></div></> : request.admin_notes && <p className="text-sm text-muted-foreground">Catatan admin: {request.admin_notes}</p>}
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{formatPrice(request.amount_rupiah)}</p><Badge variant={request.status === 'APPROVED' ? 'default' : request.status === 'REJECTED' ? 'destructive' : 'secondary'}>{request.status}</Badge><Badge variant="outline">{request.owner_type === 'MERCHANT' ? 'Pedagang' : 'Ojek'}</Badge><Badge variant="outline">{request.payment_provider} · {request.payment_status}</Badge></div><p className="mt-1 text-xs text-muted-foreground">ID pemilik: {request.merchant_id ?? request.courier_id} · {new Date(request.created_at).toLocaleString('id-ID')}</p>{request.note && <p className="mt-1 text-sm">Referensi: {request.note}</p>}{request.payment_invoice_url && <a className="text-sm text-primary underline" href={request.payment_invoice_url} target="_blank" rel="noreferrer">Buka invoice Xendit</a>}</div>{request.proof_path && <Button variant="outline" size="sm" onClick={() => void openProof(request.proof_path)}><Eye className="mr-2 h-4 w-4" />Buka bukti</Button>}</div>
+                {request.status === 'PENDING' && request.payment_provider === 'MANUAL' ? <><Textarea placeholder="Catatan verifikasi/penolakan (opsional)" value={notes[request.id] ?? ''} maxLength={500} onChange={(event) => setNotes((current) => ({ ...current, [request.id]: event.target.value }))} /><div className="flex flex-wrap gap-2"><Button onClick={() => void reviewTopup(request, true)} disabled={processing !== null}><CheckCircle2 className="mr-2 h-4 w-4" />{processing === request.id ? 'Memproses…' : 'Setujui & kreditkan saldo'}</Button><Button variant="destructive" onClick={() => void reviewTopup(request, false)} disabled={processing !== null}><XCircle className="mr-2 h-4 w-4" />Tolak</Button></div></> : request.status === 'PENDING' ? <p className="text-sm text-muted-foreground">Menunggu pembayaran Xendit; saldo belum dikreditkan.</p> : request.admin_notes && <p className="text-sm text-muted-foreground">Catatan: {request.admin_notes}</p>}
               </div>
             ))}</div>}
           </CardContent>
         </Card>
+        <Card><CardHeader><CardTitle>Ledger terbaru</CardTitle><CardDescription>Menampilkan hingga 1.000 mutasi; gunakan ekspor CSV untuk rekonsiliasi.</CardDescription></CardHeader><CardContent>{ledger.length ? <div className="space-y-2">{ledger.slice(0, 30).map((entry) => <div key={entry.id} className="flex flex-wrap items-center justify-between gap-2 border-b py-2 text-sm last:border-0"><div><p className="font-medium">{entry.entry_type} · {entry.source_type}</p><p className="text-xs text-muted-foreground">{entry.wallet_id} · {new Date(entry.created_at).toLocaleString('id-ID')}</p></div><div className="text-right"><p>Saldo: {formatPrice(entry.amount_delta_rupiah)}</p><p className={entry.debt_delta_rupiah > 0 ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'}>Tagihan: {formatPrice(entry.debt_delta_rupiah)}</p></div></div>)}</div> : <p className="py-6 text-center text-sm text-muted-foreground">Belum ada mutasi.</p>}</CardContent></Card>
       </div>
     </AdminLayout>
   );

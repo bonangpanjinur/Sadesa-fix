@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment appended",
-  "migration_count": 361,
-  "bundle_count": 60,
+  "migration_count": 364,
+  "bundle_count": 63,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -783,6 +783,30 @@
       ],
       "sha256": "caa75ae5b03aedc8e19ff4b2789e5111608ed8d9743323bb3996731a780d59cb",
       "bytes": 11663
+    },
+    {
+      "file": "88_20261009092000_commission_wallet_operations.sql",
+      "source_files": [
+        "20261009092000_commission_wallet_operations.sql"
+      ],
+      "sha256": "9a8ba5e1d51cc36fe6a9a13761d04c15ca0b6c227fdaca967827dac44d3b8413",
+      "bytes": 50914
+    },
+    {
+      "file": "89_20261009093000_xendit_commission_wallet_topups.sql",
+      "source_files": [
+        "20261009093000_xendit_commission_wallet_topups.sql"
+      ],
+      "sha256": "eb2426124f8b53c07ee8deb849a9dc08651eb4449e9c94813a10bde253f6b804",
+      "bytes": 26448
+    },
+    {
+      "file": "90_20261009094000_commission_refund_policy.sql",
+      "source_files": [
+        "20261009094000_commission_refund_policy.sql"
+      ],
+      "sha256": "dc569b79537687fe71b5e11c6e67b3a932ef53f39e4e75bb558179021483f734",
+      "bytes": 12916
     }
   ],
   "idempotent": true,

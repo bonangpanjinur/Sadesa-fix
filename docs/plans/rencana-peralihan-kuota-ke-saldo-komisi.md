@@ -1,89 +1,67 @@
-# Rencana peralihan kuota tier harga ke saldo rupiah + komisi
+# Peralihan kuota tier ke saldo rupiah dan komisi persentase
 
-**Status:** fase 1–4 telah diimplementasikan pada branch ini, termasuk pengajuan top-up, verifikasi admin, dan UI saldo/ledger. Belum deploy ke Supabase production. Kebijakan legacy sudah dipilih: saldo tidak dikonversi otomatis; saldo pembuka hanya dari top-up/pembayaran yang diverifikasi. Migrasi data/rollout dan pengujian staging tetap diperlukan.
+**Status implementasi:** fase inti telah ditambahkan ke repository: wallet pedagang/ojek, pemotongan komisi atomik, ledger dan pencatatan tagihan, dashboard admin, pengajuan top-up manual dan invoice Xendit, refund komisi prorata, peringatan saldo rendah, guard transaksi baru saat ada tagihan, serta penghentian UI tier lama. **Belum diterapkan ke database Supabase production.** Terapkan dan uji di staging terlebih dahulu.
 
-## Sasaran produk
+## Sasaran
 
-- Pedagang dan ojek membeli saldo rupiah di muka.
-- Setiap transaksi selesai memotong fee = `round(basis_transaksi × tarif_persen / 100)`.
-- Admin mengatur tarif pedagang dan ojek secara independen.
-- Saldo, transaksi, dan snapshot tarif dapat direkonsiliasi.
-- Tidak ada tarif yang dipercaya dari browser; penentuan nilai transaksi, tarif aktif, dan saldo terjadi di database.
+- Pedagang dan ojek mengisi wallet rupiah sebelum bertransaksi.
+- Tarif admin dipisah untuk pedagang dan ojek, dapat diubah tanpa migration.
+- Komisi dihitung dari basis transaksi tersimpan di server, bukan nominal atau tarif yang dikirim browser.
+- Mutasi saldo/debt disimpan di ledger append-only dan idempoten.
+- Riwayat paket/kuota lama dipertahankan untuk audit, tetapi **tidak dikonversi dan paketnya dihentikan**.
 
-## Keputusan aman yang dipakai untuk implementasi ini
+## Keputusan bisnis yang telah diterapkan
 
-1. Basis pedagang = `orders.subtotal`, tidak termasuk ongkir. Basis ojek penumpang = `ride_requests.final_fare`.
-2. Fee dihitung saat order menjadi `DONE`/`DELIVERED`/`COMPLETED` atau ride menjadi `COMPLETED`; transaksi belum selesai tidak dipotong.
-3. Saldo tidak boleh negatif. Jika tarif aktif tetapi saldo kurang, perubahan status selesai ditolak dan seluruh transaksi database di-rollback.
-4. Tarif awal kedua segmen 0% dan nonaktif. Admin harus mengisi dan mengaktifkan tarif secara eksplisit.
-5. **Keputusan pemilik (2026-10-09): kuota lama tidak dikonversi otomatis.** Saldo wallet baru Rp0 sampai menerima top-up terverifikasi; tidak ada kredit pembuka dari nilai kuota.
-6. Kuota lama dan tier tetap disimpan untuk audit/transisi. Penghentian lama dilakukan pada fase cutover terpisah; fitur fee tetap nonaktif sampai top-up tersedia dan tarif diaktifkan admin.
+1. **Kuota lama hangus/tidak dikonversi otomatis.** Migration mengakhiri langganan legacy aktif, menonaktifkan semua paket/tier, dan mempertahankan data lama untuk audit. Saldo wallet dimulai nol.
+2. Basis komisi pedagang adalah `orders.subtotal` (ongkir tidak termasuk). Basis ride ojek adalah `ride_requests.final_fare`. Komisi courier pengiriman barang menggunakan `courier_earning_estimate` dengan fallback ke `shipping_cost`; toggle tersebut terpisah di pengaturan ojek dan default aktif.
+3. Tarif pedagang dan courier disimpan independen. Default masing-masing **0% dan nonaktif**, tidak ada charge sampai admin secara eksplisit mengatur lalu mengaktifkan tarif.
+4. Fee rupiah dihitung `round(basis × fee_percent / 100)`; rupiah dibulatkan ke nilai terdekat. Nilai batas yang diizinkan saat ini 0–100%; belum ada minimum fee atau cap selain batas persentase.
+5. Jika saldo tersedia tidak cukup saat transaksi selesai, sistem menarik saldo yang ada, mencatat sisanya sebagai tagihan (debt), dan **tidak membuat saldo negatif**. Setelah itu transaksi baru ditahan sampai tagihan lunas. Top-up melunasi debt terlebih dahulu, kemudian sisanya menjadi saldo tersedia. Saat tarif ojek aktif, courier juga harus memiliki saldo positif dan tidak punya debt sebelum dapat online atau menerima pekerjaan.
+6. Jendela permintaan refund default **7 hari**, dapat diubah admin (1–365 hari). Setelah refund benar-benar berhasil disettle, fee dibalik secara proporsional (`nilai refund ÷ orders.total`), dibulatkan ke rupiah, dan pembalikan membayar debt terlebih dahulu sebelum menambah saldo tersedia.
+7. Ambang peringatan saldo rendah default **Rp10.000**, dapat diatur admin.
+8. Top-up manual memakai bukti privat dan persetujuan admin. Pembayaran Xendit membuat invoice otomatis; wallet hanya dikreditkan setelah webhook provider terverifikasi. Permintaan pending per owner dibatasi satu.
 
-## Rencana fase
+## Perubahan yang sudah diimplementasikan
 
-### Fase 0 — Inventarisasi dan kontrol risiko
-- Catat tabel, RPC, UI, RLS, dan titik penyelesaian transaksi yang sudah ada.
-- Jangan hapus `quota_tiers`, `merchant_subscriptions`, atau data pemakaian.
-- Gunakan tarif 0%/nonaktif sebagai default agar migration tidak memungut fee tanpa konfigurasi.
+### Database dan transaksi
 
-### Fase 1 — Model wallet dan ledger (implementasi)
-- Buat satu wallet rupiah per pedagang dan per courier.
-- Buat pengaturan tarif terpisah `MERCHANT`/`COURIER`.
-- Ledger mencatat top-up, komisi, refund, dan adjustment dengan idempotency key dan snapshot persentase.
-- RLS mengizinkan pemilik membaca saldo/riwayat; mutasi hanya melalui backend/RPC tepercaya.
+- `commission_wallets`, `commission_fee_settings`, dan `commission_wallet_ledger` menyediakan wallet per pemilik, tarif terpisah, serta ledger saldo/debt.
+- Fungsi komisi database mengunci transaksi dan wallet, memakai basis server-side, menyimpan snapshot tarif, dan idempoten terhadap retry.
+- Hook completion untuk order, ride, dan delivery mencatat komisi pada status final.
+- Trigger server memblokir order baru merchant serta penerimaan ride/delivery oleh courier jika terdapat tagihan.
+- Eligibility listing merchant hanya mengembalikan informasi tersedia/tidak tersedia, bukan nominal saldo atau debt.
+- Refund memakai jendela yang dapat diatur; komisi hanya dibalik setelah provider settlement sukses.
+- Legacy packages/tiers dinonaktifkan; subscription aktif ditandai expired; UI admin/merchant legacy menjadi histori read-only.
+- Migration cutover **berhenti dengan error** jika masih ada subscription/pembayaran kuota legacy yang pending. Pending tersebut harus direkonsiliasi sebelum cutover agar invoice lama tidak membuat transaksi tak tertangani.
 
-### Fase 2 — Aturan fee dan konsistensi transaksi (implementasi)
-- Potong berdasarkan nilai tersimpan server-side, lock row transaksi dan wallet.
-- Tolak saldo tidak cukup secara atomik saat fee sudah aktif; tidak ada kondisi saldo minus.
-- Pasang hook database hanya pada transisi status final, bukan saat order dibuat.
-- Retry terhadap source transaksi yang sama tidak boleh memotong ulang.
+### Top-up dan antarmuka
 
-### Fase 3 — Admin dan top-up (implementasi alur inti)
-- Halaman `/admin/wallet-commissions` mengatur tarif terpisah, validasi 0–100%, dan toggle aktif.
-- Pedagang/ojek mengajukan top-up Rp10.000–Rp1.000.000.000 dengan bukti privat; satu permintaan pending per akun.
-- Admin dapat melihat bukti melalui signed URL dan menyetujui/menolak. Persetujuan mengubah status request, saldo, dan ledger secara atomik serta idempoten.
-- **Belum selesai:** dashboard agregat saldo/rekonsiliasi menyeluruh dan alert saldo rendah.
-- Jangan menyamakan setoran courier yang ada dengan saldo komisi tanpa audit; setoran dan wallet komisi memiliki tujuan berbeda.
+- Merchant dan courier mendapat halaman wallet dengan saldo, debt, tarif, mutasi, peringatan saldo rendah, simulator potongan transaksi, status top-up, dan pengajuan manual/Xendit.
+- Dashboard admin mengelola tarif pedagang/ojek, tarif courier delivery, ambang saldo, jendela refund, ringkasan total saldo/debt, wallet berisiko, permintaan top-up, dan ekspor hingga 1.000 mutasi ledger ke CSV.
+- Invoice Xendit memakai reservasi database/idempotency; webhook memverifikasi nominal, invoice, pemilik, dan status sebelum mengkreditkan wallet. Ini tidak mengubah pembelian checkout order yang telah ada.
+- Saldo courier wallet tetap terpisah dari `courier_deposits`/deposit operasional.
 
-### Fase 4 — UX merchant/ojek (implementasi wallet, cutover masih bertahap)
-- Halaman saldo terpisah untuk pedagang dan ojek menampilkan saldo, tarif aktif, permintaan top-up, status review, dan 25 mutasi terbaru.
-- Bukti transfer disimpan privat; halaman memberi instruksi rekening/QRIS dari `admin_payment_info`.
-- Courier wallet komisi dibedakan jelas dari `courier_deposits`/saldo operasional yang lama.
-- Saat tarif merchant aktif, listing/detail produk beralih dari pemeriksaan subscription/free-tier ke wallet aktif dengan saldo positif; RPC publik hanya mengembalikan eligibility merchant tanpa mengekspos nominal saldo. RLS menghentikan pembelian paket kuota baru di server. Mode tarif nonaktif mempertahankan alur legacy.
-- **Belum selesai:** alert saldo rendah, estimasi potongan pada checkout/ride, dan perubahan availability gate lama.
+## Prasyarat sebelum cutover/production
 
-### Fase 5 — Cutover tanpa konversi legacy otomatis
-- Tidak ada saldo pembuka yang dihasilkan dari kuota lama. Pengguna mengisi wallet melalui top-up baru yang diverifikasi.
-- Buat laporan kuota historis/free/expired/outstanding untuk keperluan audit; pertahankan tabel lama selama masa transisi.
-- Hanya jika ada kasus koreksi tersendiri, admin keuangan dapat mengkredit adjustment dengan alasan dan ledger auditable; bukan konversi batch.
-- Uji parallel checkout, retries, status payment/refund, concurrency, RLS, dan rekonsiliasi saldo.
-- Aktifkan tarif per segmen dalam jadwal rollout; pantau saldo dan dispute.
+1. Pastikan backup database dan deploy seluruh fungsi Edge Function/payment webhook terkait.
+2. Di database produksi, audit `merchant_subscriptions` yang status atau payment status-nya pending. Selesaikan/reconcile dahulu; jika masih tersisa, migration cutover memang akan gagal aman.
+3. Terapkan migration berurutan di staging: wallet, manual top-up, operasi/cutover, Xendit top-up, refund policy. Bootstrap bundle untuk instalasi database baru harus dihasilkan ulang dari arsip migration.
+4. Siapkan credential Xendit aktif, webhook/callback URL, konfigurasi `admin_payment_info` sebagai jalur manual cadangan, dan uji callback signature menggunakan lingkungan staging.
+5. Uji fee contoh: Rp10.000 × 5% = Rp500; Rp20.000 × 5% = Rp1.000. Uji pula order komisi lebih besar dari saldo, debt ditahan, pelunasan debt oleh top-up, retry/double webhook, invoice creation yang diulang, refund penuh/parsial, penguncian order baru, RLS, dan ekspor ledger.
+6. Komunikasikan bahwa tier/kuota lama tidak bisa dipakai dan tidak bernilai saldo baru. Aktifkan setiap tarif secara eksplisit setelah pembayaran/top-up dan rekonsiliasi siap.
 
-### Fase 6 — Penghentian tier
-- Setelah masa observasi dan rekonsiliasi, hentikan penjualan paket kuota dan pemotongan tier.
-- Pertahankan tabel lama untuk laporan/audit; hapus hanya pada keputusan migrasi terpisah dan setelah backup.
+## Batasan yang belum dilakukan
 
-## Kriteria penerimaan
+- Migration **tidak dijalankan** pada Supabase production dan tidak ada perubahan saldo production yang dilakukan.
+- Belum ada sandbox/staging Xendit live transaction atau uji concurrency terhadap database Postgres aktual dari sesi ini.
+- Angka dasar merchant tetap `orders.subtotal`; sebelum production, konfirmasi dengan sampel order bahwa kolom tersebut merupakan basis komisi yang dikehendaki terhadap voucher/diskon. Sistem juga belum menerapkan tarif minimum atau batas rupiah maksimum.
+- Refund prorata diterapkan atas `orders.total`; kebijakan ini perlu ditinjau untuk kombinasi refund produk, ongkir, dan subsidi/voucher.
+- CSV admin membatasi query pada 1.000 ledger terbaru per pemuatan; ekspor laporan historis lebih besar memerlukan pagination/server-side reporting.
 
-- Rp10.000 dengan 5% membebankan Rp500; Rp20.000 membebankan Rp1.000.
-- Dua penyelesaian bersamaan pada wallet yang sama tidak dapat membelanjakan saldo yang sama dua kali.
-- Retry RPC atas order/ride yang sama tidak membuat debit kedua.
-- Status selesai gagal/rollback jika saldo kurang, kecuali tarif dimatikan.
-- Perubahan tarif admin tidak mengubah ledger masa lalu.
-- Pengguna hanya membaca wallet miliknya; pengguna biasa tidak bisa menulis saldo, ledger, atau tarif.
-- Top-up hanya dikreditkan setelah bukti pembayaran disetujui melalui jalur tepercaya.
+## Berkas migration utama
 
-## Deploy / rollout
-
-- Migration baru ada di `archive/supabase/migrations/20261009090000_commission_wallet_system.sql` dan `archive/supabase/migrations/20261009091000_commission_wallet_topups.sql`; bootstrap bundle dan manifest juga diperbarui.
-- Terapkan keduanya lebih dulu di staging. Uji pengajuan bukti private, RLS owner/admin, approval/penolakan, retry approval, saldo kurang, dan dua charge bersamaan.
-- Jangan aktifkan tarif admin sampai saldo, pembayaran, dan komunikasi kebijakan merchant/ojek siap. Kuota lama tetap dibaca/dipertahankan selama masa transisi; tidak ada konversi atau pemindahan data oleh migration ini.
-- Deployment ke Supabase production belum dilakukan dari sesi ini.
-
-## Hal yang masih perlu keputusan pemilik sebelum production
-
-- Apakah subtotal pedagang harus dihitung setelah diskon/voucher atau sebelum diskon; migration saat ini memakai `orders.subtotal`.
-- Apakah ada minimum fee, batas maksimum fee, atau pengecualian transaksi gratis.
-- Kebijakan refund bila fee sudah terpotong: pengembalian penuh, proporsional, atau hanya jika order dibatalkan karena kesalahan platform.
-- Tidak ada konversi otomatis saldo legacy (sudah diputuskan). Nilai adjustment/manual untuk kasus khusus tetap harus disertai kebijakan dan alasan keuangan.
-- Apakah courier barang juga membayar fee, atau hanya ride penumpang.
+- `archive/supabase/migrations/20261009090000_commission_wallet_system.sql`
+- `archive/supabase/migrations/20261009091000_commission_wallet_topups.sql`
+- `archive/supabase/migrations/20261009092000_commission_wallet_operations.sql`
+- `archive/supabase/migrations/20261009093000_xendit_commission_wallet_topups.sql`
+- `archive/supabase/migrations/20261009094000_commission_refund_policy.sql`
