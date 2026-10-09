@@ -50,6 +50,7 @@ export default function RideBookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [gettingGps, setGettingGps] = useState(false);
   const [drivers, setDrivers] = useState<DriverMarker[]>([]);
+  const [driversLoading, setDriversLoading] = useState(true);
   const [mapCenter] = useState<[number, number]>([-7.3274, 108.2207]);
   const [activeRide, setActiveRide] = useState<{ id: string; status: string } | null>(null);
   const [activeRideCheckStatus, setActiveRideCheckStatus] = useState<'checking' | 'ready' | 'error'>('checking');
@@ -89,14 +90,19 @@ export default function RideBookingPage() {
   }, [user]);
 
   const fetchDrivers = useCallback(async () => {
-    const { data } = await supabase.from('public_couriers').select('id, current_lat_approx, current_lng_approx, is_available, status')
-      .eq('is_available', true).eq('status', 'ACTIVE')
-      .not('current_lat_approx', 'is', null).not('current_lng_approx', 'is', null);
-    if (data) setDrivers(data.flatMap(d => (
-      d.id && d.current_lat_approx != null && d.current_lng_approx != null
-        ? [{ id: d.id, lat: d.current_lat_approx, lng: d.current_lng_approx }]
-        : []
-    )));
+    setDriversLoading(true);
+    try {
+      const { data } = await supabase.from('public_couriers').select('id, current_lat_approx, current_lng_approx, is_available, status')
+        .eq('is_available', true).eq('status', 'ACTIVE')
+        .not('current_lat_approx', 'is', null).not('current_lng_approx', 'is', null);
+      setDrivers(data?.flatMap(d => (
+        d.id && d.current_lat_approx != null && d.current_lng_approx != null
+          ? [{ id: d.id, lat: d.current_lat_approx, lng: d.current_lng_approx }]
+          : []
+      )) ?? []);
+    } finally {
+      setDriversLoading(false);
+    }
   }, []);
 
   const handleGps = useCallback(() => {
@@ -406,6 +412,16 @@ export default function RideBookingPage() {
           <div className="absolute top-3 right-3 z-[1000] bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium shadow border border-border flex items-center gap-1.5">
             <Navigation className="h-3 w-3 text-primary" />
             {nearbyDrivers.length} ojek aktif
+          </div>
+        )}
+        {driversLoading && (
+          <div className="absolute top-12 right-3 z-[1000] flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-3 py-1.5 text-xs text-muted-foreground shadow backdrop-blur-sm">
+            <Loader2 className="h-3 w-3 animate-spin text-primary" /> Memuat ojek sekitar...
+          </div>
+        )}
+        {!driversLoading && nearbyDrivers.length === 0 && (
+          <div className="absolute top-12 right-3 z-[1000] max-w-[190px] rounded-xl border border-border bg-background/90 px-3 py-2 text-right text-xs text-muted-foreground shadow backdrop-blur-sm">
+            Belum ada ojek aktif di sekitar lokasi ini.
           </div>
         )}
         {nearestDriver && nearestDriverDistance != null && pickupLocation && (
