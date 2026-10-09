@@ -38,6 +38,7 @@ export function CourierSidebar({ onNavigate, chatUnreadCount = 0 }: CourierSideb
     { label: 'Riwayat Pengiriman', href: '/courier/history', icon: <History className="h-4 w-4" /> },
     { label: 'Chat', href: '/courier/chat', icon: <MessageCircle className="h-4 w-4" /> },
     { label: 'Pendapatan', href: '/courier/earnings', icon: <Wallet className="h-4 w-4" /> },
+    { label: 'Saldo Komisi & Top-up', href: '/courier/commission-wallet', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Setor Saldo', href: '/courier/deposit', icon: <PiggyBank className="h-4 w-4" /> },
     { label: 'Penarikan Saldo', href: '/courier/withdrawal', icon: <Banknote className="h-4 w-4" /> },
   ];

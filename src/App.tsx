@@ -61,6 +61,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const CourierDashboardPage = lazy(() => import("./pages/CourierDashboardPage"));
 const CourierEarningsPage = lazy(() => import("./pages/courier/CourierEarningsPage"));
 const CourierDepositPage = lazy(() => import("./pages/courier/CourierDepositPage"));
+const MerchantCommissionWalletPage = lazy(() => import("./pages/CommissionWalletPage").then((m) => ({ default: m.MerchantCommissionWalletPage })));
+const CourierCommissionWalletPage = lazy(() => import("./pages/CommissionWalletPage").then((m) => ({ default: m.CourierCommissionWalletPage })));
 const OrderTrackingPage = lazy(() => import("./pages/OrderTrackingPage"));
 const UnauthorizedPage = lazy(() => import("./pages/UnauthorizedPage"));
 const VillageDetailPage = lazy(() => import("./pages/VillageDetailPage"));
@@ -664,6 +666,11 @@ const App = () => (
                   <CourierDepositPage />
                 </ProtectedRoute>
               } />
+              <Route path="/courier/commission-wallet" element={
+                <ProtectedRoute>
+                  <CourierCommissionWalletPage />
+                </ProtectedRoute>
+              } />
               <Route path="/courier/chat" element={
                 <ProtectedRoute>
                   <CourierChatPage />
@@ -1164,6 +1171,11 @@ const App = () => (
               <Route path="/merchant/subscription" element={
                 <ProtectedRoute>
                   <MerchantSubscriptionPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/merchant/wallet" element={
+                <ProtectedRoute>
+                  <MerchantCommissionWalletPage />
                 </ProtectedRoute>
               } />
               <Route path="/merchant/flash-sale" element={

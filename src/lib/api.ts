@@ -75,6 +75,17 @@ async function getFreeTierLimit(): Promise<number> {
 // Helper to get merchant IDs with active quota (subscriptions OR free tier)
 async function getMerchantsWithActiveQuota(merchantScopeIds: string[]): Promise<Set<string>> {
   if (merchantScopeIds.length === 0) return new Set();
+  const { data: walletGate, error: walletGateError } = await supabase.rpc(
+    'get_merchant_wallet_gate' as never,
+    { p_merchant_ids: merchantScopeIds } as never,
+  );
+  if (walletGateError && !['PGRST202', '42883'].includes(walletGateError.code)) {
+    throw new Error(`Unable to check merchant wallet gate: ${walletGateError.message}`);
+  }
+  const walletGateRows = (walletGate ?? []) as unknown as Array<{ is_enabled: boolean; merchant_id: string | null }>;
+  if (!walletGateError && walletGateRows.some((row) => row.is_enabled)) {
+    return new Set(walletGateRows.flatMap((row) => row.merchant_id ? [row.merchant_id] : []));
+  }
   // Scope every quota lookup to merchants represented by the current page.
   const [FREE_TIER_LIMIT, merchantsRes, subsRes] = await Promise.all([
     getFreeTierLimit(),
@@ -170,6 +181,18 @@ async function getMerchantsWithActiveQuota(merchantScopeIds: string[]): Promise<
 // Check if a specific merchant has active quota
 export async function checkMerchantHasActiveQuota(merchantId: string): Promise<boolean> {
   try {
+    const { data: walletGate, error: walletGateError } = await supabase.rpc(
+      'get_merchant_wallet_gate' as never,
+      { p_merchant_ids: [merchantId] } as never,
+    );
+    if (walletGateError && !['PGRST202', '42883'].includes(walletGateError.code)) {
+      console.error('Unable to check merchant wallet gate:', walletGateError);
+      return false;
+    }
+    const walletGateRows = (walletGate ?? []) as unknown as Array<{ is_enabled: boolean; merchant_id: string | null }>;
+    if (!walletGateError && walletGateRows.some((row) => row.is_enabled)) {
+      return walletGateRows.some((row) => row.merchant_id === merchantId);
+    }
     // First check subscriptions
     const { data, error: subError } = await supabase
       .from('merchant_subscriptions')

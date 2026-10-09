@@ -90,6 +90,7 @@ export default function MerchantSubscriptionPage() {
   const [pendingSubscription, setPendingSubscription] = useState<Subscription | null>(null);
   const [purchasing, setPurchasing] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
+  const [commissionBillingActive, setCommissionBillingActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -114,6 +115,13 @@ export default function MerchantSubscriptionPage() {
         setLoading(false);
         return;
       }
+
+      const { data: feeMode } = await supabase
+        .from('commission_fee_settings' as never)
+        .select('is_enabled')
+        .eq('owner_type' as never, 'MERCHANT' as never)
+        .maybeSingle();
+      setCommissionBillingActive(Boolean((feeMode as unknown as { is_enabled?: boolean } | null)?.is_enabled));
 
       setMerchant(merchantData);
 
@@ -369,14 +377,23 @@ export default function MerchantSubscriptionPage() {
   };
 
   return (
-    <MerchantLayout title="Paket Kuota" subtitle="Kelola kuota untuk menerima pesanan">
+    <MerchantLayout title="Paket Kuota Legacy" subtitle="Riwayat kuota lama dan transisi ke saldo komisi">
+      {commissionBillingActive && (
+        <Alert className="mb-6 border-primary/30 bg-primary/5">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Penagihan baru menggunakan saldo komisi</AlertTitle>
+          <AlertDescription>
+            Kuota lama tetap tersedia untuk riwayat dan audit, tetapi tidak dikonversi ke rupiah. Pembelian paket tier baru dihentikan selama tarif komisi pedagang aktif. Gunakan halaman <a href="/merchant/wallet" className="font-medium underline">Saldo Komisi &amp; Top-up</a> untuk mengisi wallet.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {/* Current Status Card */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Status Kuota Saat Ini
+              {commissionBillingActive ? 'Kuota Legacy (Audit)' : 'Status Kuota Saat Ini'}
             </CardTitle>
             <CardDescription>Pantau penggunaan kuota Anda</CardDescription>
           </CardHeader>
@@ -434,7 +451,9 @@ export default function MerchantSubscriptionPage() {
                 <AlertTriangle className="h-12 w-12 text-yellow-500 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Tidak Ada Paket Aktif</h3>
                 <p className="text-muted-foreground max-w-xs mb-6">
-                  Anda belum memiliki paket kuota aktif. Beli paket di bawah untuk mulai menerima pesanan.
+                  {commissionBillingActive
+                    ? 'Saldo kuota lama tidak dikonversi dan hanya ditampilkan untuk audit. Gunakan wallet komisi untuk penagihan baru.'
+                    : 'Anda belum memiliki paket kuota aktif. Beli paket di bawah untuk mulai menerima pesanan.'}
                 </p>
               </div>
             )}
@@ -451,29 +470,30 @@ export default function MerchantSubscriptionPage() {
               <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                 <span className="text-[10px] font-bold text-primary">1</span>
               </div>
-              <p>Setiap pesanan memotong kuota berdasarkan rentang harga produk (lihat tier biaya kuota).</p>
+              <p>{commissionBillingActive ? 'Informasi ini hanya merujuk pada sistem kuota lama.' : 'Setiap pesanan memotong kuota berdasarkan rentang harga produk (lihat tier biaya kuota).'}</p>
             </div>
             <div className="flex gap-3">
               <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                 <span className="text-[10px] font-bold text-primary">2</span>
               </div>
-              <p>Jika kuota habis, produk Anda tidak akan tampil di halaman publik.</p>
+              <p>{commissionBillingActive ? 'Saat mode komisi aktif, visibilitas produk mengikuti saldo wallet baru.' : 'Jika kuota habis, produk Anda tidak akan tampil di halaman publik.'}</p>
             </div>
             <div className="flex gap-3">
               <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                 <span className="text-[10px] font-bold text-primary">3</span>
               </div>
-              <p>Pastikan melakukan pembayaran dan unggah bukti untuk aktivasi paket.</p>
+              <p>{commissionBillingActive ? 'Bukti pembayaran kuota lama tetap tercatat untuk audit.' : 'Pastikan melakukan pembayaran dan unggah bukti untuk aktivasi paket.'}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Available Packages */}
-      <h2 className="text-xl font-bold mb-4">Pilih Paket Kuota</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {availablePackages.map((pkg) => (
-          <Card key={pkg.id} className="relative overflow-hidden flex flex-col border-2 hover:border-primary/50 transition-colors">
+      {/* Stop new legacy sales after explicit switch; leave prior records visible for audit. */}
+      {!commissionBillingActive && <>
+        <h2 className="text-xl font-bold mb-4">Pilih Paket Kuota</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {availablePackages.map((pkg) => (
+            <Card key={pkg.id} className="relative overflow-hidden flex flex-col border-2 hover:border-primary/50 transition-colors">
             <CardHeader className="pb-2">
               <Badge className="w-fit mb-2" variant="secondary">{pkg.transaction_quota} Kredit</Badge>
               <CardTitle>{pkg.name}</CardTitle>
@@ -502,9 +522,10 @@ export default function MerchantSubscriptionPage() {
             <div className="p-4 pt-0">
               <Button className="w-full" onClick={() => openBuyDialog(pkg)}>Beli Paket</Button>
             </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </div>
+      </>}
 
       {/* History Section */}
       <div className="space-y-6 mb-8">
