@@ -3,6 +3,7 @@ import { MapPin, Loader2, LocateFixed, Navigation, AlertCircle } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { getDeliveryDistanceKm } from '@/lib/routeCalculation';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { useTranslation } from '@/lib/i18n';
 import L from 'leaflet';
 
 // Checkout delivery point uses a location pin, not a vehicle icon.
@@ -56,10 +57,10 @@ export function LocationPicker({
   disabled,
   externalCenter,
 }: LocationPickerProps) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: -7.3274, lng: 108.2207 });
-  const [autoGpsTriggered, setAutoGpsTriggered] = useState(false);
   
   // Update map center when external center changes (from address geocoding)
   useEffect(() => {
@@ -84,7 +85,7 @@ export function LocationPicker({
 
   const handleGetCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setError('Browser tidak mendukung geolokasi');
+      setError(t('checkout.location.gpsUnsupported'));
       return;
     }
 
@@ -109,7 +110,7 @@ export function LocationPicker({
       },
       (err) => {
         console.error('Geolocation error:', err);
-        setError('Gagal mendapatkan lokasi. Pastikan izin lokasi diaktifkan.');
+        setError(t('checkout.location.gpsFailed'));
         setLoading(false);
       },
       {
@@ -118,15 +119,7 @@ export function LocationPicker({
         maximumAge: 0,
       }
     );
-  }, [onChange, onLocationSelected]);
-
-  // Auto-trigger GPS on mount
-  useEffect(() => {
-    if (!autoGpsTriggered && !value && !disabled) {
-      setAutoGpsTriggered(true);
-      handleGetCurrentLocation();
-    }
-  }, [autoGpsTriggered, value, disabled, handleGetCurrentLocation]);
+  }, [onChange, onLocationSelected, t]);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
     if (!disabled) {
@@ -146,7 +139,7 @@ export function LocationPicker({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MapPin className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Tentukan Lokasi Pengiriman</span>
+          <span className="text-sm font-medium">{t('checkout.address.locationTitle')}</span>
         </div>
         <div className="flex gap-2">
           <Button
@@ -155,15 +148,15 @@ export function LocationPicker({
             size="sm"
             onClick={handleGetCurrentLocation}
             disabled={loading || disabled}
-            title="Gunakan GPS untuk mendeteksi lokasi Anda saat ini"
+            title={t('checkout.location.gpsTitle')}
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
                 <LocateFixed className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Lokasi Saya</span>
-                <span className="sm:hidden">GPS</span>
+                <span className="hidden sm:inline">{t('checkout.location.useGps')}</span>
+                <span className="sm:hidden">{t('checkout.location.gpsShort')}</span>
               </>
             )}
           </Button>
@@ -234,12 +227,12 @@ export function LocationPicker({
       <details className="group rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700">
         <summary className="flex cursor-pointer list-none items-center gap-2 font-medium [&::-webkit-details-marker]:hidden">
           <Navigation className="h-4 w-4 flex-shrink-0" />
-          <span>Cara mengatur titik lokasi</span>
+          <span>{t('checkout.location.instructions')}</span>
           <span className="ml-auto text-blue-500 transition group-open:rotate-180">⌄</span>
         </summary>
         <ul className="mt-2 list-disc space-y-0.5 pl-5">
-          <li>Alamat manual akan memberi titik awal secara otomatis.</li>
-          <li>Gunakan GPS atau ketuk peta untuk memperhalus titik.</li>
+          <li>{t('checkout.location.manualStart')}</li>
+          <li>{t('checkout.location.refine')}</li>
         </ul>
       </details>
 
@@ -249,28 +242,28 @@ export function LocationPicker({
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-primary">
               <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-sm font-semibold">Lokasi Dipilih</span>
+              <span className="text-sm font-semibold">{t('checkout.location.selected')}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div className="bg-muted p-2 rounded">
-                <p className="text-muted-foreground">Latitude</p>
+                <p className="text-muted-foreground">{t('checkout.location.latitude')}</p>
                 <p className="font-mono font-medium">{value.lat.toFixed(6)}</p>
               </div>
               <div className="bg-muted p-2 rounded">
-                <p className="text-muted-foreground">Longitude</p>
+                <p className="text-muted-foreground">{t('checkout.location.longitude')}</p>
                 <p className="font-mono font-medium">{value.lng.toFixed(6)}</p>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Akurasi: ~5-10m (GPS/Peta)
+              {t('checkout.location.accuracy')}
             </p>
           </div>
         ) : (
           <div className="text-center py-4">
             <MapPin className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="text-sm font-medium text-muted-foreground">Belum ada lokasi dipilih</p>
+            <p className="text-sm font-medium text-muted-foreground">{t('checkout.location.none')}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Klik pada peta atau gunakan "Lokasi Saya" untuk memulai
+              {t('checkout.location.clickToStart')}
             </p>
           </div>
         )}

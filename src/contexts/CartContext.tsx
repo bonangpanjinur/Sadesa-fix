@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import type { CartItem, CartTopping, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { getCartStockDemand, getProductUnavailableReason } from '@/lib/productAvailability';
+import { getCartItemsSubtotal } from '@/lib/cartPricing';
 
 interface CartContextType {
   items: CartItem[];
@@ -154,7 +155,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const selectAllItems = useCallback(() => setSelectedItemIds(items.map(item => item.product.id)), [items]);
   const clearItemSelection = useCallback(() => setSelectedItemIds([]), []);
   const selectedItems = items.filter(item => selectedItemIds.includes(item.product.id));
-  const getCartTotal = useCallback(() => items.reduce((total, item) => total + (item.product.price + (item.toppings || []).reduce((sum, topping) => sum + topping.product.price * topping.quantity, 0)) * item.quantity, 0), [items]);
+  const getCartTotal = useCallback(() => getCartItemsSubtotal(items), [items]);
   const getItemCount = useCallback(() => items.reduce((count, item) => count + item.quantity, 0), [items]);
 
   return <CartContext.Provider value={{ items, selectedItemIds, selectedItems, toggleItemSelection, selectAllItems, clearItemSelection, addToCart, removeFromCart, updateQuantity, syncProductStock, clearCart, getCartTotal, getItemCount }}>{children}</CartContext.Provider>;
