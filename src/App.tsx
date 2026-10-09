@@ -103,6 +103,7 @@ const AdminWithdrawalsPage = lazy(() => import("./pages/admin/AdminWithdrawalsPa
 const AdminHalalManagementPage = lazy(() => import("./pages/admin/AdminHalalManagementPage"));
 const AdminHalalRegulationPage = lazy(() => import("./pages/admin/AdminHalalRegulationPage"));
 const AdminTransactionQuotaPage = lazy(() => import("./pages/admin/AdminTransactionQuotaPage"));
+const AdminWalletCommissionPage = lazy(() => import("./pages/admin/AdminWalletCommissionPage"));
 const AdminFreeQuotaPage = lazy(() => import("./pages/admin/AdminFreeQuotaPage"));
 const AdminVerifikatorCommissionsPage = lazy(() => import("./pages/admin/AdminVerifikatorCommissionsPage"));
 const AdminVerifierCommercePage = lazy(() => import("./pages/admin/AdminVerifierCommercePage"));
@@ -879,6 +880,11 @@ const App = () => (
               <Route path="/admin/transaction-quota" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminTransactionQuotaPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/wallet-commissions" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminWalletCommissionPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/free-quota" element={

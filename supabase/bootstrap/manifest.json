@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment appended",
-  "migration_count": 359,
-  "bundle_count": 58,
+  "migration_count": 360,
+  "bundle_count": 59,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -767,6 +767,14 @@
       ],
       "sha256": "5091f2bea0441631f3bad2b39a91af7b77243eb5d888525e143d79977f552d5d",
       "bytes": 2785
+    },
+    {
+      "file": "86_20261009090000_commission_wallet_system.sql",
+      "source_files": [
+        "20261009090000_commission_wallet_system.sql"
+      ],
+      "sha256": "6f5de4adfe190b2b0f8ec985675f99511c1b2d3c9ce7e835d6dab7795404b9a7",
+      "bytes": 20542
     }
   ],
   "idempotent": true,

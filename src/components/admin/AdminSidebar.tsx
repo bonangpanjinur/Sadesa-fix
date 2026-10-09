@@ -117,6 +117,7 @@ export function AdminSidebar({
         { label: 'Refund', href: '/admin/refunds', icon: <RotateCcw className="h-4 w-4" />, badge: pendingRefunds },
         { label: 'Approval Center', href: '/admin/approval-center', icon: <FileCheck2 className="h-4 w-4" /> },
         { label: 'Penarikan Pedagang', href: '/admin/withdrawals', icon: <RotateCcw className="h-4 w-4" />, badge: pendingWithdrawals },
+        { label: 'Komisi Saldo Pedagang/Ojek', href: '/admin/wallet-commissions', icon: <Percent className="h-4 w-4" /> },
         { label: 'WD Verifikator', href: '/admin/verifikator-withdrawals', icon: <Wallet className="h-4 w-4" /> },
         { label: 'Komisi Platform', href: '/admin/komisi', icon: <DollarSign className="h-4 w-4" /> },
         { label: 'Komisi Verifikator', href: '/admin/verifikator-commissions', icon: <Percent className="h-4 w-4" />, badge: pendingVerifikatorWithdrawals },
