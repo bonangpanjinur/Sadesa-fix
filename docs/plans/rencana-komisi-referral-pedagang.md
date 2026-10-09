@@ -73,10 +73,10 @@ Pengguna menyetujui basis **persentase dari fee platform merchant yang benar-ben
 - Disediakan RPC ringkasan, daftar pedagang referral tanpa data kontak, pengajuan payout, dan pemrosesan admin (approve/reject/paid). Status paid wajib mencatat referensi transfer; transfer bank tetap proses manual di luar aplikasi.
 - UI admin mengatur tarif per role dan memproses payout. Verifikator dan admin desa memiliki panel kode, merchant referral, saldo pending/tersedia, ledger, dan payout. Laporan keuangan desa yang lama memberi label 3% omzet sebagai **estimasi non-payout**, bukan earning referral.
 - Notifikasi in-app idempoten dikirim saat ledger komisi referral baru tercatat dan saat status payout berubah menjadi disetujui/ditolak/dibayar. Notifikasi payout hanya untuk pemilik payout; admin tetap memantau request baru dari dashboard. Tautan mengarah ke panel referral, termasuk tab referral verifikator.
-- Semua SQL baru ada di `supabase/bootstrap`; manifest mendaftarkan bundle 92 sebagai bundle standalone, tidak ditambahkan ke arsip migrasi.
+- Semua SQL baru ada di `supabase/bootstrap`; manifest mendaftarkan bundle 92–93 sebagai bundle standalone, tidak ditambahkan ke arsip migrasi.
 
 ### Masih perlu sebelum mengaktifkan tarif di production
-1. Terapkan bundle 92 pada staging setelah 86–91, lalu uji terhadap skema project Supabase aktual. Validasi repository tidak membuktikan SQL sudah diterapkan ke project.
+1. Terapkan bundle 92–93 pada staging setelah 86–91, lalu uji terhadap skema project Supabase aktual. Validasi repository tidak membuktikan SQL sudah diterapkan ke project.
 2. Uji dua role/RLS, kode aktif/nonaktif/batas pakai, attribution registration, transaksi normal, saldo kurang → debt → top-up, refund parsial/penuh sebelum/sesudah waktu rilis, retry settlement/top-up, dan permintaan payout concurrent.
 3. Rekonsiliasi hasil ledger terhadap beberapa transaksi staging secara manual sebelum admin mengaktifkan tarif production.
 
