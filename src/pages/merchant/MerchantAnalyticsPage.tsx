@@ -88,12 +88,25 @@ export default function MerchantAnalyticsPage() {
     retry: false,
     queryFn: async () => {
       const [ordersRes, productsRes] = await Promise.all([
-        supabase.from('orders').select('id, total, platform_fee, status, created_at').eq('merchant_id', merchantId!).gte('created_at', previousStart.toISOString()).order('created_at', { ascending: true }),
+        supabase.from('orders').select('id, total, status, created_at').eq('merchant_id', merchantId!).gte('created_at', previousStart.toISOString()).order('created_at', { ascending: true }),
         supabase.from('products').select('id, name, price, stock, view_count, order_count, is_active').eq('merchant_id', merchantId!).order('order_count', { ascending: false }),
       ]);
       if (ordersRes.error) throw ordersRes.error;
       if (productsRes.error) throw productsRes.error;
-      return { orders: (ordersRes.data ?? []) as OrderRow[], products: (productsRes.data ?? []) as ProductRow[] };
+      const orderIds = (ordersRes.data ?? []).map(order => order.id);
+      const feesRes = orderIds.length
+        ? await supabase.from('platform_fees').select('order_id, platform_fee').eq('merchant_id', merchantId!).in('order_id', orderIds)
+        : { data: [], error: null };
+      if (feesRes.error) throw feesRes.error;
+      const feesByOrder = new Map<string, number>();
+      for (const fee of feesRes.data ?? []) {
+        if (fee.order_id) feesByOrder.set(fee.order_id, (feesByOrder.get(fee.order_id) ?? 0) + (fee.platform_fee ?? 0));
+      }
+      const orders: OrderRow[] = (ordersRes.data ?? []).map(order => ({
+        ...order,
+        platform_fee: feesByOrder.get(order.id) ?? 0,
+      }));
+      return { orders, products: (productsRes.data ?? []) as ProductRow[] };
     },
   });
 
