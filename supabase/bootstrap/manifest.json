@@ -859,6 +859,13 @@
       ],
       "sha256": "0d4aa8f951b8b6e466cb728180fb1a8a6397e70486c6e78d5b112afec1d066ac",
       "bytes": 3023
+    },
+    {
+      "file": "98_20261010180000_retire_merchant_free_trial_trigger.sql",
+      "source_files": [],
+      "standalone": true,
+      "sha256": "c980238ee538b71aa019b19fc829bc6a901cbe42b27bc57b5c6c7101e9c22b8e",
+      "bytes": 623
     }
   ],
   "idempotent": true,
