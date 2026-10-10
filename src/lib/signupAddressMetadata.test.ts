@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSignupAddressBackfill, restoreSignupAddress } from './signupAddressMetadata';
+import { getSignupAddressBackfill, restoreSignupAddress, toRegistrationAddressPrefill } from './signupAddressMetadata';
 
 describe('restoreSignupAddress', () => {
   const signupMetadata = {
@@ -65,5 +65,23 @@ describe('restoreSignupAddress', () => {
 
   it('does not backfill an incomplete signup hierarchy', () => {
     expect(getSignupAddressBackfill(null, { ...signupMetadata, village_id: '' })).toEqual({});
+  });
+
+  it('maps a complete profile address into registration dropdown and detail values', () => {
+    expect(toRegistrationAddressPrefill(signupMetadata)).toEqual({
+      provinceCode: '32',
+      provinceName: 'Jawa Barat',
+      cityCode: '3278',
+      cityName: 'Kota Tasikmalaya',
+      districtCode: '3278010',
+      districtName: 'Cihideung',
+      villageCode: '3278010001',
+      villageName: 'Sukamaju',
+      addressDetail: 'Jl. Melati',
+    });
+  });
+
+  it('does not prefill a registration address unless every hierarchy code exists', () => {
+    expect(toRegistrationAddressPrefill({ ...signupMetadata, district_id: null })).toBeNull();
   });
 });

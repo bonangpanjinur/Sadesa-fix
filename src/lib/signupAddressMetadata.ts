@@ -26,8 +26,41 @@ export interface SignupAddressProfileFields {
   address_detail?: string | null;
 }
 
+export interface RegistrationAddressPrefill {
+  provinceCode: string;
+  provinceName: string;
+  cityCode: string;
+  cityName: string;
+  districtCode: string;
+  districtName: string;
+  villageCode: string;
+  villageName: string;
+  addressDetail: string;
+}
+
 function metadataText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+export function toRegistrationAddressPrefill(
+  profile: SignupAddressProfileFields | null,
+): RegistrationAddressPrefill | null {
+  const provinceCode = metadataText(profile?.province_id);
+  const cityCode = metadataText(profile?.city_id);
+  const districtCode = metadataText(profile?.district_id);
+  const villageCode = metadataText(profile?.village_id);
+  if (!provinceCode || !cityCode || !districtCode || !villageCode) return null;
+  return {
+    provinceCode,
+    provinceName: metadataText(profile?.province_name) || '',
+    cityCode,
+    cityName: metadataText(profile?.city_name) || '',
+    districtCode,
+    districtName: metadataText(profile?.district_name) || '',
+    villageCode,
+    villageName: metadataText(profile?.village_name) || '',
+    addressDetail: metadataText(profile?.address_detail) || '',
+  };
 }
 
 export function getSignupAddressBackfill(

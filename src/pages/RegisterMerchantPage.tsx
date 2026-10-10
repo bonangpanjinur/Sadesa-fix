@@ -29,6 +29,7 @@ import { HalalRegistrationInfo } from '../components/merchant/HalalRegistrationI
 import { merchantSchema } from '@/lib/commerceSchemas';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { getCategoryChildren, getCategoryDisplayLabel, sortProductCategories, type ProductCategory } from '@/lib/productCategories';
+import { restoreSignupAddress, toRegistrationAddressPrefill } from '@/lib/signupAddressMetadata';
 
 type MerchantFormData = z.infer<typeof merchantSchema>;
 
@@ -98,6 +99,7 @@ export default function RegisterMerchantPage() {
     [categoryOptions, selectedCategoryIds],
   );
   const draftRestoredRef = useRef(false);
+  const addressWasCustomizedRef = useRef(false);
   const saveDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const referralValidationRequestRef = useRef(0);
   
@@ -280,6 +282,9 @@ export default function RegisterMerchantPage() {
         villageCode: draft.selectedSubdistrict || '',
         villageName: '',
       });
+      addressWasCustomizedRef.current = Boolean(
+        draft.selectedProvince || draft.selectedCity || draft.selectedDistrict || draft.selectedSubdistrict,
+      );
       if (draft.selectedProvince) setValue('province', draft.selectedProvince);
       if (draft.selectedCity) setValue('city', draft.selectedCity);
       if (draft.selectedDistrict) setValue('district', draft.selectedDistrict);
@@ -308,6 +313,7 @@ export default function RegisterMerchantPage() {
     villageCode: string;
     villageName: string;
   }) => {
+    addressWasCustomizedRef.current = true;
     setAddressData(data);
     void setValue('province', data.provinceCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     void setValue('city', data.regencyCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
@@ -315,6 +321,52 @@ export default function RegisterMerchantPage() {
     void setValue('subdistrict', data.villageCode, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
     void trigger(['province', 'city', 'district', 'subdistrict']);
   }, [setValue, trigger]);
+
+  useEffect(() => {
+    if (!user || !draftRestoredRef.current || addressWasCustomizedRef.current) return;
+    let active = true;
+    const prefillBusinessAddress = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail, address')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        const profile = restoreSignupAddress(data, user.user_metadata);
+        const location = toRegistrationAddressPrefill(profile);
+        if (!active || addressWasCustomizedRef.current || !location) return;
+
+        const nextAddress = {
+          provinceCode: location.provinceCode,
+          provinceName: location.provinceName,
+          regencyCode: location.cityCode,
+          regencyName: location.cityName,
+          districtCode: location.districtCode,
+          districtName: location.districtName,
+          villageCode: location.villageCode,
+          villageName: location.villageName,
+        };
+        addressWasCustomizedRef.current = true;
+        setAddressData(nextAddress);
+        void setValue('province', nextAddress.provinceCode, { shouldValidate: true });
+        void setValue('city', nextAddress.regencyCode, { shouldValidate: true });
+        void setValue('district', nextAddress.districtCode, { shouldValidate: true });
+        void setValue('subdistrict', nextAddress.villageCode, { shouldValidate: true });
+        if (location.addressDetail) setValue('addressDetail', location.addressDetail);
+
+        const mapsUrl = profile?.address?.match(/https?:\/\/[^\s]+/i)?.[0];
+        const coordinates = mapsUrl?.match(/[?&]q=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/i);
+        if (coordinates) setMerchantLocation({ lat: Number(coordinates[1]), lng: Number(coordinates[2]) });
+      } catch (error) {
+        console.warn('Unable to prefill merchant address from profile:', error);
+      }
+    };
+    void prefillBusinessAddress();
+    return () => { active = false; };
+  }, [setValue, user]);
 
   // Check if selected subdistrict matches any village in our DB
   useEffect(() => {

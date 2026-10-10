@@ -14,6 +14,7 @@ import { validateUploadFile } from '@/lib/fileValidation';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddressSelector, AddressData, createEmptyAddressData } from '@/components/AddressSelector';
+import { restoreSignupAddress, toRegistrationAddressPrefill } from '@/lib/signupAddressMetadata';
 
 const courierSchema = z.object({
   name: z.string().min(3, 'Nama minimal 3 karakter').max(100),
@@ -39,6 +40,7 @@ export default function RegisterCourierPage() {
   const [formData, setFormData] = useState<Partial<CourierFormData>>({ vehicleType: 'motor' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [addressData, setAddressData] = useState<AddressData>(createEmptyAddressData());
+  const addressWasCustomizedRef = useRef(false);
   const [referralCode, setReferralCode] = useState(() => searchParams.get('ref')?.trim().toUpperCase() || '');
   const [referralInfo, setReferralInfo] = useState<{ isValid: boolean; tradeGroup: string; isLoading: boolean }>({ isValid: false, tradeGroup: '', isLoading: false });
   const [matchedVillageId, setMatchedVillageId] = useState<string | null>(null);
@@ -96,6 +98,47 @@ export default function RegisterCourierPage() {
     void findVillage();
     return () => { active = false; };
   }, [addressData.villageName]);
+
+  useEffect(() => {
+    if (!user || addressWasCustomizedRef.current) return;
+    let active = true;
+    const prefillCourierAddress = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('province_id, province_name, city_id, city_name, district_id, district_name, village_id, village_name, address_detail, address')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        const profile = restoreSignupAddress(data, user.user_metadata);
+        const location = toRegistrationAddressPrefill(profile);
+        if (!active || addressWasCustomizedRef.current || !location) return;
+        addressWasCustomizedRef.current = true;
+        setAddressData({
+          province: location.provinceCode,
+          provinceName: location.provinceName,
+          city: location.cityCode,
+          cityName: location.cityName,
+          district: location.districtCode,
+          districtName: location.districtName,
+          village: location.villageCode,
+          villageName: location.villageName,
+          detail: location.addressDetail,
+        });
+      } catch (error) {
+        console.warn('Unable to prefill courier address from profile:', error);
+      }
+    };
+    void prefillCourierAddress();
+    return () => { active = false; };
+  }, [user]);
+
+  const handleAddressChange = (nextAddress: AddressData) => {
+    addressWasCustomizedRef.current = true;
+    setAddressData(nextAddress);
+  };
 
   const handleFileChange = (type: 'ktp' | 'photo' | 'vehicle', file: File | null) => {
     if (file) {
@@ -387,7 +430,7 @@ export default function RegisterCourierPage() {
             <h2 className="font-semibold text-lg">Alamat Lengkap</h2>
             <AddressSelector
               value={addressData}
-              onChange={setAddressData}
+              onChange={handleAddressChange}
               showDetailInput={true}
             />
             {(errors.province || errors.city || errors.district || errors.village) && (
