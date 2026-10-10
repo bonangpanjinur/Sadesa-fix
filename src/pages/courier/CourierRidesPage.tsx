@@ -28,6 +28,7 @@ interface RideRequest {
   passenger_id: string;
   status: string;
   pickup_address: string;
+  pickup_landmark: string | null;
   destination_address: string;
   pickup_lat: number;
   pickup_lng: number;
@@ -435,6 +436,7 @@ export default function CourierRidesPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">Jemput</p>
                     <p className="break-words font-medium">{activeRide.pickup_address}</p>
+                    {activeRide.pickup_landmark && <p className="mt-1 text-xs text-muted-foreground">Patokan rumah: {activeRide.pickup_landmark}</p>}
                   </div>
                 </div>
                 <div className="flex items-start gap-2 text-sm">
@@ -550,7 +552,12 @@ export default function CourierRidesPage() {
                       <div className="space-y-1.5 mb-3 text-sm">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                          <span className="truncate">{ride.pickup_address}</span>
+                          <div className="min-w-0">
+                            <span className="block truncate">{ride.pickup_address}</span>
+                            {ride.pickup_landmark && (
+                              <span className="block truncate text-xs text-muted-foreground">Patokan: {ride.pickup_landmark}</span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />

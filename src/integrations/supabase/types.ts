@@ -2721,6 +2721,7 @@ export type Database = {
           pickup_address: string
           pickup_lat: number
           pickup_lng: number
+          pickup_landmark: string | null
           rating: number | null
           rating_comment: string | null
           status: string
@@ -2745,6 +2746,7 @@ export type Database = {
           pickup_address?: string
           pickup_lat: number
           pickup_lng: number
+          pickup_landmark?: string | null
           rating?: number | null
           rating_comment?: string | null
           status?: string
@@ -2769,6 +2771,7 @@ export type Database = {
           pickup_address?: string
           pickup_lat?: number
           pickup_lng?: number
+          pickup_landmark?: string | null
           rating?: number | null
           rating_comment?: string | null
           status?: string
@@ -3669,6 +3672,18 @@ export type Database = {
     Functions: {
       admin_create_merchant_atomic: {
         Args: { p_category_ids: string[]; p_merchant: Json; p_schedule: Json }
+        Returns: string
+      }
+      create_ride_request_with_landmark: {
+        Args: {
+          p_destination_address: string
+          p_destination_lat: number
+          p_destination_lng: number
+          p_pickup_address: string
+          p_pickup_landmark: string
+          p_pickup_lat: number
+          p_pickup_lng: number
+        }
         Returns: string
       }
       accept_ride: {
