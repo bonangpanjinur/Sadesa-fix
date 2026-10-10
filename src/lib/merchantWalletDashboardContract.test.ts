@@ -31,4 +31,11 @@ describe('merchant wallet dashboard contract', () => {
     expect(dashboard).toContain('Saldo belum dapat dimuat');
     expect(featureTour).toContain("title: 'Saldo'");
   });
+
+  it('keeps quick actions and the POS card readable in the compact sidebar', () => {
+    expect(sidebar).toContain('min-h-12 min-w-0');
+    expect(sidebar).toContain('min-w-0 flex-1 whitespace-normal text-left leading-4');
+    expect(sidebar).toContain('line-clamp-2 break-words text-xs leading-4');
+    expect(sidebar).toContain('Lihat penawaran POS');
+  });
 });

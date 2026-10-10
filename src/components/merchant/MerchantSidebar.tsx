@@ -380,15 +380,16 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                     to={item.href}
                     onClick={onNavigate}
                     aria-current={active ? 'page' : undefined}
+                    title={item.label}
                     className={cn(
-                      'flex min-h-10 items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
+                      'flex min-h-12 min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
                       active
                         ? 'border-sidebar-primary/30 bg-sidebar-accent text-sidebar-accent-foreground'
                         : 'border-sidebar-border/70 bg-sidebar-accent/30 text-muted-foreground hover:border-sidebar-primary/30 hover:bg-sidebar-accent hover:text-sidebar-foreground',
                     )}
                   >
                     <span className={cn('shrink-0', active ? 'text-sidebar-primary' : 'text-muted-foreground')}>{item.icon}</span>
-                    <span className="truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 whitespace-normal text-left leading-4">{item.label}</span>
                   </Link>
                 );
               })}
@@ -411,7 +412,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
                   {tenant?.name || 'Aktifkan POS toko'}
                 </p>
                 {(activeOutlet || !tenant) && (
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{activeOutlet?.name || 'Kelola pesanan dan penjualan'}</p>
+                  <p className="mt-0.5 line-clamp-2 break-words text-xs leading-4 text-muted-foreground">{activeOutlet?.name || 'Kelola pesanan dan penjualan'}</p>
                 )}
               </div>
             </div>
@@ -433,11 +434,11 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
             <Link
               to={!tenant ? '/merchant/pos/subscribe' : isPOSSetupStatus(tenant.status) ? '/merchant/pos/setup' : '/merchant/pos/subscribe'}
               onClick={onNavigate}
-              className="mt-2 flex min-h-10 items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary"
+              className="mt-2 flex min-h-11 items-center justify-between gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary"
             >
               <span className="flex min-w-0 items-center gap-2">
                 <CreditCard className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{!tenant ? 'Lihat penawaran POS' : isPOSSetupStatus(tenant.status) ? 'Lanjutkan setup POS' : 'Kelola langganan POS'}</span>
+                <span className="min-w-0 flex-1 whitespace-normal leading-4">{!tenant ? 'Lihat penawaran POS' : isPOSSetupStatus(tenant.status) ? 'Lanjutkan setup POS' : 'Kelola langganan POS'}</span>
               </span>
               <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             </Link>
