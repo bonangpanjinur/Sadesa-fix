@@ -39,3 +39,16 @@ export function shouldFetchRolesForAuthEvent(
   if (!nextUserId) return false;
   return event !== 'TOKEN_REFRESHED' || previousUserId !== nextUserId;
 }
+
+/**
+ * A single role request may be shared by the auth event and getSession paths.
+ * The request owner handles failures and applies the least-privilege fallback;
+ * joiners must not rethrow the same failure as an unhandled rejection.
+ */
+export async function joinExistingRoleLoad(request: Promise<void>): Promise<void> {
+  try {
+    await request;
+  } catch {
+    // The original caller owns error reporting and role fallback.
+  }
+}

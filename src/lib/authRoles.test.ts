@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from './authRoles';
+import { ensureBuyerFallback, joinExistingRoleLoad, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from './authRoles';
 import { canAccessPath, getRedirectPathForRoles } from '@/types/auth';
 
 describe('frontend role recovery', () => {
@@ -52,5 +52,9 @@ describe('frontend role recovery', () => {
 
   it('does not load roles when an auth event has no session user', () => {
     expect(shouldFetchRolesForAuthEvent('SIGNED_OUT', 'user-1', null)).toBe(false);
+  });
+
+  it('does not rethrow a shared role-load failure to concurrent auth callers', async () => {
+    await expect(joinExistingRoleLoad(Promise.reject(new Error('role timeout')))).resolves.toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/auth';
-import { ensureBuyerFallback, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from '@/lib/authRoles';
+import { ensureBuyerFallback, joinExistingRoleLoad, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from '@/lib/authRoles';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 
 interface SignupAddress {
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserRoles = useCallback(async (userId: string) => {
     const inFlight = rolesInFlightRef.current.get(userId);
     if (inFlight) {
-      await inFlight;
+      await joinExistingRoleLoad(inFlight);
       return;
     }
 
