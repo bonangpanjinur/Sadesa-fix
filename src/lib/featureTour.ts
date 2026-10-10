@@ -50,7 +50,7 @@ const MERCHANT_WORKSPACE_ROUTES = [
   '/merchant/preorder', '/merchant/grosir', '/merchant/promo', '/merchant/flash-sale', '/merchant/scheduled-promo',
   '/merchant/vouchers', '/merchant/loyalty-rules', '/merchant/reviews', '/merchant/notifikasi-wa', '/merchant/iklan',
   '/merchant/analytics', '/merchant/visitor-stats', '/merchant/insight', '/merchant/finance', '/merchant/pajak',
-  '/merchant/import-export', '/merchant/withdrawal', '/merchant/dues', '/merchant/wallet', '/merchant/subscription',
+  '/merchant/import-export', '/merchant/withdrawal', '/merchant/dues', '/merchant/wallet',
   '/merchant/settings', '/merchant/pos',
 ];
 const BUYER_WORKSPACE_ROUTES = [

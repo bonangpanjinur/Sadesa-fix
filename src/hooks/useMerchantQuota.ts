@@ -228,7 +228,7 @@ export async function notifyMerchantLowQuota(
       p_title: title,
       p_message: message,
       p_type: type === 'empty' ? 'error' : 'warning',
-      p_link: '/merchant/subscription',
+      p_link: '/merchant/wallet',
     });
   } catch (error) {
     console.error('Error sending quota notification:', error);

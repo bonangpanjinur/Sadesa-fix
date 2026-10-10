@@ -68,11 +68,11 @@ export function QuotaAlertBanner() {
           <Button 
             size="sm" 
             variant={isCritical ? "destructive" : "outline"}
-            onClick={() => navigate('/merchant/subscription')}
+            onClick={() => navigate('/merchant/wallet')}
             className="gap-2"
           >
             <CreditCard className="h-4 w-4" />
-            {isCritical ? 'Upgrade Sekarang' : 'Beli Kuota Tambahan'}
+            {isCritical ? 'Buka Saldo' : 'Lihat Saldo'}
             <ArrowRight className="h-4 w-4" />
           </Button>
         </AlertDescription>

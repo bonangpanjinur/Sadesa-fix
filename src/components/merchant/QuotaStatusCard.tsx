@@ -113,17 +113,17 @@ export function QuotaStatusCard() {
             variant={isCritical ? 'destructive' : 'outline'} 
             size="sm" 
             className="w-full"
-            onClick={() => navigate('/merchant/subscription')}
+            onClick={() => navigate('/merchant/wallet')}
           >
             {isCritical || isWarning || status.type === 'free' ? (
               <>
                 <ArrowUpCircle className="h-4 w-4 mr-2" />
-                Upgrade Paket
+                Buka Saldo
               </>
             ) : (
               <>
                 <CreditCard className="h-4 w-4 mr-2" />
-                Kelola Langganan
+                Kelola Saldo
               </>
             )}
           </Button>

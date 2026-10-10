@@ -180,7 +180,6 @@ const MerchantAnalyticsPage = lazy(() => import("./pages/merchant/MerchantAnalyt
 const MerchantReviewsPage = lazy(() => import("./pages/merchant/MerchantReviewsPage"));
 const MerchantPromoPage = lazy(() => import("./pages/merchant/MerchantPromoPage"));
 const MerchantWithdrawalPage = lazy(() => import("./pages/merchant/MerchantWithdrawalPage"));
-const MerchantSubscriptionPage = lazy(() => import("./pages/merchant/MerchantSubscriptionPage"));
 const MerchantFlashSalePage = lazy(() => import("./pages/merchant/MerchantFlashSalePage"));
 const MerchantVouchersPage = lazy(() => import("./pages/merchant/MerchantVouchersPage"));
 const MerchantScheduledPromoPage = lazy(() => import("./pages/merchant/MerchantScheduledPromoPage"));
@@ -1184,7 +1183,7 @@ const App = () => (
               } />
               <Route path="/merchant/subscription" element={
                 <ProtectedRoute>
-                  <MerchantSubscriptionPage />
+                  <Navigate to="/merchant/wallet" replace />
                 </ProtectedRoute>
               } />
               <Route path="/merchant/wallet" element={

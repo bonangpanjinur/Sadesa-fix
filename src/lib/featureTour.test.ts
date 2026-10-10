@@ -28,6 +28,12 @@ describe('feature tour targeting and progress', () => {
     expect(getFeatureTourRole(['verifikator', 'buyer'], '/')).toBeNull();
   });
 
+  it('keeps subscription journeys separated after retiring the merchant quota page', () => {
+    expect(getFeatureTourRole(['merchant'], '/merchant/wallet')).toBe('merchant');
+    expect(getFeatureTourRole(['merchant'], '/merchant/subscription')).toBeNull();
+    expect(getFeatureTourRole(['buyer'], '/langganan')).toBe('buyer');
+  });
+
   it('shows the buyer guide to signed-out visitors on public pages, but not role workspaces', () => {
     expect(getFeatureTourRoleForVisitor([], '/', false)).toBe('buyer');
     expect(getFeatureTourRoleForVisitor([], '/products', false)).toBe('buyer');
