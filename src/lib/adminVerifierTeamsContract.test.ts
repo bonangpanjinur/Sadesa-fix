@@ -17,6 +17,7 @@ describe('admin verifier team management contract', () => {
     expect(page).toContain(".from('user_roles').select('user_id').eq('role', 'verifikator')");
     expect(page).toContain('verifikatorIds.includes(selectedUserId)');
     expect(page).toContain('const verifikators = useMemo');
+    expect(page).toContain("? 'Verifikator' : 'Role akun belum ditetapkan'");
   });
 
   it('reports query failures instead of silently presenting failed data as an empty team', () => {
