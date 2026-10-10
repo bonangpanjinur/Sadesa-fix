@@ -35,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { subDays, startOfDay, endOfDay, format } from 'date-fns';
 import { formatPrice } from '@/lib/utils';
 import { calculatePosBusinessMetrics } from '@/lib/businessKpis';
+import { calculatePeriodOrderStats } from '@/lib/adminDashboardStats';
 
 interface OrderData {
   total: number;
@@ -206,6 +207,17 @@ export default function AdminDashboardPage() {
     
     return result;
   }, [orders, getDateRange]);
+
+  const periodOrderStats = useMemo(() => calculatePeriodOrderStats(orders), [orders]);
+  const periodLabel = dateRange === '7days' ? '7 Hari Terakhir' : dateRange === '30days' ? '30 Hari Terakhir' : '14 Hari Terakhir';
+  const filteredStats = useMemo(() => ({
+    ...realtimeStats,
+    todayOrders: periodOrderStats.orders,
+    todayRevenue: periodOrderStats.revenue,
+    newOrders: periodOrderStats.pending,
+    processingOrders: periodOrderStats.processing,
+    completedOrders: periodOrderStats.completed,
+  }), [periodOrderStats, realtimeStats]);
 
 
   // Selection handlers
@@ -390,7 +402,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Live Stats Grid - Real-time data */}
-          <LiveStatsGrid stats={realtimeStats} className="mb-8" />
+          <LiveStatsGrid stats={filteredStats} periodLabel={periodLabel} className="mb-8" />
 
           {/* Phase 0 business KPI contract */}
           <section className="mb-8" aria-labelledby="business-kpi-title">

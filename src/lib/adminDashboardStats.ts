@@ -6,6 +6,22 @@ export interface DashboardOrderTimestamps {
   delivered_at?: string | null;
 }
 
+export interface DashboardPeriodOrder {
+  status: string;
+  total: number | null;
+}
+
+export function calculatePeriodOrderStats(orders: DashboardPeriodOrder[]) {
+  const completed = orders.filter((order) => order.status === 'DONE');
+  return {
+    orders: orders.length,
+    revenue: completed.reduce((sum, order) => sum + Number(order.total || 0), 0),
+    pending: orders.filter((order) => order.status === 'NEW').length,
+    processing: orders.filter((order) => ['PROCESSED', 'SENT'].includes(order.status)).length,
+    completed: completed.length,
+  };
+}
+
 export function getLocalDayBounds(now = new Date()) {
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);

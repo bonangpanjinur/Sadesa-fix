@@ -18,6 +18,7 @@ interface LiveStatsGridProps {
   stats: RealtimeStats;
   loading?: boolean;
   className?: string;
+  periodLabel?: string;
 }
 
 interface StatItemProps {
@@ -48,7 +49,7 @@ function StatItem({ label, value, subValue, icon, iconBg }: StatItemProps) {
   );
 }
 
-export function LiveStatsGrid({ stats, loading, className }: LiveStatsGridProps) {
+export function LiveStatsGrid({ stats, loading, className, periodLabel = 'Hari Ini' }: LiveStatsGridProps) {
   if (loading) {
     return (
       <div className={cn('grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4', className)}>
@@ -67,13 +68,13 @@ export function LiveStatsGrid({ stats, loading, className }: LiveStatsGridProps)
       {/* Today's Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatItem
-          label="Pesanan Hari Ini"
+          label={`Pesanan ${periodLabel}`}
           value={stats.todayOrders}
           icon={<ShoppingBag className="h-5 w-5 text-info" />}
           iconBg="bg-info/10"
         />
         <StatItem
-          label="Pendapatan Hari Ini"
+          label={`Pendapatan ${periodLabel}`}
           value={formatPrice(stats.todayRevenue)}
           icon={<DollarSign className="h-5 w-5 text-success" />}
           iconBg="bg-success/10"
@@ -81,12 +82,12 @@ export function LiveStatsGrid({ stats, loading, className }: LiveStatsGridProps)
         <StatItem
           label="Menunggu Diproses"
           value={stats.newOrders}
-          subValue="pesanan baru"
+          subValue={`pesanan baru pada ${periodLabel.toLowerCase()}`}
           icon={<Clock className="h-5 w-5 text-warning" />}
           iconBg="bg-warning/10"
         />
         <StatItem
-          label="Selesai Hari Ini"
+          label={`Selesai ${periodLabel}`}
           value={stats.completedOrders}
           icon={<CheckCircle className="h-5 w-5 text-primary" />}
           iconBg="bg-primary/10"

@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { getLocalDayBounds, isCompletedToday } from './adminDashboardStats';
+import { calculatePeriodOrderStats, getLocalDayBounds, isCompletedToday } from './adminDashboardStats';
 
 describe('admin dashboard completion metrics', () => {
+  it('calculates the order cards from the selected period', () => {
+    expect(calculatePeriodOrderStats([
+      { status: 'DONE', total: 125000 },
+      { status: 'NEW', total: 50000 },
+      { status: 'PROCESSED', total: 75000 },
+    ])).toEqual({
+      orders: 3,
+      revenue: 125000,
+      pending: 1,
+      processing: 1,
+      completed: 1,
+    });
+  });
+
   it('uses the local calendar day rather than the UTC date', () => {
     const now = new Date('2026-10-10T22:30:00.000Z');
     const { start, end } = getLocalDayBounds(now);
