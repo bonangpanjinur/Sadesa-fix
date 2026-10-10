@@ -44,6 +44,7 @@ import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
 import { MerchantCardError } from '@/components/merchant/MerchantDataState';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { buildMerchantSalesChartData } from '@/lib/merchantDashboard';
 
 interface MerchantData {
   id: string;
@@ -151,18 +152,26 @@ export default function MerchantDashboardPage() {
       const startDate = new Date();
       startDate.setHours(0, 0, 0, 0);
       startDate.setDate(startDate.getDate() - 13);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, status, subtotal, total, created_at')
-        .eq('merchant_id', merchant.id)
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(250);
-      if (error) throw error;
-      return data || [];
+      const pageSize = 1000;
+      const allOrders: OrderData[] = [];
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, status, subtotal, total, created_at')
+          .eq('merchant_id', merchant.id)
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        const page = data || [];
+        allOrders.push(...page);
+        if (page.length < pageSize) break;
+      }
+      return allOrders;
     },
     enabled: !!merchant?.id,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 
   const {
@@ -205,25 +214,7 @@ export default function MerchantDashboardPage() {
   const pendingOrders = pendingOrdersSnapshot.orders;
   const pendingOrderCount = pendingOrdersSnapshot.count;
 
-  const salesChartData = useMemo(() => {
-    const dateMap = new Map<string, { revenue: number; orders: number }>();
-
-    orders.forEach((order) => {
-      const date = order.created_at.split('T')[0];
-      const existing = dateMap.get(date) || { revenue: 0, orders: 0 };
-      dateMap.set(date, {
-        revenue: existing.revenue + (order.status === 'DONE' ? (order.subtotal || order.total) : 0),
-        orders: existing.orders + 1,
-      });
-    });
-
-    const result: { date: string; revenue: number; orders: number }[] = [];
-    for (let i = 13; i >= 0; i -= 1) {
-      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      result.push({ date, ...(dateMap.get(date) || { revenue: 0, orders: 0 }) });
-    }
-    return result;
-  }, [orders]);
+  const salesChartData = useMemo(() => buildMerchantSalesChartData(orders), [orders]);
 
   const toggleStoreStatus = async (isOpen: boolean) => {
     if (!merchant) return;
