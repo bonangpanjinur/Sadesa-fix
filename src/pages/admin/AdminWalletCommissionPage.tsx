@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Download, Eye, Percent, RefreshCw, Save, XCircle } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, CheckCircle2, ClipboardCheck, Download, Eye, Percent, RefreshCw, Save, WalletCards, XCircle } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { Link } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -82,9 +83,12 @@ export default function AdminWalletCommissionPage() {
   const summary = useMemo(() => ({
     balance: wallets.reduce((sum, wallet) => sum + Number(wallet.balance_rupiah || 0), 0),
     debt: wallets.reduce((sum, wallet) => sum + Number(wallet.debt_rupiah || 0), 0),
-    low: wallets.filter((wallet) => Number(wallet.balance_rupiah || 0) <= Number(policy.low_balance_threshold_rupiah || 0)).length,
+    low: wallets.filter((wallet) => wallet.is_active && Number(wallet.balance_rupiah || 0) <= Number(policy.low_balance_threshold_rupiah || 0)).length,
+    ready: wallets.filter((wallet) => wallet.is_active && Number(wallet.balance_rupiah || 0) > 0 && Number(wallet.debt_rupiah || 0) === 0).length,
     pending: requests.filter((request) => request.status === 'PENDING').length,
   }), [wallets, policy.low_balance_threshold_rupiah, requests]);
+
+  const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const updateSetting = (ownerType: OwnerType, changes: Partial<FeeSetting>) => {
     setSettings((current) => current.map((item) => item.owner_type === ownerType ? { ...item, ...changes } : item));
@@ -190,14 +194,26 @@ export default function AdminWalletCommissionPage() {
   return (
     <AdminLayout title="Komisi Saldo" subtitle="Tarif, saldo, tunggakan, refund, dan top-up wallet">
       <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
-        <Alert><Percent className="h-4 w-4" /><AlertTitle>Peralihan dari paket kuota</AlertTitle><AlertDescription>Saldo kuota lama tidak dikonversi dan paket aktif dihentikan saat migration diterapkan. Saldo wallet pedagang/ojek dimulai dari top-up atau kredit terverifikasi. Selesaikan rekonsiliasi permintaan paket lama yang masih pending sebelum cutover.</AlertDescription></Alert>
+        <Alert className="border-primary/20 bg-primary/5"><Percent className="h-4 w-4" /><AlertTitle>Peralihan dari paket kuota</AlertTitle><AlertDescription className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between"><span>Saldo kuota lama tidak dikonversi. Rekonsiliasi permintaan legacy sebelum cutover; wallet baru hanya bertambah lewat top-up atau kredit yang terverifikasi.</span><Button asChild variant="link" size="sm" className="h-auto shrink-0 p-0"><Link to="/admin/transaction-quota">Buka histori legacy <ArrowRight className="h-4 w-4" /></Link></Button></AlertDescription></Alert>
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3"><CardTitle className="text-lg">Alur aman sebelum komisi diaktifkan</CardTitle><CardDescription>Top-up dianjurkan lebih dulu agar akun tetap memenuhi syarat dan tidak menimbulkan tagihan.</CardDescription></CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border p-4"><div className="mb-2 flex items-center gap-2 font-semibold"><ClipboardCheck className="h-4 w-4 text-primary" />1. Rekonsiliasi legacy</div><p className="mb-3 text-sm text-muted-foreground">Selesaikan pemeriksaan pembayaran paket lama sebelum cutover. Saldo kuota tidak dipindahkan.</p><Button asChild variant="outline" size="sm"><Link to="/admin/transaction-quota">Tinjau permintaan lama</Link></Button></div>
+            <div className="rounded-lg border p-4"><div className="mb-2 flex items-center gap-2 font-semibold"><WalletCards className="h-4 w-4 text-primary" />2. Danai wallet</div><p className="mb-3 text-sm text-muted-foreground">Pedagang dan ojek mengajukan top-up di halaman wallet mereka. Admin verifikasi bukti transfer manual di bawah.</p><Button variant="outline" size="sm" onClick={() => scrollToSection('wallet-topups')}>Lihat antrean top-up <ArrowDownToLine className="h-4 w-4" /></Button></div>
+            <div className="rounded-lg border p-4"><div className="mb-2 flex items-center gap-2 font-semibold"><Percent className="h-4 w-4 text-primary" />3. Atur komisi</div><p className="mb-3 text-sm text-muted-foreground">Pastikan tarif dan kebijakan sesuai persetujuan bisnis. Tarif awal 0% dan nonaktif.</p><Button variant="outline" size="sm" onClick={() => scrollToSection('commission-fee-settings')}>Atur tarif <ArrowRight className="h-4 w-4" /></Button></div>
+          </CardContent>
+          <div className="border-t px-6 py-3 text-sm text-muted-foreground">Jika saldo tidak cukup saat transaksi selesai, sistem mencatat kekurangan sebagai tagihan. Akun yang berutang tidak dapat memulai aktivitas baru sampai tagihan dilunasi lewat top-up.</div>
+        </Card>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardDescription>Total saldo tersedia</CardDescription><CardTitle>{formatPrice(summary.balance)}</CardTitle></CardHeader></Card>
           <Card><CardHeader className="pb-2"><CardDescription>Total tagihan komisi</CardDescription><CardTitle className="text-destructive">{formatPrice(summary.debt)}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>Akun pada/di bawah ambang saldo</CardDescription><CardTitle>{summary.low}</CardTitle></CardHeader></Card>
-          <Card><CardHeader className="pb-2"><CardDescription>Top-up menunggu</CardDescription><CardTitle>{summary.pending}</CardTitle></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>Wallet aktif siap digunakan</CardDescription><CardTitle>{summary.ready}</CardTitle><CardDescription className="text-xs">Saldo positif dan tidak ada tagihan</CardDescription></CardHeader></Card>
+          <Card><CardHeader className="pb-2"><CardDescription>Saldo rendah atau nol</CardDescription><CardTitle>{summary.low}</CardTitle><CardDescription className="text-xs">Wallet aktif pada/di bawah ambang {formatPrice(policy.low_balance_threshold_rupiah)}</CardDescription></CardHeader></Card>
         </div>
-        {loading ? <div className="py-12 text-center text-muted-foreground">Memuat data…</div> : <div className="grid gap-4 md:grid-cols-2">{configCard('MERCHANT')}{configCard('COURIER')}</div>}
+        <div id="commission-fee-settings" className="scroll-mt-24">
+          <div className="mb-3"><h2 className="text-xl font-semibold">Tarif komisi</h2><p className="text-sm text-muted-foreground">Perubahan tarif berlaku pada transaksi baru setelah disimpan.</p></div>
+          {loading ? <div className="py-12 text-center text-muted-foreground">Memuat data…</div> : <div className="grid gap-4 md:grid-cols-2">{configCard('MERCHANT')}{configCard('COURIER')}</div>}
+        </div>
         <Card>
           <CardHeader><CardTitle>Kebijakan wallet</CardTitle><CardDescription>Jendela pengajuan refund dan ambang notifikasi saldo dapat diubah tanpa migration.</CardDescription></CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3 md:items-end">
@@ -212,8 +228,8 @@ export default function AdminWalletCommissionPage() {
             {!wallets.length ? <p className="py-6 text-center text-sm text-muted-foreground">Belum ada wallet terdaftar.</p> : <div className="space-y-2">{wallets.map((wallet) => <div key={wallet.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-sm"><div><p className="font-medium">{wallet.owner_type === 'MERCHANT' ? 'Pedagang' : 'Ojek'} · {wallet.merchant_id ?? wallet.courier_id}</p><p className="text-xs text-muted-foreground">Wallet {wallet.is_active ? 'aktif' : 'nonaktif'} · diperbarui {new Date(wallet.updated_at).toLocaleString('id-ID')}</p></div><div className="flex flex-wrap gap-2"><Badge variant="outline">Saldo {formatPrice(wallet.balance_rupiah)}</Badge><Badge variant={Number(wallet.debt_rupiah) > 0 ? 'destructive' : 'secondary'}>Tagihan {formatPrice(wallet.debt_rupiah)}</Badge>{Number(wallet.balance_rupiah) <= policy.low_balance_threshold_rupiah && <Badge variant="outline">Saldo rendah</Badge>}</div></div>)}</div>}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Permintaan top-up</CardTitle><CardDescription>Transfer manual perlu diverifikasi; invoice Xendit hanya dikreditkan dari callback provider yang valid.</CardDescription></div><Button variant="outline" size="icon" onClick={() => void loadData()} aria-label="Muat ulang"><RefreshCw className="h-4 w-4" /></Button></CardHeader>
+        <Card id="wallet-topups">
+          <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Permintaan top-up ({summary.pending} menunggu)</CardTitle><CardDescription>Transfer manual perlu diverifikasi; invoice Xendit hanya dikreditkan dari callback provider yang valid.</CardDescription></div><Button variant="outline" size="icon" onClick={() => void loadData()} aria-label="Muat ulang"><RefreshCw className="h-4 w-4" /></Button></CardHeader>
           <CardContent>
             {!requests.length ? <p className="py-8 text-center text-sm text-muted-foreground">Belum ada permintaan top-up.</p> : <div className="space-y-3">{requests.map((request) => (
               <div key={request.id} className="space-y-3 rounded-md border p-4">
