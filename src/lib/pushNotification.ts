@@ -69,6 +69,37 @@ async function getVapidPublicKey(sessionToken: string): Promise<string> {
   return payload.publicKey;
 }
 
+function getPushBrowserName(userAgent: string): string {
+  if (/EdgA\//i.test(userAgent) || /EdgiOS\//i.test(userAgent) || /Edg\//i.test(userAgent)) return 'Microsoft Edge';
+  if (/SamsungBrowser\//i.test(userAgent)) return 'Samsung Internet';
+  if (/OPR\//i.test(userAgent) || /Opera/i.test(userAgent)) return 'Opera';
+  if (/FxiOS\//i.test(userAgent) || /Firefox\//i.test(userAgent)) return 'Firefox';
+  if (/CriOS\//i.test(userAgent) || /Chrome\//i.test(userAgent) || /Chromium/i.test(userAgent)) return 'Chrome/Chromium';
+  if (/Safari\//i.test(userAgent)) return 'Safari';
+  return 'browser ini';
+}
+
+function formatPushSubscriptionError(error: unknown): string {
+  const errorDetails = error && typeof error === 'object'
+    ? error as { name?: unknown; message?: unknown }
+    : null;
+  const errorName = typeof errorDetails?.name === 'string' ? errorDetails.name : '';
+  const errorMessage = typeof errorDetails?.message === 'string' ? errorDetails.message.trim() : '';
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const browser = getPushBrowserName(userAgent);
+  const guidance = errorName === 'NotAllowedError'
+    ? 'Periksa izin notifikasi untuk situs ini di pengaturan browser dan coba dari jendela biasa, bukan mode privat.'
+    : errorName === 'NotSupportedError'
+      ? 'Browser atau mode ini tidak menyediakan Web Push. Gunakan versi browser terbaru dan buka aplikasi melalui HTTPS.'
+      : errorName === 'InvalidStateError'
+        ? 'Service worker aplikasi belum siap atau sudah berubah. Muat ulang aplikasi lalu coba lagi.'
+        : errorName === 'AbortError'
+          ? 'Layanan push browser tidak merespons. Periksa koneksi atau jaringan yang mungkin memblokir push, lalu coba lagi.'
+          : 'Periksa izin notifikasi dan service worker, lalu coba lagi.';
+  const details = [errorName, errorMessage].filter(Boolean).join(': ').slice(0, 220);
+  return `Pendaftaran background push gagal di ${browser}. ${guidance}${details ? ` Detail browser: ${details}` : ''}`;
+}
+
 function matchesApplicationServerKey(subscription: PushSubscription, expectedKey: Uint8Array): boolean | null {
   const currentKey = subscription.options.applicationServerKey;
   if (!currentKey) return null;
@@ -185,10 +216,14 @@ export async function subscribeToPush(
     }
 
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as BufferSource,
-      });
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey as BufferSource,
+        });
+      } catch (error) {
+        throw new Error(formatPushSubscriptionError(error));
+      }
     }
 
     const response = await fetch(PUSH_SUBSCRIPTION_API, {

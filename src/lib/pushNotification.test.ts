@@ -74,6 +74,43 @@ describe('subscribeToPush', () => {
     await expect(subscribeToPush('user-1')).resolves.toBe(false);
   });
 
+  it('explains browser-specific PushManager failures with the browser and recovery guidance', async () => {
+    const originalUserAgent = navigator.userAgent;
+    Object.defineProperty(navigator, 'userAgent', {
+      configurable: true,
+      value: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+    });
+    const browserSubscribe = vi.fn().mockRejectedValue(
+      new DOMException('Registration failed - push service error', 'AbortError'),
+    );
+    Object.defineProperty(navigator, 'serviceWorker', {
+      configurable: true,
+      value: {
+        ready: Promise.resolve({
+          pushManager: {
+            getSubscription: vi.fn().mockResolvedValue(null),
+            subscribe: browserSubscribe,
+          },
+        }),
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ publicKey: 'AQID', vapidConfigured: true }), { status: 200 }),
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      await expect(subscribeToPush('user-1')).resolves.toBe(false);
+      expect(getLastPushError()).toContain('gagal di Safari');
+      expect(getLastPushError()).toContain('Layanan push browser tidak merespons');
+      expect(getLastPushError()).toContain('AbortError: Registration failed - push service error');
+      expect(browserSubscribe).toHaveBeenCalledOnce();
+    } finally {
+      Object.defineProperty(navigator, 'userAgent', { configurable: true, value: originalUserAgent });
+      consoleError.mockRestore();
+    }
+  });
+
   it('does not subscribe when the server reports incomplete VAPID configuration', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
