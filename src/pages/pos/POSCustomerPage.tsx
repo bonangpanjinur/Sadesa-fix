@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
-import { Plus, Search, Pencil, Users, Phone, ShoppingBag, Crown, QrCode, Download, Star } from 'lucide-react';
+import { Plus, Search, Pencil, Users, Phone, ShoppingBag, Crown, QrCode, Download, Star, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Customer {
@@ -22,6 +22,8 @@ interface Customer {
   phone: string | null;
   email: string | null;
   address: string | null;
+  district_name: string | null;
+  city_name: string | null;
   is_member: boolean;
   total_purchase: number;
   transaction_count: number;
@@ -46,7 +48,7 @@ export default function POSCustomerPage() {
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
-  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', is_member: false, notes: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', district_name: '', city_name: '', is_member: false, notes: '' });
 
   // QR card state
   const [qrDialog, setQrDialog] = useState(false);
@@ -72,13 +74,13 @@ export default function POSCustomerPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ name: '', phone: '', email: '', address: '', is_member: false, notes: '' });
+    setForm({ name: '', phone: '', email: '', address: '', district_name: '', city_name: '', is_member: false, notes: '' });
     setDialogOpen(true);
   };
 
   const openEdit = (c: Customer) => {
     setEditing(c);
-    setForm({ name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', is_member: c.is_member, notes: c.notes || '' });
+    setForm({ name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', district_name: c.district_name || '', city_name: c.city_name || '', is_member: c.is_member, notes: c.notes || '' });
     setDialogOpen(true);
   };
 
@@ -95,16 +97,20 @@ export default function POSCustomerPage() {
       phone: form.phone || null,
       email: form.email || null,
       address: form.address || null,
+      district_name: form.district_name.trim() || null,
+      city_name: form.city_name.trim() || null,
       is_member: form.is_member,
       notes: form.notes || null,
       tenant_id: tenant.id,
     };
     try {
       if (editing) {
-        await supabase.from('pos_customers' as never).update(payload).eq('id', editing.id);
+        const { error } = await supabase.from('pos_customers' as never).update(payload).eq('id', editing.id);
+        if (error) throw error;
         toast.success('Data customer diperbarui');
       } else {
-        await supabase.from('pos_customers' as never).insert(payload);
+        const { error } = await supabase.from('pos_customers' as never).insert(payload);
+        if (error) throw error;
         toast.success('Customer berhasil ditambahkan');
       }
       setDialogOpen(false);
@@ -224,6 +230,12 @@ export default function POSCustomerPage() {
                     {c.last_purchase_at && (
                       <p className="text-xs text-muted-foreground mt-0.5">Terakhir belanja: {format(new Date(c.last_purchase_at), 'dd MMM yyyy')}</p>
                     )}
+                    {[c.district_name, c.city_name].some(Boolean) && (
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        {[c.district_name, c.city_name].filter(Boolean).join(', ')}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {c.is_member && (
@@ -244,7 +256,7 @@ export default function POSCustomerPage() {
 
       {/* ---- FORM DIALOG ---- */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit Customer' : 'Tambah Customer'}</DialogTitle>
           </DialogHeader>
@@ -264,6 +276,16 @@ export default function POSCustomerPage() {
             <div>
               <Label>Alamat</Label>
               <Textarea className="mt-1" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} rows={2} placeholder="Alamat customer" />
+            </div>
+            <Separator />
+            <p className="text-xs font-medium text-muted-foreground">Wilayah untuk analitik area (tanpa GPS)</p>
+            <div>
+              <Label>Kecamatan</Label>
+              <Input className="mt-1" value={form.district_name} onChange={e => setForm(p => ({ ...p, district_name: e.target.value }))} placeholder="Nama kecamatan" maxLength={100} />
+            </div>
+            <div>
+              <Label>Kabupaten/Kota</Label>
+              <Input className="mt-1" value={form.city_name} onChange={e => setForm(p => ({ ...p, city_name: e.target.value }))} placeholder="Nama kabupaten/kota" maxLength={100} />
             </div>
             <div className="flex items-center justify-between">
               <div>

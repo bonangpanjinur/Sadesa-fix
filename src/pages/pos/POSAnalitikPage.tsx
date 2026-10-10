@@ -16,7 +16,7 @@ import {
   PieChart, Pie, Cell, Legend, LineChart, Line
 } from 'recharts';
 import {
-  Users, Download, RefreshCw, AlertCircle, Crown, Star, UserCheck,
+  Users, Download, RefreshCw, AlertCircle, Crown, Star, UserCheck, MapPin,
   TrendingUp, ShoppingCart, Calendar, Repeat
 } from 'lucide-react';
 import {
@@ -24,6 +24,7 @@ import {
   startOfDay, endOfDay, differenceInDays
 } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
+import { rankPOSCustomerAreas, type POSCustomerAreaProfile, type POSCustomerAreaStat } from '@/lib/posCustomerAreas';
 
 interface CustomerStat {
   customerId: string | null;
@@ -86,6 +87,7 @@ export default function POSAnalitikPage() {
   const [rfmDist, setRfmDist] = useState<{ name: string; value: number; color: string }[]>([]);
   const [paymentDist, setPaymentDist] = useState<{ method: string; count: number; total: number }[]>([]);
   const [topProducts, setTopProducts] = useState<{ name: string; qty: number; revenue: number }[]>([]);
+  const [areaStats, setAreaStats] = useState<POSCustomerAreaStat[]>([]);
 
   const fetchReport = useCallback(async () => {
     if (!tenant || !activeOutlet) return;
@@ -112,6 +114,18 @@ export default function POSAnalitikPage() {
       ]);
 
       const sales = (salesRes.data || []) as unknown as AnalyticsSale[];
+      if (salesRes.error) throw salesRes.error;
+
+      const customerIds = [...new Set(sales.map((sale) => sale.customer_id).filter((id): id is string => Boolean(id)))];
+      const customerAreasRes = customerIds.length
+        ? await supabase.from('pos_customers' as never)
+          .select('id, district_name, city_name')
+          .eq('tenant_id', tenant.id)
+          .in('id', customerIds)
+        : { data: [], error: null };
+      if (customerAreasRes.error) throw customerAreasRes.error;
+      const customerAreas = (customerAreasRes.data || []) as unknown as POSCustomerAreaProfile[];
+      setAreaStats(rankPOSCustomerAreas(sales, customerAreas));
 
       // Customer stats
       const custMap: Record<string, CustomerAggregate> = {};
@@ -222,6 +236,10 @@ export default function POSAnalitikPage() {
       ['Analitik Pelanggan'],
       ['Nama', 'Total Belanja', 'Jumlah Transaksi', 'Rata-rata/Trx', 'Kunjungan Terakhir', 'Segmen'],
       ...customerStats.map(c => [c.customerName, c.totalBelanja, c.jumlahTransaksi, c.avgTransaksi.toFixed(0), c.lastVisit, c.rfmLabel]),
+      [],
+      ['Area Pelanggan Teramai'],
+      ['Area', 'Pelanggan Unik', 'Transaksi', 'Omzet'],
+      ...areaStats.map(area => [area.label, area.customerCount, area.transactionCount, area.revenue]),
     ];
     const csv = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
@@ -314,6 +332,7 @@ export default function POSAnalitikPage() {
         <Tabs defaultValue="top">
           <TabsList>
             <TabsTrigger value="top">Top Pelanggan</TabsTrigger>
+            <TabsTrigger value="areas"><MapPin className="mr-1.5 h-3.5 w-3.5" />Area Teramai</TabsTrigger>
             <TabsTrigger value="rfm">Segmentasi RFM</TabsTrigger>
             <TabsTrigger value="trend">Tren & Pembayaran</TabsTrigger>
           </TabsList>
@@ -371,6 +390,51 @@ export default function POSAnalitikPage() {
                       })}
                     </TableBody>
                   </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="areas">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base"><MapPin className="h-4 w-4 text-emerald-600" />Lokasi Pelanggan Teramai</CardTitle>
+                <p className="text-sm text-muted-foreground">Area diurutkan berdasarkan pelanggan unik yang transaksinya terhubung ke profil, pada periode dan outlet terpilih.</p>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="py-8 text-center text-muted-foreground">Memuat data area...</div>
+                ) : areaStats.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <MapPin className="mx-auto mb-2 h-8 w-8 opacity-50" />
+                    <p>Belum ada data area pelanggan pada periode ini.</p>
+                    <p className="mt-1 text-xs">Isi kecamatan dan kabupaten/kota pada profil pelanggan POS.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {areaStats.slice(0, 10).map((area, index) => {
+                      const share = (area.customerCount / Math.max(areaStats[0].customerCount, 1)) * 100;
+                      return (
+                        <div key={area.key}>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <Badge variant="secondary">#{index + 1}</Badge>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold">{area.label}</p>
+                                {area.detail && <p className="truncate text-xs text-muted-foreground">{area.detail}</p>}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold">{area.customerCount} pelanggan</p>
+                              <p className="text-xs text-muted-foreground">{area.transactionCount} transaksi · {formatCurrency(area.revenue)}</p>
+                            </div>
+                          </div>
+                          <Progress value={share} className="mt-2 h-2" />
+                        </div>
+                      );
+                    })}
+                    <p className="border-t pt-3 text-xs text-muted-foreground">Ringkasan memakai wilayah terkini pada profil pelanggan; transaksi umum tanpa profil atau tanpa wilayah tidak dihitung. Nama pelanggan dan koordinat GPS tidak ditampilkan.</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
