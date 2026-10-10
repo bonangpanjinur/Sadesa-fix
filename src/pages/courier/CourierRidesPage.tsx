@@ -258,7 +258,39 @@ export default function CourierRidesPage() {
   const acceptRideMutation = useMutation({
     mutationFn: async (rideId: string) => {
       setAccepting(rideId);
-      const { data, error } = await supabase.rpc('accept_ride', { p_ride_id: rideId, p_courier_id: courierId! });
+      const activeCourierId = courierId;
+      const activeUserId = user?.id;
+      if (!activeCourierId || !activeUserId) throw new Error('Akun ojek tidak ditemukan. Muat ulang halaman lalu coba lagi.');
+      if (!navigator.geolocation) throw new Error('Browser tidak menyediakan GPS. Aktifkan lokasi di perangkat untuk menerima ride.');
+
+      let position: GeolocationPosition;
+      try {
+        position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 20_000,
+            maximumAge: 0,
+          });
+        });
+      } catch (error) {
+        const gpsError = error as GeolocationPositionError;
+        if (gpsError.code === gpsError.PERMISSION_DENIED) {
+          throw new Error('Izinkan akses lokasi agar server dapat memastikan posisi GPS terbaru sebelum ride diterima.');
+        }
+        if (gpsError.code === gpsError.TIMEOUT) {
+          throw new Error('GPS belum mendapatkan posisi terbaru. Coba lagi di tempat dengan sinyal lokasi yang lebih baik.');
+        }
+        throw new Error('Lokasi GPS tidak tersedia. Periksa pengaturan lokasi perangkat lalu coba lagi.');
+      }
+
+      const { error: locationError } = await supabase.from('couriers').update({
+        current_lat: position.coords.latitude,
+        current_lng: position.coords.longitude,
+        last_location_update: new Date().toISOString(),
+      }).eq('id', activeCourierId).eq('user_id', activeUserId);
+      if (locationError) throw new Error('GPS terbaru belum tersimpan. Periksa koneksi lalu coba lagi.');
+
+      const { data, error } = await supabase.rpc('accept_ride', { p_ride_id: rideId, p_courier_id: activeCourierId });
       if (error) throw error;
       return data;
     },
@@ -270,7 +302,11 @@ export default function CourierRidesPage() {
       }
       queryClient.invalidateQueries({ queryKey: ['courier-rides', courierId] });
     },
-    onError: () => toast({ title: 'Gagal menerima ride', variant: 'destructive' }),
+    onError: (error) => toast({
+      title: 'Gagal menerima ride',
+      description: error instanceof Error ? error.message : 'Pastikan GPS aktif dan coba lagi.',
+      variant: 'destructive',
+    }),
     onSettled: () => setAccepting(null),
   });
 
@@ -507,6 +543,7 @@ export default function CourierRidesPage() {
               <RefreshCw className={`h-4 w-4 ${ridesFetching ? 'animate-spin' : ''}`} />
             </Button>
           </div>
+          <p className="mb-2 text-xs text-muted-foreground">Tawaran ojek berlaku 90 detik. Saat menekan Terima, aplikasi akan meminta GPS terbaru sebelum menerima.</p>
 
           {loading ? (
             <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></div>
