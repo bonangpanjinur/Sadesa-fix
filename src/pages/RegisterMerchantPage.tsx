@@ -30,6 +30,7 @@ import { merchantSchema } from '@/lib/commerceSchemas';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { getCategoryChildren, getCategoryDisplayLabel, sortProductCategories, type ProductCategory } from '@/lib/productCategories';
 import { restoreSignupAddress, toRegistrationAddressPrefill } from '@/lib/signupAddressMetadata';
+import { describeMerchantRegistrationError } from '@/lib/merchantRegistrationError';
 
 type MerchantFormData = z.infer<typeof merchantSchema>;
 
@@ -527,8 +528,17 @@ export default function RegisterMerchantPage() {
       toast.success('Pendaftaran merchant berhasil. Selamat datang di dashboard merchant!');
       navigate('/merchant', { replace: true });
     } catch (error) {
-      console.error('Error submitting merchant registration:', error);
-      toast.error('Gagal mengirim pendaftaran. Silakan coba lagi.');
+      const databaseError = error && typeof error === 'object'
+        ? error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown }
+        : {};
+      console.error('Error submitting merchant registration:', {
+        code: databaseError.code,
+        message: databaseError.message,
+        details: databaseError.details,
+        hint: databaseError.hint,
+        error,
+      });
+      toast.error(describeMerchantRegistrationError(error));
     } finally {
       setIsSubmitting(false);
     }
