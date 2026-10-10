@@ -8,6 +8,7 @@ import {
   getFirstUnseenFeatureTip,
   markFeatureTipSeen,
   readSeenFeatureTips,
+  shouldAutoStartFeatureTour,
 } from './featureTour';
 
 describe('feature tour targeting and progress', () => {
@@ -59,7 +60,7 @@ describe('feature tour targeting and progress', () => {
     expect(getFeatureTourStorageKey('user-a', 'buyer')).not.toBe(getFeatureTourStorageKey('user-b', 'buyer'));
   });
 
-  it('marks only the displayed tip and resumes at the first unseen feature', () => {
+  it('starts automatically only before the first tip has been displayed', () => {
     const values = new Map<string, string>();
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,
@@ -68,9 +69,11 @@ describe('feature tour targeting and progress', () => {
     const key = getFeatureTourStorageKey('user-a', 'buyer');
     const steps = FEATURE_TOUR_STEPS.buyer;
 
+    expect(shouldAutoStartFeatureTour(storage, key)).toBe(true);
     expect(getFirstUnseenFeatureTip(steps, [])?.id).toBe('discover');
     const seen = markFeatureTipSeen(storage, key, 'discover');
     expect(seen).toEqual(['discover']);
+    expect(shouldAutoStartFeatureTour(storage, key)).toBe(false);
     expect(getFirstUnseenFeatureTip(steps, readSeenFeatureTips(storage, key))?.id).toBe('checkout');
     expect(markFeatureTipSeen(storage, key, 'discover')).toEqual(['discover']);
   });

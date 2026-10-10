@@ -8,11 +8,10 @@ import {
   FEATURE_TOUR_STEPS,
   getFirstUnseenFeatureTip,
   getFeatureTourRoleForVisitor,
-  getFeatureTourSessionKey,
   getFeatureTourStorageKey,
   markFeatureTipSeen,
   PUBLIC_BUYER_FEATURE_TOUR_STEPS,
-  readSeenFeatureTips,
+  shouldAutoStartFeatureTour,
 } from '@/lib/featureTour';
 
 interface TourState {
@@ -55,8 +54,8 @@ export function FeatureTour() {
     : emptySteps;
   const visitorId = user?.id ?? 'guest';
   const storageKey = role ? getFeatureTourStorageKey(visitorId, role) : null;
-  const sessionKey = role ? getFeatureTourSessionKey(visitorId, role) : null;
   const [tour, setTour] = useState<TourState>(closedTour);
+  const autoStartAttemptedKeysRef = useRef(new Set<string>());
   const targetElementRef = useRef<HTMLElement | null>(null);
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
@@ -69,35 +68,38 @@ export function FeatureTour() {
       setTour(closedTour);
       return;
     }
-    if (!role || !storageKey || !sessionKey) {
+    if (!role || !storageKey) {
       setTour(closedTour);
       return;
     }
+    // React StrictMode replays effects on mount. Guard the start attempt so the
+    // first step marked below does not make that replay skip ahead to step two.
+    if (autoStartAttemptedKeysRef.current.has(storageKey)) return;
+    autoStartAttemptedKeysRef.current.add(storageKey);
 
-    let deferred = false;
+    let shouldStart = true;
     try {
-      deferred = window.sessionStorage.getItem(sessionKey) === '1';
-    } catch {
-      // A blocked session store must not prevent the guide from working.
-    }
-    let seen: string[] = [];
-    try {
-      seen = readSeenFeatureTips(window.localStorage, storageKey);
+      shouldStart = shouldAutoStartFeatureTour(window.localStorage, storageKey);
     } catch {
       // Browser storage may be disabled; keep the app usable without persistence.
     }
-    const firstUnseen = getFirstUnseenFeatureTip(steps, seen);
-    if (!deferred && firstUnseen) {
+    if (!shouldStart) {
+      setTour({ key: storageKey, stepId: null, open: false });
+      return;
+    }
+
+    const firstStep = steps[0];
+    if (firstStep) {
       try {
-        markFeatureTipSeen(window.localStorage, storageKey, firstUnseen.id);
+        markFeatureTipSeen(window.localStorage, storageKey, firstStep.id);
       } catch {
         // Best-effort persistence.
       }
     }
-    setTour({ key: storageKey, stepId: firstUnseen?.id ?? null, open: !deferred && Boolean(firstUnseen) });
-  }, [authReady, role, sessionKey, steps, storageKey, user]);
+    setTour({ key: storageKey, stepId: firstStep?.id ?? null, open: Boolean(firstStep) });
+  }, [authReady, role, steps, storageKey, user]);
 
-  // Keep a resumed tour on the page that contains its current feature.
+  // Keep an active tour on the page that contains its current feature.
   useEffect(() => {
     if (!tour.open || !currentStep || routeMatches(pathname, currentStep.href)) return;
     navigate(currentStep.href, { replace: true });
@@ -176,18 +178,13 @@ export function FeatureTour() {
     setPopoverPosition({ top, left, arrowLeft, side: below ? 'bottom' : 'top' });
   }, [targetRect, currentStep]);
 
-  if (!authReady || !role || !storageKey || !sessionKey || !tour.open || !currentStep) return null;
+  if (!authReady || !role || !storageKey || !tour.open || !currentStep) return null;
 
-  const closeForNow = () => {
+  const dismissTour = () => {
     try {
       markFeatureTipSeen(window.localStorage, storageKey, currentStep.id);
     } catch {
       // Best-effort persistence.
-    }
-    try {
-      window.sessionStorage.setItem(sessionKey, '1');
-    } catch {
-      // Still close for this render if storage is unavailable.
     }
     setTour((current) => ({ ...current, open: false }));
   };
@@ -253,16 +250,16 @@ export function FeatureTour() {
               <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-primary"><Sparkles className="h-3.5 w-3.5" />Pengenalan fitur · {currentStepIndex + 1}/{steps.length}</p>
               <h2 className="text-base font-semibold leading-snug">{currentStep.title}</h2>
             </div>
-            <Button type="button" variant="ghost" size="icon" className="-mr-2 -mt-2 h-8 w-8 shrink-0" onClick={closeForNow} aria-label="Tutup pengenalan untuk sekarang">
+            <Button type="button" variant="ghost" size="icon" className="-mr-2 -mt-2 h-8 w-8 shrink-0" onClick={dismissTour} aria-label="Jangan tampilkan lagi">
               <X className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent className="space-y-3 px-4 pb-4 pt-1">
             <p className="text-sm leading-relaxed text-muted-foreground">{currentStep.description}</p>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <Link to={currentStep.href} className="text-xs font-medium text-primary underline-offset-4 hover:underline">{currentStep.linkLabel}</Link>
-              <div className="flex shrink-0 items-center gap-2">
-                <Button type="button" variant="ghost" size="sm" className="h-9 px-2 text-xs" onClick={closeForNow}>Nanti</Button>
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <Button type="button" variant="ghost" size="sm" className="h-9 px-2 text-xs" onClick={dismissTour}>Jangan tampilkan lagi</Button>
                 <Button type="button" size="sm" className="h-9" onClick={advance}>
                   {currentStepIndex === steps.length - 1 ? 'Selesai' : 'Berikutnya'}
                   {currentStepIndex !== steps.length - 1 && <ArrowRight className="ml-1.5 h-3.5 w-3.5" />}

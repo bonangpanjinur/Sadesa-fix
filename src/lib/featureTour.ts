@@ -116,6 +116,11 @@ export function readSeenFeatureTips(storage: KeyValueStorage, key: string): stri
   }
 }
 
+/** Start a guide automatically only before its first tip has ever been displayed. */
+export function shouldAutoStartFeatureTour(storage: KeyValueStorage, key: string): boolean {
+  return readSeenFeatureTips(storage, key).length === 0;
+}
+
 export function markFeatureTipSeen(storage: KeyValueStorage, key: string, stepId: string): string[] {
   const seen = readSeenFeatureTips(storage, key);
   if (seen.includes(stepId)) return seen;
