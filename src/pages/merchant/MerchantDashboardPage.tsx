@@ -10,6 +10,7 @@ import {
   CheckCircle,
   CircleCheck,
   Eye,
+  Layers,
   Package,
   Percent,
   Receipt,
@@ -26,8 +27,6 @@ import { QuickStats } from '@/components/merchant/QuickStats';
 import { StockAlerts } from '@/components/merchant/StockAlerts';
 import { CustomerReviews } from '@/components/merchant/CustomerReviews';
 import { OrderStatusManager } from '@/components/merchant/OrderStatusManager';
-import { QuotaStatusCard } from '@/components/merchant/QuotaStatusCard';
-import { QuotaAlertBanner } from '@/components/merchant/QuotaAlertBanner';
 import { MerchantGroupCard } from '@/components/merchant/MerchantGroupCard';
 import { MerchantKasCard } from '@/components/merchant/MerchantKasCard';
 import { DailySummaryCard } from '@/components/merchant/DailySummaryCard';
@@ -369,6 +368,24 @@ export default function MerchantDashboardPage() {
   const walletBalance = Number(dashboardWallet?.balance_rupiah ?? 0);
   const walletDebt = Number(dashboardWallet?.debt_rupiah ?? 0);
   const walletThreshold = walletOverview?.lowBalanceThreshold ?? 10_000;
+  const quickActions = [
+    {
+      label: 'Pesanan',
+      description: pendingOrdersLoading ? 'Memeriksa pesanan…' : pendingOrderCount > 0 ? `${pendingOrderCount} menunggu konfirmasi` : 'Semua pesanan tertangani',
+      icon: Receipt,
+      path: '/merchant/orders',
+      iconTone: pendingOrderCount > 0 ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary',
+    },
+    { label: 'Produk', description: 'Kelola katalog toko', icon: Package, path: '/merchant/products', iconTone: 'bg-info/10 text-info' },
+    { label: 'Stok', description: 'Pantau persediaan', icon: Layers, path: '/merchant/stock', iconTone: 'bg-success/10 text-success' },
+    {
+      label: 'Saldo',
+      description: walletOverviewLoading ? 'Memuat saldo…' : walletOverviewError ? 'Lihat detail saldo' : `${formatPrice(walletBalance)} tersedia`,
+      icon: Wallet,
+      path: '/merchant/wallet',
+      iconTone: 'bg-primary/10 text-primary',
+    },
+  ];
 
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
@@ -492,6 +509,38 @@ export default function MerchantDashboardPage() {
           </div>
         </section>
 
+        <section aria-label="Akses cepat" data-testid="merchant-quick-actions">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Mulai dari sini</p>
+              <h3 className="mt-1 text-lg font-semibold tracking-tight">Akses cepat</h3>
+            </div>
+            <span className="hidden text-xs text-muted-foreground sm:block">Pintasan operasional toko</span>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {quickActions.map((action) => {
+              const ActionIcon = action.icon;
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  className="group flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  onClick={() => navigate(action.path)}
+                >
+                  <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105', action.iconTone)}>
+                    <ActionIcon className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{action.label}</span>
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{action.description}</span>
+                  </span>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <section aria-label="Saldo toko" className="grid gap-4 lg:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]" data-testid="merchant-wallet-overview">
           <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.06] to-card">
             <CardHeader className="pb-2">
@@ -567,10 +616,7 @@ export default function MerchantDashboardPage() {
           </div>
         </section>
 
-        <QuotaAlertBanner />
-
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" data-testid="merchant-status-cards">
-          <QuotaStatusCard />
+        <section className="grid gap-4 md:grid-cols-2" data-testid="merchant-status-cards">
           <MerchantGroupCard />
           <MerchantKasCard merchantId={merchant.id} />
         </section>

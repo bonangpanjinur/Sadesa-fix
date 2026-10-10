@@ -10,11 +10,17 @@ const featureTour = read('src/lib/featureTour.ts');
 
 describe('merchant wallet dashboard contract', () => {
   it('shows the live wallet balance and links to the detailed balance page', () => {
+    expect(dashboard).toContain('data-testid="merchant-quick-actions"');
+    expect(dashboard).toContain("label: 'Pesanan'");
+    expect(dashboard).toContain("label: 'Produk'");
+    expect(dashboard).toContain("label: 'Stok'");
     expect(dashboard).toContain("queryKey: ['merchant-wallet-dashboard', merchant?.id]");
     expect(dashboard).toContain('data-testid="merchant-wallet-balance"');
     expect(dashboard).toContain("navigate('/merchant/wallet')");
     expect(sidebar).toContain("label: 'Saldo', href: '/merchant/wallet'");
     expect(walletPage).toContain("ownerType === 'MERCHANT' ? 'Saldo' : 'Saldo Komisi Ojek'");
+    expect(dashboard).not.toContain('<QuotaAlertBanner />');
+    expect(dashboard).not.toContain('<QuotaStatusCard />');
   });
 
   it('explains debt, low balance, fee-off and unavailable-wallet states', () => {
