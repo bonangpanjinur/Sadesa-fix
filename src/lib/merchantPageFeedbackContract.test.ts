@@ -33,9 +33,9 @@ describe('merchant operational feedback contract', () => {
 
   it('does not turn finance query failures into a valid zero report and provides retry', () => {
     expect(financePage).toContain('if (error) throw error;');
-    expect(financePage).toContain('if (isError)');
+    expect(financePage).toContain('if (query.isError)');
     expect(financePage).toContain('<MerchantCardError');
-    expect(financePage).toContain('onRetry={() => void refetch()}');
-    expect(financePage).toContain('Belum ada pesanan selesai dalam {period} bulan terakhir.');
+    expect(financePage).toContain('onRetry={() => void query.refetch()}');
+    expect(financePage).toContain('Belum ada transaksi yang cocok');
   });
 });
