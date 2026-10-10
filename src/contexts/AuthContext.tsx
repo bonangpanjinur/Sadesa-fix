@@ -34,7 +34,7 @@ function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, message: str
 interface AuthUser {
   id: string;
   email: string;
-  user_metadata?: { full_name?: string };
+  user_metadata?: Record<string, unknown> & { full_name?: string };
 }
 
 function preserveAuthUserReference(currentUser: AuthUser | null, nextUser: AuthUser | null): AuthUser | null {

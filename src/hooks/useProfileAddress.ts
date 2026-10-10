@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { SavedAddress } from '@/hooks/useSavedAddresses';
+import { restoreSignupAddress } from '@/lib/signupAddressMetadata';
 
 interface ProfileAddressRow {
   user_id: string;
@@ -83,7 +84,12 @@ export function useProfileAddress() {
         .maybeSingle();
 
       if (error) throw error;
-      setAddress(data ? toProfileAddress(data as ProfileAddressRow) : null);
+      const profile = restoreSignupAddress(
+        data as ProfileAddressRow | null,
+        user.user_metadata,
+        user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+      ) as ProfileAddressRow | null;
+      setAddress(profile ? toProfileAddress(profile) : null);
     } catch (error) {
       console.error('Error fetching profile delivery address:', error);
       setAddress(null);

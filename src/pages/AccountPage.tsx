@@ -17,6 +17,7 @@ import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 import { isValidKtpNumber } from '@/lib/identityValidation';
 import { ServiceProviderRegistration } from '@/components/account/ServiceProviderRegistration';
 import { SERVICE_PROVIDER_REGISTRATION_ENABLED } from '@/lib/featureFlags';
+import { restoreSignupAddress } from '@/lib/signupAddressMetadata';
 
 interface Profile {
   full_name: string;
@@ -96,6 +97,8 @@ export default function AccountPage() {
 
       if (error) throw error;
 
+      data = restoreSignupAddress(data, user.user_metadata, fallbackName) as Profile | null;
+
       if (data) {
         setProfile(data);
         // Foto profil adalah rekomendasi, bukan syarat akses akun atau route.
@@ -127,7 +130,7 @@ export default function AccountPage() {
     } finally {
       setLoading(false);
     }
-  }, [isCourier, isMerchant, user]);
+  }, [fallbackName, isCourier, isMerchant, user]);
 
   useEffect(() => {
     if (!authLoading && user) {
