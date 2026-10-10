@@ -2393,6 +2393,60 @@ export type Database = {
           },
         ]
       }
+      push_delivery_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          notification_job_id: string | null
+          provider_status_code: number | null
+          push_subscription_id: string | null
+          recipient_user_id: string | null
+          source: string
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          notification_job_id?: string | null
+          provider_status_code?: number | null
+          push_subscription_id?: string | null
+          recipient_user_id?: string | null
+          source: string
+          status: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          notification_job_id?: string | null
+          provider_status_code?: number | null
+          push_subscription_id?: string | null
+          recipient_user_id?: string | null
+          source?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_delivery_logs_notification_job_id_fkey"
+            columns: ["notification_job_id"]
+            isOneToOne: false
+            referencedRelation: "notification_delivery_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_delivery_logs_push_subscription_id_fkey"
+            columns: ["push_subscription_id"]
+            isOneToOne: false
+            referencedRelation: "push_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string

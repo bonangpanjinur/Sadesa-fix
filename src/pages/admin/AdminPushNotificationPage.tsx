@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Bell, Save, Send, TestTube, AlertCircle, Volume2, Upload,
-  Loader2, Key, Users, RefreshCw,
+  Loader2, Key, Users, RefreshCw, History,
 } from 'lucide-react';
 import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -35,6 +35,17 @@ interface VapidRuntimeStatus {
   privateKeyConfigured: boolean;
   vapidConfigured: boolean;
   missingVariables: string[];
+}
+
+interface PushDeliveryLog {
+  id: string;
+  created_at: string;
+  source: 'admin_test' | 'admin_broadcast' | 'queue';
+  recipient_user_id: string | null;
+  title: string;
+  status: 'sent' | 'failed' | 'expired';
+  provider_status_code: number | null;
+  error_message: string | null;
 }
 
 export default function AdminPushNotificationPage() {
@@ -61,6 +72,10 @@ export default function AdminPushNotificationPage() {
 
   // Subscriber count
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
+  const [pushDeliveryLogs, setPushDeliveryLogs] = useState<PushDeliveryLog[]>([]);
+  const [pushDeliveryLogsLoading, setPushDeliveryLogsLoading] = useState(true);
+  const [pushDeliveryLogsError, setPushDeliveryLogsError] = useState<string | null>(null);
+  const [pushDeliveryRealtimeStatus, setPushDeliveryRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
   const refreshVapidStatus = useCallback(async () => {
     setVapidStatusLoading(true);
@@ -116,11 +131,62 @@ export default function AdminPushNotificationPage() {
     }
   }, []);
 
+  const fetchPushDeliveryLogs = useCallback(async () => {
+    setPushDeliveryLogsLoading(true);
+    setPushDeliveryLogsError(null);
+    try {
+      const { data, error } = await supabase
+        .from('push_delivery_logs')
+        .select('id, created_at, source, recipient_user_id, title, status, provider_status_code, error_message')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      const rows = (data ?? []) as PushDeliveryLog[];
+      setPushDeliveryLogs((current) => {
+        const merged = new Map(current.map((row) => [row.id, row]));
+        rows.forEach((row) => merged.set(row.id, row));
+        return [...merged.values()]
+          .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+          .slice(0, 100);
+      });
+    } catch (error) {
+      setPushDeliveryLogsError(error instanceof Error ? error.message : 'Riwayat push belum dapat dimuat.');
+    } finally {
+      setPushDeliveryLogsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshVapidStatus();
     void fetchSubscriberCount();
     void fetchSoundSettings();
-  }, [fetchSubscriberCount, fetchSoundSettings, refreshVapidStatus]);
+    void fetchPushDeliveryLogs();
+  }, [fetchPushDeliveryLogs, fetchSubscriberCount, fetchSoundSettings, refreshVapidStatus]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-push-delivery-logs')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'push_delivery_logs',
+      }, (payload) => {
+        const incoming = payload.new as PushDeliveryLog;
+        setPushDeliveryLogs((current) => [incoming, ...current.filter((row) => row.id !== incoming.id)]
+          .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+          .slice(0, 100));
+      })
+      .subscribe((status) => {
+        const connected = status === 'SUBSCRIBED';
+        const disconnected = status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED';
+        setPushDeliveryRealtimeStatus(connected ? 'connected' : disconnected ? 'disconnected' : 'connecting');
+        if (connected) void fetchPushDeliveryLogs();
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchPushDeliveryLogs]);
 
   const handleSaveSoundSettings = async () => {
     setSoundSaving(true);
@@ -448,7 +514,7 @@ export default function AdminPushNotificationPage() {
         </Card>
 
         <Tabs defaultValue="config">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="config">
               <Key className="h-4 w-4 mr-1.5" />
               Konfigurasi
@@ -460,6 +526,10 @@ export default function AdminPushNotificationPage() {
             <TabsTrigger value="broadcast">
               <Users className="h-4 w-4 mr-1.5" />
               Broadcast
+            </TabsTrigger>
+            <TabsTrigger value="logs">
+              <History className="h-4 w-4 mr-1.5" />
+              Riwayat Log
             </TabsTrigger>
           </TabsList>
 
@@ -659,6 +729,87 @@ export default function AdminPushNotificationPage() {
                     {vapidStatusError || 'Pastikan konfigurasi VAPID Edge Function sudah lengkap.'}
                   </p>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <Card>
+              <CardHeader className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Riwayat Pengiriman Push
+                  </CardTitle>
+                  <CardDescription>
+                    100 percobaan terbaru dari test/broadcast admin dan antrean notifikasi aplikasi. Status diterima berarti layanan push menerima permintaan, bukan konfirmasi bahwa perangkat menampilkan notifikasi.
+                  </CardDescription>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge variant={pushDeliveryRealtimeStatus === 'connected' ? 'default' : 'secondary'}>
+                    {pushDeliveryRealtimeStatus === 'connected'
+                      ? 'Realtime aktif'
+                      : pushDeliveryRealtimeStatus === 'connecting'
+                        ? 'Menghubungkan Realtime'
+                        : 'Realtime terputus'
+                    }
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void fetchPushDeliveryLogs()}
+                    disabled={pushDeliveryLogsLoading}
+                    aria-label="Segarkan riwayat push"
+                  >
+                    {pushDeliveryLogsLoading
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <RefreshCw className="h-4 w-4" />
+                    }
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {pushDeliveryLogsError && (
+                  <p role="alert" className="mb-3 rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+                    Gagal memuat riwayat: {pushDeliveryLogsError}
+                  </p>
+                )}
+                {pushDeliveryLogsLoading && pushDeliveryLogs.length === 0 && (
+                  <p role="status" className="py-8 text-center text-sm text-muted-foreground">Memuat riwayat pengiriman...</p>
+                )}
+                {!pushDeliveryLogsLoading && !pushDeliveryLogsError && pushDeliveryLogs.length === 0 && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Belum ada percobaan pengiriman push.</p>
+                )}
+                <div role="log" aria-live="polite" aria-label="Riwayat percobaan pengiriman push" className="space-y-3">
+                  {pushDeliveryLogs.map((log) => {
+                    const statusLabel = log.status === 'sent'
+                      ? 'Diterima layanan push'
+                      : log.status === 'expired'
+                        ? 'Subscription kedaluwarsa'
+                        : 'Gagal';
+                    const sourceLabel = log.source === 'admin_test'
+                      ? 'Test admin'
+                      : log.source === 'admin_broadcast'
+                        ? 'Broadcast admin'
+                        : 'Antrean aplikasi';
+                    return (
+                      <div key={log.id} className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="break-words text-sm font-medium">{log.title}</p>
+                            <Badge variant={log.status === 'sent' ? 'default' : 'destructive'}>{statusLabel}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {sourceLabel} · {log.recipient_user_id ? `User ${log.recipient_user_id.slice(0, 8)}` : 'Penerima tidak tersedia'} · {new Date(log.created_at).toLocaleString('id-ID')}
+                            {log.provider_status_code ? ` · HTTP ${log.provider_status_code}` : ''}
+                          </p>
+                          {log.error_message && <p className="break-words text-xs text-destructive">{log.error_message}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

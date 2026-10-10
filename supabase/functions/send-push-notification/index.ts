@@ -75,6 +75,33 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const recordPushDeliveryLog = async (entry: {
+      source: "admin_test" | "admin_broadcast";
+      notification_job_id?: string | null;
+      push_subscription_id?: string | null;
+      recipient_user_id?: string | null;
+      title: string;
+      status: "sent" | "failed" | "expired";
+      provider_status_code?: number | null;
+      error_message?: string | null;
+    }) => {
+      try {
+        const { error } = await supabase.from("push_delivery_logs").insert({
+          source: entry.source,
+          notification_job_id: entry.notification_job_id ?? null,
+          push_subscription_id: entry.push_subscription_id ?? null,
+          recipient_user_id: entry.recipient_user_id ?? null,
+          title: entry.title.trim().slice(0, 160) || "Push notification",
+          status: entry.status,
+          provider_status_code: entry.provider_status_code ?? null,
+          error_message: entry.error_message?.slice(0, 1000) ?? null,
+        });
+        if (error) console.error("Failed to write push delivery log:", error);
+      } catch (error) {
+        console.error("Failed to write push delivery log:", error);
+      }
+    };
+
     const { data: adminRole, error: roleError } = await supabase
       .from("user_roles")
       .select("user_id")
@@ -89,14 +116,6 @@ serve(async (req) => {
 
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
-
-    if (!vapidPrivateKey || !vapidPublicKey) {
-      console.log("VAPID keys not configured, skipping push notification");
-      return new Response(
-        JSON.stringify({ success: false, message: "VAPID keys not configured" }),
-        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 200 }
-      );
-    }
 
     const payload: PushRequest = await req.json();
     const { user_id, user_ids, role, all, title, body, icon, url, data } = payload;
@@ -118,6 +137,11 @@ serve(async (req) => {
         headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 400,
       });
     }
+
+    const source: "admin_test" | "admin_broadcast" = all === true || Boolean(role) || Boolean(user_ids?.length)
+      ? "admin_broadcast"
+      : "admin_test";
+    const notificationTitle = title.trim().slice(0, 160);
 
     // Only admins may target a role or broadcast to every subscription.
     if (role || all === true) {
@@ -159,6 +183,12 @@ serve(async (req) => {
         .eq("role", role);
 
       if (!roleUsers || roleUsers.length === 0) {
+        await recordPushDeliveryLog({
+          source,
+          title: notificationTitle,
+          status: "failed",
+          error_message: "No users with this role",
+        });
         return new Response(
           JSON.stringify({ success: true, sent: 0, message: "No users with this role" }),
           { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
@@ -176,13 +206,43 @@ serve(async (req) => {
       );
     }
 
+    if (!vapidPrivateKey || !vapidPublicKey) {
+      const message = "VAPID keys not configured";
+      await recordPushDeliveryLog({
+        source,
+        recipient_user_id: user_id ?? null,
+        title: notificationTitle,
+        status: "failed",
+        error_message: message,
+      });
+      console.log("VAPID keys not configured, skipping push notification");
+      return new Response(
+        JSON.stringify({ success: false, message }),
+        { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
     const { data: subscriptions, error: subError } = await subscriptionQuery;
 
     if (subError) {
+      await recordPushDeliveryLog({
+        source,
+        recipient_user_id: user_id ?? null,
+        title: notificationTitle,
+        status: "failed",
+        error_message: "Unable to look up push subscriptions",
+      });
       throw subError;
     }
 
     if (!subscriptions || subscriptions.length === 0) {
+      await recordPushDeliveryLog({
+        source,
+        recipient_user_id: user_id ?? null,
+        title: notificationTitle,
+        status: "failed",
+        error_message: "No active push subscriptions found",
+      });
       return new Response(
         JSON.stringify({ success: true, sent: 0, message: "No subscriptions found" }),
         { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
@@ -220,13 +280,29 @@ serve(async (req) => {
           },
           notificationPayload
         );
+        await recordPushDeliveryLog({
+          source,
+          push_subscription_id: sub.id,
+          recipient_user_id: sub.user_id,
+          title: notificationTitle,
+          status: "sent",
+        });
         sentCount++;
       } catch (error: unknown) {
         console.error(`Failed to send to ${sub.endpoint}:`, error);
-        
-        // If subscription is invalid (410 Gone or 404), mark for deletion
-        const err = error as { statusCode?: number };
-        if (err.statusCode === 410 || err.statusCode === 404) {
+        const err = error as { statusCode?: number; message?: string };
+        const statusCode = typeof err.statusCode === "number" ? err.statusCode : null;
+        const expired = statusCode === 410 || statusCode === 404;
+        await recordPushDeliveryLog({
+          source,
+          push_subscription_id: sub.id,
+          recipient_user_id: sub.user_id,
+          title: notificationTitle,
+          status: expired ? "expired" : "failed",
+          provider_status_code: statusCode,
+          error_message: typeof err.message === "string" ? err.message : "Push provider error",
+        });
+        if (expired) {
           failedSubscriptions.push(sub.id);
         }
       }

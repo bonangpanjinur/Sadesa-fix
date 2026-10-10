@@ -14,6 +14,32 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+async function recordPushDeliveryLog(entry: {
+  notification_job_id: string;
+  push_subscription_id?: string | null;
+  recipient_user_id?: string | null;
+  title: string;
+  status: "sent" | "failed" | "expired";
+  provider_status_code?: number | null;
+  error_message?: string | null;
+}) {
+  try {
+    const { error } = await supabase.from("push_delivery_logs").insert({
+      source: "queue",
+      notification_job_id: entry.notification_job_id,
+      push_subscription_id: entry.push_subscription_id ?? null,
+      recipient_user_id: entry.recipient_user_id ?? null,
+      title: entry.title.trim().slice(0, 160) || "Push notification",
+      status: entry.status,
+      provider_status_code: entry.provider_status_code ?? null,
+      error_message: entry.error_message?.slice(0, 1000) ?? null,
+    });
+    if (error) console.error("Failed to write push delivery log:", error);
+  } catch (error) {
+    console.error("Failed to write push delivery log:", error);
+  }
+}
+
 type NotificationJob = {
   id: string;
   recipient_id: string;
@@ -158,27 +184,58 @@ async function sendWhatsApp(job: NotificationJob): Promise<ProviderResult> {
 }
 
 async function sendPush(job: NotificationJob): Promise<ProviderResult> {
+  const title = typeof job.payload.title === "string" ? job.payload.title.trim() : "Notifikasi Baru";
+  const body = typeof job.payload.body === "string" ? job.payload.body.trim() : "Anda memiliki notifikasi baru";
   const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
   const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
   if (!vapidPrivateKey || !vapidPublicKey) {
+    await recordPushDeliveryLog({
+      notification_job_id: job.id,
+      recipient_user_id: job.recipient_id,
+      title,
+      status: "failed",
+      error_message: "VAPID keys are not configured",
+    });
     throw new Error("VAPID keys are not configured");
   }
 
   const recipientId = job.recipient_id;
-  if (!recipientId) throw new Error("Push recipient is missing");
+  if (!recipientId) {
+    await recordPushDeliveryLog({
+      notification_job_id: job.id,
+      title,
+      status: "failed",
+      error_message: "Push recipient is missing",
+    });
+    throw new Error("Push recipient is missing");
+  }
 
   const { data: subscriptions, error: subscriptionError } = await supabase
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth")
     .eq("user_id", recipientId);
-  if (subscriptionError) throw subscriptionError;
+  if (subscriptionError) {
+    await recordPushDeliveryLog({
+      notification_job_id: job.id,
+      recipient_user_id: recipientId,
+      title,
+      status: "failed",
+      error_message: "Unable to look up push subscriptions",
+    });
+    throw subscriptionError;
+  }
   if (!subscriptions?.length) {
+    await recordPushDeliveryLog({
+      notification_job_id: job.id,
+      recipient_user_id: recipientId,
+      title,
+      status: "failed",
+      error_message: "No active push subscriptions for recipient",
+    });
     throw new Error("No active push subscriptions for recipient");
   }
 
   webpush.setVapidDetails("mailto:admin@sadesa.id", vapidPublicKey, vapidPrivateKey);
-  const title = typeof job.payload.title === "string" ? job.payload.title.trim() : "Notifikasi Baru";
-  const body = typeof job.payload.body === "string" ? job.payload.body.trim() : "Anda memiliki notifikasi baru";
   const url = typeof job.payload.url === "string" && job.payload.url.startsWith("/") ? job.payload.url : "/";
   const notificationPayload = JSON.stringify({
     title: title.slice(0, 160),
@@ -197,15 +254,41 @@ async function sendPush(job: NotificationJob): Promise<ProviderResult> {
         keys: { p256dh: subscription.p256dh, auth: subscription.auth },
       }, notificationPayload);
       delivered++;
+      await recordPushDeliveryLog({
+        notification_job_id: job.id,
+        push_subscription_id: subscription.id,
+        recipient_user_id: recipientId,
+        title,
+        status: "sent",
+      });
     } catch (error) {
       const statusCode = typeof error === "object" && error !== null && "statusCode" in error
         ? Number((error as { statusCode?: unknown }).statusCode)
         : 0;
+      const errorMessage = error instanceof Error ? error.message.slice(0, 1000) : "Push provider error";
       if (statusCode === 404 || statusCode === 410) {
+        await recordPushDeliveryLog({
+          notification_job_id: job.id,
+          push_subscription_id: subscription.id,
+          recipient_user_id: recipientId,
+          title,
+          status: "expired",
+          provider_status_code: statusCode,
+          error_message: errorMessage,
+        });
         await supabase.from("push_subscriptions").delete().eq("id", subscription.id);
         continue;
       }
-      errors.push(error instanceof Error ? error.message.slice(0, 240) : "Push provider error");
+      await recordPushDeliveryLog({
+        notification_job_id: job.id,
+        push_subscription_id: subscription.id,
+        recipient_user_id: recipientId,
+        title,
+        status: "failed",
+        provider_status_code: statusCode || null,
+        error_message: errorMessage,
+      });
+      errors.push(errorMessage.slice(0, 240));
     }
   }
   if (delivered === 0) {

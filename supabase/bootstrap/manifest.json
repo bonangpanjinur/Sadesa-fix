@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment and POS customer area analytics appended",
-  "migration_count": 366,
-  "bundle_count": 69,
+  "migration_count": 367,
+  "bundle_count": 70,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -851,6 +851,14 @@
       ],
       "sha256": "cc31a5248caacbd042a759b51cd815625326b28f2801e2f6482a0fac23512f2f",
       "bytes": 5947
+    },
+    {
+      "file": "97_20261010170000_push_delivery_logs.sql",
+      "source_files": [
+        "20261010170000_push_delivery_logs.sql"
+      ],
+      "sha256": "0d4aa8f951b8b6e466cb728180fb1a8a6397e70486c6e78d5b112afec1d066ac",
+      "bytes": 3023
     }
   ],
   "idempotent": true,
