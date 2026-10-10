@@ -32,6 +32,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 - [Audit operasional POS untuk merchant — 2 Oktober 2026](audits/audit-operasional-pos-merchant-2026-10-02.md)
 - [Panduan implementasi dan operasional POS untuk merchant](operations/panduan-implementasi-pos-untuk-merchant.md)
 - [Analisis area pelanggan teramai di POS](operations/pos-analisis-area-pelanggan.md)
+- [Panduan merchant: area pelanggan teramai di POS](operations/panduan-merchant-area-pelanggan-teramai.md)
 - [Hasil uji E2E pembayaran POS dan kesiapan print — 2 Oktober 2026](audits/hasil-uji-e2e-pos-payment-print-2026-10-02.md)
 - [Rencana perbaikan keseluruhan](plans/rencana-perbaikan-keseluruhan-2026-09-11.md)
 
