@@ -12,7 +12,6 @@ export type FinanceExportRow = {
   payment: string;
   subtotal: number;
   shipping: number;
-  discount: number;
   total: number;
   commission: number;
   net: number;
@@ -24,8 +23,8 @@ const escapeHtml = (value: string | number) => String(value).replace(/[&<>"']/g,
 export function MerchantFinanceExportActions({ rows, merchantName, from, to }: { rows: FinanceExportRow[]; merchantName: string | null; from: string; to: string }) {
   const filePrefix = `laporan-keuangan-${(merchantName || 'merchant').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${from}-${to}`;
   const exportExcel = () => {
-    const headers = ['ID Transaksi', 'Tanggal', 'Pelanggan', 'Status', 'Pembayaran', 'Subtotal', 'Ongkir', 'Diskon', 'Total', 'Komisi Platform', 'Saldo Bersih'];
-    const body = rows.map((row) => [row.id, row.date, row.customer, row.status, row.payment, rupiah(row.subtotal), rupiah(row.shipping), rupiah(row.discount), rupiah(row.total), rupiah(row.commission), rupiah(row.net)]);
+    const headers = ['ID Transaksi', 'Tanggal', 'Pelanggan', 'Status', 'Pembayaran', 'Subtotal', 'Ongkir', 'Total', 'Komisi Platform', 'Saldo Bersih'];
+    const body = rows.map((row) => [row.id, row.date, row.customer, row.status, row.payment, rupiah(row.subtotal), rupiah(row.shipping), rupiah(row.total), rupiah(row.commission), rupiah(row.net)]);
     const table = `<table><thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${body.map((line) => `<tr>${line.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     const html = `<html><head><meta charset="UTF-8"><style>body{font-family:Arial}h2{color:#047857}table{border-collapse:collapse;width:100%}th,td{border:1px solid #cbd5e1;padding:7px;text-align:left}th{background:#d1fae5}td:nth-child(n+6){text-align:right}</style></head><body><h2>Laporan Keuangan Merchant</h2><p>Periode: ${escapeHtml(from)} sampai ${escapeHtml(to)}</p>${table}</body></html>`;
     const blob = new Blob([`\ufeff${html}`], { type: 'application/vnd.ms-excel;charset=utf-8' });
