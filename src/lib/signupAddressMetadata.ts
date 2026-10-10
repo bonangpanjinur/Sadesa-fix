@@ -30,6 +30,29 @@ function metadataText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+export function getSignupAddressBackfill(
+  profile: SignupAddressProfileFields | null,
+  metadata: SignupAddressMetadata | null | undefined,
+): Partial<SignupAddressProfileFields> {
+  const provinceId = metadataText(metadata?.province_id);
+  const cityId = metadataText(metadata?.city_id);
+  const districtId = metadataText(metadata?.district_id);
+  const villageId = metadataText(metadata?.village_id);
+  if (!provinceId || !cityId || !districtId || !villageId) return {};
+
+  const backfill: Partial<SignupAddressProfileFields> = {};
+  const fields: Array<keyof SignupAddressProfileFields> = [
+    'address', 'province_id', 'province_name', 'city_id', 'city_name',
+    'district_id', 'district_name', 'village_id', 'village_name', 'address_detail',
+  ];
+  for (const field of fields) {
+    if (profile?.[field]?.trim()) continue;
+    const value = metadataText(metadata?.[field]);
+    if (value) backfill[field] = value;
+  }
+  return backfill;
+}
+
 /**
  * Auth signup metadata is the source submitted by the registration form. Keep
  * it as a backwards-compatible fallback for accounts created before the

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { restoreSignupAddress } from './signupAddressMetadata';
+import { getSignupAddressBackfill, restoreSignupAddress } from './signupAddressMetadata';
 
 describe('restoreSignupAddress', () => {
   const signupMetadata = {
@@ -47,5 +47,23 @@ describe('restoreSignupAddress', () => {
 
   it('does not invent an address when neither profile nor auth metadata has one', () => {
     expect(restoreSignupAddress(null, { full_name: 'Dewi' }, 'Pengguna')).toBeNull();
+  });
+
+  it('creates a backfill for a complete signup address without replacing profile values', () => {
+    const backfill = getSignupAddressBackfill(
+      { province_name: 'Banten', province_id: '36' },
+      signupMetadata,
+    );
+    expect(backfill).toMatchObject({
+      address: signupMetadata.address,
+      city_id: '3278',
+      village_id: '3278010001',
+    });
+    expect(backfill.province_id).toBeUndefined();
+    expect(backfill.province_name).toBeUndefined();
+  });
+
+  it('does not backfill an incomplete signup hierarchy', () => {
+    expect(getSignupAddressBackfill(null, { ...signupMetadata, village_id: '' })).toEqual({});
   });
 });

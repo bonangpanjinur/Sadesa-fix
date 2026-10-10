@@ -17,7 +17,7 @@ import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 import { isValidKtpNumber } from '@/lib/identityValidation';
 import { ServiceProviderRegistration } from '@/components/account/ServiceProviderRegistration';
 import { SERVICE_PROVIDER_REGISTRATION_ENABLED } from '@/lib/featureFlags';
-import { restoreSignupAddress } from '@/lib/signupAddressMetadata';
+import { getSignupAddressBackfill, restoreSignupAddress } from '@/lib/signupAddressMetadata';
 
 interface Profile {
   full_name: string;
@@ -96,6 +96,25 @@ export default function AccountPage() {
       }
 
       if (error) throw error;
+
+      const signupAddressBackfill = getSignupAddressBackfill(data, user.user_metadata);
+      if (Object.keys(signupAddressBackfill).length > 0) {
+        const syncResult = data
+          ? await supabase.from('profiles').update(signupAddressBackfill).eq('user_id', user.id)
+          : await supabase.from('profiles').insert({
+              user_id: user.id,
+              email: user.email,
+              full_name: fallbackName,
+              ...signupAddressBackfill,
+            });
+        if (syncResult.error) {
+          // The UI still uses auth metadata as a fallback, but report a schema
+          // or permission issue rather than blocking access to the account.
+          console.warn('Unable to sync signup address to profile automatically:', syncResult.error);
+        } else {
+          window.dispatchEvent(new Event('sadesa-profile-address-updated'));
+        }
+      }
 
       data = restoreSignupAddress(data, user.user_metadata, fallbackName) as Profile | null;
 
