@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bell, Check, Loader2, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { requestPushPermission } from '@/lib/pushNotification';
+import { getLastPushError, requestPushPermission, subscribeToPush } from '@/lib/pushNotification';
 import { unlockOrderNotificationAudio } from '@/lib/orderNotificationSound';
 import { vibrateCourierAlarm } from '@/lib/courierNotificationFeedback';
 
@@ -24,30 +25,31 @@ const copy = {
   merchant: {
     trigger: 'Aktifkan Alarm & Notifikasi',
     title: 'Aktifkan alarm pesanan',
-    description: 'Agar tidak melewatkan pesanan baru, aktifkan suara dan notifikasi pada perangkat ini.',
+    description: 'Aktifkan suara dan daftarkan notifikasi push agar pesanan tetap diberitahukan saat aplikasi tertutup.',
     notificationLabel: 'Notifikasi pesanan',
     success: 'Alarm pesanan pedagang aktif',
-    successDescription: 'Bunyi dan notifikasi browser akan muncul saat pesanan baru masuk.',
+    successDescription: 'Suara aktif dan push background sudah terdaftar untuk pesanan baru.',
     fallback: 'Alarm audio aktif',
-    fallbackDescription: 'Izin notifikasi belum diberikan. Bunyi tetap berjalan selama halaman merchant terbuka.',
+    fallbackDescription: 'Push background belum aktif. Izinkan notifikasi agar pesanan tetap diberitahukan saat aplikasi tertutup.',
     error: 'Alarm audio belum aktif',
     errorDescription: 'Izinkan audio browser lalu tekan tombol ini kembali.',
   },
   courier: {
     trigger: 'Aktifkan Alarm Ojek',
     title: 'Aktifkan alarm tawaran',
-    description: 'Agar tidak melewatkan tawaran ojek atau order antar, aktifkan suara dan notifikasi pada perangkat ini.',
+    description: 'Aktifkan suara dan daftarkan notifikasi push agar tawaran tetap diberitahukan saat aplikasi tertutup.',
     notificationLabel: 'Notifikasi tawaran order',
     success: 'Alarm Ojek aktif',
-    successDescription: 'Bunyi, vibrasi, dan notifikasi browser akan muncul saat tawaran baru masuk.',
+    successDescription: 'Suara, vibrasi, dan push background sudah terdaftar untuk tawaran baru.',
     fallback: 'Alarm audio Ojek aktif',
-    fallbackDescription: 'Izin notifikasi belum diberikan. Bunyi tetap berjalan selama halaman kurir terbuka.',
+    fallbackDescription: 'Push background belum aktif. Izinkan notifikasi agar tawaran tetap diberitahukan saat aplikasi tertutup.',
     error: 'Alarm audio Ojek belum aktif',
     errorDescription: 'Izinkan audio browser lalu tekan tombol ini kembali.',
   },
 } as const;
 
 export function AlarmActivationDialog({ audience }: AlarmActivationDialogProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [activating, setActivating] = useState(false);
   const text = copy[audience];
@@ -55,19 +57,37 @@ export function AlarmActivationDialog({ audience }: AlarmActivationDialogProps) 
   const activate = async () => {
     setActivating(true);
     if (audience === 'courier') vibrateCourierAlarm();
+    // Request permission directly from the button gesture before any async work.
+    const permissionRequest = requestPushPermission();
     try {
       const [audioActivated, notificationsAllowed] = await Promise.all([
         unlockOrderNotificationAudio({ playConfirmationTone: false }),
-        requestPushPermission(),
+        permissionRequest,
       ]);
-      if (audioActivated && notificationsAllowed) {
+      if (!notificationsAllowed) {
+        if (audioActivated) toast.warning(text.fallback, { description: text.fallbackDescription });
+        else toast.error(text.error, { description: text.errorDescription });
+        return;
+      }
+      if (!user) {
+        toast.error('Sesi login tidak ditemukan. Masuk kembali untuk mendaftarkan push notification.');
+        return;
+      }
+      const pushSubscribed = await subscribeToPush(user.id);
+      if (audioActivated && pushSubscribed) {
         toast.success(text.success, { description: text.successDescription });
         setOpen(false);
-      } else if (audioActivated) {
-        toast.warning(text.fallback, { description: text.fallbackDescription });
+      } else if (!pushSubscribed) {
+        toast.error('Push background belum berhasil didaftarkan.', {
+          description: getLastPushError() || (audioActivated ? text.fallbackDescription : text.errorDescription),
+        });
       } else {
         toast.error(text.error, { description: text.errorDescription });
       }
+    } catch (error) {
+      toast.error('Aktivasi alarm atau notifikasi gagal.', {
+        description: error instanceof Error ? error.message : text.errorDescription,
+      });
     } finally {
       setActivating(false);
     }
@@ -112,8 +132,8 @@ export function AlarmActivationDialog({ audience }: AlarmActivationDialogProps) 
           <div className="flex items-start gap-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">3</span>
             <div>
-              <p className="font-medium">Biarkan halaman tetap terbuka</p>
-              <p className="text-muted-foreground">Alarm lokal bekerja saat halaman aplikasi masih terbuka atau berada di background.</p>
+              <p className="font-medium">Daftarkan push background</p>
+              <p className="text-muted-foreground">Subscription push tersimpan agar pemberitahuan tetap dapat dikirim saat aplikasi tertutup.</p>
             </div>
           </div>
         </div>

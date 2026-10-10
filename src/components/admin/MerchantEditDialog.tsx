@@ -63,7 +63,6 @@ interface MerchantEditDialogProps {
     payment_cod_enabled?: boolean | null;
     payment_transfer_enabled?: boolean | null;
     verifikator_code?: string | null;
-    classification_price?: string | null;
   };
   onSuccess: () => void;
 }
@@ -85,14 +84,6 @@ const BADGES = [
   { value: 'VERIFIED', label: 'Verified' },
   { value: 'POPULAR', label: 'Popular' },
   { value: 'NEW', label: 'New' },
-];
-
-const PRICE_CLASSIFICATIONS = [
-  { value: 'none', label: 'Belum ditentukan' },
-  { value: 'UNDER_5K', label: 'Sangat Murah (< Rp 5.000)' },
-  { value: 'FROM_5K_TO_10K', label: 'Murah (Rp 5.000 - Rp 10.000)' },
-  { value: 'FROM_10K_TO_20K', label: 'Sedang (Rp 10.000 - Rp 20.000)' },
-  { value: 'ABOVE_20K', label: 'Premium (> Rp 20.000)' },
 ];
 
 // Helper: find code by matching name (case-insensitive, trimmed)
@@ -164,7 +155,6 @@ export function MerchantEditDialog({
     payment_cod_enabled: true,
     payment_transfer_enabled: true,
     verifikator_code: '',
-    classification_price: 'none',
   });
 
 
@@ -189,9 +179,15 @@ export function MerchantEditDialog({
 
     setIsValidatingCode(true);
     try {
-      const { data, error } = await (supabase as any).rpc('check_merchant_referral_code', { p_code: code });
+      const referralRpc = (supabase as unknown as {
+        rpc: (name: 'check_merchant_referral_code', args: { p_code: string }) => Promise<{
+          data: { valid?: boolean; owner_role?: string } | null;
+          error: unknown;
+        }>;
+      }).rpc;
+      const { data, error } = await referralRpc('check_merchant_referral_code', { p_code: code });
       if (error) throw error;
-      const result = data as { valid?: boolean; owner_role?: string } | null;
+      const result = data;
       const valid = result?.valid === true;
       setTradeGroupName(valid ? (result?.owner_role === 'ADMIN_DESA' ? 'Admin Desa' : 'Verifikator') : null);
       setIsCodeValid(valid);
@@ -349,7 +345,6 @@ export function MerchantEditDialog({
       payment_cod_enabled: initialData.payment_cod_enabled ?? true,
       payment_transfer_enabled: initialData.payment_transfer_enabled ?? true,
       verifikator_code: initialData.verifikator_code || '',
-      classification_price: initialData.classification_price || 'none',
     });
 
     if (initialData.verifikator_code) {
@@ -482,7 +477,6 @@ export function MerchantEditDialog({
           payment_transfer_enabled: formData.payment_transfer_enabled,
           verifikator_code: formData.verifikator_code || null,
           trade_group: tradeGroupName || null,
-          classification_price: formData.classification_price === 'none' ? null : formData.classification_price,
           updated_at: new Date().toISOString(),
         })
         .eq('id', merchantId);
@@ -572,20 +566,6 @@ export function MerchantEditDialog({
                   <SelectContent>
                     {categories.map((category) => (
                       <SelectItem key={category.slug} value={category.slug}>{category.icon ? `${category.icon} ` : ''}{category.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Klasifikasi Harga</Label>
-                <Select
-                  value={formData.classification_price}
-                  onValueChange={(v) => setFormData({ ...formData, classification_price: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRICE_CLASSIFICATIONS.map((cls) => (
-                      <SelectItem key={cls.value} value={cls.value}>{cls.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

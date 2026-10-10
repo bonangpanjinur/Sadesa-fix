@@ -43,7 +43,6 @@ interface MerchantData {
   image_url: string | null;
   cover_image_url: string | null;
   order_mode: string;
-  classification_price: string | null;
   bank_name: string | null;
   bank_account_number: string | null;
   bank_account_name: string | null;
@@ -58,13 +57,6 @@ interface MerchantData {
   slug: string | null;
 }
 
-const PRICE_CLASSIFICATIONS = [
-  { value: 'UNDER_5K', label: 'Sangat Murah (< Rp 5.000)' },
-  { value: 'FROM_5K_TO_10K', label: 'Murah (Rp 5.000 - Rp 10.000)' },
-  { value: 'FROM_10K_TO_20K', label: 'Sedang (Rp 10.000 - Rp 20.000)' },
-  { value: 'ABOVE_20K', label: 'Premium (> Rp 20.000)' },
-];
-
 export default function MerchantSettingsPage() {
   const { user } = useAuth();
   const { merchantId: guardMerchantId, loading: guardLoading } = useMerchantGuard();
@@ -77,7 +69,7 @@ export default function MerchantSettingsPage() {
     location_lat: null as number | null, location_lng: null as number | null,
     google_maps_url: '', business_category: '',
     business_description: '', open_time: '08:00', close_time: '17:00',
-    is_open: false, classification_price: '', order_mode: 'ADMIN_ASSISTED',
+    is_open: false, order_mode: 'ADMIN_ASSISTED',
     bank_name: '', bank_account_number: '', bank_account_name: '',
     payment_cod_enabled: false, payment_transfer_enabled: true,
     notification_sound_enabled: true, verifikator_code: '', slug: '',
@@ -94,7 +86,7 @@ export default function MerchantSettingsPage() {
       if (!guardMerchantId) return null;
       const { data, error } = await supabase
         .from('merchants')
-        .select('id, name, phone, address, province, city, district, subdistrict, location_lat, location_lng, google_maps_url, business_category, business_description, open_time, close_time, is_open, image_url, cover_image_url, order_mode, classification_price, bank_name, bank_account_number, bank_account_name, qris_image_url, payment_cod_enabled, payment_transfer_enabled, notification_sound_enabled, halal_status, halal_certificate_url, ktp_url, verifikator_code, slug')
+        .select('id, name, phone, address, province, city, district, subdistrict, location_lat, location_lng, google_maps_url, business_category, business_description, open_time, close_time, is_open, image_url, cover_image_url, order_mode, bank_name, bank_account_number, bank_account_name, qris_image_url, payment_cod_enabled, payment_transfer_enabled, notification_sound_enabled, halal_status, halal_certificate_url, ktp_url, verifikator_code, slug')
         .eq('id', guardMerchantId)
         .maybeSingle();
       if (error) throw error;
@@ -142,7 +134,6 @@ export default function MerchantSettingsPage() {
       open_time: merchant.open_time?.slice(0, 5) || '08:00',
       close_time: merchant.close_time?.slice(0, 5) || '17:00',
       is_open: merchant.is_open,
-      classification_price: merchant.classification_price || '',
       order_mode: merchant.order_mode === 'SELF_MANAGED' ? 'SELF' : (merchant.order_mode || 'ADMIN_ASSISTED'),
       bank_name: merchant.bank_name || '',
       bank_account_number: merchant.bank_account_number || '',
@@ -588,17 +579,8 @@ export default function MerchantSettingsPage() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Pengaturan Harga & Pesanan</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Pengaturan Pesanan</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Klasifikasi Harga</Label>
-              <Select value={formData.classification_price} onValueChange={v => setFormData(p => ({ ...p, classification_price: v }))}>
-                <SelectTrigger><SelectValue placeholder="Pilih klasifikasi" /></SelectTrigger>
-                <SelectContent>
-                  {PRICE_CLASSIFICATIONS.map(cls => <SelectItem key={cls.value} value={cls.value}>{cls.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-2">
               <Label>Mode Pesanan</Label>
               <Select value={formData.order_mode} onValueChange={v => setFormData(p => ({ ...p, order_mode: v }))}>

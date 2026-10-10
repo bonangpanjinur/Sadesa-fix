@@ -40,9 +40,10 @@ describe('courier background alarm contract', () => {
     expect(soundManager).toContain('unlockOrderNotificationAudio');
   });
 
-  it('activates courier page alarm without depending on Web Push backend', () => {
+  it('activates courier alarm and registers background Web Push from the modal', () => {
     expect(courierLayout).toContain('<AlarmActivationDialog audience="courier" />');
     expect(alarmActivationDialog).toContain("audience === 'courier'");
+    expect(alarmActivationDialog).toContain('subscribeToPush(user.id)');
     expect(courierAlarmHook).toContain('new Notification');
   });
 
@@ -53,10 +54,11 @@ describe('courier background alarm contract', () => {
     expect(courierDeliveryOfferPush).toContain('AFTER INSERT ON public.delivery_assignments');
   });
 
-  it('activates merchant page alarm without depending on Web Push backend', () => {
+  it('activates merchant alarm and registers background Web Push from the modal', () => {
     expect(merchantLayout).toContain('<AlarmActivationDialog audience="merchant" />');
     expect(alarmActivationDialog).toContain('merchant: {');
     expect(alarmActivationDialog).toContain('Aktifkan Sekarang');
+    expect(alarmActivationDialog).toContain('Daftarkan push background');
   });
 
   it('automatically plays the merchant alarm for a newly pending realtime order', () => {

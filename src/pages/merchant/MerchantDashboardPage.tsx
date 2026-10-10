@@ -45,6 +45,7 @@ import { MerchantCardError } from '@/components/merchant/MerchantDataState';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildMerchantSalesChartData } from '@/lib/merchantDashboard';
+import { hasMerchantPaymentSetup } from '@/lib/merchantPaymentSetup';
 
 interface MerchantData {
   id: string;
@@ -55,6 +56,10 @@ interface MerchantData {
   rejection_reason: string | null;
   image_url: string | null;
   slug: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  qris_image_url: string | null;
 }
 
 interface OrderData {
@@ -97,7 +102,7 @@ export default function MerchantDashboardPage() {
       if (!user) return null;
       const { data, error } = await supabase
         .from('merchants')
-        .select('id, name, is_open, status, registration_status, rejection_reason, image_url, slug')
+        .select('id, name, is_open, status, registration_status, rejection_reason, image_url, slug, bank_name, bank_account_number, bank_account_name, qris_image_url')
         .eq('user_id', user.id)
         .maybeSingle();
       if (error) throw error;
@@ -356,6 +361,7 @@ export default function MerchantDashboardPage() {
     month: 'long',
   }).format(new Date());
   const dashboardWallet = walletOverview?.wallet;
+  const paymentSetupMissing = !hasMerchantPaymentSetup(merchant);
   const walletBalance = Number(dashboardWallet?.balance_rupiah ?? 0);
   const walletDebt = Number(dashboardWallet?.debt_rupiah ?? 0);
   const walletThreshold = walletOverview?.lowBalanceThreshold ?? 10_000;
@@ -381,6 +387,18 @@ export default function MerchantDashboardPage() {
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
       <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
+        {paymentSetupMissing && (
+          <Alert className="border-warning/40 bg-warning/5" data-testid="merchant-payment-setup-warning">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            <AlertTitle>Lengkapi pengaturan pembayaran toko</AlertTitle>
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>Tambahkan rekening bank lengkap atau unggah QRIS agar pelanggan dapat membayar langsung ke toko Anda. Pengingat push dikirim setelah Notifikasi Push diaktifkan.</span>
+              <Button size="sm" variant="outline" onClick={() => navigate('/merchant/settings')}>
+                Atur Pembayaran <ArrowUpRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.55fr)]">
           <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] via-card to-card p-5 shadow-sm sm:p-7">
             <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />

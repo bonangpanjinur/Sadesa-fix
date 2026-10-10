@@ -17,7 +17,6 @@ const validSettings = {
   open_time: '08:00',
   close_time: '17:00',
   is_open: true,
-  classification_price: 'FROM_5K_TO_10K',
   order_mode: 'ADMIN_ASSISTED',
   bank_name: '',
   bank_account_number: '',

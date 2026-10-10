@@ -62,7 +62,6 @@ interface MerchantData {
   badge: string | null;
   business_category: string | null;
   business_description: string | null;
-  classification_price: string | null;
   province: string | null;
   city: string | null;
   district: string | null;
@@ -133,7 +132,7 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
             id, name, address, google_maps_url, location_lat, location_lng,
             phone, image_url, cover_image_url, is_open, open_time, close_time,
             rating_avg, rating_count, badge, business_category, business_description,
-            classification_price, province, city, district, subdistrict, user_id,
+            province, city, district, subdistrict, user_id,
             halal_status, halal_certificate_url, slug,
             villages(name)
           `)
@@ -290,16 +289,6 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
     }
     loadData();
   }, [id, navigate]);
-
-  const getPriceLabel = (classification: string | null) => {
-    switch (classification) {
-      case 'UNDER_5K': return '< Rp 5.000';
-      case 'FROM_5K_TO_10K': return 'Rp 5.000 - 10.000';
-      case 'FROM_10K_TO_20K': return 'Rp 10.000 - 20.000';
-      case 'ABOVE_20K': return '> Rp 20.000';
-      default: return '-';
-    }
-  };
 
   const handleChatClick = async () => {
     if (!user) {
@@ -682,16 +671,6 @@ export default function MerchantProfilePage({ overrideId }: MerchantProfilePageP
                     </div>
                   )}
                 </div>
-
-                {merchant.classification_price && (
-                  <div className="bg-card rounded-xl p-3 border border-border">
-                    <h3 className="font-semibold text-foreground text-sm mb-1.5">Kisaran Harga</h3>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <ShoppingBag className="h-3 w-3" />
-                      <span>{getPriceLabel(merchant.classification_price)}</span>
-                    </div>
-                  </div>
-                )}
 
                 {(merchantCategories.length > 0 || merchant.business_category) && (
                   <div className="bg-card rounded-xl p-3 border border-border">

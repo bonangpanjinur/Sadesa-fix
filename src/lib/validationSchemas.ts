@@ -91,7 +91,6 @@ export const merchantSettingsSchema = z.object({
   close_time: optionalTimeSchema,
   google_maps_url: optionalGoogleMapsUrlSchema,
   is_open: z.boolean(),
-  classification_price: z.enum(['UNDER_5K', 'FROM_5K_TO_10K', 'FROM_10K_TO_20K', 'ABOVE_20K']).or(z.literal('')),
   order_mode: z.enum(['SELF', 'ADMIN_ASSISTED']),
   bank_name: z.string().trim().max(100, 'Nama bank maksimal 100 karakter'),
   bank_account_number: z.string().trim().max(50, 'Nomor rekening maksimal 50 karakter'),
