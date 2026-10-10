@@ -1,362 +1,107 @@
-import { useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Download, BarChart2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { MerchantLayout } from '@/components/merchant/MerchantLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { supabase } from '@/integrations/supabase/client';
-import { useMerchantGuard } from '@/hooks/useMerchantGuard';
-import { MerchantCardError, MerchantCardLoading } from '@/components/merchant/MerchantDataState';
+import { useMemo, useState } from 'react';
+import { Download, RefreshCw, Search, Wallet, TrendingDown, TrendingUp, ShoppingCart, ReceiptText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { format, subDays } from 'date-fns';
+import { id as idLocale } from 'date-fns/locale';
+import { MerchantLayout } from '@/components/merchant/MerchantLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useMerchantGuard } from '@/hooks/useMerchantGuard';
+import { supabase } from '@/integrations/supabase/client';
+import { MerchantCardError, MerchantCardLoading } from '@/components/merchant/MerchantDataState';
 import { formatPrice } from '@/lib/utils';
 import { downloadCsv } from '@/lib/csv';
 import { toast } from 'sonner';
-import { format, startOfMonth, endOfMonth, subMonths, getMonth, getYear } from 'date-fns';
-import { id as idLocale } from 'date-fns/locale';
 
-interface MonthlyData {
-  month: string;
-  revenue: number;
-  orders: number;
-  platformFee: number;
-  netRevenue: number;
-}
+const DONE_STATUSES = ['DONE', 'DELIVERED', 'COMPLETED'];
+const REFUNDED_STATUSES = ['REFUNDED', 'CANCELLED', 'CANCELED', 'REJECTED'];
+const localDate = (date: Date) => format(date, 'yyyy-MM-dd');
 
-interface OrderFinance {
-  id: string;
-  total: number;
-  subtotal: number;
-  platform_fee: number;
-  shipping_cost: number;
-  voucher_discount: number;
-  status: string;
-  created_at: string;
-}
+type OrderRow = {
+  id: string; total: number | null; subtotal: number | null; shipping_cost: number | null;
+  voucher_discount: number | null; status: string; payment_status: string | null;
+  payment_method: string | null; delivery_name: string | null; created_at: string;
+};
+type FeeSetting = { fee_percent: number; is_enabled: boolean };
+type Wallet = { id: string; balance_rupiah: number; debt_rupiah: number; is_active: boolean };
+type LedgerRow = { source_id: string | null; entry_type: string; amount_delta_rupiah: number; debt_delta_rupiah: number; base_amount_rupiah: number | null; fee_percent: number | null; created_at: string };
+type FinanceData = { orders: OrderRow[]; fee: FeeSetting | null; wallet: Wallet | null; ledger: LedgerRow[] };
 
-const PLATFORM_FEE_PERCENT = 3;
-
-function generateMonthlyData(orders: OrderFinance[], months: number): MonthlyData[] {
-  const result: MonthlyData[] = [];
-  const now = new Date();
-
-  for (let i = months - 1; i >= 0; i--) {
-    const date = subMonths(now, i);
-    const monthStart = startOfMonth(date);
-    const monthEnd = endOfMonth(date);
-
-    const monthOrders = orders.filter(o => {
-      const d = new Date(o.created_at);
-      return d >= monthStart && d <= monthEnd && ['DONE', 'DELIVERED'].includes(o.status);
-    });
-
-    const revenue = monthOrders.reduce((sum, o) => sum + (o.subtotal || o.total || 0), 0);
-    const platformFee = Math.round(revenue * PLATFORM_FEE_PERCENT / 100);
-    const netRevenue = revenue - platformFee;
-
-    result.push({
-      month: format(date, 'MMM yy', { locale: idLocale }),
-      revenue,
-      orders: monthOrders.length,
-      platformFee,
-      netRevenue,
-    });
-  }
-  return result;
-}
+const statusLabel = (status: string) => ({ DONE: 'Selesai', DELIVERED: 'Terkirim', COMPLETED: 'Selesai', REFUNDED: 'Refund', CANCELLED: 'Dibatalkan', CANCELED: 'Dibatalkan', REJECTED: 'Ditolak' }[status] ?? status);
+const paymentLabel = (value: string | null) => ({ COD: 'COD', TRANSFER: 'Transfer', QRIS: 'QRIS', CASH: 'Tunai', UNPAID: 'Belum dibayar', PAID: 'Lunas' }[value ?? ''] ?? value ?? '-');
+const amount = (value: number | null | undefined) => Number(value ?? 0);
 
 export default function MerchantFinancePage() {
   const { merchantId, merchantName, loading: guardLoading } = useMerchantGuard();
-  const [period, setPeriod] = useState<'3' | '6' | '12'>('6');
+  const [from, setFrom] = useState(() => localDate(subDays(new Date(), 30)));
+  const [to, setTo] = useState(() => localDate(new Date()));
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [paymentFilter, setPaymentFilter] = useState('ALL');
+  const [search, setSearch] = useState('');
 
-  const { data: orders = [], isLoading, isFetching, isError, refetch } = useQuery<OrderFinance[]>({
-    queryKey: ['merchant-finance-orders', merchantId],
-    queryFn: async () => {
-      const since = subMonths(new Date(), 12);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, total, subtotal, platform_fee, shipping_cost, voucher_discount, status, created_at')
-        .eq('merchant_id', merchantId!)
-        .gte('created_at', since.toISOString())
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return (data || []) as OrderFinance[];
-    },
-    enabled: !!merchantId && !guardLoading,
-    staleTime: 60_000,
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<FinanceData>({
+    queryKey: ['merchant-finance-detail', merchantId, from, to],
+    enabled: !!merchantId && !guardLoading && from <= to,
     retry: false,
+    queryFn: async () => {
+      const end = new Date(`${to}T00:00:00`);
+      end.setDate(end.getDate() + 1);
+      const ordersPromise = supabase.from('orders').select('id,total,subtotal,shipping_cost,voucher_discount,status,payment_status,payment_method,delivery_name,created_at').eq('merchant_id', merchantId!).gte('created_at', new Date(`${from}T00:00:00`).toISOString()).lt('created_at', end.toISOString()).order('created_at', { ascending: false });
+      const feePromise = supabase.from('commission_fee_settings' as never).select('fee_percent,is_enabled').eq('owner_type' as never, 'MERCHANT' as never).maybeSingle();
+      const walletPromise = supabase.from('commission_wallets' as never).select('id,balance_rupiah,debt_rupiah,is_active').eq('owner_type' as never, 'MERCHANT' as never).eq('merchant_id' as never, merchantId! as never).maybeSingle();
+      const [ordersRes, feeRes, walletRes] = await Promise.all([ordersPromise, feePromise, walletPromise]);
+      if (ordersRes.error) throw ordersRes.error;
+      if (feeRes.error) throw feeRes.error;
+      if (walletRes.error) throw walletRes.error;
+      const wallet = walletRes.data as unknown as Wallet | null;
+      let ledger: LedgerRow[] = [];
+      if (wallet?.id) {
+        const { data: ledgerData, error: ledgerError } = await supabase.from('commission_wallet_ledger' as never).select('source_id,entry_type,amount_delta_rupiah,debt_delta_rupiah,base_amount_rupiah,fee_percent,created_at').eq('wallet_id' as never, wallet.id as never).gte('created_at' as never, new Date(`${from}T00:00:00`).toISOString() as never).lt('created_at' as never, end.toISOString() as never).order('created_at' as never, { ascending: false } as never);
+        if (ledgerError) throw ledgerError;
+        ledger = (ledgerData ?? []) as unknown as LedgerRow[];
+      }
+      return { orders: (ordersRes.data ?? []) as OrderRow[], fee: feeRes.data as unknown as FeeSetting | null, wallet, ledger };
+    },
   });
 
-  const monthlyData = generateMonthlyData(orders, parseInt(period));
+  const orders = useMemo(() => data?.orders ?? [], [data?.orders]);
+  const visibleOrders = useMemo(() => orders.filter((order) => {
+    const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
+    const matchesPayment = paymentFilter === 'ALL' || (order.payment_method ?? order.payment_status) === paymentFilter;
+    const query = search.trim().toLowerCase();
+    return matchesStatus && matchesPayment && (!query || order.id.toLowerCase().includes(query) || (order.delivery_name ?? '').toLowerCase().includes(query));
+  }), [orders, paymentFilter, search, statusFilter]);
 
-  const currentMonth = monthlyData[monthlyData.length - 1] || { revenue: 0, orders: 0, platformFee: 0, netRevenue: 0, month: '' };
-  const prevMonth = monthlyData[monthlyData.length - 2] || { revenue: 0, orders: 0, platformFee: 0, netRevenue: 0, month: '' };
+  const completedOrders = orders.filter((order) => DONE_STATUSES.includes(order.status) && order.payment_status !== 'REFUNDED');
+  const grossRevenue = completedOrders.reduce((sum, order) => sum + amount(order.subtotal || order.total), 0);
+  const shippingRevenue = completedOrders.reduce((sum, order) => sum + amount(order.shipping_cost), 0);
+  const discounts = completedOrders.reduce((sum, order) => sum + amount(order.voucher_discount), 0);
+  const refunded = orders.filter((order) => order.payment_status === 'REFUNDED' || REFUNDED_STATUSES.includes(order.status)).reduce((sum, order) => sum + amount(order.total), 0);
+  const commission = data?.ledger.filter((entry) => entry.entry_type === 'COMMISSION').reduce((sum, entry) => sum + Math.max(0, -amount(entry.amount_delta_rupiah) + amount(entry.debt_delta_rupiah)), 0) ?? (data?.fee?.is_enabled ? Math.round(grossRevenue * Number(data.fee.fee_percent) / 100) : 0);
+  const netRevenue = grossRevenue - refunded - commission;
 
-  const revenueChange = prevMonth.revenue > 0 ? ((currentMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100 : 0;
-  const ordersChange = prevMonth.orders > 0 ? ((currentMonth.orders - prevMonth.orders) / prevMonth.orders) * 100 : 0;
-
-  const totalRevenue = monthlyData.reduce((s, m) => s + m.revenue, 0);
-  const totalNet = monthlyData.reduce((s, m) => s + m.netRevenue, 0);
-  const totalOrders = monthlyData.reduce((s, m) => s + m.orders, 0);
-  const totalFee = monthlyData.reduce((s, m) => s + m.platformFee, 0);
-
-  const handleExportCSV = () => {
-    const headers = ['Bulan', 'Omzet', 'Pesanan', 'Biaya Platform (3%)', 'Pendapatan Bersih'];
-    const rows = monthlyData.map(m => [
-      m.month,
-      m.revenue,
-      m.orders,
-      m.platformFee,
-      m.netRevenue,
-    ]);
-    downloadCsv(`laporan-keuangan-${merchantName || 'toko'}-${format(new Date(), 'yyyy-MM')}.csv`, [headers, ...rows]);
-    toast.success('Ekspor laporan berhasil dibuat');
+  const getOrderCommission = (order: OrderRow) => {
+    const entry = data?.ledger.find((item) => item.source_id === order.id && item.entry_type === 'COMMISSION');
+    return entry ? Math.max(0, -amount(entry.amount_delta_rupiah) + amount(entry.debt_delta_rupiah)) : (data?.fee?.is_enabled && DONE_STATUSES.includes(order.status) ? Math.round(amount(order.subtotal || order.total) * Number(data.fee.fee_percent) / 100) : 0);
+  };
+  const exportCsv = () => {
+    downloadCsv(`laporan-keuangan-${merchantName || 'toko'}-${from}-${to}.csv`, [['ID transaksi', 'Tanggal', 'Pelanggan', 'Status', 'Pembayaran', 'Subtotal', 'Ongkir', 'Diskon', 'Total', 'Komisi', 'Bersih'], ...visibleOrders.map((order) => { const fee = getOrderCommission(order); return [order.id, order.created_at, order.delivery_name ?? '', statusLabel(order.status), paymentLabel(order.payment_method ?? order.payment_status), amount(order.subtotal || order.total), amount(order.shipping_cost), amount(order.voucher_discount), amount(order.total), fee, amount(order.total) - fee]; })]);
+    toast.success('Laporan transaksi berhasil diekspor');
   };
 
-  if (guardLoading || isLoading || (isError && isFetching)) {
-    return (
-      <MerchantLayout title="Laporan Keuangan" subtitle="Rekap laba rugi toko Anda">
-        <div className="max-w-4xl py-6">
-          <MerchantCardLoading label="Memuat laporan keuangan..." />
-        </div>
-      </MerchantLayout>
-    );
-  }
+  if (guardLoading || isLoading) return <MerchantLayout title="Laporan Keuangan" subtitle="Riwayat transaksi dan rekonsiliasi merchant"><MerchantCardLoading label="Memuat laporan keuangan..." /></MerchantLayout>;
+  if (isError) return <MerchantLayout title="Laporan Keuangan"><MerchantCardError message="Laporan keuangan gagal dimuat. Periksa koneksi lalu coba lagi." onRetry={() => void refetch()} /></MerchantLayout>;
 
-  if (isError) {
-    return (
-      <MerchantLayout title="Laporan Keuangan" subtitle="Rekap laba rugi toko Anda">
-        <div className="max-w-4xl py-6">
-          <MerchantCardError
-            message="Laporan keuangan gagal dimuat. Periksa koneksi lalu coba lagi."
-            onRetry={() => void refetch()}
-          />
-        </div>
-      </MerchantLayout>
-    );
-  }
-
-  return (
-    <MerchantLayout
-      title="Laporan Keuangan"
-      subtitle="Rekap omzet, biaya platform, dan pendapatan bersih"
-      actions={
-        <Button variant="outline" size="sm" onClick={handleExportCSV}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
-      }
-    >
-      <div className="space-y-6 max-w-4xl">
-        {/* Period selector */}
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-muted-foreground font-medium">Tampilkan:</span>
-          <Select
-            value={period}
-            onValueChange={(value) => {
-              if (value === '3' || value === '6' || value === '12') setPeriod(value);
-            }}
-          >
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">3 Bulan</SelectItem>
-              <SelectItem value="6">6 Bulan</SelectItem>
-              <SelectItem value="12">12 Bulan</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {monthlyData.every(month => month.orders === 0) && (
-          <div role="status" className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">
-            Belum ada pesanan selesai dalam {period} bulan terakhir.
-          </div>
-        )}
-
-        {/* Summary stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground">Total Omzet</span>
-                <DollarSign className="h-4 w-4 text-primary" />
-              </div>
-              <p className="text-xl font-bold">{formatPrice(totalRevenue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{period} bulan terakhir</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground">Pendapatan Bersih</span>
-                <TrendingUp className="h-4 w-4 text-emerald-500" />
-              </div>
-              <p className="text-xl font-bold text-emerald-600">{formatPrice(totalNet)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Setelah biaya platform</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground">Total Pesanan</span>
-                <ShoppingCart className="h-4 w-4 text-blue-500" />
-              </div>
-              <p className="text-xl font-bold">{totalOrders}</p>
-              <p className="text-xs text-muted-foreground mt-1">Pesanan selesai</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground">Biaya Platform</span>
-                <TrendingDown className="h-4 w-4 text-red-400" />
-              </div>
-              <p className="text-xl font-bold text-red-500">{formatPrice(totalFee)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{PLATFORM_FEE_PERCENT}% dari omzet</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* This month vs last month */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Bulan Ini vs Bulan Lalu</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Omzet Bulan Ini</p>
-                <p className="text-lg font-bold">{formatPrice(currentMonth.revenue)}</p>
-                <div className="flex items-center gap-1">
-                  {revenueChange >= 0 ? (
-                    <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                  ) : (
-                    <ArrowDownRight className="h-3 w-3 text-red-500" />
-                  )}
-                  <span className={`text-xs font-medium ${revenueChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {Math.abs(revenueChange).toFixed(1)}% vs bulan lalu
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Pesanan Bulan Ini</p>
-                <p className="text-lg font-bold">{currentMonth.orders} pesanan</p>
-                <div className="flex items-center gap-1">
-                  {ordersChange >= 0 ? (
-                    <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                  ) : (
-                    <ArrowDownRight className="h-3 w-3 text-red-500" />
-                  )}
-                  <span className={`text-xs font-medium ${ordersChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {Math.abs(ordersChange).toFixed(1)}% vs bulan lalu
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Revenue chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart2 className="h-5 w-5" />
-              Grafik Omzet Bulanan
-            </CardTitle>
-            <CardDescription>Omzet kotor vs pendapatan bersih (setelah biaya platform)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-                <Tooltip formatter={(val: number) => formatPrice(val)} />
-                <Bar dataKey="revenue" name="Omzet" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="netRevenue" name="Bersih" fill="hsl(var(--chart-2, 160 60% 45%))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Orders trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Tren Jumlah Pesanan
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={monthlyData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="orders"
-                  name="Pesanan"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Monthly breakdown table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Rincian Per Bulan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 font-medium text-muted-foreground">Bulan</th>
-                    <th className="text-right py-2 font-medium text-muted-foreground">Pesanan</th>
-                    <th className="text-right py-2 font-medium text-muted-foreground">Omzet</th>
-                    <th className="text-right py-2 font-medium text-muted-foreground">Biaya Platform</th>
-                    <th className="text-right py-2 font-medium text-muted-foreground">Bersih</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthlyData.map((row, i) => (
-                    <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="py-2.5 font-medium">
-                        {row.month}
-                        {i === monthlyData.length - 1 && (
-                          <Badge variant="secondary" className="ml-2 text-xs">Bulan ini</Badge>
-                        )}
-                      </td>
-                      <td className="py-2.5 text-right">{row.orders}</td>
-                      <td className="py-2.5 text-right">{formatPrice(row.revenue)}</td>
-                      <td className="py-2.5 text-right text-red-500">-{formatPrice(row.platformFee)}</td>
-                      <td className="py-2.5 text-right font-semibold text-emerald-600">{formatPrice(row.netRevenue)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 font-bold">
-                    <td className="pt-3">Total</td>
-                    <td className="pt-3 text-right">{totalOrders}</td>
-                    <td className="pt-3 text-right">{formatPrice(totalRevenue)}</td>
-                    <td className="pt-3 text-right text-red-500">-{formatPrice(totalFee)}</td>
-                    <td className="pt-3 text-right text-emerald-600">{formatPrice(totalNet)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </MerchantLayout>
-  );
+  return <MerchantLayout title="Laporan Keuangan" subtitle="Riwayat transaksi dan rekonsiliasi merchant" actions={<><Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isFetching}><RefreshCw className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button><Button size="sm" onClick={exportCsv} disabled={!visibleOrders.length}><Download className="mr-2 h-4 w-4" />Export CSV</Button></>}>
+    <div className="space-y-6">
+      <Card><CardContent className="flex flex-wrap items-end gap-3 p-4"><div><label className="mb-1 block text-xs font-medium">Dari</label><Input type="date" value={from} max={to} onChange={(event) => setFrom(event.target.value)} /></div><div><label className="mb-1 block text-xs font-medium">Sampai</label><Input type="date" value={to} min={from} max={localDate(new Date())} onChange={(event) => setTo(event.target.value)} /></div><div className="rounded-md border bg-muted/30 px-3 py-2 text-sm"><span className="text-muted-foreground">Periode </span><strong>{format(new Date(`${from}T00:00:00`), 'd MMM yyyy', { locale: idLocale })} – {format(new Date(`${to}T00:00:00`), 'd MMM yyyy', { locale: idLocale })}</strong></div><div className="ml-auto text-xs text-muted-foreground">{orders.length} transaksi ditemukan</div></CardContent></Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{[['Omzet produk', grossRevenue, TrendingUp, 'text-emerald-600'], ['Refund', refunded, TrendingDown, 'text-red-600'], ['Komisi dipotong', commission, ReceiptText, 'text-orange-600'], ['Pendapatan bersih', netRevenue, Wallet, 'text-primary'], ['Pesanan selesai', completedOrders.length, ShoppingCart, 'text-blue-600']].map(([label, value, Icon, tone]) => <Card key={String(label)}><CardContent className="p-4"><div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">{label}</p><Icon className={`h-4 w-4 ${tone}`} /></div><p className="mt-2 text-xl font-bold">{label === 'Pesanan selesai' ? value : formatPrice(Number(value))}</p><p className="mt-1 text-[11px] text-muted-foreground">{label === 'Komisi dipotong' ? (data?.fee?.is_enabled ? `Tarif dinamis ${data.fee.fee_percent}%` : 'Komisi nonaktif') : label === 'Pendapatan bersih' ? 'Omzet − refund − komisi' : 'Periode terpilih'}</p></CardContent></Card>)}</div>
+      <div className="grid gap-4 lg:grid-cols-3"><Card><CardHeader><CardTitle className="text-base">Saldo merchant</CardTitle><CardDescription>Saldo dipakai otomatis untuk potongan komisi.</CardDescription></CardHeader><CardContent><p className="text-2xl font-bold">{formatPrice(data?.wallet?.balance_rupiah ?? 0)}</p><p className="mt-2 text-sm text-muted-foreground">Tagihan tertunggak: <strong className={(data?.wallet?.debt_rupiah ?? 0) > 0 ? 'text-destructive' : 'text-foreground'}>{formatPrice(data?.wallet?.debt_rupiah ?? 0)}</strong></p><p className="mt-1 text-xs text-muted-foreground">{data?.wallet?.is_active === false ? 'Wallet nonaktif' : 'Wallet aktif'} · <a className="text-primary underline" href="/merchant/wallet">Kelola saldo</a></p></CardContent></Card><Card className="lg:col-span-2"><CardHeader><CardTitle className="text-base">Rincian arus transaksi</CardTitle><CardDescription>Angka dihitung dari transaksi yang tersimpan pada periode aktif.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4"><div><p className="text-xs text-muted-foreground">Subtotal</p><p className="font-semibold">{formatPrice(grossRevenue)}</p></div><div><p className="text-xs text-muted-foreground">Ongkir</p><p className="font-semibold">{formatPrice(shippingRevenue)}</p></div><div><p className="text-xs text-muted-foreground">Diskon</p><p className="font-semibold">{formatPrice(discounts)}</p></div><div><p className="text-xs text-muted-foreground">Tarif aktif</p><p className="font-semibold">{data?.fee?.is_enabled ? `${data.fee.fee_percent}%` : 'Nonaktif'}</p></div></CardContent></Card></div>
+      <Card><CardHeader><CardTitle>Riwayat transaksi</CardTitle><CardDescription>Cari berdasarkan ID/pelanggan dan filter status atau metode pembayaran.</CardDescription></CardHeader><CardContent><div className="mb-4 flex flex-wrap gap-2"><div className="relative min-w-56 flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Cari ID atau nama pelanggan" value={search} onChange={(event) => setSearch(event.target.value)} /></div><Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger><SelectContent><SelectItem value="ALL">Semua status</SelectItem>{['DONE', 'DELIVERED', 'COMPLETED', 'REFUNDED', 'CANCELLED'].map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}</SelectContent></Select><Select value={paymentFilter} onValueChange={setPaymentFilter}><SelectTrigger className="w-40"><SelectValue placeholder="Pembayaran" /></SelectTrigger><SelectContent><SelectItem value="ALL">Semua pembayaran</SelectItem>{['COD', 'TRANSFER', 'QRIS', 'CASH'].map((method) => <SelectItem key={method} value={method}>{paymentLabel(method)}</SelectItem>)}</SelectContent></Select></div>{!visibleOrders.length ? <p className="py-10 text-center text-sm text-muted-foreground">Tidak ada transaksi yang cocok dengan filter.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead><tr className="border-b text-left text-xs text-muted-foreground"><th className="px-2 py-3">Transaksi</th><th className="px-2 py-3">Tanggal</th><th className="px-2 py-3">Status</th><th className="px-2 py-3">Pembayaran</th><th className="px-2 py-3 text-right">Total</th><th className="px-2 py-3 text-right">Komisi</th><th className="px-2 py-3 text-right">Bersih</th></tr></thead><tbody>{visibleOrders.map((order) => { const fee = getOrderCommission(order); return <tr key={order.id} className="border-b last:border-0"><td className="px-2 py-3"><p className="font-medium">#{order.id.slice(0, 8).toUpperCase()}</p><p className="text-xs text-muted-foreground">{order.delivery_name || 'Pelanggan'}</p></td><td className="px-2 py-3 text-xs text-muted-foreground">{format(new Date(order.created_at), 'd MMM yyyy, HH:mm', { locale: idLocale })}</td><td className="px-2 py-3"><Badge variant={REFUNDED_STATUSES.includes(order.status) ? 'destructive' : DONE_STATUSES.includes(order.status) ? 'default' : 'secondary'}>{statusLabel(order.status)}</Badge></td><td className="px-2 py-3">{paymentLabel(order.payment_method ?? order.payment_status)}</td><td className="px-2 py-3 text-right font-medium">{formatPrice(amount(order.total))}</td><td className="px-2 py-3 text-right text-orange-600">{fee ? `-${formatPrice(fee)}` : '-'}</td><td className="px-2 py-3 text-right font-semibold text-emerald-600">{formatPrice(amount(order.total) - fee)}</td></tr>; })}</tbody></table></div>}</CardContent></Card>
+      <p className="text-xs text-muted-foreground">Komisi final mengikuti snapshot ledger server-side. Untuk transaksi lama yang belum memiliki ledger, tampilan menggunakan tarif merchant aktif sebagai estimasi dan akan ditandai ulang saat settlement tersedia.</p>
+    </div>
+  </MerchantLayout>;
 }

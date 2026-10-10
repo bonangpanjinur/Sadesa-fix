@@ -79,7 +79,7 @@ const QUICK_ACTIONS: SidebarItem[] = [
   { label: 'Tambah produk', href: '/merchant/products', icon: <Package className="h-4 w-4" /> },
   { label: 'Stok menipis', href: '/merchant/stock', icon: <Layers className="h-4 w-4" /> },
   { label: 'Buat promo', href: '/merchant/promo', icon: <Percent className="h-4 w-4" /> },
-  { label: 'Laporan keuangan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
+  { label: 'Riwayat & laporan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
 ];
 
 // POS is a first-class merchant capability. Entitlement and module checks below
@@ -241,7 +241,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         { label: 'Ringkasan Penjualan', href: '/merchant/analytics', icon: <BarChart3 className="h-4 w-4" /> },
         { label: 'Statistik Pengunjung', href: '/merchant/visitor-stats', icon: <Eye className="h-4 w-4" /> },
         { label: 'Insight Bisnis', href: '/merchant/insight', icon: <Lightbulb className="h-4 w-4" /> },
-        { label: 'Laporan Keuangan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
+        { label: 'Riwayat & Laporan Keuangan', href: '/merchant/finance', icon: <TrendingUp className="h-4 w-4" /> },
         { label: 'Laporan Pajak', href: '/merchant/pajak', icon: <FileText className="h-4 w-4" /> },
         { label: 'Import / Export', href: '/merchant/import-export', icon: <FileSpreadsheet className="h-4 w-4" /> },
         { label: 'Penarikan', href: '/merchant/withdrawal', icon: <Wallet className="h-4 w-4" /> },
