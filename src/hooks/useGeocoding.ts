@@ -1,4 +1,9 @@
 import { useState, useCallback } from 'react';
+import { callGoogleMapsFunction, type GoogleMapsGeocodeResult } from '@/lib/maps/googleMapsApi';
+
+export interface GeocodingOptions {
+  provider?: 'nominatim' | 'google';
+}
 
 export interface GeocodingResult {
   lat: number;
@@ -111,13 +116,28 @@ export async function geocodeAddress(
   districtName: string,
   villageName: string,
   cityName?: string,
-  provinceName?: string
+  provinceName?: string,
+  options: GeocodingOptions = {},
 ): Promise<GeocodingResult | null> {
   try {
     // Build search query - prioritize more specific address parts
     const queryParts = [villageName, districtName, cityName, provinceName, 'Indonesia']
       .filter(Boolean);
     const query = queryParts.join(', ');
+
+    if (options.provider === 'google') {
+      try {
+        const result = await callGoogleMapsFunction<GoogleMapsGeocodeResult | null>({
+          action: 'geocode',
+          address: query,
+        });
+        if (result && Number.isFinite(result.lat) && Number.isFinite(result.lng)) {
+          return { lat: result.lat, lng: result.lng, displayName: result.displayName };
+        }
+      } catch {
+        // Keep address entry usable while the server proxy or Google is down.
+      }
+    }
     
     const params = new URLSearchParams({
       q: query,
@@ -234,8 +254,34 @@ export async function searchAddressSuggestions(query: string): Promise<AddressSu
 /**
  * Reverse geocoding - convert coordinates to address
  */
-export async function reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodingResult | null> {
+export async function reverseGeocode(
+  lat: number,
+  lng: number,
+  options: GeocodingOptions = {},
+): Promise<ReverseGeocodingResult | null> {
   try {
+    if (options.provider === 'google') {
+      try {
+        const result = await callGoogleMapsFunction<GoogleMapsGeocodeResult | null>({
+          action: 'reverse-geocode',
+          point: { lat, lng },
+        });
+        if (result) {
+          return {
+            province: result.province,
+            city: result.city,
+            district: result.district,
+            village: result.village,
+            displayName: result.displayName,
+            fullAddress: result.fullAddress ?? result.displayName,
+            postcode: result.postcode,
+          };
+        }
+      } catch {
+        // Fall back to the existing provider; do not block checkout address entry.
+      }
+    }
+
     const params = new URLSearchParams({
       lat: lat.toString(),
       lon: lng.toString(),
@@ -322,9 +368,10 @@ export async function getAddressSummary(lat: number, lng: number): Promise<Addre
 /**
  * Hook for using geocoding functionality
  */
-export function useGeocoding() {
+export function useGeocoding(options: GeocodingOptions = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const provider = options.provider;
 
   const getCoordinatesFromAddress = useCallback(async (
     districtName: string,
@@ -336,7 +383,7 @@ export function useGeocoding() {
     setError(null);
     
     try {
-      const result = await geocodeAddress(districtName, villageName, cityName, provinceName);
+      const result = await geocodeAddress(districtName, villageName, cityName, provinceName, { provider });
       return result;
     } catch (err) {
       setError('Gagal mendapatkan koordinat');
@@ -344,7 +391,7 @@ export function useGeocoding() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [provider]);
 
   const getAddressFromCoordinates = useCallback(async (
     lat: number,
@@ -354,7 +401,7 @@ export function useGeocoding() {
     setError(null);
     
     try {
-      const result = await reverseGeocode(lat, lng);
+      const result = await reverseGeocode(lat, lng, { provider });
       return result;
     } catch (err) {
       setError('Gagal mendapatkan alamat');
@@ -362,7 +409,7 @@ export function useGeocoding() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [provider]);
 
   return {
     loading,

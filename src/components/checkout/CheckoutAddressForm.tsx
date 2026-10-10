@@ -30,7 +30,8 @@ export interface CheckoutAddressData {
 interface CheckoutAddressFormProps {
   value: CheckoutAddressData;
   onChange: (data: CheckoutAddressData) => void;
-  onDistanceChange?: (distanceKm: number) => void;
+  onDistanceChange?: (distanceKm: number | null) => void;
+  onDistanceSourceChange?: (source: 'google' | 'fallback' | 'straight-line' | 'calculating' | null) => void;
   merchantLocation?: { lat: number; lng: number } | null;
   hideMap?: boolean;
   errors?: {
@@ -47,6 +48,7 @@ export function CheckoutAddressForm({
   value,
   onChange,
   onDistanceChange,
+  onDistanceSourceChange,
   merchantLocation,
   hideMap,
   errors,
@@ -64,7 +66,7 @@ export function CheckoutAddressForm({
   const [reverseGeocodingLoading, setReverseGeocodingLoading] = useState(false);
   const [detectedAddress, setDetectedAddress] = useState<ReverseGeocodingResult | null>(null);
   
-  const { loading: geocodingLoading, getCoordinatesFromAddress } = useGeocoding();
+  const { loading: geocodingLoading, getCoordinatesFromAddress } = useGeocoding({ provider: 'google' });
   const isUpdatingFromMap = useRef(false);
   const latestValueRef = useRef(value);
   useEffect(() => { latestValueRef.current = value; }, [value]);
@@ -135,7 +137,7 @@ export function CheckoutAddressForm({
           if (loc) {
             setLocationSource('saved');
             setMapCenter(loc);
-            const detected = await reverseGeocode(loc.lat, loc.lng);
+            const detected = await reverseGeocode(loc.lat, loc.lng, { provider: 'google' });
             setDetectedAddress(detected);
           }
           return;
@@ -354,7 +356,7 @@ export function CheckoutAddressForm({
 
     if (address.lat && address.lng) {
       setMapCenter({ lat: address.lat, lng: address.lng });
-      const detected = await reverseGeocode(address.lat, address.lng);
+      const detected = await reverseGeocode(address.lat, address.lng, { provider: 'google' });
       setDetectedAddress(detected);
     } else if (addressData.district && addressData.districtName) {
       const coords = await getCoordinatesFromAddress(
@@ -376,7 +378,7 @@ export function CheckoutAddressForm({
     setReverseGeocodingLoading(true);
     
     try {
-      const result = await reverseGeocode(lat, lng);
+      const result = await reverseGeocode(lat, lng, { provider: 'google' });
       setDetectedAddress(result);
       
       if (result) {
@@ -626,6 +628,7 @@ export function CheckoutAddressForm({
               onChange={handleLocationChange}
               merchantLocation={merchantLocation}
               onDistanceChange={onDistanceChange}
+              onDistanceSourceChange={onDistanceSourceChange}
               onLocationSelected={handleLocationSelected}
               onLocationSourceChange={setLocationSource}
               externalCenter={mapCenter}

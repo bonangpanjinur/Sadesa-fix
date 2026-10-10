@@ -120,7 +120,9 @@ export function CourierMap({ courierId, showAllCouriers = false, height = '400px
       { lat: destinationLat!, lng: destinationLng! },
       controller.signal,
     ).then((route) => {
-      if (!controller.signal.aborted) setRoadRoute(route?.geometry ?? []);
+      if (!controller.signal.aborted) {
+        setRoadRoute(route?.geometry.map(({ lat, lng }) => [lat, lng] as [number, number]) ?? []);
+      }
     }).catch((error) => {
       if (!controller.signal.aborted) {
         console.warn('Rute jalan tracking tidak tersedia:', error);

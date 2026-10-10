@@ -384,7 +384,10 @@ export default function CourierRidesPage() {
       { lat: ride.destination_lat, lng: ride.destination_lng },
       controller.signal,
     ).then((route) => {
-      if (route?.geometry?.length) { setRoadRoute(route.geometry); setRouteFallback(false); }
+      if (route?.geometry?.length) {
+        setRoadRoute(route.geometry.map(({ lat, lng }) => [lat, lng] as [number, number]));
+        setRouteFallback(false);
+      }
       else { setRoadRoute([[ride.pickup_lat, ride.pickup_lng], [ride.destination_lat, ride.destination_lng]]); setRouteFallback(true); }
     }).catch(() => { setRoadRoute([[ride.pickup_lat, ride.pickup_lng], [ride.destination_lat, ride.destination_lng]]); setRouteFallback(true); });
     return () => controller.abort();

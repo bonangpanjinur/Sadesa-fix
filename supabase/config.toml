@@ -3,6 +3,11 @@ project_id = "xqdbnlcvboelvkdotilj"
 [functions.wilayah-proxy]
 verify_jwt = false
 
+[functions.google-maps]
+# Public/guest checkout calls are rate-limited inside the handler before any
+# billable Google request. Do not enable gateway JWT verification for anon keys.
+verify_jwt = false
+
 [functions.assign-courier]
 verify_jwt = true
 

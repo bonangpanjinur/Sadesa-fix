@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { getDeliveryDistanceKm } from '@/lib/routeCalculation';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import { useTranslation } from '@/lib/i18n';
+import { isGoogleMapsBrowserKeyConfigured } from '@/lib/googleMaps';
+import { GoogleLocationCanvas } from '@/components/maps/GoogleLocationCanvas';
 import L from 'leaflet';
 
 // Checkout delivery point uses a location pin, not a vehicle icon.
@@ -21,7 +23,8 @@ interface LocationPickerProps {
   value: { lat: number; lng: number } | null;
   onChange: (location: { lat: number; lng: number }) => void;
   merchantLocation?: { lat: number; lng: number } | null;
-  onDistanceChange?: (distanceKm: number) => void;
+  onDistanceChange?: (distanceKm: number | null) => void;
+  onDistanceSourceChange?: (source: 'google' | 'fallback' | 'straight-line' | 'calculating' | null) => void;
   onLocationSelected?: (lat: number, lng: number) => void;
   onLocationSourceChange?: (source: 'gps' | 'manual') => void;
   disabled?: boolean;
@@ -54,6 +57,7 @@ export function LocationPicker({
   onChange,
   merchantLocation,
   onDistanceChange,
+  onDistanceSourceChange,
   onLocationSelected,
   onLocationSourceChange,
   disabled,
@@ -62,6 +66,7 @@ export function LocationPicker({
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [googleMapFailed, setGoogleMapFailed] = useState(!isGoogleMapsBrowserKeyConfigured());
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: -7.3274, lng: 108.2207 });
   
   // Update map center when external center changes (from address geocoding)
@@ -74,16 +79,31 @@ export function LocationPicker({
   // Calculate the drivable delivery distance. Abort old requests so a slower
   // response for a previous pin can never overwrite the current checkout.
   useEffect(() => {
-    if (!value || !merchantLocation || !onDistanceChange) return;
+    if (!value || !merchantLocation || !onDistanceChange) {
+      onDistanceChange?.(null);
+      onDistanceSourceChange?.(null);
+      return;
+    }
     const controller = new AbortController();
-    void getDeliveryDistanceKm(merchantLocation, value, controller.signal)
-      .then(({ distanceKm }) => onDistanceChange(distanceKm))
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        console.error('Delivery distance calculation failed:', error);
-      });
-    return () => controller.abort();
-  }, [value, merchantLocation, onDistanceChange]);
+    onDistanceChange(null);
+    onDistanceSourceChange?.('calculating');
+    const timeout = window.setTimeout(() => {
+      void getDeliveryDistanceKm(merchantLocation, value, controller.signal)
+        .then(({ distanceKm, source }) => {
+          if (controller.signal.aborted) return;
+          onDistanceChange(distanceKm);
+          onDistanceSourceChange?.(source);
+        })
+        .catch((error) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          console.error('Delivery distance calculation failed:', error);
+        });
+    }, 350);
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [value, merchantLocation, onDistanceChange, onDistanceSourceChange]);
 
   const handleGetCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -180,6 +200,17 @@ export function LocationPicker({
         className="relative h-[220px] overflow-hidden rounded-lg border-2 border-primary/30 bg-muted shadow-sm transition-colors hover:border-primary/50 sm:h-[280px] cursor-crosshair"
         style={{ width: '100%', zIndex: 0 }}
       >
+        {isGoogleMapsBrowserKeyConfigured() && !googleMapFailed ? (
+          <GoogleLocationCanvas
+            center={mapCenter}
+            value={value}
+            disabled={disabled}
+            onSelect={(point) => handleMapClick(point.lat, point.lng)}
+            onReady={() => undefined}
+            onFailure={() => setGoogleMapFailed(true)}
+          />
+        ) : (
+        <>
         <style>
           {`
             .leaflet-container {
@@ -225,7 +256,14 @@ export function LocationPicker({
             <Marker position={[value.lat, value.lng]} />
           )}
         </MapContainer>
+        </>
+        )}
       </div>
+      {googleMapFailed && isGoogleMapsBrowserKeyConfigured() && (
+        <p className="text-xs text-muted-foreground" role="status">
+          Google Maps belum tersedia; peta cadangan OpenStreetMap aktif.
+        </p>
+      )}
 
       {/* Helper text is collapsible on mobile to keep the address flow short. */}
       <details className="group rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700">
@@ -239,6 +277,9 @@ export function LocationPicker({
           <li>{t('checkout.location.refine')}</li>
         </ul>
       </details>
+      <p className="text-xs text-muted-foreground">
+        Untuk menghitung rute dan membantu mengenali alamat, titik lokasi dapat diproses oleh Google Maps. Jika layanan tidak tersedia, aplikasi memakai layanan peta cadangan.
+      </p>
 
       {/* Location status - Enhanced */}
       <div className="rounded-lg border p-3 bg-card">

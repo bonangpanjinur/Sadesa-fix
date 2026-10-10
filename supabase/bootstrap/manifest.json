@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment and POS customer area analytics appended",
   "migration_count": 367,
-  "bundle_count": 70,
+  "bundle_count": 72,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -866,6 +866,13 @@
       "standalone": true,
       "sha256": "c980238ee538b71aa019b19fc829bc6a901cbe42b27bc57b5c6c7101e9c22b8e",
       "bytes": 623
+    },
+    {
+      "file": "99_20261011180000_google_maps_rate_limit.sql",
+      "source_files": [],
+      "standalone": true,
+      "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
+      "bytes": 3432
     }
   ],
   "idempotent": true,

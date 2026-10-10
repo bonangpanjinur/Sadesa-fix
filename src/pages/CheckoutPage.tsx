@@ -79,6 +79,7 @@ export default function CheckoutPage() {
 
   // Distance state
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [distanceSource, setDistanceSource] = useState<'google' | 'fallback' | 'straight-line' | 'calculating' | null>(null);
 
   // Shipping settings from admin
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
@@ -143,6 +144,9 @@ export default function CheckoutPage() {
 
     return baseFee;
   }, [deliveryType, distanceKm, shippingSettings, subtotal]);
+  const routeCalculationPending = deliveryType !== 'PICKUP'
+    && Boolean(merchantLocation && addressData.location)
+    && distanceSource === 'calculating';
 
   const voucherDiscount = appliedVoucher?.discount || 0;
   const total = subtotal + shippingCost - voucherDiscount;
@@ -415,6 +419,14 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (routeCalculationPending) {
+      toast({
+        title: 'Sedang menghitung jarak',
+        description: 'Tunggu sampai estimasi ongkir selesai dihitung sebelum membuat pesanan.',
+      });
+      return;
+    }
 
     if (items.length === 0) {
       toast({
@@ -854,6 +866,7 @@ export default function CheckoutPage() {
             value={addressData}
             onChange={setAddressData}
             onDistanceChange={setDistanceKm}
+            onDistanceSourceChange={setDistanceSource}
             merchantLocation={merchantLocation}
             errors={errors}
             hideMap={deliveryType === 'PICKUP'}
@@ -873,6 +886,15 @@ export default function CheckoutPage() {
                 {t('shipping.distanceLabel')}: <span className="font-medium text-foreground">{distanceKm.toFixed(1)} KM</span>
               </span>
             </div>
+            <p className="pl-6 text-xs text-muted-foreground">
+              {distanceSource === 'google'
+                ? 'Rute dihitung Google Maps.'
+                : distanceSource === 'fallback'
+                  ? 'Rute memakai layanan cadangan OpenStreetMap.'
+                  : distanceSource === 'straight-line'
+                    ? 'Jarak garis lurus digunakan sebagai perkiraan; ongkir dapat dikonfirmasi kembali.'
+                    : 'Menghitung jarak rute…'}
+            </p>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
@@ -1155,7 +1177,7 @@ export default function CheckoutPage() {
           type="submit"
           className="w-full shadow-brand font-bold transition-all"
           size="lg"
-          disabled={loading || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
+          disabled={loading || routeCalculationPending || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>

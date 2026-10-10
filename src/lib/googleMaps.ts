@@ -9,10 +9,21 @@ export function loadGoogleMaps(): Promise<typeof google> {
   if (!apiKey) return Promise.reject(new Error('VITE_GOOGLE_MAPS_API_KEY belum dikonfigurasi'));
 
   setOptions({ key: apiKey, v: 'weekly' });
-  googleMapsPromise = Promise.all([
+  const pending = Promise.all([
     importLibrary('maps'),
     importLibrary('places'),
   ]).then(() => window.google);
 
+  googleMapsPromise = pending.catch((error: unknown) => {
+    // A rejected promise must not permanently poison the loader: transient
+    // network failures and corrected API restrictions should be retryable.
+    googleMapsPromise = null;
+    throw error;
+  });
+
   return googleMapsPromise;
+}
+
+export function isGoogleMapsBrowserKeyConfigured(): boolean {
+  return Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
 }

@@ -118,7 +118,9 @@ export function CourierMapSelector({
           from,
           controller.signal,
         );
-        return route?.geometry?.length ? [courier.id, route.geometry] as const : null;
+        return route?.geometry?.length
+          ? [courier.id, route.geometry.map(({ lat, lng }) => [lat, lng] as [number, number])] as const
+          : null;
       } catch (error) {
         if (!controller.signal.aborted) {
           console.warn('Rute jalan kurir tidak tersedia:', error);

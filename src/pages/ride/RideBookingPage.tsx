@@ -233,7 +233,9 @@ export default function RideBookingPage() {
     : 0);
 
   const fitPoints = useMemo(() => {
-    if (roadRoute?.geometry.length) return roadRoute.geometry;
+    if (roadRoute?.geometry.length) {
+      return roadRoute.geometry.map(({ lat, lng }) => [lat, lng] as [number, number]);
+    }
     const pts: [number, number][] = [];
     if (pickupLocation) pts.push([pickupLocation.lat, pickupLocation.lng]);
     if (destLocation) pts.push([destLocation.lat, destLocation.lng]);

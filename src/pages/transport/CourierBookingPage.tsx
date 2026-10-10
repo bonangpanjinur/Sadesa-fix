@@ -145,7 +145,7 @@ export default function CourierBookingPage() {
 
   const routePoints = useMemo(
     () => roadRoute?.geometry.length
-      ? roadRoute.geometry.map(([lat, lng]) => ({ lat, lng }))
+      ? roadRoute.geometry
       : [pickupLocation, destinationLocation].filter((point): point is RoutePoint => point !== null),
     [destinationLocation, pickupLocation, roadRoute],
   );
