@@ -55,6 +55,22 @@ describe('PushNotificationSettings', () => {
     consoleError.mockRestore();
   });
 
+  it('rechecks browser permission after the user changes it outside the app', async () => {
+    vi.mocked(getPushPermission)
+      .mockResolvedValueOnce('denied')
+      .mockResolvedValueOnce('granted');
+    vi.mocked(getSubscriptionStatus).mockResolvedValue(true);
+
+    render(<PushNotificationSettings />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Coba lagi' }));
+
+    await waitFor(() => {
+      expect(getPushPermission).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole('switch', { name: 'Notifikasi Push' })).toBeChecked();
+    });
+  });
+
   it('reports failure when notification unsubscribe does not complete', async () => {
     vi.mocked(getSubscriptionStatus).mockResolvedValue(true);
 

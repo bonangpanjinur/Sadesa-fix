@@ -154,6 +154,10 @@ export function PushNotificationSettings({ required = false }: { required?: bool
           <span className="text-sm">{t('settings.push.permission_denied')}</span>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{t('settings.push.permission_help')}</p>
+        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => void checkStatus()}>
+          <RefreshCw className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+          {t('common.retry')}
+        </Button>
       </div>
     );
   }
