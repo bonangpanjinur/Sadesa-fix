@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { buildAdminPushTestPayload } from '@/lib/adminPushTest';
 import {
   DEFAULT_ORDER_SOUND_SETTINGS,
   normalizeOrderNotificationSoundSettings,
@@ -36,6 +38,7 @@ interface VapidRuntimeStatus {
 }
 
 export default function AdminPushNotificationPage() {
+  const { user } = useAuth();
   const [vapidStatus, setVapidStatus] = useState<VapidRuntimeStatus | null>(null);
   const [vapidStatusLoading, setVapidStatusLoading] = useState(true);
   const [vapidStatusError, setVapidStatusError] = useState<string | null>(null);
@@ -48,6 +51,7 @@ export default function AdminPushNotificationPage() {
   const [testTitle, setTestTitle] = useState('Test Push Notification');
   const [testBody, setTestBody] = useState('Halo! Ini adalah test push notification dari SaDesa.');
   const [testing, setTesting] = useState(false);
+  const [selfTesting, setSelfTesting] = useState(false);
 
   // Broadcast state
   const [broadcastTitle, setBroadcastTitle] = useState('');
@@ -179,7 +183,7 @@ export default function AdminPushNotificationPage() {
     setTesting(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: { user_id: testUserId, title: testTitle, body: testBody, url: '/' },
+        body: buildAdminPushTestPayload(testUserId, testTitle, testBody),
       });
       if (error) throw error;
       const json = data as { sent?: number; total?: number; message?: string; success?: boolean };
@@ -189,6 +193,43 @@ export default function AdminPushNotificationPage() {
       toast.error(err instanceof Error ? err.message : 'Gagal mengirim test push');
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleSelfTestPush = async () => {
+    if (!user) {
+      toast.error('Sesi admin tidak ditemukan. Silakan masuk kembali.');
+      return;
+    }
+    if (!testTitle.trim() || !testBody.trim()) {
+      toast.error('Judul dan isi notifikasi wajib diisi');
+      return;
+    }
+
+    setSelfTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: buildAdminPushTestPayload(user.id, testTitle, testBody),
+      });
+      if (error) throw error;
+      const result = data as { sent?: number; total?: number; message?: string; success?: boolean };
+      if (result?.success === false) throw new Error(result.message || 'Gagal mengirim push uji');
+
+      const sent = result?.sent ?? 0;
+      const total = result?.total ?? 0;
+      if (total === 0) {
+        toast.error('Akun admin ini belum memiliki subscription push aktif. Aktifkan Notifikasi Push pada perangkat yang ingin diuji.');
+      } else if (sent === 0) {
+        toast.error(`Push uji gagal dikirim ke ${total} perangkat akun admin.`);
+      } else if (sent < total) {
+        toast.warning(`Push uji terkirim ke ${sent}/${total} perangkat akun admin.`);
+      } else {
+        toast.success(`Push uji terkirim ke ${sent}/${total} perangkat akun admin.`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal mengirim push uji ke akun admin');
+    } finally {
+      setSelfTesting(false);
     }
   };
 
@@ -487,7 +528,7 @@ export default function AdminPushNotificationPage() {
                   Test Push ke User
                 </CardTitle>
                 <CardDescription>
-                  Kirim push notification ke satu user berdasarkan User ID.
+                  Kirim uji coba ke akun admin yang sedang login atau ke satu user berdasarkan User ID.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -520,12 +561,23 @@ export default function AdminPushNotificationPage() {
                     className="mt-1"
                   />
                 </div>
-                <Button onClick={handleTestPush} disabled={testing || !vapidConfigured}>
-                  {testing
-                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
-                    : <><Send className="h-4 w-4 mr-2" />Kirim Test Push</>
-                  }
-                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Uji mandiri hanya dikirim ke subscription milik akun admin yang sedang login; pengguna lain tidak menerima notifikasi.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => void handleSelfTestPush()} disabled={selfTesting || testing || !user || !vapidConfigured}>
+                    {selfTesting
+                      ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
+                      : <><Send className="h-4 w-4 mr-2" />Kirim Uji ke Akun Admin Saya</>
+                    }
+                  </Button>
+                  <Button onClick={handleTestPush} disabled={testing || selfTesting || !vapidConfigured}>
+                    {testing
+                      ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Mengirim...</>
+                      : <><TestTube className="h-4 w-4 mr-2" />Kirim Test ke User</>
+                    }
+                  </Button>
+                </div>
                 {!vapidConfigured && (
                   <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
