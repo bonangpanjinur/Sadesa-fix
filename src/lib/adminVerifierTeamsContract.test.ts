@@ -20,6 +20,13 @@ describe('admin verifier team management contract', () => {
     expect(page).toContain("? 'Verifikator' : 'Role akun belum ditetapkan'");
   });
 
+  it('shows the full verifier-account roster and team assignment status even before a team is selected', () => {
+    expect(page).toContain('Akun dengan role Verifikator ({verifikators.length})');
+    expect(page).toContain(".from('verifikator_team_members').select('*').order('joined_at')");
+    expect(page).toContain('Belum ditempatkan ke tim');
+    expect(page).toContain(".map(userId => profiles.find(profile => profile.user_id === userId)");
+  });
+
   it('reports query failures instead of silently presenting failed data as an empty team', () => {
     expect(page).toContain('if (error) throw error');
     expect(page).toContain("toast.error(error instanceof Error ? error.message : 'Data tim gagal dimuat')");

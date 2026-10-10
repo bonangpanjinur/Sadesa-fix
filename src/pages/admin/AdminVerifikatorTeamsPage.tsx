@@ -21,11 +21,13 @@ const teamRoles = [
 
 type Team = { id: string; name: string; description: string | null; lead_verifikator_id: string; is_active: boolean };
 type Member = { id: string; user_id: string; role: string; is_active: boolean; joined_at: string; ended_at: string | null };
+type TeamMembership = Member & { team_id: string };
 type Profile = { user_id: string; full_name: string; phone: string | null };
 
 export default function AdminVerifikatorTeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [allMemberships, setAllMemberships] = useState<TeamMembership[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [verifikatorIds, setVerifikatorIds] = useState<string[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -41,7 +43,8 @@ export default function AdminVerifikatorTeamsPage() {
   const [teamLeadId, setTeamLeadId] = useState('');
 
   const selectedTeam = teams.find(team => team.id === selectedTeamId) || null;
-  const verifikators = useMemo(() => profiles.filter(profile => verifikatorIds.includes(profile.user_id)), [profiles, verifikatorIds]);
+  const verifikators = useMemo(() => verifikatorIds.map(userId => profiles.find(profile => profile.user_id === userId)
+    || { user_id: userId, full_name: userId, phone: null }), [profiles, verifikatorIds]);
   const availableProfiles = useMemo(() => {
     const memberIds = new Set(members.map(member => member.user_id));
     return verifikators.filter(profile => !memberIds.has(profile.user_id) && `${profile.full_name} ${profile.phone || ''}`.toLowerCase().includes(search.toLowerCase()));
@@ -51,12 +54,13 @@ export default function AdminVerifikatorTeamsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [teamsRes, profilesRes, rolesRes] = await Promise.all([
+      const [teamsRes, profilesRes, rolesRes, membershipsRes] = await Promise.all([
         supabase.from('verifikator_teams').select('*').order('name'),
         supabase.from('profiles').select('user_id, full_name, phone').order('full_name'),
         supabase.from('user_roles').select('user_id').eq('role', 'verifikator'),
+        supabase.from('verifikator_team_members').select('*').order('joined_at'),
       ]);
-      const error = teamsRes.error || profilesRes.error || rolesRes.error;
+      const error = teamsRes.error || profilesRes.error || rolesRes.error || membershipsRes.error;
       if (error) throw error;
 
       const nextTeams = teamsRes.data || [];
@@ -64,21 +68,22 @@ export default function AdminVerifikatorTeamsPage() {
       setTeams(nextTeams);
       setProfiles(nextProfiles);
       setVerifikatorIds((rolesRes.data || []).map(role => role.user_id));
+      const nextMemberships = (membershipsRes.data || []) as TeamMembership[];
+      setAllMemberships(nextMemberships);
 
       const nextTeamId = nextTeams.some(team => team.id === selectedTeamId)
         ? selectedTeamId
         : nextTeams[0]?.id || '';
       setSelectedTeamId(nextTeamId);
       if (nextTeamId) {
-        const membersRes = await supabase.from('verifikator_team_members').select('*').eq('team_id', nextTeamId).order('joined_at');
-        if (membersRes.error) throw membersRes.error;
-        setMembers(membersRes.data || []);
+        setMembers(nextMemberships.filter(member => member.team_id === nextTeamId));
       } else {
         setMembers([]);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Data tim gagal dimuat');
       setMembers([]);
+      setAllMemberships([]);
     } finally {
       setLoading(false);
     }
@@ -157,6 +162,15 @@ export default function AdminVerifikatorTeamsPage() {
             </div>
             {selectedTeam && <p className="mt-3 text-sm text-muted-foreground">{selectedTeam.description || 'Tim verifikator daerah'} · Koordinator: {profileName(selectedTeam.lead_verifikator_id)}</p>}
             {!loading && teams.length === 0 && <p className="mt-3 text-sm text-muted-foreground">Belum ada tim. Buat tim terlebih dahulu; akun koordinator harus memiliki role Verifikator.</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>Akun dengan role Verifikator ({verifikators.length})</CardTitle></CardHeader>
+          <CardContent>
+            {loading ? <div className="py-6 text-center text-sm text-muted-foreground">Memuat daftar akun Verifikator...</div> : verifikators.length === 0 ? <div className="py-6 text-center text-sm text-muted-foreground">Belum ada akun dengan role Verifikator pada tabel user_roles.</div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Pengguna</TableHead><TableHead>Role akun</TableHead><TableHead>Penempatan tim</TableHead></TableRow></TableHeader><TableBody>{verifikators.map(profile => {
+              const assignments = allMemberships.filter(member => member.user_id === profile.user_id);
+              return <TableRow key={profile.user_id}><TableCell><div className="font-medium">{profile.full_name || profile.user_id}</div><div className="font-mono text-xs text-muted-foreground">{profile.user_id}</div>{profile.phone && <div className="text-xs text-muted-foreground">{profile.phone}</div>}</TableCell><TableCell><Badge variant="secondary">Verifikator</Badge></TableCell><TableCell>{assignments.length ? <div className="flex flex-wrap gap-1">{assignments.map(assignment => <Badge key={assignment.id} variant={assignment.is_active ? 'outline' : 'secondary'}>{teams.find(team => team.id === assignment.team_id)?.name || 'Tim tidak ditemukan'} · {teamRoles.find(role => role.value === assignment.role)?.label || assignment.role}{assignment.is_active ? '' : ' · Nonaktif'}</Badge>)}</div> : <span className="text-sm text-muted-foreground">Belum ditempatkan ke tim</span>}</TableCell></TableRow>;
+            })}</TableBody></Table></div>}
           </CardContent>
         </Card>
         <Card>
