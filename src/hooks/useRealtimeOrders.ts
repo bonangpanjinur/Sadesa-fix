@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { buildMerchantOrderCursorFilter } from '@/lib/merchantOrderCursor';
 
 export interface OrderRow {
   id: string;
@@ -72,6 +73,7 @@ export function useRealtimeOrders({
         .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(ORDER_PAGE_SIZE);
 
       if (error) throw error;
@@ -98,8 +100,9 @@ export function useRealtimeOrders({
         .from('orders')
         .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
-        .lt('created_at', cursor.created_at)
+        .or(buildMerchantOrderCursorFilter(cursor))
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(ORDER_PAGE_SIZE);
       if (error) throw error;
       setOrders((previous) => {

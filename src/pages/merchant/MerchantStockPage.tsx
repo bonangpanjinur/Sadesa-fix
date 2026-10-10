@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { downloadCsv } from '@/lib/csv';
 import { id as idLocale } from 'date-fns/locale';
+import { MerchantCardError } from '@/components/merchant/MerchantDataState';
 
 interface Product {
   id: string;
@@ -53,6 +54,7 @@ export default function MerchantStockPage() {
   const [adjustNote, setAdjustNote] = useState('');
   const [thresholdDialog, setThresholdDialog] = useState<Product | null>(null);
   const [thresholdValue, setThresholdValue] = useState('');
+  const [activeStockTab, setActiveStockTab] = useState('products');
 
   const { data: activeMerchantPOSTenant, isLoading: posLoading } = useQuery<{ id: string } | null>({
     queryKey: ['merchant-active-pos-tenant', merchantId],
@@ -87,26 +89,29 @@ export default function MerchantStockPage() {
     enabled: !!merchantId && !guardLoading,
   });
 
-  const { data: history = [], isLoading: historyLoading } = useQuery<StockHistoryItem[]>({
+  const historyQuery = useQuery<StockHistoryItem[]>({
     queryKey: ['merchant-stock-history', merchantId],
     queryFn: async () => {
-      const { data: histData } = await supabase
+      const { data, error } = await supabase
         .from('stock_history')
-        .select('id, product_id, type, qty_change, stock_before, stock_after, note, created_at')
+        .select('id, product_id, type, qty_change, stock_before, stock_after, note, created_at, products(name)')
         .eq('merchant_id', merchantId!)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
         .limit(100);
-
-      const productIds = [...new Set((histData || []).map(h => h.product_id))];
-      if (productIds.length > 0) {
-        const { data: prods } = await supabase.from('products').select('id, name').in('id', productIds);
-        const prodMap = Object.fromEntries((prods || []).map(p => [p.id, p.name]));
-        return (histData || []).map(h => ({ ...h, product_name: prodMap[h.product_id] || 'Produk' })) as StockHistoryItem[];
-      }
-      return (histData || []) as StockHistoryItem[];
+      if (error) throw error;
+      const rows = (data || []) as unknown as Array<StockHistoryItem & {
+        products: { name: string } | Array<{ name: string }> | null;
+      }>;
+      return rows.map(({ products: relatedProduct, ...item }) => ({
+        ...item,
+        product_name: Array.isArray(relatedProduct) ? relatedProduct[0]?.name || 'Produk' : relatedProduct?.name || 'Produk',
+      }));
     },
-    enabled: !!merchantId && !guardLoading,
+    enabled: !!merchantId && !guardLoading && activeStockTab === 'history',
+    staleTime: 30_000,
   });
+  const history = historyQuery.data ?? [];
 
   const lowStockProducts = products.filter(p => {
     const threshold = p.low_stock_threshold || p.min_stock_alert || 5;
@@ -205,7 +210,7 @@ export default function MerchantStockPage() {
           </Card>
         )}
 
-        <Tabs defaultValue="products">
+        <Tabs value={activeStockTab} onValueChange={setActiveStockTab}>
           <TabsList>
             <TabsTrigger value="products" className="gap-2">
               <Package className="h-4 w-4" />
@@ -286,10 +291,15 @@ export default function MerchantStockPage() {
 
           {/* History tab */}
           <TabsContent value="history" className="mt-4">
-            {historyLoading ? (
+            {historyQuery.isLoading ? (
               <div className="space-y-3">
                 {[1,2,3].map(i => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
               </div>
+            ) : historyQuery.isError ? (
+              <MerchantCardError
+                message="Riwayat stok gagal dimuat. Periksa koneksi lalu coba lagi."
+                onRetry={() => void historyQuery.refetch()}
+              />
             ) : history.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <History className="h-12 w-12 mx-auto mb-3 opacity-30" />

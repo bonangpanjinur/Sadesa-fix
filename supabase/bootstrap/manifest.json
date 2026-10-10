@@ -836,6 +836,13 @@
       "standalone": true,
       "sha256": "bef78943bbfc6295d0303f0f3c2bca6c19ed01aa74e7a79633cc26dd070f4d27",
       "bytes": 527
+    },
+    {
+      "file": "95_20261010134500_merchant_history_query_indexes.sql",
+      "source_files": [],
+      "standalone": true,
+      "sha256": "089a3ec1a3cf8751653cfaeb4eaeb88c7d8e70e163e2b9396d5e57aa21a3e451",
+      "bytes": 772
     }
   ],
   "idempotent": true,
