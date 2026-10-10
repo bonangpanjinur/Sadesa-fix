@@ -27,7 +27,7 @@ export const FEATURE_TOUR_STEPS: Record<FeatureTourRole, FeatureTourStep[]> = {
     { id: 'merchant-fulfillment', title: 'Fulfillment, refund, dan chat', description: 'Kelola pengiriman bertahap, tinjau permintaan refund, dan koordinasikan pesanan melalui chat.', href: '/merchant/fulfillment', linkLabel: 'Buka fulfillment', target: 'page-title' },
     { id: 'merchant-promotions', title: 'Promosi dan pelanggan', description: 'Atur promo, flash sale, voucher, serta program loyalitas untuk pelanggan.', href: '/merchant/promo', linkLabel: 'Kelola promosi', target: 'page-title' },
     { id: 'merchant-insights', title: 'Laporan penjualan dan keuangan', description: 'Pantau performa penjualan, pengunjung, pemasukan, dan penarikan melalui laporan.', href: '/merchant/analytics', linkLabel: 'Lihat analitik', target: 'page-title' },
-    { id: 'merchant-wallet', title: 'Saldo komisi dan top-up', description: 'Periksa saldo, komisi, tagihan, top-up, dan riwayat di Wallet.', href: '/merchant/wallet', linkLabel: 'Buka wallet', target: 'page-title' },
+    { id: 'merchant-wallet', title: 'Saldo', description: 'Periksa saldo, komisi, tagihan, top-up, dan riwayat di halaman Saldo.', href: '/merchant/wallet', linkLabel: 'Buka Saldo', target: 'page-title' },
   ],
   courier: [
     { id: 'courier-dashboard', title: 'Dashboard dan status kerja', description: 'Dashboard merangkum aktivitas. Atur status kerja dan izin lokasi sebelum menerima tawaran.', href: '/courier', linkLabel: 'Buka dashboard', target: 'page-title' },

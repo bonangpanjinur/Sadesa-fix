@@ -246,7 +246,7 @@ export function MerchantSidebar({ onClose, onNavigate }: MerchantSidebarProps) {
         { label: 'Import / Export', href: '/merchant/import-export', icon: <FileSpreadsheet className="h-4 w-4" /> },
         { label: 'Penarikan', href: '/merchant/withdrawal', icon: <Wallet className="h-4 w-4" /> },
         { label: 'Iuran Kas', href: '/merchant/dues', icon: <CircleDollarSign className="h-4 w-4" /> },
-        { label: 'Saldo Komisi & Top-up', href: '/merchant/wallet', icon: <Wallet className="h-4 w-4" /> },
+        { label: 'Saldo', href: '/merchant/wallet', icon: <Wallet className="h-4 w-4" /> },
         { label: 'Kuota Marketplace (Legacy)', href: '/merchant/subscription', icon: <CreditCard className="h-4 w-4" /> },
       ],
     },

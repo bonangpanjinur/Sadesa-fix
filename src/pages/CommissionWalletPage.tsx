@@ -47,7 +47,7 @@ function WalletPanel({ ownerType, ownerId, ownerName, loading: guardLoading }: {
   const [proof, setProof] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [payingAutomatically, setPayingAutomatically] = useState(false);
-  const title = ownerType === 'MERCHANT' ? 'Saldo Komisi Pedagang' : 'Saldo Komisi Ojek';
+  const title = ownerType === 'MERCHANT' ? 'Saldo' : 'Saldo Komisi Ojek';
   const queryKey = ['commission-wallet-account', ownerType, ownerId, ledgerFrom, ledgerTo, ledgerPage, ledgerCursor?.created_at ?? null, ledgerCursor?.id ?? null];
   const { data, isLoading, error, refetch } = useQuery<WalletData>({
     queryKey,

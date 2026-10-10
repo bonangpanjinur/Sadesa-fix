@@ -376,7 +376,7 @@ export default function MerchantSubscriptionPage() {
           <Info className="h-4 w-4" />
           <AlertTitle>Paket kuota tier lama telah dihentikan</AlertTitle>
           <AlertDescription>
-            Paket/saldo lama tidak dikonversi dan hanya disimpan untuk riwayat serta audit. Penagihan baru memakai saldo wallet dan persentase komisi. Gunakan halaman <a href="/merchant/wallet" className="font-medium underline">Saldo Komisi &amp; Top-up</a> untuk mengisi wallet.
+            Paket/saldo lama tidak dikonversi dan hanya disimpan untuk riwayat serta audit. Penagihan baru memakai saldo wallet dan persentase komisi. Gunakan halaman <a href="/merchant/wallet" className="font-medium underline">Saldo</a> untuk mengisi wallet.
           </AlertDescription>
         </Alert>
       )}

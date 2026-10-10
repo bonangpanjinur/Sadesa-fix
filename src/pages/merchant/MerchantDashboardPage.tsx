@@ -43,6 +43,8 @@ import { toast } from 'sonner';
 import { cn, formatPrice } from '@/lib/utils';
 import { useRealtimeOrders, type OrderRow } from '@/hooks/useRealtimeOrders';
 import { MerchantCardError } from '@/components/merchant/MerchantDataState';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface MerchantData {
   id: string;
@@ -61,6 +63,12 @@ interface OrderData {
   total: number;
   subtotal?: number;
   created_at: string;
+}
+
+interface MerchantWalletOverview {
+  wallet: { balance_rupiah: number; debt_rupiah: number; is_active: boolean } | null;
+  feeEnabled: boolean;
+  lowBalanceThreshold: number;
 }
 
 const SalesAreaChart = lazy(() =>
@@ -97,6 +105,39 @@ export default function MerchantDashboardPage() {
     },
     enabled: !!user,
     staleTime: 60_000,
+  });
+
+  const {
+    data: walletOverview,
+    isLoading: walletOverviewLoading,
+    isError: walletOverviewError,
+    refetch: refetchWalletOverview,
+  } = useQuery<MerchantWalletOverview>({
+    queryKey: ['merchant-wallet-dashboard', merchant?.id],
+    queryFn: async () => {
+      if (!merchant?.id) throw new Error('Profil merchant belum tersedia');
+      const [walletResult, feeResult, policyResult] = await Promise.all([
+        supabase.from('commission_wallets' as never).select('balance_rupiah,debt_rupiah,is_active')
+          .eq('owner_type' as never, 'MERCHANT' as never).eq('merchant_id' as never, merchant.id as never).maybeSingle(),
+        supabase.from('commission_fee_settings' as never).select('is_enabled')
+          .eq('owner_type' as never, 'MERCHANT' as never).maybeSingle(),
+        supabase.from('commission_wallet_policy_settings' as never).select('low_balance_threshold_rupiah')
+          .eq('id' as never, true as never).maybeSingle(),
+      ]);
+      if (walletResult.error) throw walletResult.error;
+      if (feeResult.error) throw feeResult.error;
+      const wallet = walletResult.data as unknown as MerchantWalletOverview['wallet'];
+      const fee = feeResult.data as unknown as { is_enabled: boolean } | null;
+      const policy = policyResult.data as unknown as { low_balance_threshold_rupiah: number } | null;
+      return {
+        wallet,
+        feeEnabled: Boolean(fee?.is_enabled),
+        lowBalanceThreshold: Number(policy?.low_balance_threshold_rupiah ?? 10_000),
+      };
+    },
+    enabled: !!merchant?.id,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
   });
 
   const {
@@ -324,6 +365,10 @@ export default function MerchantDashboardPage() {
     day: 'numeric',
     month: 'long',
   }).format(new Date());
+  const dashboardWallet = walletOverview?.wallet;
+  const walletBalance = Number(dashboardWallet?.balance_rupiah ?? 0);
+  const walletDebt = Number(dashboardWallet?.debt_rupiah ?? 0);
+  const walletThreshold = walletOverview?.lowBalanceThreshold ?? 10_000;
 
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
@@ -444,6 +489,81 @@ export default function MerchantDashboardPage() {
                 />
               </div>
             </div>
+          </div>
+        </section>
+
+        <section aria-label="Saldo toko" className="grid gap-4 lg:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]" data-testid="merchant-wallet-overview">
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.06] to-card">
+            <CardHeader className="pb-2">
+              <CardDescription>Saldo</CardDescription>
+              <CardTitle className="text-3xl" data-testid="merchant-wallet-balance">
+                {walletOverviewLoading ? 'Memuat…' : walletOverviewError ? '—' : dashboardWallet ? formatPrice(walletBalance) : 'Belum tersedia'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {dashboardWallet ? <>
+                <p className="text-sm text-muted-foreground">Tagihan komisi: <strong className={walletDebt > 0 ? 'text-destructive' : 'text-foreground'}>{formatPrice(walletDebt)}</strong></p>
+                <p className="text-xs text-muted-foreground">Tarif komisi {walletOverview?.feeEnabled ? 'aktif' : 'belum aktif'} · wallet {dashboardWallet.is_active ? 'aktif' : 'nonaktif'}</p>
+              </> : !walletOverviewLoading && !walletOverviewError && <p className="text-sm text-muted-foreground">Wallet belum tersedia. Hubungi admin jika masalah berlanjut.</p>}
+              <Button size="sm" variant="outline" onClick={() => navigate('/merchant/wallet')}>
+                Kelola saldo <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-col justify-center">
+            {walletOverviewLoading ? <div role="status" className="h-28 animate-pulse rounded-xl bg-muted" aria-label="Memuat status saldo" /> : walletOverviewError ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Saldo belum dapat dimuat</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                  <span>Coba muat ulang ringkasan atau buka halaman Saldo untuk detailnya.</span>
+                  <Button size="sm" variant="outline" onClick={() => void refetchWalletOverview()}>Coba lagi</Button>
+                </AlertDescription>
+              </Alert>
+            ) : !dashboardWallet ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Wallet belum tersedia</AlertTitle>
+                <AlertDescription>Hubungi admin untuk memastikan wallet toko sudah dibuat.</AlertDescription>
+              </Alert>
+            ) : walletDebt > 0 ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Pesanan baru ditahan sampai tagihan lunas</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                  <span>Tagihan {formatPrice(walletDebt)} akan dilunasi lebih dahulu dari top-up; sisanya menjadi saldo tersedia.</span>
+                  <Button size="sm" variant="outline" onClick={() => navigate('/merchant/wallet')}>Isi saldo</Button>
+                </AlertDescription>
+              </Alert>
+            ) : walletOverview?.feeEnabled && !dashboardWallet.is_active ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Wallet tidak aktif</AlertTitle>
+                <AlertDescription>Hubungi admin untuk mengaktifkan wallet sebelum tarif komisi berlaku.</AlertDescription>
+              </Alert>
+            ) : walletOverview?.feeEnabled && walletBalance <= walletThreshold ? (
+              <Alert className="border-warning/40 bg-warning/5 [&>svg]:text-warning">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>{walletBalance > 0 ? 'Saldo mulai menipis' : 'Isi saldo agar toko tetap memenuhi syarat'}</AlertTitle>
+                <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{walletBalance > 0 ? `Saldo ${formatPrice(walletBalance)} berada pada/di bawah ambang ${formatPrice(walletThreshold)}. Kekurangan komisi dapat menjadi tagihan dan menahan pesanan berikutnya.` : 'Saat tarif komisi aktif, wallet harus memiliki saldo positif agar toko memenuhi syarat tampil dan menerima pesanan.'}</span>
+                  <Button size="sm" variant="outline" onClick={() => navigate('/merchant/wallet')}>Top-up saldo</Button>
+                </AlertDescription>
+              </Alert>
+            ) : walletOverview?.feeEnabled ? (
+              <Alert className="border-success/30 bg-success/[0.04] [&>svg]:text-success">
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Saldo siap digunakan</AlertTitle>
+                <AlertDescription>Wallet aktif, saldo di atas ambang, dan tidak ada tagihan komisi tertunggak.</AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <Wallet className="h-4 w-4" />
+                <AlertTitle>Saldo wallet toko</AlertTitle>
+                <AlertDescription>Tarif komisi belum aktif; saldo tetap dapat dipantau di dashboard ini.</AlertDescription>
+              </Alert>
+            )}
           </div>
         </section>
 
