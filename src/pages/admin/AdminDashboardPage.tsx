@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { subDays, startOfDay, endOfDay } from 'date-fns';
+import { subDays, startOfDay, endOfDay, format } from 'date-fns';
 import { formatPrice } from '@/lib/utils';
 import { calculatePosBusinessMetrics } from '@/lib/businessKpis';
 
@@ -187,7 +187,7 @@ export default function AdminDashboardPage() {
     const { days } = getDateRange();
     
     orders.forEach((order) => {
-      const date = order.created_at.split('T')[0];
+      const date = format(new Date(order.created_at), 'yyyy-MM-dd');
       const existing = dateMap.get(date) || { revenue: 0, orders: 0 };
       dateMap.set(date, {
         revenue: existing.revenue + (order.status === 'DONE' ? order.total : 0),
@@ -198,7 +198,7 @@ export default function AdminDashboardPage() {
     // Fill in missing dates
     const result: SalesChartData[] = [];
     for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const date = format(new Date(Date.now() - i * 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
       const data = dateMap.get(date) || { revenue: 0, orders: 0 };
       result.push({ date, ...data });
     }

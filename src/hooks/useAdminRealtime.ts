@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getLocalDayBounds, isCompletedToday } from "@/lib/adminDashboardStats";
 
 export interface AdminSnapshot {
   todayOrders: number;
@@ -54,6 +55,9 @@ interface OrderRow {
   status: string;
   created_at: string;
   buyer_id: string | null;
+  updated_at?: string | null;
+  status_updated_at?: string | null;
+  delivered_at?: string | null;
 }
 
 const SPIKE_THRESHOLD = 2;
@@ -63,14 +67,22 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
+function localHourKey(date: Date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}`;
+}
+
+function localMinuteKey(date: Date) {
+  return `${localHourKey(date)}:${pad(date.getMinutes())}`;
+}
+
 function buildHourly(rows: OrderRow[]): HourlyPoint[] {
   const points: HourlyPoint[] = [];
   const now = new Date();
   for (let i = 23; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 60 * 60 * 1000);
     d.setMinutes(0, 0, 0);
-    const key = d.toISOString().slice(0, 13);
-    const bucket = rows.filter((r) => r.created_at.slice(0, 13) === key);
+    const key = localHourKey(d);
+    const bucket = rows.filter((r) => localHourKey(new Date(r.created_at)) === key);
     points.push({
       hour: d.toISOString(),
       label: `${pad(d.getHours())}:00`,
@@ -89,8 +101,8 @@ function buildMinutely(rows: OrderRow[]): MinutelyPoint[] {
   for (let i = 59; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 60 * 1000);
     d.setSeconds(0, 0);
-    const key = d.toISOString().slice(0, 16);
-    const bucket = rows.filter((r) => r.created_at.slice(0, 16) === key);
+    const key = localMinuteKey(d);
+    const bucket = rows.filter((r) => localMinuteKey(new Date(r.created_at)) === key);
     points.push({
       minute: d.toISOString(),
       label: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
@@ -103,10 +115,12 @@ function buildMinutely(rows: OrderRow[]): MinutelyPoint[] {
 
 function buildSnapshot(rows: OrderRow[]): AdminSnapshot {
   const now = Date.now();
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const { start: startOfToday, end: startOfTomorrow } = getLocalDayBounds(new Date());
 
-  const todayRows = rows.filter((r) => new Date(r.created_at) >= startOfToday);
+  const todayRows = rows.filter((r) => {
+    const createdAt = new Date(r.created_at);
+    return createdAt >= startOfToday && createdAt < startOfTomorrow;
+  });
   const thisHour = rows.filter((r) => now - new Date(r.created_at).getTime() <= 3600_000);
   const prevHour = rows.filter((r) => {
     const age = now - new Date(r.created_at).getTime();
@@ -123,7 +137,9 @@ function buildSnapshot(rows: OrderRow[]): AdminSnapshot {
 
   return {
     todayOrders: todayRows.length,
-    todayRevenue: todayRows.reduce((s, r) => s + Number(r.total || 0), 0),
+    todayRevenue: todayRows
+      .filter((r) => isCompletedToday(r, new Date()))
+      .reduce((s, r) => s + Number(r.total || 0), 0),
     thisHourOrders: thisHour.length,
     prevHourOrders: prevHour.length,
     spikeRatio,
@@ -156,7 +172,7 @@ export function useAdminRealtime() {
     const since = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from("orders")
-      .select("id, total, status, created_at, buyer_id")
+      .select("id, total, status, created_at, buyer_id, updated_at, status_updated_at, delivered_at")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(5000);
@@ -207,7 +223,7 @@ export function useAdminRealtime() {
         setIsConnected(status === "SUBSCRIBED");
       });
 
-    const interval = setInterval(refresh, 60 * 1000);
+    const interval = setInterval(refresh, 10 * 1000);
 
     return () => {
       clearInterval(interval);

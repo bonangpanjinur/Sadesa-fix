@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { getLocalDayBounds, isCompletedToday } from '@/lib/adminDashboardStats';
 
 export interface RealtimeStats {
   // Orders
   totalOrders: number;
   newOrders: number;
   processingOrders: number;
+  /** Orders transitioned to DONE during the current local calendar day. */
   completedOrders: number;
   todayOrders: number;
   todayRevenue: number;
@@ -66,7 +68,7 @@ export function useRealtimeStats() {
 
   // Fetch initial stats
   const fetchStats = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const { start: todayStart, end: tomorrowStart } = getLocalDayBounds();
     
     try {
       const [
@@ -78,9 +80,9 @@ export function useRealtimeStats() {
         productsRes,
       ] = await Promise.all([
         // All orders with status counts
-        supabase.from('orders').select('id, status, total'),
+        supabase.from('orders').select('id, status, total, created_at, updated_at, status_updated_at, delivered_at'),
         // Today's orders
-        supabase.from('orders').select('id, total, status').gte('created_at', `${today}T00:00:00`),
+        supabase.from('orders').select('id, total, status').gte('created_at', todayStart.toISOString()).lt('created_at', tomorrowStart.toISOString()),
         // Merchants
         supabase.from('merchants').select('id, status, registration_status'),
         // Couriers
@@ -103,7 +105,7 @@ export function useRealtimeStats() {
         totalOrders: orders.length,
         newOrders: orders.filter(o => o.status === 'NEW').length,
         processingOrders: orders.filter(o => ['PROCESSED', 'SENT'].includes(o.status)).length,
-        completedOrders: orders.filter(o => o.status === 'DONE').length,
+        completedOrders: orders.filter(o => isCompletedToday(o, new Date())).length,
         todayOrders: todayOrders.length,
         todayRevenue: todayOrders.filter(o => o.status === 'DONE').reduce((sum, o) => sum + (o.total || 0), 0),
         
