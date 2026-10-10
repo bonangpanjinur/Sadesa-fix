@@ -56,9 +56,9 @@ export default function AdminReportsPage() {
     const now = new Date();
     switch (dateRange) {
       case '7days':
-        return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+        return { start: startOfDay(subDays(now, 6)), end: endOfDay(now) };
       case '30days':
-        return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+        return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
       case 'thisMonth':
         return { start: startOfMonth(now), end: endOfMonth(now) };
       case 'lastMonth': {
@@ -67,11 +67,11 @@ export default function AdminReportsPage() {
       }
       case 'custom':
         return { 
-          start: customStart ? startOfDay(customStart) : startOfDay(subDays(now, 7)), 
-          end: customEnd ? endOfDay(customEnd) : endOfDay(now) 
+          start: customStart ? startOfDay(customStart) : undefined,
+          end: customEnd ? endOfDay(customEnd) : undefined,
         };
       default:
-        return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+        return { start: startOfDay(subDays(now, 6)), end: endOfDay(now) };
     }
   }, [dateRange, customStart, customEnd]);
 
@@ -79,6 +79,11 @@ export default function AdminReportsPage() {
     try {
       setLoading(true);
       const { start, end } = getDateRange();
+
+      if (!start || !end || start > end) {
+        setOrders([]);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('orders')
@@ -139,7 +144,7 @@ export default function AdminReportsPage() {
     const dateMap = new Map<string, { revenue: number; orders: number }>();
     
     orders.forEach((order) => {
-      const date = order.createdAt.split('T')[0];
+      const date = format(new Date(order.createdAt), 'yyyy-MM-dd');
       const existing = dateMap.get(date) || { revenue: 0, orders: 0 };
       dateMap.set(date, {
         revenue: existing.revenue + (order.status === 'DONE' ? order.total : 0),

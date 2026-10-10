@@ -72,13 +72,13 @@ export default function AdminDashboardPage() {
     const now = new Date();
     switch (dateRange) {
       case '7days':
-        return { start: startOfDay(subDays(now, 7)), end: endOfDay(now), days: 7 };
+        return { start: startOfDay(subDays(now, 6)), end: endOfDay(now), days: 7 };
       case '14days':
-        return { start: startOfDay(subDays(now, 14)), end: endOfDay(now), days: 14 };
+        return { start: startOfDay(subDays(now, 13)), end: endOfDay(now), days: 14 };
       case '30days':
-        return { start: startOfDay(subDays(now, 30)), end: endOfDay(now), days: 30 };
+        return { start: startOfDay(subDays(now, 29)), end: endOfDay(now), days: 30 };
       default:
-        return { start: startOfDay(subDays(now, 14)), end: endOfDay(now), days: 14 };
+        return { start: startOfDay(subDays(now, 13)), end: endOfDay(now), days: 14 };
     }
   }, [dateRange]);
 
@@ -119,11 +119,12 @@ export default function AdminDashboardPage() {
   const { data: orders = [], isLoading: ordersLoading } = useQuery<OrderData[]>({
     queryKey: ['admin-orders-chart', dateRange],
     queryFn: async () => {
-      const { start } = getDateRange();
+      const { start, end } = getDateRange();
       const { data } = await supabase
         .from('orders')
         .select('total, created_at, status')
         .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString())
         .order('created_at', { ascending: true });
       return data || [];
     },

@@ -75,9 +75,9 @@ export default function AdminFinancePage() {
     const now = new Date();
     switch (dateRange) {
       case '7days':
-        return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+        return { start: startOfDay(subDays(now, 6)), end: endOfDay(now) };
       case '30days':
-        return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+        return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
       case 'thisMonth':
         return { start: startOfMonth(now), end: endOfMonth(now) };
       case 'lastMonth': {
@@ -86,16 +86,17 @@ export default function AdminFinancePage() {
       }
       case 'custom':
         return { 
-          start: customStart ? startOfDay(customStart) : startOfDay(subDays(now, 30)), 
-          end: customEnd ? endOfDay(customEnd) : endOfDay(now) 
+          start: customStart ? startOfDay(customStart) : undefined,
+          end: customEnd ? endOfDay(customEnd) : undefined,
         };
       default:
-        return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+        return { start: startOfDay(subDays(now, 29)), end: endOfDay(now) };
     }
   };
 
   const { data: orders = [], isLoading: loading, error: ordersError, refetch: refetchOrders } = useQuery<OrderFinance[]>({
     queryKey: ['admin-finance-orders', dateRange, customStart?.toISOString(), customEnd?.toISOString()],
+    enabled: dateRange !== 'custom' || (!!customStart && !!customEnd && customStart <= customEnd),
     queryFn: async () => {
       const { start, end } = getDateRange();
       const { data, error } = await supabase
@@ -129,7 +130,7 @@ export default function AdminFinancePage() {
     
     orders.forEach(order => {
       if (order.status === 'DONE' || order.status === 'DELIVERED') {
-        const date = order.created_at.split('T')[0];
+        const date = format(new Date(order.created_at), 'yyyy-MM-dd');
         const existing = dateMap.get(date) || { revenue: 0, orders: 0 };
         dateMap.set(date, {
           revenue: existing.revenue + order.total,
