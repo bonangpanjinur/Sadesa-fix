@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 
 export interface BannerSlide {
   id: string;
@@ -142,7 +143,9 @@ export function HeroCarousel({ slides, autoPlayInterval = 5000, ariaLabel = 'Pro
             )}
             {currentSlide.image && (
               <motion.img
-                src={currentSlide.image}
+                src={optimizeSupabaseImage(currentSlide.image, 960)}
+                srcSet={getOptimizedImageSrcSet(currentSlide.image, [480, 768, 960, 1280])}
+                sizes="100vw"
                 alt={currentSlide.title || 'Banner promosi'}
                 loading="eager"
                 decoding="async"

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Bike, ChevronRight, ShoppingBasket, UtensilsCrossed, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 import {
   EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES,
   HOMEPAGE_SERVICE_CARDS,
@@ -57,7 +58,9 @@ export function HomeServiceCards() {
               </span>
               {imageUrl && (
                 <img
-                  src={imageUrl}
+                  src={optimizeSupabaseImage(imageUrl, 480)}
+                  srcSet={getOptimizedImageSrcSet(imageUrl, [240, 360, 480, 640])}
+                  sizes="(min-width: 768px) 300px, 31vw"
                   alt={card.imageAlt}
                   loading={card.id === 'food' ? 'eager' : 'lazy'}
                   decoding="async"

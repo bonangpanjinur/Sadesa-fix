@@ -26,6 +26,7 @@ import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
 import { isCheckoutPaymentMethodAvailable } from '@/lib/checkoutPaymentReadiness';
+import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
 
@@ -860,8 +861,14 @@ export default function CheckoutPage() {
             {items.map(item => (
               <div key={item.product.id} className="flex gap-3">
                 <img
-                  src={item.product.image}
+                  src={optimizeSupabaseImage(item.product.image, 160)}
+                  srcSet={getOptimizedImageSrcSet(item.product.image, [160, 240])}
+                  sizes="48px"
                   alt={item.product.name}
+                  width={48}
+                  height={48}
+                  loading="eager"
+                  decoding="async"
                   className="w-12 h-12 rounded-lg object-cover"
                 />
                 <div className="flex-1 min-w-0">

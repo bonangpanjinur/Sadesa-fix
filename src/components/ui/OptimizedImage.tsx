@@ -9,6 +9,8 @@ interface OptimizedImageProps {
   width?: number;
   height?: number;
   transformWidth?: number;
+  srcSetWidths?: number[];
+  sizes?: string;
   fallback?: string;
   lazy?: boolean;
   blur?: boolean;
@@ -26,7 +28,7 @@ const aspectRatioClasses = {
   auto: '',
 };
 
-function optimizeSupabaseImage(src: string, requestedWidth: number): string {
+export function optimizeSupabaseImage(src: string, requestedWidth: number): string {
   try {
     const url = new URL(src, window.location.origin);
     const match = url.pathname.match(/^\/storage\/v1\/object\/public\/(.+)$/);
@@ -44,6 +46,15 @@ function optimizeSupabaseImage(src: string, requestedWidth: number): string {
   }
 }
 
+export function getOptimizedImageSrcSet(src: string, widths: number[]): string | undefined {
+  const candidates = [...new Set(widths
+    .filter((width) => Number.isFinite(width) && width > 0)
+    .map((width) => Math.min(Math.max(Math.round(width), 160), 1280)))].sort((a, b) => a - b);
+  const urls = candidates.map((width) => optimizeSupabaseImage(src, width));
+  if (new Set(urls).size < 2) return undefined;
+  return urls.map((url, index) => `${url} ${candidates[index]}w`).join(', ');
+}
+
 export function OptimizedImage({
   src,
   alt,
@@ -51,6 +62,8 @@ export function OptimizedImage({
   width,
   height,
   transformWidth,
+  srcSetWidths,
+  sizes,
   fallback = '/placeholder.svg',
   lazy = true,
   blur = true,
@@ -104,6 +117,9 @@ export function OptimizedImage({
 
   const optimizedSrc = optimizeSupabaseImage(src, transformWidth ?? width ?? 640);
   const imageSrc = hasError ? fallback : useOriginalSrc ? src : optimizedSrc;
+  const imageSrcSet = useOriginalSrc || hasError || !srcSetWidths
+    ? undefined
+    : getOptimizedImageSrcSet(src, srcSetWidths);
   const objectFitClass = {
     cover: 'object-cover',
     contain: 'object-contain',
@@ -128,6 +144,8 @@ export function OptimizedImage({
       {isInView && (
         <img
           src={imageSrc}
+          srcSet={imageSrcSet}
+          sizes={imageSrcSet ? sizes : undefined}
           alt={alt}
           width={width}
           height={height}

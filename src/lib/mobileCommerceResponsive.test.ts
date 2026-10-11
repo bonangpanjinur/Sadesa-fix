@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 const cartPage = readFileSync(resolve(process.cwd(), 'src/pages/CartPage.tsx'), 'utf8');
 const checkoutPage = readFileSync(resolve(process.cwd(), 'src/pages/CheckoutPage.tsx'), 'utf8');
 const indexStyles = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
+const homeServiceCards = readFileSync(resolve(process.cwd(), 'src/components/home/HomeServiceCards.tsx'), 'utf8');
+const heroCarousel = readFileSync(resolve(process.cwd(), 'src/components/home/HeroCarousel.tsx'), 'utf8');
 
 describe('mobile commerce responsive contract', () => {
   it('keeps cart content scrollable above a mobile-safe sticky checkout summary', () => {
@@ -37,5 +39,12 @@ describe('mobile commerce responsive contract', () => {
     expect(indexStyles).toContain('env(safe-area-inset-bottom)');
     expect(indexStyles).toContain('.mobile-shell .overflow-y-auto.pb-24');
     expect(indexStyles).toContain('padding-bottom: var(--bottom-nav-space);');
+  });
+
+  it('serves homepage and checkout imagery through responsive Supabase image variants', () => {
+    expect(homeServiceCards).toContain('getOptimizedImageSrcSet(imageUrl, [240, 360, 480, 640])');
+    expect(heroCarousel).toContain('getOptimizedImageSrcSet(currentSlide.image, [480, 768, 960, 1280])');
+    expect(checkoutPage).toContain('getOptimizedImageSrcSet(item.product.image, [160, 240])');
+    expect(checkoutPage).toContain('src={merchantPaymentSettings.qrisImageUrl}');
   });
 });

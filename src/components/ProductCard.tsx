@@ -149,6 +149,8 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
             isAvailable && "group-hover:scale-105"
           )}
           transformWidth={480}
+          srcSetWidths={[240, 320, 480, 640]}
+          sizes="(min-width: 768px) 240px, 45vw"
           aspectRatio="auto"
           lazy
         />
