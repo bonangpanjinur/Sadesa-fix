@@ -752,7 +752,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-56">
+      <form id="checkout-form" onSubmit={handleSubmit} className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-56">
         {merchantIds.length > 1 && (
           <div role="alert" className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
             <h3 className="font-bold text-amber-900 text-sm">{t('checkout.multiStore.title')}</h3>
@@ -1178,6 +1178,7 @@ export default function CheckoutPage() {
         </div>
         <Button
           type="submit"
+          form="checkout-form"
           className="w-full shadow-brand font-bold transition-all"
           size="lg"
           disabled={loading || routeCalculationPending || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}

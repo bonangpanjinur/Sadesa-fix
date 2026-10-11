@@ -19,6 +19,8 @@ describe('mobile commerce responsive contract', () => {
     expect(checkoutPage).toContain('mobile-shell bg-secondary flex h-[100dvh] min-h-0 flex-col');
     expect(checkoutPage).toContain('sticky top-0 z-50');
     expect(checkoutPage).toContain('min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-56');
+    expect(checkoutPage).toContain('<form id="checkout-form" onSubmit={handleSubmit}');
+    expect(checkoutPage).toContain('type="submit"\n          form="checkout-form"');
     expect(checkoutPage).toContain('mobile-action-safe fixed bottom-0 left-0 right-0');
     expect(checkoutPage).toContain('max-w-[480px]');
     expect(checkoutPage).toContain('className="w-full shadow-brand font-bold transition-all"');
