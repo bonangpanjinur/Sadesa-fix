@@ -880,6 +880,13 @@
       "standalone": true,
       "sha256": "3f6cf95c2e1e4b4301f51ac525b0ef08038df3e37a5dee27747fa48065288d4a",
       "bytes": 2231
+    },
+    {
+      "file": "101_20261011200000_courier_vehicle_history.sql",
+      "source_files": [],
+      "standalone": true,
+      "sha256": "9ce3045cabf4297f4082c7df4a5cc03cd846a1b111e885135c1b01c348812bbc",
+      "bytes": 3560
     }
   ],
   "idempotent": true,
