@@ -6,11 +6,12 @@ export interface PWAContextValue {
   isInstalled: boolean;
   isOnline: boolean;
   isUpdateAvailable: boolean;
+  isUpdating: boolean;
   device: PwaDeviceSession | null;
   deviceRevoked: boolean;
   heartbeat: (syncAt?: string | null) => Promise<PwaDeviceSession | null>;
   installApp: () => Promise<boolean>;
-  updateApp: () => void;
+  updateApp: () => Promise<void>;
   canInstall: boolean;
 }
 

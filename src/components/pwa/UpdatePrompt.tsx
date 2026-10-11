@@ -1,9 +1,9 @@
-import { RefreshCw } from 'lucide-react';
+import { LoaderCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWA } from '@/hooks/usePWA';
 
 export function UpdatePrompt() {
-  const { isUpdateAvailable, updateApp } = usePWA();
+  const { isUpdateAvailable, isUpdating, updateApp } = usePWA();
 
   if (!isUpdateAvailable) return null;
 
@@ -21,10 +21,12 @@ export function UpdatePrompt() {
           <Button
             size="sm"
             variant="secondary"
-            onClick={updateApp}
+            onClick={() => void updateApp()}
+            disabled={isUpdating}
             className="text-xs"
           >
-            Refresh
+            {isUpdating ? <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+            {isUpdating ? 'Memperbarui…' : 'Perbarui sekarang'}
           </Button>
         </div>
       </div>

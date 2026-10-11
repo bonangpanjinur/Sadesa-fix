@@ -3,7 +3,7 @@ import { allowsPwaDeviceRegistration, canRegisterPwaDeviceForSession, heartbeatP
 import { PWAContext, type PWAContextValue } from './PWAContext';
 import { reportObservability } from '@/lib/observability';
 import { supabase } from '@/integrations/supabase/client';
-import { isPendingServiceWorkerUpdate } from '@/lib/pwaUpdate';
+import { isPendingServiceWorkerUpdate, requestPwaUpdate } from '@/lib/pwaUpdate';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePOS } from '@/contexts/POSContext';
 
@@ -17,6 +17,7 @@ interface PWAStatus {
   isInstalled: boolean;
   isOnline: boolean;
   isUpdateAvailable: boolean;
+  isUpdating: boolean;
   device: PwaDeviceSession | null;
   deviceRevoked: boolean;
 }
@@ -103,6 +104,7 @@ function usePWAController(): PWAContextValue {
     isInstalled: false,
     isOnline: navigator.onLine,
     isUpdateAvailable: false,
+    isUpdating: false,
     device: null,
     deviceRevoked: false,
   });
@@ -371,26 +373,16 @@ function usePWAController(): PWAContextValue {
     }
   }, [deferredPrompt]);
 
-  const updateApp = useCallback(() => {
-    if ('serviceWorker' in navigator) {
-      void navigator.serviceWorker.ready.then((registration) => {
-        const waitingWorker = registration.waiting;
-        if (!waitingWorker) {
-          setStatus((prev) => ({ ...prev, isUpdateAvailable: false }));
-          return;
-        }
-
-        const reloadAfterActivation = () => {
-          if (navigator.serviceWorker.controller === waitingWorker) {
-            navigator.serviceWorker.removeEventListener('controllerchange', reloadAfterActivation);
-            window.location.reload();
-          }
-        };
-        navigator.serviceWorker.addEventListener('controllerchange', reloadAfterActivation);
-        waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-      }).catch((error: unknown) => reportObservability('device', 'pwa_update_failed', 'error', {}, error));
+  const updateApp = useCallback(async () => {
+    if (status.isUpdating) return;
+    setStatus((prev) => ({ ...prev, isUpdating: true }));
+    try {
+      await requestPwaUpdate();
+    } catch (error: unknown) {
+      setStatus((prev) => ({ ...prev, isUpdating: false }));
+      reportObservability('device', 'pwa_update_failed', 'error', {}, error);
     }
-  }, []);
+  }, [status.isUpdating]);
 
   return useMemo(() => ({
     ...status,
