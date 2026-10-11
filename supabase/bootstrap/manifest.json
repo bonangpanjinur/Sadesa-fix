@@ -873,6 +873,13 @@
       "standalone": true,
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
+    },
+    {
+      "file": "100_20261011190000_courier_vehicle_profile.sql",
+      "source_files": [],
+      "standalone": true,
+      "sha256": "3f6cf95c2e1e4b4301f51ac525b0ef08038df3e37a5dee27747fa48065288d4a",
+      "bytes": 2231
     }
   ],
   "idempotent": true,

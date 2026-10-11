@@ -22,7 +22,7 @@ const courierSchema = z.object({
   email: z.string().email('Email tidak valid').optional().or(z.literal('')),
   dateOfBirth: z.string().min(1, 'Tanggal lahir wajib diisi'),
   ktpNumber: z.string().length(16, 'Nomor KTP harus 16 digit'),
-  vehicleType: z.enum(['motor', 'mobil', 'sepeda']),
+  vehicleType: z.literal('motor'),
   vehiclePlate: z.string().optional(),
   address: z.string().min(10, 'Alamat minimal 10 karakter').max(500),
 });
@@ -274,7 +274,8 @@ export default function RegisterCourierPage() {
         email: formData.email || user.email || null,
         date_of_birth: formData.dateOfBirth,
         ktp_number: formData.ktpNumber,
-        vehicle_type: formData.vehicleType,
+        // Pendaftaran baru saat ini hanya menerima kendaraan motor.
+        vehicle_type: 'motor',
         vehicle_plate: formData.vehiclePlate || null,
         province: addressData.provinceName,
         city: addressData.cityName,
@@ -398,14 +399,13 @@ export default function RegisterCourierPage() {
 
             <div className="space-y-2">
               <Label>Jenis Kendaraan *</Label>
-              <Select value={formData.vehicleType} onValueChange={(value) => setFormData(prev => ({ ...prev, vehicleType: value as CourierFormData['vehicleType'] }))}>
-                <SelectTrigger><SelectValue placeholder="Pilih jenis kendaraan" /></SelectTrigger>
+              <Select value="motor" disabled>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="motor">Motor</SelectItem>
-                  <SelectItem value="mobil">Mobil</SelectItem>
-                  <SelectItem value="sepeda">Sepeda</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">Untuk sementara, pendaftaran ojek hanya tersedia untuk kendaraan motor.</p>
             </div>
 
             <div className="space-y-2">
