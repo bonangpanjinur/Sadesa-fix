@@ -56,18 +56,37 @@ export async function getPaymentProofSignedUrl(
   const path = extractPaymentProofPath(storedPath);
   if (!path) return null;
 
-  let { data, error } = await supabase.storage
-    .from('payment-proofs')
-    .createSignedUrl(path, expiresInSeconds);
+  const storage = supabase.storage.from('payment-proofs');
+  let { data, error } = await storage.createSignedUrl(path, expiresInSeconds);
 
   // Storage can briefly return 400 immediately after an upload while its
   // object index catches up. Retry once so the order screen recovers from
   // that transient race instead of showing a permanent load error.
   if ((error || !data?.signedUrl) && typeof window !== 'undefined') {
     await new Promise((resolve) => window.setTimeout(resolve, 250));
-    const retry = await supabase.storage.from('payment-proofs').createSignedUrl(path, expiresInSeconds);
+    const retry = await storage.createSignedUrl(path, expiresInSeconds);
     data = retry.data;
     error = retry.error;
+  }
+
+  // Older uploads can leave the order row pointing at an object that was
+  // renamed/replaced. Storage reports this as the same 400/Object not found
+  // response as a transient failure. Look for an existing proof in the
+  // order's private folder and sign the newest candidate as a safe fallback.
+  if ((error || !data?.signedUrl) && path.startsWith('orders/') && 'list' in storage) {
+    const orderFolder = path.split('/').slice(0, 2).join('/');
+    const requestedName = path.split('/').at(-1);
+    const { data: objects, error: listError } = await storage.list(orderFolder, {
+      limit: 100,
+      sortBy: { column: 'created_at', order: 'desc' },
+    });
+    if (!listError && objects?.length) {
+      const candidate = objects.find((object) => object.name === requestedName) ?? objects[0];
+      const candidatePath = `${orderFolder}/${candidate.name}`;
+      const fallback = await storage.createSignedUrl(candidatePath, expiresInSeconds);
+      data = fallback.data;
+      error = fallback.error;
+    }
   }
 
   if (error || !data?.signedUrl) {
