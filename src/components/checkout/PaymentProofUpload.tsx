@@ -28,12 +28,16 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
   useEffect(() => {
     let active = true;
     setPreviewUnavailable(false);
+    setDisplayUrl(null);
     if (proofUrl) {
       getPaymentProofSignedUrl(proofUrl).then((u) => {
         if (active) {
           setDisplayUrl(u);
           setPreviewUnavailable(!u);
         }
+      }).catch((err) => {
+        reportObservability('upload', 'payment_proof_preview_failed', 'warn', { hasOrderId: Boolean(orderId) }, err);
+        if (active) setPreviewUnavailable(true);
       });
     } else {
       setDisplayUrl(null);
@@ -66,34 +70,39 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
         return;
       }
 
-      if (result.url && result.path) {
-        // Store the bucket-relative object path. The bucket is private, so the
-        // merchant/admin must resolve it through a signed URL instead of
-        // relying on a public URL that may stop working after bucket hardening.
-        const storedProofPath = result.path;
-        const { error: updateError } = guestAccessToken
-          ? await supabase.rpc('guest_submit_payment_proof', {
-              p_order_id: orderId,
-              p_guest_access_token: guestAccessToken,
-              p_payment_proof_url: storedProofPath,
-            })
-          : await supabase.rpc('buyer_submit_payment_proof', {
-              p_order_id: orderId,
-              p_payment_proof_url: storedProofPath,
-            });
-
-        if (updateError) {
-          await deleteFile('payment-proofs', result.path);
-          reportObservability('upload', 'payment_proof_order_update_failed', 'error', { hasOrderId: Boolean(orderId) }, updateError);
-          toast.error('Gagal menyimpan bukti pembayaran');
-          return;
-        }
-
-        setProofUrl(storedProofPath);
-        onUploaded(storedProofPath);
-        reportObservability('upload', 'payment_proof_uploaded', 'info', { hasOrderId: Boolean(orderId) });
-        toast.success('Bukti pembayaran berhasil diupload');
+      if (!result.path) {
+        const message = 'Bukti pembayaran diproses, tetapi lokasi file tidak ditemukan. Silakan coba lagi.';
+        reportObservability('upload', 'payment_proof_storage_incomplete', 'error', { hasOrderId: Boolean(orderId) });
+        toast.error(message);
+        return;
       }
+
+      // Store the bucket-relative object path. The bucket is private, so the
+      // merchant/admin must resolve it through a signed URL instead of
+      // relying on a public URL that may stop working after bucket hardening.
+      const storedProofPath = result.path;
+      const { error: updateError } = guestAccessToken
+        ? await supabase.rpc('guest_submit_payment_proof', {
+            p_order_id: orderId,
+            p_guest_access_token: guestAccessToken,
+            p_payment_proof_url: storedProofPath,
+          })
+        : await supabase.rpc('buyer_submit_payment_proof', {
+            p_order_id: orderId,
+            p_payment_proof_url: storedProofPath,
+          });
+
+      if (updateError) {
+        await deleteFile('payment-proofs', result.path);
+        reportObservability('upload', 'payment_proof_order_update_failed', 'error', { hasOrderId: Boolean(orderId) }, updateError);
+        toast.error('Gagal menyimpan bukti pembayaran');
+        return;
+      }
+
+      setProofUrl(storedProofPath);
+      onUploaded(storedProofPath);
+      reportObservability('upload', 'payment_proof_uploaded', 'info', { hasOrderId: Boolean(orderId) });
+      toast.success('Bukti pembayaran berhasil diupload');
     } catch (err) {
       reportObservability('upload', 'payment_proof_upload_failed', 'error', { hasOrderId: Boolean(orderId) }, err);
       toast.error('Gagal mengupload bukti pembayaran');
