@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Bike, Car, Clock3, History, Loader2, Save } from 'lucide-react';
+import { Bike, Car, Clock3, Filter, History, Loader2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,10 +35,26 @@ export function CourierVehicleEditor({ userId }: CourierVehicleEditorProps) {
   const [vehicleType, setVehicleType] = useState<VehicleType>('motor');
   const [vehiclePlate, setVehiclePlate] = useState('');
   const [history, setHistory] = useState<VehicleHistoryItem[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [appliedDateFrom, setAppliedDateFrom] = useState('');
+  const [appliedDateTo, setAppliedDateTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const loadVehicle = useCallback(async () => {
+  const loadVehicle = useCallback(async (from = '', to = '') => {
+    const historyQuery = supabase
+      .from('courier_vehicle_history' as never)
+      .select('id, previous_vehicle_type, previous_vehicle_plate, new_vehicle_type, new_vehicle_plate, changed_at')
+      .order('changed_at', { ascending: false })
+      .limit(100);
+    if (from) historyQuery.gte('changed_at', new Date(`${from}T00:00:00`).toISOString());
+    if (to) {
+      const endDate = new Date(`${to}T00:00:00`);
+      endDate.setDate(endDate.getDate() + 1);
+      historyQuery.lt('changed_at', endDate.toISOString());
+    }
+
     const [vehicleResult, historyResult] = await Promise.all([
       supabase
         .from('couriers')
@@ -46,11 +62,7 @@ export function CourierVehicleEditor({ userId }: CourierVehicleEditorProps) {
         .eq('user_id', userId)
         .limit(1)
         .maybeSingle(),
-      supabase
-        .from('courier_vehicle_history' as never)
-        .select('id, previous_vehicle_type, previous_vehicle_plate, new_vehicle_type, new_vehicle_plate, changed_at')
-        .order('changed_at', { ascending: false })
-        .limit(20),
+      historyQuery,
     ]);
 
     if (vehicleResult.error) {
@@ -84,9 +96,27 @@ export function CourierVehicleEditor({ userId }: CourierVehicleEditorProps) {
       toast({ title: 'Gagal memperbarui kendaraan', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Kendaraan berhasil diperbarui' });
-      await loadVehicle();
+      await loadVehicle(appliedDateFrom, appliedDateTo);
     }
     setSaving(false);
+  };
+
+  const handleFilter = () => {
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      toast({ title: 'Rentang tanggal tidak valid', description: 'Tanggal mulai tidak boleh melewati tanggal akhir.', variant: 'destructive' });
+      return;
+    }
+    setAppliedDateFrom(dateFrom);
+    setAppliedDateTo(dateTo);
+    void loadVehicle(dateFrom, dateTo);
+  };
+
+  const handleResetFilter = () => {
+    setDateFrom('');
+    setDateTo('');
+    setAppliedDateFrom('');
+    setAppliedDateTo('');
+    void loadVehicle();
   };
 
   return (
@@ -133,8 +163,34 @@ export function CourierVehicleEditor({ userId }: CourierVehicleEditorProps) {
               <History className="h-4 w-4 text-primary" />
               <h4 className="font-semibold">Riwayat perubahan kendaraan</h4>
             </div>
+            <div className="mb-4 rounded-lg border border-border bg-card p-3">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                <Filter className="h-4 w-4 text-primary" />
+                Filter berdasarkan tanggal
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="courier-vehicle-history-from" className="text-xs">Dari tanggal</Label>
+                  <Input id="courier-vehicle-history-from" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="courier-vehicle-history-to" className="text-xs">Sampai tanggal</Label>
+                  <Input id="courier-vehicle-history-to" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" size="sm" onClick={handleFilter}>
+                  <Filter className="mr-2 h-3.5 w-3.5" /> Terapkan filter
+                </Button>
+                {(appliedDateFrom || appliedDateTo) && (
+                  <Button type="button" size="sm" variant="outline" onClick={handleResetFilter}>
+                    <X className="mr-2 h-3.5 w-3.5" /> Reset
+                  </Button>
+                )}
+              </div>
+            </div>
             {history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Belum ada perubahan kendaraan yang tercatat.</p>
+              <p className="text-sm text-muted-foreground">{appliedDateFrom || appliedDateTo ? 'Tidak ada perubahan kendaraan pada rentang tanggal tersebut.' : 'Belum ada perubahan kendaraan yang tercatat.'}</p>
             ) : (
               <div className="space-y-3">
                 {history.map((item) => (
