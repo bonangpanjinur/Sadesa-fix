@@ -77,7 +77,7 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
             });
 
         if (updateError) {
-          await deleteFile('payment-proofs', result.url);
+          await deleteFile('payment-proofs', result.path);
           reportObservability('upload', 'payment_proof_order_update_failed', 'error', { hasOrderId: Boolean(orderId) }, updateError);
           toast.error('Gagal menyimpan bukti pembayaran');
           return;

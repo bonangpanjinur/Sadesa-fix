@@ -75,14 +75,36 @@ export async function getPaymentProofSignedUrl(
   // order's private folder and sign the newest candidate as a safe fallback.
   if ((error || !data?.signedUrl) && path.startsWith('orders/') && 'list' in storage) {
     const orderFolder = path.split('/').slice(0, 2).join('/');
-    const requestedName = path.split('/').at(-1);
-    const { data: objects, error: listError } = await storage.list(orderFolder, {
-      limit: 100,
-      sortBy: { column: 'created_at', order: 'desc' },
-    });
-    if (!listError && objects?.length) {
-      const candidate = objects.find((object) => object.name === requestedName) ?? objects[0];
-      const candidatePath = `${orderFolder}/${candidate.name}`;
+    const requestedPath = path.split('/').slice(2).join('/');
+    const pendingFolders = [orderFolder];
+    const candidates: string[] = [];
+    const visited = new Set<string>();
+
+    // Guest uploads use orders/{orderId}/{tokenHash}/{file}; authenticated
+    // uploads use orders/{orderId}/{file}. Walk both layouts without exposing
+    // anything outside the current order folder.
+    while (pendingFolders.length && visited.size < 20) {
+      const folder = pendingFolders.shift()!;
+      if (visited.has(folder)) continue;
+      visited.add(folder);
+      const { data: objects, error: listError } = await storage.list(folder, {
+        limit: 100,
+        sortBy: { column: 'created_at', order: 'desc' },
+      });
+      if (listError || !objects) continue;
+      for (const object of objects) {
+        const objectPath = `${folder}/${object.name}`;
+        if (/\.[a-z0-9]{2,5}$/i.test(object.name)) {
+          candidates.push(objectPath);
+        } else if (visited.size < 20) {
+          pendingFolders.push(objectPath);
+        }
+      }
+    }
+
+    const candidatePath = candidates.find((candidate) => candidate.slice(orderFolder.length + 1) === requestedPath)
+      ?? candidates[0];
+    if (candidatePath) {
       const fallback = await storage.createSignedUrl(candidatePath, expiresInSeconds);
       data = fallback.data;
       error = fallback.error;
