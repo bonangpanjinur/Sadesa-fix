@@ -10,7 +10,8 @@ describe('admin verifier team management contract', () => {
     expect(page).toContain('Belum ada tim. Buat tim terlebih dahulu');
     expect(page).toContain(".from('verifikator_teams').insert({");
     expect(page).toContain("role: 'LEAD'");
-    expect(page).toContain('verifikator_team_members').toContain('cleanupError');
+    expect(page).toContain('verifikator_team_members');
+    expect(page).toContain('cleanupError');
   });
 
   it('restricts selectable members and coordinators to users with the verifier application role', () => {
