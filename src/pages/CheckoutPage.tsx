@@ -1007,18 +1007,6 @@ export default function CheckoutPage() {
               <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
             </label>
 
-            <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
-              deliveryType === 'EXPEDITION' ? 'border-primary bg-primary/5' : 'border-border'
-            }`}>
-              <RadioGroupItem value="EXPEDITION" id="expedition" />
-              <div className="flex-1">
-                <p className="font-bold text-sm">Ekspedisi</p>
-                <p className="text-xs text-muted-foreground">
-                  Untuk jarak lebih dari {MAX_LOCAL_DELIVERY_DISTANCE_KM} km atau beda kecamatan/kabupaten
-                </p>
-              </div>
-              <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
-            </label>
 
             <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
               deliveryType === 'PICKUP' ? 'border-primary bg-primary/5' : 'border-border'
