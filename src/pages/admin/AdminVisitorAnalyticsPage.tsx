@@ -62,12 +62,28 @@ export default function AdminVisitorAnalyticsPage() {
   const todayEvents = useMemo(() => events.filter((event) => new Date(event.occurred_at).toDateString() === new Date().toDateString()), [events]);
   const todayUnique = useMemo(() => new Set(todayEvents.map((event) => event.visitor_key)).size, [todayEvents]);
   const devices = useMemo(() => rank((event) => event.device_type), [rank]);
-  const exportData = () => downloadCsv(`analitik-pengunjung-${format(new Date(), 'yyyyMMdd')}.csv`, [['Waktu', 'Halaman', 'Lokasi', 'IP (disamarkan)', 'Perangkat', 'Browser', 'OS', 'Referrer'], ...events.map((event) => [format(new Date(event.occurred_at), 'dd/MM/yyyy HH:mm:ss'), event.path, locationLabel(event), maskIp(event.ip_address), event.device_type, event.browser_name || '-', event.os_name || '-', event.referrer || '-'])]);
+  const exportDetails = () => downloadCsv(`analitik-pengunjung-detail-${format(new Date(), 'yyyyMMdd')}.csv`, [['Waktu', 'Halaman', 'Lokasi', 'IP (disamarkan)', 'Perangkat', 'Browser', 'OS', 'Referrer'], ...events.map((event) => [format(new Date(event.occurred_at), 'dd/MM/yyyy HH:mm:ss'), event.path, locationLabel(event), maskIp(event.ip_address), event.device_type, event.browser_name || '-', event.os_name || '-', event.referrer || '-'])]);
+  const exportSummary = () => downloadCsv(`analitik-pengunjung-ringkasan-${format(new Date(), 'yyyyMMdd')}.csv`, [
+    ['Periode', `${days} hari terakhir`],
+    ['Total page view', events.length],
+    ['Pengunjung unik', uniqueVisitors],
+    ['Page view hari ini', todayEvents.length],
+    ['Pengunjung unik hari ini', todayUnique],
+    [],
+    ['Halaman populer', 'Page view', 'Pengunjung unik'],
+    ...topPages.map((row) => [row.label, row.views, row.unique]),
+    [],
+    ['Lokasi populer', 'Page view', 'Pengunjung unik'],
+    ...topLocations.map((row) => [row.label, row.views, row.unique]),
+    [],
+    ['Perangkat', 'Page view', 'Pengunjung unik'],
+    ...devices.map((row) => [row.label, row.views, row.unique]),
+  ]);
   return <AdminLayout title="Analitik Pengunjung" subtitle="Pahami trafik, halaman populer, dan asal pengunjung situs">
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground"><CalendarDays className="h-4 w-4" /> Periode {days} hari terakhir {lastUpdated && `· diperbarui ${lastUpdated.toLocaleTimeString('id-ID')}`}</div>
-        <div className="flex gap-2"><Select value={days} onValueChange={setDays}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="7">7 hari</SelectItem><SelectItem value="30">30 hari</SelectItem><SelectItem value="90">90 hari</SelectItem></SelectContent></Select><Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}><RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4'} />Refresh</Button><Button size="sm" onClick={exportData} disabled={!events.length}><Download className="mr-2 h-4 w-4" />CSV</Button></div>
+        <div className="flex flex-wrap gap-2"><Select value={days} onValueChange={setDays}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="7">7 hari</SelectItem><SelectItem value="30">30 hari</SelectItem><SelectItem value="90">90 hari</SelectItem></SelectContent></Select><Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}><RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4'} />Refresh</Button><Button variant="outline" size="sm" onClick={exportSummary} disabled={!events.length}><Download className="mr-2 h-4 w-4" />Ringkasan CSV</Button><Button size="sm" onClick={exportDetails} disabled={!events.length}><Download className="mr-2 h-4 w-4" />Detail CSV</Button></div>
       </div>
       {error && <Card className="border-destructive/50"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
