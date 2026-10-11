@@ -25,6 +25,7 @@ import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } f
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
+import { isCheckoutPaymentMethodAvailable } from '@/lib/checkoutPaymentReadiness';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
 
@@ -354,9 +355,11 @@ export default function CheckoutPage() {
   const paymentStepComplete = deliveryStepComplete && hasChosenPayment;
   const currentStepIndex = !items.length ? 0 : !addressStepComplete ? 1 : !deliveryStepComplete ? 2 : !paymentStepComplete ? 3 : 3;
   const transferDetailsAvailable = Boolean(merchantPaymentSettings?.bankName && merchantPaymentSettings?.bankAccountNumber);
-  const paymentReady = paymentMethod === 'ONLINE'
-    ? Boolean(user && xenditAvailable)
-    : transferDetailsAvailable;
+  const paymentReady = isCheckoutPaymentMethodAvailable(
+    paymentMethod,
+    merchantPaymentSettings?.transferEnabled !== false,
+    Boolean(user && xenditAvailable),
+  );
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -1081,7 +1084,7 @@ export default function CheckoutPage() {
 
           {merchantPaymentSettings && paymentMethod === 'TRANSFER' && !transferDetailsAvailable && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
-              Rekening transfer belum tersedia untuk toko ini. Pilih pembayaran online jika tersedia atau hubungi penjual.
+              Rekening transfer belum tersedia untuk toko ini. Anda tetap dapat membuat pesanan; hubungi penjual untuk mendapatkan detail pembayaran.
             </div>
           )}
 
