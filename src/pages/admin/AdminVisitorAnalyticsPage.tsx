@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, CalendarDays, Download, Eye, Globe2, MapPin, RefreshCw, ShieldCheck, Users } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { format, subDays } from 'date-fns';
+import { endOfDay, format, startOfDay, subDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Badge } from '@/components/ui/badge';
@@ -28,28 +28,42 @@ const maskIp = (ip: string | null) => {
 };
 export default function AdminVisitorAnalyticsPage() {
   const [days, setDays] = useState('30');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const from = useMemo(() => subDays(new Date(), Number(days)), [days]);
+  const from = useMemo(() => {
+    if (days === 'custom' && customStart) return startOfDay(new Date(`${customStart}T00:00:00`));
+    return subDays(new Date(), Number(days));
+  }, [days, customStart]);
+  const to = useMemo(() => {
+    if (days === 'custom' && customEnd) return endOfDay(new Date(`${customEnd}T00:00:00`));
+    return new Date();
+  }, [days, customEnd]);
+  const periodDays = useMemo(() => days === 'custom' && customStart && customEnd
+    ? Math.max(1, Math.floor((startOfDay(new Date(`${customEnd}T00:00:00`)).getTime() - startOfDay(new Date(`${customStart}T00:00:00`)).getTime()) / 86_400_000) + 1)
+    : Number(days), [days, customStart, customEnd]);
+  const invalidCustomRange = days === 'custom' && (!customStart || !customEnd || customStart > customEnd);
   const refresh = useCallback(async () => {
     setLoading(true); setError(null);
+    if (invalidCustomRange) { setEvents([]); setLoading(false); return; }
     const { data, error: queryError } = await supabase.from('visitor_analytics_events')
       .select('id, occurred_at, path, visitor_key, ip_address, country_name, region_name, city_name, device_type, browser_name, os_name, referrer')
-      .gte('occurred_at', from.toISOString()).lt('occurred_at', new Date().toISOString())
+      .gte('occurred_at', from.toISOString()).lt('occurred_at', to.toISOString())
       .order('occurred_at', { ascending: false }).limit(10000);
     if (queryError) setError('Data analitik gagal dimuat. Pastikan migration sudah diterapkan dan akun memiliki akses admin.');
     else { setEvents((data || []) as EventRow[]); setLastUpdated(new Date()); }
     setLoading(false);
-  }, [from]);
+  }, [from, to, invalidCustomRange]);
   useEffect(() => { void refresh(); }, [refresh]);
   const daily = useMemo<DailyPoint[]>(() => {
     const map = new Map<string, { views: number; visitors: Set<string> }>();
-    for (let i = Number(days) - 1; i >= 0; i--) { const key = format(subDays(new Date(), i), 'yyyy-MM-dd'); map.set(key, { views: 0, visitors: new Set() }); }
+    for (let i = periodDays - 1; i >= 0; i--) { const key = format(subDays(to, i), 'yyyy-MM-dd'); map.set(key, { views: 0, visitors: new Set() }); }
     events.forEach((event) => { const key = format(new Date(event.occurred_at), 'yyyy-MM-dd'); const item = map.get(key); if (item) { item.views++; item.visitors.add(event.visitor_key); } });
     return [...map.entries()].map(([key, item]) => ({ date: format(new Date(key), 'dd MMM', { locale: idLocale }), views: item.views, unique: item.visitors.size }));
-  }, [events, days]);
+  }, [events, periodDays, to]);
   const rank = useCallback((key: (event: EventRow) => string) => {
     const map = new Map<string, { views: number; visitors: Set<string> }>();
     events.forEach((event) => { const label = key(event); const row = map.get(label) || { views: 0, visitors: new Set<string>() }; row.views++; row.visitors.add(event.visitor_key); map.set(label, row); });
@@ -82,9 +96,10 @@ export default function AdminVisitorAnalyticsPage() {
   return <AdminLayout title="Analitik Pengunjung" subtitle="Pahami trafik, halaman populer, dan asal pengunjung situs">
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground"><CalendarDays className="h-4 w-4" /> Periode {days} hari terakhir {lastUpdated && `· diperbarui ${lastUpdated.toLocaleTimeString('id-ID')}`}</div>
-        <div className="flex flex-wrap gap-2"><Select value={days} onValueChange={setDays}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="7">7 hari</SelectItem><SelectItem value="30">30 hari</SelectItem><SelectItem value="90">90 hari</SelectItem></SelectContent></Select><Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}><RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4'} />Refresh</Button><Button variant="outline" size="sm" onClick={exportSummary} disabled={!events.length}><Download className="mr-2 h-4 w-4" />Ringkasan CSV</Button><Button size="sm" onClick={exportDetails} disabled={!events.length}><Download className="mr-2 h-4 w-4" />Detail CSV</Button></div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground"><CalendarDays className="h-4 w-4" /> {days === 'custom' ? (customStart && customEnd ? `Periode ${customStart} sampai ${customEnd}` : 'Pilih rentang tanggal') : `Periode ${days} hari terakhir`} {lastUpdated && `· diperbarui ${lastUpdated.toLocaleTimeString('id-ID')}`}</div>
+        <div className="flex flex-wrap items-center gap-2"><Select value={days} onValueChange={setDays}><SelectTrigger className="w-44"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="7">7 hari</SelectItem><SelectItem value="30">30 hari</SelectItem><SelectItem value="90">90 hari</SelectItem><SelectItem value="custom">Rentang kustom</SelectItem></SelectContent></Select>{days === 'custom' && <><label className="flex items-center gap-1 text-xs text-muted-foreground">Dari<input type="date" value={customStart} max={customEnd || undefined} onChange={(event) => setCustomStart(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label><label className="flex items-center gap-1 text-xs text-muted-foreground">Sampai<input type="date" value={customEnd} min={customStart || undefined} onChange={(event) => setCustomEnd(event.target.value)} className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground" /></label></>}<Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading || invalidCustomRange}><RefreshCw className={loading ? 'mr-2 h-4 w-4 animate-spin' : 'mr-2 h-4 w-4'} />Refresh</Button><Button variant="outline" size="sm" onClick={exportSummary} disabled={!events.length}><Download className="mr-2 h-4 w-4" />Ringkasan CSV</Button><Button size="sm" onClick={exportDetails} disabled={!events.length}><Download className="mr-2 h-4 w-4" />Detail CSV</Button></div>
       </div>
+      {invalidCustomRange && <Card className="border-amber-500/50"><CardContent className="p-4 text-sm text-amber-700">Pilih tanggal mulai dan tanggal akhir yang valid. Tanggal mulai tidak boleh melewati tanggal akhir.</CardContent></Card>}
       {error && <Card className="border-destructive/50"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card><CardContent className="flex items-center gap-4 p-5"><Eye className="h-5 w-5 text-primary" /><div><p className="text-sm text-muted-foreground">Total page view</p><p className="text-2xl font-semibold">{number(events.length)}</p></div></CardContent></Card>
