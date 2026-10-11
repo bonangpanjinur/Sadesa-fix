@@ -18,8 +18,12 @@ describe('mobile commerce responsive contract', () => {
   it('keeps checkout sections readable and the primary action reachable on narrow screens', () => {
     expect(checkoutPage).toContain('mobile-shell bg-secondary flex h-[100dvh] min-h-0 flex-col');
     expect(checkoutPage).toContain('sticky top-0 z-50');
-    expect(checkoutPage).toContain('min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-56');
-    expect(checkoutPage).toContain('<form id="checkout-form" onSubmit={handleSubmit}');
+    expect(checkoutPage).toContain('min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4');
+    expect(checkoutPage).toContain('style={{ paddingBottom: checkoutSummaryHeight }}');
+    expect(checkoutPage).toContain('new ResizeObserver(measureSummary)');
+    expect(checkoutPage).not.toContain('pb-56');
+    expect(checkoutPage).toContain('id="checkout-form"');
+    expect(checkoutPage).toContain('onSubmit={handleSubmit}');
     expect(checkoutPage).toContain('type="submit"\n          form="checkout-form"');
     expect(checkoutPage).toContain('mobile-action-safe fixed bottom-0 left-0 right-0');
     expect(checkoutPage).toContain('max-w-[480px]');
@@ -31,5 +35,7 @@ describe('mobile commerce responsive contract', () => {
   it('defines safe-area padding for fixed mobile actions', () => {
     expect(indexStyles).toContain('.mobile-action-safe');
     expect(indexStyles).toContain('env(safe-area-inset-bottom)');
+    expect(indexStyles).toContain('.mobile-shell .overflow-y-auto.pb-24');
+    expect(indexStyles).toContain('padding-bottom: var(--bottom-nav-space);');
   });
 });

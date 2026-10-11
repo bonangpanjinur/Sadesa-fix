@@ -482,6 +482,12 @@
 }
 
 @layer utilities {
+  /* Keep legacy bottom-nav spacers aligned with the actual shared nav height. */
+  .mobile-shell .overflow-y-auto.pb-24,
+  .mobile-shell > .pb-24 {
+    padding-bottom: var(--bottom-nav-space);
+  }
+
   /* Line clamp utilities */
   .line-clamp-1 {
     display: -webkit-box;

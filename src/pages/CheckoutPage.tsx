@@ -74,6 +74,27 @@ export default function CheckoutPage() {
   // invoice-provider failure. The database then returns the original order.
   const checkoutKeyRef = useRef<string | null>(null);
   const guestSessionKeyRef = useRef<string | null>(null);
+  const checkoutSummaryRef = useRef<HTMLDivElement | null>(null);
+  const [checkoutSummaryHeight, setCheckoutSummaryHeight] = useState(0);
+
+  useEffect(() => {
+    const summary = checkoutSummaryRef.current;
+    if (!summary) return;
+
+    const measureSummary = () => {
+      setCheckoutSummaryHeight(Math.ceil(summary.getBoundingClientRect().height));
+    };
+    measureSummary();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measureSummary);
+      return () => window.removeEventListener('resize', measureSummary);
+    }
+
+    const observer = new ResizeObserver(measureSummary);
+    observer.observe(summary);
+    return () => observer.disconnect();
+  }, [items.length]);
 
   // Address state
   const [addressData, setAddressData] = useState<CheckoutAddressData>(createEmptyCheckoutAddress());
@@ -752,7 +773,12 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <form id="checkout-form" onSubmit={handleSubmit} className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-56">
+      <form
+        id="checkout-form"
+        onSubmit={handleSubmit}
+        className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4"
+        style={{ paddingBottom: checkoutSummaryHeight }}
+      >
         {merchantIds.length > 1 && (
           <div role="alert" className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
             <h3 className="font-bold text-amber-900 text-sm">{t('checkout.multiStore.title')}</h3>
@@ -1135,7 +1161,7 @@ export default function CheckoutPage() {
       </form>
 
         {/* Checkout Summary */}
-      <div className="mobile-action-safe fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto z-40 bg-card/95 border-t border-border px-3 pt-2 shadow-lg backdrop-blur-md sm:p-5">
+      <div ref={checkoutSummaryRef} className="mobile-action-safe fixed bottom-0 left-0 right-0 max-w-[480px] mx-auto z-40 bg-card/95 border-t border-border px-3 pt-2 shadow-lg backdrop-blur-md sm:p-5">
         {(knownStockConflict || stockConflict) && (
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
