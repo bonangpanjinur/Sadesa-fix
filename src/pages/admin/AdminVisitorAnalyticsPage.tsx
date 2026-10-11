@@ -80,6 +80,8 @@ export default function AdminVisitorAnalyticsPage() {
     if (!event.referrer) return 'Langsung / tanpa referrer';
     try { return new URL(event.referrer).hostname || event.referrer; } catch { return event.referrer; }
   }), [rank]);
+  const topBrowsers = useMemo(() => rank((event) => event.browser_name || 'Tidak diketahui'), [rank]);
+  const topOperatingSystems = useMemo(() => rank((event) => event.os_name || 'Tidak diketahui'), [rank]);
   const uniqueVisitors = useMemo(() => new Set(events.map((event) => event.visitor_key)).size, [events]);
   const todayEvents = useMemo(() => events.filter((event) => new Date(event.occurred_at).toDateString() === new Date().toDateString()), [events]);
   const todayUnique = useMemo(() => new Set(todayEvents.map((event) => event.visitor_key)).size, [todayEvents]);
@@ -122,6 +124,12 @@ export default function AdminVisitorAnalyticsPage() {
     [],
     ['Sumber kunjungan', 'Page view', 'Pengunjung unik'],
     ...topReferrers.map((row) => [row.label, row.views, row.unique]),
+    [],
+    ['Browser', 'Page view', 'Pengunjung unik'],
+    ...topBrowsers.map((row) => [row.label, row.views, row.unique]),
+    [],
+    ['Sistem operasi', 'Page view', 'Pengunjung unik'],
+    ...topOperatingSystems.map((row) => [row.label, row.views, row.unique]),
   ]);
   return <AdminLayout title="Analitik Pengunjung" subtitle="Pahami trafik, halaman populer, dan asal pengunjung situs">
     <div className="space-y-6">
@@ -147,6 +155,10 @@ export default function AdminVisitorAnalyticsPage() {
         <Card><CardHeader><CardTitle>Sumber kunjungan</CardTitle><CardDescription>Distribusi trafik berdasarkan domain referrer atau kunjungan langsung.</CardDescription></CardHeader><CardContent><div className="h-[320px]">{topReferrers.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={topReferrers} layout="vertical" margin={{ left: 12, right: 12 }}><CartesianGrid strokeDasharray="3 3" className="stroke-muted"/><XAxis type="number" allowDecimals={false} fontSize={11}/><YAxis type="category" dataKey="label" width={150} tickLine={false} fontSize={10} tickFormatter={(value) => value.length > 24 ? `${value.slice(0, 24)}…` : value}/><Tooltip formatter={(value: number) => [number(value), 'Kunjungan']} /><Bar dataKey="views" name="Kunjungan" fill="hsl(var(--chart-3))" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Belum ada data sumber kunjungan.</div>}</div></CardContent></Card>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
+        <TechnologyChart title="Perangkat pengunjung" description="Distribusi desktop, mobile, dan tablet berdasarkan page view." rows={devices} color="hsl(var(--chart-4))" />
+        <TechnologyChart title="Browser pengunjung" description="Browser yang digunakan pengunjung saat mengakses situs." rows={topBrowsers} color="hsl(var(--chart-5))" />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
         <RankCard title="Halaman paling sering dikunjungi" icon={<Eye className="h-4 w-4" />} rows={topPages} />
         <RankCard title="Lokasi pengunjung" icon={<MapPin className="h-4 w-4" />} rows={topLocations} />
         <RankCard title="Negara" icon={<Globe2 className="h-4 w-4" />} rows={topCountries} />
@@ -158,3 +170,6 @@ export default function AdminVisitorAnalyticsPage() {
   </AdminLayout>;
 }
 function RankCard({ title, icon, rows }: { title: string; icon: React.ReactNode; rows: Ranked[] }) { return <Card><CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base">{icon}{title}</CardTitle></CardHeader><CardContent className="space-y-3">{rows.length ? rows.map((row, index) => <div key={row.label} className="flex items-center gap-3"><span className="w-5 text-xs text-muted-foreground">{index + 1}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{row.label}</p><p className="text-xs text-muted-foreground">{number(row.unique)} unik</p></div><span className="text-sm font-semibold">{number(row.views)}</span></div>) : <p className="py-5 text-center text-sm text-muted-foreground">Belum ada data.</p>}</CardContent></Card>; }
+function TechnologyChart({ title, description, rows, color }: { title: string; description: string; rows: Ranked[]; color: string }) {
+  return <Card><CardHeader><CardTitle>{title}</CardTitle><CardDescription>{description}</CardDescription></CardHeader><CardContent><div className="h-[260px]">{rows.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={rows} layout="vertical" margin={{ left: 12, right: 12 }}><CartesianGrid strokeDasharray="3 3" className="stroke-muted"/><XAxis type="number" allowDecimals={false} fontSize={11}/><YAxis type="category" dataKey="label" width={100} tickLine={false} fontSize={11}/><Tooltip formatter={(value: number, name: string) => [number(value), name === 'views' ? 'Page view' : 'Pengunjung unik']} /><Legend formatter={(value) => value === 'views' ? 'Page view' : 'Pengunjung unik'} /><Bar dataKey="views" name="views" fill={color} radius={[0, 4, 4, 0]} /><Bar dataKey="unique" name="unique" fill="hsl(var(--muted-foreground))" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Belum ada data.</div>}</div></CardContent></Card>;
+}
