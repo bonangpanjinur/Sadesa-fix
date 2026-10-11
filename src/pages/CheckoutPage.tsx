@@ -699,7 +699,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="mobile-shell bg-secondary flex flex-col min-h-screen min-h-[100dvh]">
+    <div className="mobile-shell bg-secondary flex h-[100dvh] min-h-0 flex-col">
       {/* Sticky Header & Step Indicator */}
       <div className="sticky top-0 z-50 bg-card/95 shadow-sm backdrop-blur-md">
         {/* Header */}
@@ -749,7 +749,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 pb-56 overscroll-contain">
+      <form onSubmit={handleSubmit} className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-56">
         {merchantIds.length > 1 && (
           <div role="alert" className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
             <h3 className="font-bold text-amber-900 text-sm">{t('checkout.multiStore.title')}</h3>

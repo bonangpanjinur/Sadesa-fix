@@ -16,9 +16,9 @@ describe('mobile commerce responsive contract', () => {
   });
 
   it('keeps checkout sections readable and the primary action reachable on narrow screens', () => {
-    expect(checkoutPage).toContain('mobile-shell bg-secondary flex flex-col min-h-screen');
+    expect(checkoutPage).toContain('mobile-shell bg-secondary flex h-[100dvh] min-h-0 flex-col');
     expect(checkoutPage).toContain('sticky top-0 z-50');
-    expect(checkoutPage).toContain('flex-1 overflow-y-auto p-4 pb-56');
+    expect(checkoutPage).toContain('min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 pb-56');
     expect(checkoutPage).toContain('mobile-action-safe fixed bottom-0 left-0 right-0');
     expect(checkoutPage).toContain('max-w-[480px]');
     expect(checkoutPage).toContain('className="w-full shadow-brand font-bold transition-all"');
