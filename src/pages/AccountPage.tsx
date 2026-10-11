@@ -13,7 +13,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ProfileEditor } from '@/components/account/ProfileEditor';
-import { CourierVehicleEditor } from '@/components/account/CourierVehicleEditor';
 import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 import { isValidKtpNumber } from '@/lib/identityValidation';
 import { ServiceProviderRegistration } from '@/components/account/ServiceProviderRegistration';
@@ -404,7 +403,6 @@ export default function AccountPage() {
                         Lengkapi profil Anda untuk checkout lebih cepat
                       </p>
                     )}
-                    {isCourier && <CourierVehicleEditor userId={user.id} />}
                   </div>
                 )}
               </div>

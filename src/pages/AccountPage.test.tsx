@@ -37,6 +37,8 @@ function createQuery(result: QueryResult) {
 }
 
 const appRouter = readFileSync(resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+const accountPageSource = readFileSync(resolve(process.cwd(), 'src/pages/AccountPage.tsx'), 'utf8');
+const adminCourierEditor = readFileSync(resolve(process.cwd(), 'src/components/admin/CourierEditDialog.tsx'), 'utf8');
 
 describe('AccountPage and /profile route', () => {
   beforeEach(() => {
@@ -59,6 +61,12 @@ describe('AccountPage and /profile route', () => {
 
     expect(profileRoute).toContain('<ProtectedRoute>');
     expect(profileRoute).toContain('<AccountPage />');
+  });
+
+  it('hides courier self-service vehicle changes while retaining admin vehicle editing', () => {
+    expect(accountPageSource).not.toContain('CourierVehicleEditor');
+    expect(adminCourierEditor).toContain('Jenis Kendaraan');
+    expect(adminCourierEditor).toContain('vehicle_plate');
   });
 
   it('shows an error on profile load failure and successfully retries', async () => {
