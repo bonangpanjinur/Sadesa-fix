@@ -22,16 +22,22 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
   const [isUploading, setIsUploading] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(currentProofUrl || null);
   const [displayUrl, setDisplayUrl] = useState<string | null>(null);
+  const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
+    setPreviewUnavailable(false);
     if (proofUrl) {
       getPaymentProofSignedUrl(proofUrl).then((u) => {
-        if (active) setDisplayUrl(u);
+        if (active) {
+          setDisplayUrl(u);
+          setPreviewUnavailable(!u);
+        }
       });
     } else {
       setDisplayUrl(null);
+      setPreviewUnavailable(false);
     }
     return () => { active = false; };
   }, [proofUrl]);
@@ -116,11 +122,13 @@ export function PaymentProofUpload({ orderId, currentProofUrl, onUploaded, disab
       {proofUrl ? (
         <div className="space-y-3">
           <div className="relative rounded-lg overflow-hidden border border-border">
-            <img
-              src={displayUrl || proofUrl}
-              alt="Bukti pembayaran"
-              className="w-full h-48 object-cover"
-            />
+            {displayUrl ? (
+              <img src={displayUrl} alt="Bukti pembayaran" className="w-full h-48 object-cover" />
+            ) : (
+              <div className="flex h-48 items-center justify-center bg-muted px-6 text-center text-sm text-muted-foreground">
+                {previewUnavailable ? 'Pratinjau bukti belum tersedia. Coba lagi.' : 'Memuat pratinjau bukti pembayaran...'}
+              </div>
+            )}
             <div className="absolute top-2 left-2">
               <div className={cn('flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-white', isRejected ? 'bg-destructive/90' : 'bg-success/90')}>
                 {isRejected ? <XCircle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
