@@ -97,6 +97,7 @@ const AdminOrdersPage = lazy(() => import("./pages/admin/AdminOrdersPage"));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage"));
 const AdminUserGeographyPage = lazy(() => import("./pages/admin/AdminUserGeographyPage"));
 const AdminReportsPage = lazy(() => import("./pages/admin/AdminReportsPage"));
+const AdminVisitorAnalyticsPage = lazy(() => import("./pages/admin/AdminVisitorAnalyticsPage"));
 const AdminRefundsPage = lazy(() => import("./pages/admin/AdminRefundsPage"));
 const AdminApprovalCenterPage = lazy(() => import("./pages/admin/AdminApprovalCenterPage"));
 const AdminDisputeCenterPage = lazy(() => import("./pages/admin/AdminDisputeCenterPage"));
@@ -855,6 +856,11 @@ const App = () => (
               <Route path="/admin/reports" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminReportsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/visitor-analytics" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminVisitorAnalyticsPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/refunds" element={

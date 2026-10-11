@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { trackVisitorRoute } from '@/lib/pageViewTracker';
 
 const MANAGED_META_NAMES = ['google-site-verification', 'msvalidate.01'];
 const MANAGED_ELEMENT_IDS = ['sadesa-ga4-script', 'sadesa-ga4-config', 'sadesa-gtm-script', 'sadesa-global-schema'];
@@ -88,6 +89,10 @@ function updatePageView(path: string) {
 
 export const SEO = () => {
   const location = useLocation();
+
+  useEffect(() => {
+    void trackVisitorRoute(location.pathname, document.title);
+  }, [location.pathname]);
 
   useEffect(() => {
     let cancelled = false;

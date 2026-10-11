@@ -135,6 +135,7 @@ export function AdminSidebar({
         { label: 'Promosi', href: '/admin/promotions', icon: <Megaphone className="h-4 w-4" /> },
         { label: 'Iklan Berbayar', href: '/admin/iklan', icon: <Megaphone className="h-4 w-4" /> },
         { label: 'Laporan Performa Iklan', href: '/admin/iklan/laporan', icon: <BarChart3 className="h-4 w-4" /> },
+        { label: 'Analitik Pengunjung', href: '/admin/visitor-analytics', icon: <Activity className="h-4 w-4" /> },
         { label: 'Broadcast', href: '/admin/broadcast', icon: <Bell className="h-4 w-4" /> },
         { label: 'Push Notification', href: '/admin/push-notification', icon: <Bell className="h-4 w-4" /> },
         { label: 'SEO & Konten', href: '/admin/seo', icon: <Search className="h-4 w-4" /> },
