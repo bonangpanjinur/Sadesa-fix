@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const createSignedUrl = vi.fn();
 const upload = vi.fn();
 const remove = vi.fn();
+const list = vi.fn();
 vi.mock('@/integrations/supabase/client', () => ({
   SUPABASE_URL: 'https://xqdbnlcvboelvkdotilj.supabase.co',
   supabase: {
     storage: {
-      from: vi.fn(() => ({ createSignedUrl, upload, remove })),
+      from: vi.fn(() => ({ createSignedUrl, upload, remove, list })),
     },
   },
 }));
@@ -19,6 +20,7 @@ describe('service payment proof storage', () => {
     createSignedUrl.mockReset();
     upload.mockReset();
     remove.mockReset();
+    list.mockReset();
   });
 
   it('returns null when there is no stored path', async () => {
@@ -44,6 +46,27 @@ describe('service payment proof storage', () => {
     await expect(getPaymentProofSignedUrl('https://xqdbnlcvboelvkdotilj.supabase.co/storage/v1/object/public/payment-proofs/orders%2Fproof.jpg?download=1')).resolves.toBe('https://signed.example/legacy');
     await expect(getPaymentProofSignedUrl('https://xqdbnlcvboelvkdotilj.supabase.co/storage/v1/object/public/payment-proofs/missing.jpg')).resolves.toBeNull();
     await expect(getPaymentProofSignedUrl('https://cdn.example/proof.jpg')).resolves.toBeNull();
+  });
+
+  it('recovers a proof from a nested guest folder when the stored name is stale', async () => {
+    createSignedUrl
+      .mockResolvedValueOnce({ data: null, error: { message: 'Object not found' } })
+      .mockResolvedValueOnce({ data: null, error: { message: 'Object not found' } })
+      .mockResolvedValueOnce({ data: { signedUrl: 'https://signed.example/nested-proof' }, error: null });
+    list
+      .mockResolvedValueOnce({
+        data: [{ name: 'guest-token-hash' }],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [{ name: 'actual-proof.png', id: 'object-id', metadata: { mimetype: 'image/png' } }],
+        error: null,
+      });
+
+    await expect(getPaymentProofSignedUrl('orders/order-id/stale-proof.png')).resolves.toBe('https://signed.example/nested-proof');
+    expect(list).toHaveBeenNthCalledWith(1, 'orders/order-id', expect.any(Object));
+    expect(list).toHaveBeenNthCalledWith(2, 'orders/order-id/guest-token-hash', expect.any(Object));
+    expect(createSignedUrl).toHaveBeenLastCalledWith('orders/order-id/guest-token-hash/actual-proof.png', 3600);
   });
 
   it('uploads proofs to a request/uploader-scoped private path', async () => {

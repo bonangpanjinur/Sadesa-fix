@@ -48,6 +48,49 @@ export async function deleteServicePaymentProof(path: string): Promise<boolean> 
   return !error;
 }
 
+async function findOrderProofCandidates(
+  storage: ReturnType<typeof supabase.storage.from>,
+  path: string,
+): Promise<string[]> {
+  const list = storage.list;
+  if (typeof list !== 'function' || !path.startsWith('orders/')) return [];
+
+  const orderFolder = path.split('/').slice(0, 2).join('/');
+  const requestedPath = path.split('/').slice(2).join('/');
+  const pendingFolders = [orderFolder];
+  const candidates: string[] = [];
+  const visited = new Set<string>();
+
+  // Guest uploads use orders/{orderId}/{tokenHash}/{file}; authenticated
+  // uploads use orders/{orderId}/{file}. Walk only this order's folder.
+  while (pendingFolders.length && visited.size < 20) {
+    const folder = pendingFolders.shift()!;
+    if (visited.has(folder)) continue;
+    visited.add(folder);
+
+    const { data: objects, error } = await list.call(storage, folder, {
+      limit: 100,
+      sortBy: { column: 'created_at', order: 'desc' },
+    });
+    if (error || !objects) continue;
+
+    for (const object of objects) {
+      const objectPath = `${folder}/${object.name}`;
+      // Storage may return either a folder marker or a file. Metadata/id are
+      // more reliable than relying on a filename extension alone.
+      const looksLikeFile = Boolean(object.id || object.metadata || /\.[a-z0-9]{2,8}$/i.test(object.name));
+      if (looksLikeFile) {
+        candidates.push(objectPath);
+      } else if (visited.size < 20) {
+        pendingFolders.push(objectPath);
+      }
+    }
+  }
+
+  const matching = candidates.filter((candidate) => candidate.slice(orderFolder.length + 1) === requestedPath);
+  return [...matching, ...candidates.filter((candidate) => !matching.includes(candidate))];
+}
+
 export async function getPaymentProofSignedUrl(
   storedPath: string | null | undefined,
   expiresInSeconds = 3600,
@@ -69,43 +112,20 @@ export async function getPaymentProofSignedUrl(
     error = retry.error;
   }
 
-  // Older uploads can leave the order row pointing at an object that was
-  // renamed/replaced. Storage reports this as the same 400/Object not found
-  // response as a transient failure. Look for an existing proof in the
-  // order's private folder and sign the newest candidate as a safe fallback.
-  if ((error || !data?.signedUrl) && path.startsWith('orders/') && 'list' in storage) {
-    const orderFolder = path.split('/').slice(0, 2).join('/');
-    const requestedPath = path.split('/').slice(2).join('/');
-    const pendingFolders = [orderFolder];
-    const candidates: string[] = [];
-    const visited = new Set<string>();
-
-    // Guest uploads use orders/{orderId}/{tokenHash}/{file}; authenticated
-    // uploads use orders/{orderId}/{file}. Walk both layouts without exposing
-    // anything outside the current order folder.
-    while (pendingFolders.length && visited.size < 20) {
-      const folder = pendingFolders.shift()!;
-      if (visited.has(folder)) continue;
-      visited.add(folder);
-      const { data: objects, error: listError } = await storage.list(folder, {
-        limit: 100,
-        sortBy: { column: 'created_at', order: 'desc' },
-      });
-      if (listError || !objects) continue;
-      for (const object of objects) {
-        const objectPath = `${folder}/${object.name}`;
-        if (/\.[a-z0-9]{2,5}$/i.test(object.name)) {
-          candidates.push(objectPath);
-        } else if (visited.size < 20) {
-          pendingFolders.push(objectPath);
-        }
-      }
-    }
-
-    const candidatePath = candidates.find((candidate) => candidate.slice(orderFolder.length + 1) === requestedPath)
-      ?? candidates[0];
-    if (candidatePath) {
+  // Rows from older upload flows can point to a stale name, while the object
+  // still exists under the same order (including guest token subfolders).
+  // Try every candidate: one stale object must not prevent a valid proof from
+  // being displayed.
+  if (error || !data?.signedUrl) {
+    const candidates = await findOrderProofCandidates(storage, path);
+    for (const candidatePath of candidates) {
+      if (candidatePath === path) continue;
       const fallback = await storage.createSignedUrl(candidatePath, expiresInSeconds);
+      if (fallback.data?.signedUrl && !fallback.error) {
+        data = fallback.data;
+        error = null;
+        break;
+      }
       data = fallback.data;
       error = fallback.error;
     }
