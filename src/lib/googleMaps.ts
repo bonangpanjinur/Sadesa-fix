@@ -27,3 +27,13 @@ export function loadGoogleMaps(): Promise<typeof google> {
 export function isGoogleMapsBrowserKeyConfigured(): boolean {
   return Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY);
 }
+
+export function isGoogleMapsCheckoutEnabled(): boolean {
+  return isGoogleMapsBrowserKeyConfigured()
+    && import.meta.env.VITE_GOOGLE_MAPS_CHECKOUT_ENABLED === 'true';
+}
+
+export function isGoogleMapsRideEnabled(): boolean {
+  return isGoogleMapsBrowserKeyConfigured()
+    && import.meta.env.VITE_GOOGLE_MAPS_RIDE_ENABLED === 'true';
+}

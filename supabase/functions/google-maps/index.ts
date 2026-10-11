@@ -96,6 +96,10 @@ async function hmacBucket(value: string, secret: string): Promise<string> {
 }
 
 async function canUseGoogleMaps(req: Request): Promise<boolean> {
+  // Keep billable Google requests off until the staging project has approved
+  // API quotas and budget alerts. An unset flag is intentionally fail-closed.
+  if (Deno.env.get('GOOGLE_MAPS_BILLING_ENABLED') !== 'true') return false
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (!supabaseUrl || !serviceRoleKey) return false

@@ -15,4 +15,4 @@
 - [Courier offer lifecycle](courier-delivery-offer-lifecycle.md) — an unaccepted delivery offer must not establish buyer-facing courier chat or tracking.
 - [Incoming-order alarms](incoming-order-alarm.md) — merchants and Ojek couriers both require audible alerts for incoming orders or targeted offers.
 - [Ride-offer push timing](ride-offer-push-timing.md) — 30-second courier offers need event-triggered push dispatch plus stale-offer checks; the minute cron is the retry path.
-- [Google Maps rollout](google-maps-rollout.md) — Google is approved for checkout address and route estimates only, with OSM fallback and browser origins limited to sadesa.id domains.
+- [Google Maps rollout](google-maps-rollout.md) — Google is approved for checkout only, with OSM fallback, sadesa.id browser origins, and a staging budget ceiling of IDR 2,000,000/month.

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
-import { loadGoogleMaps } from '@/lib/googleMaps';
+import { isGoogleMapsRideEnabled, loadGoogleMaps } from '@/lib/googleMaps';
 
 type Point = { lat: number; lng: number };
 
@@ -29,6 +29,7 @@ export function GoogleAddressInput({
 
   useEffect(() => {
     let disposed = false;
+    if (!isGoogleMapsRideEnabled()) return;
     loadGoogleMaps().then(() => {
       if (disposed || !inputRef.current || !google.maps.places) return;
       const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {

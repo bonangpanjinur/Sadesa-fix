@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { getDeliveryDistanceKm } from '@/lib/routeCalculation';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import { useTranslation } from '@/lib/i18n';
-import { isGoogleMapsBrowserKeyConfigured } from '@/lib/googleMaps';
+import { isGoogleMapsCheckoutEnabled } from '@/lib/googleMaps';
 import { GoogleLocationCanvas } from '@/components/maps/GoogleLocationCanvas';
 import L from 'leaflet';
 
@@ -66,7 +66,7 @@ export function LocationPicker({
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [googleMapFailed, setGoogleMapFailed] = useState(!isGoogleMapsBrowserKeyConfigured());
+  const [googleMapFailed, setGoogleMapFailed] = useState(!isGoogleMapsCheckoutEnabled());
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: -7.3274, lng: 108.2207 });
   
   // Update map center when external center changes (from address geocoding)
@@ -200,7 +200,7 @@ export function LocationPicker({
         className="relative h-[220px] overflow-hidden rounded-lg border-2 border-primary/30 bg-muted shadow-sm transition-colors hover:border-primary/50 sm:h-[280px] cursor-crosshair"
         style={{ width: '100%', zIndex: 0 }}
       >
-        {isGoogleMapsBrowserKeyConfigured() && !googleMapFailed ? (
+        {isGoogleMapsCheckoutEnabled() && !googleMapFailed ? (
           <GoogleLocationCanvas
             center={mapCenter}
             value={value}
@@ -259,7 +259,7 @@ export function LocationPicker({
         </>
         )}
       </div>
-      {googleMapFailed && isGoogleMapsBrowserKeyConfigured() && (
+      {googleMapFailed && isGoogleMapsCheckoutEnabled() && (
         <p className="text-xs text-muted-foreground" role="status">
           Google Maps belum tersedia; peta cadangan OpenStreetMap aktif.
         </p>
