@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, CalendarDays, Download, Eye, Globe2, MapPin, RefreshCw, ShieldCheck, Users } from 'lucide-react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { endOfDay, format, startOfDay, subDays } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -18,8 +18,11 @@ type EventRow = {
 };
 type DailyPoint = { date: string; views: number; unique: number };
 type Ranked = { label: string; views: number; unique: number };
+type MonthlyPoint = { month: string; views: number; unique: number };
 const number = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 const locationLabel = (row: EventRow) => [row.city_name, row.region_name, row.country_name].filter(Boolean).join(', ') || 'Tidak diketahui';
+const pieChartColor = (index: number) => `hsl(var(--chart-${(index % 5) + 1}))`;
+const formatPieTooltip = (value: number, _name: string, item: { payload: { name: string; unique: number } }) => [`${number(value)} kunjungan · ${number(item.payload.unique)} unik`, item.payload.name];
 const maskIp = (ip: string | null) => {
   if (!ip) return 'Tidak diketahui';
   if (ip.includes(':')) return `${ip.split(':').slice(0, 3).join(':')}:…`;
@@ -34,6 +37,7 @@ export default function AdminVisitorAnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [geographyLevel, setGeographyLevel] = useState<'country' | 'location'>('country');
   const from = useMemo(() => {
     if (days === 'custom' && customStart) return startOfDay(new Date(`${customStart}T00:00:00`));
     return subDays(new Date(), Number(days));
@@ -76,6 +80,25 @@ export default function AdminVisitorAnalyticsPage() {
   const todayEvents = useMemo(() => events.filter((event) => new Date(event.occurred_at).toDateString() === new Date().toDateString()), [events]);
   const todayUnique = useMemo(() => new Set(todayEvents.map((event) => event.visitor_key)).size, [todayEvents]);
   const devices = useMemo(() => rank((event) => event.device_type), [rank]);
+  const monthly = useMemo<MonthlyPoint[]>(() => {
+    const map = new Map<string, { views: number; visitors: Set<string> }>();
+    events.forEach((event) => {
+      const key = format(new Date(event.occurred_at), 'yyyy-MM');
+      const row = map.get(key) || { views: 0, visitors: new Set<string>() };
+      row.views++;
+      row.visitors.add(event.visitor_key);
+      map.set(key, row);
+    });
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, row]) => ({
+      month: format(new Date(`${key}-01T00:00:00`), 'MMM yyyy', { locale: idLocale }),
+      views: row.views,
+      unique: row.visitors.size,
+    }));
+  }, [events]);
+  const geography = useMemo(() => {
+    const rows = geographyLevel === 'country' ? topCountries : topLocations;
+    return rows.map((row) => ({ name: row.label, value: row.views, unique: row.unique }));
+  }, [geographyLevel, topCountries, topLocations]);
   const exportDetails = () => downloadCsv(`analitik-pengunjung-detail-${format(new Date(), 'yyyyMMdd')}.csv`, [['Waktu', 'Halaman', 'Lokasi', 'IP (disamarkan)', 'Perangkat', 'Browser', 'OS', 'Referrer'], ...events.map((event) => [format(new Date(event.occurred_at), 'dd/MM/yyyy HH:mm:ss'), event.path, locationLabel(event), maskIp(event.ip_address), event.device_type, event.browser_name || '-', event.os_name || '-', event.referrer || '-'])]);
   const exportSummary = () => downloadCsv(`analitik-pengunjung-ringkasan-${format(new Date(), 'yyyyMMdd')}.csv`, [
     ['Periode', `${days} hari terakhir`],
@@ -108,6 +131,10 @@ export default function AdminVisitorAnalyticsPage() {
         <Card><CardContent className="flex items-center gap-4 p-5"><Globe2 className="h-5 w-5 text-sky-600" /><div><p className="text-sm text-muted-foreground">Negara terbanyak</p><p className="truncate text-lg font-semibold">{topCountries[0]?.label || '—'}</p><p className="text-xs text-muted-foreground">{number(topCountries[0]?.views || 0)} kunjungan</p></div></CardContent></Card>
       </div>
       <Card><CardHeader><CardTitle>Tren trafik harian</CardTitle><CardDescription>Page view dan pengunjung unik berdasarkan waktu lokal browser.</CardDescription></CardHeader><CardContent><div className="h-[280px]">{loading ? <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Memuat data…</div> : <ResponsiveContainer width="100%" height="100%"><AreaChart data={daily}><defs><linearGradient id="visitorViews" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" className="stroke-muted"/><XAxis dataKey="date" fontSize={11} tickLine={false}/><YAxis allowDecimals={false} fontSize={11} tickLine={false}/><Tooltip/><Area type="monotone" dataKey="views" name="Page view" stroke="hsl(var(--primary))" fill="url(#visitorViews)" strokeWidth={2}/><Area type="monotone" dataKey="unique" name="Unik" stroke="hsl(var(--chart-2))" fill="transparent" strokeWidth={2}/></AreaChart></ResponsiveContainer>}</div></CardContent></Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card><CardHeader><CardTitle>Tren kunjungan bulanan</CardTitle><CardDescription>Bandingkan page view dan pengunjung unik per bulan. Arahkan kursor ke batang untuk melihat detail.</CardDescription></CardHeader><CardContent><div className="h-[300px]">{monthly.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={monthly} barGap={8}><CartesianGrid strokeDasharray="3 3" className="stroke-muted"/><XAxis dataKey="month" fontSize={11} tickLine={false}/><YAxis allowDecimals={false} fontSize={11} tickLine={false}/><Tooltip cursor={{ fill: 'hsl(var(--muted))' }} formatter={(value: number, name: string) => [number(value), name === 'views' ? 'Page view' : 'Pengunjung unik']} /><Legend formatter={(value) => value === 'views' ? 'Page view' : 'Pengunjung unik'} /><Bar dataKey="views" name="views" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} /><Bar dataKey="unique" name="unique" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Belum ada data bulanan.</div>}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-start justify-between gap-3"><div><CardTitle>Distribusi geografis</CardTitle><CardDescription>Hover sektor untuk melihat jumlah kunjungan dan pengunjung unik.</CardDescription></div><div className="flex rounded-lg border p-1"><Button type="button" size="sm" variant={geographyLevel === 'country' ? 'secondary' : 'ghost'} onClick={() => setGeographyLevel('country')}>Negara</Button><Button type="button" size="sm" variant={geographyLevel === 'location' ? 'secondary' : 'ghost'} onClick={() => setGeographyLevel('location')}>Kota/wilayah</Button></div></CardHeader><CardContent><div className="h-[300px]">{geography.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={geography} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={62} outerRadius={100} paddingAngle={2} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{geography.map((entry, index) => <Cell key={entry.name} fill={pieChartColor(index)} />)}</Pie><Tooltip formatter={formatPieTooltip} /><Legend /></PieChart></ResponsiveContainer> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Belum ada data geografis.</div>}</div></CardContent></Card>
+      </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <RankCard title="Halaman paling sering dikunjungi" icon={<Eye className="h-4 w-4" />} rows={topPages} />
         <RankCard title="Lokasi pengunjung" icon={<MapPin className="h-4 w-4" />} rows={topLocations} />
