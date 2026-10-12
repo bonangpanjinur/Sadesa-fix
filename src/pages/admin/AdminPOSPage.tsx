@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import { SubscriptionActionDialog } from '@/components/admin/SubscriptionActionDialog';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -138,6 +139,11 @@ export default function AdminPOSPage() {
   const [extensionSub, setExtensionSub] = useState<POSSubscription | null>(null);
   const [extensionMonths, setExtensionMonths] = useState(1);
   const [actioningId, setActioningId] = useState<string | null>(null);
+  const [subscriptionActionRequest, setSubscriptionActionRequest] = useState<{
+    subscription: POSSubscription;
+    action: 'SUSPEND' | 'CANCEL';
+  } | null>(null);
+  const [subscriptionActionReason, setSubscriptionActionReason] = useState('');
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectSubId, setRejectSubId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -374,22 +380,27 @@ export default function AdminPOSPage() {
     options: { extensionMonths?: number; rejectionReason?: string; reason?: string } = {},
   ) => {
     setActioningId(id);
-    const { error } = await supabase.rpc('admin_manage_pos_subscription' as never, {
-      p_subscription_id: id,
-      p_action: action,
-      p_extension_months: options.extensionMonths || 1,
-      p_rejection_reason: options.rejectionReason || null,
-      p_reason: options.reason || options.rejectionReason || null,
-    } as never);
-    if (error) {
-      toast.error(`Gagal ${action.toLowerCase()}: ${error.message}`);
-      setActioningId(null);
+    try {
+      const { error } = await supabase.rpc('admin_manage_pos_subscription' as never, {
+        p_subscription_id: id,
+        p_action: action,
+        p_extension_months: options.extensionMonths || 1,
+        p_rejection_reason: options.rejectionReason || null,
+        p_reason: options.reason || options.rejectionReason || null,
+      } as never);
+      if (error) {
+        toast.error(`Gagal ${action.toLowerCase()}: ${error.message}`);
+        return false;
+      }
+      toast.success(action === 'EXTEND' ? 'Langganan berhasil diperpanjang' : 'Aksi langganan berhasil diterapkan');
+      await loadData();
+      return true;
+    } catch (error) {
+      toast.error(`Gagal ${action.toLowerCase()}: ${error instanceof Error ? error.message : 'Terjadi kesalahan jaringan'}`);
       return false;
+    } finally {
+      setActioningId(null);
     }
-    toast.success(action === 'EXTEND' ? 'Langganan berhasil diperpanjang' : 'Aksi langganan berhasil diterapkan');
-    await loadData();
-    setActioningId(null);
-    return true;
   };
 
   const handleRejectSub = async () => {
@@ -402,17 +413,23 @@ export default function AdminPOSPage() {
     setRejectReason('');
   };
 
-  const handleSuspend = async (sub: POSSubscription) => {
-    const reason = window.prompt(`Alasan penangguhan akses POS untuk ${sub.merchant_name}:`);
-    if (reason?.trim() && window.confirm(`Tangguhkan akses POS untuk ${sub.merchant_name}?`)) {
-      await runSubscriptionAction(sub.id, 'SUSPEND', { reason: reason.trim() });
-    }
+  const openSubscriptionActionDialog = (sub: POSSubscription, action: 'SUSPEND' | 'CANCEL') => {
+    setSubscriptionActionReason('');
+    setSubscriptionActionRequest({ subscription: sub, action });
   };
 
-  const handleCancel = async (sub: POSSubscription) => {
-    const reason = window.prompt(`Alasan pembatalan langganan POS ${sub.merchant_name}:`);
-    if (reason?.trim() && window.confirm(`Batalkan langganan POS ${sub.merchant_name}? Akses operasional akan dihentikan.`)) {
-      await runSubscriptionAction(sub.id, 'CANCEL', { reason: reason.trim() });
+  const handleConfirmSubscriptionAction = async () => {
+    if (!subscriptionActionRequest || actioningId) return;
+    const reason = subscriptionActionReason.trim();
+    if (!reason) {
+      toast.error('Alasan wajib diisi');
+      return;
+    }
+    const { subscription, action } = subscriptionActionRequest;
+    const ok = await runSubscriptionAction(subscription.id, action, { reason });
+    if (ok) {
+      setSubscriptionActionRequest(null);
+      setSubscriptionActionReason('');
     }
   };
 
@@ -525,7 +542,7 @@ export default function AdminPOSPage() {
                                  </Button>
                                )}
                                {sub.status === 'ACTIVE' && (
-                                 <Button variant="ghost" size="icon" title="Tangguhkan akses" aria-label={`Tangguhkan ${sub.merchant_name}`} onClick={() => handleSuspend(sub)} disabled={actioningId === sub.id}>
+                                 <Button variant="ghost" size="icon" title="Tangguhkan akses" aria-label={`Tangguhkan ${sub.merchant_name}`} onClick={() => openSubscriptionActionDialog(sub, 'SUSPEND')} disabled={actioningId === sub.id}>
                                    <Ban className="h-4 w-4" />
                                  </Button>
                                )}
@@ -535,7 +552,7 @@ export default function AdminPOSPage() {
                                  </Button>
                                )}
                                {sub.status !== 'CANCELLED' && sub.status !== 'REJECTED' && (
-                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Batalkan langganan" aria-label={`Batalkan ${sub.merchant_name}`} onClick={() => handleCancel(sub)} disabled={actioningId === sub.id}>
+                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" title="Batalkan langganan" aria-label={`Batalkan ${sub.merchant_name}`} onClick={() => openSubscriptionActionDialog(sub, 'CANCEL')} disabled={actioningId === sub.id}>
                                    <RotateCcw className="h-4 w-4" />
                                  </Button>
                                )}
@@ -565,7 +582,7 @@ export default function AdminPOSPage() {
                                      </DropdownMenuItem>
                                    )}
                                    {sub.status === 'ACTIVE' && (
-                                     <DropdownMenuItem onClick={() => handleSuspend(sub)}>
+                                     <DropdownMenuItem onClick={() => openSubscriptionActionDialog(sub, 'SUSPEND')}>
                                        <Ban className="mr-2 h-4 w-4" /> Tangguhkan akses
                                      </DropdownMenuItem>
                                    )}
@@ -577,7 +594,7 @@ export default function AdminPOSPage() {
                                    {sub.status !== 'CANCELLED' && sub.status !== 'REJECTED' && (
                                      <>
                                        <DropdownMenuSeparator />
-                                       <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleCancel(sub)}>
+                                       <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => openSubscriptionActionDialog(sub, 'CANCEL')}>
                                          <RotateCcw className="mr-2 h-4 w-4" /> Batalkan langganan
                                        </DropdownMenuItem>
                                      </>
@@ -1048,6 +1065,22 @@ export default function AdminPOSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SubscriptionActionDialog
+        open={Boolean(subscriptionActionRequest)}
+        action={subscriptionActionRequest?.action ?? 'SUSPEND'}
+        merchantName={subscriptionActionRequest?.subscription.merchant_name || 'merchant'}
+        reason={subscriptionActionReason}
+        busy={Boolean(subscriptionActionRequest && actioningId === subscriptionActionRequest.subscription.id)}
+        onReasonChange={setSubscriptionActionReason}
+        onOpenChange={(open) => {
+          if (open) return;
+          if (subscriptionActionRequest && actioningId === subscriptionActionRequest.subscription.id) return;
+          setSubscriptionActionRequest(null);
+          setSubscriptionActionReason('');
+        }}
+        onConfirm={() => void handleConfirmSubscriptionAction()}
+      />
     </AdminLayout>
   );
 }
