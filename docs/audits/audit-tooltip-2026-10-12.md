@@ -10,6 +10,9 @@ Audit statis mencakup implementasi tooltip Radix bersama, seluruh pemakaian `Too
 |---|---|---|---|
 | P1 aksesibilitas | Pedagang/publik — `VerifiedBadge` tanpa label | Pemicu tooltip adalah elemen `<span>` tanpa `tabIndex`, nama aksesibel, atau peran; tooltip ikon-only hanya dapat ditemukan dengan pointer/hover. | Diperbaiki: pemicu kini dapat difokuskan keyboard dan memiliki nama/uraian aksesibel. |
 | P1 aksesibilitas | Pedagang/publik — `VerifiedIcon` | Pemicu langsung berupa ikon SVG lucide yang bukan kontrol dan tidak dapat menerima fokus keyboard secara normal, tanpa nama aksesibel. | Diperbaiki dengan pembungkus fokusabel berperan `img`, label aksesibel, dan SVG dekoratif disembunyikan dari pembaca layar. |
+| P1 aksesibilitas | Publik/pembeli — `SortDropdown` | Tombol ikon urutkan tidak memiliki nama aksesibel, tipe tombol eksplisit, atau status buka/tutup untuk teknologi bantu. Tooltip hanya menjelaskan pilihan aktif. | Diperbaiki dengan label yang menyebut urutan saat ini, `type="button"`, dan `aria-expanded`. |
+| P1 aksesibilitas | Publik/pembeli — `FilterButton` | Tombol ikon filter bergantung pada tooltip “Filter”; jumlah filter aktif hanya visual. | Diperbaiki dengan nama aksesibel “Filter produk” atau jumlah filter aktif dan `type="button"`. |
+| P1 aksesibilitas | POS pedagang — aksi WhatsApp hutang/piutang | Tombol icon-only berisi tooltip, tetapi tidak punya nama aksesibel yang menyebut tindakan atau pihak penerima. | Diperbaiki dengan `aria-label` dinamis sesuai tagihan/pengingat dan nama pihak; ditetapkan `type="button"`. |
 | P2 konsistensi | Navigasi admin, desa, pedagang, kurir | Navigasi memakai label menu yang terlihat, bukan tooltip-only; tooltip label tidak diperlukan dalam keadaan normal. Tombol aksi cepat pedagang mengandalkan `title` native, yang tampil dengan jeda dan perilakunya bergantung browser. | Dicatat; tidak mengganti pola global tanpa bukti ada masalah UX atau spesifikasi desain. |
 | P2 konsistensi | Tombol ikon/aksi lain | Banyak tombol memiliki `title`; sebagian juga memiliki `aria-label`, tetapi pola tidak seragam. `title` browser bukan pengganti label aksesibel atau tooltip konsisten. | Batasan tersisa: audit ini memperbaiki cacat tooltip bersama spesifik dan tidak mengubah semua tombol/fitur. |
 | Informasional | Grafik dan peta | Tooltip Recharts serta `title` marker Leaflet adalah mekanisme library/HTML terpisah. Interaksi keyboard dan output aksesibilitas perlu pengujian khusus tiap visualisasi. | Belum diaudit secara interaksi runtime. |
@@ -18,8 +21,9 @@ Audit statis mencakup implementasi tooltip Radix bersama, seluruh pemakaian `Too
 
 - Menambahkan fokus keyboard dan nama aksesibel ke badge ikon-only, sambil tetap mempertahankan tooltip penjelas yang sudah ada.
 - Ikon murni disembunyikan dari pembaca layar agar tidak menduplikasi nama badge.
-- Menambah tes regresi untuk badge `Populer`, ikon terverifikasi, dan memastikan badge berlabel yang terlihat tidak mendapat fokus ekstra.
-- Tes komponen dan build harus dijalankan sebelum merge.
+- Menambah tes regresi untuk badge ikon-only serta tombol `Urutkan`/`Filter`, termasuk status buka dan hitungan filter.
+- Tes terpilih lulus: 6 tes pada 2 berkas tes. ESLint pada komponen/tes terdampak dan `git diff --check` juga lulus.
+- Build produksi berhasil setelah perubahan lanjutan ini.
 
 ## Batasan
 

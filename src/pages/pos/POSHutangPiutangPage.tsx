@@ -440,6 +440,8 @@ export default function POSHutangPiutangPage() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="sm"
+                                  type="button"
+                                  aria-label={d.type === 'receivable' ? `Kirim tagihan via WhatsApp ke ${d.party_name}` : `Kirim pengingat pembayaran via WhatsApp ke ${d.party_name}`}
                                   className={`h-7 w-7 p-0 ${d.status==='overdue'?'text-green-600 hover:text-green-700 hover:bg-green-50':isNear?'text-amber-600 hover:bg-amber-50':'text-muted-foreground hover:text-green-600'}`}
                                   onClick={()=>sendWA(d)}>
                                   <MessageCircle className="h-4 w-4"/>

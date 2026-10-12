@@ -34,6 +34,9 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            type="button"
+            aria-label={`Urutkan; saat ini ${selectedOption.label}`}
+            aria-expanded={isOpen}
             onClick={() => setIsOpen(!isOpen)}
             className={cn(
               "relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all",

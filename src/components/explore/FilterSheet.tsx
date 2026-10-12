@@ -247,6 +247,8 @@ export function FilterButton({ onClick, activeCount }: FilterButtonProps) {
       <Tooltip>
         <TooltipTrigger asChild>
           <button
+            type="button"
+            aria-label={activeCount > 0 ? `Filter, ${activeCount} filter aktif` : 'Filter produk'}
             onClick={onClick}
             className={cn(
               "relative flex items-center justify-center w-9 h-9 rounded-xl transition-all border",
