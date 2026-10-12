@@ -170,6 +170,12 @@ export default function CheckoutPage() {
   const routeCalculationPending = deliveryType !== 'PICKUP'
     && Boolean(merchantLocation && addressData.location)
     && distanceSource === 'calculating';
+  // The server calculates shipping from p_distance_km. Keep checkout blocked
+  // while the UI has a destination route but no matching distance yet.
+  const distanceCalculationRequired = deliveryType !== 'PICKUP'
+    && Boolean(merchantLocation && addressData.location);
+  const distanceReady = !distanceCalculationRequired
+    || (distanceKm !== null && Number.isFinite(distanceKm) && distanceKm > 0 && distanceSource !== 'calculating');
 
   const voucherDiscount = appliedVoucher?.discount || 0;
   const total = subtotal + shippingCost - voucherDiscount;
@@ -453,6 +459,15 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!distanceReady) {
+      toast({
+        title: 'Jarak pengiriman belum siap',
+        description: 'Tunggu sampai jarak rute selesai dihitung sebelum membuat pesanan.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (items.length === 0) {
       toast({
         title: 'Keranjang kosong',
@@ -556,7 +571,10 @@ export default function CheckoutPage() {
         p_delivery_type: deliveryType,
         p_payment_method: paymentMethod,
         p_voucher_id: user ? appliedVoucher?.id ?? null : null,
-        p_distance_km: null,
+        // This is the same route distance used by shippingCost above. Sending
+        // null here made the server fall back to base_fee while the UI showed
+        // a distance-based amount.
+        p_distance_km: deliveryType === 'PICKUP' ? null : distanceKm,
         p_checkout_key: checkoutKeyRef.current,
         ...(user ? {} : { p_guest_checkout_key: guestSessionKeyRef.current ?? getGuestCheckoutSessionKey() }),
       };
@@ -1202,7 +1220,7 @@ export default function CheckoutPage() {
           form="checkout-form"
           className="w-full shadow-brand font-bold transition-all"
           size="lg"
-          disabled={loading || routeCalculationPending || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
+          disabled={loading || routeCalculationPending || !distanceReady || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>
