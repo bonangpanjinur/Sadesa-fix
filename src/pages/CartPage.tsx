@@ -243,6 +243,7 @@ export default function CartPage() {
                 <button
                   type="button"
                   onClick={() => selectionPlan.productIdsToToggle.forEach(toggleItemSelection)}
+                  aria-label={`${selectionPlan.allSelected ? 'Batal pilih' : 'Pilih semua'} produk dari ${merchantName}`}
                   className="ml-auto text-xs font-medium text-primary hover:underline"
                 >
                   {selectionPlan.allSelected ? 'Batal pilih' : 'Pilih semua'}
@@ -304,6 +305,7 @@ export default function CartPage() {
                     <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
                       <button
                         onClick={() => removeFromCart(item.product.id, item.toppings)}
+                        aria-label={`Hapus ${item.product.name} dari keranjang`}
                         className="text-destructive hover:bg-destructive/10 p-2 rounded-lg transition"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -312,6 +314,7 @@ export default function CartPage() {
                       <div className="flex items-center border border-border rounded-lg">
                         <button 
                           onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.toppings)}
+                          aria-label={`Kurangi ${item.product.name}`}
                           className="w-8 h-8 text-muted-foreground hover:text-primary transition"
                         >
                           <Minus className="h-4 w-4 mx-auto" />
@@ -321,6 +324,7 @@ export default function CartPage() {
                         </span>
                         <button 
                           onClick={() => updateQuantity(item.product.id, Math.min(item.product.stock, item.quantity + 1), item.toppings)}
+                          aria-label={`Tambah ${item.product.name}`}
                           className="w-8 h-8 text-muted-foreground hover:text-primary transition"
                           disabled={item.quantity >= item.product.stock}
                         >
