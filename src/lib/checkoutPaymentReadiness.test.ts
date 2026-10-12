@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { isCheckoutPaymentMethodAvailable } from './checkoutPaymentReadiness';
+import { isCheckoutPaymentMethodAvailable, isCheckoutPaymentSettingsReady } from './checkoutPaymentReadiness';
+
+describe('isCheckoutPaymentSettingsReady', () => {
+  it('requires successful settings for the current merchant', () => {
+    expect(isCheckoutPaymentSettingsReady('ready', 'merchant-1', 'merchant-1')).toBe(true);
+    expect(isCheckoutPaymentSettingsReady('loading', 'merchant-1', 'merchant-1')).toBe(false);
+    expect(isCheckoutPaymentSettingsReady('error', 'merchant-1', 'merchant-1')).toBe(false);
+    expect(isCheckoutPaymentSettingsReady('ready', 'merchant-1', 'merchant-2')).toBe(false);
+    expect(isCheckoutPaymentSettingsReady('ready', 'merchant-1', undefined)).toBe(false);
+  });
+});
 
 describe('isCheckoutPaymentMethodAvailable', () => {
   it('allows an enabled bank-transfer method even when account details need seller follow-up', () => {

@@ -150,6 +150,9 @@ export default function PaymentConfirmationPage() {
   const paymentStatus = order.payment_status.toUpperCase();
   const isPaymentComplete = ['PAID', 'VERIFIED', 'COMPLETED', 'SUCCESS'].includes(paymentStatus);
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
+  const hasPaymentInstructions = Boolean(
+    (paymentInfo.bankName && paymentInfo.bankAccountNumber) || paymentInfo.qrisImageUrl,
+  );
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
@@ -205,8 +208,20 @@ export default function PaymentConfirmationPage() {
           </Card>
         )}
 
+        {!isPaymentComplete && !hasPaymentInstructions && (
+          <Card className="border-amber-200 bg-amber-50/70">
+            <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-950" role="status">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="font-bold">Menunggu instruksi pembayaran</p>
+                <p className="mt-1">Penjual belum menyediakan rekening atau QRIS. Jangan melakukan transfer sebelum menerima instruksi resmi. Gunakan total pesanan di atas saat instruksi pembayaran diberikan.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Bank Transfer Info */}
-        {!isPaymentComplete && paymentInfo.bankName && (
+        {!isPaymentComplete && paymentInfo.bankName && paymentInfo.bankAccountNumber && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Card>
               <CardContent className="p-4">
@@ -273,7 +288,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* Upload Bukti Pembayaran */}
-        {!isPaymentComplete && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        {!isPaymentComplete && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
@@ -294,7 +309,7 @@ export default function PaymentConfirmationPage() {
         </motion.div>}
 
         {/* Instructions */}
-        {!isPaymentComplete && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        {!isPaymentComplete && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>

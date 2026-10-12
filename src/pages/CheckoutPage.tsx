@@ -25,7 +25,7 @@ import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } f
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
-import { isCheckoutPaymentMethodAvailable } from '@/lib/checkoutPaymentReadiness';
+import { isCheckoutPaymentMethodAvailable, isCheckoutPaymentSettingsReady, type CheckoutPaymentSettingsStatus } from '@/lib/checkoutPaymentReadiness';
 import { normalizeCheckoutProductQuantities } from '@/lib/normalizeCheckoutItems';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 
@@ -129,6 +129,10 @@ export default function CheckoutPage() {
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
   // Merchant payment settings
   const [merchantPaymentSettings, setMerchantPaymentSettings] = useState<MerchantPaymentSettings & { qrisImageUrl: string | null } | null>(null);
+  const [paymentSettingsLoadState, setPaymentSettingsLoadState] = useState<{
+    merchantId: string | null;
+    status: CheckoutPaymentSettingsStatus;
+  }>({ merchantId: null, status: 'loading' });
 
   useEffect(() => {
     if (!user && !guestCheckoutFlagLoading && !guestCheckoutEnabled) {
@@ -312,7 +316,7 @@ export default function CheckoutPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, merchantIds.length, quoteItems, user]);
+  }, [addressData.location, addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, merchantIds.length, quoteItems, user]);
 
   // Check merchant operating hours
   const [merchantOperatingInfo, setMerchantOperatingInfo] = useState<Record<string, MerchantOperatingInfo>>({});
@@ -323,17 +327,25 @@ export default function CheckoutPage() {
   // provider availability check must not refetch this whole block.
   useEffect(() => {
     let cancelled = false;
+    if (!firstMerchantId) {
+      setMerchantPaymentSettings(null);
+      setPaymentSettingsLoadState({ merchantId: null, status: 'error' });
+      return () => { cancelled = true; };
+    }
+
+    setMerchantPaymentSettings(null);
+    setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'loading' });
     const fetchMerchantData = async () => {
-      if (!firstMerchantId) return;
+      try {
+        // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
+        const { data, error } = await supabase
+          .from('merchants')
+          .select('location_lat, location_lng, province, city, district, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
+          .eq('id', firstMerchantId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) throw new Error('Pengaturan merchant tidak ditemukan');
 
-      // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
-      const { data } = await supabase
-        .from('merchants')
-        .select('location_lat, location_lng, province, city, district, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
-        .eq('id', firstMerchantId)
-        .maybeSingle();
-
-      if (data) {
         if (data.location_lat && data.location_lng && !cancelled) {
           setMerchantLocation({
             lat: Number(data.location_lat),
@@ -353,11 +365,12 @@ export default function CheckoutPage() {
         let qrisImageUrl = data.qris_image_url;
 
         if (!bankName || !bankAccountNumber) {
-          const { data: adminSettings } = await supabase
+          const { data: adminSettings, error: adminSettingsError } = await supabase
             .from('app_settings')
             .select('value')
             .eq('key', 'admin_payment_info')
             .maybeSingle();
+          if (adminSettingsError) throw adminSettingsError;
           if (adminSettings?.value) {
             const ap = adminSettings.value as Record<string, string>;
             if (!bankName) bankName = ap.bank_name || null;
@@ -375,7 +388,13 @@ export default function CheckoutPage() {
           bankAccountName,
           qrisImageUrl,
         });
-
+        setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'ready' });
+      } catch (error) {
+        console.error('Error loading merchant payment settings:', error);
+        if (!cancelled) {
+          setMerchantPaymentSettings(null);
+          setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'error' });
+        }
       }
     };
 
@@ -477,10 +496,17 @@ export default function CheckoutPage() {
   const deliveryStepComplete = addressStepComplete && hasChosenDelivery;
   const paymentStepComplete = deliveryStepComplete && hasChosenPayment;
   const currentStepIndex = !items.length ? 0 : !addressStepComplete ? 1 : !deliveryStepComplete ? 2 : !paymentStepComplete ? 3 : 3;
-  const transferDetailsAvailable = Boolean(merchantPaymentSettings?.bankName && merchantPaymentSettings?.bankAccountNumber);
-  const paymentReady = isCheckoutPaymentMethodAvailable(
+  const paymentSettingsReady = isCheckoutPaymentSettingsReady(
+    paymentSettingsLoadState.status,
+    paymentSettingsLoadState.merchantId,
+    firstMerchantId,
+  ) && merchantPaymentSettings !== null;
+  const transferDetailsAvailable = Boolean(
+    (merchantPaymentSettings?.bankName && merchantPaymentSettings.bankAccountNumber) || merchantPaymentSettings?.qrisImageUrl,
+  );
+  const paymentReady = paymentSettingsReady && isCheckoutPaymentMethodAvailable(
     paymentMethod,
-    merchantPaymentSettings?.transferEnabled !== false,
+    merchantPaymentSettings?.transferEnabled === true,
     Boolean(user && xenditAvailable),
   );
 
@@ -545,6 +571,17 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!paymentSettingsReady) {
+      toast({
+        title: paymentSettingsLoadState.status === 'error' ? 'Metode pembayaran belum dapat diverifikasi' : 'Menyiapkan metode pembayaran',
+        description: paymentSettingsLoadState.status === 'error'
+          ? 'Pengaturan pembayaran toko gagal dimuat. Muat ulang halaman sebelum membuat pesanan.'
+          : 'Tunggu sampai pengaturan pembayaran toko selesai dimuat sebelum membuat pesanan.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (routeCalculationPending) {
       toast({
@@ -1125,6 +1162,21 @@ export default function CheckoutPage() {
               </span>
             </label>
 
+            <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
+              deliveryType === 'EXPEDITION' ? 'border-primary bg-primary/5' : 'border-border'
+            }`}>
+              <RadioGroupItem value="EXPEDITION" id="expedition" />
+              <div className="flex-1">
+                <p className="font-bold text-sm">Ekspedisi</p>
+                <p className="text-xs text-muted-foreground">Tarif, layanan, dan estimasi diverifikasi dari server berdasarkan tujuan dan berat barang.</p>
+              </div>
+              <span className="text-sm font-bold text-primary">
+                {serverQuote && deliveryType === 'EXPEDITION'
+                  ? formatCurrency(shippingCost)
+                  : checkoutQuoteLoading && deliveryType === 'EXPEDITION' ? 'Menghitung…' : 'Tarif server'}
+              </span>
+            </label>
+
 
             <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
               deliveryType === 'PICKUP' ? 'border-primary bg-primary/5' : 'border-border'
@@ -1137,6 +1189,13 @@ export default function CheckoutPage() {
               <span className="text-sm font-bold text-primary">{t('shipping.freeLabel')}</span>
             </label>
           </RadioGroup>
+          {deliveryType === 'EXPEDITION' && checkoutQuoteError && !checkoutQuoteLoading && (
+            <p className="mt-2 text-xs text-destructive" role="alert">
+              {checkoutQuoteError.includes('Tarif ekspedisi')
+                ? 'Tarif ekspedisi belum tersedia untuk tujuan ini. Pilih pengiriman lokal atau ambil sendiri.'
+                : 'Tarif ekspedisi belum dapat diverifikasi. Coba lagi sebelum melanjutkan.'}
+            </p>
+          )}
           {errors.delivery && (
             <p className="text-xs text-destructive mt-2" role="alert">{errors.delivery}</p>
           )}
@@ -1167,7 +1226,7 @@ export default function CheckoutPage() {
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'
               } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <RadioGroupItem value="TRANSFER" id="transfer" disabled={merchantIds.length > 1} />
+                <RadioGroupItem value="TRANSFER" id="transfer" disabled={!paymentSettingsReady || merchantIds.length > 1} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">{t('checkout.payment.transfer')}</p>
@@ -1187,7 +1246,7 @@ export default function CheckoutPage() {
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border'
               } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <RadioGroupItem value="ONLINE" id="online" disabled={merchantIds.length > 1} />
+                <RadioGroupItem value="ONLINE" id="online" disabled={!paymentSettingsReady || merchantIds.length > 1} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">{t('checkout.payment.online')}</p>
@@ -1223,7 +1282,7 @@ export default function CheckoutPage() {
 
           {merchantPaymentSettings && paymentMethod === 'TRANSFER' && !transferDetailsAvailable && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
-              Rekening transfer belum tersedia untuk toko ini. Anda tetap dapat membuat pesanan; hubungi penjual untuk mendapatkan detail pembayaran.
+              Status pembayaran: menunggu instruksi dari penjual. Jangan melakukan transfer sebelum menerima detail pembayaran dan nominal resmi untuk pesanan ini.
             </div>
           )}
 
@@ -1340,7 +1399,7 @@ export default function CheckoutPage() {
           form="checkout-form"
           className="w-full shadow-brand font-bold transition-all"
           size="lg"
-          disabled={loading || checkoutQuoteLoading || !checkoutQuoteReady || routeCalculationPending || !distanceReady || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
+          disabled={loading || checkoutQuoteLoading || !checkoutQuoteReady || routeCalculationPending || !distanceReady || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentSettingsReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>
@@ -1372,7 +1431,11 @@ export default function CheckoutPage() {
         )}
         {!paymentReady && !loading && (
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            {merchantPaymentSettings ? 'Pilih metode pembayaran yang tersedia untuk melanjutkan.' : 'Menyiapkan metode pembayaran...'}
+            {paymentSettingsLoadState.status === 'error'
+              ? 'Pengaturan pembayaran gagal dimuat. Muat ulang halaman untuk mencoba lagi.'
+              : !paymentSettingsReady
+                ? 'Menyiapkan metode pembayaran toko...'
+                : 'Pilih metode pembayaran yang tersedia untuk melanjutkan.'}
           </p>
         )}
         {merchantIds.length > 1 && (
