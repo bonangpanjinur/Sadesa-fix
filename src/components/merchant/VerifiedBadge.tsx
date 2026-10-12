@@ -84,6 +84,9 @@ export function VerifiedBadge({
 
   const badge = (
     <span
+      tabIndex={showLabel ? undefined : 0}
+      role={showLabel ? undefined : 'img'}
+      aria-label={showLabel ? undefined : `${config.label}. ${config.description}`}
       className={cn(
         'inline-flex items-center gap-1 rounded-full font-medium',
         config.bgClass,
@@ -93,7 +96,7 @@ export function VerifiedBadge({
         className
       )}
     >
-      <Icon className={cn(sizes.iconSize, config.iconClass)} />
+      <Icon aria-hidden={!showLabel} className={cn(sizes.iconSize, config.iconClass)} />
       {showLabel && <span>{config.label}</span>}
     </span>
   );
@@ -128,7 +131,14 @@ export function VerifiedIcon({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <BadgeCheck className={cn(sizes.iconSize, 'text-info', className)} />
+        <span
+          tabIndex={0}
+          role="img"
+          aria-label="Toko Terverifikasi. Toko ini telah diverifikasi oleh tim kami"
+          className="inline-flex"
+        >
+          <BadgeCheck aria-hidden="true" className={cn(sizes.iconSize, 'text-info', className)} />
+        </span>
       </TooltipTrigger>
       <TooltipContent>
         <p className="font-medium">Toko Terverifikasi</p>
