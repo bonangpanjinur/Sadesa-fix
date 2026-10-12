@@ -30,6 +30,7 @@ interface ProductRow {
   description: string | null;
   price: number;
   stock: number;
+  shipping_weight_kg?: number | null;
   category: string;
   image_url: string | null;
   is_active: boolean;
@@ -64,6 +65,7 @@ interface ProductForm {
   description: string;
   price: string;
   stock: string;
+  shipping_weight_kg: string;
   category: string;
   image_url: string | null;
   is_active: boolean;
@@ -79,7 +81,7 @@ interface Category {
 }
 
 const defaultForm: ProductForm = {
-  name: '', description: '', price: '', stock: '0', category: '', image_url: null, is_active: true, is_promo: false,
+  name: '', description: '', price: '', stock: '0', shipping_weight_kg: '1', category: '', image_url: null, is_active: true, is_promo: false,
 };
 
 
@@ -251,6 +253,11 @@ export default function MerchantProductsPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!merchantId) return;
+      const shippingWeightKg = Number(form.shipping_weight_kg);
+      if (!Number.isFinite(shippingWeightKg) || shippingWeightKg <= 0 || shippingWeightKg > 1000) {
+        setFormErrors({ shipping_weight_kg: 'Berat harus lebih dari 0 dan maksimal 1.000 kg.' });
+        throw new Error('Periksa berat produk untuk pengiriman');
+      }
       const parsed = productFormSchema.safeParse(form);
       if (!parsed.success) {
         const nextErrors: Record<string, string> = {};
@@ -277,6 +284,7 @@ export default function MerchantProductsPage() {
         description: parsed.data.description || null,
         price: parsed.data.price,
         stock: parsed.data.stock,
+        shipping_weight_kg: shippingWeightKg,
         category: parsed.data.category,
         category_id: selectedProductCategory?.id || null,
         image_url: form.image_url,
@@ -369,6 +377,7 @@ export default function MerchantProductsPage() {
       description: product.description || '',
       price: product.price.toString(),
       stock: product.stock.toString(),
+      shipping_weight_kg: String(product.shipping_weight_kg ?? 1),
       category: product.category,
       image_url: product.image_url,
       is_active: product.is_active,
@@ -678,6 +687,12 @@ export default function MerchantProductsPage() {
                    {editingProduct?.pos_linked && <p className="text-xs text-muted-foreground">Stok dikelola dari outlet POS.</p>}
                   {formErrors.stock && <p id="prod-stock-error" role="alert" className="text-xs text-destructive">{formErrors.stock}</p>}
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Berat pengiriman (kg) *</Label>
+                <Input type="number" min={0.001} max={1000} step={0.001} value={form.shipping_weight_kg} onChange={e => { setForm(p => ({ ...p, shipping_weight_kg: e.target.value })); setFormErrors(p => ({ ...p, shipping_weight_kg: '' })); }} placeholder="1" required aria-invalid={Boolean(formErrors.shipping_weight_kg)} aria-describedby={formErrors.shipping_weight_kg ? 'prod-shipping-weight-error' : undefined} />
+                <p className="text-xs text-muted-foreground">Dipakai untuk quote ekspedisi berbasis berat.</p>
+                {formErrors.shipping_weight_kg && <p id="prod-shipping-weight-error" role="alert" className="text-xs text-destructive">{formErrors.shipping_weight_kg}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Deskripsi</Label>

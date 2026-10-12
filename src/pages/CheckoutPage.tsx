@@ -26,6 +26,7 @@ import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
 import { isCheckoutPaymentMethodAvailable } from '@/lib/checkoutPaymentReadiness';
+import { normalizeCheckoutProductQuantities } from '@/lib/normalizeCheckoutItems';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
@@ -44,6 +45,23 @@ interface MerchantPaymentSettings {
   bankName: string | null;
   bankAccountNumber: string | null;
   bankAccountName: string | null;
+}
+
+interface MarketplaceCheckoutQuote {
+  subtotal: number;
+  shipping_cost: number;
+  voucher_discount: number;
+  total: number;
+  distance_km: number;
+  quoted_at: string;
+  shipping_contract?: {
+    contract: string;
+    provider_name?: string;
+    service_name?: string;
+    weight_kg?: number;
+    eta_min_days?: number;
+    eta_max_days?: number;
+  };
 }
 
 export default function CheckoutPage() {
@@ -103,6 +121,9 @@ export default function CheckoutPage() {
   // Distance state
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [distanceSource, setDistanceSource] = useState<'google' | 'fallback' | 'straight-line' | 'calculating' | null>(null);
+  const [checkoutQuoteResult, setCheckoutQuoteResult] = useState<{ key: string; quote: MarketplaceCheckoutQuote } | null>(null);
+  const [checkoutQuoteLoading, setCheckoutQuoteLoading] = useState(false);
+  const [checkoutQuoteError, setCheckoutQuoteError] = useState<string | null>(null);
 
   // Shipping settings from admin
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
@@ -149,7 +170,7 @@ export default function CheckoutPage() {
   );
 
   // Calculate shipping based on distance
-  const shippingCost = useMemo(() => {
+  const estimatedShippingCost = useMemo(() => {
     if (deliveryType === 'PICKUP') return 0;
 
     // Free shipping threshold check
@@ -170,15 +191,39 @@ export default function CheckoutPage() {
   const routeCalculationPending = deliveryType !== 'PICKUP'
     && Boolean(merchantLocation && addressData.location)
     && distanceSource === 'calculating';
-  // The server calculates shipping from p_distance_km. Keep checkout blocked
-  // while the UI has a destination route but no matching distance yet.
+  // Route distance remains useful for local-delivery eligibility and ETA.
+  // The server quote and order pricing independently derive distance from coordinates.
   const distanceCalculationRequired = deliveryType !== 'PICKUP'
     && Boolean(merchantLocation && addressData.location);
   const distanceReady = !distanceCalculationRequired
     || (distanceKm !== null && Number.isFinite(distanceKm) && distanceKm > 0 && distanceSource !== 'calculating');
 
   const voucherDiscount = appliedVoucher?.discount || 0;
-  const total = subtotal + shippingCost - voucherDiscount;
+  const quoteItems = useMemo(() => normalizeCheckoutProductQuantities(items.flatMap((item) => [
+    { product_id: item.product.id, quantity: Math.trunc(item.quantity) },
+    ...(item.toppings || []).map((topping) => ({
+      product_id: topping.product.id,
+      quantity: Math.trunc(item.quantity * topping.quantity),
+    })),
+  ])), [items]);
+  const deliveryCityId = addressData.address.city || null;
+  const deliveryDistrictId = addressData.address.district || null;
+  const checkoutQuoteKey = useMemo(() => JSON.stringify({
+    items: quoteItems,
+    deliveryType,
+    lat: addressData.location?.lat ?? null,
+    lng: addressData.location?.lng ?? null,
+    cityId: deliveryCityId,
+    districtId: deliveryDistrictId,
+    voucherId: user ? appliedVoucher?.id ?? null : null,
+    merchantId: items[0]?.product.merchantId ?? null,
+  }), [addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, deliveryCityId, deliveryDistrictId, deliveryType, items, quoteItems, user]);
+  const serverQuote = checkoutQuoteResult?.key === checkoutQuoteKey ? checkoutQuoteResult.quote : null;
+  const shippingCost = serverQuote?.shipping_cost ?? estimatedShippingCost;
+  const displaySubtotal = serverQuote?.subtotal ?? subtotal;
+  const displayVoucherDiscount = serverQuote?.voucher_discount ?? voucherDiscount;
+  const total = serverQuote?.total ?? (subtotal + estimatedShippingCost - voucherDiscount);
+  const checkoutQuoteReady = Boolean(serverQuote);
 
   const deliveryRestriction = useMemo(
     () => getDeliveryRestriction(
@@ -218,6 +263,56 @@ export default function CheckoutPage() {
     [merchantIdsKey],
   );
   const firstMerchantId = merchantIds[0];
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!quoteItems.length || !firstMerchantId || merchantIds.length !== 1
+      || (deliveryType !== 'PICKUP' && !addressData.location)) {
+      setCheckoutQuoteResult(null);
+      setCheckoutQuoteLoading(false);
+      setCheckoutQuoteError(null);
+      return () => { cancelled = true; };
+    }
+
+    setCheckoutQuoteResult(null);
+    setCheckoutQuoteLoading(true);
+    setCheckoutQuoteError(null);
+    void (async () => {
+      try {
+        const { data, error } = await supabase.rpc('quote_marketplace_checkout' as never, {
+          p_items: quoteItems,
+          p_delivery: {
+            lat: addressData.location?.lat ?? null,
+            lng: addressData.location?.lng ?? null,
+            city_id: deliveryCityId,
+            district_id: deliveryDistrictId,
+          },
+          p_delivery_type: deliveryType,
+          p_voucher_id: user ? appliedVoucher?.id ?? null : null,
+        } as never);
+        if (cancelled) return;
+        if (error || !data) {
+          setCheckoutQuoteError(error?.message || 'Quote checkout tidak tersedia');
+          setCheckoutQuoteResult(null);
+          return;
+        }
+        const quote = data as unknown as MarketplaceCheckoutQuote;
+        if (![quote.subtotal, quote.shipping_cost, quote.voucher_discount, quote.total, quote.distance_km].every(Number.isFinite)) {
+          setCheckoutQuoteError('Quote checkout dari server tidak valid');
+          setCheckoutQuoteResult(null);
+          return;
+        }
+        setCheckoutQuoteResult({ key: checkoutQuoteKey, quote });
+      } catch (error: unknown) {
+        if (cancelled) return;
+        setCheckoutQuoteError(error instanceof Error ? error.message : 'Quote checkout tidak tersedia');
+        setCheckoutQuoteResult(null);
+      } finally {
+        if (!cancelled) setCheckoutQuoteLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, merchantIds.length, quoteItems, user]);
 
   // Check merchant operating hours
   const [merchantOperatingInfo, setMerchantOperatingInfo] = useState<Record<string, MerchantOperatingInfo>>({});
@@ -467,6 +562,14 @@ export default function CheckoutPage() {
       });
       return;
     }
+    if (!checkoutQuoteReady || checkoutQuoteLoading) {
+      toast({
+        title: 'Total checkout belum terverifikasi',
+        description: checkoutQuoteError || 'Tunggu sampai server selesai menghitung subtotal, ongkir, dan diskon.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     if (items.length === 0) {
       toast({
@@ -550,10 +653,7 @@ export default function CheckoutPage() {
 
       const fullAddress = [formatFullAddress(addressData.address), addressData.detailAddress?.trim()].filter(Boolean).join(', ');
       const checkoutPayload = {
-        p_items: items.flatMap((item) => [
-          { product_id: item.product.id, quantity: Math.trunc(item.quantity) },
-          ...(item.toppings || []).map((topping) => ({ product_id: topping.product.id, quantity: Math.trunc(item.quantity * topping.quantity) })),
-        ]),
+        p_items: quoteItems,
         p_delivery: {
           name: addressData.name,
           phone: addressData.phone,
@@ -571,10 +671,8 @@ export default function CheckoutPage() {
         p_delivery_type: deliveryType,
         p_payment_method: paymentMethod,
         p_voucher_id: user ? appliedVoucher?.id ?? null : null,
-        // This is the same route distance used by shippingCost above. Sending
-        // null here made the server fall back to base_fee while the UI showed
-        // a distance-based amount.
-        p_distance_km: deliveryType === 'PICKUP' ? null : distanceKm,
+        // The server derives distance from the submitted destination and the
+        // merchant's stored coordinates; never trust a client-supplied rate input.
         p_checkout_key: checkoutKeyRef.current,
         ...(user ? {} : { p_guest_checkout_key: guestSessionKeyRef.current ?? getGuestCheckoutSessionKey() }),
       };
@@ -1022,7 +1120,9 @@ export default function CheckoutPage() {
                     : t('shipping.deliveryDesc')}
                 </p>
               </div>
-              <span className="text-sm font-bold text-primary">{formatCurrency(shippingCost)}</span>
+              <span className="text-sm font-bold text-primary">
+                {serverQuote ? formatCurrency(shippingCost) : checkoutQuoteLoading ? 'Menghitung…' : '—'}
+              </span>
             </label>
 
 
@@ -1182,29 +1282,49 @@ export default function CheckoutPage() {
           </div>
         )}
         {/* Free shipping badge */}
-        {shippingSettings && subtotal >= shippingSettings.free_shipping_min_order && deliveryType !== 'PICKUP' && (
+        {checkoutQuoteLoading && (
+          <p className="mb-2 text-center text-xs text-muted-foreground" role="status">
+            <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> Memverifikasi subtotal, ongkir, dan total dari server...
+          </p>
+        )}
+        {checkoutQuoteError && !checkoutQuoteLoading && (
+          <p className="mb-2 text-center text-xs text-destructive" role="alert">
+            {deliveryType === 'EXPEDITION' && checkoutQuoteError.includes('Tarif ekspedisi')
+              ? 'Tarif ekspedisi untuk tujuan ini belum dikonfigurasi. Checkout ekspedisi belum tersedia.'
+              : 'Quote checkout gagal dimuat. Periksa koneksi atau muat ulang sebelum melanjutkan.'}
+          </p>
+        )}
+        {serverQuote && serverQuote.shipping_cost === 0 && deliveryType !== 'PICKUP' && (
           <div className="flex items-center gap-1.5 mb-2 text-xs text-emerald-600 font-medium">
             <CheckCircle className="h-3.5 w-3.5" />
-            <span>{t('shipping.freeMinOrder', { min: formatCurrency(shippingSettings.free_shipping_min_order) })}</span>
+            <span>Ongkir gratis berdasarkan perhitungan server</span>
           </div>
         )}
         <div className="flex justify-between items-center mb-1 text-xs sm:text-sm">
           <span className="text-muted-foreground">{t('shipping.subtotal')}</span>
-          <span className="font-bold">{formatCurrency(subtotal)}</span>
+          <span className="font-bold">{serverQuote ? formatCurrency(displaySubtotal) : '—'}</span>
         </div>
         <div className="flex justify-between items-center mb-1 text-xs sm:text-sm">
           <span className="text-muted-foreground">{t('shipping.fee')}</span>
-          <span className="font-bold">{formatCurrency(shippingCost)}</span>
+          <span className="font-bold">{serverQuote ? formatCurrency(shippingCost) : '—'}</span>
         </div>
-        {voucherDiscount > 0 && (
+        {serverQuote?.shipping_contract?.contract === 'EXPEDITION_PROVIDER_WEIGHT_V1' && (
+          <p className="mb-1 text-right text-[11px] text-muted-foreground">
+            Ekspedisi {serverQuote.shipping_contract.provider_name} · {serverQuote.shipping_contract.service_name}
+            {Number.isFinite(serverQuote.shipping_contract.weight_kg) && ` · ${serverQuote.shipping_contract.weight_kg} kg`}
+            {Number.isFinite(serverQuote.shipping_contract.eta_min_days) && Number.isFinite(serverQuote.shipping_contract.eta_max_days)
+              && ` · estimasi ${serverQuote.shipping_contract.eta_min_days}–${serverQuote.shipping_contract.eta_max_days} hari`}
+          </p>
+        )}
+        {(serverQuote ? displayVoucherDiscount > 0 : Boolean(appliedVoucher)) && (
           <div className="flex justify-between items-center mb-1 text-sm">
             <span className="text-primary">{t('shipping.voucherDiscount')}</span>
-            <span className="font-bold text-primary">-{formatCurrency(voucherDiscount)}</span>
+            <span className="font-bold text-primary">{serverQuote ? `-${formatCurrency(displayVoucherDiscount)}` : '—'}</span>
           </div>
         )}
         <div className="flex justify-between items-center mb-2 pt-2 sm:mb-3 sm:pt-3 border-t border-border">
           <span className="text-base sm:text-lg font-bold">{t('shipping.total')}</span>
-          <span className="text-lg sm:text-xl font-bold text-primary">{formatCurrency(total)}</span>
+          <span className="text-lg sm:text-xl font-bold text-primary">{serverQuote ? formatCurrency(total) : '—'}</span>
         </div>
         {/* Payment method label */}
         <div className="flex items-center gap-1.5 mb-2 text-[11px] text-muted-foreground">
@@ -1220,7 +1340,7 @@ export default function CheckoutPage() {
           form="checkout-form"
           className="w-full shadow-brand font-bold transition-all"
           size="lg"
-          disabled={loading || routeCalculationPending || !distanceReady || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
+          disabled={loading || checkoutQuoteLoading || !checkoutQuoteReady || routeCalculationPending || !distanceReady || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>

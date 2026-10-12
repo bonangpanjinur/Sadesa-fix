@@ -3,17 +3,62 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const checkout = readFileSync(resolve(process.cwd(), 'src/pages/CheckoutPage.tsx'), 'utf8');
+const shippingMigration = readFileSync(
+  resolve(process.cwd(), 'archive/supabase/migrations/20261013052500_marketplace_checkout_shipping_quote.sql'),
+  'utf8',
+);
+const guestCheckout = readFileSync(
+  resolve(process.cwd(), 'supabase/bootstrap/65_20261002170000_guest_checkout_phase1.sql'),
+  'utf8',
+);
+const p1Migration = readFileSync(
+  resolve(process.cwd(), 'archive/supabase/migrations/20261013054500_checkout_p1_item_normalization_shipping_contracts.sql'),
+  'utf8',
+);
 
 describe('checkout shipping distance consistency contract', () => {
-  it('sends the same calculated distance used by the shipping summary', () => {
-    expect(checkout).toContain('p_distance_km: deliveryType === \'PICKUP\' ? null : distanceKm');
-    expect(checkout).not.toContain('p_distance_km: null');
+  it('requests a server quote and renders its authoritative amounts', () => {
+    expect(checkout).toContain("supabase.rpc('quote_marketplace_checkout' as never");
+    expect(checkout).toContain('const displaySubtotal = serverQuote?.subtotal ?? subtotal');
+    expect(checkout).toContain('const shippingCost = serverQuote?.shipping_cost ?? estimatedShippingCost');
+    expect(checkout).toContain('const total = serverQuote?.total ??');
+    expect(checkout).toContain('!checkoutQuoteReady');
+    expect(checkout).toContain('formatCurrency(displaySubtotal)');
+    expect(checkout).not.toContain('p_distance_km: deliveryType');
   });
 
-  it('blocks non-pickup checkout until a positive route distance is ready', () => {
-    expect(checkout).toContain('const distanceCalculationRequired = deliveryType !== \'PICKUP\'');
-    expect(checkout).toContain('const distanceReady = !distanceCalculationRequired');
+  it('uses coordinate-derived server distance in both the quote and authenticated order path', () => {
+    expect(shippingMigration).toContain('CREATE OR REPLACE FUNCTION public.quote_marketplace_checkout');
+    expect(shippingMigration).toContain('v_distance := 6371 * 2 * asin');
+    expect(shippingMigration).toContain('v_server_distance := 6371 * 2 * asin');
+    expect(shippingMigration).toContain('p_items, p_delivery, p_delivery_type, p_payment_method, p_voucher_id, v_server_distance');
+    expect(guestCheckout).toContain('v_server_distance := 6371 * 2 * asin');
+    expect(guestCheckout).toContain('v_shipping, v_subtotal, v_total');
+  });
+
+  it('fails closed while a quote or its driving distance is not ready', () => {
+    expect(checkout).toContain('if (!checkoutQuoteReady || checkoutQuoteLoading)');
     expect(checkout).toContain('if (!distanceReady)');
-    expect(checkout).toContain('|| !distanceReady ||');
+    expect(checkout).toContain('!checkoutQuoteReady || routeCalculationPending || !distanceReady');
+  });
+
+  it('normalizes duplicate products and toppings before authoritative checkout and stock reservation', () => {
+    expect(checkout).toContain('normalizeCheckoutProductQuantities(items.flatMap');
+    expect(checkout).toContain('p_items: quoteItems');
+    expect(p1Migration).toContain('CREATE OR REPLACE FUNCTION public.normalize_marketplace_checkout_items');
+    expect(p1Migration).toContain('GROUP BY i.product_id, i.variant_id');
+    expect(p1Migration).toContain('public.normalize_marketplace_checkout_items(p_items)');
+    expect(p1Migration).toContain('reserve_marketplace_stock_unaggregated');
+    expect(p1Migration).toContain('reserve_marketplace_stock_guest_unaggregated');
+  });
+
+  it('uses distinct local, merchant self-delivery, and provider-weight expedition contracts', () => {
+    expect(p1Migration).toContain('LOCAL_COURIER_DISTANCE_V1');
+    expect(p1Migration).toContain('MERCHANT_SELF_DELIVERY_PLATFORM_PERCENT_V1');
+    expect(p1Migration).toContain('EXPEDITION_PROVIDER_WEIGHT_V1');
+    expect(p1Migration).toContain('marketplace_expedition_rate_cards');
+    expect(p1Migration).toContain('shipping_weight_kg');
+    expect(p1Migration).toContain("'city_id'");
+    expect(p1Migration).toContain('shipping_pricing_contract = v_contract');
   });
 });

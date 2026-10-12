@@ -81,6 +81,7 @@ interface ProductSummary {
   name: string;
   price: number;
   stock: number;
+  shipping_weight_kg?: number | null;
   is_active: boolean;
   image_url: string | null;
   description?: string | null;
@@ -166,7 +167,7 @@ export default function AdminMerchantDetailPage() {
       // Fetch products
       const { data: productsData } = await supabase
         .from('products')
-        .select('id, name, description, price, stock, category, is_active, image_url, min_stock_alert')
+        .select('id, name, description, price, stock, shipping_weight_kg, category, is_active, image_url, min_stock_alert')
         .eq('merchant_id', id)
         .order('created_at', { ascending: false })
         .limit(10);

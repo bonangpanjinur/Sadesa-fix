@@ -23,12 +23,12 @@ interface AdminAddProductDialogProps {
 export function AdminAddProductDialog({ open, onOpenChange, merchantId, merchantName, onSuccess }: AdminAddProductDialogProps) {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-  const [formData, setFormData] = useState({ name: '', description: '', price: '', stock: '', category: '', image_url: null as string | null, is_active: true, min_stock_alert: '5' });
+  const [formData, setFormData] = useState({ name: '', description: '', price: '', stock: '', shipping_weight_kg: '1', category: '', image_url: null as string | null, is_active: true, min_stock_alert: '5' });
 
   useEffect(() => {
     if (!open) return;
     void fetchCategories();
-    setFormData({ name: '', description: '', price: '', stock: '', category: '', image_url: null, is_active: true, min_stock_alert: '5' });
+    setFormData({ name: '', description: '', price: '', stock: '', shipping_weight_kg: '1', category: '', image_url: null, is_active: true, min_stock_alert: '5' });
   }, [open]);
 
   const fetchCategories = async () => {
@@ -54,12 +54,14 @@ export function AdminAddProductDialog({ open, onOpenChange, merchantId, merchant
   const handleSubmit = async () => {
     if (!formData.name.trim()) return void toast.error('Nama produk wajib diisi');
     if (!formData.price || Number(formData.price) <= 0) return void toast.error('Harga harus lebih dari 0');
+    const shippingWeightKg = Number(formData.shipping_weight_kg);
+    if (!Number.isFinite(shippingWeightKg) || shippingWeightKg <= 0 || shippingWeightKg > 1000) return void toast.error('Berat harus lebih dari 0 dan maksimal 1.000 kg');
     if (!formData.category) return void toast.error('Pilih kategori produk');
     if (!formData.image_url?.trim()) return void toast.error('Foto produk wajib diunggah');
     if (selectedCategory && children.length > 0) return void toast.error('Pilih subkategori produk');
     setLoading(true);
     try {
-      const { error } = await supabase.from('products').insert({ merchant_id: merchantId, name: formData.name.trim(), description: formData.description.trim() || null, price: Number(formData.price), stock: Number(formData.stock) || 0, category: formData.category, category_id: selectedCategory?.id || null, image_url: formData.image_url, is_active: formData.is_active, min_stock_alert: Number(formData.min_stock_alert) || 5 });
+      const { error } = await supabase.from('products').insert({ merchant_id: merchantId, name: formData.name.trim(), description: formData.description.trim() || null, price: Number(formData.price), stock: Number(formData.stock) || 0, shipping_weight_kg: shippingWeightKg, category: formData.category, category_id: selectedCategory?.id || null, image_url: formData.image_url, is_active: formData.is_active, min_stock_alert: Number(formData.min_stock_alert) || 5 });
       if (error) throw error;
       toast.success('Produk berhasil ditambahkan');
       onSuccess();
@@ -80,6 +82,7 @@ export function AdminAddProductDialog({ open, onOpenChange, merchantId, merchant
           <div className="space-y-2"><Label>Gambar Produk *</Label><ImageUpload bucket="product-images" path={`admin/${merchantId}`} value={formData.image_url} onChange={(url) => setFormData({ ...formData, image_url: url })} aspectRatio="square" placeholder="Upload gambar produk" /><p className="text-xs text-muted-foreground">Foto wajib diunggah agar produk dapat masuk katalog terbaru.</p></div>
           <div className="space-y-2"><Label htmlFor="admin-product-name">Nama Produk *</Label><Input id="admin-product-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Contoh: Nasi Goreng Spesial" /></div>
           <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Harga (Rp) *</Label><Input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} min="1" placeholder="15000" /></div><div className="space-y-2"><Label>Stok</Label><Input type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} min="0" placeholder="100" /></div></div>
+          <div className="space-y-2"><Label>Berat pengiriman (kg) *</Label><Input type="number" value={formData.shipping_weight_kg} onChange={(e) => setFormData({ ...formData, shipping_weight_kg: e.target.value })} min="0.001" max="1000" step="0.001" placeholder="1" /><p className="text-xs text-muted-foreground">Dipakai untuk tarif ekspedisi berbasis berat.</p></div>
           <div className="space-y-2"><Label>Kategori produk *</Label><div className="grid gap-3 sm:grid-cols-2"><Select value={parentCategory?.slug || ''} onValueChange={handleParentChange}><SelectTrigger><SelectValue placeholder="Kategori utama" /></SelectTrigger><SelectContent>{parents.map(category => <SelectItem key={category.id} value={category.slug}>{getCategoryDisplayLabel(categories, category)}</SelectItem>)}</SelectContent></Select><Select value={selectedCategory?.parent_id ? formData.category : ''} onValueChange={(value) => setFormData({ ...formData, category: value })} disabled={!children.length}><SelectTrigger><SelectValue placeholder={children.length ? 'Subkategori' : 'Tidak ada subkategori'} /></SelectTrigger><SelectContent>{children.map(category => <SelectItem key={category.id} value={category.slug}>{category.icon ? `${category.icon} ` : ''}{category.name}</SelectItem>)}</SelectContent></Select></div><p className="text-xs text-muted-foreground">Tersimpan sebagai: <span className="font-medium text-foreground">{selectedCategory ? getCategoryDisplayLabel(categories, selectedCategory) : 'belum dipilih'}</span></p></div>
           <div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Peringatan Stok Min.</Label><Input type="number" value={formData.min_stock_alert} onChange={(e) => setFormData({ ...formData, min_stock_alert: e.target.value })} min="0" placeholder="5" /></div><div className="flex items-end gap-2 pb-2"><Switch checked={formData.is_active} onCheckedChange={(value) => setFormData({ ...formData, is_active: value })} /><Label>Produk aktif</Label></div></div>
           <div className="space-y-2"><Label>Deskripsi</Label><Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Deskripsi produk" rows={3} /></div>

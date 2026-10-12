@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment and POS customer area analytics appended",
-  "migration_count": 370,
-  "bundle_count": 77,
+  "migration_count": 372,
+  "bundle_count": 80,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -926,6 +926,22 @@
       ],
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
+    },
+    {
+      "file": "107_20261013052500_to_20261013052500.sql",
+      "source_files": [
+        "20261013052500_marketplace_checkout_shipping_quote.sql"
+      ],
+      "sha256": "6b5d53c4db213489e0ba095bd9b9c879acb705c26ac24b4b2af4ef99b6d657a5",
+      "bytes": 12348
+    },
+    {
+      "file": "108_20261013054500_to_20261013054500.sql",
+      "source_files": [
+        "20261013054500_checkout_p1_item_normalization_shipping_contracts.sql"
+      ],
+      "sha256": "d12e65aedb6fa6bcc2cfa61cdb34830547a6c57878a63fc2e6b952d02d803695",
+      "bytes": 42307
     }
   ]
 }

@@ -2153,6 +2153,7 @@ export type Database = {
           price: number
           sold_count: number
           stock: number
+          shipping_weight_kg: number
           updated_at: string
           view_count: number | null
         }
@@ -2175,6 +2176,7 @@ export type Database = {
           price: number
           sold_count?: number
           stock?: number
+          shipping_weight_kg?: number
           updated_at?: string
           view_count?: number | null
         }
@@ -2197,6 +2199,7 @@ export type Database = {
           price?: number
           sold_count?: number
           stock?: number
+          shipping_weight_kg?: number
           updated_at?: string
           view_count?: number | null
         }

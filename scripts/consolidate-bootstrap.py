@@ -23,7 +23,11 @@ def normalized(text: str) -> str:
 
 def embedded_sources() -> dict[str, str]:
     sources: dict[str, str] = {}
-    for bundle in sorted(BOOTSTRAP.glob("[0-9][0-9]_*.sql")):
+    bundle_paths = [
+        path for path in BOOTSTRAP.glob("*_*.sql")
+        if path.name.split("_", 1)[0].isdigit()
+    ]
+    for bundle in sorted(bundle_paths):
         text = bundle.read_text(encoding="utf-8")
         matches = list(BEGIN.finditer(text))
         for match in matches:
@@ -101,7 +105,11 @@ def main() -> int:
         force_pending = True
     represented = set(embedded.values()) | set(archive_sources.values())
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    next_number = max(int(p.name[:2]) for p in BOOTSTRAP.glob("[0-9][0-9]_*.sql")) + 1
+    numbered_bundles = [
+        path for path in BOOTSTRAP.glob("*_*.sql")
+        if path.name.split("_", 1)[0].isdigit()
+    ]
+    next_number = max(int(p.name.split("_", 1)[0]) for p in numbered_bundles) + 1
     added: list[dict[str, object]] = []
     for path in active:
         body = normalized(path.read_text(encoding="utf-8"))
