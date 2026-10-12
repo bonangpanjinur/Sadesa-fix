@@ -153,7 +153,6 @@ export default function AdminOrdersPage() {
         p_order_id: orderId,
         p_to_status: newStatus,
         p_reason: newStatus === 'CANCELED' ? reason ?? 'Dibatalkan oleh admin' : 'Pembaruan status oleh admin',
-        p_is_self_delivery: null,
       } as never);
 
       if (error) throw error;

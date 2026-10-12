@@ -8,7 +8,7 @@ describe('admin order cancellation contract', () => {
   it('uses the audited order transition RPC instead of a direct PATCH', () => {
     expect(adminOrdersPage).toContain("supabase.rpc('merchant_transition_order' as never");
     expect(adminOrdersPage).toContain("p_to_status: newStatus");
-    expect(adminOrdersPage).toContain("p_is_self_delivery: null");
+    expect(adminOrdersPage).not.toContain("p_is_self_delivery");
     expect(adminOrdersPage).not.toContain(".from('orders')\n        .update(updateData)");
   });
 

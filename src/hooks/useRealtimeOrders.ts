@@ -25,6 +25,8 @@ export interface OrderRow {
   courier_id: string | null;
   merchants?: { name: string; location_lat?: number | null; location_lng?: number | null } | null;
   is_self_delivery?: boolean;
+  self_delivery_fee_amount?: number | null;
+  self_delivery_fee_status?: string | null;
   payment_proof_url?: string | null;
   expedition_name?: string | null;
   tracking_number?: string | null;
@@ -70,7 +72,7 @@ export function useRealtimeOrders({
       setLoading(true);
       const { data, error } = await supabase
         .from('orders')
-        .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
+        .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, self_delivery_fee_amount, self_delivery_fee_status, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
@@ -98,7 +100,7 @@ export function useRealtimeOrders({
       setLoadingMore(true);
       const { data, error } = await supabase
         .from('orders')
-        .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
+        .select('id, buyer_id, status, payment_status, payment_method, delivery_type, delivery_name, delivery_phone, delivery_address, delivery_lat, delivery_lng, subtotal, shipping_cost, total, cod_service_fee, notes, created_at, courier_id, is_self_delivery, self_delivery_fee_amount, self_delivery_fee_status, payment_proof_url, expedition_name, tracking_number, merchants(name, location_lat, location_lng)')
         .eq('merchant_id', merchantId)
         .or(buildMerchantOrderCursorFilter(cursor))
         .order('created_at', { ascending: false })
@@ -178,7 +180,6 @@ export function useRealtimeOrders({
         p_order_id: orderId,
         p_to_status: newStatus,
         p_reason: reason ?? null,
-        p_is_self_delivery: null,
       } as never);
 
       if (error) {

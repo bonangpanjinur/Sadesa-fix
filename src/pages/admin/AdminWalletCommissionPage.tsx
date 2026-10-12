@@ -34,14 +34,15 @@ export default function AdminWalletCommissionPage() {
   const [ledgerCursors, setLedgerCursors] = useState<Array<CommissionWalletLedgerCursor | null>>([null]);
   const ledgerCursor = ledgerCursors[ledgerPage] ?? null;
   const [policy, setPolicy] = useState<PolicySetting>(defaultPolicy);
+  const [selfDeliveryFee, setSelfDeliveryFee] = useState({ percent: 0, enabled: false });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<OwnerType | 'POLICY' | null>(null);
+  const [saving, setSaving] = useState<OwnerType | 'POLICY' | 'SELF_DELIVERY' | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [feeResult, requestResult, walletResult, ledgerResult, policyResult] = await Promise.all([
+    const [feeResult, requestResult, walletResult, ledgerResult, policyResult, selfDeliveryResult] = await Promise.all([
       supabase.from('commission_fee_settings' as never).select('*'),
       supabase.from('commission_wallet_topup_requests' as never).select('*').order('created_at' as never, { ascending: false } as never).limit(100),
       supabase.from('commission_wallets' as never).select('id,owner_type,merchant_id,courier_id,balance_rupiah,debt_rupiah,is_active,updated_at').order('updated_at' as never, { ascending: false } as never).limit(1000),
@@ -54,6 +55,7 @@ export default function AdminWalletCommissionPage() {
           .limit(COMMISSION_WALLET_LEDGER_PAGE_SIZE);
       })(),
       supabase.from('commission_wallet_policy_settings' as never).select('refund_window_days,low_balance_threshold_rupiah').eq('id' as never, true as never).maybeSingle(),
+      supabase.from('app_settings').select('value').eq('key', 'self_delivery_fee').maybeSingle(),
     ]);
     if (feeResult.error) {
       console.error('Gagal memuat tarif komisi wallet:', feeResult.error);
@@ -69,6 +71,11 @@ export default function AdminWalletCommissionPage() {
     else {
       setLedger((ledgerResult.data ?? []) as unknown as LedgerRow[]);
       setLedgerCount(ledgerResult.count ?? 0);
+    }
+    if (selfDeliveryResult.error) console.error('Gagal memuat aturan fee antar sendiri:', selfDeliveryResult.error);
+    else {
+      const value = (selfDeliveryResult.data?.value ?? {}) as { percent?: number; enabled?: boolean };
+      setSelfDeliveryFee({ percent: Number(value.percent ?? 0), enabled: Boolean(value.enabled) });
     }
     if (policyResult.error) console.error('Gagal memuat kebijakan wallet:', policyResult.error);
     else {
@@ -114,6 +121,20 @@ export default function AdminWalletCommissionPage() {
     setSaving(null);
   };
 
+  const saveSelfDeliveryFee = async () => {
+    const percent = Number(selfDeliveryFee.percent);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+      toast.error('Persentase fee antar sendiri harus berada di antara 0% sampai 100%');
+      return;
+    }
+    setSaving('SELF_DELIVERY');
+    const { error } = await supabase.from('app_settings').update({
+      value: { percent, enabled: selfDeliveryFee.enabled },
+    }).eq('key', 'self_delivery_fee');
+    if (error) toast.error(error.message || 'Gagal menyimpan fee antar sendiri');
+    else { toast.success('Aturan fee antar sendiri berhasil disimpan'); await loadData(); }
+    setSaving(null);
+  };
   const savePolicy = async () => {
     const days = Number(policy.refund_window_days);
     const threshold = Number(policy.low_balance_threshold_rupiah);
@@ -214,6 +235,14 @@ export default function AdminWalletCommissionPage() {
           <div className="mb-3"><h2 className="text-xl font-semibold">Tarif komisi</h2><p className="text-sm text-muted-foreground">Perubahan tarif berlaku pada transaksi baru setelah disimpan.</p></div>
           {loading ? <div className="py-12 text-center text-muted-foreground">Memuat data…</div> : <div className="grid gap-4 md:grid-cols-2">{configCard('MERCHANT')}{configCard('COURIER')}</div>}
         </div>
+        <Card id="self-delivery-fee-settings" className="border-primary/20">
+          <CardHeader><CardTitle>Antar Sendiri — Fee Admin</CardTitle><CardDescription>Pedagang menanggung ongkos kirim pada order antar sendiri. Persentase fee admin disimpan sebagai snapshot di ledger; saat ini default gratis.</CardDescription></CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-3 md:items-end">
+            <div className="space-y-2"><Label htmlFor="self-delivery-fee-percent">Persentase untuk admin</Label><div className="flex items-center gap-2"><Input id="self-delivery-fee-percent" type="number" min="0" max="100" step="0.01" value={selfDeliveryFee.percent} onChange={(event) => setSelfDeliveryFee((current) => ({ ...current, percent: Number(event.target.value) }))} /><span className="text-sm">%</span></div></div>
+            <div className="flex items-center justify-between gap-3 rounded-md border p-3"><div><Label htmlFor="self-delivery-fee-enabled">Aktifkan penagihan</Label><p className="text-xs text-muted-foreground">Nonaktif = fee tetap dihitung 0% dan dicatat sebagai gratis.</p></div><Switch id="self-delivery-fee-enabled" checked={selfDeliveryFee.enabled} onCheckedChange={(enabled) => setSelfDeliveryFee((current) => ({ ...current, enabled }))} /></div>
+            <Button onClick={() => void saveSelfDeliveryFee()} disabled={saving !== null}><Save className="mr-2 h-4 w-4" />{saving === 'SELF_DELIVERY' ? 'Menyimpan…' : 'Simpan aturan antar sendiri'}</Button>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader><CardTitle>Kebijakan wallet</CardTitle><CardDescription>Jendela pengajuan refund dan ambang notifikasi saldo dapat diubah tanpa migration.</CardDescription></CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-3 md:items-end">

@@ -46,6 +46,8 @@ interface OrderRow {
   courier_id: string | null;
   merchants?: { name: string } | null;
   is_self_delivery?: boolean;
+  self_delivery_fee_amount?: number | null;
+  self_delivery_fee_status?: string | null;
   expedition_name?: string | null;
   tracking_number?: string | null;
   expedition_provider_id?: string | null;
@@ -126,7 +128,6 @@ export function OrderDetailsDialog({
       const { error } = await supabase.rpc('merchant_transition_order' as never, {
         p_order_id: order.id,
         p_to_status: 'SENT',
-        p_is_self_delivery: null,
         p_reason: JSON.stringify({
           type: 'EXPEDITION_HANDOFF',
           expedition_provider_id: provider.id,
@@ -599,6 +600,7 @@ export function OrderDetailsDialog({
               <span className="text-muted-foreground">Ongkos Kirim</span>
               <span>{formatPrice(order.shipping_cost)}</span>
             </div>
+            {order.is_self_delivery && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Fee admin antar sendiri</span><span>{order.self_delivery_fee_status === 'WAIVED' ? 'Gratis' : formatPrice(order.self_delivery_fee_amount || 0)}</span></div>}
             {(order.cod_service_fee ?? 0) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Biaya COD</span>
