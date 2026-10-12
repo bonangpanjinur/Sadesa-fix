@@ -27,6 +27,7 @@ import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
 import { isCheckoutPaymentMethodAvailable, isCheckoutPaymentSettingsReady, type CheckoutPaymentSettingsStatus } from '@/lib/checkoutPaymentReadiness';
 import { normalizeCheckoutProductQuantities } from '@/lib/normalizeCheckoutItems';
+import { getCheckoutMerchantIds, hasMultipleCheckoutMerchants } from '@/lib/cartSelection';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
@@ -257,20 +258,15 @@ export default function CheckoutPage() {
     return acc;
   }, {} as Record<string, { merchantName: string; items: typeof items }>), [items]);
 
-  // Get unique merchant IDs for quota check
-  const merchantIdsKey = useMemo(
-    () => Object.keys(itemsByMerchant).sort().join(','),
-    [itemsByMerchant],
-  );
-  const merchantIds = useMemo(
-    () => merchantIdsKey ? merchantIdsKey.split(',') : [],
-    [merchantIdsKey],
-  );
+  // Stable merchant IDs keep checkout policy independent from display names and item variants.
+  const merchantIds = useMemo(() => getCheckoutMerchantIds(items), [items]);
+  const merchantIdsKey = useMemo(() => merchantIds.join(','), [merchantIds]);
+  const hasMultipleMerchants = hasMultipleCheckoutMerchants(merchantIds);
   const firstMerchantId = merchantIds[0];
 
   useEffect(() => {
     let cancelled = false;
-    if (!quoteItems.length || !firstMerchantId || merchantIds.length !== 1
+    if (!quoteItems.length || !firstMerchantId || hasMultipleMerchants
       || (deliveryType !== 'PICKUP' && !addressData.location)) {
       setCheckoutQuoteResult(null);
       setCheckoutQuoteLoading(false);
@@ -316,7 +312,7 @@ export default function CheckoutPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [addressData.location, addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, merchantIds.length, quoteItems, user]);
+  }, [addressData.location, addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, hasMultipleMerchants, quoteItems, user]);
 
   // Check merchant operating hours
   const [merchantOperatingInfo, setMerchantOperatingInfo] = useState<Record<string, MerchantOperatingInfo>>({});
@@ -618,7 +614,7 @@ export default function CheckoutPage() {
 
     // Checkout currently creates one order and one payment flow. Do not create
     // partial child orders for a cart containing multiple merchants.
-    if (merchantIds.length > 1) {
+    if (hasMultipleMerchants) {
       toast({
         title: 'Checkout hanya untuk satu toko',
         description: 'Pisahkan produk berdasarkan toko sebelum checkout.',
@@ -933,7 +929,7 @@ export default function CheckoutPage() {
         className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4"
         style={{ paddingBottom: checkoutSummaryHeight }}
       >
-        {merchantIds.length > 1 && (
+        {hasMultipleMerchants && (
           <div role="alert" className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
             <h3 className="font-bold text-amber-900 text-sm">{t('checkout.multiStore.title')}</h3>
             <p className="text-xs text-amber-800 mt-1">{t('checkout.multiStore.description')}</p>
@@ -1225,13 +1221,13 @@ export default function CheckoutPage() {
             {(!user || merchantPaymentSettings?.transferEnabled !== false) && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'
-              } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <RadioGroupItem value="TRANSFER" id="transfer" disabled={!paymentSettingsReady || merchantIds.length > 1} />
+              } ${hasMultipleMerchants ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <RadioGroupItem value="TRANSFER" id="transfer" disabled={!paymentSettingsReady || hasMultipleMerchants} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">{t('checkout.payment.transfer')}</p>
                   <p className="text-xs text-muted-foreground">
-                    {merchantIds.length > 1
+                    {hasMultipleMerchants
                       ? t('checkout.payment.oneStoreOnly')
                       : merchantPaymentSettings?.bankName
                       ? `Transfer ke ${merchantPaymentSettings.bankName}`
@@ -1245,8 +1241,8 @@ export default function CheckoutPage() {
             {user && xenditAvailable && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border'
-              } ${merchantIds.length > 1 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <RadioGroupItem value="ONLINE" id="online" disabled={!paymentSettingsReady || merchantIds.length > 1} />
+              } ${hasMultipleMerchants ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <RadioGroupItem value="ONLINE" id="online" disabled={!paymentSettingsReady || hasMultipleMerchants} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-bold text-sm">{t('checkout.payment.online')}</p>
@@ -1299,7 +1295,7 @@ export default function CheckoutPage() {
         >
           {!user ? (
             <p className="text-sm text-muted-foreground">{t('checkout.voucher.loginRequired')}</p>
-          ) : merchantIds.length > 1 ? (
+          ) : hasMultipleMerchants ? (
             <p className="text-sm text-muted-foreground">{t('checkout.voucher.oneStoreOnly')}</p>
           ) : (
             <VoucherInput
@@ -1399,7 +1395,7 @@ export default function CheckoutPage() {
           form="checkout-form"
           className="w-full shadow-brand font-bold transition-all"
           size="lg"
-          disabled={loading || checkoutQuoteLoading || !checkoutQuoteReady || routeCalculationPending || !distanceReady || knownStockConflict || Boolean(stockConflict) || items.length === 0 || merchantIds.length > 1 || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentSettingsReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
+          disabled={loading || checkoutQuoteLoading || !checkoutQuoteReady || routeCalculationPending || !distanceReady || knownStockConflict || Boolean(stockConflict) || items.length === 0 || hasMultipleMerchants || operatingHoursLoading || !allMerchantsOpen || !isDeliveryReady || !paymentSettingsReady || !paymentReady || (!user && (guestCheckoutFlagLoading || !guestCheckoutEnabled))}
         >
           {loading ? (
             <>
@@ -1438,7 +1434,7 @@ export default function CheckoutPage() {
                 : 'Pilih metode pembayaran yang tersedia untuk melanjutkan.'}
           </p>
         )}
-        {merchantIds.length > 1 && (
+        {hasMultipleMerchants && (
           <p className="mt-2 text-center text-xs text-amber-800">
             {t('checkout.multiStore.inline')}{' '}
             <button type="button" className="underline font-medium" onClick={() => navigate('/cart')}>

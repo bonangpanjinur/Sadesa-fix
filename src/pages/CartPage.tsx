@@ -23,6 +23,7 @@ import { toast } from '@/hooks/use-toast';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getCartStockDemand } from '@/lib/productAvailability';
+import { getMerchantSelectionPlan } from '@/lib/cartSelection';
 
 interface StockProductRow {
   id: string;
@@ -221,7 +222,10 @@ export default function CartPage() {
           const merchantId = merchantItems[0]?.product.merchantId;
           const isOpen = merchantId ? merchantStatuses[merchantId] : undefined;
           const isClosed = isOpen === false;
-          const allMerchantItemsSelected = merchantItems.every(item => selectedItemIds.includes(item.product.id));
+          const selectionPlan = getMerchantSelectionPlan(
+            merchantItems.map(item => item.product.id),
+            selectedItemIds,
+          );
 
           return (
             <div key={merchantKey} className="mb-4">
@@ -238,16 +242,10 @@ export default function CartPage() {
                 )}
                 <button
                   type="button"
-                  onClick={() => merchantItems.forEach(item => {
-                    if (allMerchantItemsSelected) {
-                      toggleItemSelection(item.product.id);
-                    } else if (!selectedItemIds.includes(item.product.id)) {
-                      toggleItemSelection(item.product.id);
-                    }
-                  })}
+                  onClick={() => selectionPlan.productIdsToToggle.forEach(toggleItemSelection)}
                   className="ml-auto text-xs font-medium text-primary hover:underline"
                 >
-                  {allMerchantItemsSelected ? 'Batal pilih' : 'Pilih semua'}
+                  {selectionPlan.allSelected ? 'Batal pilih' : 'Pilih semua'}
                 </button>
               </div>
 
