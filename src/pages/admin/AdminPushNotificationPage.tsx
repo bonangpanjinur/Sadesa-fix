@@ -85,10 +85,13 @@ export default function AdminPushNotificationPage() {
       if (!session?.access_token) throw new Error('Sesi admin tidak ditemukan.');
 
       const response = await fetch(`${SUPABASE_URL}/functions/v1/push-subscription`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: JSON.stringify({ action: 'get_vapid_config' }),
       });
       const payload = await response.json().catch(() => null) as Partial<VapidRuntimeStatus> | null;
       if (!response.ok) throw new Error(`Pemeriksaan server gagal (${response.status}).`);

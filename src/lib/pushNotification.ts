@@ -45,10 +45,13 @@ async function readPushErrorDetails(response: Response): Promise<string> {
 
 async function getVapidPublicKey(sessionToken: string): Promise<string> {
   const response = await fetch(PUSH_SUBSCRIPTION_API, {
+    method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       apikey: SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${sessionToken}`,
     },
+    body: JSON.stringify({ action: 'get_vapid_config' }),
   });
   if (!response.ok) {
     throw new Error(`Server push tidak siap (${response.status})${await readPushErrorDetails(response)}`);

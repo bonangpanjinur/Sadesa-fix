@@ -55,7 +55,15 @@ describe('subscribeToPush', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       'https://push-test.supabase.co/functions/v1/push-subscription',
-      { headers: { apikey: 'sb_publishable_push_test', Authorization: 'Bearer test-token' } },
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: 'sb_publishable_push_test',
+          Authorization: 'Bearer test-token',
+        },
+        body: JSON.stringify({ action: 'get_vapid_config' }),
+      },
     );
     expect(fetchMock.mock.calls[1][1]).toMatchObject({
       method: 'POST',
@@ -242,7 +250,15 @@ describe('subscribeToPush', () => {
     expect(getLastPushError()).toContain('Server push tidak siap (401): Invalid JWT');
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://push-test.supabase.co/functions/v1/push-subscription',
-      { headers: { apikey: 'sb_publishable_push_test', Authorization: 'Bearer test-token' } },
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: 'sb_publishable_push_test',
+          Authorization: 'Bearer test-token',
+        },
+        body: JSON.stringify({ action: 'get_vapid_config' }),
+      },
     );
     consoleError.mockRestore();
   });

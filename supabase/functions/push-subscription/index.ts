@@ -7,12 +7,37 @@ import {
 const allowedOrigins = new Set((Deno.env.get('ALLOWED_ORIGINS') ?? 'https://www.sadesa.id,https://sadesa.id')
   .split(',').map((origin) => origin.trim()).filter(Boolean))
 
+type PushSubscriptionInput = {
+  endpoint?: unknown
+  keys?: {
+    p256dh?: unknown
+    auth?: unknown
+  } | null
+}
+
 function headers(req: Request): Record<string, string> {
   return getPushSubscriptionCorsHeaders(req.headers.get('Origin'), allowedOrigins)
 }
 
 function json(req: Request, body: unknown, status = 200) {
   return pushSubscriptionJsonResponse(req.headers.get('Origin'), allowedOrigins, body, status)
+}
+
+function getVapidConfiguration() {
+  const publicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? ''
+  const privateKeyConfigured = Boolean(Deno.env.get('VAPID_PRIVATE_KEY'))
+  const missingVariables = [
+    !publicKey && 'VAPID_PUBLIC_KEY',
+    !privateKeyConfigured && 'VAPID_PRIVATE_KEY',
+  ].filter((name): name is string => Boolean(name))
+
+  return {
+    publicKey: publicKey || null,
+    publicKeyConfigured: Boolean(publicKey),
+    privateKeyConfigured,
+    vapidConfigured: Boolean(publicKey && privateKeyConfigured),
+    missingVariables,
+  }
 }
 
 Deno.serve(async (req) => {
@@ -47,20 +72,17 @@ Deno.serve(async (req) => {
 
     if (req.method === 'GET') {
       stage = 'read_vapid_configuration'
-      const publicKey = Deno.env.get('VAPID_PUBLIC_KEY') ?? ''
-      const privateKeyConfigured = Boolean(Deno.env.get('VAPID_PRIVATE_KEY'))
-      const missingVariables = [
-        !publicKey && 'VAPID_PUBLIC_KEY',
-        !privateKeyConfigured && 'VAPID_PRIVATE_KEY',
-      ].filter((name): name is string => Boolean(name))
+      return json(req, getVapidConfiguration())
+    }
 
-      return json(req, {
-        publicKey: publicKey || null,
-        publicKeyConfigured: Boolean(publicKey),
-        privateKeyConfigured,
-        vapidConfigured: Boolean(publicKey && privateKeyConfigured),
-        missingVariables,
-      })
+    let subscriptionRequest: { action?: unknown; subscription?: PushSubscriptionInput } = {}
+    if (req.method === 'POST') {
+      stage = 'parse_subscription_request'
+      subscriptionRequest = await req.json().catch(() => ({}))
+      if (subscriptionRequest.action === 'get_vapid_config') {
+        stage = 'read_vapid_configuration'
+        return json(req, getVapidConfiguration())
+      }
     }
 
     stage = 'load_subscription_database_configuration'
@@ -87,8 +109,8 @@ Deno.serve(async (req) => {
       return json(req, { success: true })
     }
 
-    stage = 'parse_subscription_request'
-    const { subscription } = await req.json().catch(() => ({}))
+    stage = 'validate_subscription_request'
+    const { subscription } = subscriptionRequest
     const endpoint = subscription?.endpoint
     const p256dh = subscription?.keys?.p256dh
     const auth = subscription?.keys?.auth
