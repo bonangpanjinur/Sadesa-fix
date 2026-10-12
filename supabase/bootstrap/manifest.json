@@ -311,7 +311,7 @@
         "70_20260917190000_renew_courier_offer.sql",
         "71_20260917193000_retry_courier_dispatch.sql",
         "72_20260917195000_courier_offer_feed.sql",
-        "73_20260917200000_courier_offer_authority_repair.sql",
+        "73_20260917200000_courier_offer_feed_authority_repair.sql",
         "74_20260917201000_buyer_delivery_confirmation.sql",
         "75_20260917203000_direct_courier_cancellation.sql",
         "76_20260917210000_courier_delivery_state_machine.sql",
@@ -502,9 +502,17 @@
       "bytes": 12476
     },
     {
+      "file": "47_20260927143000_product_category_hierarchy.sql",
+      "source_files": [
+        "47_20260927143000_product_category_hierarchy.sql"
+      ],
+      "sha256": "0b38a99d97fc4723bc142c95ba4640880bde93005f2863b17fbfec79ef4bc633",
+      "bytes": 671
+    },
+    {
       "file": "48_20260927150000_atomic_merchant_registration_and_settings.sql",
       "source_files": [
-        "20260927150000_atomic_merchant_registration_and_settings.sql"
+        "48_20260927150000_atomic_merchant_registration_and_settings.sql"
       ],
       "sha256": "977eefc54bac86ae58473093ea5c57da12001d127c8a5f64de91b14ca130a15f",
       "bytes": 9710
@@ -512,15 +520,39 @@
     {
       "file": "49_20260927163500_repair_service_provider_app_role_enum.sql",
       "source_files": [
-        "20260927163500_add_service_provider_app_role_enum.sql"
+        "49_20260927163500_repair_service_provider_app_role_enum.sql"
       ],
       "sha256": "d46af859c2ca8582be46b79199eb5d0d69be63ca6019aec9a334501bd86e9d81",
       "bytes": 786
     },
     {
+      "file": "50_20260927170000_product_food_beverage_subcategories.sql",
+      "source_files": [
+        "50_20260927170000_product_food_beverage_subcategories.sql"
+      ],
+      "sha256": "5e9a9fd2680b5bc6c9071de40de6bae103464be81c64d1266aadd90d058b5cfd",
+      "bytes": 2609
+    },
+    {
+      "file": "51_20260928114500_product_kelontongan_subcategories.sql",
+      "source_files": [
+        "51_20260928114500_product_kelontongan_subcategories.sql"
+      ],
+      "sha256": "ad13708287a10aaf37f9b4b5111e401b64d3e58cdb87fcf49cbfcede68229a6a",
+      "bytes": 2527
+    },
+    {
+      "file": "52_20260928114600_product_agriculture_subcategories.sql",
+      "source_files": [
+        "52_20260928114600_product_agriculture_subcategories.sql"
+      ],
+      "sha256": "5aba23b480a6d685e439163788395baeff4b3c30a68919c9fd1af8b4a2be5558",
+      "bytes": 2537
+    },
+    {
       "file": "53_20260928223000_courier_new_ride_push.sql",
       "source_files": [
-        "20260928223000_courier_new_ride_push.sql"
+        "53_20260928223000_courier_new_ride_push.sql"
       ],
       "sha256": "9057012909d7f9edf4b95a55d458f8f90c05cf88aa3a3d45ccdfa8845407b068",
       "bytes": 3147
@@ -528,7 +560,7 @@
     {
       "file": "54_20260928230000_global_order_sound.sql",
       "source_files": [
-        "20260928230000_global_order_sound.sql"
+        "54_20260928230000_global_order_sound.sql"
       ],
       "sha256": "41e2da47f900aee5a3585be155f11f4bd1761e02fadbc01e85d6e136e0225b16",
       "bytes": 1266
@@ -536,7 +568,6 @@
     {
       "file": "55_20260929011000_nearest_courier_sequential_ride_dispatch.sql",
       "source_files": [
-        "20260929011000_nearest_courier_sequential_ride_dispatch.sql",
         "20260929123000_pos_trial_activation_hardening.sql",
         "20260929130000_pos_canonical_catalog_integration.sql",
         "20260929133000_courier_delivery_offer_push.sql"
@@ -571,7 +602,7 @@
     {
       "file": "59_20260930100000_harden_courier_booking_dispatch.sql",
       "source_files": [
-        "20260930100000_harden_courier_booking_dispatch.sql"
+        "59_20260930100000_harden_courier_booking_dispatch.sql"
       ],
       "sha256": "ec4ff3c53bbc7e8f87889e26fccc1b494f7510745c59aafd163f7b0c4b7c1413",
       "bytes": 5973
@@ -579,7 +610,7 @@
     {
       "file": "60_20260930180000_merchant_audit_operations.sql",
       "source_files": [
-        "20260930180000_merchant_audit_operations.sql"
+        "60_20260930180000_merchant_audit_operations.sql"
       ],
       "sha256": "c4343f0bc7476755fb0247ce9692052c0174eebd60c97d8bfffc76df80bec248",
       "bytes": 4161
@@ -587,7 +618,7 @@
     {
       "file": "61_20261001120000_optional_banner_title.sql",
       "source_files": [
-        "20261001120000_optional_banner_title.sql"
+        "61_20261001120000_optional_banner_title.sql"
       ],
       "sha256": "a25846bc45566628c33f7042516a6e09a6870901be712507526aac180a0a3cd2",
       "bytes": 739
@@ -595,7 +626,7 @@
     {
       "file": "62_20261002110000_admin_manual_pos_access.sql",
       "source_files": [
-        "20261002110000_admin_manual_pos_access.sql"
+        "62_20261002110000_admin_manual_pos_access.sql"
       ],
       "sha256": "d5504a60b8e8b1d71f764e8317c990816a9dcc58ef52321ba7cf43d5e7490f4f",
       "bytes": 7173
@@ -603,7 +634,7 @@
     {
       "file": "63_20261002130000_inventory_atomicity_hardening.sql",
       "source_files": [
-        "20261002130000_inventory_atomicity_hardening.sql"
+        "63_20261002130000_inventory_atomicity_hardening.sql"
       ],
       "sha256": "bded911ad26483543c44337cba04275f4b93255e83c39c3bb67ca22ea615faff",
       "bytes": 20924
@@ -611,7 +642,7 @@
     {
       "file": "64_20261002150000_promotion_category_banner_targeting.sql",
       "source_files": [
-        "20261002150000_promotion_category_banner_targeting.sql"
+        "64_20261002150000_promotion_category_banner_targeting.sql"
       ],
       "sha256": "b512f7924cd841136723c1d0ac3c5f51618d22fe04c6a5265698bbd2971e062b",
       "bytes": 1285
@@ -619,7 +650,7 @@
     {
       "file": "65_20261002170000_guest_checkout_phase1.sql",
       "source_files": [
-        "20261002170000_guest_checkout_phase1.sql"
+        "65_20261002170000_guest_checkout_phase1.sql"
       ],
       "sha256": "c3a22fa52aaffcfd2739024dbf76cbc98ac4d40826fb31016108a4bd565905a8",
       "bytes": 24942
@@ -627,7 +658,7 @@
     {
       "file": "66_20261002190000_guest_payment_ui.sql",
       "source_files": [
-        "20261002190000_guest_payment_ui.sql"
+        "66_20261002190000_guest_payment_ui.sql"
       ],
       "sha256": "480b964539a8d05981cc63ac0f4e7565ee4b1f672bf1e9d7d47661ed993c53af",
       "bytes": 3290
@@ -635,7 +666,7 @@
     {
       "file": "67_20261002200000_guest_checkout_rollout_flag.sql",
       "source_files": [
-        "20261002200000_guest_checkout_rollout_flag.sql"
+        "67_20261002200000_guest_checkout_rollout_flag.sql"
       ],
       "sha256": "902b025760b2e44c94d5b8b3fcc06a1830b28e588101d36a7500732ea1571542",
       "bytes": 659
@@ -643,7 +674,7 @@
     {
       "file": "68_20261002210000_guest_checkout_hardening.sql",
       "source_files": [
-        "20261002210000_guest_checkout_hardening.sql"
+        "68_20261002210000_guest_checkout_hardening.sql"
       ],
       "sha256": "e7051f158f3121f27283c599236894d26f93060209360feae1be786e393e9eec",
       "bytes": 1942
@@ -651,7 +682,7 @@
     {
       "file": "69_20261003150000_canonical_product_categories.sql",
       "source_files": [
-        "20261003150000_canonical_product_categories.sql"
+        "69_20261003150000_canonical_product_categories.sql"
       ],
       "sha256": "cc187c89149ff989bb9a1f1212e8c068294676b3e31a5499b765fc5a68cb02de",
       "bytes": 2156
@@ -659,10 +690,26 @@
     {
       "file": "70_20261003190000_pos_subscription_workspace_provisioning.sql",
       "source_files": [
-        "20261003190000_pos_subscription_workspace_provisioning.sql"
+        "70_20261003190000_pos_subscription_workspace_provisioning.sql"
       ],
       "sha256": "fc7afdeffd050714ec2f5da5de0065b0d6ad6cda94f3636e4b3a2cc8cefe89f2",
       "bytes": 4681
+    },
+    {
+      "file": "71_20261003200000_auto_confirm_new_signups.sql",
+      "source_files": [
+        "71_20261003200000_auto_confirm_new_signups.sql"
+      ],
+      "sha256": "c5965322c6fbca39749bff7a88cf9f9c757279e435fcf192f9d55e122a84e1b4",
+      "bytes": 783
+    },
+    {
+      "file": "72_20261003210000_restore_email_verification.sql",
+      "source_files": [
+        "72_20261003210000_restore_email_verification.sql"
+      ],
+      "sha256": "9c741f280012b374102038b151b8c337fbc20244f0e9ece928fc20fa7a28e92f",
+      "bytes": 734
     },
     {
       "file": "73_20261005103500_admin_assets_admin_only_writes.sql",
@@ -675,7 +722,7 @@
     {
       "file": "74_20261005123000_close_stale_transport_offers.sql",
       "source_files": [
-        "20261005123000_close_stale_transport_offers.sql"
+        "74_20261005123000_close_stale_transport_offers.sql"
       ],
       "sha256": "40bcbbd5418ca3a2548c1e20ed3d4734ac4c9c5539e610c44dbe5847c5691cd0",
       "bytes": 7253
@@ -683,7 +730,7 @@
     {
       "file": "75_20261005124500_merchant_order_push_notification.sql",
       "source_files": [
-        "20261005124500_merchant_order_push_notification.sql"
+        "75_20261005124500_merchant_order_push_notification.sql"
       ],
       "sha256": "cc928f3f891e9abe6bffccf33d2e89fcccc41fd5c175c6ef253c0e72561abcd6",
       "bytes": 2786
@@ -707,7 +754,7 @@
     {
       "file": "78_20261005150000_notification_delivery_worker_cron.sql",
       "source_files": [
-        "20261005150000_notification_delivery_worker_cron.sql"
+        "78_20261005150000_notification_delivery_worker_cron.sql"
       ],
       "sha256": "51d61976fe38e4944d8a446ee2c45a2761a7b9d8929ebdcb6ca9089cad8b7c9b",
       "bytes": 2874
@@ -723,7 +770,7 @@
     {
       "file": "80_20261006100000_order_push_delivery_hardening.sql",
       "source_files": [
-        "20261006100000_order_push_delivery_hardening.sql"
+        "80_20261006100000_order_push_delivery_hardening.sql"
       ],
       "sha256": "c597c01b515e989c42b4b4e1477bb89905980a7c3b6e9383e948827de412f771",
       "bytes": 8775
@@ -731,7 +778,7 @@
     {
       "file": "81_20261006153000_to_20261006153000.sql",
       "source_files": [
-        "20261006153000_audit_pickup_status_and_buyer_output.sql"
+        "81_20261006153000_to_20261006153000.sql"
       ],
       "sha256": "9b3d04cd7b2be4db805d571b4b766f501693e8b7ab892a878d87ad67d5337755",
       "bytes": 3863
@@ -763,7 +810,7 @@
     {
       "file": "85_20261008234400_require_complete_signup_address.sql",
       "source_files": [
-        "20261008234400_require_complete_signup_address.sql"
+        "85_20261008234400_require_complete_signup_address.sql"
       ],
       "sha256": "5091f2bea0441631f3bad2b39a91af7b77243eb5d888525e143d79977f552d5d",
       "bytes": 2785
@@ -771,7 +818,7 @@
     {
       "file": "86_20261009090000_commission_wallet_system.sql",
       "source_files": [
-        "20261009090000_commission_wallet_system.sql"
+        "86_20261009090000_commission_wallet_system.sql"
       ],
       "sha256": "6f5de4adfe190b2b0f8ec985675f99511c1b2d3c9ce7e835d6dab7795404b9a7",
       "bytes": 20542
@@ -779,7 +826,7 @@
     {
       "file": "87_20261009091000_commission_wallet_topups.sql",
       "source_files": [
-        "20261009091000_commission_wallet_topups.sql"
+        "87_20261009091000_commission_wallet_topups.sql"
       ],
       "sha256": "caa75ae5b03aedc8e19ff4b2789e5111608ed8d9743323bb3996731a780d59cb",
       "bytes": 11663
@@ -787,7 +834,7 @@
     {
       "file": "88_20261009092000_commission_wallet_operations.sql",
       "source_files": [
-        "20261009092000_commission_wallet_operations.sql"
+        "88_20261009092000_commission_wallet_operations.sql"
       ],
       "sha256": "9a8ba5e1d51cc36fe6a9a13761d04c15ca0b6c227fdaca967827dac44d3b8413",
       "bytes": 50914
@@ -795,7 +842,7 @@
     {
       "file": "89_20261009093000_xendit_commission_wallet_topups.sql",
       "source_files": [
-        "20261009093000_xendit_commission_wallet_topups.sql"
+        "89_20261009093000_xendit_commission_wallet_topups.sql"
       ],
       "sha256": "eb2426124f8b53c07ee8deb849a9dc08651eb4449e9c94813a10bde253f6b804",
       "bytes": 26448
@@ -803,7 +850,7 @@
     {
       "file": "90_20261009094000_commission_refund_policy.sql",
       "source_files": [
-        "20261009094000_commission_refund_policy.sql"
+        "90_20261009094000_commission_refund_policy.sql"
       ],
       "sha256": "dc569b79537687fe71b5e11c6e67b3a932ef53f39e4e75bb558179021483f734",
       "bytes": 12916
@@ -811,36 +858,40 @@
     {
       "file": "91_20261009100000_commission_wallet_alerts.sql",
       "source_files": [
-        "20261009100000_commission_wallet_alerts.sql"
+        "91_20261009100000_commission_wallet_alerts.sql"
       ],
       "sha256": "c6fa8d8adff79dafdc719044c3cb59281b6db2a85f52d04700908f87f27916e0",
       "bytes": 6105
     },
     {
       "file": "92_20261009110000_merchant_referral_commissions.sql",
-      "source_files": [],
-      "standalone": true,
+      "source_files": [
+        "92_20261009110000_merchant_referral_commissions.sql"
+      ],
       "sha256": "d76e967e5c5975b99f1c2429f5aca385e027281324494c15cf99397b9d488f8d",
       "bytes": 96482
     },
     {
       "file": "93_20261009120000_referral_in_app_notifications.sql",
-      "source_files": [],
-      "standalone": true,
+      "source_files": [
+        "93_20261009120000_referral_in_app_notifications.sql"
+      ],
       "sha256": "16c7a5758e4fc72d882b63a5555dcb6c660a1021079e135a3486ebe60ae72e00",
       "bytes": 6261
     },
     {
       "file": "94_20261010113000_pos_customer_area_analytics.sql",
-      "source_files": [],
-      "standalone": true,
+      "source_files": [
+        "94_20261010113000_pos_customer_area_analytics.sql"
+      ],
       "sha256": "bef78943bbfc6295d0303f0f3c2bca6c19ed01aa74e7a79633cc26dd070f4d27",
       "bytes": 527
     },
     {
       "file": "95_20261010134500_merchant_history_query_indexes.sql",
-      "source_files": [],
-      "standalone": true,
+      "source_files": [
+        "95_20261010134500_merchant_history_query_indexes.sql"
+      ],
       "sha256": "089a3ec1a3cf8751653cfaeb4eaeb88c7d8e70e163e2b9396d5e57aa21a3e451",
       "bytes": 772
     },
@@ -862,68 +913,19 @@
     },
     {
       "file": "98_20261010180000_retire_merchant_free_trial_trigger.sql",
-      "source_files": [],
-      "standalone": true,
+      "source_files": [
+        "98_20261010180000_retire_merchant_free_trial_trigger.sql"
+      ],
       "sha256": "c980238ee538b71aa019b19fc829bc6a901cbe42b27bc57b5c6c7101e9c22b8e",
       "bytes": 623
     },
     {
       "file": "99_20261011180000_google_maps_rate_limit.sql",
-      "source_files": [],
-      "standalone": true,
+      "source_files": [
+        "99_20261011180000_google_maps_rate_limit.sql"
+      ],
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
-    },
-    {
-      "file": "100_20261011190000_courier_vehicle_profile.sql",
-      "source_files": [],
-      "standalone": true,
-      "sha256": "3f6cf95c2e1e4b4301f51ac525b0ef08038df3e37a5dee27747fa48065288d4a",
-      "bytes": 2231
-    },
-    {
-      "file": "101_20261011200000_courier_vehicle_history.sql",
-      "source_files": [],
-      "standalone": true,
-      "sha256": "9ce3045cabf4297f4082c7df4a5cc03cd846a1b111e885135c1b01c348812bbc",
-      "bytes": 3560
-    },
-    {
-      "file": "102_20261011210000_visitor_analytics.sql",
-      "source_files": [],
-      "standalone": true,
-      "sha256": "f56b31017a6353be918d257ade95f509dd195f69c9f49087e9618d056b823a15",
-      "bytes": 3973
-    },
-    {
-      "file": "103_20261011223000_guest_payment_proof_upload.sql",
-      "source_files": [],
-      "standalone": true,
-      "sha256": "975dc7245a6d882797b19a8bf7fe3a2467e2c41bea6f18415e5d2be869a0b000",
-      "bytes": 2445
-    },
-    {
-      "file": "104_20261011234500_fix_payment_proof_read_policy.sql",
-      "source_files": [],
-      "standalone": true,
-      "sha256": "3216afd9f8f1e6a9693037c9ceb1fba3833ecaffe485ce05d5a85b8e3e5e4538",
-      "bytes": 1866
-    },
-    {
-      "file": "105_20261011240000_harden_payment_proof_path_contract.sql",
-      "source_files": [],
-      "standalone": true,
-      "sha256": "53166c0488ef9b15ca9281d3ef33137d5dbeddd80d95fb7281a1134e8fbbe0a5",
-      "bytes": 6829
     }
-  ],
-  "idempotent": true,
-  "duplicate_errors_ignored": [
-    "duplicate_object",
-    "duplicate_table",
-    "duplicate_column",
-    "duplicate_schema",
-    "duplicate_function",
-    "unique_violation"
   ]
 }
