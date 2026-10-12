@@ -120,8 +120,15 @@ export default function CourierEarningsPage() {
 
   const submitCodReconciliation = async () => {
     if (!selectedCodOrder || !user) return;
+    if (!collectedCash.trim()) {
+      toast({ title: 'Jumlah tunai wajib diisi', description: 'Masukkan uang tunai yang diterima sebelum mengirim rekonsiliasi.', variant: 'destructive' });
+      return;
+    }
     const amount = Number(collectedCash);
-    if (!Number.isFinite(amount) || amount < 0) return;
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast({ title: 'Jumlah tunai tidak valid', description: 'Masukkan angka nol atau lebih.', variant: 'destructive' });
+      return;
+    }
     setCodSubmitting(true);
     try {
       const { data: courier } = await supabase.from('couriers').select('id').eq('user_id', user.id).maybeSingle();

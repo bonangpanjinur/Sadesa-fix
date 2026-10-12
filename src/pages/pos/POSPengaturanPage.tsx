@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { POSLayout } from '@/components/pos/POSLayout';
 import { usePOS } from '@/contexts/POSContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,10 @@ export default function POSPengaturanPage() {
   const [brandDialogOpen, setBrandDialogOpen] = useState(false);
   const [brandName, setBrandName] = useState('');
   const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
+  const [brandToDelete, setBrandToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deletingBrand, setDeletingBrand] = useState(false);
+  const addBrandButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteBrandTriggerRef = useRef<HTMLButtonElement>(null);
   const [saving, setSaving] = useState(false);
   const [isNewTenant, setIsNewTenant] = useState(false);
 
@@ -343,8 +348,24 @@ export default function POSPengaturanPage() {
   };
 
   const deleteBrand = async (id: string) => {
-    await supabase.from('pos_brands' as never).delete().eq('id', id);
-    fetchBrands();
+    const { error } = await supabase.from('pos_brands' as never).delete().eq('id', id);
+    if (error) throw error;
+    await fetchBrands();
+    toast.success('Brand dihapus');
+  };
+
+  const confirmDeleteBrand = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (!brandToDelete) return;
+    setDeletingBrand(true);
+    try {
+      await deleteBrand(brandToDelete.id);
+      setBrandToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus brand');
+    } finally {
+      setDeletingBrand(false);
+    }
   };
 
   return (
@@ -476,7 +497,7 @@ export default function POSPengaturanPage() {
                   <CardTitle className="text-base">Manajemen Brand</CardTitle>
                   <CardDescription>Brand/merek produk yang dijual di toko.</CardDescription>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => setBrandDialogOpen(true)} disabled={!tenant}>
+                <Button ref={addBrandButtonRef} size="sm" variant="outline" onClick={() => setBrandDialogOpen(true)} disabled={!tenant}>
                   <Plus className="h-4 w-4 mr-1" />Tambah Brand
                 </Button>
               </div>
@@ -489,7 +510,18 @@ export default function POSPengaturanPage() {
                   {brands.map(b => (
                     <div key={b.id} className="flex items-center gap-1.5 px-3 py-1.5 bg-muted rounded-full text-sm">
                       <span>{b.name}</span>
-                      <button onClick={() => deleteBrand(b.id)} className="text-muted-foreground hover:text-destructive ml-1">×</button>
+                      <button
+                        type="button"
+                        aria-label={`Hapus brand ${b.name}`}
+                        title={`Hapus brand ${b.name}`}
+                        onClick={(event) => {
+                          deleteBrandTriggerRef.current = event.currentTarget;
+                          setBrandToDelete(b);
+                        }}
+                        className="ml-1 inline-flex min-h-8 min-w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <span aria-hidden="true">×</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1007,6 +1039,33 @@ export default function POSPengaturanPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!brandToDelete} onOpenChange={(open) => { if (!open && !deletingBrand) setBrandToDelete(null); }}>
+        <AlertDialogContent onCloseAutoFocus={(event) => {
+          const target = deleteBrandTriggerRef.current?.isConnected ? deleteBrandTriggerRef.current : addBrandButtonRef.current;
+          if (target) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus brand?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Brand “{brandToDelete?.name}” akan dihapus dari daftar. Produk yang sudah ada tidak dihapus.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingBrand}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteBrand}
+              disabled={deletingBrand}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingBrand ? 'Menghapus…' : 'Hapus brand'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </POSLayout>
   );
 }

@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { X, SlidersHorizontal, MapPin, Banknote, Star } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { SlidersHorizontal, MapPin, Banknote, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Tooltip,
   TooltipContent,
@@ -42,6 +42,10 @@ export function FilterSheet({
   availableDistricts 
 }: FilterSheetProps) {
   const [localFilters, setLocalFilters] = useState<FilterOptions>(filters);
+
+  useEffect(() => {
+    if (isOpen) setLocalFilters(filters);
+  }, [filters, isOpen]);
 
   const handlePriceSelect = (range: [number, number]) => {
     const isSame = localFilters.priceRange?.[0] === range[0] && localFilters.priceRange?.[1] === range[1];
@@ -88,44 +92,23 @@ export function FilterSheet({
     (localFilters.minRating ? 1 : 0);
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-foreground/50 z-50"
-            onClick={onClose}
-          />
-          
-          {/* Sheet */}
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 bg-background rounded-t-3xl z-50 max-h-[85vh] overflow-hidden flex flex-col"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+          <DialogContent className="fixed bottom-0 left-0 right-0 top-auto grid max-h-[85dvh] w-full max-w-none grid-rows-[auto_1fr_auto] translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-t-3xl p-0 sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-1/2 sm:w-[calc(100%-2rem)] sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl">
+            <DialogHeader className="border-b border-border px-5 py-4 pr-14 text-left">
               <div className="flex items-center gap-2">
-                <SlidersHorizontal className="h-5 w-5 text-primary" />
-                <h2 className="font-bold text-lg">Filter</h2>
+                <SlidersHorizontal aria-hidden="true" className="h-5 w-5 text-primary" />
+                <DialogTitle className="font-bold text-lg">Filter</DialogTitle>
                 {activeFilterCount > 0 && (
                   <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
                     {activeFilterCount}
                   </span>
                 )}
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-secondary rounded-full transition">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+              <DialogDescription className="sr-only">Pilih rentang harga, lokasi, dan rating minimum untuk menyaring produk.</DialogDescription>
+            </DialogHeader>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+            <div className="min-h-0 overflow-y-auto px-5 py-4 space-y-6">
               {/* Price Range */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -139,6 +122,8 @@ export function FilterSheet({
                     return (
                       <button
                         key={range.label}
+                        type="button"
+                        aria-pressed={isSelected}
                         onClick={() => handlePriceSelect(range.value)}
                         className={cn(
                           "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
@@ -167,6 +152,8 @@ export function FilterSheet({
                       return (
                         <button
                           key={district}
+                          type="button"
+                          aria-pressed={isSelected}
                           onClick={() => handleDistrictToggle(district)}
                           className={cn(
                             "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
@@ -195,6 +182,8 @@ export function FilterSheet({
                     return (
                       <button
                         key={rating}
+                        type="button"
+                        aria-pressed={isSelected}
                         onClick={() => handleRatingSelect(rating)}
                         className={cn(
                           "flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
@@ -228,10 +217,8 @@ export function FilterSheet({
                 Terapkan Filter
               </Button>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          </DialogContent>
+      </Dialog>
   );
 }
 

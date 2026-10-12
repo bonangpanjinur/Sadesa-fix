@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
-import { Images, Plus, Trash2, GripVertical, Upload, Loader2, X } from 'lucide-react';
+import { Images, Plus, Trash2, GripVertical, Upload, Loader2 } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useMerchantGuard } from '@/hooks/useMerchantGuard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -24,9 +25,12 @@ export default function MerchantGalleryPage() {
   const { merchantId, loading: guardLoading } = useMerchantGuard();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null);
   const [uploading, setUploading] = useState(false);
   const [editingCaption, setEditingCaption] = useState<{ id: string; caption: string } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<GalleryItem | null>(null);
 
   const { data: gallery = [], isLoading } = useQuery<GalleryItem[]>({
     queryKey: ['merchant-gallery', merchantId],
@@ -65,6 +69,17 @@ export default function MerchantGalleryPage() {
     },
     onError: () => toast.error('Gagal menyimpan keterangan'),
   });
+
+  const confirmDelete = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (!deleteCandidate) return;
+    try {
+      await deleteMutation.mutateAsync(deleteCandidate.id);
+      setDeleteCandidate(null);
+    } catch {
+      // Mutation onError provides feedback; keep the confirmation open for retry.
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -145,6 +160,7 @@ export default function MerchantGalleryPage() {
               className="hidden"
             />
             <Button
+              ref={uploadButtonRef}
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading || gallery.length >= 10}
               variant="outline"
@@ -165,18 +181,24 @@ export default function MerchantGalleryPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {gallery.map((item, index) => (
               <div key={item.id} className="relative group rounded-xl overflow-hidden border bg-muted aspect-square">
-                <img
-                  src={item.image_url}
-                  alt={item.caption || `Foto ${index + 1}`}
-                  className="w-full h-full object-cover cursor-pointer"
+                <button
+                  type="button"
+                  className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                  aria-label={`Lihat foto ${index + 1}${item.caption ? `: ${item.caption}` : ''}`}
                   onClick={() => setLightboxUrl(item.image_url)}
-                />
+                >
+                  <img
+                    src={item.image_url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                </button>
                 {/* Order badge */}
                 <Badge className="absolute top-2 left-2 text-xs" variant="secondary">
                   {index + 1}
                 </Badge>
                 {/* Actions overlay */}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                   <Button
                     size="sm"
                     variant="secondary"
@@ -187,7 +209,10 @@ export default function MerchantGalleryPage() {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => deleteMutation.mutate(item.id)}
+                    onClick={(event) => {
+                      deleteTriggerRef.current = event.currentTarget;
+                      setDeleteCandidate(item);
+                    }}
                     disabled={deleteMutation.isPending}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
@@ -235,29 +260,50 @@ export default function MerchantGalleryPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Lightbox */}
-        {lightboxUrl && (
-          <div
-            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-            onClick={() => setLightboxUrl(null)}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 text-white hover:bg-white/20"
-              onClick={() => setLightboxUrl(null)}
-              aria-label="Tutup preview gambar" title="Tutup preview"
-            >
-              <X className="h-6 w-6" />
-            </Button>
-            <img
-              src={lightboxUrl}
-              alt="Preview"
-              className="max-w-full max-h-full object-contain rounded-xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        )}
+        <AlertDialog open={!!deleteCandidate} onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setDeleteCandidate(null); }}>
+          <AlertDialogContent onCloseAutoFocus={(event) => {
+            const target = deleteTriggerRef.current?.isConnected ? deleteTriggerRef.current : uploadButtonRef.current;
+            if (target) {
+              event.preventDefault();
+              target.focus();
+            }
+          }}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hapus foto galeri?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteCandidate?.caption
+                  ? `Foto “${deleteCandidate.caption}” akan dihapus dari galeri toko. Tindakan ini tidak dapat dibatalkan.`
+                  : 'Foto yang dipilih akan dihapus dari galeri toko. Tindakan ini tidak dapat dibatalkan.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteMutation.isPending}>Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteMutation.isPending ? 'Menghapus…' : 'Hapus foto'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog open={!!lightboxUrl} onOpenChange={(open) => { if (!open) setLightboxUrl(null); }}>
+          <DialogContent className="max-h-[95dvh] max-w-[95vw] border-none bg-black/95 p-0 text-white">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Pratinjau foto galeri</DialogTitle>
+              <DialogDescription>{gallery.find((item) => item.image_url === lightboxUrl)?.caption || 'Foto galeri toko'}</DialogDescription>
+            </DialogHeader>
+            {lightboxUrl && (
+              <img
+                src={lightboxUrl}
+                alt={gallery.find((item) => item.image_url === lightboxUrl)?.caption || 'Foto galeri toko'}
+                className="max-h-[85dvh] max-w-full rounded-xl object-contain"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </MerchantLayout>
   );

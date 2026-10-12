@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Package, Plus, Edit, Trash2, Users, Clock, Star, Eye, EyeOff, DollarSign } from 'lucide-react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -82,6 +83,10 @@ export default function DesaPaketWisataPage() {
   const [editing, setEditing] = useState<TourismPackage | null>(null);
   const [form, setForm] = useState(defaultForm);
   const [activeTab, setActiveTab] = useState('packages');
+  const [bookingChange, setBookingChange] = useState<{ booking: TourismBooking; status: string; packageName: string } | null>(null);
+  const [bookingStatusUpdating, setBookingStatusUpdating] = useState(false);
+  const bookingTabRef = useRef<HTMLButtonElement>(null);
+  const bookingActionRef = useRef<HTMLButtonElement>(null);
 
   const { data: villageId } = useQuery<string | null>({
     queryKey: ['desa-village-id', user?.id],
@@ -176,9 +181,24 @@ export default function DesaPaketWisataPage() {
   });
 
   const updateBookingStatus = async (id: string, status: string) => {
-    await supabase.from('tourism_bookings').update({ status }).eq('id', id);
+    const { error } = await supabase.from('tourism_bookings').update({ status }).eq('id', id);
+    if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ['tourism-bookings', villageId] });
     toast.success(`Status booking diperbarui: ${BOOKING_STATUS[status]?.label}`);
+  };
+
+  const confirmBookingStatus = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (!bookingChange) return;
+    setBookingStatusUpdating(true);
+    try {
+      await updateBookingStatus(bookingChange.booking.id, bookingChange.status);
+      setBookingChange(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal memperbarui status booking');
+    } finally {
+      setBookingStatusUpdating(false);
+    }
   };
 
   const openEdit = (pkg: TourismPackage) => {
@@ -214,7 +234,7 @@ export default function DesaPaketWisataPage() {
             <TabsTrigger value="packages" className="gap-2">
               <Package className="h-4 w-4" /> Paket Wisata ({packages.length})
             </TabsTrigger>
-            <TabsTrigger value="bookings" className="gap-2">
+            <TabsTrigger ref={bookingTabRef} value="bookings" className="gap-2">
               <Users className="h-4 w-4" /> Booking Masuk
               {bookings.filter(b => b.status === 'PENDING').length > 0 && (
                 <Badge variant="destructive" className="ml-1">{bookings.filter(b => b.status === 'PENDING').length}</Badge>
@@ -322,16 +342,16 @@ export default function DesaPaketWisataPage() {
                           <p className="font-bold text-sm">{formatPrice(booking.total_price)}</p>
                           {booking.status === 'PENDING' && (
                             <div className="flex gap-1 mt-2">
-                              <Button size="sm" className="h-7 text-xs px-3" onClick={() => updateBookingStatus(booking.id, 'CONFIRMED')}>
+                              <Button size="sm" className="h-7 text-xs px-3" onClick={(event) => { bookingActionRef.current = event.currentTarget; setBookingChange({ booking, status: 'CONFIRMED', packageName: pkg?.name || 'Paket Wisata' }); }}>
                                 Konfirmasi
                               </Button>
-                              <Button size="sm" variant="outline" className="h-7 text-xs px-3 text-destructive border-red-200" onClick={() => updateBookingStatus(booking.id, 'CANCELLED')}>
+                              <Button size="sm" variant="outline" className="h-7 text-xs px-3 text-destructive border-red-200" onClick={(event) => { bookingActionRef.current = event.currentTarget; setBookingChange({ booking, status: 'CANCELLED', packageName: pkg?.name || 'Paket Wisata' }); }}>
                                 Tolak
                               </Button>
                             </div>
                           )}
                           {booking.status === 'CONFIRMED' && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs px-3 mt-2" onClick={() => updateBookingStatus(booking.id, 'COMPLETED')}>
+                            <Button size="sm" variant="outline" className="h-7 text-xs px-3 mt-2" onClick={(event) => { bookingActionRef.current = event.currentTarget; setBookingChange({ booking, status: 'COMPLETED', packageName: pkg?.name || 'Paket Wisata' }); }}>
                               Tandai Selesai
                             </Button>
                           )}
@@ -415,6 +435,35 @@ export default function DesaPaketWisataPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!bookingChange} onOpenChange={(open) => { if (!open && !bookingStatusUpdating) setBookingChange(null); }}>
+        <AlertDialogContent onCloseAutoFocus={(event) => {
+          const target = bookingActionRef.current?.isConnected ? bookingActionRef.current : bookingTabRef.current;
+          if (target) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bookingChange?.status === 'CONFIRMED' ? 'Konfirmasi booking?' : bookingChange?.status === 'CANCELLED' ? 'Tolak booking?' : 'Tandai booking selesai?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Booking {bookingChange?.packageName} atas nama {bookingChange?.booking.contact_name || 'Pengunjung'} akan diubah menjadi {BOOKING_STATUS[bookingChange?.status || '']?.label || 'status baru'}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bookingStatusUpdating}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBookingStatus}
+              disabled={bookingStatusUpdating}
+              className={bookingChange?.status === 'CANCELLED' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+            >
+              {bookingStatusUpdating ? 'Memproses…' : BOOKING_STATUS[bookingChange?.status || '']?.label || 'Lanjutkan'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DesaLayout>
   );
 }

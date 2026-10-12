@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -9,16 +9,19 @@ interface ImageLightboxProps {
   initialIndex?: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  triggerRef?: React.RefObject<HTMLElement>;
 }
 
 export function ImageLightbox({ 
   images, 
   initialIndex = 0, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  triggerRef,
 }: ImageLightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
+  const openerRef = useRef<HTMLElement | null>(null);
 
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -41,7 +44,6 @@ export function ImageLightbox({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowLeft') handlePrev();
     if (e.key === 'ArrowRight') handleNext();
-    if (e.key === 'Escape') onOpenChange(false);
   };
 
   if (images.length === 0) return null;
@@ -49,13 +51,25 @@ export function ImageLightbox({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none"
+        className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none [&>button:last-child]:hidden"
         onKeyDown={handleKeyDown}
+        onOpenAutoFocus={() => { openerRef.current = document.activeElement as HTMLElement | null; }}
+        onCloseAutoFocus={(event) => {
+          const opener = triggerRef?.current ?? openerRef.current;
+          if (opener?.isConnected) {
+            event.preventDefault();
+            opener.focus();
+          }
+        }}
       >
+        <DialogTitle className="sr-only">Pratinjau gambar {currentIndex + 1} dari {images.length}</DialogTitle>
+        <DialogDescription className="sr-only">Gunakan tombol navigasi dan zoom untuk melihat gambar.</DialogDescription>
         {/* Close Button */}
         <Button
           variant="ghost"
           size="icon"
+          type="button"
+          aria-label="Tutup pratinjau gambar"
           className="absolute top-2 right-2 z-50 text-white hover:bg-white/20"
           onClick={() => onOpenChange(false)}
         >
@@ -77,6 +91,8 @@ export function ImageLightbox({
               <Button
                 variant="ghost"
                 size="icon"
+                type="button"
+                aria-label="Gambar sebelumnya"
                 className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12"
                 onClick={handlePrev}
               >
@@ -85,6 +101,8 @@ export function ImageLightbox({
               <Button
                 variant="ghost"
                 size="icon"
+                type="button"
+                aria-label="Gambar berikutnya"
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12"
                 onClick={handleNext}
               >
@@ -101,6 +119,8 @@ export function ImageLightbox({
             <Button
               variant="ghost"
               size="icon"
+              type="button"
+              aria-label="Perkecil gambar"
               className="h-8 w-8 text-white hover:bg-white/20"
               onClick={handleZoomOut}
               disabled={zoom <= 0.5}
@@ -113,6 +133,8 @@ export function ImageLightbox({
             <Button
               variant="ghost"
               size="icon"
+              type="button"
+              aria-label="Perbesar gambar"
               className="h-8 w-8 text-white hover:bg-white/20"
               onClick={handleZoomIn}
               disabled={zoom >= 3}
@@ -137,6 +159,9 @@ export function ImageLightbox({
             {images.map((img, idx) => (
               <button
                 key={idx}
+                type="button"
+                aria-label={`Tampilkan gambar ${idx + 1} dari ${images.length}`}
+                aria-pressed={currentIndex === idx}
                 onClick={() => {
                   setCurrentIndex(idx);
                   setZoom(1);
@@ -178,21 +203,30 @@ export function ClickableImage({
   index = 0
 }: ClickableImageProps) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const images = allImages || [src];
 
   return (
     <>
-      <img
-        src={src}
-        alt={alt}
-        className={cn('cursor-pointer hover:opacity-90 transition-opacity', className)}
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={`Perbesar gambar: ${alt}`}
+        className="inline-block cursor-zoom-in rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         onClick={() => setOpen(true)}
-      />
+      >
+        <img
+          src={src}
+          alt={alt}
+          className={cn('cursor-zoom-in transition-opacity hover:opacity-90', className)}
+        />
+      </button>
       <ImageLightbox
         images={images}
         initialIndex={index}
         open={open}
         onOpenChange={setOpen}
+        triggerRef={triggerRef}
       />
     </>
   );

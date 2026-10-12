@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DesaLayout } from '@/components/desa/DesaLayout';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -66,6 +67,9 @@ export default function DesaKeanggotaanPage() {
   const [certDialog, setCertDialog] = useState(false);
   const [selectedMerchant, setSelectedMerchant] = useState<MerchantMember | null>(null);
   const [approving, setApproving] = useState(false);
+  const [verification, setVerification] = useState<{ merchant: MerchantMember; approved: boolean } | null>(null);
+  const verificationTriggerRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchVillage = async () => {
@@ -97,16 +101,27 @@ export default function DesaKeanggotaanPage() {
   useEffect(() => { if (villageId) fetchMerchants(); }, [villageId, fetchMerchants]);
 
   const handleVerify = async (merchantId: string, approved: boolean) => {
-    setApproving(true);
     try {
-      await supabase.from('merchants').update({
+      const { error } = await supabase.from('merchants').update({
         registration_status: approved ? 'APPROVED' : 'REJECTED',
         status: approved ? 'ACTIVE' : 'INACTIVE',
       }).eq('id', merchantId);
+      if (error) throw error;
       toast.success(approved ? 'Anggota UMKM diverifikasi' : 'Anggota UMKM ditolak');
-      fetchMerchants();
+      await fetchMerchants();
+      return true;
     } catch (err) {
-      toast.error('Gagal memperbarui status');
+      toast.error(err instanceof Error ? `Gagal memperbarui status: ${err.message}` : 'Gagal memperbarui status');
+      return false;
+    }
+  };
+
+  const confirmVerification = async (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (!verification) return;
+    setApproving(true);
+    try {
+      if (await handleVerify(verification.merchant.id, verification.approved)) setVerification(null);
     } finally {
       setApproving(false);
     }
@@ -163,7 +178,7 @@ export default function DesaKeanggotaanPage() {
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Cari nama atau nomor HP..." value={search} onChange={e => setSearch(e.target.value)} />
+            <Input ref={searchInputRef} className="pl-9" placeholder="Cari nama atau nomor HP..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-36 h-9">
@@ -234,11 +249,11 @@ export default function DesaKeanggotaanPage() {
                               {m.registration_status === 'PENDING' && (
                                 <>
                                   <Button size="sm" variant="ghost" className="h-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                    onClick={() => handleVerify(m.id, true)} disabled={approving}>
+                                    onClick={(event) => { verificationTriggerRef.current = event.currentTarget; setVerification({ merchant: m, approved: true }); }} disabled={approving}>
                                     <CheckCircle className="h-3.5 w-3.5 mr-1" />Verifikasi
                                   </Button>
                                   <Button size="sm" variant="ghost" className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    onClick={() => handleVerify(m.id, false)} disabled={approving}>
+                                    onClick={(event) => { verificationTriggerRef.current = event.currentTarget; setVerification({ merchant: m, approved: false }); }} disabled={approving}>
                                     <XCircle className="h-3.5 w-3.5 mr-1" />Tolak
                                   </Button>
                                 </>
@@ -260,6 +275,33 @@ export default function DesaKeanggotaanPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!verification} onOpenChange={(open) => { if (!open && !approving) setVerification(null); }}>
+        <AlertDialogContent onCloseAutoFocus={(event) => {
+          const target = verificationTriggerRef.current?.isConnected ? verificationTriggerRef.current : searchInputRef.current;
+          if (target) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{verification?.approved ? 'Verifikasi anggota UMKM?' : 'Tolak pendaftaran UMKM?'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {verification?.merchant.name} akan {verification?.approved ? 'ditetapkan sebagai anggota terverifikasi' : 'ditolak dan statusnya menjadi tidak aktif'}. Pastikan keputusan ini benar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approving}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmVerification}
+              disabled={approving}
+              className={verification?.approved ? '' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
+            >
+              {approving ? 'Memproses…' : verification?.approved ? 'Verifikasi' : 'Tolak pendaftaran'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Certificate Dialog */}
       <Dialog open={certDialog} onOpenChange={setCertDialog}>

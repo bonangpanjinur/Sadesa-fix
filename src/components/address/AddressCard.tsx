@@ -35,53 +35,54 @@ export function AddressCard({
     }
   };
 
+  const addressDetails = (
+    <>
+      <div className="flex items-center gap-2 mb-1">
+        <Badge variant="outline" className="text-xs">{address.label}</Badge>
+        {address.is_default && (
+          <Badge className="text-xs bg-primary/10 text-primary border-0">
+            <Star className="h-3 w-3 mr-1 fill-current" />
+            Utama
+          </Badge>
+        )}
+      </div>
+      <p className="font-medium text-sm">{address.recipient_name}</p>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+        <Phone className="h-3 w-3" />
+        <span>{address.phone}</span>
+      </div>
+      <div className="flex items-start gap-1.5 text-xs text-muted-foreground mt-1">
+        <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+        <span className="line-clamp-2">
+          {address.full_address || [address.address_detail, address.village_name, address.district_name, address.city_name, address.province_name].filter(Boolean).join(', ')}
+        </span>
+      </div>
+    </>
+  );
+
   return (
     <Card
-      className={`relative transition-all ${
-        selectable ? 'cursor-pointer hover:border-primary' : ''
-      } ${selected ? 'border-primary ring-2 ring-primary/20' : ''}`}
-      onClick={handleClick}
+      className={`relative transition-all ${selectable ? 'hover:border-primary' : ''} ${selected ? 'border-primary ring-2 ring-primary/20' : ''}`}
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="outline" className="text-xs">
-                {address.label}
-              </Badge>
-              {address.is_default && (
-                <Badge className="text-xs bg-primary/10 text-primary border-0">
-                  <Star className="h-3 w-3 mr-1 fill-current" />
-                  Utama
-                </Badge>
-              )}
-            </div>
-            
-            <p className="font-medium text-sm">{address.recipient_name}</p>
-            
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
-              <Phone className="h-3 w-3" />
-              <span>{address.phone}</span>
-            </div>
-            
-            <div className="flex items-start gap-1.5 text-xs text-muted-foreground mt-1">
-              <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
-              <span className="line-clamp-2">
-                {address.full_address || [
-                  address.address_detail,
-                  address.village_name,
-                  address.district_name,
-                  address.city_name,
-                  address.province_name,
-                ].filter(Boolean).join(', ')}
-              </span>
-            </div>
-          </div>
+          {selectable ? (
+            <button
+              type="button"
+              aria-pressed={selected}
+              onClick={handleClick}
+              className="flex-1 min-w-0 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              {addressDetails}
+            </button>
+          ) : (
+            <div className="flex-1 min-w-0">{addressDetails}</div>
+          )}
 
           {!selectable && (onEdit || onDelete || onSetDefault) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Aksi alamat ${address.label}: ${address.recipient_name}`}>
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>

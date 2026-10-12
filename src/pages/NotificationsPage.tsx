@@ -220,60 +220,59 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {filteredNotifications.map((notification) => (
+              {filteredNotifications.map((notification) => {
+                const hasDestination = Boolean(notification.link || notification.deep_link || notification.type === 'chat' || notification.conversation_id || notification.data);
+                return (
                 <div
                   key={notification.id}
                   className={cn(
-                    'bg-card rounded-xl border border-border p-4 cursor-pointer transition-colors',
+                    'bg-card rounded-xl border border-border p-4 transition-colors',
                     !notification.is_read && 'bg-primary/5 border-primary/20'
                   )}
-                  onClick={() => {
-                    if (!notification.is_read) {
-                      markAsRead(notification.id);
-                    }
-                    if (notification.link || notification.deep_link || notification.type === 'chat' || notification.conversation_id || notification.data) {
-                      openNotificationLink(notification);
-                    }
-                  }}
                 >
                   <div className="flex gap-3">
-                    <div className="mt-0.5">{getIcon(notification.type)}</div>
+                    <div className="mt-0.5" aria-hidden="true">{getIcon(notification.type)}</div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className={cn(
+                      <button
+                        type="button"
+                        className="block w-full rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        aria-label={`${notification.is_read ? '' : 'Tandai dibaca: '}${notification.title}${hasDestination ? ' — Buka detail' : ''}`}
+                        onClick={() => {
+                          if (!notification.is_read) void markAsRead(notification.id);
+                          if (hasDestination) openNotificationLink(notification);
+                        }}
+                      >
+                      <span className="flex items-start justify-between gap-2">
+                        <span className={cn(
                           'font-medium',
                           !notification.is_read && 'font-semibold'
                         )}>
                           {notification.title}
-                        </p>
+                        </span>
                         {!notification.is_read && (
-                          <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
+                          <span aria-label="Belum dibaca" className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
                         )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      </span>
+                      <span className="block text-sm text-muted-foreground mt-1">
                         {notification.message}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(notification.created_at), {
-                            addSuffix: true,
-                            locale: id,
-                          })}
-                        </p>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteNotification(notification.id);
-                          }}
-                          className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      </span>
+                      <span className="block text-xs text-muted-foreground mt-2">
+                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: id })}
+                      </span>
+                      </button>
                     </div>
+                    <button
+                      type="button"
+                      aria-label={`Hapus notifikasi: ${notification.title}`}
+                      onClick={() => void deleteNotification(notification.id)}
+                      className="self-start rounded p-2 text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
           {!loading && notifications.length >= notificationLimit && (
