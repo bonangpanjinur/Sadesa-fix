@@ -58,6 +58,7 @@ import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { logAdminAction } from '@/lib/auditLog';
 import { useNavigate } from 'react-router-dom';
+import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 
 type AppRole = 'admin' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa' | 'buyer';
 type BadgeVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'success';
@@ -66,6 +67,7 @@ interface UserProfile {
   id: string;
   userId: string;
   fullName: string;
+  email: string | null;
   phone: string | null;
   avatarUrl: string | null;
   isBlocked: boolean;
@@ -144,6 +146,7 @@ export default function AdminUsersPage() {
         id: p.id,
         userId: p.user_id,
         fullName: p.full_name || 'Tanpa Nama',
+        email: p.email,
         phone: p.phone,
         avatarUrl: p.avatar_url,
         isBlocked: p.is_blocked || false,
@@ -167,8 +170,8 @@ export default function AdminUsersPage() {
   }, []);
 
   const handleAddUser = async () => {
-    if (!newUser.email || !newUser.password || !newUser.fullName) {
-      toast.error('Email, password, dan nama lengkap harus diisi');
+    if (!newUser.email || !newUser.password || !newUser.fullName || !newUser.phone) {
+      toast.error('Email, password, nama lengkap, dan nomor WhatsApp harus diisi');
       return;
     }
 
@@ -177,6 +180,10 @@ export default function AdminUsersPage() {
       
       if (newUser.password.length < 12) {
         toast.error('Password minimal 12 karakter');
+        return;
+      }
+      if (!isValidIndonesianPhone(newUser.phone)) {
+        toast.error('Nomor WhatsApp harus berisi 8-15 digit');
         return;
       }
 
@@ -378,6 +385,7 @@ export default function AdminUsersPage() {
     return users.filter(user => {
       const matchesSearch = 
         user.fullName.toLowerCase().includes(search.toLowerCase()) ||
+        user.email?.toLowerCase().includes(search.toLowerCase()) ||
         user.phone?.includes(search) ||
         user.userId.includes(search);
       
@@ -403,16 +411,19 @@ export default function AdminUsersPage() {
   }, [search, roleFilter, statusFilter]);
 
   const exportToCSV = () => {
-    const headers = ['Nama', 'Telepon', 'Role', 'Status', 'Terdaftar'];
+    const headers = ['Nama', 'Email', 'Nomor WhatsApp', 'Role', 'Status', 'Terdaftar'];
     const rows = filteredUsers.map(u => [
       u.fullName,
+      u.email || '-',
       u.phone || '-',
       u.roles.join(', '),
       u.isBlocked ? 'Diblokir' : 'Aktif',
       format(new Date(u.createdAt), 'dd/MM/yyyy', { locale: idLocale }),
     ]);
 
-    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const csvContent = [headers, ...rows]
+      .map(row => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -553,7 +564,8 @@ export default function AdminUsersPage() {
                     <TableHeader className="bg-muted/50">
                       <TableRow>
                         <TableHead>Pengguna</TableHead>
-                        <TableHead>Telepon</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Nomor WhatsApp</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Terdaftar</TableHead>
@@ -580,6 +592,7 @@ export default function AdminUsersPage() {
                                 </div>
                               </div>
                             </TableCell>
+                            <TableCell className="max-w-[220px] truncate text-sm">{user.email || '-'}</TableCell>
                             <TableCell className="text-sm">{user.phone || '-'}</TableCell>
                             <TableCell>
                               <div className="flex flex-wrap gap-1">
@@ -650,7 +663,7 @@ export default function AdminUsersPage() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-40 text-center">
+                          <TableCell colSpan={7} className="h-40 text-center">
                             <div className="flex flex-col items-center justify-center text-muted-foreground">
                               <Users className="h-10 w-10 mb-2 opacity-20" />
                               <p>Tidak ada pengguna ditemukan</p>
@@ -753,7 +766,14 @@ export default function AdminUsersPage() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border p-3">
-                    <p className="text-xs text-muted-foreground">Nomor telepon</p>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="mt-1 flex items-center gap-2 text-sm font-medium">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      {selectedUser.email || 'Belum diisi'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border p-3">
+                    <p className="text-xs text-muted-foreground">Nomor WhatsApp</p>
                     <p className="mt-1 flex items-center gap-2 text-sm font-medium">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       {selectedUser.phone || 'Belum diisi'}
@@ -933,7 +953,7 @@ export default function AdminUsersPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <label className="text-sm font-medium flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" /> Telepon
+                    <Phone className="h-4 w-4 text-muted-foreground" /> Nomor WhatsApp <span className="text-destructive">*</span>
                   </label>
                   <Input
                     placeholder="08123456789"

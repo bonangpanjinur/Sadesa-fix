@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Eye, EyeOff, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Mail, Lock, User, Loader2, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,8 @@ import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
 import { checkPersistentRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { createOtpExpiration, getOtpExpirationKey } from '@/lib/otp';
 import { AddressSelector, createEmptyAddressData, type AddressData } from '@/components/AddressSelector';
+import { PhoneInput } from '@/components/ui/PhoneInput';
+import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -23,6 +25,7 @@ const signUpSchema = z.object({
     .regex(/[A-Za-z]/, 'Password harus mengandung huruf')
     .regex(/[0-9]/, 'Password harus mengandung angka'),
   confirmPassword: z.string(),
+  phone: z.string().refine((value) => isValidIndonesianPhone(value), 'Nomor WhatsApp wajib diisi dengan 8-15 digit'),
   address: z.object({
     province: z.string().min(1, 'Provinsi wajib dipilih'),
     city: z.string().min(1, 'Kabupaten/Kota wajib dipilih'),
@@ -52,6 +55,7 @@ export default function AuthPage() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   });
@@ -141,6 +145,7 @@ export default function AuthPage() {
           signupEmail,
           formData.password,
           formData.fullName.trim(),
+          formData.phone,
           addressData,
         );
         if (error) {
@@ -258,6 +263,32 @@ export default function AuthPage() {
                 disabled={loading}
               />
               {errors.address && <p role="alert" className="text-xs text-destructive">{errors.address}</p>}
+            </div>
+          )}
+
+          {!isLogin && (
+            <div className="space-y-2">
+              <Label htmlFor="phone">Nomor WhatsApp <span className="text-destructive">*</span></Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3 z-10 h-4 w-4 text-muted-foreground" />
+                <PhoneInput
+                  id="phone"
+                  value={formData.phone}
+                  onChange={(value) => {
+                    setFormData((previous) => ({ ...previous, phone: value }));
+                    setErrors((previous) => ({ ...previous, phone: '' }));
+                  }}
+                  placeholder="08xx-xxxx-xxxx"
+                  required
+                  autoComplete="tel"
+                  inputMode="tel"
+                  aria-invalid={Boolean(errors.phone)}
+                  aria-describedby={errors.phone ? 'phone-error' : undefined}
+                  className="pl-10"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Nomor WhatsApp aktif diperlukan untuk notifikasi akun dan layanan.</p>
+              {errors.phone && <p id="phone-error" role="alert" className="text-xs text-destructive">{errors.phone}</p>}
             </div>
           )}
 

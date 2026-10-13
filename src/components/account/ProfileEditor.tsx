@@ -46,11 +46,12 @@ interface ProfileEditorProps {
   onCancel: () => void;
   forceCompletion?: boolean;
   requiredAddress?: boolean;
+  requirePhone?: boolean;
   requireCourierProfile?: boolean;
   requireMerchantProfile?: boolean;
 }
 
-export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false, requiredAddress = false, requireCourierProfile = false, requireMerchantProfile = false }: ProfileEditorProps) {
+export function ProfileEditor({ userId, initialData, onSave, onCancel, forceCompletion = false, requiredAddress = false, requirePhone = false, requireCourierProfile = false, requireMerchantProfile = false }: ProfileEditorProps) {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(initialData.avatar_url || '');
@@ -207,7 +208,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
       return;
     }
 
-    if (requireCourierProfile && !phone.trim()) {
+    if ((requirePhone || requireCourierProfile || requireMerchantProfile) && !phone.trim()) {
       toast({
         title: 'Nomor WhatsApp wajib diisi',
         description: 'Gunakan nomor WhatsApp yang aktif agar pelanggan dan sistem dapat menghubungi Anda.',
@@ -343,7 +344,7 @@ export function ProfileEditor({ userId, initialData, onSave, onCancel, forceComp
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
           {requiredAddress
             ? 'Alamat utama wajib dilengkapi hingga provinsi, kabupaten/kota, kecamatan, dan desa/kelurahan. Detail jalan dan foto profil tetap opsional.'
-            : requireCourierProfile
+            : requirePhone || requireCourierProfile
             ? 'Nomor WhatsApp aktif membantu pelanggan menghubungi Anda. Foto selfie dianjurkan, tetapi tidak wajib.'
             : requireMerchantProfile
               ? 'Nomor KTP dan WhatsApp membantu proses merchant. Foto selfie dianjurkan, tetapi tidak wajib.'

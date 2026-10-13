@@ -1,7 +1,7 @@
 {
   "source": "supabase/bootstrap deployment files synchronized with recent archive migrations; canonical merchant schedule alignment and POS customer area analytics appended",
-  "migration_count": 372,
-  "bundle_count": 80,
+  "migration_count": 373,
+  "bundle_count": 81,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -942,6 +942,15 @@
       ],
       "sha256": "d12e65aedb6fa6bcc2cfa61cdb34830547a6c57878a63fc2e6b952d02d803695",
       "bytes": 42307
+    },
+    {
+      "file": "109_20261013090000_signup_whatsapp_required.sql",
+      "source_files": [
+        "109_20261013090000_signup_whatsapp_required.sql"
+      ],
+      "sha256": "8d709376919b4ebaf9bcf2d490c10b511308222b37506a33047d2e837dad4be5",
+      "bytes": 2798
     }
-  ]
+  ],
+  "idempotent": true
 }

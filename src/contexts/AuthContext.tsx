@@ -58,7 +58,7 @@ interface AuthContextType {
   loading: boolean;
   rolesLoading: boolean;
   merchantRoleRecoveryLoading: boolean;
-  signUp: (email: string, password: string, fullName: string, address: SignupAddress) => Promise<{
+  signUp: (email: string, password: string, fullName: string, phone: string, address: SignupAddress) => Promise<{
     data: { user: unknown; session: unknown };
     error: Error | null;
   }>;
@@ -293,7 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [fetchUserRoles]);
 
-  const signUp = async (email: string, password: string, fullName: string, address: SignupAddress) => {
+  const signUp = async (email: string, password: string, fullName: string, phone: string, address: SignupAddress) => {
     const emailResult = signupEmailSchema.safeParse(email);
     if (!emailResult.success) {
       return {
@@ -309,6 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: window.location.origin,
         data: {
           full_name: fullName,
+          phone: phone.trim(),
           province_id: address.province,
           province_name: address.provinceName,
           city_id: address.city,

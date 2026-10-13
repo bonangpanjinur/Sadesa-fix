@@ -5,6 +5,7 @@ import { useUserRoles } from '@/hooks/useUserRoles';
 import type { AppRole } from '@/types/auth';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -52,7 +53,7 @@ export function ProtectedRoute({
     setAddressStatus('checking');
     void supabase
       .from('profiles')
-      .select('province_id, city_id, district_id, village_id')
+      .select('province_id, city_id, district_id, village_id, phone')
       .eq('user_id', addressUserId)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -62,7 +63,8 @@ export function ProtectedRoute({
           setAddressStatus('error');
           return;
         }
-        setAddressStatus(data?.province_id && data?.city_id && data?.district_id && data?.village_id
+        const phoneComplete = !data || !Object.prototype.hasOwnProperty.call(data, 'phone') || isValidIndonesianPhone(data.phone || '');
+        setAddressStatus(data?.province_id && data?.city_id && data?.district_id && data?.village_id && phoneComplete
           ? 'complete'
           : 'incomplete');
       });

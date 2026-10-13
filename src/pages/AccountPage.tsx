@@ -122,9 +122,10 @@ export default function AccountPage() {
         setProfile(data);
         // Foto profil adalah rekomendasi, bukan syarat akses akun atau route.
         const completeAddress = Boolean(data.province_id && data.city_id && data.district_id && data.village_id);
-        const complete = Boolean(data.full_name?.trim()) && completeAddress;
+        const completePhone = Boolean(data.phone && isValidIndonesianPhone(data.phone));
+        const complete = Boolean(data.full_name?.trim()) && completeAddress && completePhone;
         setProfileRequired(!complete);
-        if (!completeAddress) setEditing(true);
+        if (!completeAddress || !completePhone) setEditing(true);
         const courierIncomplete = Boolean(
           isCourier && (!data.phone || !isValidIndonesianPhone(data.phone)),
         );
@@ -368,6 +369,7 @@ export default function AccountPage() {
                     onCancel={() => setEditing(false)}
                     forceCompletion={profileRequired || courierProfileRequired || merchantProfileRequired}
                     requiredAddress={profileRequired && !(profile?.province_id && profile?.city_id && profile?.district_id && profile?.village_id)}
+                    requirePhone={profileRequired && !profile?.phone}
                     requireCourierProfile={courierProfileRequired}
                     requireMerchantProfile={merchantProfileRequired}
                   />
@@ -379,7 +381,9 @@ export default function AccountPage() {
                           ? 'Lengkapi nomor KTP dan WhatsApp aktif untuk mengoptimalkan fitur pedagang. Foto profil tetap opsional.'
                           : courierProfileRequired
                           ? 'Tambahkan nomor WhatsApp aktif untuk mengoptimalkan fitur kurir. Foto profil tetap opsional.'
-                        : 'Alamat utama wajib dilengkapi sampai provinsi, kabupaten/kota, kecamatan, dan desa/kelurahan sebelum menggunakan fitur akun.'}
+                        : !profile?.phone
+                          ? 'Profil harus dilengkapi, terutama nomor WhatsApp aktif, agar akun dapat digunakan dengan optimal.'
+                          : 'Alamat utama wajib dilengkapi sampai provinsi, kabupaten/kota, kecamatan, dan desa/kelurahan sebelum menggunakan fitur akun.'}
                       </p>
                     )}
                     {profile?.phone && (
