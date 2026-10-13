@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, ToggleLeft, Globe, CreditCard, AlertCircle, Truck, Percent, Plus, Trash2, ShieldCheck, Palette, Package } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -96,7 +97,6 @@ export default function AdminSettingsPage() {
   const codSettings = getSetting('cod_settings')?.value as unknown as CODSettings | undefined;
   const adminPaymentInfo = getSetting('admin_payment_info')?.value as unknown as { bank_name: string; bank_account_number: string; bank_account_name: string; qris_image_url: string } | undefined;
   const freeTierQuota = getSetting('free_tier_quota')?.value as unknown as { limit: number } | undefined;
-  const courierCommission = getSetting('courier_commission')?.value as unknown as { percent: number } | undefined;
   const courierMinBalance = getSetting('courier_minimum_balance')?.value as unknown as { amount: number } | undefined;
 
   return (
@@ -222,7 +222,7 @@ export default function AdminSettingsPage() {
                   </CardContent>
                 </Card>
 
-                {/* Courier Commission */}
+                {/* Courier commission is configured in the authoritative wallet settings page. */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -230,25 +230,17 @@ export default function AdminSettingsPage() {
                       Komisi Kurir
                     </CardTitle>
                     <CardDescription>
-                      Persentase komisi kurir dari biaya pengiriman
+                      Pengaturan komisi kurir dikelola bersama konfigurasi wallet dan payout aktual
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <CourierCommissionForm
-                      initialPercent={courierCommission?.percent ?? 80}
-                      onSave={async (percent) => {
-                        setSaving('courier_commission');
-                        const success = await updateAppSetting('courier_commission', { percent });
-                        if (success) {
-                          toast.success('Komisi kurir berhasil disimpan');
-                          loadSettings();
-                        } else {
-                          toast.error('Gagal menyimpan');
-                        }
-                        setSaving(null);
-                      }}
-                      isSaving={saving === 'courier_commission'}
-                    />
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Pengaturan legacy tidak lagi digunakan. Payout membaca tarif, status aktif, dan cakupan
+                      pengiriman dari <code>commission_fee_settings</code>.
+                    </p>
+                    <Button asChild variant="outline">
+                      <Link to="/admin/wallet-commissions">Buka pengaturan komisi wallet</Link>
+                    </Button>
                   </CardContent>
                 </Card>
 
@@ -698,21 +690,6 @@ function FreeTierQuotaForm({ initialLimit, onSave, isSaving }: { initialLimit: n
         <Label>Jumlah Kuota Gratis per Bulan</Label>
         <Input type="number" value={limit} onChange={(e) => setLimit(e.target.value)} min={0} />
         <p className="text-xs text-muted-foreground">Merchant tanpa paket berbayar akan mendapat kuota ini setiap bulan secara gratis</p>
-      </div>
-      <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" /> {isSaving ? 'Menyimpan...' : 'Simpan'}</Button>
-    </form>
-  );
-}
-
-function CourierCommissionForm({ initialPercent, onSave, isSaving }: { initialPercent: number; onSave: (percent: number) => Promise<void>; isSaving: boolean }) {
-  const [percent, setPercent] = useState(initialPercent.toString());
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(parseFloat(percent) || 80); };
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label>Persentase Komisi (%)</Label>
-        <Input type="number" step="0.1" value={percent} onChange={(e) => setPercent(e.target.value)} min={0} max={100} />
-        <p className="text-xs text-muted-foreground">Kurir akan mendapatkan {percent}% dari biaya ongkir setiap pengiriman</p>
       </div>
       <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" /> {isSaving ? 'Menyimpan...' : 'Simpan'}</Button>
     </form>
