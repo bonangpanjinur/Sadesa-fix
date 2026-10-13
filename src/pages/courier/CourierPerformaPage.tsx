@@ -13,6 +13,7 @@ import { formatPrice } from '@/lib/utils';
 import { TrendingUp, Package, CheckCircle, Clock, Award } from 'lucide-react';
 import { subDays, format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
+import { getCourierDeliveryEarningBreakdown } from '@/lib/courierDeliveryEarnings';
 
 interface CourierOrder {
   id: string;
@@ -27,6 +28,8 @@ interface CourierEarning {
   amount: number | null;
   created_at: string;
   status: string;
+  type: string;
+  order_id: string | null;
 }
 
 interface DailyStat {
@@ -75,15 +78,25 @@ export default function CourierPerformaPage() {
           .eq('courier_id', courier.id)
           .gte('created_at', startDate.toISOString()),
         supabase.from('courier_earnings')
-          .select('amount, created_at, status')
+          .select('amount, created_at, status, type, order_id')
           .eq('courier_id', courier.id)
           .gte('created_at', startDate.toISOString()),
       ]);
 
       const orders = (ordersRes.data || []) as CourierOrder[];
       const earnings = (earningsRes.data || []) as CourierEarning[];
+      const deliveryOrderIds = earnings.filter((earning) => earning.type === 'DELIVERY' && earning.order_id).map((earning) => earning.order_id as string);
+      const { data: deliveryOrders } = deliveryOrderIds.length > 0
+        ? await supabase.from('orders').select('id, shipping_cost, courier_earning_estimate, courier_platform_fee' as never).in('id', deliveryOrderIds)
+        : { data: [] };
+      const orderById = new Map(((deliveryOrders || []) as unknown as Array<{ id: string; shipping_cost: number | null; courier_earning_estimate: number | null; courier_platform_fee: number | null }>).map((order) => [order.id, order]));
+      const netEarning = (earning: CourierEarning) => {
+        if (earning.type !== 'DELIVERY') return earning.amount || 0;
+        const order = earning.order_id ? orderById.get(earning.order_id) : undefined;
+        return getCourierDeliveryEarningBreakdown({ shippingCost: order?.shipping_cost ?? earning.amount, earningEstimate: order?.courier_earning_estimate, savedPlatformFee: order?.courier_platform_fee, policy: null }).net ?? 0;
+      };
       const completed = orders.filter(o => o.status === 'DELIVERED' || o.status === 'COMPLETED');
-      const totalEarnings = earnings.reduce((s, e) => s + (e.amount || 0), 0);
+      const totalEarnings = earnings.reduce((s, e) => s + netEarning(e), 0);
 
       const onTime = completed.filter(o => {
         if (!o.assigned_at || !o.delivered_at) return false;
@@ -103,7 +116,7 @@ export default function CourierPerformaPage() {
       });
       earnings.forEach((e) => {
         const key = format(new Date(e.created_at), 'dd/MM');
-        if (dailyMap[key]) dailyMap[key].earnings += e.amount;
+        if (dailyMap[key]) dailyMap[key].earnings += netEarning(e);
       });
 
       const daily = Object.values(dailyMap);
@@ -184,7 +197,7 @@ export default function CourierPerformaPage() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Total Pengiriman', value: stats.totalDeliveries, icon: Package, sub: `${stats.completedDeliveries} selesai` },
-                { label: 'Total Pendapatan', value: formatPrice(stats.totalEarnings), icon: TrendingUp, sub: 'periode ini' },
+                { label: 'Pendapatan Bersih', value: formatPrice(stats.totalEarnings), icon: TrendingUp, sub: 'setelah fee platform' },
                 { label: 'Tingkat Selesai', value: `${stats.completionRate}%`, icon: CheckCircle, sub: completionBadge.label },
                 { label: 'Tepat Waktu', value: `${stats.onTimeRate}%`, icon: Clock, sub: onTimeBadge.label },
               ].map((s, i) => (

@@ -33,4 +33,13 @@ describe('courier delivery earning breakdown', () => {
       policy: { feePercent: 10, enabled: false, chargeCourierDelivery: true },
     })).toEqual({ gross: 20000, platformFee: 0, net: 20000 });
   });
+
+  it('uses the saved platform fee for completed orders instead of the current policy', () => {
+    expect(getCourierDeliveryEarningBreakdown({
+      shippingCost: 20000,
+      earningEstimate: 15000,
+      savedPlatformFee: 750,
+      policy: { feePercent: 25, enabled: true, chargeCourierDelivery: true },
+    })).toEqual({ gross: 15000, platformFee: 750, net: 14250 });
+  });
 });

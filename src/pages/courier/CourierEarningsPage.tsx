@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { getCourierDeliveryEarningBreakdown } from '@/lib/courierDeliveryEarnings';
 
 interface EarningRecord {
   id: string;
@@ -26,6 +27,9 @@ interface EarningRecord {
   ride_request_id: string | null;
   created_at: string;
   paid_at: string | null;
+  gross: number | null;
+  platformFee: number | null;
+  net: number;
 }
 
 interface CodReconciliation { id: string; order_id: string; expected_cash: number; collected_cash: number; variance: number; status: string; notes: string | null; submitted_at: string; }
@@ -78,13 +82,29 @@ export default function CourierEarningsPage() {
         .eq('courier_id', courier.id)
         .order('created_at', { ascending: false });
 
-      const all: EarningRecord[] = earningsData || [];
+      const rawEarnings = (earningsData || []) as Array<EarningRecord & { gross?: number | null; platformFee?: number | null; net?: number }>;
+      const orderIds = rawEarnings.filter((earning) => earning.type === 'DELIVERY' && earning.order_id).map((earning) => earning.order_id as string);
+      const { data: deliveryOrders } = orderIds.length > 0
+        ? await supabase.from('orders').select('id, shipping_cost, courier_earning_estimate, courier_platform_fee' as never).in('id', orderIds)
+        : { data: [] };
+      const orderById = new Map(((deliveryOrders || []) as unknown as Array<{ id: string; shipping_cost: number | null; courier_earning_estimate: number | null; courier_platform_fee: number | null }>).map((order) => [order.id, order]));
+      const all: EarningRecord[] = rawEarnings.map((earning) => {
+        if (earning.type !== 'DELIVERY') return { ...earning, gross: null, platformFee: null, net: earning.amount };
+        const order = earning.order_id ? orderById.get(earning.order_id) : undefined;
+        const breakdown = getCourierDeliveryEarningBreakdown({
+          shippingCost: order?.shipping_cost ?? earning.amount,
+          earningEstimate: order?.courier_earning_estimate,
+          savedPlatformFee: order?.courier_platform_fee,
+          policy: null,
+        });
+        return { ...earning, gross: breakdown.gross, platformFee: breakdown.platformFee, net: breakdown.net ?? breakdown.gross };
+      });
 
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const sum = (items: EarningRecord[]) => items.reduce((s, e) => s + e.amount, 0);
+      const sum = (items: EarningRecord[]) => items.reduce((s, e) => s + e.net, 0);
 
       return {
         earnings: all,
@@ -199,7 +219,7 @@ export default function CourierEarningsPage() {
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card>
-            <CardHeader><CardTitle className="text-lg">Ringkasan Pendapatan</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">Ringkasan Pendapatan Bersih</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between items-center py-2 border-b border-border">
                 <span className="text-muted-foreground">Minggu Ini</span>
@@ -210,7 +230,7 @@ export default function CourierEarningsPage() {
                 <span className="font-bold">{formatPrice(stats.monthEarnings)}</span>
               </div>
               <div className="flex justify-between items-center py-2">
-                <span className="text-muted-foreground">Total Keseluruhan</span>
+                <span className="text-muted-foreground">Total Bersih Keseluruhan</span>
                 <span className="font-bold text-primary">{formatPrice(stats.totalEarnings)}</span>
               </div>
             </CardContent>
@@ -281,10 +301,18 @@ function EarningCard({ earning }: { earning: EarningRecord }) {
           </Badge>
         </div>
       </div>
-      <div className="flex justify-between items-center pt-2 border-t border-border">
-        <span className="text-sm text-muted-foreground">Komisi</span>
-        <span className="font-bold text-primary">+{formatPrice(earning.amount)}</span>
-      </div>
+      {earning.type === 'DELIVERY' && earning.gross != null ? (
+        <div className="space-y-1 border-t border-border pt-2 text-sm">
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Ongkir kurir (gross)</span><span>{formatPrice(earning.gross)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-muted-foreground">Fee platform</span><span>{earning.platformFee == null ? '—' : `−${formatPrice(earning.platformFee)}`}</span></div>
+          <div className="flex justify-between gap-3 border-t pt-1 font-bold"><span>Pendapatan bersih</span><span className="text-primary">+{formatPrice(earning.net)}</span></div>
+        </div>
+      ) : (
+        <div className="flex justify-between items-center pt-2 border-t border-border">
+          <span className="text-sm text-muted-foreground">Pendapatan</span>
+          <span className="font-bold text-primary">+{formatPrice(earning.net)}</span>
+        </div>
+      )}
     </div>
   );
 }

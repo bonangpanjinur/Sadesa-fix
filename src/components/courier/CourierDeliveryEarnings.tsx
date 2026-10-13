@@ -4,6 +4,7 @@ import { formatPrice } from '@/lib/utils';
 interface Props {
   shippingCost: number | null | undefined;
   earningEstimate: number | null | undefined;
+  savedPlatformFee?: number | null;
   policy: CourierDeliveryCommissionPolicy | null | undefined;
   policyLoading?: boolean;
   policyError?: boolean;
@@ -12,11 +13,12 @@ interface Props {
 export function CourierDeliveryEarnings({
   shippingCost,
   earningEstimate,
+  savedPlatformFee,
   policy,
   policyLoading = false,
   policyError = false,
 }: Props) {
-  const breakdown = getCourierDeliveryEarningBreakdown({ shippingCost, earningEstimate, policy: policyError ? null : policy });
+  const breakdown = getCourierDeliveryEarningBreakdown({ shippingCost, earningEstimate, savedPlatformFee, policy: policyError ? null : policy });
   const commissionLabel = breakdown.platformFee == null
     ? policyError
       ? 'Tidak tersedia'

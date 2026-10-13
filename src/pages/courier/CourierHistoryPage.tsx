@@ -14,12 +14,15 @@ import { formatPrice } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
+import { getCourierDeliveryEarningBreakdown } from '@/lib/courierDeliveryEarnings';
 
 interface DeliveryRecord {
   id: string;
   status: string;
   total: number;
   shipping_cost: number;
+  courier_earning_estimate: number | null;
+  courier_platform_fee: number | null;
   delivery_name: string | null;
   delivery_phone: string | null;
   delivery_address: string | null;
@@ -106,7 +109,7 @@ export default function CourierHistoryPage() {
       ] = await Promise.all([
         supabase
           .from('orders')
-          .select('id, status, total, shipping_cost, delivery_name, delivery_phone, delivery_address, pod_image_url, pod_notes, pod_uploaded_at, delivered_at, created_at, assigned_at, picked_up_at, delivery_type')
+          .select('*')
           .eq('courier_id', courier.id)
           .order('created_at', { ascending: false }),
         supabase
@@ -145,7 +148,7 @@ export default function CourierHistoryPage() {
       }));
 
       return {
-        deliveries: deliveryData || [],
+        deliveries: (deliveryData || []) as unknown as DeliveryRecord[],
         rides: rideData || [],
         reviews: [...rideReviews, ...deliveryReviews].sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
@@ -182,8 +185,14 @@ export default function CourierHistoryPage() {
     return <Badge variant={style.variant}>{style.label}</Badge>;
   };
 
-  const DeliveryCard = ({ delivery }: { delivery: DeliveryRecord }) => (
-    <Card className="overflow-hidden">
+  const DeliveryCard = ({ delivery }: { delivery: DeliveryRecord }) => {
+    const breakdown = getCourierDeliveryEarningBreakdown({
+      shippingCost: delivery.shipping_cost,
+      earningEstimate: delivery.courier_earning_estimate,
+      savedPlatformFee: delivery.courier_platform_fee,
+      policy: null,
+    });
+    return <Card className="overflow-hidden">
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-3">
           <div>
@@ -210,20 +219,19 @@ export default function CourierHistoryPage() {
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div>
-            <p className="text-xs text-muted-foreground">Ongkir</p>
-            <p className="font-bold text-primary">{formatPrice(delivery.shipping_cost)}</p>
-          </div>
+        <div className="space-y-1 pt-3 border-t border-border text-sm">
+          <div className="flex justify-between gap-3"><span className="text-xs text-muted-foreground">Ongkir kurir (gross)</span><span>{formatPrice(breakdown.gross)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-xs text-muted-foreground">Fee platform</span><span>{breakdown.platformFee == null ? '—' : `−${formatPrice(breakdown.platformFee)}`}</span></div>
+          <div className="flex items-center justify-between gap-3 border-t pt-1"><span className="text-xs font-semibold">Pendapatan bersih</span><span className="font-bold text-primary">{breakdown.net == null ? '—' : formatPrice(breakdown.net)}</span></div>
           {delivery.pod_image_url && (
-            <Button variant="outline" size="sm" onClick={() => setSelectedPOD(delivery)}>
+            <Button className="mt-2" variant="outline" size="sm" onClick={() => setSelectedPOD(delivery)}>
               <ImageIcon className="h-4 w-4 mr-1" /> Lihat POD
             </Button>
           )}
         </div>
       </CardContent>
     </Card>
-  );
+  };
 
   const RideCard = ({ ride }: { ride: RideRecord }) => (
     <Card className="overflow-hidden">
