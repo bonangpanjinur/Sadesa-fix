@@ -5,9 +5,9 @@ describe('courier delivery earning breakdown', () => {
   it('estimates platform commission and net from the active delivery fee policy', () => {
     expect(getCourierDeliveryEarningBreakdown({
       shippingCost: 20000,
-      earningEstimate: 0,
+      earningEstimate: 15000,
       policy: { feePercent: 10, enabled: true, chargeCourierDelivery: true },
-    })).toEqual({ gross: 20000, platformFee: 2000, net: 18000 });
+    })).toEqual({ gross: 15000, platformFee: 1500, net: 13500, available: true });
   });
 
   it('uses the authoritative earning base when it differs from the customer shipping charge', () => {
@@ -15,23 +15,23 @@ describe('courier delivery earning breakdown', () => {
       shippingCost: 20000,
       earningEstimate: 15000,
       policy: { feePercent: 10, enabled: true, chargeCourierDelivery: true },
-    })).toEqual({ gross: 15000, platformFee: 1500, net: 13500 });
+    })).toEqual({ gross: 15000, platformFee: 1500, net: 13500, available: true });
   });
 
-  it('does not show a gross-only amount as net when the commission policy could not load', () => {
+  it('does not use the customer shipping charge when the courier estimate is missing', () => {
     expect(getCourierDeliveryEarningBreakdown({
       shippingCost: 20000,
       earningEstimate: null,
-      policy: null,
-    })).toEqual({ gross: 20000, platformFee: null, net: null });
+      policy: { feePercent: 10, enabled: true, chargeCourierDelivery: true },
+    })).toEqual({ gross: 0, platformFee: null, net: null, available: false });
   });
 
   it('does not deduct a commission when delivery fees are disabled', () => {
     expect(getCourierDeliveryEarningBreakdown({
       shippingCost: 20000,
-      earningEstimate: null,
+      earningEstimate: 15000,
       policy: { feePercent: 10, enabled: false, chargeCourierDelivery: true },
-    })).toEqual({ gross: 20000, platformFee: 0, net: 20000 });
+    })).toEqual({ gross: 15000, platformFee: 0, net: 15000, available: true });
   });
 
   it('uses the saved platform fee for completed orders instead of the current policy', () => {
@@ -40,6 +40,6 @@ describe('courier delivery earning breakdown', () => {
       earningEstimate: 15000,
       savedPlatformFee: 750,
       policy: { feePercent: 25, enabled: true, chargeCourierDelivery: true },
-    })).toEqual({ gross: 15000, platformFee: 750, net: 14250 });
+    })).toEqual({ gross: 15000, platformFee: 750, net: 14250, available: true });
   });
 });

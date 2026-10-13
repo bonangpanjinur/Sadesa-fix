@@ -220,9 +220,9 @@ export default function CourierHistoryPage() {
           )}
         </div>
         <div className="space-y-1 pt-3 border-t border-border text-sm">
-          <div className="flex justify-between gap-3"><span className="text-xs text-muted-foreground">Ongkir kurir (gross)</span><span>{formatPrice(breakdown.gross)}</span></div>
-          <div className="flex justify-between gap-3"><span className="text-xs text-muted-foreground">Fee platform</span><span>{breakdown.platformFee == null ? '—' : `−${formatPrice(breakdown.platformFee)}`}</span></div>
-          <div className="flex items-center justify-between gap-3 border-t pt-1"><span className="text-xs font-semibold">Pendapatan bersih</span><span className="font-bold text-primary">{breakdown.net == null ? '—' : formatPrice(breakdown.net)}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-xs text-muted-foreground">Ongkir kurir (gross)</span><span>{breakdown.available ? formatPrice(breakdown.gross) : 'Belum tersedia'}</span></div>
+          <div className="flex justify-between gap-3"><span className="text-xs text-muted-foreground">Fee platform</span><span>{!breakdown.available || breakdown.platformFee == null ? 'Belum tersedia' : `−${formatPrice(breakdown.platformFee)}`}</span></div>
+          <div className="flex items-center justify-between gap-3 border-t pt-1"><span className="text-xs font-semibold">Pendapatan bersih</span><span className="font-bold text-primary">{breakdown.net == null ? 'Belum tersedia' : formatPrice(breakdown.net)}</span></div>
           {delivery.pod_image_url && (
             <Button className="mt-2" variant="outline" size="sm" onClick={() => setSelectedPOD(delivery)}>
               <ImageIcon className="h-4 w-4 mr-1" /> Lihat POD

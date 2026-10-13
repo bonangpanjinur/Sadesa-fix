@@ -93,7 +93,7 @@ export default function CourierEarningsPage() {
         const order = earning.order_id ? orderById.get(earning.order_id) : undefined;
         const breakdown = getCourierDeliveryEarningBreakdown({
           shippingCost: order?.shipping_cost ?? earning.amount,
-          earningEstimate: order?.courier_earning_estimate,
+          earningEstimate: order?.courier_earning_estimate ?? earning.amount,
           savedPlatformFee: order?.courier_platform_fee,
           policy: null,
         });

@@ -93,7 +93,7 @@ export default function CourierPerformaPage() {
       const netEarning = (earning: CourierEarning) => {
         if (earning.type !== 'DELIVERY') return earning.amount || 0;
         const order = earning.order_id ? orderById.get(earning.order_id) : undefined;
-        return getCourierDeliveryEarningBreakdown({ shippingCost: order?.shipping_cost ?? earning.amount, earningEstimate: order?.courier_earning_estimate, savedPlatformFee: order?.courier_platform_fee, policy: null }).net ?? 0;
+        return getCourierDeliveryEarningBreakdown({ shippingCost: order?.shipping_cost, earningEstimate: order?.courier_earning_estimate ?? earning.amount, savedPlatformFee: order?.courier_platform_fee, policy: null }).net ?? 0;
       };
       const completed = orders.filter(o => o.status === 'DELIVERED' || o.status === 'COMPLETED');
       const totalEarnings = earnings.reduce((s, e) => s + netEarning(e), 0);
