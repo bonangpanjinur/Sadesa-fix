@@ -382,12 +382,16 @@ export default function AdminUsersPage() {
   };
 
   const filteredUsers = useMemo(() => {
+    const searchTerm = search.trim().toLowerCase();
+    const phoneSearchTerm = search.replace(/\D/g, '');
+
     return users.filter(user => {
-      const matchesSearch = 
-        user.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        user.email?.toLowerCase().includes(search.toLowerCase()) ||
-        user.phone?.includes(search) ||
-        user.userId.includes(search);
+      const normalizedPhone = user.phone?.replace(/\D/g, '') || '';
+      const matchesSearch = !searchTerm ||
+        user.fullName.toLowerCase().includes(searchTerm) ||
+        user.email?.toLowerCase().includes(searchTerm) ||
+        (phoneSearchTerm.length > 0 && normalizedPhone.includes(phoneSearchTerm)) ||
+        user.userId.toLowerCase().includes(searchTerm);
       
       const matchesRole = roleFilter === 'all' || user.roles.includes(roleFilter);
       const matchesStatus = statusFilter === 'all' || 
@@ -517,7 +521,7 @@ export default function AdminUsersPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Cari nama, telepon, atau ID..."
+                  placeholder="Cari nama, email, nomor WhatsApp, atau ID..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9"
