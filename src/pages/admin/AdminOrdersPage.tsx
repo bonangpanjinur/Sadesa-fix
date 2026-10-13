@@ -11,7 +11,8 @@ import {
   Clock, 
   CheckCircle2,
   Check,
-  BarChart3
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { DataTable } from '@/components/admin/DataTable';
@@ -97,6 +98,8 @@ const ADMIN_CANCEL_REASONS = [
   'Lainnya',
 ] as const;
 
+const ADMIN_DELETABLE_ORDER_STATUSES = ['CANCELED', 'CANCELLED'] as const;
+
 export default function AdminOrdersPage() {
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
@@ -107,6 +110,8 @@ export default function AdminOrdersPage() {
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [customCancelReason, setCustomCancelReason] = useState('');
+  const [pendingDeleteOrder, setPendingDeleteOrder] = useState<OrderRow | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
   const { data: orders = [], isLoading: loading, error: ordersError, refetch: refetchOrders } = useQuery<OrderRow[]>({
     queryKey: ['admin-orders-list'],
@@ -191,6 +196,27 @@ export default function AdminOrdersPage() {
     setPendingCancelOrder(order);
     setCancelReason('');
     setCustomCancelReason('');
+  };
+
+  const deleteCanceledOrder = async () => {
+    if (!pendingDeleteOrder || !ADMIN_DELETABLE_ORDER_STATUSES.includes(pendingDeleteOrder.status as typeof ADMIN_DELETABLE_ORDER_STATUSES[number])) return;
+    setDeleteSubmitting(true);
+    try {
+      const { error } = await supabase.rpc('admin_delete_canceled_order' as never, {
+        p_order_id: pendingDeleteOrder.id,
+      } as never);
+      if (error) throw error;
+      toast.success('Pesanan dibatalkan berhasil dihapus');
+      setPendingDeleteOrder(null);
+      setSelectedOrder(null);
+      setDetailDialogOpen(false);
+      await fetchOrders();
+    } catch (error) {
+      console.error('Admin canceled order deletion failed:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus pesanan dibatalkan');
+    } finally {
+      setDeleteSubmitting(false);
+    }
   };
 
   const verifyPayment = async (orderId: string) => {
@@ -468,6 +494,12 @@ export default function AdminOrdersPage() {
                 Batalkan Pesanan
               </DropdownMenuItem>
             )}
+            {ADMIN_DELETABLE_ORDER_STATUSES.includes(item.status as typeof ADMIN_DELETABLE_ORDER_STATUSES[number]) && (
+              <DropdownMenuItem onClick={() => setPendingDeleteOrder(item)} className="text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Hapus Pesanan Uji Coba
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -719,6 +751,38 @@ export default function AdminOrdersPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {cancelSubmitting ? 'Membatalkan...' : 'Ya, Batalkan Pesanan'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={!!pendingDeleteOrder}
+        onOpenChange={(open) => {
+          if (!open && !deleteSubmitting) setPendingDeleteOrder(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Hapus pesanan dibatalkan?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Pesanan <strong>#{pendingDeleteOrder?.id.slice(0, 8).toUpperCase()}</strong> akan dihapus permanen dari database.
+              Aksi ini hanya tersedia untuk pesanan berstatus <strong>Dibatalkan</strong> dan tidak dapat dibatalkan kembali.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSubmitting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void deleteCanceledOrder();
+              }}
+              disabled={deleteSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteSubmitting ? 'Menghapus...' : 'Ya, Hapus Permanen'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
