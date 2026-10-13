@@ -48,6 +48,12 @@ interface MerchantPaymentSettings {
   bankAccountName: string | null;
 }
 
+interface ShippingZoneEstimate {
+  name: string;
+  max_distance_km: number;
+  fee: number;
+}
+
 interface MarketplaceCheckoutQuote {
   subtotal: number;
   shipping_cost: number;
@@ -128,6 +134,7 @@ export default function CheckoutPage() {
 
   // Shipping settings from admin
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
+  const [shippingZones, setShippingZones] = useState<ShippingZoneEstimate[]>([]);
   // Merchant payment settings
   const [merchantPaymentSettings, setMerchantPaymentSettings] = useState<MerchantPaymentSettings & { qrisImageUrl: string | null } | null>(null);
   const [paymentSettingsLoadState, setPaymentSettingsLoadState] = useState<{
@@ -145,10 +152,12 @@ export default function CheckoutPage() {
   useEffect(() => {
     isXenditEnabled().then(setXenditAvailable);
     if (!user) guestSessionKeyRef.current = getGuestCheckoutSessionKey();
-    // Load admin shipping settings
-    supabase.from('app_settings').select('value').eq('key', 'shipping_base_fee').maybeSingle().then(({ data }) => {
-      if (data?.value) {
-        const v = data.value as Record<string, number>;
+    // Load the distance formula and the optional difficult-road zone surcharge.
+    supabase.from('app_settings').select('key, value').in('key', ['shipping_base_fee', 'shipping_zones']).then(({ data }) => {
+      const settings = (data || []) as Array<{ key: string; value: unknown }>;
+      const baseSetting = settings.find((setting) => setting.key === 'shipping_base_fee')?.value;
+      if (baseSetting && typeof baseSetting === 'object') {
+        const v = baseSetting as Record<string, number>;
         setShippingSettings({
           base_fee: v.base_fee ?? 5000,
           per_km_fee: v.per_km_fee ?? 2000,
@@ -156,6 +165,20 @@ export default function CheckoutPage() {
           max_fee: v.max_fee ?? 50000,
           free_shipping_min_order: v.free_shipping_min_order ?? 100000,
         });
+      }
+      const zoneSetting = settings.find((setting) => setting.key === 'shipping_zones')?.value;
+      if (zoneSetting && typeof zoneSetting === 'object' && Array.isArray((zoneSetting as { zones?: unknown }).zones)) {
+        setShippingZones(((zoneSetting as { zones: unknown[] }).zones).filter((zone): zone is ShippingZoneEstimate => {
+          if (!zone || typeof zone !== 'object') return false;
+          const candidate = zone as Partial<ShippingZoneEstimate>;
+          return typeof candidate.name === 'string'
+            && Number.isFinite(Number(candidate.max_distance_km))
+            && Number.isFinite(Number(candidate.fee));
+        }).map((zone) => ({
+          name: zone.name,
+          max_distance_km: Number(zone.max_distance_km),
+          fee: Math.max(0, Number(zone.fee)),
+        })));
       }
     });
   }, [user]);
@@ -186,13 +209,19 @@ export default function CheckoutPage() {
     const perKmFee = shippingSettings?.per_km_fee ?? 2000;
     const minFee = shippingSettings?.min_fee ?? 5000;
     const maxFee = shippingSettings?.max_fee ?? 50000;
+    const distance = Math.max(distanceKm ?? 0, 0);
+    const zone = shippingZones
+      .filter((candidate) => candidate.max_distance_km >= distance)
+      .sort((a, b) => a.max_distance_km - b.max_distance_km)[0]
+      ?? [...shippingZones].sort((a, b) => b.max_distance_km - a.max_distance_km)[0];
+    const zoneSurcharge = Math.max(0, zone?.fee ?? 0);
 
     if (distanceKm !== null && distanceKm > 0) {
-      return Math.min(maxFee, Math.max(minFee, baseFee + Math.round(distanceKm * perKmFee)));
+      return Math.min(maxFee, Math.max(minFee, baseFee + Math.round(distanceKm * perKmFee) + zoneSurcharge));
     }
 
-    return baseFee;
-  }, [deliveryType, distanceKm, shippingSettings, subtotal]);
+    return Math.min(maxFee, Math.max(minFee, baseFee + zoneSurcharge));
+  }, [deliveryType, distanceKm, shippingSettings, shippingZones, subtotal]);
   const routeCalculationPending = deliveryType !== 'PICKUP'
     && Boolean(merchantLocation && addressData.location)
     && distanceSource === 'calculating';

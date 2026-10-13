@@ -342,7 +342,8 @@ export default function AdminSettingsPage() {
                     />
 
                     <div className="border-t border-border pt-6">
-                      <h4 className="font-medium mb-4">Zona Pengiriman</h4>
+                      <h4 className="font-medium mb-4">Zona Pengiriman dan Kesulitan Jalan</h4>
+                      <p className="mb-4 text-sm text-muted-foreground">Ongkir ojek tetap dihitung berdasarkan jarak. Fee zona ditambahkan sebagai surcharge untuk jalan yang lebih sulit.</p>
                       <ShippingZonesForm
                         initialValues={shippingZones}
                         onSave={async (values) => {
@@ -592,8 +593,8 @@ function ShippingZonesForm({ initialValues, onSave, isSaving }: { initialValues?
           <div key={index} className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg">
             <div className="flex-1 grid gap-2 md:grid-cols-3">
               <Input value={zone.name} onChange={(e) => updateZone(index, 'name', e.target.value)} />
-              <Input type="number" value={zone.max_distance_km} onChange={(e) => updateZone(index, 'max_distance_km', e.target.value)} />
-              <Input type="number" value={zone.fee} onChange={(e) => updateZone(index, 'fee', e.target.value)} />
+              <Input type="number" aria-label={`Batas jarak zona ${index + 1} (km)`} value={zone.max_distance_km} onChange={(e) => updateZone(index, 'max_distance_km', e.target.value)} />
+              <Input type="number" aria-label={`Surcharge zona ${index + 1} (Rp)`} value={zone.fee} onChange={(e) => updateZone(index, 'fee', e.target.value)} />
             </div>
             <Button type="button" variant="ghost" onClick={() => removeZone(index)} disabled={zones.length <= 1}><Trash2 className="h-4 w-4 text-destructive" /></Button>
           </div>
