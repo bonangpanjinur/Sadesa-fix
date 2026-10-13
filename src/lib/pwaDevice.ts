@@ -18,6 +18,10 @@ export interface PwaDeviceSession {
   updated_at: string;
 }
 
+export function shouldForcePwaDeviceLogout(status: PwaDeviceSession['status']) {
+  return status === 'revoked';
+}
+
 export interface PwaDeviceScopeReadiness {
   userId: string | null | undefined;
   tenantId: string | null | undefined;

@@ -86,7 +86,7 @@ export function AdminLayout({ children, title, subtitle, rightElement }: AdminLa
 
       <div className={cn(
         'w-[min(17rem,calc(100vw-2rem))] sm:w-64 lg:w-64 flex-shrink-0 transition-transform duration-200 ease-out',
-        'fixed sm:relative inset-y-0 left-0 z-50 lg:z-0',
+        'fixed sm:relative inset-y-0 left-0 z-50 lg:z-0 h-dvh',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0',
       )}>
         <AdminSidebar

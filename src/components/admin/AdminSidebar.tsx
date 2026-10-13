@@ -188,7 +188,7 @@ export function AdminSidebar({
   };
 
   return (
-    <aside className="w-full h-screen bg-card border-r border-border flex flex-col sticky top-0 overflow-hidden">
+    <aside className="w-full h-dvh min-h-0 bg-card border-r border-border flex flex-col sticky top-0 overflow-hidden">
       <div className="p-3 sm:p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -276,7 +276,10 @@ export function AdminSidebar({
         {visibleGroups.length === 0 && <p className="px-3 py-8 text-center text-xs text-muted-foreground">Menu tidak ditemukan.</p>}
       </nav>
 
-      <div className="p-2 sm:p-3 border-t border-border">
+      <div
+        className="shrink-0 p-2 sm:p-3 border-t border-border"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+      >
         <Link to="/" state={{ skipRoleRedirect: true }} onClick={onClose} className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4 flex-shrink-0" />
           <span className="truncate">Kembali ke Aplikasi</span>

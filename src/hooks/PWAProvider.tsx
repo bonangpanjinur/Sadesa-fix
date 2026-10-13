@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { allowsPwaDeviceRegistration, canRegisterPwaDeviceForSession, heartbeatPwaDevice, registerPwaDevice, type PwaDeviceSession } from '@/lib/pwaDevice';
+import { allowsPwaDeviceRegistration, canRegisterPwaDeviceForSession, heartbeatPwaDevice, registerPwaDevice, shouldForcePwaDeviceLogout, type PwaDeviceSession } from '@/lib/pwaDevice';
 import { PWAContext, type PWAContextValue } from './PWAContext';
 import { reportObservability } from '@/lib/observability';
 import { supabase } from '@/integrations/supabase/client';
@@ -111,6 +111,7 @@ function usePWAController(): PWAContextValue {
   const registrationInFlight = useRef(new Map<string, Promise<PwaDeviceSession | null>>());
   const activeDeviceScope = useRef<string | null>(null);
   const deviceHeartbeatEnabled = useRef(false);
+  const forcedLogoutStarted = useRef(false);
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const heartbeat = useCallback(async (syncAt?: string | null) => {
@@ -121,6 +122,12 @@ function usePWAController(): PWAContextValue {
     const device = await heartbeatPwaDevice(syncAt);
     if (!device) return null;
     setStatus((prev) => ({ ...prev, device, deviceRevoked: device.status === 'revoked' }));
+    if (shouldForcePwaDeviceLogout(device.status) && !forcedLogoutStarted.current) {
+      forcedLogoutStarted.current = true;
+      reportObservability('device', 'device_revoked_forced_logout', 'warn', { deviceId: device.id });
+      await supabase.auth.signOut({ scope: 'local' });
+      window.location.assign('/auth?reason=device-revoked');
+    }
     return device;
   }, []);
 
@@ -307,6 +314,7 @@ function usePWAController(): PWAContextValue {
     activeDeviceScope.current = scope.key;
     deviceHeartbeatEnabled.current = false;
     stopHeartbeat();
+    forcedLogoutStarted.current = false;
     setStatus((prev) => ({ ...prev, device: null, deviceRevoked: false }));
 
     const registerWhenEntitled = async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allowsPwaDeviceRegistration, canRegisterPwaDeviceForSession } from './pwaDevice';
+import { allowsPwaDeviceRegistration, canRegisterPwaDeviceForSession, shouldForcePwaDeviceLogout } from './pwaDevice';
 
 describe('canRegisterPwaDeviceForSession', () => {
   const ready = {
@@ -43,5 +43,13 @@ describe('allowsPwaDeviceRegistration', () => {
   it('fails closed for an unknown entitlement payload', () => {
     expect(allowsPwaDeviceRegistration(null)).toBe(false);
     expect(allowsPwaDeviceRegistration({ enabled: false })).toBe(false);
+  });
+});
+
+describe('shouldForcePwaDeviceLogout', () => {
+  it('forces a device out after an admin revokes its session', () => {
+    expect(shouldForcePwaDeviceLogout('revoked')).toBe(true);
+    expect(shouldForcePwaDeviceLogout('active')).toBe(false);
+    expect(shouldForcePwaDeviceLogout('idle')).toBe(false);
   });
 });
