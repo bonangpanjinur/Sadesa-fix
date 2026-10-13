@@ -505,10 +505,16 @@ export default function AdminOrdersPage() {
                 </DropdownMenuItem>
               </>
             )}
-            {item.status === 'PROCESSED' && (
-              <DropdownMenuItem onClick={() => updateOrderStatus(item.id, item.delivery_type === 'PICKUP' ? 'READY' : 'SENT')}>
+            {item.status === 'PROCESSED' && item.delivery_type === 'PICKUP' && (
+              <DropdownMenuItem onClick={() => updateOrderStatus(item.id, 'READY')}>
                 <Truck className="h-4 w-4 mr-2" />
-                {item.delivery_type === 'PICKUP' ? 'Siap Diambil' : 'Kirim'}
+                Siap Diambil
+              </DropdownMenuItem>
+            )}
+            {item.status === 'PROCESSED' && item.delivery_type === 'INTERNAL' && !item.courier_id && (
+              <DropdownMenuItem onClick={() => openAssignDialog(item)}>
+                <Truck className="h-4 w-4 mr-2" />
+                Tugaskan Kurir Desa
               </DropdownMenuItem>
             )}
             {item.status === 'READY' && item.delivery_type === 'PICKUP' && (
