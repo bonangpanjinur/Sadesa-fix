@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Sparkles, Flame, MapPin, ShoppingBag, Store, Receipt, Truck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -17,8 +17,10 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import {
+  getHomepageProductCutoffISO,
+  getHomepageRotationBucket,
   hasEnoughBestSellingHistory,
-  selectNewestProducts,
+  selectRotatingProducts,
   selectTopSellingProducts,
 } from '@/lib/homepageProducts';
 import { groupNewestProductsByCategory } from '@/lib/homepageProductCategories';
@@ -80,6 +82,13 @@ const Index = () => {
   const navigate = useNavigate();
   const [promoMaxDistance, setPromoMaxDistance] = useState('10');
   const [newestMaxDistance, setNewestMaxDistance] = useState('all');
+  const [rotationBucket, setRotationBucket] = useState(() => getHomepageRotationBucket());
+
+  useEffect(() => {
+    const refreshRotation = () => setRotationBucket(getHomepageRotationBucket());
+    const timer = window.setInterval(refreshRotation, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   
   const { getEnabledSections } = useHomepageLayout();
   const { user } = useAuth();
@@ -138,11 +147,20 @@ const Index = () => {
     isError: productsError,
     refetch: refetchProducts,
   } = useQuery<Product[]>({
-    queryKey: ['homepage-products'],
-    queryFn: withErrorLog('products', 'homepage-products', { staleTime: 60_000 }, () =>
-      // Category rows need a recent sample broad enough to represent more than
-      // one or two categories without fetching the full catalogue.
-      fetchProducts({ limit: 48, includeReviews: false, cacheKey: 'homepage-products' })
+    queryKey: ['homepage-products', rotationBucket],
+    queryFn: withErrorLog('products', 'homepage-products', {
+      staleTime: 60_000,
+      rotationHours: 6,
+      minimumAgeDays: 14,
+    }, () =>
+      // The homepage rotates a deterministic sample every six hours. The
+      // server-side cutoff keeps products newly registered ineligible for 14 days.
+      fetchProducts({
+        limit: 48,
+        includeReviews: false,
+        cacheKey: 'homepage-products-rotating',
+        createdBefore: getHomepageProductCutoffISO(),
+      })
     ),
     staleTime: 60_000,
   });
@@ -283,7 +301,10 @@ const Index = () => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    let selectedNewest = selectNewestProducts(products, highlightedProductIds, 48);
+    let selectedNewest = selectRotatingProducts(products, highlightedProductIds, {
+      limit: 48,
+      rotationBucket,
+    });
     // Keep freshness as the candidate pool, then prioritize nearby merchants
     // within that pool when we know the user's actual location.
     if (userLocation && userLocation.source !== 'default') {
@@ -295,7 +316,7 @@ const Index = () => {
       return sortByDistance(selectedNewest, userLocation.lat, userLocation.lng);
     }
     return selectedNewest;
-  }, [products, promoProducts, promoSectionEnabled, userLocation, newestMaxDistance]);
+  }, [products, promoProducts, promoSectionEnabled, rotationBucket, userLocation, newestMaxDistance]);
   const newestProductRows = useMemo(
     () => groupNewestProductsByCategory(newestProducts, activeProductCategories),
     [newestProducts, activeProductCategories],
@@ -503,6 +524,7 @@ const Index = () => {
                 </div>
                 <div>
                   <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
+                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap 6 jam · produk minimal 14 hari</p>
                   <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <MapPin className="h-3 w-3" />
                     Maks. jarak

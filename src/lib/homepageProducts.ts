@@ -1,5 +1,6 @@
 interface HomepageProduct {
   id: string;
+  createdAt?: string | null;
   name?: string | null;
   description?: string | null;
   price?: number | null;
@@ -12,6 +13,32 @@ interface HomepageSalesProduct extends HomepageProduct {
 }
 
 export const HOMEPAGE_BEST_SELLER_MIN_UNITS = 10;
+export const HOMEPAGE_ROTATION_INTERVAL_MS = 6 * 60 * 60 * 1000;
+export const HOMEPAGE_MIN_PRODUCT_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+export function getHomepageRotationBucket(
+  timestamp = Date.now(),
+  intervalMs = HOMEPAGE_ROTATION_INTERVAL_MS,
+) {
+  return Math.floor(timestamp / intervalMs);
+}
+
+export function getHomepageProductCutoffISO(
+  timestamp = Date.now(),
+  minimumAgeMs = HOMEPAGE_MIN_PRODUCT_AGE_MS,
+) {
+  return new Date(timestamp - minimumAgeMs).toISOString();
+}
+
+function rotationScore(productId: string, rotationBucket: number) {
+  let hash = 2166136261;
+  const key = `${rotationBucket}:${productId}`;
+  for (let index = 0; index < key.length; index += 1) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
 
 export function isCompleteProduct(product: HomepageProduct): boolean {
   return Boolean(
@@ -31,6 +58,30 @@ export function selectNewestProducts<T extends HomepageProduct>(
   return products
     .filter(isCompleteProduct)
     .filter((product) => !featuredProductIds.has(product.id))
+    .slice(0, limit);
+}
+
+export function selectRotatingProducts<T extends HomepageProduct>(
+  products: T[],
+  featuredProductIds: ReadonlySet<string>,
+  options: { limit?: number; rotationBucket?: number; now?: number; minimumAgeMs?: number } = {},
+): T[] {
+  const {
+    limit = 48,
+    rotationBucket = getHomepageRotationBucket(),
+    now = Date.now(),
+    minimumAgeMs = HOMEPAGE_MIN_PRODUCT_AGE_MS,
+  } = options;
+  const cutoff = now - minimumAgeMs;
+
+  return products
+    .filter(isCompleteProduct)
+    .filter((product) => !featuredProductIds.has(product.id))
+    .filter((product) => {
+      const createdAt = product.createdAt ? Date.parse(product.createdAt) : Number.NaN;
+      return Number.isFinite(createdAt) && createdAt <= cutoff;
+    })
+    .sort((a, b) => rotationScore(a.id, rotationBucket) - rotationScore(b.id, rotationBucket))
     .slice(0, limit);
 }
 

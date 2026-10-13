@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hasEnoughBestSellingHistory,
   isCompleteProduct,
+  selectRotatingProducts,
   selectNewestProducts,
   selectTopSellingProducts,
 } from './homepageProducts';
@@ -54,6 +55,37 @@ describe('selectNewestProducts', () => {
     const products = Array.from({ length: 8 }, (_, index) => complete(`product-${index}`, { isActive: true }));
 
     expect(selectNewestProducts(products, new Set(), 3)).toHaveLength(3);
+  });
+});
+
+describe('selectRotatingProducts', () => {
+  const complete = (id: string, createdAt: string) => ({
+    id,
+    name: 'Produk lama',
+    description: 'Deskripsi produk lama',
+    price: 15000,
+    category: 'makanan',
+    hasImage: true,
+    createdAt,
+  });
+  const now = Date.parse('2026-10-13T12:00:00.000Z');
+  const old = '2026-09-28T11:59:59.000Z';
+  const tooNew = '2026-09-29T12:00:01.000Z';
+
+  it('excludes products registered less than fourteen days ago', () => {
+    expect(selectRotatingProducts([
+      complete('old', old),
+      complete('too-new', tooNew),
+    ], new Set(), { now, rotationBucket: 1 }).map((product) => product.id)).toEqual(['old']);
+  });
+
+  it('keeps one six-hour bucket stable while changing the order in another bucket', () => {
+    const products = ['a', 'b', 'c', 'd'].map((id) => complete(id, old));
+    const first = selectRotatingProducts(products, new Set(), { now, rotationBucket: 10 }).map((product) => product.id);
+    const repeat = selectRotatingProducts(products, new Set(), { now, rotationBucket: 10 }).map((product) => product.id);
+    const next = selectRotatingProducts(products, new Set(), { now, rotationBucket: 11 }).map((product) => product.id);
+    expect(repeat).toEqual(first);
+    expect(next).not.toEqual(first);
   });
 });
 
