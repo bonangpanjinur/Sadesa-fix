@@ -112,6 +112,8 @@ export default function AdminOrdersPage() {
   const [customCancelReason, setCustomCancelReason] = useState('');
   const [pendingDeleteOrder, setPendingDeleteOrder] = useState<OrderRow | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const { data: orders = [], isLoading: loading, error: ordersError, refetch: refetchOrders } = useQuery<OrderRow[]>({
     queryKey: ['admin-orders-list'],
@@ -522,7 +524,8 @@ export default function AdminOrdersPage() {
         { value: 'SENT', label: 'Dikirim' },
         { value: 'DELIVERED', label: 'Sampai' },
         { value: 'DONE', label: 'Selesai' },
-        { value: 'CANCELLED', label: 'Dibatalkan' },
+        { value: 'CANCELED', label: 'Dibatalkan' },
+        { value: 'CANCELLED', label: 'Dibatalkan (legacy)' },
         { value: 'REJECTED', label: 'Ditolak' },
       ],
     },
@@ -547,6 +550,13 @@ export default function AdminOrdersPage() {
       ],
     },
   ];
+
+  const dateFilteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const orderDate = new Date(order.created_at).toISOString().slice(0, 10);
+      return (!dateFrom || orderDate >= dateFrom) && (!dateTo || orderDate <= dateTo);
+    });
+  }, [orders, dateFrom, dateTo]);
 
   return (
     <AdminLayout title="Manajemen Pesanan" subtitle="Pantau dan kelola semua transaksi masuk">
@@ -639,8 +649,48 @@ export default function AdminOrdersPage() {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6">
+          <div className="mb-4 flex flex-col gap-3 rounded-lg border border-border bg-secondary/20 p-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+                Tanggal mulai
+                <input
+                  type="date"
+                  value={dateFrom}
+                  max={dateTo || undefined}
+                  onChange={(event) => setDateFrom(event.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground"
+                  aria-label="Tanggal mulai pesanan"
+                />
+              </label>
+              <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+                Tanggal sampai
+                <input
+                  type="date"
+                  value={dateTo}
+                  min={dateFrom || undefined}
+                  onChange={(event) => setDateTo(event.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm font-normal text-foreground"
+                  aria-label="Tanggal sampai pesanan"
+                />
+              </label>
+            </div>
+            {(dateFrom || dateTo) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 self-start sm:self-end"
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+              >
+                Reset tanggal
+              </Button>
+            )}
+          </div>
           <DataTable
-            data={orders}
+            data={dateFilteredOrders}
             columns={columns}
             searchKeys={['id', 'delivery_name', 'delivery_phone']}
             searchPlaceholder="Cari ID, pelanggan, atau telepon..."
