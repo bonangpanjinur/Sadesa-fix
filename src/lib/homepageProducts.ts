@@ -13,8 +13,8 @@ interface HomepageSalesProduct extends HomepageProduct {
 }
 
 export const HOMEPAGE_BEST_SELLER_MIN_UNITS = 10;
-export const HOMEPAGE_ROTATION_INTERVAL_MS = 6 * 60 * 60 * 1000;
-export const HOMEPAGE_MIN_PRODUCT_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+export const HOMEPAGE_ROTATION_INTERVAL_MS = 60 * 60 * 1000;
+export const HOMEPAGE_NEW_PRODUCT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 export function getHomepageRotationBucket(
   timestamp = Date.now(),
@@ -25,9 +25,9 @@ export function getHomepageRotationBucket(
 
 export function getHomepageProductCutoffISO(
   timestamp = Date.now(),
-  minimumAgeMs = HOMEPAGE_MIN_PRODUCT_AGE_MS,
+  windowMs = HOMEPAGE_NEW_PRODUCT_WINDOW_MS,
 ) {
-  return new Date(timestamp - minimumAgeMs).toISOString();
+  return new Date(timestamp - windowMs).toISOString();
 }
 
 function rotationScore(productId: string, rotationBucket: number) {
@@ -64,22 +64,22 @@ export function selectNewestProducts<T extends HomepageProduct>(
 export function selectRotatingProducts<T extends HomepageProduct>(
   products: T[],
   featuredProductIds: ReadonlySet<string>,
-  options: { limit?: number; rotationBucket?: number; now?: number; minimumAgeMs?: number } = {},
+  options: { limit?: number; rotationBucket?: number; now?: number; windowMs?: number } = {},
 ): T[] {
   const {
     limit = 48,
     rotationBucket = getHomepageRotationBucket(),
     now = Date.now(),
-    minimumAgeMs = HOMEPAGE_MIN_PRODUCT_AGE_MS,
+    windowMs = HOMEPAGE_NEW_PRODUCT_WINDOW_MS,
   } = options;
-  const cutoff = now - minimumAgeMs;
+  const cutoff = now - windowMs;
 
   return products
     .filter(isCompleteProduct)
     .filter((product) => !featuredProductIds.has(product.id))
     .filter((product) => {
       const createdAt = product.createdAt ? Date.parse(product.createdAt) : Number.NaN;
-      return Number.isFinite(createdAt) && createdAt <= cutoff;
+      return Number.isFinite(createdAt) && createdAt >= cutoff && createdAt <= now;
     })
     .sort((a, b) => rotationScore(a.id, rotationBucket) - rotationScore(b.id, rotationBucket))
     .slice(0, limit);

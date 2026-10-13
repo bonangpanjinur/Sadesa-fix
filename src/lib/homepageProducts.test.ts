@@ -69,18 +69,18 @@ describe('selectRotatingProducts', () => {
     createdAt,
   });
   const now = Date.parse('2026-10-13T12:00:00.000Z');
-  const old = '2026-09-28T11:59:59.000Z';
-  const tooNew = '2026-09-29T12:00:01.000Z';
+  const recent = '2026-10-01T12:00:01.000Z';
+  const tooOld = '2026-09-29T11:59:59.000Z';
 
-  it('excludes products registered less than fourteen days ago', () => {
+  it('only includes products registered in the last fourteen days', () => {
     expect(selectRotatingProducts([
-      complete('old', old),
-      complete('too-new', tooNew),
-    ], new Set(), { now, rotationBucket: 1 }).map((product) => product.id)).toEqual(['old']);
+      complete('recent', recent),
+      complete('too-old', tooOld),
+    ], new Set(), { now, rotationBucket: 1 }).map((product) => product.id)).toEqual(['recent']);
   });
 
-  it('keeps one six-hour bucket stable while changing the order in another bucket', () => {
-    const products = ['a', 'b', 'c', 'd'].map((id) => complete(id, old));
+  it('keeps one hourly bucket stable while changing the order in another bucket', () => {
+    const products = ['a', 'b', 'c', 'd'].map((id) => complete(id, recent));
     const first = selectRotatingProducts(products, new Set(), { now, rotationBucket: 10 }).map((product) => product.id);
     const repeat = selectRotatingProducts(products, new Set(), { now, rotationBucket: 10 }).map((product) => product.id);
     const next = selectRotatingProducts(products, new Set(), { now, rotationBucket: 11 }).map((product) => product.id);

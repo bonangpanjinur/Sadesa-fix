@@ -150,16 +150,16 @@ const Index = () => {
     queryKey: ['homepage-products', rotationBucket],
     queryFn: withErrorLog('products', 'homepage-products', {
       staleTime: 60_000,
-      rotationHours: 6,
-      minimumAgeDays: 14,
+      rotationHours: 1,
+      newestProductWindowDays: 14,
     }, () =>
-      // The homepage rotates a deterministic sample every six hours. The
-      // server-side cutoff keeps products newly registered ineligible for 14 days.
+      // The homepage rotates a deterministic sample every hour. The server-side
+      // cutoff keeps the candidate pool limited to products from the last 14 days.
       fetchProducts({
         limit: 48,
         includeReviews: false,
         cacheKey: 'homepage-products-rotating',
-        createdBefore: getHomepageProductCutoffISO(),
+        createdAfter: getHomepageProductCutoffISO(),
       })
     ),
     staleTime: 60_000,
@@ -524,7 +524,7 @@ const Index = () => {
                 </div>
                 <div>
                   <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
-                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap 6 jam · produk minimal 14 hari</p>
+                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap jam · produk 14 hari terakhir</p>
                   <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <MapPin className="h-3 w-3" />
                     Maks. jarak

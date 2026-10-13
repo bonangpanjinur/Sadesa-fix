@@ -243,7 +243,7 @@ interface FetchProductsOptions {
   search?: string;
   categoryIds?: string[] | null;
   merchantId?: string | null;
-  createdBefore?: string;
+  createdAfter?: string;
   promoOnly?: boolean;
   inStockOnly?: boolean;
   maxPrice?: number;
@@ -296,14 +296,14 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
     search = '',
     categoryIds,
     merchantId,
-    createdBefore,
+    createdAfter,
     promoOnly = false,
     inStockOnly = false,
     maxPrice,
     sort = 'newest',
   } = options;
   const normalizedLimit = Math.min(Math.max(limit, 1), 48);
-  const cacheSuffix = JSON.stringify({ offset, normalizedLimit, search, categoryIds, merchantId, createdBefore, promoOnly, inStockOnly, maxPrice, sort });
+  const cacheSuffix = JSON.stringify({ offset, normalizedLimit, search, categoryIds, merchantId, createdAfter, promoOnly, inStockOnly, maxPrice, sort });
   const cacheKeyWithParams = `${cacheKey}:${cacheSuffix}`;
   const cached = getCached<ProductPage>(cacheKeyWithParams);
   if (cached) return cached;
@@ -353,7 +353,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
   }
   if (categoryIds?.length) query = query.in('category_id', categoryIds);
   if (merchantId) query = query.eq('merchant_id', merchantId);
-  if (createdBefore) query = query.lt('created_at', createdBefore);
+  if (createdAfter) query = query.gte('created_at', createdAfter);
   if (promoOnly) query = query.eq('is_promo', true);
   if (inStockOnly) query = query.gt('stock', 0);
   if (maxPrice != null && maxPrice < 100000) query = query.lte('price', maxPrice);
