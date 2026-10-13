@@ -159,6 +159,7 @@ export function AdminSidebar({
       label: 'Sistem',
       items: [
         { label: 'PWA Devices', href: '/admin/pwa-devices', icon: <Smartphone className="h-4 w-4" /> },
+        { label: 'Aktivitas Login', href: '/admin/login-activity', icon: <Clock3 className="h-4 w-4" /> },
         { label: 'Fraud Blocks', href: '/admin/fraud-blocks', icon: <ShieldOff className="h-4 w-4" /> },
         { label: 'Backup Data', href: '/admin/backup', icon: <Database className="h-4 w-4" /> },
         { label: 'Ojek Desa', href: '/admin/rides', icon: <Activity className="h-4 w-4" /> },

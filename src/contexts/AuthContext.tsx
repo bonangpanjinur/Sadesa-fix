@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { AppRole } from '@/types/auth';
 import { ensureBuyerFallback, joinExistingRoleLoad, mergeCourierRole, mergeMerchantRole, shouldFetchRolesForAuthEvent } from '@/lib/authRoles';
 import { normalizeEmail, signupEmailSchema } from '@/lib/emailValidation';
+import { recordAdminLoginActivity, touchAdminLoginActivity } from '@/lib/loginActivity';
 
 interface SignupAddress {
   province: string;
@@ -194,6 +195,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, fetchUserRoles]);
 
   useEffect(() => {
+    if (!user || !roles.includes('admin')) return undefined;
+    void touchAdminLoginActivity();
+    const timer = window.setInterval(() => { void touchAdminLoginActivity(); }, 5 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [user, roles]);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const previousUserId = activeUserIdRef.current;
@@ -334,6 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     if (!error) {
+      void recordAdminLoginActivity();
       broadcastRef.current?.postMessage({ type: 'LOGIN' });
     }
     return { error };
