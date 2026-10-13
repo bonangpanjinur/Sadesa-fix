@@ -261,35 +261,65 @@ export default function AdminOrdersPage() {
     setCourierAssignDialogOpen(true);
   };
 
-  const handleExport = (data: OrderRow[]) => {
-    if (data.length === 0) return;
-    
-    const headers = ['ID', 'Merchant', 'Pelanggan', 'Total', 'Status', 'Pembayaran', 'Tanggal'];
-    const csvData = data.map(o => [
-      o.id,
-      o.merchants?.name || '-',
-      o.delivery_name || '-',
-      o.total,
-      o.status,
-      o.payment_status || '-',
-      new Date(o.created_at).toLocaleString('id-ID')
-    ]);
-    
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => row.join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const exportHeaders = ['ID', 'Merchant', 'Pelanggan', 'Nomor WhatsApp', 'Alamat', 'Subtotal', 'Ongkir', 'Total', 'Status', 'Pembayaran', 'Pengiriman', 'Alasan Pembatalan', 'Tanggal'];
+  const getExportRows = (data: OrderRow[]) => data.map((order) => [
+    order.id,
+    order.merchants?.name || '-',
+    order.delivery_name || '-',
+    order.delivery_phone || '-',
+    order.delivery_address || '-',
+    order.subtotal,
+    order.shipping_cost,
+    order.total,
+    order.status,
+    order.payment_status || '-',
+    order.delivery_type,
+    order.cancellation_reason || '-',
+    new Date(order.created_at).toLocaleString('id-ID'),
+  ]);
+
+  const downloadExport = (content: string | Blob, filename: string, type?: string) => {
+    const blob = content instanceof Blob ? content : new Blob([content], { type });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `pesanan-umkm-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Data pesanan berhasil diekspor');
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = (data: OrderRow[]) => {
+    if (data.length === 0) {
+      toast.info('Tidak ada data pesanan untuk diekspor');
+      return;
+    }
+    const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const csvContent = [
+      exportHeaders,
+      ...getExportRows(data),
+    ].map((row) => row.map(escapeCsv).join(',')).join('\r\n');
+    const date = new Date().toISOString().split('T')[0];
+    downloadExport(`\uFEFF${csvContent}`, `pesanan-umkm-${date}.csv`, 'text/csv;charset=utf-8;');
+    toast.success(`${data.length} pesanan berhasil diekspor ke CSV`);
+  };
+
+  const handleExportExcel = (data: OrderRow[]) => {
+    if (data.length === 0) {
+      toast.info('Tidak ada data pesanan untuk diekspor');
+      return;
+    }
+    const escapeHtml = (value: unknown) => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const table = [
+      `<tr>${exportHeaders.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr>`,
+      ...getExportRows(data).map((row) => `<tr>${row.map((value) => `<td>${escapeHtml(value)}</td>`).join('')}</tr>`),
+    ].join('');
+    const html = `<html><head><meta charset="UTF-8"></head><body><table>${table}</table></body></html>`;
+    const date = new Date().toISOString().split('T')[0];
+    downloadExport(`\uFEFF${html}`, `pesanan-umkm-${date}.xls`, 'application/vnd.ms-excel;charset=utf-8;');
+    toast.success(`${data.length} pesanan berhasil diekspor ke Excel`);
   };
 
   const getStatusBadge = (status: string) => {
@@ -699,6 +729,7 @@ export default function AdminOrdersPage() {
             error={ordersError ? 'Gagal memuat daftar pesanan. Periksa koneksi dan permission database.' : null}
             onRetry={() => void refetchOrders()}
             onExport={handleExport}
+            onExportExcel={handleExportExcel}
             emptyMessage="Belum ada pesanan yang sesuai"
           />
         </div>

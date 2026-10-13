@@ -37,6 +37,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   className?: string;
   onExport?: (data: T[]) => void; // Optional export function
+  onExportExcel?: (data: T[]) => void; // Optional Excel-compatible export function
   error?: string | null;
   onRetry?: () => void;
   mobileCardRender?: (item: T) => React.ReactNode;
@@ -55,6 +56,7 @@ export function DataTable<T extends { id: string }>({
   emptyMessage = 'Tidak ada data',
   className,
   onExport,
+  onExportExcel,
   error = null,
   onRetry,
   mobileCardRender,
@@ -167,7 +169,13 @@ export function DataTable<T extends { id: string }>({
           {onExport && (
             <Button variant="outline" size="sm" onClick={() => onExport(filteredData)} className="h-9 px-3">
               <Download className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Ekspor</span>
+              <span className="hidden sm:inline">CSV</span>
+            </Button>
+          )}
+          {onExportExcel && (
+            <Button variant="outline" size="sm" onClick={() => onExportExcel(filteredData)} className="h-9 px-3">
+              <Download className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Excel</span>
             </Button>
           )}
         </div>
