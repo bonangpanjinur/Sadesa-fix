@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, ToggleLeft, Globe, CreditCard, AlertCircle, Truck, Percent, Plus, Trash2, ShieldCheck, Palette, Package } from 'lucide-react';
+import { Save, ToggleLeft, Globe, CreditCard, AlertCircle, Truck, Percent, Plus, Trash2, ShieldCheck, Palette, Package, ArrowDown, ArrowUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -12,6 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchAppSettings, updateAppSetting } from '@/lib/adminApi';
 import { clearCODSettingsCache } from '@/lib/codSecurity';
 import { BrandingAppearanceSettings } from '@/components/admin/BrandingAppearanceSettings';
+import { validateShippingFeeSettings, validateShippingZonesSettings } from '@/lib/shippingSettingsValidation';
+import { supabase } from '@/integrations/supabase/client';
 import type { 
   AppSetting, 
   RegistrationSettings, 
@@ -25,13 +27,26 @@ import type {
 } from '@/types/admin';
 import { toast } from 'sonner';
 
+type ShippingPricingAuditEntry = {
+  id: number;
+  setting_key: 'shipping_base_fee' | 'shipping_zones';
+  old_value: unknown;
+  new_value: unknown;
+  changed_by: string | null;
+  created_at: string;
+};
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<AppSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [shippingAudit, setShippingAudit] = useState<ShippingPricingAuditEntry[]>([]);
+  const [shippingAuditLoading, setShippingAuditLoading] = useState(true);
+  const [shippingAuditError, setShippingAuditError] = useState(false);
 
   useEffect(() => {
     loadSettings();
+    void loadShippingAudit();
   }, []);
 
   const loadSettings = async () => {
@@ -42,6 +57,25 @@ export default function AdminSettingsPage() {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadShippingAudit = async () => {
+    setShippingAuditLoading(true);
+    setShippingAuditError(false);
+    try {
+      const { data, error } = await supabase
+        .from('shipping_pricing_change_log' as never)
+        .select('id,setting_key,old_value,new_value,changed_by,created_at' as never)
+        .order('created_at' as never, { ascending: false } as never)
+        .limit(25);
+      if (error) throw error;
+      setShippingAudit((data || []) as unknown as ShippingPricingAuditEntry[]);
+    } catch (error) {
+      console.error('Error loading shipping pricing audit:', error);
+      setShippingAuditError(true);
+    } finally {
+      setShippingAuditLoading(false);
     }
   };
 
@@ -325,6 +359,7 @@ export default function AdminSettingsPage() {
                         if (success) {
                           toast.success('Pengaturan biaya kirim berhasil disimpan');
                           loadSettings();
+                          void loadShippingAudit();
                         } else {
                           toast.error('Gagal menyimpan pengaturan');
                         }
@@ -344,6 +379,7 @@ export default function AdminSettingsPage() {
                           if (success) {
                             toast.success('Zona pengiriman berhasil disimpan');
                             loadSettings();
+                            void loadShippingAudit();
                           } else {
                             toast.error('Gagal menyimpan zona');
                           }
@@ -352,6 +388,46 @@ export default function AdminSettingsPage() {
                         isSaving={saving === 'shipping_zones'}
                       />
                     </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Riwayat perubahan tarif</CardTitle>
+                    <CardDescription>25 perubahan terakhir untuk tarif dasar dan zona pengiriman.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {shippingAuditLoading ? (
+                      <p className="text-sm text-muted-foreground">Memuat riwayat perubahan...</p>
+                    ) : shippingAuditError ? (
+                      <p role="alert" className="text-sm text-destructive">Riwayat perubahan belum dapat dimuat.</p>
+                    ) : shippingAudit.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Belum ada perubahan tarif yang tercatat.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {shippingAudit.map((entry) => (
+                          <div key={entry.id} className="rounded-lg border p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {entry.setting_key === 'shipping_base_fee' ? 'Tarif dasar' : 'Zona pengiriman'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(entry.created_at).toLocaleString('id-ID')} · {entry.changed_by ? `Admin ${entry.changed_by.slice(0, 8)}` : 'Sistem'}
+                                </p>
+                              </div>
+                            </div>
+                            <details className="mt-2 text-xs">
+                              <summary className="cursor-pointer text-primary">Lihat nilai sebelum dan sesudah</summary>
+                              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                <div><p className="mb-1 text-muted-foreground">Sebelum</p><pre className="overflow-x-auto whitespace-pre-wrap rounded bg-secondary p-2">{JSON.stringify(entry.old_value, null, 2) ?? '—'}</pre></div>
+                                <div><p className="mb-1 text-muted-foreground">Sesudah</p><pre className="overflow-x-auto whitespace-pre-wrap rounded bg-secondary p-2">{JSON.stringify(entry.new_value, null, 2) ?? '—'}</pre></div>
+                              </div>
+                            </details>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -557,16 +633,38 @@ function ShippingFeeForm({ initialValues, onSave, isSaving }: { initialValues?: 
   const [minFee, setMinFee] = useState(initialValues?.min_fee?.toString() || '5000');
   const [maxFee, setMaxFee] = useState(initialValues?.max_fee?.toString() || '50000');
   const [freeShippingMinOrder, setFreeShippingMinOrder] = useState(initialValues?.free_shipping_min_order?.toString() || '100000');
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ base_fee: parseInt(baseFee) || 0, per_km_fee: parseInt(perKmFee) || 0, min_fee: parseInt(minFee) || 0, max_fee: parseInt(maxFee) || 0, free_shipping_min_order: parseInt(freeShippingMinOrder) || 0 }); };
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const values = {
+      base_fee: baseFee.trim() ? Number(baseFee) : Number.NaN,
+      per_km_fee: perKmFee.trim() ? Number(perKmFee) : Number.NaN,
+      min_fee: minFee.trim() ? Number(minFee) : Number.NaN,
+      max_fee: maxFee.trim() ? Number(maxFee) : Number.NaN,
+      free_shipping_min_order: freeShippingMinOrder.trim() ? Number(freeShippingMinOrder) : Number.NaN,
+    };
+    const errors = validateShippingFeeSettings(values);
+    if (errors.length) {
+      setValidationError(errors[0]);
+      return;
+    }
+    setValidationError(null);
+    void onSave(values);
+  };
+  const updateValue = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setValidationError(null);
+  };
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2"><Label>Biaya Dasar (Rp)</Label><Input type="number" value={baseFee} onChange={(e) => setBaseFee(e.target.value)} /></div>
-        <div className="space-y-2"><Label>Biaya per KM (Rp)</Label><Input type="number" value={perKmFee} onChange={(e) => setPerKmFee(e.target.value)} /></div>
-        <div className="space-y-2"><Label>Biaya Minimum (Rp)</Label><Input type="number" value={minFee} onChange={(e) => setMinFee(e.target.value)} /></div>
-        <div className="space-y-2"><Label>Biaya Maksimum (Rp)</Label><Input type="number" value={maxFee} onChange={(e) => setMaxFee(e.target.value)} /></div>
+        <div className="space-y-2"><Label>Biaya Dasar (Rp)</Label><Input type="number" min="0" step="1" value={baseFee} onChange={(e) => updateValue(setBaseFee)(e.target.value)} /></div>
+        <div className="space-y-2"><Label>Biaya per KM (Rp)</Label><Input type="number" min="0" step="1" value={perKmFee} onChange={(e) => updateValue(setPerKmFee)(e.target.value)} /></div>
+        <div className="space-y-2"><Label>Biaya Minimum (Rp)</Label><Input type="number" min="0" step="1" value={minFee} onChange={(e) => updateValue(setMinFee)(e.target.value)} /></div>
+        <div className="space-y-2"><Label>Biaya Maksimum (Rp)</Label><Input type="number" min="0" step="1" value={maxFee} onChange={(e) => updateValue(setMaxFee)(e.target.value)} /></div>
       </div>
-      <div className="space-y-2"><Label>Gratis Ongkir Min. Order (Rp)</Label><Input type="number" value={freeShippingMinOrder} onChange={(e) => setFreeShippingMinOrder(e.target.value)} /></div>
+      <div className="space-y-2"><Label>Gratis Ongkir Min. Order (Rp)</Label><Input type="number" min="0" step="1" value={freeShippingMinOrder} onChange={(e) => updateValue(setFreeShippingMinOrder)(e.target.value)} /></div>
+      {validationError && <p role="alert" data-testid="shipping-fee-validation-error" className="text-sm text-destructive">{validationError}</p>}
       <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" /> {isSaving ? 'Menyimpan...' : 'Simpan'}</Button>
     </form>
   );
@@ -574,24 +672,62 @@ function ShippingFeeForm({ initialValues, onSave, isSaving }: { initialValues?: 
 
 function ShippingZonesForm({ initialValues, onSave, isSaving }: { initialValues?: ShippingZonesSettings; onSave: (values: ShippingZonesSettings) => Promise<void>; isSaving: boolean; }) {
   const [zones, setZones] = useState<ShippingZone[]>(initialValues?.zones || [{ name: 'Dalam Desa', max_distance_km: 5, fee: 5000 }]);
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ zones }); };
-  const updateZone = (index: number, field: keyof ShippingZone, value: string | number) => { setZones(prev => prev.map((z, i) => i === index ? { ...z, [field]: field === 'name' ? value : parseInt(value as string) || 0 } : z)); };
-  const addZone = () => { setZones(prev => [...prev, { name: 'Zona Baru', max_distance_km: 0, fee: 0 }]); };
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors = validateShippingZonesSettings({ zones });
+    if (errors.length) {
+      setValidationError(errors[0]);
+      return;
+    }
+    setValidationError(null);
+    void onSave({ zones });
+  };
+  const updateZone = (index: number, field: keyof ShippingZone, value: string) => {
+    setZones((prev) => prev.map((zone, currentIndex) => currentIndex === index
+      ? { ...zone, [field]: field === 'name' ? value : value.trim() ? Number(value) : Number.NaN }
+      : zone));
+    setValidationError(null);
+  };
+  const addZone = () => {
+    setZones((prev) => {
+      const lastDistance = prev[prev.length - 1]?.max_distance_km;
+      const nextDistance = Number.isFinite(lastDistance) && lastDistance > 0 ? lastDistance + 5 : 5;
+      return [...prev, { name: 'Zona Baru', max_distance_km: nextDistance, fee: 0 }];
+    });
+    setValidationError(null);
+  };
   const removeZone = (index: number) => { setZones(prev => prev.filter((_, i) => i !== index)); };
+  const moveZone = (index: number, direction: -1 | 1) => {
+    setZones((prev) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+      const reordered = [...prev];
+      [reordered[index], reordered[nextIndex]] = [reordered[nextIndex], reordered[index]];
+      return reordered;
+    });
+    setValidationError(null);
+  };
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-xs text-muted-foreground">Urutkan batas zona dari jarak terdekat ke terjauh. Batas jarak tidak boleh berulang agar rentang zona tidak tumpang tindih.</p>
       <div className="space-y-3">
         {zones.map((zone, index) => (
-          <div key={index} className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg">
+          <div key={`${index}-${zone.name}`} className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg">
             <div className="flex-1 grid gap-2 md:grid-cols-3">
-              <Input value={zone.name} onChange={(e) => updateZone(index, 'name', e.target.value)} />
-              <Input type="number" aria-label={`Batas jarak zona ${index + 1} (km)`} value={zone.max_distance_km} onChange={(e) => updateZone(index, 'max_distance_km', e.target.value)} />
-              <Input type="number" aria-label={`Surcharge zona ${index + 1} (Rp)`} value={zone.fee} onChange={(e) => updateZone(index, 'fee', e.target.value)} />
+              <Input aria-label={`Nama zona ${index + 1}`} value={zone.name} onChange={(e) => updateZone(index, 'name', e.target.value)} />
+              <Input type="number" min="0" step="any" aria-label={`Batas jarak zona ${index + 1} (km)`} value={Number.isFinite(zone.max_distance_km) ? zone.max_distance_km : ''} onChange={(e) => updateZone(index, 'max_distance_km', e.target.value)} />
+              <Input type="number" min="0" step="1" aria-label={`Surcharge zona ${index + 1} (Rp)`} value={Number.isFinite(zone.fee) ? zone.fee : ''} onChange={(e) => updateZone(index, 'fee', e.target.value)} />
             </div>
-            <Button type="button" variant="ghost" onClick={() => removeZone(index)} disabled={zones.length <= 1}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            <div className="flex shrink-0 items-center">
+              <Button type="button" variant="ghost" size="icon" aria-label={`Pindahkan zona ${index + 1} ke atas`} onClick={() => moveZone(index, -1)} disabled={index === 0}><ArrowUp className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Pindahkan zona ${index + 1} ke bawah`} onClick={() => moveZone(index, 1)} disabled={index === zones.length - 1}><ArrowDown className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" size="icon" aria-label={`Hapus zona ${index + 1}`} onClick={() => removeZone(index)} disabled={zones.length <= 1}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+            </div>
           </div>
         ))}
       </div>
+      {validationError && <p role="alert" data-testid="shipping-zones-validation-error" className="text-sm text-destructive">{validationError}</p>}
       <div className="flex items-center gap-2"><Button type="button" variant="outline" onClick={addZone}><Plus className="h-4 w-4 mr-2" /> Tambah Zona</Button><Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" /> {isSaving ? 'Menyimpan...' : 'Simpan'}</Button></div>
     </form>
   );

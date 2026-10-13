@@ -6,6 +6,8 @@ import { NavigationButton } from '@/components/courier/NavigationButton';
 import { formatPrice } from '@/lib/utils';
 import { formatRemainingTime } from '@/lib/courierOrderStatus';
 import { getDeliveryEstimate } from '@/lib/etaCalculation';
+import { CourierDeliveryEarnings } from '@/components/courier/CourierDeliveryEarnings';
+import type { CourierDeliveryCommissionPolicy } from '@/lib/courierDeliveryEarnings';
 
 export interface DeliveryOfferCardData {
   id: string;
@@ -28,16 +30,29 @@ export interface DeliveryOfferCardData {
   } | null;
 }
 
-interface Props { offer: DeliveryOfferCardData; busy?: boolean; onRespond: (id: string, accept: boolean) => void; }
+interface Props {
+  offer: DeliveryOfferCardData;
+  busy?: boolean;
+  onRespond: (id: string, accept: boolean) => void;
+  commissionPolicy?: CourierDeliveryCommissionPolicy | null;
+  commissionPolicyLoading?: boolean;
+  commissionPolicyError?: boolean;
+}
 
-export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
+export function DeliveryOfferCard({
+  offer,
+  busy,
+  onRespond,
+  commissionPolicy,
+  commissionPolicyLoading,
+  commissionPolicyError,
+}: Props) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(timer); }, []);
   const remaining = Math.max(0, new Date(offer.expires_at).getTime() - now);
   const expired = remaining === 0;
   const order = offer.order;
   const pickupAddress = order?.pickup_address || order?.merchants?.address;
-  const earning = order?.courier_earning_estimate ?? order?.shipping_cost ?? 0;
   const estimate = order?.pickup_lat != null && order?.pickup_lng != null && order?.delivery_lat != null && order?.delivery_lng != null
     ? getDeliveryEstimate(
       { lat: Number(order.pickup_lat), lng: Number(order.pickup_lng) },
@@ -62,7 +77,17 @@ export function DeliveryOfferCard({ offer, busy, onRespond }: Props) {
       </div>
       {order?.notes && <p className="text-xs bg-secondary rounded p-2">Catatan: {order.notes}</p>}
       <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(earning)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order?.total || 0)}</p>{estimate && <p className="text-[11px] text-muted-foreground">{estimate.distanceFormatted} · ETA {estimate.etaFormatted}</p>}</div>
+        <div className="min-w-0 flex-1 space-y-2">
+          <CourierDeliveryEarnings
+            shippingCost={order?.shipping_cost}
+            earningEstimate={order?.courier_earning_estimate}
+            policy={commissionPolicy}
+            policyLoading={commissionPolicyLoading}
+            policyError={commissionPolicyError}
+          />
+          <p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order?.total || 0)}</p>
+          {estimate && <p className="text-[11px] text-muted-foreground">{estimate.distanceFormatted} · ETA {estimate.etaFormatted}</p>}
+        </div>
         {!expired && <div className="grid grid-cols-2 gap-2 sm:flex"><Button className="min-h-11 sm:min-h-9" size="sm" onClick={() => onRespond(offer.id, true)} disabled={busy}><CheckCircle className="h-4 w-4 mr-1" /> Terima</Button><Button className="min-h-11 sm:min-h-9" size="sm" variant="outline" onClick={() => onRespond(offer.id, false)} disabled={busy}><X className="h-4 w-4 mr-1" /> Tolak</Button></div>}
       </div>
       {!expired && order?.pickup_lat != null && order?.pickup_lng != null && <NavigationButton lat={order.pickup_lat} lng={order.pickup_lng} address={pickupAddress || undefined} variant="outline" size="sm" className="w-full"><span>Navigasi ke pickup</span></NavigationButton>}

@@ -31,6 +31,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
 import { NavigationButton } from '@/components/courier/NavigationButton';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
+import { CourierDeliveryEarnings } from '@/components/courier/CourierDeliveryEarnings';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -38,6 +39,7 @@ import { formatDistance, calculateDistance } from '@/lib/etaCalculation';
 import { formatPrice } from '@/lib/utils';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
 import { usePushNotification } from '@/hooks/usePushNotification';
+import { useCourierDeliveryCommissionPolicy } from '@/hooks/useCourierDeliveryCommissionPolicy';
 
 interface CourierData {
   id: string;
@@ -120,6 +122,11 @@ export default function CourierDashboardPage() {
   });
 
   const courier = courierQueryData?.registration_status === 'APPROVED' ? courierQueryData : null;
+  const {
+    data: deliveryCommissionPolicy,
+    isLoading: commissionPolicyLoading,
+    isError: commissionPolicyError,
+  } = useCourierDeliveryCommissionPolicy(!!courier);
   const courierStatus = courierQueryData
     ? { registration_status: courierQueryData.registration_status, rejection_reason: courierQueryData.rejection_reason }
     : null;
@@ -638,6 +645,9 @@ export default function CourierDashboardPage() {
                   offer={{ id: offer.id, order_id: offer.order_id, expires_at: offer.expires_at, order: offer.orders || null }}
                   busy={respondingOffer === offer.id}
                   onRespond={respondToDeliveryOffer}
+                  commissionPolicy={deliveryCommissionPolicy}
+                  commissionPolicyLoading={commissionPolicyLoading}
+                  commissionPolicyError={commissionPolicyError}
                 />
               ))
             ) : (
@@ -918,7 +928,16 @@ export default function CourierDashboardPage() {
 
                     <div className="space-y-3 border-t border-border pt-3">
                       <div className="flex items-end justify-between gap-3">
-                        <div><p className="text-xs text-muted-foreground">Estimasi pendapatan kurir</p><p className="font-bold text-primary">{formatPrice(order.courier_earning_estimate || order.shipping_cost || 0)}</p><p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order.total)}</p></div>
+                        <div className="w-full space-y-2">
+                          <CourierDeliveryEarnings
+                            shippingCost={order.shipping_cost}
+                            earningEstimate={order.courier_earning_estimate}
+                            policy={deliveryCommissionPolicy}
+                            policyLoading={commissionPolicyLoading}
+                            policyError={commissionPolicyError}
+                          />
+                          <p className="text-[11px] text-muted-foreground">Total pesanan: {formatPrice(order.total)}</p>
+                        </div>
                       </div>
                       <div className={`grid gap-2 ${action ? 'grid-cols-2' : 'grid-cols-1'}`}>
                       <Button className="min-h-11 w-full" size="sm" variant="outline" onClick={() => void releaseOrder(order.id)} disabled={releasingOrder === order.id}>{releasingOrder === order.id ? 'Memproses…' : 'Lepas tugas'}</Button>

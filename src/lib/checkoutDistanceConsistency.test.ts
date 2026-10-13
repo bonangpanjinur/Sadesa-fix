@@ -15,6 +15,10 @@ const p1Migration = readFileSync(
   resolve(process.cwd(), 'archive/supabase/migrations/20261013054500_checkout_p1_item_normalization_shipping_contracts.sql'),
   'utf8',
 );
+const currentPricingMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20261013054500_checkout_p1_item_normalization_shipping_contracts.sql'),
+  'utf8',
+);
 
 describe('checkout shipping distance consistency contract', () => {
   it('requests a server quote and renders its authoritative amounts', () => {
@@ -50,6 +54,13 @@ describe('checkout shipping distance consistency contract', () => {
     expect(p1Migration).toContain('public.normalize_marketplace_checkout_items(p_items)');
     expect(p1Migration).toContain('reserve_marketplace_stock_unaggregated');
     expect(p1Migration).toContain('reserve_marketplace_stock_guest_unaggregated');
+  });
+
+  it('routes the quote and both checkout creation paths through one shipping contract calculator', () => {
+    expect(currentPricingMigration).toContain('CREATE OR REPLACE FUNCTION public.quote_marketplace_checkout');
+    expect(currentPricingMigration).toContain('CREATE OR REPLACE FUNCTION public.create_marketplace_checkout');
+    expect(currentPricingMigration).toContain('CREATE OR REPLACE FUNCTION public.create_guest_marketplace_checkout');
+    expect(currentPricingMigration.match(/v_(?:shipping_contract|contract) := public\.marketplace_shipping_contract_quote\(/g)).toHaveLength(3);
   });
 
   it('uses distinct local, merchant self-delivery, and provider-weight expedition contracts', () => {
