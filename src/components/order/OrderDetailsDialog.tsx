@@ -332,7 +332,8 @@ export function OrderDetailsDialog({
     }
   };
 
-  // Custom handler for processing order and setting the self delivery flag
+  // Accept the order first, then optionally start self-delivery through the
+  // valid server state transition PROCESSED -> DELIVERING.
   const handleProcessOrder = async () => {
     try {
       setIsProcessing(true);
@@ -340,15 +341,25 @@ export function OrderDetailsDialog({
       const isPickup = order.delivery_type === 'PICKUP';
       const isExpedition = order.delivery_type === 'EXPEDITION';
       const isSelfDelivery = !isPickup && !isExpedition && deliveryType === "self";
-      const newStatus = isSelfDelivery ? "DELIVERING" : "PROCESSED";
 
-      const { error } = await supabase.rpc('merchant_transition_order' as never, {
+      const { error: processError } = await supabase.rpc('merchant_transition_order' as never, {
         p_order_id: order.id,
-        p_to_status: newStatus,
-        p_reason: isSelfDelivery ? 'Merchant memilih antar sendiri' : 'Merchant menerima pesanan',
+        p_to_status: 'PROCESSED',
+        p_reason: 'Merchant menerima pesanan',
       } as never);
 
-      if (error) throw error;
+      if (processError) throw processError;
+
+      let newStatus = 'PROCESSED';
+      if (isSelfDelivery) {
+        const { error: selfDeliveryError } = await supabase.rpc('merchant_transition_order' as never, {
+          p_order_id: order.id,
+          p_to_status: 'DELIVERING',
+          p_reason: 'Merchant memilih antar sendiri',
+        } as never);
+        if (selfDeliveryError) throw selfDeliveryError;
+        newStatus = 'DELIVERING';
+      }
       
       if (isPickup) {
         toast.success('Pesanan diproses (Pembeli akan ambil sendiri).');
@@ -702,16 +713,6 @@ export function OrderDetailsDialog({
               </Button>
             )}
             {/* Opsi standar jika bukan kirim mandiri */}
-            {order.status === 'PROCESSED' && !order.is_self_delivery && order.delivery_type !== 'EXPEDITION' && order.delivery_type !== 'PICKUP' && (
-              <Button 
-                className="w-full"
-                onClick={() => onUpdateStatus(order.id, order.delivery_type === 'PICKUP' ? 'READY' : 'SENT')}
-              >
-                <Truck className="h-4 w-4 mr-2" />
-                Kirim
-              </Button>
-            )}
-
             {order.status === 'PROCESSED' && order.delivery_type === 'EXPEDITION' && (
               <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
                 <p className="text-sm font-semibold">Data Ekspedisi</p>

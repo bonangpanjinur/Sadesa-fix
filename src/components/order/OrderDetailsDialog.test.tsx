@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mocks = vi.hoisted(() => ({
   getPaymentProofSignedUrl: vi.fn(),
+  rpc: vi.fn(),
   onVerifyPayment: vi.fn().mockResolvedValue(true),
   onRejectPayment: vi.fn().mockResolvedValue(true),
   toast: { success: vi.fn(), error: vi.fn() },
@@ -16,7 +17,7 @@ vi.mock('@/lib/paymentProof', () => ({
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: vi.fn(),
-    rpc: vi.fn(),
+    rpc: mocks.rpc,
   },
 }));
 
@@ -169,5 +170,26 @@ describe('OrderDetailsDialog payment proof', () => {
     expect(screen.getByText('Bukti sebelumnya ditolak. Menunggu pembeli mengunggah bukti pembayaran baru.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Konfirmasi Pembayaran' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tolak Bukti Pembayaran' })).not.toBeInTheDocument();
+  });
+
+  it('uses valid server transitions when accepting an internal order for self-delivery', async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: null });
+    renderOrderDetails([], { status: 'NEW', delivery_type: 'INTERNAL' });
+
+    fireEvent.click(screen.getByRole('radio', { name: /Kirim Sendiri/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Proses & Kirim Sendiri' }));
+
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledTimes(2));
+    expect(mocks.rpc.mock.calls[0][0]).toBe('merchant_transition_order');
+    expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_to_status: 'PROCESSED' });
+    expect(mocks.rpc.mock.calls[1][0]).toBe('merchant_transition_order');
+    expect(mocks.rpc.mock.calls[1][1]).toMatchObject({ p_to_status: 'DELIVERING' });
+  });
+
+  it('offers courier assignment instead of an invalid SENT transition for internal orders', () => {
+    renderOrderDetails([], { status: 'PROCESSED', delivery_type: 'INTERNAL' });
+
+    expect(screen.queryByRole('button', { name: /^Kirim$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tugaskan Kurir Desa' })).toBeInTheDocument();
   });
 });
