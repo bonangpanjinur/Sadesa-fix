@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), 'archive/supabase/migrations/20261013050000_self_delivery_admin_fee.sql'),
   'utf8',
 );
+const lifecycleHardeningMigration = readFileSync(
+  resolve(process.cwd(), 'archive/supabase/migrations/20261013220000_self_delivery_lifecycle_hardening.sql'),
+  'utf8',
+);
 const adminPage = readFileSync(resolve(process.cwd(), 'src/pages/admin/AdminWalletCommissionPage.tsx'), 'utf8');
 
 describe('self-delivery admin fee contract', () => {
@@ -29,5 +33,21 @@ describe('self-delivery admin fee contract', () => {
     expect(adminPage).toContain('self-delivery-fee-percent');
     expect(adminPage).toContain('self-delivery-fee-enabled');
     expect(adminPage).toContain("eq('key', 'self_delivery_fee')");
+  });
+
+  it('makes a committed self-delivery transition safe to retry without a second attempt or ledger row', () => {
+    expect(lifecycleHardeningMigration).toContain("v_from = 'DELIVERING'");
+    expect(lifecycleHardeningMigration).toContain('AND COALESCE(v_order.is_self_delivery, false)');
+    expect(lifecycleHardeningMigration).toContain('RETURN v_order;');
+    expect(lifecycleHardeningMigration).toContain('WHERE NOT EXISTS (');
+    expect(lifecycleHardeningMigration).toContain('l.order_id = p_order_id');
+  });
+
+  it('waives a due self-delivery fee when the order is canceled or refunded', () => {
+    expect(lifecycleHardeningMigration).toContain("NEW.status IN ('CANCELED', 'REFUNDED')");
+    expect(lifecycleHardeningMigration).toContain("SET status = 'WAIVED'");
+    expect(lifecycleHardeningMigration).toContain("SET self_delivery_fee_status = 'WAIVED'");
+    expect(lifecycleHardeningMigration).toContain("v_from = 'DELIVERING' AND COALESCE(v_order.is_self_delivery, false) AND p_to_status = 'CANCELED'");
+    expect(lifecycleHardeningMigration).toContain("self_delivery_fee_status = 'DUE' THEN 'WAIVED'");
   });
 });
