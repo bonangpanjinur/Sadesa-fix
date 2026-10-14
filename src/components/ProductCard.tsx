@@ -95,16 +95,23 @@ export function ProductCard({ product, index = 0, showCategoryBadge = false, cat
 
       {/* Badges Container */}
       <div className="absolute top-2 left-2 z-30 flex flex-col items-start gap-1">
+        <span
+          role="status"
+          aria-label={`Toko ${isMerchantOpen ? 'Buka' : 'Tutup'}`}
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[9px] font-extrabold text-white shadow-md ring-1',
+            isMerchantOpen
+              ? 'bg-emerald-600 ring-emerald-800/30'
+              : 'bg-amber-500 ring-amber-700/30',
+          )}
+        >
+          <Store className="h-3.5 w-3.5" aria-hidden="true" />
+          {isMerchantOpen ? 'Buka' : 'Tutup'}
+        </span>
         {showOutOfStockIndicator && (
           <span role="status" aria-label="Stok Habis" className="inline-flex items-center gap-1 rounded-md bg-rose-600 px-2 py-1 text-[9px] font-extrabold text-white shadow-md ring-1 ring-rose-800/30">
             <PackageX className="h-3.5 w-3.5" aria-hidden="true" />
             Stok Habis
-          </span>
-        )}
-        {showStoreClosedIndicator && (
-          <span role="status" aria-label="Toko Tutup" className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-extrabold text-white shadow-md ring-1 ring-amber-700/30">
-            <Store className="h-3.5 w-3.5" aria-hidden="true" />
-            Toko Tutup
           </span>
         )}
         {flashSale && isAvailable ? (

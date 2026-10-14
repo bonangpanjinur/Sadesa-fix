@@ -45,6 +45,12 @@ function renderProduct(product: Product) {
 }
 
 describe('ProductCard availability indicators', () => {
+  it('shows an open-store badge on available products', () => {
+    renderProduct({ ...baseProduct, isAvailable: true, isMerchantOpen: true });
+
+    expect(screen.getByRole('status', { name: /toko buka/i })).toHaveTextContent('Buka');
+  });
+
   it('shows a red stock-empty badge and prevents adding the unavailable item to cart', () => {
     renderProduct({ ...baseProduct, stock: 0, unavailableReason: 'Stok Habis' });
 
