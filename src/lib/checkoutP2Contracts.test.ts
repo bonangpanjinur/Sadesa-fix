@@ -8,6 +8,14 @@ const pricingMigration = readFileSync(
   resolve(process.cwd(), 'archive/supabase/migrations/20261013054500_checkout_p1_item_normalization_shipping_contracts.sql'),
   'utf8',
 );
+const authoritativeMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20261014090000_checkout_authoritative_create_and_line_quotes.sql'),
+  'utf8',
+);
+const authoritativeBootstrap = readFileSync(
+  resolve(process.cwd(), 'supabase/bootstrap/115_20261014090000_to_20261014090000.sql'),
+  'utf8',
+);
 
 describe('checkout P2 readiness and presentation contracts', () => {
   it('fails closed until payment settings for the selected merchant have loaded', () => {
@@ -41,5 +49,29 @@ describe('checkout P2 readiness and presentation contracts', () => {
     expect(paymentPage).toContain('Menunggu instruksi pembayaran');
     expect(paymentPage).toContain('!isPaymentComplete && !hasPaymentInstructions');
     expect(paymentPage).toContain('!isPaymentComplete && hasPaymentInstructions && <motion.div');
+  });
+
+  it('clears purchased cart lines before redirecting to a successful online invoice', () => {
+    const invoiceRedirect = checkout.indexOf('window.location.href = invoice.invoice_url;');
+    const cartClear = checkout.lastIndexOf('selectedItems.forEach(item =>', invoiceRedirect);
+    expect(invoiceRedirect).toBeGreaterThan(-1);
+    expect(cartClear).toBeGreaterThan(-1);
+    expect(cartClear).toBeLessThan(invoiceRedirect);
+    expect(checkout).toContain('setMerchantLocation(null);');
+  });
+
+  it('keeps the database create path aligned with the single-merchant checkout policy', () => {
+    expect(authoritativeMigration).toContain("IF v_merchant_count <> 1 THEN");
+    expect(authoritativeMigration).toContain("RAISE EXCEPTION 'Invalid delivery contact'");
+    expect(authoritativeMigration).toContain("RAISE EXCEPTION 'Delivery address is required'");
+  });
+
+  it('validates delivery address and coordinate ranges in both create RPCs and bootstrap', () => {
+    for (const migration of [authoritativeMigration, authoritativeBootstrap]) {
+      expect(migration.match(/RAISE EXCEPTION 'Delivery address is required'/g)?.length).toBe(2);
+      expect(migration.match(/jsonb_typeof\(p_delivery->'lat'\)/g)?.length).toBe(2);
+      expect(migration.match(/v_delivery_lat < -90/g)?.length).toBe(2);
+      expect(migration.match(/v_delivery_lng < -180/g)?.length).toBe(2);
+    }
   });
 });

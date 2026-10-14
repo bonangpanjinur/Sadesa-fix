@@ -413,8 +413,8 @@
       "source_files": [
         "20261014090000_checkout_authoritative_create_and_line_quotes.sql"
       ],
-      "sha256": "79554363a8fbee347ceb44ea215467d98fcc84662abc80895b77252c667632e6",
-      "bytes": 32582
+      "sha256": "a34a6537fa92170372500fc3f2a8ac3803830f851794a033c9b105a842f9eaff",
+      "bytes": 34431
     },
     {
       "file": "11_20260905100000_pos_legacy_reconciliation.sql",

@@ -139,6 +139,7 @@ export default function CheckoutPage() {
   const [checkoutQuoteResult, setCheckoutQuoteResult] = useState<{ key: string; quote: MarketplaceCheckoutQuote } | null>(null);
   const [checkoutQuoteLoading, setCheckoutQuoteLoading] = useState(false);
   const [checkoutQuoteError, setCheckoutQuoteError] = useState<string | null>(null);
+  const [quoteRetryNonce, setQuoteRetryNonce] = useState(0);
 
   // Shipping settings from admin
   const [shippingSettings, setShippingSettings] = useState<{ base_fee: number; per_km_fee: number; min_fee: number; max_fee: number; free_shipping_min_order: number } | null>(null);
@@ -318,10 +319,18 @@ export default function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
     if (!quoteItems.length || !firstMerchantId || hasMultipleMerchants
-      || (deliveryType !== 'PICKUP' && !addressData.location)) {
+      || (deliveryType !== 'PICKUP' && !addressData.location)
+      || (deliveryType !== 'PICKUP' && !merchantLocation)) {
       setCheckoutQuoteResult(null);
       setCheckoutQuoteLoading(false);
-      setCheckoutQuoteError(null);
+      // Wait for merchant data before showing a quote error. The effect is
+      // keyed by merchantLocation below, so it will retry automatically once
+      // the merchant coordinates have loaded.
+      setCheckoutQuoteError(
+        deliveryType !== 'PICKUP' && paymentSettingsLoadState.status !== 'loading'
+          ? 'Lokasi toko belum tersedia untuk menghitung ongkir.'
+          : null,
+      );
       return () => { cancelled = true; };
     }
 
@@ -363,7 +372,7 @@ export default function CheckoutPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [addressData.location, addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, hasMultipleMerchants, quoteItems, user]);
+  }, [addressData.location, addressData.location?.lat, addressData.location?.lng, appliedVoucher?.id, checkoutQuoteKey, deliveryCityId, deliveryDistrictId, deliveryType, firstMerchantId, hasMultipleMerchants, merchantLocation, merchantLocation?.lat, merchantLocation?.lng, paymentSettingsLoadState.status, quoteItems, quoteRetryNonce, user]);
 
   // Check merchant operating hours
   const [merchantOperatingInfo, setMerchantOperatingInfo] = useState<Record<string, MerchantOperatingInfo>>({});
@@ -382,6 +391,10 @@ export default function CheckoutPage() {
 
     setMerchantPaymentSettings(null);
     setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'loading' });
+    // Do not let a previous merchant's coordinates be used while the next
+    // merchant is loading (for example after changing the cart).
+    setMerchantLocation(null);
+    setMerchantRegion({ cityName: null, districtName: null });
     const fetchMerchantData = async () => {
       try {
         // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
@@ -393,7 +406,7 @@ export default function CheckoutPage() {
         if (error) throw error;
         if (!data) throw new Error('Pengaturan merchant tidak ditemukan');
 
-        if (data.location_lat && data.location_lng && !cancelled) {
+        if (Number.isFinite(Number(data.location_lat)) && Number.isFinite(Number(data.location_lng)) && !cancelled) {
           setMerchantLocation({
             lat: Number(data.location_lat),
             lng: Number(data.location_lng),
@@ -786,6 +799,14 @@ export default function CheckoutPage() {
       if (user && paymentMethod === 'ONLINE' && xenditAvailable) {
         try {
           const invoice = await createPaymentInvoice({ orderId: authoritativeOrderId });
+          // The order is already committed and the invoice is ready. Clear the
+          // purchased lines before navigating away so a successful online
+          // checkout cannot leave stale items in the cart.
+          selectedItems.forEach(item => {
+            if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
+            else removeFromCart(item.product.id);
+          });
+          checkoutKeyRef.current = null;
           window.location.href = invoice.invoice_url;
           return;
         } catch (paymentError) {
@@ -1375,9 +1396,12 @@ export default function CheckoutPage() {
           </p>
         )}
         {checkoutQuoteError && !checkoutQuoteLoading && (
-          <p className="mb-2 text-center text-xs text-destructive" role="alert">
-            Quote checkout gagal dimuat. Periksa koneksi atau muat ulang sebelum melanjutkan.
-          </p>
+          <div className="mb-2 flex items-center justify-center gap-2 text-center text-xs text-destructive" role="alert">
+            <span>{checkoutQuoteError}</span>
+            <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setQuoteRetryNonce((value) => value + 1)}>
+              Coba lagi
+            </Button>
+          </div>
         )}
         {serverQuote && serverQuote.shipping_cost === 0 && deliveryType !== 'PICKUP' && (
           <div className="flex items-center gap-1.5 mb-2 text-xs text-emerald-600 font-medium">

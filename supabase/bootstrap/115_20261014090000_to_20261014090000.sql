@@ -207,6 +207,21 @@ BEGIN
   IF p_delivery_type NOT IN ('PICKUP', 'INTERNAL', 'EXPEDITION') THEN
     RAISE EXCEPTION 'Invalid delivery type' USING ERRCODE = '22023';
   END IF;
+  IF p_delivery_type <> 'PICKUP'
+     AND NULLIF(btrim(COALESCE(p_delivery->>'address', '')), '') IS NULL THEN
+    RAISE EXCEPTION 'Delivery address is required' USING ERRCODE = '22023';
+  END IF;
+  IF p_delivery_type <> 'PICKUP'
+     AND (jsonb_typeof(p_delivery->'lat') IS DISTINCT FROM 'number'
+       OR jsonb_typeof(p_delivery->'lng') IS DISTINCT FROM 'number') THEN
+    RAISE EXCEPTION 'Valid delivery coordinates are required' USING ERRCODE = '22023';
+  END IF;
+  IF NULLIF(btrim(COALESCE(p_delivery->>'name', '')), '') IS NULL
+     OR length(btrim(p_delivery->>'name')) > 200
+     OR NULLIF(btrim(COALESCE(p_delivery->>'phone', '')), '') IS NULL
+     OR length(btrim(p_delivery->>'phone')) > 40 THEN
+    RAISE EXCEPTION 'Invalid delivery contact' USING ERRCODE = '22023';
+  END IF;
   IF p_payment_method NOT IN ('COD', 'TRANSFER', 'ONLINE') THEN
     RAISE EXCEPTION 'Invalid payment method' USING ERRCODE = '22023';
   END IF;
@@ -279,6 +294,9 @@ BEGIN
   END LOOP;
 
   SELECT count(DISTINCT merchant_id) INTO v_merchant_count FROM checkout_lines;
+  IF v_merchant_count <> 1 THEN
+    RAISE EXCEPTION 'Checkout hanya tersedia untuk satu toko dalam satu transaksi' USING ERRCODE = '22023';
+  END IF;
   IF p_voucher_id IS NOT NULL AND v_merchant_count > 1 THEN
     RAISE EXCEPTION 'Voucher checkout must contain one merchant' USING ERRCODE = '22023';
   END IF;
@@ -346,7 +364,11 @@ BEGIN
     v_delivery_lng := NULLIF(p_delivery->>'lng', '')::numeric;
     IF p_delivery_type = 'PICKUP' THEN
       v_server_distance := 0;
-    ELSIF v_delivery_lat IS NULL OR v_delivery_lng IS NULL OR v_merchant_lat IS NULL OR v_merchant_lng IS NULL THEN
+    ELSIF v_delivery_lat IS NULL OR v_delivery_lng IS NULL OR v_merchant_lat IS NULL OR v_merchant_lng IS NULL
+       OR v_delivery_lat < -90 OR v_delivery_lat > 90
+       OR v_merchant_lat < -90 OR v_merchant_lat > 90
+       OR v_delivery_lng < -180 OR v_delivery_lng > 180
+       OR v_merchant_lng < -180 OR v_merchant_lng > 180 THEN
       RAISE EXCEPTION 'Valid delivery and merchant coordinates are required' USING ERRCODE = '22023';
     ELSE
       v_server_distance := 6371 * 2 * asin(sqrt(LEAST(1, GREATEST(0,
@@ -503,6 +525,15 @@ BEGIN
   IF p_delivery_type NOT IN ('PICKUP', 'INTERNAL', 'EXPEDITION') THEN
     RAISE EXCEPTION 'Invalid delivery type' USING ERRCODE = '22023';
   END IF;
+  IF p_delivery_type <> 'PICKUP'
+     AND NULLIF(btrim(COALESCE(p_delivery->>'address', '')), '') IS NULL THEN
+    RAISE EXCEPTION 'Delivery address is required' USING ERRCODE = '22023';
+  END IF;
+  IF p_delivery_type <> 'PICKUP'
+     AND (jsonb_typeof(p_delivery->'lat') IS DISTINCT FROM 'number'
+       OR jsonb_typeof(p_delivery->'lng') IS DISTINCT FROM 'number') THEN
+    RAISE EXCEPTION 'Valid delivery coordinates are required' USING ERRCODE = '22023';
+  END IF;
   IF p_payment_method NOT IN ('TRANSFER', 'ONLINE') THEN
     RAISE EXCEPTION 'Guest payment method is unavailable' USING ERRCODE = '22023';
   END IF;
@@ -649,7 +680,11 @@ BEGIN
     IF p_delivery_type = 'PICKUP' THEN
       v_server_distance := 0;
     ELSIF v_delivery_lat IS NULL OR v_delivery_lng IS NULL
-       OR v_merchant_lat IS NULL OR v_merchant_lng IS NULL THEN
+       OR v_merchant_lat IS NULL OR v_merchant_lng IS NULL
+       OR v_delivery_lat < -90 OR v_delivery_lat > 90
+       OR v_merchant_lat < -90 OR v_merchant_lat > 90
+       OR v_delivery_lng < -180 OR v_delivery_lng > 180
+       OR v_merchant_lng < -180 OR v_merchant_lng > 180 THEN
       RAISE EXCEPTION 'Valid delivery and merchant coordinates are required' USING ERRCODE = '22023';
     ELSE
       v_server_distance := 6371 * 2 * asin(sqrt(
