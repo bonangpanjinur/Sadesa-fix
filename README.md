@@ -38,6 +38,67 @@ The repository is a Vite SPA; it does **not** contain a Node/Express application
 
 Server-only variables such as `SUPABASE_SERVICE_ROLE_KEY`, Xendit secret keys, callback tokens, database passwords, and private signing keys must never use the `VITE_` prefix and must never be included in the frontend build. Configure them only in the Supabase Edge Function environment. Review `supabase/functions` and the P0/P1 migration documentation before enabling payment production traffic.
 
+## Web Push (VAPID)
+
+SaDesa mengirim notifikasi browser/PWA melalui **Web Push dengan VAPID**, bukan melalui email. Broadcast admin menggunakan Edge Function `send-push-notification`; browser memperoleh public key saat membuat subscription melalui `push-subscription`. Jangan menambahkan kunci ke `.env` frontend, `VITE_*`, atau konfigurasi build Railway.
+
+### Buat dan simpan pasangan kunci
+
+Gunakan pasangan public/private yang sama untuk fungsi subscription dan pengiriman pada satu proyek Supabase. Buat pasangan sekali untuk setiap environment (misalnya staging dan production) dan simpan hasilnya di password manager atau secret manager:
+
+```sh
+pnpm exec web-push generate-vapid-keys --json
+```
+
+> Perintah tersebut mencetak `publicKey` dan `privateKey`. Jangan commit, kirim lewat chat, atau menaruh output di log. Jangan mengganti pasangan yang sedang dipakai tanpa rencana rotasi: browser mungkin perlu membuat ulang subscription setelah public key berubah.
+
+Di komputer tepercaya, simpan nilai dalam file sementara dengan izin terbatas **di luar repository**. Ganti placeholder dengan nilai hasil generator:
+
+```sh
+mkdir -p "$HOME/.config/sadesa"
+chmod 700 "$HOME/.config/sadesa"
+umask 077
+$EDITOR "$HOME/.config/sadesa/vapid.env"
+```
+
+Isi file tersebut dalam format berikut:
+
+```dotenv
+VAPID_PUBLIC_KEY=<publicKey>
+VAPID_PRIVATE_KEY=<privateKey>
+```
+
+Kemudian login ke Supabase CLI dan kirim file itu sebagai Edge Function secrets. Ambil project ref dari Supabase Dashboard → **Project Settings → General**:
+
+```sh
+supabase login
+export SUPABASE_PROJECT_REF="your-project-ref"
+supabase secrets set \
+  --project-ref "$SUPABASE_PROJECT_REF" \
+  --env-file "$HOME/.config/sadesa/vapid.env"
+```
+
+Hapus file sementara setelah nilainya disimpan aman untuk pemulihan:
+
+```sh
+rm -f "$HOME/.config/sadesa/vapid.env"
+```
+
+Deploy endpoint yang membaca konfigurasi VAPID:
+
+```sh
+supabase functions deploy push-subscription --project-ref "$SUPABASE_PROJECT_REF"
+supabase functions deploy send-push-notification --project-ref "$SUPABASE_PROJECT_REF"
+```
+
+### Verifikasi
+
+1. Masuk sebagai admin dan buka `/admin/push-notification` → tab **Konfigurasi**. Status **Variabel VAPID tersedia** hanya memastikan kedua variabel ditemukan; status tersebut tidak menguji pengiriman ke provider.
+2. Aktifkan notifikasi di browser/PWA perangkat uji yang sudah login, lalu kirim **uji notifikasi** hanya ke perangkat tersebut. Pastikan subscription tersimpan dan notifikasi sistem diterima.
+3. Lakukan broadcast setelah uji berhasil. Broadcast hanya dikirim sebagai Web Push kepada perangkat yang memiliki subscription aktif—bukan surat elektronik.
+
+Untuk antrean notifikasi pesanan/chat, konfigurasi worker dan Supabase Vault juga diperlukan; ikuti [panduan operasional notifikasi](docs/operations/mandatory-notification-onboarding.md#konfigurasi-server-dan-verifikasi-staging). Jangan pernah memasukkan `VAPID_PRIVATE_KEY`, service-role key, atau worker secret ke Git maupun browser.
+
 ## Service Marketplace
 
 The service marketplace supports verified provider profiles, buyer requests and price negotiation, manual payment-proof review, work-completion confirmation, disputes, and admin payout/refund reconciliation. Transaction state changes are validated by database RPCs; direct browser writes to protected transaction tables are not permitted. Bank transfers and refunds are performed outside the application and recorded with their actual transfer references. A service payment gateway is not integrated yet.
