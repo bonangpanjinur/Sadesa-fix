@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck, Package, Wallet, ShieldCheck, Info, AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
+import { Bell, CheckCheck, Heart, Package, Wallet, ShieldCheck, Info, AlertTriangle, XCircle, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -193,6 +193,7 @@ export function NotificationDropdown() {
   const getIcon = (type: string) => {
     switch (type) {
       case 'order': return <Package className="h-4 w-4 text-primary" />;
+      case 'favorite': return <Heart className="h-4 w-4 text-destructive" />;
       case 'withdrawal': return <Wallet className="h-4 w-4 text-amber-500" />;
       case 'verification': return <ShieldCheck className="h-4 w-4 text-blue-500" />;
       case 'success': return <CheckCircle className="h-4 w-4 text-green-500" />;

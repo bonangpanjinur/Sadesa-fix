@@ -3818,6 +3818,13 @@ export type Database = {
         Args: { product_id: string }
         Returns: undefined
       }
+      get_merchant_product_favorite_counts: {
+        Args: { p_merchant_id: string }
+        Returns: {
+          product_id: string
+          favorite_count: number
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_admin_desa: { Args: never; Returns: boolean }
       is_chat_participant: {

@@ -10,8 +10,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { 
-  Bell, 
+  Bell,
   CheckCheck, 
+  Heart,
   Package, 
   Wallet, 
   ShieldCheck, 
@@ -142,6 +143,8 @@ export default function NotificationsPage() {
     switch (type) {
       case 'order':
         return <Package className="h-5 w-5 text-primary" />;
+      case 'favorite':
+        return <Heart className="h-5 w-5 text-destructive" />;
       case 'withdrawal':
         return <Wallet className="h-5 w-5 text-warning" />;
       case 'verification':

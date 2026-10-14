@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, ShoppingCart, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Eye, Heart, ShoppingCart, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -10,6 +10,12 @@ interface ProductStat {
   view_count: number;
   order_count: number;
   price: number;
+  favorite_count: number;
+}
+
+interface FavoriteCountRow {
+  product_id: string;
+  favorite_count: number | string;
 }
 
 interface ProductStatsProps {
@@ -23,16 +29,26 @@ export function ProductStats({ merchantId }: ProductStatsProps) {
 
   const fetchProductStats = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, image_url, view_count, order_count, price')
-        .eq('merchant_id', merchantId)
-        .eq('is_active', true)
-        .order('view_count', { ascending: false })
-        .limit(20);
+      const [productsResult, favoritesResult] = await Promise.all([
+        supabase
+          .from('products')
+          .select('id, name, image_url, view_count, order_count, price')
+          .eq('merchant_id', merchantId)
+          .eq('is_active', true)
+          .order('view_count', { ascending: false })
+          .limit(20),
+        supabase.rpc('get_merchant_product_favorite_counts' as never, { p_merchant_id: merchantId } as never),
+      ]);
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (productsResult.error) throw productsResult.error;
+      if (favoritesResult.error) console.warn('Favorite stats unavailable:', favoritesResult.error.message);
+      const favoriteMap = new Map(
+        ((favoritesResult.data || []) as unknown as FavoriteCountRow[]).map(row => [row.product_id, Number(row.favorite_count) || 0]),
+      );
+      setProducts((productsResult.data || []).map(product => ({
+        ...product,
+        favorite_count: favoriteMap.get(product.id) || 0,
+      })));
     } catch (error) {
       console.error('Error fetching product stats:', error);
     } finally {
@@ -53,6 +69,7 @@ export function ProductStats({ merchantId }: ProductStatsProps) {
 
   const totalViews = products.reduce((sum, p) => sum + (p.view_count || 0), 0);
   const totalOrders = products.reduce((sum, p) => sum + (p.order_count || 0), 0);
+  const totalFavorites = products.reduce((sum, p) => sum + (p.favorite_count || 0), 0);
   const conversionRate = totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(1) : '0';
 
   if (loading) {
@@ -66,7 +83,7 @@ export function ProductStats({ merchantId }: ProductStatsProps) {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card>
           <CardContent className="p-4 text-center">
             <Eye className="h-5 w-5 mx-auto text-chart-2 mb-1" />
@@ -79,6 +96,13 @@ export function ProductStats({ merchantId }: ProductStatsProps) {
             <ShoppingCart className="h-5 w-5 mx-auto text-chart-3 mb-1" />
             <p className="text-2xl font-bold">{totalOrders.toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">Total Orders</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Heart className="mx-auto mb-1 h-5 w-5 text-destructive" />
+            <p className="text-2xl font-bold">{totalFavorites.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">Total Favorit</p>
           </CardContent>
         </Card>
         <Card>
@@ -148,6 +172,10 @@ export function ProductStats({ merchantId }: ProductStatsProps) {
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <ShoppingCart className="h-3 w-3" />
                       {(product.order_count || 0).toLocaleString()}
+                    </span>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Heart className="h-3 w-3" />
+                      {(product.favorite_count || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
