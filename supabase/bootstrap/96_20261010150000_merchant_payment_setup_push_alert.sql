@@ -176,3 +176,5 @@ $$;
 EXCEPTION
   WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR unique_violation THEN NULL;
 END $bootstrap_do_merchant_payment_setup_alert$;
+
+-- ===== END SOURCE: 20261010150000_merchant_payment_setup_push_alert.sql =====

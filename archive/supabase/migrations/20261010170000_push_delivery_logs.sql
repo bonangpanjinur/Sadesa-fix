@@ -1,3 +1,6 @@
+DO $bootstrap_do_push_delivery_logs$
+BEGIN
+  EXECUTE $bootstrap_sql_push_delivery_logs$
 -- Durable, admin-readable push delivery attempts from direct admin sends and queued app notifications.
 CREATE TABLE IF NOT EXISTS public.push_delivery_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -48,3 +51,8 @@ BEGIN
   END IF;
 END
 $publish_push_delivery_logs$;
+  $bootstrap_sql_push_delivery_logs$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR unique_violation THEN NULL;
+END
+$bootstrap_do_push_delivery_logs$;

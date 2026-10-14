@@ -1,16 +1,31 @@
 -- P1 inventory ledger and cashier-session hardening.
 
 ALTER TABLE public.pos_sales
-  ADD COLUMN IF NOT EXISTS cash_session_id uuid REFERENCES public.pos_cash_sessions(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS cash_session_id uuid REFERENCES public.pos_cash_sessions(id) ON DELETE SET NULL$bootstrap_sql_3c5e95bfc443$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3c5e95bfc443$;
 
-CREATE INDEX IF NOT EXISTS idx_pos_sales_cash_session
-  ON public.pos_sales(cash_session_id, created_at DESC);
+DO $bootstrap_do_5d006af57992$
+BEGIN
+  EXECUTE $bootstrap_sql_5d006af57992$CREATE INDEX IF NOT EXISTS idx_pos_sales_cash_session
+  ON public.pos_sales(cash_session_id, created_at DESC)$bootstrap_sql_5d006af57992$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5d006af57992$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_one_open_cash_session_per_cashier_outlet
+DO $bootstrap_do_4292a6fa0e56$
+BEGIN
+  EXECUTE $bootstrap_sql_4292a6fa0e56$CREATE UNIQUE INDEX IF NOT EXISTS idx_one_open_cash_session_per_cashier_outlet
   ON public.pos_cash_sessions(tenant_id, outlet_id, cashier_id)
-  WHERE status = 'open' AND cashier_id IS NOT NULL;
+  WHERE status = 'open' AND cashier_id IS NOT NULL$bootstrap_sql_4292a6fa0e56$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4292a6fa0e56$;
 
-CREATE OR REPLACE FUNCTION public.assign_pos_sale_cash_session()
+DO $bootstrap_do_ac624cb8486d$
+BEGIN
+  EXECUTE $bootstrap_sql_ac624cb8486d$CREATE OR REPLACE FUNCTION public.assign_pos_sale_cash_session()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -29,14 +44,30 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_ac624cb8486d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ac624cb8486d$;
 
-DROP TRIGGER IF EXISTS assign_pos_sale_cash_session ON public.pos_sales;
-CREATE TRIGGER assign_pos_sale_cash_session
+DO $bootstrap_do_8b1fd898e080$
+BEGIN
+  EXECUTE $bootstrap_sql_8b1fd898e080$DROP TRIGGER IF EXISTS assign_pos_sale_cash_session ON public.pos_sales$bootstrap_sql_8b1fd898e080$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8b1fd898e080$;
+
+DO $bootstrap_do_fbc2916ad332$
+BEGIN
+  EXECUTE $bootstrap_sql_fbc2916ad332$CREATE TRIGGER assign_pos_sale_cash_session
   BEFORE INSERT ON public.pos_sales
-  FOR EACH ROW EXECUTE FUNCTION public.assign_pos_sale_cash_session();
+  FOR EACH ROW EXECUTE FUNCTION public.assign_pos_sale_cash_session()$bootstrap_sql_fbc2916ad332$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fbc2916ad332$;
 
-CREATE OR REPLACE FUNCTION public.open_cash_session(
+DO $bootstrap_do_5703f9e6c551$
+BEGIN
+  EXECUTE $bootstrap_sql_5703f9e6c551$CREATE OR REPLACE FUNCTION public.open_cash_session(
   p_tenant_id uuid,
   p_outlet_id uuid,
   p_cashier_id uuid,
@@ -75,9 +106,14 @@ BEGIN
 EXCEPTION WHEN unique_violation THEN
   RAISE EXCEPTION 'Cashier already has an open session for this outlet' USING ERRCODE = '23505';
 END;
-$$;
+$$$bootstrap_sql_5703f9e6c551$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5703f9e6c551$;
 
-CREATE OR REPLACE FUNCTION public.record_cash_mutation(
+DO $bootstrap_do_425aa7adcd47$
+BEGIN
+  EXECUTE $bootstrap_sql_425aa7adcd47$CREATE OR REPLACE FUNCTION public.record_cash_mutation(
   p_session_id uuid,
   p_tenant_id uuid,
   p_outlet_id uuid,
@@ -130,9 +166,14 @@ BEGIN
   END IF;
   RETURN jsonb_build_object('mutation_id', v_mutation_id, 'session_id', p_session_id);
 END;
-$$;
+$$$bootstrap_sql_425aa7adcd47$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_425aa7adcd47$;
 
-CREATE OR REPLACE FUNCTION public.close_cash_session(
+DO $bootstrap_do_1aa2443ff687$
+BEGIN
+  EXECUTE $bootstrap_sql_1aa2443ff687$CREATE OR REPLACE FUNCTION public.close_cash_session(
   p_session_id uuid,
   p_closing_balance numeric,
   p_notes text DEFAULT NULL
@@ -193,9 +234,14 @@ BEGIN
     'cash_in_total', v_cash_in, 'cash_out_total', v_cash_out
   );
 END;
-$$;
+$$$bootstrap_sql_1aa2443ff687$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1aa2443ff687$;
 
-CREATE OR REPLACE FUNCTION public.adjust_pos_stock(
+DO $bootstrap_do_099ab5177969$
+BEGIN
+  EXECUTE $bootstrap_sql_099ab5177969$CREATE OR REPLACE FUNCTION public.adjust_pos_stock(
   p_stock_id uuid,
   p_tenant_id uuid,
   p_outlet_id uuid,
@@ -241,13 +287,67 @@ BEGIN
   );
   RETURN jsonb_build_object('stock_id', v_stock.id, 'quantity_before', v_stock.quantity, 'quantity_after', v_after, 'delta', v_delta);
 END;
-$$;
+$$$bootstrap_sql_099ab5177969$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_099ab5177969$;
 
-REVOKE ALL ON FUNCTION public.open_cash_session(uuid, uuid, uuid, text, numeric, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.record_cash_mutation(uuid, uuid, uuid, text, text, numeric, text, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.close_cash_session(uuid, numeric, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.adjust_pos_stock(uuid, uuid, uuid, text, numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.open_cash_session(uuid, uuid, uuid, text, numeric, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.record_cash_mutation(uuid, uuid, uuid, text, text, numeric, text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.close_cash_session(uuid, numeric, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.adjust_pos_stock(uuid, uuid, uuid, text, numeric, text) TO authenticated;
+DO $bootstrap_do_db0508e1d8ff$
+BEGIN
+  EXECUTE $bootstrap_sql_db0508e1d8ff$REVOKE ALL ON FUNCTION public.open_cash_session(uuid, uuid, uuid, text, numeric, text) FROM PUBLIC, anon$bootstrap_sql_db0508e1d8ff$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_db0508e1d8ff$;
+
+DO $bootstrap_do_dcf78bdf569f$
+BEGIN
+  EXECUTE $bootstrap_sql_dcf78bdf569f$REVOKE ALL ON FUNCTION public.record_cash_mutation(uuid, uuid, uuid, text, text, numeric, text, text) FROM PUBLIC, anon$bootstrap_sql_dcf78bdf569f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dcf78bdf569f$;
+
+DO $bootstrap_do_c4fc63884c8b$
+BEGIN
+  EXECUTE $bootstrap_sql_c4fc63884c8b$REVOKE ALL ON FUNCTION public.close_cash_session(uuid, numeric, text) FROM PUBLIC, anon$bootstrap_sql_c4fc63884c8b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c4fc63884c8b$;
+
+DO $bootstrap_do_0aa05bf2cb63$
+BEGIN
+  EXECUTE $bootstrap_sql_0aa05bf2cb63$REVOKE ALL ON FUNCTION public.adjust_pos_stock(uuid, uuid, uuid, text, numeric, text) FROM PUBLIC, anon$bootstrap_sql_0aa05bf2cb63$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0aa05bf2cb63$;
+
+DO $bootstrap_do_41f78e214e3d$
+BEGIN
+  EXECUTE $bootstrap_sql_41f78e214e3d$GRANT EXECUTE ON FUNCTION public.open_cash_session(uuid, uuid, uuid, text, numeric, text) TO authenticated$bootstrap_sql_41f78e214e3d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_41f78e214e3d$;
+
+DO $bootstrap_do_607ea0bf76ef$
+BEGIN
+  EXECUTE $bootstrap_sql_607ea0bf76ef$GRANT EXECUTE ON FUNCTION public.record_cash_mutation(uuid, uuid, uuid, text, text, numeric, text, text) TO authenticated$bootstrap_sql_607ea0bf76ef$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_607ea0bf76ef$;
+
+DO $bootstrap_do_2d7c282246c1$
+BEGIN
+  EXECUTE $bootstrap_sql_2d7c282246c1$GRANT EXECUTE ON FUNCTION public.close_cash_session(uuid, numeric, text) TO authenticated$bootstrap_sql_2d7c282246c1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2d7c282246c1$;
+
+DO $bootstrap_do_8a54ef53e7ce$
+BEGIN
+  EXECUTE $bootstrap_sql_8a54ef53e7ce$GRANT EXECUTE ON FUNCTION public.adjust_pos_stock(uuid, uuid, uuid, text, numeric, text) TO authenticated$bootstrap_sql_8a54ef53e7ce$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8a54ef53e7ce$;
+
+DO $bootstrap_do_1f9a0ad229bb$
+BEGIN
+  EXECUTE $bootstrap_sql_1f9a0ad229bb$

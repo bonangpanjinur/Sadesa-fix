@@ -1,6 +1,11 @@
-ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_check;
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_category_check$bootstrap_sql_b93b1087e1d4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b93b1087e1d4$;
 
--- Use a trigger-based validation instead of CHECK so we can reference categories table
+DO $bootstrap_do_138a7a491d4a$
+BEGIN
+  EXECUTE $bootstrap_sql_138a7a491d4a$-- Use a trigger-based validation instead of CHECK so we can reference categories table
 CREATE OR REPLACE FUNCTION public.validate_product_category()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -15,9 +20,27 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_138a7a491d4a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_138a7a491d4a$;
 
-DROP TRIGGER IF EXISTS trg_validate_product_category ON public.products;
-CREATE TRIGGER trg_validate_product_category
+DO $bootstrap_do_5adef2f21e8a$
+BEGIN
+  EXECUTE $bootstrap_sql_5adef2f21e8a$DROP TRIGGER IF EXISTS trg_validate_product_category ON public.products$bootstrap_sql_5adef2f21e8a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5adef2f21e8a$;
+
+DO $bootstrap_do_09322853ca8a$
+BEGIN
+  EXECUTE $bootstrap_sql_09322853ca8a$CREATE TRIGGER trg_validate_product_category
 BEFORE INSERT OR UPDATE OF category ON public.products
-FOR EACH ROW EXECUTE FUNCTION public.validate_product_category();
+FOR EACH ROW EXECUTE FUNCTION public.validate_product_category()$bootstrap_sql_09322853ca8a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_09322853ca8a$;
+
+DO $bootstrap_do_b11386b87a3f$
+BEGIN
+  EXECUTE $bootstrap_sql_b11386b87a3f$

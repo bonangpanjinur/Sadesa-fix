@@ -3,35 +3,89 @@
 
 ALTER TABLE public.chat_conversations
   ADD COLUMN IF NOT EXISTS direct_admin_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
-  ADD COLUMN IF NOT EXISTS direct_target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE;
+  ADD COLUMN IF NOT EXISTS direct_target_user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE$bootstrap_sql_20a9f65def78$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_20a9f65def78$;
 
-ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_context_type_check;
-ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_context_type_check
-  CHECK (context_type IN ('order', 'ride', 'direct'));
+DO $bootstrap_do_0f08908dcb9d$
+BEGIN
+  EXECUTE $bootstrap_sql_0f08908dcb9d$ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_context_type_check$bootstrap_sql_0f08908dcb9d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0f08908dcb9d$;
 
-ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_one_context;
-ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_one_context CHECK (
+DO $bootstrap_do_9e8ff7bfaf6c$
+BEGIN
+  EXECUTE $bootstrap_sql_9e8ff7bfaf6c$ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_context_type_check
+  CHECK (context_type IN ('order', 'ride', 'direct'))$bootstrap_sql_9e8ff7bfaf6c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9e8ff7bfaf6c$;
+
+DO $bootstrap_do_614f706d97b8$
+BEGIN
+  EXECUTE $bootstrap_sql_614f706d97b8$ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_one_context$bootstrap_sql_614f706d97b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_614f706d97b8$;
+
+DO $bootstrap_do_b45c82576699$
+BEGIN
+  EXECUTE $bootstrap_sql_b45c82576699$ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_one_context CHECK (
   (context_type = 'order' AND order_id IS NOT NULL AND ride_request_id IS NULL AND merchant_id IS NULL AND direct_admin_user_id IS NULL AND direct_target_user_id IS NULL)
   OR (context_type = 'ride' AND ride_request_id IS NOT NULL AND order_id IS NULL AND merchant_id IS NULL AND direct_admin_user_id IS NULL AND direct_target_user_id IS NULL)
   OR (context_type = 'direct' AND order_id IS NULL AND ride_request_id IS NULL AND (
     (merchant_id IS NOT NULL AND direct_admin_user_id IS NULL AND direct_target_user_id IS NULL)
     OR (merchant_id IS NULL AND direct_admin_user_id IS NOT NULL AND direct_target_user_id IS NOT NULL)
   ))
-);
+)$bootstrap_sql_b45c82576699$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b45c82576699$;
 
-ALTER TABLE public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_role_check;
-ALTER TABLE public.chat_participants ADD CONSTRAINT chat_participants_role_check
-  CHECK (role IN ('admin', 'buyer', 'merchant', 'courier', 'passenger'));
+DO $bootstrap_do_438fe93a5ccf$
+BEGIN
+  EXECUTE $bootstrap_sql_438fe93a5ccf$ALTER TABLE public.chat_participants DROP CONSTRAINT IF EXISTS chat_participants_role_check$bootstrap_sql_438fe93a5ccf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_438fe93a5ccf$;
 
-ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_conversation_type_check;
-ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_conversation_type_check
-  CHECK (conversation_type IN ('buyer_merchant', 'buyer_courier', 'merchant_courier', 'passenger_courier', 'admin_merchant', 'admin_courier'));
+DO $bootstrap_do_71f1d0006ea1$
+BEGIN
+  EXECUTE $bootstrap_sql_71f1d0006ea1$ALTER TABLE public.chat_participants ADD CONSTRAINT chat_participants_role_check
+  CHECK (role IN ('admin', 'buyer', 'merchant', 'courier', 'passenger'))$bootstrap_sql_71f1d0006ea1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_71f1d0006ea1$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_admin_direct_uidx
+DO $bootstrap_do_627f636f3c60$
+BEGIN
+  EXECUTE $bootstrap_sql_627f636f3c60$ALTER TABLE public.chat_conversations DROP CONSTRAINT IF EXISTS chat_conversations_conversation_type_check$bootstrap_sql_627f636f3c60$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_627f636f3c60$;
+
+DO $bootstrap_do_f4e4a03c6eeb$
+BEGIN
+  EXECUTE $bootstrap_sql_f4e4a03c6eeb$ALTER TABLE public.chat_conversations ADD CONSTRAINT chat_conversations_conversation_type_check
+  CHECK (conversation_type IN ('buyer_merchant', 'buyer_courier', 'merchant_courier', 'passenger_courier', 'admin_merchant', 'admin_courier'))$bootstrap_sql_f4e4a03c6eeb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f4e4a03c6eeb$;
+
+DO $bootstrap_do_930769e6c0da$
+BEGIN
+  EXECUTE $bootstrap_sql_930769e6c0da$CREATE UNIQUE INDEX IF NOT EXISTS chat_conversations_admin_direct_uidx
   ON public.chat_conversations(direct_admin_user_id, direct_target_user_id, conversation_type)
-  WHERE context_type = 'direct' AND direct_admin_user_id IS NOT NULL AND direct_target_user_id IS NOT NULL;
+  WHERE context_type = 'direct' AND direct_admin_user_id IS NOT NULL AND direct_target_user_id IS NOT NULL$bootstrap_sql_930769e6c0da$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_930769e6c0da$;
 
-CREATE OR REPLACE FUNCTION public.get_or_create_admin_direct_chat(
+DO $bootstrap_do_a2dc0b53d21a$
+BEGIN
+  EXECUTE $bootstrap_sql_a2dc0b53d21a$CREATE OR REPLACE FUNCTION public.get_or_create_admin_direct_chat(
   p_target_user_id uuid,
   p_target_role text
 )
@@ -89,10 +143,33 @@ BEGIN
 
   RETURN v_conversation_id;
 END;
-$$;
+$$$bootstrap_sql_a2dc0b53d21a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a2dc0b53d21a$;
 
-REVOKE ALL ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) TO authenticated;
+DO $bootstrap_do_953d9ef82ae1$
+BEGIN
+  EXECUTE $bootstrap_sql_953d9ef82ae1$REVOKE ALL ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) FROM PUBLIC, anon$bootstrap_sql_953d9ef82ae1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_953d9ef82ae1$;
 
--- PostgREST caches database functions; reload immediately after migration.
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_8b2e5a441f03$
+BEGIN
+  EXECUTE $bootstrap_sql_8b2e5a441f03$GRANT EXECUTE ON FUNCTION public.get_or_create_admin_direct_chat(uuid, text) TO authenticated$bootstrap_sql_8b2e5a441f03$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8b2e5a441f03$;
+
+DO $bootstrap_do_3dbed7ed6a34$
+BEGIN
+  EXECUTE $bootstrap_sql_3dbed7ed6a34$-- PostgREST caches database functions; reload immediately after migration.
+NOTIFY pgrst, 'reload schema'$bootstrap_sql_3dbed7ed6a34$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3dbed7ed6a34$;
+
+DO $bootstrap_do_5e3316414fde$
+BEGIN
+  EXECUTE $bootstrap_sql_5e3316414fde$

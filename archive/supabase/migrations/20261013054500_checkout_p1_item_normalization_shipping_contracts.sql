@@ -1,11 +1,25 @@
--- P1 checkout hardening: normalize product/variant reservations and separate
+DO $bootstrap_do_efafe93e9ba8$
+BEGIN
+  EXECUTE $bootstrap_sql_efafe93e9ba8$-- P1 checkout hardening: normalize product/variant reservations and separate
 -- local courier, merchant self-delivery platform fee, and expedition pricing.
 
 ALTER TABLE public.products
-  ADD COLUMN IF NOT EXISTS shipping_weight_kg numeric NOT NULL DEFAULT 1;
-COMMENT ON COLUMN public.products.shipping_weight_kg IS
-  'Berat satu unit produk dalam kg; dipakai untuk menghitung ongkir rate-card ekspedisi.';
-DO $$
+  ADD COLUMN IF NOT EXISTS shipping_weight_kg numeric NOT NULL DEFAULT 1$bootstrap_sql_efafe93e9ba8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_efafe93e9ba8$;
+
+DO $bootstrap_do_b3b19f808f19$
+BEGIN
+  EXECUTE $bootstrap_sql_b3b19f808f19$COMMENT ON COLUMN public.products.shipping_weight_kg IS
+  'Berat satu unit produk dalam kg; dipakai untuk menghitung ongkir rate-card ekspedisi.'$bootstrap_sql_b3b19f808f19$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b3b19f808f19$;
+
+DO $bootstrap_do_335006188444$
+BEGIN
+  EXECUTE $bootstrap_sql_335006188444$DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
@@ -17,15 +31,25 @@ BEGIN
       CHECK (shipping_weight_kg > 0 AND shipping_weight_kg <= 1000);
   END IF;
 END;
-$$;
+$$$bootstrap_sql_335006188444$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_335006188444$;
 
-ALTER TABLE public.orders
+DO $bootstrap_do_39bfc20747c4$
+BEGIN
+  EXECUTE $bootstrap_sql_39bfc20747c4$ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS shipping_pricing_contract jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS merchant_delivery_fee_contract text,
   ADD COLUMN IF NOT EXISTS expedition_service_code_snapshot text,
-  ADD COLUMN IF NOT EXISTS expedition_service_name_snapshot text;
+  ADD COLUMN IF NOT EXISTS expedition_service_name_snapshot text$bootstrap_sql_39bfc20747c4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_39bfc20747c4$;
 
-CREATE TABLE IF NOT EXISTS public.marketplace_expedition_rate_cards (
+DO $bootstrap_do_c7fd7334cdc6$
+BEGIN
+  EXECUTE $bootstrap_sql_c7fd7334cdc6$CREATE TABLE IF NOT EXISTS public.marketplace_expedition_rate_cards (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   provider_id uuid NOT NULL REFERENCES public.expedition_providers(id) ON DELETE CASCADE,
   service_code text NOT NULL CHECK (length(btrim(service_code)) BETWEEN 1 AND 40),
@@ -44,13 +68,37 @@ CREATE TABLE IF NOT EXISTS public.marketplace_expedition_rate_cards (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (provider_id, service_code, destination_city_id)
-);
-COMMENT ON TABLE public.marketplace_expedition_rate_cards IS
-  'Tarif ekspedisi terpisah per provider, layanan, dan tujuan; sengaja tidak di-seed dengan harga tebakan.';
-CREATE INDEX IF NOT EXISTS idx_marketplace_expedition_rates_lookup
-  ON public.marketplace_expedition_rate_cards (destination_city_id, is_active, is_default, priority);
-ALTER TABLE public.marketplace_expedition_rate_cards ENABLE ROW LEVEL SECURITY;
-DO $$
+)$bootstrap_sql_c7fd7334cdc6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c7fd7334cdc6$;
+
+DO $bootstrap_do_f94f5ab2d120$
+BEGIN
+  EXECUTE $bootstrap_sql_f94f5ab2d120$COMMENT ON TABLE public.marketplace_expedition_rate_cards IS
+  'Tarif ekspedisi terpisah per provider, layanan, dan tujuan; sengaja tidak di-seed dengan harga tebakan.'$bootstrap_sql_f94f5ab2d120$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f94f5ab2d120$;
+
+DO $bootstrap_do_7e62e437901d$
+BEGIN
+  EXECUTE $bootstrap_sql_7e62e437901d$CREATE INDEX IF NOT EXISTS idx_marketplace_expedition_rates_lookup
+  ON public.marketplace_expedition_rate_cards (destination_city_id, is_active, is_default, priority)$bootstrap_sql_7e62e437901d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7e62e437901d$;
+
+DO $bootstrap_do_f9e523838963$
+BEGIN
+  EXECUTE $bootstrap_sql_f9e523838963$ALTER TABLE public.marketplace_expedition_rate_cards ENABLE ROW LEVEL SECURITY$bootstrap_sql_f9e523838963$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f9e523838963$;
+
+DO $bootstrap_do_f6695321439e$
+BEGIN
+  EXECUTE $bootstrap_sql_f6695321439e$DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'marketplace_expedition_rate_cards' AND policyname = 'Active expedition rate cards are readable') THEN
     CREATE POLICY "Active expedition rate cards are readable"
@@ -69,12 +117,35 @@ BEGIN
       WITH CHECK (public.is_admin());
   END IF;
 END;
-$$;
-GRANT SELECT ON public.marketplace_expedition_rate_cards TO anon, authenticated;
-GRANT INSERT, UPDATE, DELETE ON public.marketplace_expedition_rate_cards TO authenticated;
-GRANT ALL ON public.marketplace_expedition_rate_cards TO service_role;
+$$$bootstrap_sql_f6695321439e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f6695321439e$;
 
-CREATE OR REPLACE FUNCTION public.normalize_marketplace_checkout_items(p_items jsonb)
+DO $bootstrap_do_cd92bff3bced$
+BEGIN
+  EXECUTE $bootstrap_sql_cd92bff3bced$GRANT SELECT ON public.marketplace_expedition_rate_cards TO anon, authenticated$bootstrap_sql_cd92bff3bced$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cd92bff3bced$;
+
+DO $bootstrap_do_7dd71edc628a$
+BEGIN
+  EXECUTE $bootstrap_sql_7dd71edc628a$GRANT INSERT, UPDATE, DELETE ON public.marketplace_expedition_rate_cards TO authenticated$bootstrap_sql_7dd71edc628a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7dd71edc628a$;
+
+DO $bootstrap_do_da50d07997d3$
+BEGIN
+  EXECUTE $bootstrap_sql_da50d07997d3$GRANT ALL ON public.marketplace_expedition_rate_cards TO service_role$bootstrap_sql_da50d07997d3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_da50d07997d3$;
+
+DO $bootstrap_do_bf0b69838929$
+BEGIN
+  EXECUTE $bootstrap_sql_bf0b69838929$CREATE OR REPLACE FUNCTION public.normalize_marketplace_checkout_items(p_items jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 IMMUTABLE
@@ -121,10 +192,21 @@ BEGIN
   ) grouped;
   RETURN v_normalized;
 END;
-$$;
-REVOKE ALL ON FUNCTION public.normalize_marketplace_checkout_items(jsonb) FROM PUBLIC, anon, authenticated;
+$$$bootstrap_sql_bf0b69838929$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bf0b69838929$;
 
--- Rename the previous reservation implementations once; the public signatures
+DO $bootstrap_do_147ac58eb36a$
+BEGIN
+  EXECUTE $bootstrap_sql_147ac58eb36a$REVOKE ALL ON FUNCTION public.normalize_marketplace_checkout_items(jsonb) FROM PUBLIC, anon, authenticated$bootstrap_sql_147ac58eb36a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_147ac58eb36a$;
+
+DO $bootstrap_do_673e8207bf19$
+BEGIN
+  EXECUTE $bootstrap_sql_673e8207bf19$-- Rename the previous reservation implementations once; the public signatures
 -- remain unchanged and all callers now pass normalized quantities to the legacy
 -- stock validation and allocation logic.
 DO $$
@@ -140,9 +222,14 @@ BEGIN
       RENAME TO reserve_marketplace_stock_guest_unaggregated;
   END IF;
 END;
-$$;
+$$$bootstrap_sql_673e8207bf19$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_673e8207bf19$;
 
-CREATE OR REPLACE FUNCTION public.reserve_marketplace_stock(
+DO $bootstrap_do_ab3773c94eb3$
+BEGIN
+  EXECUTE $bootstrap_sql_ab3773c94eb3$CREATE OR REPLACE FUNCTION public.reserve_marketplace_stock(
   p_order_id uuid,
   p_items jsonb,
   p_expires_at timestamptz DEFAULT now() + interval '30 minutes'
@@ -159,12 +246,35 @@ BEGIN
     p_expires_at
   );
 END;
-$$;
-REVOKE ALL ON FUNCTION public.reserve_marketplace_stock_unaggregated(uuid, jsonb, timestamptz) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.reserve_marketplace_stock(uuid, jsonb, timestamptz) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.reserve_marketplace_stock(uuid, jsonb, timestamptz) TO authenticated;
+$$$bootstrap_sql_ab3773c94eb3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ab3773c94eb3$;
 
-CREATE OR REPLACE FUNCTION public.reserve_marketplace_stock_guest(
+DO $bootstrap_do_45b5c6c4e0e4$
+BEGIN
+  EXECUTE $bootstrap_sql_45b5c6c4e0e4$REVOKE ALL ON FUNCTION public.reserve_marketplace_stock_unaggregated(uuid, jsonb, timestamptz) FROM PUBLIC, anon, authenticated$bootstrap_sql_45b5c6c4e0e4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_45b5c6c4e0e4$;
+
+DO $bootstrap_do_86652cf5a92c$
+BEGIN
+  EXECUTE $bootstrap_sql_86652cf5a92c$REVOKE ALL ON FUNCTION public.reserve_marketplace_stock(uuid, jsonb, timestamptz) FROM PUBLIC, anon$bootstrap_sql_86652cf5a92c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_86652cf5a92c$;
+
+DO $bootstrap_do_3689d0339822$
+BEGIN
+  EXECUTE $bootstrap_sql_3689d0339822$GRANT EXECUTE ON FUNCTION public.reserve_marketplace_stock(uuid, jsonb, timestamptz) TO authenticated$bootstrap_sql_3689d0339822$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3689d0339822$;
+
+DO $bootstrap_do_e4f442ffbeb1$
+BEGIN
+  EXECUTE $bootstrap_sql_e4f442ffbeb1$CREATE OR REPLACE FUNCTION public.reserve_marketplace_stock_guest(
   p_order_id uuid,
   p_items jsonb,
   p_guest_access_token text,
@@ -183,11 +293,28 @@ BEGIN
     p_expires_at
   );
 END;
-$$;
-REVOKE ALL ON FUNCTION public.reserve_marketplace_stock_guest_unaggregated(uuid, jsonb, text, timestamptz) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.reserve_marketplace_stock_guest(uuid, jsonb, text, timestamptz) FROM PUBLIC, anon, authenticated;
+$$$bootstrap_sql_e4f442ffbeb1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e4f442ffbeb1$;
 
-CREATE OR REPLACE FUNCTION public.marketplace_expedition_shipping_quote(
+DO $bootstrap_do_04c6154325ce$
+BEGIN
+  EXECUTE $bootstrap_sql_04c6154325ce$REVOKE ALL ON FUNCTION public.reserve_marketplace_stock_guest_unaggregated(uuid, jsonb, text, timestamptz) FROM PUBLIC, anon, authenticated$bootstrap_sql_04c6154325ce$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_04c6154325ce$;
+
+DO $bootstrap_do_c82590e8f87d$
+BEGIN
+  EXECUTE $bootstrap_sql_c82590e8f87d$REVOKE ALL ON FUNCTION public.reserve_marketplace_stock_guest(uuid, jsonb, text, timestamptz) FROM PUBLIC, anon, authenticated$bootstrap_sql_c82590e8f87d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c82590e8f87d$;
+
+DO $bootstrap_do_76bd71437969$
+BEGIN
+  EXECUTE $bootstrap_sql_76bd71437969$CREATE OR REPLACE FUNCTION public.marketplace_expedition_shipping_quote(
   p_items jsonb,
   p_delivery jsonb,
   p_subtotal integer,
@@ -264,10 +391,21 @@ BEGIN
     'quoted_at', now()
   );
 END;
-$$;
-REVOKE ALL ON FUNCTION public.marketplace_expedition_shipping_quote(jsonb, jsonb, integer, uuid, uuid) FROM PUBLIC, anon, authenticated;
+$$$bootstrap_sql_76bd71437969$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_76bd71437969$;
 
-CREATE OR REPLACE FUNCTION public.marketplace_shipping_contract_quote(
+DO $bootstrap_do_45ebf36e4623$
+BEGIN
+  EXECUTE $bootstrap_sql_45ebf36e4623$REVOKE ALL ON FUNCTION public.marketplace_expedition_shipping_quote(jsonb, jsonb, integer, uuid, uuid) FROM PUBLIC, anon, authenticated$bootstrap_sql_45ebf36e4623$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_45ebf36e4623$;
+
+DO $bootstrap_do_b4a735aa0b00$
+BEGIN
+  EXECUTE $bootstrap_sql_b4a735aa0b00$CREATE OR REPLACE FUNCTION public.marketplace_shipping_contract_quote(
   p_items jsonb,
   p_delivery jsonb,
   p_delivery_type text,
@@ -309,10 +447,21 @@ BEGIN
     'shipping_cost', v_shipping
   );
 END;
-$$;
-REVOKE ALL ON FUNCTION public.marketplace_shipping_contract_quote(jsonb, jsonb, text, integer, numeric, uuid, uuid) FROM PUBLIC, anon, authenticated;
+$$$bootstrap_sql_b4a735aa0b00$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b4a735aa0b00$;
 
-CREATE OR REPLACE FUNCTION public.quote_marketplace_checkout(
+DO $bootstrap_do_f2c05512462e$
+BEGIN
+  EXECUTE $bootstrap_sql_f2c05512462e$REVOKE ALL ON FUNCTION public.marketplace_shipping_contract_quote(jsonb, jsonb, text, integer, numeric, uuid, uuid) FROM PUBLIC, anon, authenticated$bootstrap_sql_f2c05512462e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f2c05512462e$;
+
+DO $bootstrap_do_ac7f8c9ab8a4$
+BEGIN
+  EXECUTE $bootstrap_sql_ac7f8c9ab8a4$CREATE OR REPLACE FUNCTION public.quote_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
   p_delivery_type text,
@@ -432,11 +581,28 @@ BEGIN
     'quoted_at', v_now
   );
 END;
-$$;
-REVOKE ALL ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) TO anon, authenticated;
+$$$bootstrap_sql_ac7f8c9ab8a4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ac7f8c9ab8a4$;
 
--- Keep the checkout RPC/idempotency signature stable while recalculating the
+DO $bootstrap_do_b75c5cc7be73$
+BEGIN
+  EXECUTE $bootstrap_sql_b75c5cc7be73$REVOKE ALL ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) FROM PUBLIC$bootstrap_sql_b75c5cc7be73$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b75c5cc7be73$;
+
+DO $bootstrap_do_95bf1f46be16$
+BEGIN
+  EXECUTE $bootstrap_sql_95bf1f46be16$GRANT EXECUTE ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) TO anon, authenticated$bootstrap_sql_95bf1f46be16$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_95bf1f46be16$;
+
+DO $bootstrap_do_fab091967a50$
+BEGIN
+  EXECUTE $bootstrap_sql_fab091967a50$-- Keep the checkout RPC/idempotency signature stable while recalculating the
 -- final shipping charge from the same contract shown by quote_marketplace_checkout.
 CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
   p_items jsonb,
@@ -549,11 +715,28 @@ BEGIN
   VALUES (auth.uid(), trim(p_checkout_key), v_result);
   RETURN v_result;
 END;
-$$;
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role;
+$$$bootstrap_sql_fab091967a50$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fab091967a50$;
 
--- Guest checkout keeps its public signature and idempotency contract; the
+DO $bootstrap_do_666d70e6039d$
+BEGIN
+  EXECUTE $bootstrap_sql_666d70e6039d$REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon$bootstrap_sql_666d70e6039d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_666d70e6039d$;
+
+DO $bootstrap_do_c470169e73a2$
+BEGIN
+  EXECUTE $bootstrap_sql_c470169e73a2$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role$bootstrap_sql_c470169e73a2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c470169e73a2$;
+
+DO $bootstrap_do_7d0772c131db$
+BEGIN
+  EXECUTE $bootstrap_sql_7d0772c131db$-- Guest checkout keeps its public signature and idempotency contract; the
 -- wrapper normalizes cart lines before the legacy checkout and snapshots rates.
 DO $$
 BEGIN
@@ -563,9 +746,14 @@ BEGIN
       RENAME TO create_guest_marketplace_checkout_unpriced;
   END IF;
 END;
-$$;
+$$$bootstrap_sql_7d0772c131db$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7d0772c131db$;
 
-CREATE OR REPLACE FUNCTION public.create_guest_marketplace_checkout(
+DO $bootstrap_do_d8e51f779cf0$
+BEGIN
+  EXECUTE $bootstrap_sql_d8e51f779cf0$CREATE OR REPLACE FUNCTION public.create_guest_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
   p_delivery_type text,
@@ -664,12 +852,35 @@ BEGIN
   WHERE guest_session_key_hash = v_session_hash AND checkout_key = v_effective_key;
   RETURN v_result;
 END;
-$$;
-REVOKE ALL ON FUNCTION public.create_guest_marketplace_checkout_unpriced(jsonb, jsonb, text, text, uuid, numeric, text, text) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.create_guest_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text, text) FROM PUBLIC, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_guest_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text, text) TO anon;
+$$$bootstrap_sql_d8e51f779cf0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d8e51f779cf0$;
 
--- The buyer-facing parcel charge and the merchant's own-delivery platform
+DO $bootstrap_do_3f6af1df5488$
+BEGIN
+  EXECUTE $bootstrap_sql_3f6af1df5488$REVOKE ALL ON FUNCTION public.create_guest_marketplace_checkout_unpriced(jsonb, jsonb, text, text, uuid, numeric, text, text) FROM PUBLIC, anon, authenticated$bootstrap_sql_3f6af1df5488$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3f6af1df5488$;
+
+DO $bootstrap_do_823b0cca6cb1$
+BEGIN
+  EXECUTE $bootstrap_sql_823b0cca6cb1$REVOKE ALL ON FUNCTION public.create_guest_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text, text) FROM PUBLIC, authenticated$bootstrap_sql_823b0cca6cb1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_823b0cca6cb1$;
+
+DO $bootstrap_do_10fd0b8c111e$
+BEGIN
+  EXECUTE $bootstrap_sql_10fd0b8c111e$GRANT EXECUTE ON FUNCTION public.create_guest_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text, text) TO anon$bootstrap_sql_10fd0b8c111e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_10fd0b8c111e$;
+
+DO $bootstrap_do_08be2986ee52$
+BEGIN
+  EXECUTE $bootstrap_sql_08be2986ee52$-- The buyer-facing parcel charge and the merchant's own-delivery platform
 -- commission are separate contracts and are snapshotted independently.
 CREATE OR REPLACE FUNCTION public.snapshot_merchant_self_delivery_fee_contract()
 RETURNS trigger
@@ -682,8 +893,14 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
-DO $$
+$$$bootstrap_sql_08be2986ee52$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_08be2986ee52$;
+
+DO $bootstrap_do_e86ea9c47ddd$
+BEGIN
+  EXECUTE $bootstrap_sql_e86ea9c47ddd$DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger
@@ -696,6 +913,14 @@ BEGIN
     FOR EACH ROW EXECUTE FUNCTION public.snapshot_merchant_self_delivery_fee_contract();
   END IF;
 END;
-$$;
+$$$bootstrap_sql_e86ea9c47ddd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e86ea9c47ddd$;
 
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_da3033a4f3d8$
+BEGIN
+  EXECUTE $bootstrap_sql_da3033a4f3d8$NOTIFY pgrst, 'reload schema'$bootstrap_sql_da3033a4f3d8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_da3033a4f3d8$;

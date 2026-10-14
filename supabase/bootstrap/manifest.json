@@ -1,8 +1,8 @@
 {
   "idempotent": true,
-  "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 329,
-  "bundle_count": 123,
+  "source": "archive/supabase/migrations",
+  "migration_count": 277,
+  "bundle_count": 126,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1111,8 +1111,8 @@
       "source_files": [
         "20261010150000_merchant_payment_setup_push_alert.sql"
       ],
-      "sha256": "cc31a5248caacbd042a759b51cd815625326b28f2801e2f6482a0fac23512f2f",
-      "bytes": 5947
+      "sha256": "cbcc6c048c072cf3eff38b1a529016fab563068554127e5288054122bd8e661c",
+      "bytes": 6028
     },
     {
       "file": "97_20261010170000_push_delivery_logs.sql",
@@ -1191,6 +1191,30 @@
       ],
       "sha256": "7ad38720854fd2896859674bdd46735db86d4fb7835e5fb1136e697e018abb1e",
       "bytes": 7213
+    },
+    {
+      "file": "124_20261014093000_to_20261014093000.sql",
+      "source_files": [
+        "20261014093000_repair_checkout_item_normalizer.sql"
+      ],
+      "sha256": "ca26c6cef8442e01881033259c2eccd1387d374f2cb472607c4bf83157b2e621",
+      "bytes": 2512
+    },
+    {
+      "file": "125_20261014104000_to_20261014104000.sql",
+      "source_files": [
+        "20261014104000_repair_checkout_shipping_columns.sql"
+      ],
+      "sha256": "f8bb7d5cbe5f5b7b308141e070350203624213489c1ffee60c540643f8c635d8",
+      "bytes": 1425
+    },
+    {
+      "file": "126_20261014190000_to_20261014190000.sql",
+      "source_files": [
+        "20261014190000_harden_driver_cancel_ride.sql"
+      ],
+      "sha256": "a66e55035c4d0a9d61a84ef89a0bbf72dd5bd2a8cffa8ff2b6c5bc1f09dd69a5",
+      "bytes": 2562
     }
   ]
 }

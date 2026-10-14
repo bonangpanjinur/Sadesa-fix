@@ -12,4 +12,11 @@ BEGIN
   END IF;
 EXCEPTION
   WHEN undefined_object THEN NULL;
-END $$;
+END $$$bootstrap_sql_e263e68a4c54$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e263e68a4c54$;
+
+DO $bootstrap_do_4f677ca981c3$
+BEGIN
+  EXECUTE $bootstrap_sql_4f677ca981c3$

@@ -82,17 +82,38 @@ BEGIN
 
   RETURN jsonb_build_object('success', true, 'processed', true, 'status', p_status);
 END;
-$$;
+$$$bootstrap_sql_e12ca8e87ff0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e12ca8e87ff0$;
 
-REVOKE ALL ON FUNCTION public.process_payment_webhook_event(text, text, text, uuid, text, timestamptz, text, text, numeric)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.process_payment_webhook_event(text, text, text, uuid, text, timestamptz, text, text, numeric)
-  TO service_role;
+DO $bootstrap_do_2314aad13b1f$
+BEGIN
+  EXECUTE $bootstrap_sql_2314aad13b1f$REVOKE ALL ON FUNCTION public.process_payment_webhook_event(text, text, text, uuid, text, timestamptz, text, text, numeric)
+  FROM PUBLIC, anon, authenticated$bootstrap_sql_2314aad13b1f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2314aad13b1f$;
 
-COMMENT ON FUNCTION public.process_payment_webhook_event(text, text, text, uuid, text, timestamptz, text, text, numeric)
-  IS 'Atomically validates, deduplicates, and applies payment provider callbacks.';
+DO $bootstrap_do_f9ccbe27ff2c$
+BEGIN
+  EXECUTE $bootstrap_sql_f9ccbe27ff2c$GRANT EXECUTE ON FUNCTION public.process_payment_webhook_event(text, text, text, uuid, text, timestamptz, text, text, numeric)
+  TO service_role$bootstrap_sql_f9ccbe27ff2c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f9ccbe27ff2c$;
 
--- Prevent direct SQL updates from downgrading a paid order payment status.
+DO $bootstrap_do_877a0916b1cd$
+BEGIN
+  EXECUTE $bootstrap_sql_877a0916b1cd$COMMENT ON FUNCTION public.process_payment_webhook_event(text, text, text, uuid, text, timestamptz, text, text, numeric)
+  IS 'Atomically validates, deduplicates, and applies payment provider callbacks.'$bootstrap_sql_877a0916b1cd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_877a0916b1cd$;
+
+DO $bootstrap_do_5970bc776786$
+BEGIN
+  EXECUTE $bootstrap_sql_5970bc776786$-- Prevent direct SQL updates from downgrading a paid order payment status.
 CREATE OR REPLACE FUNCTION public.prevent_paid_payment_downgrade()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -104,15 +125,42 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_5970bc776786$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5970bc776786$;
 
-DROP TRIGGER IF EXISTS trg_prevent_paid_payment_downgrade ON public.orders;
-CREATE TRIGGER trg_prevent_paid_payment_downgrade
+DO $bootstrap_do_aa0364243498$
+BEGIN
+  EXECUTE $bootstrap_sql_aa0364243498$DROP TRIGGER IF EXISTS trg_prevent_paid_payment_downgrade ON public.orders$bootstrap_sql_aa0364243498$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aa0364243498$;
+
+DO $bootstrap_do_825d0ffc0eb5$
+BEGIN
+  EXECUTE $bootstrap_sql_825d0ffc0eb5$CREATE TRIGGER trg_prevent_paid_payment_downgrade
   BEFORE UPDATE OF payment_status ON public.orders
-  FOR EACH ROW EXECUTE FUNCTION public.prevent_paid_payment_downgrade();
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_paid_payment_downgrade()$bootstrap_sql_825d0ffc0eb5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_825d0ffc0eb5$;
 
-REVOKE ALL ON FUNCTION public.prevent_paid_payment_downgrade() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.prevent_paid_payment_downgrade() TO service_role;
--- Rollback note: drop the trigger/function only after restoring the previous
+DO $bootstrap_do_ce7a0b21849b$
+BEGIN
+  EXECUTE $bootstrap_sql_ce7a0b21849b$REVOKE ALL ON FUNCTION public.prevent_paid_payment_downgrade() FROM PUBLIC, anon, authenticated$bootstrap_sql_ce7a0b21849b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ce7a0b21849b$;
+
+DO $bootstrap_do_ad742eebbf4c$
+BEGIN
+  EXECUTE $bootstrap_sql_ad742eebbf4c$GRANT EXECUTE ON FUNCTION public.prevent_paid_payment_downgrade() TO service_role$bootstrap_sql_ad742eebbf4c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ad742eebbf4c$;
+
+DO $bootstrap_do_6d7fdeb68b4e$
+BEGIN
+  EXECUTE $bootstrap_sql_6d7fdeb68b4e$-- Rollback note: drop the trigger/function only after restoring the previous
 -- webhook implementation; the function is intentionally retained for staged rollout.
-

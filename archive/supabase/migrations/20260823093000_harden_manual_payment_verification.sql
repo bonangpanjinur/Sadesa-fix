@@ -53,7 +53,25 @@ BEGIN
 
   RETURN jsonb_build_object('success', true, 'already_paid', false, 'order_id', v_order.id, 'payment_status', 'PAID');
 END;
-$$;
+$$$bootstrap_sql_20b1c5f31e70$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_20b1c5f31e70$;
 
-REVOKE ALL ON FUNCTION public.merchant_verify_order_payment(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.merchant_verify_order_payment(uuid) TO authenticated;
+DO $bootstrap_do_8281f04815bf$
+BEGIN
+  EXECUTE $bootstrap_sql_8281f04815bf$REVOKE ALL ON FUNCTION public.merchant_verify_order_payment(uuid) FROM PUBLIC$bootstrap_sql_8281f04815bf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8281f04815bf$;
+
+DO $bootstrap_do_6c93622a9356$
+BEGIN
+  EXECUTE $bootstrap_sql_6c93622a9356$GRANT EXECUTE ON FUNCTION public.merchant_verify_order_payment(uuid) TO authenticated$bootstrap_sql_6c93622a9356$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6c93622a9356$;
+
+DO $bootstrap_do_e12ca8e87ff0$
+BEGIN
+  EXECUTE $bootstrap_sql_e12ca8e87ff0$

@@ -9,29 +9,100 @@ CREATE TABLE IF NOT EXISTS public.pos_warehouse_transfers (
   created_at timestamptz NOT NULL DEFAULT now(),
   completed_at timestamptz NOT NULL DEFAULT now(),
   CHECK (from_warehouse_id <> to_warehouse_id)
-);
-CREATE TABLE IF NOT EXISTS public.pos_warehouse_transfer_items (
+)$bootstrap_sql_ce0065c887e6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ce0065c887e6$;
+
+DO $bootstrap_do_4a03c3484d25$
+BEGIN
+  EXECUTE $bootstrap_sql_4a03c3484d25$CREATE TABLE IF NOT EXISTS public.pos_warehouse_transfer_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   transfer_id uuid NOT NULL REFERENCES public.pos_warehouse_transfers(id) ON DELETE CASCADE,
   product_id uuid NOT NULL REFERENCES public.pos_products(id) ON DELETE RESTRICT,
   variant_id uuid REFERENCES public.pos_product_variants(id) ON DELETE RESTRICT,
   quantity numeric(15,3) NOT NULL CHECK (quantity > 0)
-);
-CREATE INDEX IF NOT EXISTS idx_pos_warehouse_transfers_tenant ON public.pos_warehouse_transfers(tenant_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_pos_warehouse_transfer_items_transfer ON public.pos_warehouse_transfer_items(transfer_id);
-ALTER TABLE public.pos_warehouse_transfers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pos_warehouse_transfer_items ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "POS users view warehouse transfers" ON public.pos_warehouse_transfers;
-CREATE POLICY "POS users view warehouse transfers" ON public.pos_warehouse_transfers FOR SELECT TO authenticated
-  USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()) OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true));
-DROP POLICY IF EXISTS "Tenant owners insert warehouse transfers" ON public.pos_warehouse_transfers;
-CREATE POLICY "Tenant owners insert warehouse transfers" ON public.pos_warehouse_transfers FOR INSERT TO authenticated
-  WITH CHECK (created_by = auth.uid() AND tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
-DROP POLICY IF EXISTS "POS users view warehouse transfer items" ON public.pos_warehouse_transfer_items;
-CREATE POLICY "POS users view warehouse transfer items" ON public.pos_warehouse_transfer_items FOR SELECT TO authenticated
-  USING (transfer_id IN (SELECT id FROM public.pos_warehouse_transfers WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()) OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true)));
+)$bootstrap_sql_4a03c3484d25$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4a03c3484d25$;
 
-CREATE OR REPLACE FUNCTION public.transfer_stock_between_warehouses(
+DO $bootstrap_do_450a9674da4e$
+BEGIN
+  EXECUTE $bootstrap_sql_450a9674da4e$CREATE INDEX IF NOT EXISTS idx_pos_warehouse_transfers_tenant ON public.pos_warehouse_transfers(tenant_id, created_at DESC)$bootstrap_sql_450a9674da4e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_450a9674da4e$;
+
+DO $bootstrap_do_dc6e736bb7ef$
+BEGIN
+  EXECUTE $bootstrap_sql_dc6e736bb7ef$CREATE INDEX IF NOT EXISTS idx_pos_warehouse_transfer_items_transfer ON public.pos_warehouse_transfer_items(transfer_id)$bootstrap_sql_dc6e736bb7ef$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dc6e736bb7ef$;
+
+DO $bootstrap_do_e39bd26898f6$
+BEGIN
+  EXECUTE $bootstrap_sql_e39bd26898f6$ALTER TABLE public.pos_warehouse_transfers ENABLE ROW LEVEL SECURITY$bootstrap_sql_e39bd26898f6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e39bd26898f6$;
+
+DO $bootstrap_do_3d097930a63f$
+BEGIN
+  EXECUTE $bootstrap_sql_3d097930a63f$ALTER TABLE public.pos_warehouse_transfer_items ENABLE ROW LEVEL SECURITY$bootstrap_sql_3d097930a63f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3d097930a63f$;
+
+DO $bootstrap_do_2b5cc0601cb5$
+BEGIN
+  EXECUTE $bootstrap_sql_2b5cc0601cb5$DROP POLICY IF EXISTS "POS users view warehouse transfers" ON public.pos_warehouse_transfers$bootstrap_sql_2b5cc0601cb5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2b5cc0601cb5$;
+
+DO $bootstrap_do_41cb1f60c92f$
+BEGIN
+  EXECUTE $bootstrap_sql_41cb1f60c92f$CREATE POLICY "POS users view warehouse transfers" ON public.pos_warehouse_transfers FOR SELECT TO authenticated
+  USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()) OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true))$bootstrap_sql_41cb1f60c92f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_41cb1f60c92f$;
+
+DO $bootstrap_do_5509e7ac9cb5$
+BEGIN
+  EXECUTE $bootstrap_sql_5509e7ac9cb5$DROP POLICY IF EXISTS "Tenant owners insert warehouse transfers" ON public.pos_warehouse_transfers$bootstrap_sql_5509e7ac9cb5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5509e7ac9cb5$;
+
+DO $bootstrap_do_0d15c0ec80d6$
+BEGIN
+  EXECUTE $bootstrap_sql_0d15c0ec80d6$CREATE POLICY "Tenant owners insert warehouse transfers" ON public.pos_warehouse_transfers FOR INSERT TO authenticated
+  WITH CHECK (created_by = auth.uid() AND tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))$bootstrap_sql_0d15c0ec80d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0d15c0ec80d6$;
+
+DO $bootstrap_do_e188469e465e$
+BEGIN
+  EXECUTE $bootstrap_sql_e188469e465e$DROP POLICY IF EXISTS "POS users view warehouse transfer items" ON public.pos_warehouse_transfer_items$bootstrap_sql_e188469e465e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e188469e465e$;
+
+DO $bootstrap_do_12dcc1b35389$
+BEGIN
+  EXECUTE $bootstrap_sql_12dcc1b35389$CREATE POLICY "POS users view warehouse transfer items" ON public.pos_warehouse_transfer_items FOR SELECT TO authenticated
+  USING (transfer_id IN (SELECT id FROM public.pos_warehouse_transfers WHERE tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()) OR tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true)))$bootstrap_sql_12dcc1b35389$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_12dcc1b35389$;
+
+DO $bootstrap_do_7d345b1d1479$
+BEGIN
+  EXECUTE $bootstrap_sql_7d345b1d1479$CREATE OR REPLACE FUNCTION public.transfer_stock_between_warehouses(
   p_tenant_id uuid,
   p_from_warehouse_id uuid,
   p_to_warehouse_id uuid,
@@ -75,6 +146,25 @@ BEGIN
     INSERT INTO public.pos_warehouse_transfer_items(transfer_id, product_id, variant_id, quantity) VALUES (v_transfer_id, v_product_id, v_variant_id, v_qty);
   END LOOP;
   RETURN jsonb_build_object('transfer_id', v_transfer_id, 'status', 'completed');
-END; $$;
-REVOKE ALL ON FUNCTION public.transfer_stock_between_warehouses(uuid, uuid, uuid, jsonb, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.transfer_stock_between_warehouses(uuid, uuid, uuid, jsonb, text) TO authenticated;
+END; $$$bootstrap_sql_7d345b1d1479$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7d345b1d1479$;
+
+DO $bootstrap_do_50536b0b6e30$
+BEGIN
+  EXECUTE $bootstrap_sql_50536b0b6e30$REVOKE ALL ON FUNCTION public.transfer_stock_between_warehouses(uuid, uuid, uuid, jsonb, text) FROM PUBLIC, anon$bootstrap_sql_50536b0b6e30$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_50536b0b6e30$;
+
+DO $bootstrap_do_c9f99e9965b2$
+BEGIN
+  EXECUTE $bootstrap_sql_c9f99e9965b2$GRANT EXECUTE ON FUNCTION public.transfer_stock_between_warehouses(uuid, uuid, uuid, jsonb, text) TO authenticated$bootstrap_sql_c9f99e9965b2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c9f99e9965b2$;
+
+DO $bootstrap_do_b97d9f711dec$
+BEGIN
+  EXECUTE $bootstrap_sql_b97d9f711dec$

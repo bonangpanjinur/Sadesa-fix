@@ -49,9 +49,14 @@ BEGIN
 
   RETURN v_order;
 END;
-$$;
+$$$bootstrap_sql_fcd5998a8f12$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fcd5998a8f12$;
 
-CREATE OR REPLACE FUNCTION public.transition_pos_table(
+DO $bootstrap_do_43b8ac867c58$
+BEGIN
+  EXECUTE $bootstrap_sql_43b8ac867c58$CREATE OR REPLACE FUNCTION public.transition_pos_table(
   p_table_id uuid,
   p_to_status text,
   p_expected_status text DEFAULT NULL
@@ -88,14 +93,42 @@ BEGIN
   WHERE id = p_table_id RETURNING * INTO v_table;
   RETURN v_table;
 END;
-$$;
+$$$bootstrap_sql_43b8ac867c58$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_43b8ac867c58$;
 
-REVOKE ALL ON FUNCTION public.transition_pos_table_order(uuid, text, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.transition_pos_table(uuid, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.transition_pos_table_order(uuid, text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.transition_pos_table(uuid, text, text) TO authenticated;
+DO $bootstrap_do_31d733afd0aa$
+BEGIN
+  EXECUTE $bootstrap_sql_31d733afd0aa$REVOKE ALL ON FUNCTION public.transition_pos_table_order(uuid, text, text) FROM PUBLIC, anon$bootstrap_sql_31d733afd0aa$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_31d733afd0aa$;
 
-CREATE OR REPLACE FUNCTION public.create_pos_table_order(
+DO $bootstrap_do_1fe8e895b632$
+BEGIN
+  EXECUTE $bootstrap_sql_1fe8e895b632$REVOKE ALL ON FUNCTION public.transition_pos_table(uuid, text, text) FROM PUBLIC, anon$bootstrap_sql_1fe8e895b632$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1fe8e895b632$;
+
+DO $bootstrap_do_922ba7718914$
+BEGIN
+  EXECUTE $bootstrap_sql_922ba7718914$GRANT EXECUTE ON FUNCTION public.transition_pos_table_order(uuid, text, text) TO authenticated$bootstrap_sql_922ba7718914$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_922ba7718914$;
+
+DO $bootstrap_do_f02eaafbd7f1$
+BEGIN
+  EXECUTE $bootstrap_sql_f02eaafbd7f1$GRANT EXECUTE ON FUNCTION public.transition_pos_table(uuid, text, text) TO authenticated$bootstrap_sql_f02eaafbd7f1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f02eaafbd7f1$;
+
+DO $bootstrap_do_282959a2402e$
+BEGIN
+  EXECUTE $bootstrap_sql_282959a2402e$CREATE OR REPLACE FUNCTION public.create_pos_table_order(
   p_tenant_id uuid,
   p_outlet_id uuid,
   p_table_id uuid,
@@ -132,7 +165,25 @@ BEGIN
   UPDATE public.pos_tables SET status = 'occupied', updated_at = now() WHERE id = p_table_id;
   RETURN v_order;
 END;
-$$;
+$$$bootstrap_sql_282959a2402e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_282959a2402e$;
 
-REVOKE ALL ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, text, text, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, text, text, jsonb) TO authenticated;
+DO $bootstrap_do_7c262c5f5f38$
+BEGIN
+  EXECUTE $bootstrap_sql_7c262c5f5f38$REVOKE ALL ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, text, text, jsonb) FROM PUBLIC, anon$bootstrap_sql_7c262c5f5f38$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7c262c5f5f38$;
+
+DO $bootstrap_do_adb19c86e982$
+BEGIN
+  EXECUTE $bootstrap_sql_adb19c86e982$GRANT EXECUTE ON FUNCTION public.create_pos_table_order(uuid, uuid, uuid, text, text, text, jsonb) TO authenticated$bootstrap_sql_adb19c86e982$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_adb19c86e982$;
+
+DO $bootstrap_do_066993ebd073$
+BEGIN
+  EXECUTE $bootstrap_sql_066993ebd073$

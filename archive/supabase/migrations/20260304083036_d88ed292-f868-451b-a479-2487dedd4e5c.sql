@@ -1,4 +1,3 @@
-
 -- Atomic RPC to accept a ride, preventing race conditions
 CREATE OR REPLACE FUNCTION public.accept_ride(p_ride_id UUID, p_courier_id UUID)
 RETURNS BOOLEAN
@@ -35,4 +34,11 @@ BEGIN
 
   RETURN TRUE;
 END;
-$$;
+$$$bootstrap_sql_fe91f75bdf75$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fe91f75bdf75$;
+
+DO $bootstrap_do_7bc518a86c0d$
+BEGIN
+  EXECUTE $bootstrap_sql_7bc518a86c0d$

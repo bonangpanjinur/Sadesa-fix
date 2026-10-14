@@ -4,21 +4,31 @@
 -- 3. Ensure price consistency and quota logic
 
 -- Update merchant_subscriptions to handle payment flow
-ALTER TABLE public.merchant_subscriptions 
+ALTER TABLE public.merchant_subscriptions
 ADD COLUMN IF NOT EXISTS payment_proof_url text,
-ADD COLUMN IF NOT EXISTS admin_notes text;
+ADD COLUMN IF NOT EXISTS admin_notes text$bootstrap_sql_87c2c24378c0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_87c2c24378c0$;
 
--- Insert default payment settings if they don't exist
+DO $bootstrap_do_1eb1f60fe01c$
+BEGIN
+  EXECUTE $bootstrap_sql_1eb1f60fe01c$-- Insert default payment settings if they don't exist
 INSERT INTO public.app_settings (key, value, description, category)
 VALUES (
-  'payment_settings', 
+  'payment_settings',
   '{"bank_name": "BCA", "account_number": "1234567890", "account_name": "Admin Desa Digital", "qris_url": ""}',
   'Pengaturan pembayaran untuk pembelian paket oleh merchant',
   'payment'
 )
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO NOTHING$bootstrap_sql_1eb1f60fe01c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1eb1f60fe01c$;
 
--- Trigger to automatically set payment_status to PENDING_APPROVAL when payment_proof_url is updated
+DO $bootstrap_do_671207720672$
+BEGIN
+  EXECUTE $bootstrap_sql_671207720672$-- Trigger to automatically set payment_status to PENDING_APPROVAL when payment_proof_url is updated
 CREATE OR REPLACE FUNCTION public.handle_subscription_payment_upload()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -27,52 +37,108 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql$bootstrap_sql_671207720672$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_671207720672$;
 
-DROP TRIGGER IF EXISTS on_payment_proof_upload ON public.merchant_subscriptions;
-CREATE TRIGGER on_payment_proof_upload
+DO $bootstrap_do_7bc3fc673807$
+BEGIN
+  EXECUTE $bootstrap_sql_7bc3fc673807$DROP TRIGGER IF EXISTS on_payment_proof_upload ON public.merchant_subscriptions$bootstrap_sql_7bc3fc673807$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7bc3fc673807$;
+
+DO $bootstrap_do_d48faff8526f$
+BEGIN
+  EXECUTE $bootstrap_sql_d48faff8526f$CREATE TRIGGER on_payment_proof_upload
   BEFORE UPDATE ON public.merchant_subscriptions
   FOR EACH ROW
-  EXECUTE FUNCTION public.handle_subscription_payment_upload();
+  EXECUTE FUNCTION public.handle_subscription_payment_upload()$bootstrap_sql_d48faff8526f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d48faff8526f$;
 
--- Trigger to automatically set merchant's current_subscription_id when a subscription is marked as PAID and ACTIVE
+DO $bootstrap_do_7722291da2e4$
+BEGIN
+  EXECUTE $bootstrap_sql_7722291da2e4$-- Trigger to automatically set merchant's current_subscription_id when a subscription is marked as PAID and ACTIVE
 CREATE OR REPLACE FUNCTION public.handle_subscription_activation()
 RETURNS TRIGGER AS $$
 BEGIN
   -- If status becomes ACTIVE and payment_status is PAID
-  IF (NEW.status = 'ACTIVE' AND NEW.payment_status = 'PAID') AND 
+  IF (NEW.status = 'ACTIVE' AND NEW.payment_status = 'PAID') AND
      (OLD.status <> 'ACTIVE' OR OLD.payment_status <> 'PAID') THEN
-    
+
     -- Update merchant's current subscription
-    UPDATE public.merchants 
+    UPDATE public.merchants
     SET current_subscription_id = NEW.id
     WHERE id = NEW.merchant_id;
-    
+
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql$bootstrap_sql_7722291da2e4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7722291da2e4$;
 
-DROP TRIGGER IF EXISTS on_subscription_activation ON public.merchant_subscriptions;
-CREATE TRIGGER on_subscription_activation
+DO $bootstrap_do_257c217cb0d5$
+BEGIN
+  EXECUTE $bootstrap_sql_257c217cb0d5$DROP TRIGGER IF EXISTS on_subscription_activation ON public.merchant_subscriptions$bootstrap_sql_257c217cb0d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_257c217cb0d5$;
+
+DO $bootstrap_do_e7a9ae4a06ef$
+BEGIN
+  EXECUTE $bootstrap_sql_e7a9ae4a06ef$CREATE TRIGGER on_subscription_activation
   AFTER UPDATE ON public.merchant_subscriptions
   FOR EACH ROW
-  EXECUTE FUNCTION public.handle_subscription_activation();
+  EXECUTE FUNCTION public.handle_subscription_activation()$bootstrap_sql_e7a9ae4a06ef$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e7a9ae4a06ef$;
 
--- STORAGE POLICIES (Correct syntax for Supabase)
+DO $bootstrap_do_0ebcf7846597$
+BEGIN
+  EXECUTE $bootstrap_sql_0ebcf7846597$-- STORAGE POLICIES (Correct syntax for Supabase)
 -- Allow authenticated users to upload files to 'merchants' bucket
-DROP POLICY IF EXISTS "Allow merchants to upload payment proofs" ON storage.objects;
-CREATE POLICY "Allow merchants to upload payment proofs"
+DROP POLICY IF EXISTS "Allow merchants to upload payment proofs" ON storage.objects$bootstrap_sql_0ebcf7846597$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0ebcf7846597$;
+
+DO $bootstrap_do_39b81d3240a1$
+BEGIN
+  EXECUTE $bootstrap_sql_39b81d3240a1$CREATE POLICY "Allow merchants to upload payment proofs"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-  bucket_id = 'merchants' AND 
+  bucket_id = 'merchants' AND
   (storage.foldername(name))[1] = 'payment-proofs'
-);
+)$bootstrap_sql_39b81d3240a1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_39b81d3240a1$;
 
--- Allow authenticated users to view files in 'merchants' bucket
-DROP POLICY IF EXISTS "Allow authenticated to read payment proofs" ON storage.objects;
-CREATE POLICY "Allow authenticated to read payment proofs"
+DO $bootstrap_do_979cbb738915$
+BEGIN
+  EXECUTE $bootstrap_sql_979cbb738915$-- Allow authenticated users to view files in 'merchants' bucket
+DROP POLICY IF EXISTS "Allow authenticated to read payment proofs" ON storage.objects$bootstrap_sql_979cbb738915$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_979cbb738915$;
+
+DO $bootstrap_do_dbbe0d1e13ef$
+BEGIN
+  EXECUTE $bootstrap_sql_dbbe0d1e13ef$CREATE POLICY "Allow authenticated to read payment proofs"
 ON storage.objects FOR SELECT
 TO authenticated
-USING (bucket_id = 'merchants');
+USING (bucket_id = 'merchants')$bootstrap_sql_dbbe0d1e13ef$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dbbe0d1e13ef$;
+
+DO $bootstrap_do_a58538a05662$
+BEGIN
+  EXECUTE $bootstrap_sql_a58538a05662$

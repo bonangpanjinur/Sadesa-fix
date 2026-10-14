@@ -26,6 +26,25 @@ BEGIN
   WHERE id = p_request_id;
   RETURN jsonb_build_object('id', p_request_id, 'status', v_status, 'processed_at', now());
 END;
-$$;
-REVOKE ALL ON FUNCTION public.decide_refund_request(uuid, boolean, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.decide_refund_request(uuid, boolean, text) TO authenticated;
+$$$bootstrap_sql_f5a66db5c83f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f5a66db5c83f$;
+
+DO $bootstrap_do_eaab8d364aba$
+BEGIN
+  EXECUTE $bootstrap_sql_eaab8d364aba$REVOKE ALL ON FUNCTION public.decide_refund_request(uuid, boolean, text) FROM PUBLIC, anon$bootstrap_sql_eaab8d364aba$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eaab8d364aba$;
+
+DO $bootstrap_do_d1c890420218$
+BEGIN
+  EXECUTE $bootstrap_sql_d1c890420218$GRANT EXECUTE ON FUNCTION public.decide_refund_request(uuid, boolean, text) TO authenticated$bootstrap_sql_d1c890420218$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d1c890420218$;
+
+DO $bootstrap_do_f77067d5f872$
+BEGIN
+  EXECUTE $bootstrap_sql_f77067d5f872$

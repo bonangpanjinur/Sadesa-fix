@@ -10,29 +10,112 @@ CREATE TABLE IF NOT EXISTS public.marketplace_shipments (
   shipped_at timestamptz,
   delivered_at timestamptz,
   UNIQUE(merchant_id, shipment_number)
-);
-CREATE TABLE IF NOT EXISTS public.marketplace_shipment_items (
+)$bootstrap_sql_2fe2cbf30cac$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2fe2cbf30cac$;
+
+DO $bootstrap_do_30c2bad46ce9$
+BEGIN
+  EXECUTE $bootstrap_sql_30c2bad46ce9$CREATE TABLE IF NOT EXISTS public.marketplace_shipment_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   shipment_id uuid NOT NULL REFERENCES public.marketplace_shipments(id) ON DELETE CASCADE,
   order_item_id uuid NOT NULL REFERENCES public.order_items(id) ON DELETE RESTRICT,
   product_id uuid REFERENCES public.products(id) ON DELETE SET NULL,
   quantity integer NOT NULL CHECK (quantity > 0),
   UNIQUE(shipment_id, order_item_id)
-);
-CREATE INDEX IF NOT EXISTS idx_marketplace_shipments_order ON public.marketplace_shipments(order_id, status, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_marketplace_shipment_items_order_item ON public.marketplace_shipment_items(order_item_id);
-ALTER TABLE public.marketplace_shipments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.marketplace_shipment_items ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Buyer views own marketplace shipments" ON public.marketplace_shipments;
-CREATE POLICY "Buyer views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid()));
-DROP POLICY IF EXISTS "Merchant views own marketplace shipments" ON public.marketplace_shipments;
-CREATE POLICY "Merchant views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin());
-DROP POLICY IF EXISTS "Buyer views own shipment items" ON public.marketplace_shipment_items;
-CREATE POLICY "Buyer views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid())));
-DROP POLICY IF EXISTS "Merchant views own shipment items" ON public.marketplace_shipment_items;
-CREATE POLICY "Merchant views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin()));
+)$bootstrap_sql_30c2bad46ce9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30c2bad46ce9$;
 
-CREATE OR REPLACE FUNCTION public.create_marketplace_shipment(p_order_id uuid, p_items jsonb, p_tracking_number text DEFAULT NULL)
+DO $bootstrap_do_85045f335fc7$
+BEGIN
+  EXECUTE $bootstrap_sql_85045f335fc7$CREATE INDEX IF NOT EXISTS idx_marketplace_shipments_order ON public.marketplace_shipments(order_id, status, created_at DESC)$bootstrap_sql_85045f335fc7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_85045f335fc7$;
+
+DO $bootstrap_do_3567a7c0e1dd$
+BEGIN
+  EXECUTE $bootstrap_sql_3567a7c0e1dd$CREATE INDEX IF NOT EXISTS idx_marketplace_shipment_items_order_item ON public.marketplace_shipment_items(order_item_id)$bootstrap_sql_3567a7c0e1dd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3567a7c0e1dd$;
+
+DO $bootstrap_do_dc60d346b49b$
+BEGIN
+  EXECUTE $bootstrap_sql_dc60d346b49b$ALTER TABLE public.marketplace_shipments ENABLE ROW LEVEL SECURITY$bootstrap_sql_dc60d346b49b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dc60d346b49b$;
+
+DO $bootstrap_do_afa5421022e8$
+BEGIN
+  EXECUTE $bootstrap_sql_afa5421022e8$ALTER TABLE public.marketplace_shipment_items ENABLE ROW LEVEL SECURITY$bootstrap_sql_afa5421022e8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_afa5421022e8$;
+
+DO $bootstrap_do_c7e2c34b1665$
+BEGIN
+  EXECUTE $bootstrap_sql_c7e2c34b1665$DROP POLICY IF EXISTS "Buyer views own marketplace shipments" ON public.marketplace_shipments$bootstrap_sql_c7e2c34b1665$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c7e2c34b1665$;
+
+DO $bootstrap_do_4c5143f666c0$
+BEGIN
+  EXECUTE $bootstrap_sql_4c5143f666c0$CREATE POLICY "Buyer views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid()))$bootstrap_sql_4c5143f666c0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4c5143f666c0$;
+
+DO $bootstrap_do_e334107ea7d2$
+BEGIN
+  EXECUTE $bootstrap_sql_e334107ea7d2$DROP POLICY IF EXISTS "Merchant views own marketplace shipments" ON public.marketplace_shipments$bootstrap_sql_e334107ea7d2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e334107ea7d2$;
+
+DO $bootstrap_do_c1d37249eef8$
+BEGIN
+  EXECUTE $bootstrap_sql_c1d37249eef8$CREATE POLICY "Merchant views own marketplace shipments" ON public.marketplace_shipments FOR SELECT TO authenticated USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin())$bootstrap_sql_c1d37249eef8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c1d37249eef8$;
+
+DO $bootstrap_do_c02077cc8b68$
+BEGIN
+  EXECUTE $bootstrap_sql_c02077cc8b68$DROP POLICY IF EXISTS "Buyer views own shipment items" ON public.marketplace_shipment_items$bootstrap_sql_c02077cc8b68$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c02077cc8b68$;
+
+DO $bootstrap_do_58a65c8fba1b$
+BEGIN
+  EXECUTE $bootstrap_sql_58a65c8fba1b$CREATE POLICY "Buyer views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE order_id IN (SELECT id FROM public.orders WHERE buyer_id = auth.uid())))$bootstrap_sql_58a65c8fba1b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_58a65c8fba1b$;
+
+DO $bootstrap_do_177bd4387363$
+BEGIN
+  EXECUTE $bootstrap_sql_177bd4387363$DROP POLICY IF EXISTS "Merchant views own shipment items" ON public.marketplace_shipment_items$bootstrap_sql_177bd4387363$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_177bd4387363$;
+
+DO $bootstrap_do_9ab9d8a7c56a$
+BEGIN
+  EXECUTE $bootstrap_sql_9ab9d8a7c56a$CREATE POLICY "Merchant views own shipment items" ON public.marketplace_shipment_items FOR SELECT TO authenticated USING (shipment_id IN (SELECT id FROM public.marketplace_shipments WHERE merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin()))$bootstrap_sql_9ab9d8a7c56a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9ab9d8a7c56a$;
+
+DO $bootstrap_do_eaa4c7262ce9$
+BEGIN
+  EXECUTE $bootstrap_sql_eaa4c7262ce9$CREATE OR REPLACE FUNCTION public.create_marketplace_shipment(p_order_id uuid, p_items jsonb, p_tracking_number text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_order public.orders%ROWTYPE; v_merchant_id uuid; v_shipment_id uuid; v_input jsonb; v_item public.order_items%ROWTYPE; v_product_id uuid; v_order_item_id uuid; v_qty integer; v_shipped integer; v_total integer := 0; v_number text;
 BEGIN
@@ -58,9 +141,14 @@ BEGIN
     v_total := v_total + v_qty;
   END LOOP;
   RETURN jsonb_build_object('id', v_shipment_id, 'shipment_number', v_number, 'quantity', v_total, 'status', 'pending');
-END; $$;
+END; $$$bootstrap_sql_eaa4c7262ce9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eaa4c7262ce9$;
 
-CREATE OR REPLACE FUNCTION public.update_marketplace_shipment_status(p_shipment_id uuid, p_status text, p_tracking_number text DEFAULT NULL)
+DO $bootstrap_do_a25fadad82b5$
+BEGIN
+  EXECUTE $bootstrap_sql_a25fadad82b5$CREATE OR REPLACE FUNCTION public.update_marketplace_shipment_status(p_shipment_id uuid, p_status text, p_tracking_number text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_shipment public.marketplace_shipments%ROWTYPE;
 BEGIN
@@ -69,8 +157,39 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Shipment access denied' USING ERRCODE = '42501'; END IF;
   UPDATE public.marketplace_shipments SET status = p_status, tracking_number = COALESCE(NULLIF(trim(p_tracking_number), ''), tracking_number), shipped_at = CASE WHEN p_status = 'shipped' AND shipped_at IS NULL THEN now() ELSE shipped_at END, delivered_at = CASE WHEN p_status = 'delivered' AND delivered_at IS NULL THEN now() ELSE delivered_at END WHERE id = p_shipment_id;
   RETURN jsonb_build_object('id', p_shipment_id, 'status', p_status);
-END; $$;
-REVOKE ALL ON FUNCTION public.create_marketplace_shipment(uuid, jsonb, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.update_marketplace_shipment_status(uuid, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_shipment(uuid, jsonb, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_marketplace_shipment_status(uuid, text, text) TO authenticated;
+END; $$$bootstrap_sql_a25fadad82b5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a25fadad82b5$;
+
+DO $bootstrap_do_ca31fe90c549$
+BEGIN
+  EXECUTE $bootstrap_sql_ca31fe90c549$REVOKE ALL ON FUNCTION public.create_marketplace_shipment(uuid, jsonb, text) FROM PUBLIC, anon$bootstrap_sql_ca31fe90c549$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ca31fe90c549$;
+
+DO $bootstrap_do_4f63586ccac8$
+BEGIN
+  EXECUTE $bootstrap_sql_4f63586ccac8$REVOKE ALL ON FUNCTION public.update_marketplace_shipment_status(uuid, text, text) FROM PUBLIC, anon$bootstrap_sql_4f63586ccac8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4f63586ccac8$;
+
+DO $bootstrap_do_756043d6cf55$
+BEGIN
+  EXECUTE $bootstrap_sql_756043d6cf55$GRANT EXECUTE ON FUNCTION public.create_marketplace_shipment(uuid, jsonb, text) TO authenticated$bootstrap_sql_756043d6cf55$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_756043d6cf55$;
+
+DO $bootstrap_do_139873706a60$
+BEGIN
+  EXECUTE $bootstrap_sql_139873706a60$GRANT EXECUTE ON FUNCTION public.update_marketplace_shipment_status(uuid, text, text) TO authenticated$bootstrap_sql_139873706a60$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_139873706a60$;
+
+DO $bootstrap_do_b3e29ef0dee6$
+BEGIN
+  EXECUTE $bootstrap_sql_b3e29ef0dee6$

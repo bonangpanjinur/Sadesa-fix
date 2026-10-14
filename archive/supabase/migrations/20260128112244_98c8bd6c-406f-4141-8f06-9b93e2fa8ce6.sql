@@ -17,9 +17,14 @@ CREATE TABLE public.vouchers (
   created_by UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
+)$bootstrap_sql_27e0fe238829$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_27e0fe238829$;
 
--- Create voucher usage tracking
+DO $bootstrap_do_15d03f12af15$
+BEGIN
+  EXECUTE $bootstrap_sql_15d03f12af15$-- Create voucher usage tracking
 CREATE TABLE public.voucher_usages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   voucher_id UUID NOT NULL REFERENCES public.vouchers(id) ON DELETE CASCADE,
@@ -27,9 +32,14 @@ CREATE TABLE public.voucher_usages (
   order_id UUID REFERENCES public.orders(id),
   discount_amount INTEGER NOT NULL DEFAULT 0,
   used_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
+)$bootstrap_sql_15d03f12af15$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_15d03f12af15$;
 
--- Create SEO settings table
+DO $bootstrap_do_d50b4362f44b$
+BEGIN
+  EXECUTE $bootstrap_sql_d50b4362f44b$-- Create SEO settings table
 CREATE TABLE public.seo_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   page_path TEXT NOT NULL UNIQUE,
@@ -44,9 +54,14 @@ CREATE TABLE public.seo_settings (
   updated_by UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
+)$bootstrap_sql_d50b4362f44b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d50b4362f44b$;
 
--- Create backup logs table
+DO $bootstrap_do_0296bc53e53c$
+BEGIN
+  EXECUTE $bootstrap_sql_0296bc53e53c$-- Create backup logs table
 CREATE TABLE public.backup_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   backup_type TEXT NOT NULL DEFAULT 'manual',
@@ -58,9 +73,14 @@ CREATE TABLE public.backup_logs (
   created_by UUID,
   started_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   completed_at TIMESTAMP WITH TIME ZONE
-);
+)$bootstrap_sql_0296bc53e53c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0296bc53e53c$;
 
--- Create rate limit tracking table
+DO $bootstrap_do_eeac7d9f31b1$
+BEGIN
+  EXECUTE $bootstrap_sql_eeac7d9f31b1$-- Create rate limit tracking table
 CREATE TABLE public.rate_limits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   identifier TEXT NOT NULL,
@@ -68,70 +88,224 @@ CREATE TABLE public.rate_limits (
   count INTEGER DEFAULT 1,
   window_start TIMESTAMP WITH TIME ZONE DEFAULT now(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
+)$bootstrap_sql_eeac7d9f31b1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eeac7d9f31b1$;
 
--- Add unique constraint for rate limits
-CREATE UNIQUE INDEX idx_rate_limits_unique ON public.rate_limits(identifier, action, window_start);
+DO $bootstrap_do_0b4277b80b3a$
+BEGIN
+  EXECUTE $bootstrap_sql_0b4277b80b3a$-- Add unique constraint for rate limits
+CREATE UNIQUE INDEX idx_rate_limits_unique ON public.rate_limits(identifier, action, window_start)$bootstrap_sql_0b4277b80b3a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0b4277b80b3a$;
 
--- Add index for cleanup
-CREATE INDEX idx_rate_limits_window ON public.rate_limits(window_start);
+DO $bootstrap_do_8cf15d4bd91c$
+BEGIN
+  EXECUTE $bootstrap_sql_8cf15d4bd91c$-- Add index for cleanup
+CREATE INDEX idx_rate_limits_window ON public.rate_limits(window_start)$bootstrap_sql_8cf15d4bd91c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8cf15d4bd91c$;
 
--- Enable RLS
-ALTER TABLE public.vouchers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.voucher_usages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.seo_settings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.backup_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_9b5111067161$
+BEGIN
+  EXECUTE $bootstrap_sql_9b5111067161$-- Enable RLS
+ALTER TABLE public.vouchers ENABLE ROW LEVEL SECURITY$bootstrap_sql_9b5111067161$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9b5111067161$;
 
--- Voucher policies
-DROP POLICY IF EXISTS "Vouchers viewable by everyone" ON public.vouchers;
-CREATE POLICY "Vouchers viewable by everyone" ON public.vouchers
-  FOR SELECT USING (is_active = true AND (start_date <= now()) AND (end_date IS NULL OR end_date >= now()));
+DO $bootstrap_do_d9b0d6e6ecfb$
+BEGIN
+  EXECUTE $bootstrap_sql_d9b0d6e6ecfb$ALTER TABLE public.voucher_usages ENABLE ROW LEVEL SECURITY$bootstrap_sql_d9b0d6e6ecfb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d9b0d6e6ecfb$;
 
-DROP POLICY IF EXISTS "Merchants manage own vouchers" ON public.vouchers;
-CREATE POLICY "Merchants manage own vouchers" ON public.vouchers
+DO $bootstrap_do_7611304acce7$
+BEGIN
+  EXECUTE $bootstrap_sql_7611304acce7$ALTER TABLE public.seo_settings ENABLE ROW LEVEL SECURITY$bootstrap_sql_7611304acce7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7611304acce7$;
+
+DO $bootstrap_do_e3dd70312008$
+BEGIN
+  EXECUTE $bootstrap_sql_e3dd70312008$ALTER TABLE public.backup_logs ENABLE ROW LEVEL SECURITY$bootstrap_sql_e3dd70312008$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e3dd70312008$;
+
+DO $bootstrap_do_6b4d4d32d24a$
+BEGIN
+  EXECUTE $bootstrap_sql_6b4d4d32d24a$ALTER TABLE public.rate_limits ENABLE ROW LEVEL SECURITY$bootstrap_sql_6b4d4d32d24a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b4d4d32d24a$;
+
+DO $bootstrap_do_1317ce89433e$
+BEGIN
+  EXECUTE $bootstrap_sql_1317ce89433e$-- Voucher policies
+DROP POLICY IF EXISTS "Vouchers viewable by everyone" ON public.vouchers$bootstrap_sql_1317ce89433e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1317ce89433e$;
+
+DO $bootstrap_do_ae302c1278ae$
+BEGIN
+  EXECUTE $bootstrap_sql_ae302c1278ae$CREATE POLICY "Vouchers viewable by everyone" ON public.vouchers
+  FOR SELECT USING (is_active = true AND (start_date <= now()) AND (end_date IS NULL OR end_date >= now()))$bootstrap_sql_ae302c1278ae$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ae302c1278ae$;
+
+DO $bootstrap_do_4e7afa8fc544$
+BEGIN
+  EXECUTE $bootstrap_sql_4e7afa8fc544$DROP POLICY IF EXISTS "Merchants manage own vouchers" ON public.vouchers$bootstrap_sql_4e7afa8fc544$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4e7afa8fc544$;
+
+DO $bootstrap_do_4cf810c2716b$
+BEGIN
+  EXECUTE $bootstrap_sql_4cf810c2716b$CREATE POLICY "Merchants manage own vouchers" ON public.vouchers
   FOR ALL USING (
     merchant_id IN (SELECT id FROM merchants WHERE user_id = auth.uid())
     OR public.is_admin()
-  );
+  )$bootstrap_sql_4cf810c2716b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4cf810c2716b$;
 
-DROP POLICY IF EXISTS "Admins manage all vouchers" ON public.vouchers;
-CREATE POLICY "Admins manage all vouchers" ON public.vouchers
-  FOR ALL USING (public.is_admin());
+DO $bootstrap_do_cd7f0e630b69$
+BEGIN
+  EXECUTE $bootstrap_sql_cd7f0e630b69$DROP POLICY IF EXISTS "Admins manage all vouchers" ON public.vouchers$bootstrap_sql_cd7f0e630b69$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cd7f0e630b69$;
 
--- Voucher usage policies
-DROP POLICY IF EXISTS "Users view own usage" ON public.voucher_usages;
-CREATE POLICY "Users view own usage" ON public.voucher_usages
-  FOR SELECT USING (user_id = auth.uid() OR public.is_admin());
+DO $bootstrap_do_258390c82e04$
+BEGIN
+  EXECUTE $bootstrap_sql_258390c82e04$CREATE POLICY "Admins manage all vouchers" ON public.vouchers
+  FOR ALL USING (public.is_admin())$bootstrap_sql_258390c82e04$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_258390c82e04$;
 
-DROP POLICY IF EXISTS "Users can use vouchers" ON public.voucher_usages;
-CREATE POLICY "Users can use vouchers" ON public.voucher_usages
-  FOR INSERT WITH CHECK (user_id = auth.uid());
+DO $bootstrap_do_871190439394$
+BEGIN
+  EXECUTE $bootstrap_sql_871190439394$-- Voucher usage policies
+DROP POLICY IF EXISTS "Users view own usage" ON public.voucher_usages$bootstrap_sql_871190439394$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_871190439394$;
 
--- SEO policies (admin only)
-DROP POLICY IF EXISTS "Anyone can view SEO settings" ON public.seo_settings;
-CREATE POLICY "Anyone can view SEO settings" ON public.seo_settings
-  FOR SELECT USING (true);
+DO $bootstrap_do_bcad737db063$
+BEGIN
+  EXECUTE $bootstrap_sql_bcad737db063$CREATE POLICY "Users view own usage" ON public.voucher_usages
+  FOR SELECT USING (user_id = auth.uid() OR public.is_admin())$bootstrap_sql_bcad737db063$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bcad737db063$;
 
-DROP POLICY IF EXISTS "Admins manage SEO" ON public.seo_settings;
-CREATE POLICY "Admins manage SEO" ON public.seo_settings
-  FOR ALL USING (public.is_admin());
+DO $bootstrap_do_632d4f7a7e2a$
+BEGIN
+  EXECUTE $bootstrap_sql_632d4f7a7e2a$DROP POLICY IF EXISTS "Users can use vouchers" ON public.voucher_usages$bootstrap_sql_632d4f7a7e2a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_632d4f7a7e2a$;
 
--- Backup policies (admin only)
-DROP POLICY IF EXISTS "Admins view backups" ON public.backup_logs;
-CREATE POLICY "Admins view backups" ON public.backup_logs
-  FOR SELECT USING (public.is_admin());
+DO $bootstrap_do_aad8bc3b217e$
+BEGIN
+  EXECUTE $bootstrap_sql_aad8bc3b217e$CREATE POLICY "Users can use vouchers" ON public.voucher_usages
+  FOR INSERT WITH CHECK (user_id = auth.uid())$bootstrap_sql_aad8bc3b217e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aad8bc3b217e$;
 
-DROP POLICY IF EXISTS "Admins create backups" ON public.backup_logs;
-CREATE POLICY "Admins create backups" ON public.backup_logs
-  FOR INSERT WITH CHECK (public.is_admin());
+DO $bootstrap_do_30eda4e72456$
+BEGIN
+  EXECUTE $bootstrap_sql_30eda4e72456$-- SEO policies (admin only)
+DROP POLICY IF EXISTS "Anyone can view SEO settings" ON public.seo_settings$bootstrap_sql_30eda4e72456$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30eda4e72456$;
 
--- Rate limits policies
-DROP POLICY IF EXISTS "Rate limits public" ON public.rate_limits;
-CREATE POLICY "Rate limits public" ON public.rate_limits
-  FOR ALL USING (true);
+DO $bootstrap_do_9510f4c7234d$
+BEGIN
+  EXECUTE $bootstrap_sql_9510f4c7234d$CREATE POLICY "Anyone can view SEO settings" ON public.seo_settings
+  FOR SELECT USING (true)$bootstrap_sql_9510f4c7234d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9510f4c7234d$;
 
--- Add realtime for vouchers
+DO $bootstrap_do_a54238132bae$
+BEGIN
+  EXECUTE $bootstrap_sql_a54238132bae$DROP POLICY IF EXISTS "Admins manage SEO" ON public.seo_settings$bootstrap_sql_a54238132bae$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a54238132bae$;
+
+DO $bootstrap_do_5260603ae389$
+BEGIN
+  EXECUTE $bootstrap_sql_5260603ae389$CREATE POLICY "Admins manage SEO" ON public.seo_settings
+  FOR ALL USING (public.is_admin())$bootstrap_sql_5260603ae389$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5260603ae389$;
+
+DO $bootstrap_do_974a1950fdd3$
+BEGIN
+  EXECUTE $bootstrap_sql_974a1950fdd3$-- Backup policies (admin only)
+DROP POLICY IF EXISTS "Admins view backups" ON public.backup_logs$bootstrap_sql_974a1950fdd3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_974a1950fdd3$;
+
+DO $bootstrap_do_fde597c1a1be$
+BEGIN
+  EXECUTE $bootstrap_sql_fde597c1a1be$CREATE POLICY "Admins view backups" ON public.backup_logs
+  FOR SELECT USING (public.is_admin())$bootstrap_sql_fde597c1a1be$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fde597c1a1be$;
+
+DO $bootstrap_do_311bcf7baf9c$
+BEGIN
+  EXECUTE $bootstrap_sql_311bcf7baf9c$DROP POLICY IF EXISTS "Admins create backups" ON public.backup_logs$bootstrap_sql_311bcf7baf9c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_311bcf7baf9c$;
+
+DO $bootstrap_do_446c18a350f7$
+BEGIN
+  EXECUTE $bootstrap_sql_446c18a350f7$CREATE POLICY "Admins create backups" ON public.backup_logs
+  FOR INSERT WITH CHECK (public.is_admin())$bootstrap_sql_446c18a350f7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_446c18a350f7$;
+
+DO $bootstrap_do_d9001ab1444c$
+BEGIN
+  EXECUTE $bootstrap_sql_d9001ab1444c$-- Rate limits policies
+DROP POLICY IF EXISTS "Rate limits public" ON public.rate_limits$bootstrap_sql_d9001ab1444c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d9001ab1444c$;
+
+DO $bootstrap_do_2ab6443ef42b$
+BEGIN
+  EXECUTE $bootstrap_sql_2ab6443ef42b$CREATE POLICY "Rate limits public" ON public.rate_limits
+  FOR ALL USING (true)$bootstrap_sql_2ab6443ef42b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2ab6443ef42b$;
+
+DO $bootstrap_do_b25b5ea8e226$
+BEGIN
+  EXECUTE $bootstrap_sql_b25b5ea8e226$-- Add realtime for vouchers
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -144,9 +318,14 @@ BEGIN
   END IF;
 EXCEPTION
   WHEN undefined_object THEN NULL;
-END $$;
+END $$$bootstrap_sql_b25b5ea8e226$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b25b5ea8e226$;
 
--- Function to check and increment rate limit
+DO $bootstrap_do_b1ce2dae2ba7$
+BEGIN
+  EXECUTE $bootstrap_sql_b1ce2dae2ba7$-- Function to check and increment rate limit
 CREATE OR REPLACE FUNCTION public.check_rate_limit(
   p_identifier TEXT,
   p_action TEXT,
@@ -163,39 +342,44 @@ DECLARE
   v_current_count INTEGER;
 BEGIN
   v_window_start := date_trunc('minute', now());
-  
+
   -- Get current count for this window
   SELECT count INTO v_current_count
   FROM rate_limits
-  WHERE identifier = p_identifier 
-    AND action = p_action 
+  WHERE identifier = p_identifier
+    AND action = p_action
     AND window_start = v_window_start;
-  
+
   IF v_current_count IS NULL THEN
     -- First request in this window
     INSERT INTO rate_limits (identifier, action, count, window_start)
     VALUES (p_identifier, p_action, 1, v_window_start)
     ON CONFLICT (identifier, action, window_start) DO UPDATE SET count = rate_limits.count + 1;
-    
+
     RETURN jsonb_build_object('allowed', true, 'remaining', p_max_requests - 1);
   END IF;
-  
+
   IF v_current_count >= p_max_requests THEN
     RETURN jsonb_build_object('allowed', false, 'remaining', 0, 'retry_after', p_window_seconds);
   END IF;
-  
+
   -- Increment count
   UPDATE rate_limits
   SET count = count + 1
-  WHERE identifier = p_identifier 
-    AND action = p_action 
+  WHERE identifier = p_identifier
+    AND action = p_action
     AND window_start = v_window_start;
-  
+
   RETURN jsonb_build_object('allowed', true, 'remaining', p_max_requests - v_current_count - 1);
 END;
-$$;
+$$$bootstrap_sql_b1ce2dae2ba7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b1ce2dae2ba7$;
 
--- Function to apply voucher
+DO $bootstrap_do_818b7cceae9a$
+BEGIN
+  EXECUTE $bootstrap_sql_818b7cceae9a$-- Function to apply voucher
 CREATE OR REPLACE FUNCTION public.apply_voucher(
   p_code TEXT,
   p_user_id UUID,
@@ -219,35 +403,35 @@ BEGIN
     AND is_active = true
     AND start_date <= now()
     AND (end_date IS NULL OR end_date >= now());
-  
+
   IF v_voucher IS NULL THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Kode voucher tidak ditemukan atau sudah kadaluarsa');
   END IF;
-  
+
   -- Check merchant specific
   IF v_voucher.merchant_id IS NOT NULL AND v_voucher.merchant_id != p_merchant_id THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Voucher tidak berlaku untuk toko ini');
   END IF;
-  
+
   -- Check minimum order
   IF p_order_total < v_voucher.min_order_amount THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Minimum belanja Rp ' || v_voucher.min_order_amount);
   END IF;
-  
+
   -- Check usage limit
   IF v_voucher.usage_limit IS NOT NULL AND v_voucher.used_count >= v_voucher.usage_limit THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Voucher sudah habis');
   END IF;
-  
+
   -- Check if user already used
   SELECT COUNT(*) INTO v_usage_count
   FROM voucher_usages
   WHERE voucher_id = v_voucher.id AND user_id = p_user_id;
-  
+
   IF v_usage_count > 0 THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Anda sudah menggunakan voucher ini');
   END IF;
-  
+
   -- Calculate discount
   IF v_voucher.discount_type = 'percentage' THEN
     v_discount := FLOOR(p_order_total * v_voucher.discount_value / 100);
@@ -257,7 +441,7 @@ BEGIN
   ELSE
     v_discount := v_voucher.discount_value;
   END IF;
-  
+
   RETURN jsonb_build_object(
     'valid', true,
     'voucher_id', v_voucher.id,
@@ -265,17 +449,46 @@ BEGIN
     'voucher_name', v_voucher.name
   );
 END;
-$$;
+$$$bootstrap_sql_818b7cceae9a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_818b7cceae9a$;
 
--- Add triggers for updated_at
-DROP TRIGGER IF EXISTS update_vouchers_updated_at ON public.vouchers;
-CREATE TRIGGER update_vouchers_updated_at
+DO $bootstrap_do_de774300ae1c$
+BEGIN
+  EXECUTE $bootstrap_sql_de774300ae1c$-- Add triggers for updated_at
+DROP TRIGGER IF EXISTS update_vouchers_updated_at ON public.vouchers$bootstrap_sql_de774300ae1c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_de774300ae1c$;
+
+DO $bootstrap_do_69e67d8a97da$
+BEGIN
+  EXECUTE $bootstrap_sql_69e67d8a97da$CREATE TRIGGER update_vouchers_updated_at
   BEFORE UPDATE ON public.vouchers
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_updated_at_column();
+  EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_69e67d8a97da$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_69e67d8a97da$;
 
-DROP TRIGGER IF EXISTS update_seo_settings_updated_at ON public.seo_settings;
-CREATE TRIGGER update_seo_settings_updated_at
+DO $bootstrap_do_6f7326a70fa7$
+BEGIN
+  EXECUTE $bootstrap_sql_6f7326a70fa7$DROP TRIGGER IF EXISTS update_seo_settings_updated_at ON public.seo_settings$bootstrap_sql_6f7326a70fa7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6f7326a70fa7$;
+
+DO $bootstrap_do_7d8454e91cf3$
+BEGIN
+  EXECUTE $bootstrap_sql_7d8454e91cf3$CREATE TRIGGER update_seo_settings_updated_at
   BEFORE UPDATE ON public.seo_settings
   FOR EACH ROW
-  EXECUTE FUNCTION public.update_updated_at_column();
+  EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_7d8454e91cf3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7d8454e91cf3$;
+
+DO $bootstrap_do_3e0997d3df7e$
+BEGIN
+  EXECUTE $bootstrap_sql_3e0997d3df7e$

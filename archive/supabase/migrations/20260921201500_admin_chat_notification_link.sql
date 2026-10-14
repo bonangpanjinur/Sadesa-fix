@@ -34,9 +34,26 @@ AS $$
   END
   FROM public.chat_conversations c
   WHERE c.id = p_conversation_id);
-$$;
+$$$bootstrap_sql_5e3316414fde$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5e3316414fde$;
 
-GRANT EXECUTE ON FUNCTION public.chat_notification_deep_link(uuid, uuid)
-  TO service_role;
+DO $bootstrap_do_5bed09301e4b$
+BEGIN
+  EXECUTE $bootstrap_sql_5bed09301e4b$GRANT EXECUTE ON FUNCTION public.chat_notification_deep_link(uuid, uuid)
+  TO service_role$bootstrap_sql_5bed09301e4b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5bed09301e4b$;
 
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_6afa0319b2f1$
+BEGIN
+  EXECUTE $bootstrap_sql_6afa0319b2f1$NOTIFY pgrst, 'reload schema'$bootstrap_sql_6afa0319b2f1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6afa0319b2f1$;
+
+DO $bootstrap_do_623fe5280103$
+BEGIN
+  EXECUTE $bootstrap_sql_623fe5280103$

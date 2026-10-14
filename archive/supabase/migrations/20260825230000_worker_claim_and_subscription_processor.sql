@@ -12,9 +12,14 @@ BEGIN
   RETURNING * INTO v_job;
   IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
   RETURN v_job;
-END; $$;
+END; $$$bootstrap_sql_994f3e4d3822$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_994f3e4d3822$;
 
-CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
+DO $bootstrap_do_73d83500f703$
+BEGIN
+  EXECUTE $bootstrap_sql_73d83500f703$CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
 RETURNS public.notification_delivery_jobs
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_job public.notification_delivery_jobs%ROWTYPE; v_status text; v_next timestamptz;
@@ -28,13 +33,42 @@ BEGIN
   v_next := CASE WHEN v_status = 'failed' THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7)))) ELSE NULL END;
   UPDATE public.notification_delivery_jobs SET status = v_status, provider_message_id = COALESCE(p_provider_message_id, provider_message_id), last_error = NULLIF(trim(p_error), ''), next_attempt_at = COALESCE(v_next, next_attempt_at), sent_at = CASE WHEN p_success THEN now() ELSE sent_at END, dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END WHERE id = p_job_id RETURNING * INTO v_job;
   RETURN v_job;
-END; $$;
-REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO authenticated, service_role;
+END; $$$bootstrap_sql_73d83500f703$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_73d83500f703$;
 
-CREATE OR REPLACE FUNCTION public.process_one_subscription_billing_event()
+DO $bootstrap_do_2d254169b4f3$
+BEGIN
+  EXECUTE $bootstrap_sql_2d254169b4f3$REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon$bootstrap_sql_2d254169b4f3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2d254169b4f3$;
+
+DO $bootstrap_do_265a4dc3174e$
+BEGIN
+  EXECUTE $bootstrap_sql_265a4dc3174e$REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon$bootstrap_sql_265a4dc3174e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_265a4dc3174e$;
+
+DO $bootstrap_do_52074d1b45ff$
+BEGIN
+  EXECUTE $bootstrap_sql_52074d1b45ff$GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO authenticated, service_role$bootstrap_sql_52074d1b45ff$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_52074d1b45ff$;
+
+DO $bootstrap_do_4008d21e5c28$
+BEGIN
+  EXECUTE $bootstrap_sql_4008d21e5c28$GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO authenticated, service_role$bootstrap_sql_4008d21e5c28$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4008d21e5c28$;
+
+DO $bootstrap_do_e870f822a436$
+BEGIN
+  EXECUTE $bootstrap_sql_e870f822a436$CREATE OR REPLACE FUNCTION public.process_one_subscription_billing_event()
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_event public.subscription_billing_events%ROWTYPE; v_payload jsonb; v_status text; v_period_start timestamptz; v_period_end timestamptz; v_grace timestamptz;
 BEGIN
@@ -64,6 +98,25 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   IF v_event.id IS NOT NULL THEN UPDATE public.subscription_billing_events SET status = 'failed', error_message = SQLERRM WHERE id = v_event.id; END IF;
   RETURN jsonb_build_object('processed', true, 'event_id', v_event.id, 'status', 'failed', 'error', SQLERRM);
-END; $$;
-REVOKE ALL ON FUNCTION public.process_one_subscription_billing_event() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.process_one_subscription_billing_event() TO authenticated, service_role;
+END; $$$bootstrap_sql_e870f822a436$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e870f822a436$;
+
+DO $bootstrap_do_757bfe12700e$
+BEGIN
+  EXECUTE $bootstrap_sql_757bfe12700e$REVOKE ALL ON FUNCTION public.process_one_subscription_billing_event() FROM PUBLIC, anon$bootstrap_sql_757bfe12700e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_757bfe12700e$;
+
+DO $bootstrap_do_972cfc93faff$
+BEGIN
+  EXECUTE $bootstrap_sql_972cfc93faff$GRANT EXECUTE ON FUNCTION public.process_one_subscription_billing_event() TO authenticated, service_role$bootstrap_sql_972cfc93faff$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_972cfc93faff$;
+
+DO $bootstrap_do_ba14d319be2e$
+BEGIN
+  EXECUTE $bootstrap_sql_ba14d319be2e$

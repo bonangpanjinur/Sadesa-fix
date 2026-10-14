@@ -1,4 +1,3 @@
-
 -- Fix search_path for generate_merchant_slug
 CREATE OR REPLACE FUNCTION public.generate_merchant_slug(merchant_name text)
 RETURNS text
@@ -19,4 +18,11 @@ BEGIN
   END LOOP;
   RETURN final_slug;
 END;
-$$;
+$$$bootstrap_sql_e2a3015c2d55$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e2a3015c2d55$;
+
+DO $bootstrap_do_94c79a2cfb07$
+BEGIN
+  EXECUTE $bootstrap_sql_94c79a2cfb07$

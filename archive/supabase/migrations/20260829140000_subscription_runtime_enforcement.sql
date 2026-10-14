@@ -63,9 +63,14 @@ BEGIN
   ON CONFLICT (user_id, device_id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id, device_name = EXCLUDED.device_name, device_type = EXCLUDED.device_type, platform = EXCLUDED.platform, user_agent = EXCLUDED.user_agent, status = 'active', last_seen_at = now(), revoked_at = NULL, revoked_by = NULL, updated_at = now()
   RETURNING * INTO v_device;
   RETURN v_device;
-END; $$;
+END; $$$bootstrap_sql_b6262b9437fa$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b6262b9437fa$;
 
--- Worker-only bridge: resolve the POS tenant owner to merchant billing identity,
+DO $bootstrap_do_964570fae6ca$
+BEGIN
+  EXECUTE $bootstrap_sql_964570fae6ca$-- Worker-only bridge: resolve the POS tenant owner to merchant billing identity,
 -- then consume exactly once per delivery job.
 CREATE OR REPLACE FUNCTION public.consume_whatsapp_delivery_usage(p_job_id uuid)
 RETURNS jsonb
@@ -102,11 +107,28 @@ BEGIN
     'whatsapp_delivery',
     jsonb_build_object('job_id', p_job_id, 'tenant_id', v_job.tenant_id, 'recipient_id', v_job.recipient_id)
   );
-END; $$;
-REVOKE ALL ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) TO service_role;
+END; $$$bootstrap_sql_964570fae6ca$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_964570fae6ca$;
 
--- Service-role worker access is explicit; browser clients remain admin-only.
+DO $bootstrap_do_6cce3f1774ad$
+BEGIN
+  EXECUTE $bootstrap_sql_6cce3f1774ad$REVOKE ALL ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) FROM PUBLIC, anon, authenticated$bootstrap_sql_6cce3f1774ad$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6cce3f1774ad$;
+
+DO $bootstrap_do_506f2e988672$
+BEGIN
+  EXECUTE $bootstrap_sql_506f2e988672$GRANT EXECUTE ON FUNCTION public.consume_whatsapp_delivery_usage(uuid) TO service_role$bootstrap_sql_506f2e988672$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_506f2e988672$;
+
+DO $bootstrap_do_5ec7898eb628$
+BEGIN
+  EXECUTE $bootstrap_sql_5ec7898eb628$-- Service-role worker access is explicit; browser clients remain admin-only.
 CREATE OR REPLACE FUNCTION public.claim_notification_delivery_job(p_job_id uuid)
 RETURNS public.notification_delivery_jobs
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -121,9 +143,14 @@ BEGIN
   RETURNING * INTO v_job;
   IF NOT FOUND THEN RAISE EXCEPTION 'Notification job is unavailable' USING ERRCODE = '55000'; END IF;
   RETURN v_job;
-END; $$;
+END; $$$bootstrap_sql_5ec7898eb628$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ec7898eb628$;
 
-CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
+DO $bootstrap_do_7dfd55fd4ffe$
+BEGIN
+  EXECUTE $bootstrap_sql_7dfd55fd4ffe$CREATE OR REPLACE FUNCTION public.complete_notification_delivery_job(p_job_id uuid, p_success boolean, p_provider_message_id text DEFAULT NULL, p_error text DEFAULT NULL)
 RETURNS public.notification_delivery_jobs
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_job public.notification_delivery_jobs%ROWTYPE; v_status text; v_next timestamptz;
@@ -137,9 +164,39 @@ BEGIN
   v_next := CASE WHEN v_status = 'failed' THEN now() + make_interval(secs => LEAST(3600, 30 * (2 ^ LEAST(v_job.attempts, 7)))) ELSE NULL END;
   UPDATE public.notification_delivery_jobs SET status = v_status, provider_message_id = COALESCE(p_provider_message_id, provider_message_id), last_error = NULLIF(trim(p_error), ''), next_attempt_at = COALESCE(v_next, next_attempt_at), sent_at = CASE WHEN p_success THEN now() ELSE sent_at END, dead_letter_at = CASE WHEN v_status = 'dead_letter' THEN now() ELSE dead_letter_at END WHERE id = p_job_id RETURNING * INTO v_job;
   RETURN v_job;
-END; $$;
+END; $$$bootstrap_sql_7dfd55fd4ffe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7dfd55fd4ffe$;
 
-REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO service_role, authenticated;
-REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO service_role, authenticated;
+DO $bootstrap_do_e4ac2b7725a7$
+BEGIN
+  EXECUTE $bootstrap_sql_e4ac2b7725a7$REVOKE ALL ON FUNCTION public.claim_notification_delivery_job(uuid) FROM PUBLIC, anon, authenticated$bootstrap_sql_e4ac2b7725a7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e4ac2b7725a7$;
+
+DO $bootstrap_do_4b0963d81727$
+BEGIN
+  EXECUTE $bootstrap_sql_4b0963d81727$GRANT EXECUTE ON FUNCTION public.claim_notification_delivery_job(uuid) TO service_role, authenticated$bootstrap_sql_4b0963d81727$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4b0963d81727$;
+
+DO $bootstrap_do_64bf4bb3e2f3$
+BEGIN
+  EXECUTE $bootstrap_sql_64bf4bb3e2f3$REVOKE ALL ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) FROM PUBLIC, anon, authenticated$bootstrap_sql_64bf4bb3e2f3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_64bf4bb3e2f3$;
+
+DO $bootstrap_do_053800931c77$
+BEGIN
+  EXECUTE $bootstrap_sql_053800931c77$GRANT EXECUTE ON FUNCTION public.complete_notification_delivery_job(uuid, boolean, text, text) TO service_role, authenticated$bootstrap_sql_053800931c77$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_053800931c77$;
+
+DO $bootstrap_do_3b31935b3e31$
+BEGIN
+  EXECUTE $bootstrap_sql_3b31935b3e31$

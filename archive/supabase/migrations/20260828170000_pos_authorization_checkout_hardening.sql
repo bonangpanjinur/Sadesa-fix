@@ -26,15 +26,43 @@ AS $$
       AND u.is_active = true
       AND u.role = ANY(p_roles)
   );
-$$;
+$$$bootstrap_sql_dbe55949d4b4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dbe55949d4b4$;
 
-REVOKE ALL ON FUNCTION public.pos_user_has_role(uuid, text[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.pos_user_has_role(uuid, text[]) TO authenticated;
+DO $bootstrap_do_cde68d6609b9$
+BEGIN
+  EXECUTE $bootstrap_sql_cde68d6609b9$REVOKE ALL ON FUNCTION public.pos_user_has_role(uuid, text[]) FROM PUBLIC, anon$bootstrap_sql_cde68d6609b9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cde68d6609b9$;
 
--- Sale item visibility must follow the parent sale's assigned outlet.
-DROP POLICY IF EXISTS "tenant_users_select_sale_items" ON public.pos_sale_items;
-DROP POLICY IF EXISTS "POS users can view assigned sale items" ON public.pos_sale_items;
-CREATE POLICY "POS users can view assigned sale items"
+DO $bootstrap_do_a2bcfb680ce3$
+BEGIN
+  EXECUTE $bootstrap_sql_a2bcfb680ce3$GRANT EXECUTE ON FUNCTION public.pos_user_has_role(uuid, text[]) TO authenticated$bootstrap_sql_a2bcfb680ce3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a2bcfb680ce3$;
+
+DO $bootstrap_do_75195ada0d09$
+BEGIN
+  EXECUTE $bootstrap_sql_75195ada0d09$-- Sale item visibility must follow the parent sale's assigned outlet.
+DROP POLICY IF EXISTS "tenant_users_select_sale_items" ON public.pos_sale_items$bootstrap_sql_75195ada0d09$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_75195ada0d09$;
+
+DO $bootstrap_do_f8863bb36676$
+BEGIN
+  EXECUTE $bootstrap_sql_f8863bb36676$DROP POLICY IF EXISTS "POS users can view assigned sale items" ON public.pos_sale_items$bootstrap_sql_f8863bb36676$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f8863bb36676$;
+
+DO $bootstrap_do_4e2b24ec307e$
+BEGIN
+  EXECUTE $bootstrap_sql_4e2b24ec307e$CREATE POLICY "POS users can view assigned sale items"
   ON public.pos_sale_items
   FOR SELECT TO authenticated
   USING (
@@ -43,9 +71,14 @@ CREATE POLICY "POS users can view assigned sale items"
       FROM public.pos_sales s
       WHERE public.pos_user_can_access_outlet(s.tenant_id, s.outlet_id)
     )
-  );
+  )$bootstrap_sql_4e2b24ec307e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4e2b24ec307e$;
 
--- Reject malformed financial line values regardless of whether they came from
+DO $bootstrap_do_f929d9a7f641$
+BEGIN
+  EXECUTE $bootstrap_sql_f929d9a7f641$-- Reject malformed financial line values regardless of whether they came from
 -- the checkout RPC or an administrative write path.
 CREATE OR REPLACE FUNCTION public.validate_pos_sale_item_values()
 RETURNS trigger
@@ -67,13 +100,42 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_f929d9a7f641$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f929d9a7f641$;
 
-DROP TRIGGER IF EXISTS trg_validate_pos_sale_item_values ON public.pos_sale_items;
-CREATE TRIGGER trg_validate_pos_sale_item_values
+DO $bootstrap_do_67290281fe4e$
+BEGIN
+  EXECUTE $bootstrap_sql_67290281fe4e$DROP TRIGGER IF EXISTS trg_validate_pos_sale_item_values ON public.pos_sale_items$bootstrap_sql_67290281fe4e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_67290281fe4e$;
+
+DO $bootstrap_do_b6e904b9681b$
+BEGIN
+  EXECUTE $bootstrap_sql_b6e904b9681b$CREATE TRIGGER trg_validate_pos_sale_item_values
 BEFORE INSERT OR UPDATE OF qty, price, discount, tax_amount, subtotal
 ON public.pos_sale_items
-FOR EACH ROW EXECUTE FUNCTION public.validate_pos_sale_item_values();
+FOR EACH ROW EXECUTE FUNCTION public.validate_pos_sale_item_values()$bootstrap_sql_b6e904b9681b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b6e904b9681b$;
 
-REVOKE ALL ON FUNCTION public.validate_pos_sale_item_values() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.validate_pos_sale_item_values() TO service_role;
+DO $bootstrap_do_9450f9f7313d$
+BEGIN
+  EXECUTE $bootstrap_sql_9450f9f7313d$REVOKE ALL ON FUNCTION public.validate_pos_sale_item_values() FROM PUBLIC, anon, authenticated$bootstrap_sql_9450f9f7313d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9450f9f7313d$;
+
+DO $bootstrap_do_2bd971946c51$
+BEGIN
+  EXECUTE $bootstrap_sql_2bd971946c51$GRANT EXECUTE ON FUNCTION public.validate_pos_sale_item_values() TO service_role$bootstrap_sql_2bd971946c51$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2bd971946c51$;
+
+DO $bootstrap_do_c3bd64d2c3ec$
+BEGIN
+  EXECUTE $bootstrap_sql_c3bd64d2c3ec$

@@ -1,4 +1,6 @@
--- Publish profile changes so the admin-only user geography dashboard can refresh live.
+DO $bootstrap_do_20261008180000$
+BEGIN
+  EXECUTE $bootstrap_sql_20261008180000$-- Publish profile changes so the admin-only user geography dashboard can refresh live.
 -- Realtime subscribers remain subject to the existing profiles SELECT RLS policies.
 DO $$
 BEGIN
@@ -15,3 +17,7 @@ BEGIN
   END IF;
 END;
 $$;
+$bootstrap_sql_20261008180000$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_20261008180000$;

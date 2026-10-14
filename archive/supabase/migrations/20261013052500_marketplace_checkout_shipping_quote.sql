@@ -1,4 +1,6 @@
--- Server-authoritative checkout quote and distance calculation.
+DO $bootstrap_do_813cab9d4b8e$
+BEGIN
+  EXECUTE $bootstrap_sql_813cab9d4b8e$-- Server-authoritative checkout quote and distance calculation.
 -- The quote and order creation both derive distance from the stored merchant
 -- coordinates and the destination coordinates; client-supplied distance is
 -- deliberately ignored for authenticated checkouts.
@@ -140,12 +142,28 @@ BEGIN
     'quoted_at', v_now
   );
 END;
-$$;
+$$$bootstrap_sql_813cab9d4b8e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_813cab9d4b8e$;
 
-REVOKE ALL ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) TO anon, authenticated;
+DO $bootstrap_do_450aa6e474b2$
+BEGIN
+  EXECUTE $bootstrap_sql_450aa6e474b2$REVOKE ALL ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) FROM PUBLIC$bootstrap_sql_450aa6e474b2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_450aa6e474b2$;
 
--- Preserve the existing idempotency contract while replacing the client
+DO $bootstrap_do_9a734c5e487d$
+BEGIN
+  EXECUTE $bootstrap_sql_9a734c5e487d$GRANT EXECUTE ON FUNCTION public.quote_marketplace_checkout(jsonb, jsonb, text, uuid) TO anon, authenticated$bootstrap_sql_9a734c5e487d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9a734c5e487d$;
+
+DO $bootstrap_do_a7f67d452782$
+BEGIN
+  EXECUTE $bootstrap_sql_a7f67d452782$-- Preserve the existing idempotency contract while replacing the client
 -- distance with a distance derived from the submitted coordinates and the
 -- merchant's coordinates stored in the database.
 CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
@@ -226,7 +244,28 @@ BEGIN
   VALUES (auth.uid(), trim(p_checkout_key), v_result);
   RETURN v_result;
 END;
-$$;
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role;
-NOTIFY pgrst, 'reload schema';
+$$$bootstrap_sql_a7f67d452782$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a7f67d452782$;
+
+DO $bootstrap_do_4ad42407a64f$
+BEGIN
+  EXECUTE $bootstrap_sql_4ad42407a64f$REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon$bootstrap_sql_4ad42407a64f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4ad42407a64f$;
+
+DO $bootstrap_do_761dab7f5e53$
+BEGIN
+  EXECUTE $bootstrap_sql_761dab7f5e53$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role$bootstrap_sql_761dab7f5e53$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_761dab7f5e53$;
+
+DO $bootstrap_do_ce27d3ba194f$
+BEGIN
+  EXECUTE $bootstrap_sql_ce27d3ba194f$NOTIFY pgrst, 'reload schema'$bootstrap_sql_ce27d3ba194f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ce27d3ba194f$;

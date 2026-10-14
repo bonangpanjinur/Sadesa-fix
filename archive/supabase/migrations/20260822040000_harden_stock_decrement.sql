@@ -20,7 +20,25 @@ BEGIN
     RAISE EXCEPTION 'Insufficient stock or product not found';
   END IF;
 END;
-$$;
+$$$bootstrap_sql_fcef8adf1a7b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fcef8adf1a7b$;
 
-REVOKE ALL ON FUNCTION public.decrement_stock(uuid, integer) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.decrement_stock(uuid, integer) TO authenticated;
+DO $bootstrap_do_0c6a075948e3$
+BEGIN
+  EXECUTE $bootstrap_sql_0c6a075948e3$REVOKE ALL ON FUNCTION public.decrement_stock(uuid, integer) FROM PUBLIC, anon$bootstrap_sql_0c6a075948e3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0c6a075948e3$;
+
+DO $bootstrap_do_9a031b0d067f$
+BEGIN
+  EXECUTE $bootstrap_sql_9a031b0d067f$GRANT EXECUTE ON FUNCTION public.decrement_stock(uuid, integer) TO authenticated$bootstrap_sql_9a031b0d067f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9a031b0d067f$;
+
+DO $bootstrap_do_c7ca0c1f1526$
+BEGIN
+  EXECUTE $bootstrap_sql_c7ca0c1f1526$

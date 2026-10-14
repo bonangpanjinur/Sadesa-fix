@@ -18,24 +18,56 @@ CREATE TABLE IF NOT EXISTS public.quota_audit_logs (
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by UUID -- auth.uid()
-);
+)$bootstrap_sql_98ef524da12c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_98ef524da12c$;
 
--- Enable RLS for quota_audit_logs
-ALTER TABLE public.quota_audit_logs ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_d2e2ad34fa17$
+BEGIN
+  EXECUTE $bootstrap_sql_d2e2ad34fa17$-- Enable RLS for quota_audit_logs
+ALTER TABLE public.quota_audit_logs ENABLE ROW LEVEL SECURITY$bootstrap_sql_d2e2ad34fa17$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d2e2ad34fa17$;
 
-DROP POLICY IF EXISTS "Merchants can view their own quota logs" ON public.quota_audit_logs;
-CREATE POLICY "Merchants can view their own quota logs"
+DO $bootstrap_do_798a87b725a8$
+BEGIN
+  EXECUTE $bootstrap_sql_798a87b725a8$DROP POLICY IF EXISTS "Merchants can view their own quota logs" ON public.quota_audit_logs$bootstrap_sql_798a87b725a8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_798a87b725a8$;
+
+DO $bootstrap_do_b7932ed5ce56$
+BEGIN
+  EXECUTE $bootstrap_sql_b7932ed5ce56$CREATE POLICY "Merchants can view their own quota logs"
 ON public.quota_audit_logs FOR SELECT
 TO authenticated
-USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()));
+USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()))$bootstrap_sql_b7932ed5ce56$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b7932ed5ce56$;
 
-DROP POLICY IF EXISTS "Admins can view all quota logs" ON public.quota_audit_logs;
-CREATE POLICY "Admins can view all quota logs"
+DO $bootstrap_do_4c2af6648ed3$
+BEGIN
+  EXECUTE $bootstrap_sql_4c2af6648ed3$DROP POLICY IF EXISTS "Admins can view all quota logs" ON public.quota_audit_logs$bootstrap_sql_4c2af6648ed3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4c2af6648ed3$;
+
+DO $bootstrap_do_1e3d8d8366bc$
+BEGIN
+  EXECUTE $bootstrap_sql_1e3d8d8366bc$CREATE POLICY "Admins can view all quota logs"
 ON public.quota_audit_logs FOR SELECT
 TO authenticated
-USING (EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin'));
+USING (EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin'))$bootstrap_sql_1e3d8d8366bc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1e3d8d8366bc$;
 
--- 2. Improved approve_quota_subscription with accumulation logic
+DO $bootstrap_do_3fc46369c13f$
+BEGIN
+  EXECUTE $bootstrap_sql_3fc46369c13f$-- 2. Improved approve_quota_subscription with accumulation logic
 CREATE OR REPLACE FUNCTION public.approve_quota_subscription(p_subscription_id UUID, p_admin_notes TEXT DEFAULT NULL)
 RETURNS JSON
 LANGUAGE plpgsql
@@ -60,17 +92,17 @@ BEGIN
     END IF;
 
     -- Find current active subscription to accumulate quota
-    SELECT * INTO v_active_sub 
-    FROM public.merchant_subscriptions 
-    WHERE merchant_id = v_sub.merchant_id 
-      AND status = 'ACTIVE' 
+    SELECT * INTO v_active_sub
+    FROM public.merchant_subscriptions
+    WHERE merchant_id = v_sub.merchant_id
+      AND status = 'ACTIVE'
       AND expired_at > now()
     ORDER BY expired_at DESC
     LIMIT 1;
 
     IF FOUND THEN
         v_remaining_quota := v_active_sub.transaction_quota - v_active_sub.used_quota;
-        
+
         -- Mark old subscription as COMPLETED
         UPDATE public.merchant_subscriptions
         SET status = 'COMPLETED', updated_at = now()
@@ -81,10 +113,10 @@ BEGIN
     v_new_total_quota := v_sub.transaction_quota + v_remaining_quota;
 
     -- Update the new subscription
-    UPDATE public.merchant_subscriptions 
-    SET 
-        status = 'ACTIVE', 
-        payment_status = 'PAID', 
+    UPDATE public.merchant_subscriptions
+    SET
+        status = 'ACTIVE',
+        payment_status = 'PAID',
         paid_at = now(),
         admin_notes = p_admin_notes,
         transaction_quota = v_new_total_quota,
@@ -94,7 +126,7 @@ BEGIN
 
     -- Update current_subscription_id in merchants table
     UPDATE public.merchants
-    SET 
+    SET
         current_subscription_id = p_subscription_id,
         updated_at = now()
     WHERE id = v_sub.merchant_id;
@@ -122,9 +154,14 @@ BEGIN
 
     RETURN json_build_object('success', true, 'message', 'Subscription berhasil disetujui dengan akumulasi kuota');
 END;
-$$;
+$$$bootstrap_sql_3fc46369c13f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3fc46369c13f$;
 
--- 3. Improved use_merchant_quota with validation and logging
+DO $bootstrap_do_c750888f0ecc$
+BEGIN
+  EXECUTE $bootstrap_sql_c750888f0ecc$-- 3. Improved use_merchant_quota with validation and logging
 CREATE OR REPLACE FUNCTION public.use_merchant_quota_v2(p_merchant_id UUID, p_credits INTEGER, p_order_id UUID DEFAULT NULL)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -152,14 +189,14 @@ BEGIN
       AND (transaction_quota - used_quota) >= p_credits
     ORDER BY expired_at ASC
     LIMIT 1;
-    
+
     IF v_sub_id IS NULL THEN
         RETURN FALSE;
     END IF;
 
     -- 3. Deduct quota
     UPDATE public.merchant_subscriptions
-    SET used_quota = used_quota + p_credits, 
+    SET used_quota = used_quota + p_credits,
         updated_at = now()
     WHERE id = v_sub_id;
 
@@ -183,12 +220,17 @@ BEGIN
         p_order_id,
         'Pemakaian kuota untuk order: ' || COALESCE(p_order_id::text, 'N/A')
     );
-    
+
     RETURN TRUE;
 END;
-$$;
+$$$bootstrap_sql_c750888f0ecc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c750888f0ecc$;
 
--- Update the legacy function to call v2
+DO $bootstrap_do_9159ff7ff5da$
+BEGIN
+  EXECUTE $bootstrap_sql_9159ff7ff5da$-- Update the legacy function to call v2
 CREATE OR REPLACE FUNCTION public.use_merchant_quota(p_merchant_id UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -198,9 +240,14 @@ AS $$
 BEGIN
     RETURN use_merchant_quota_v2(p_merchant_id, 1, NULL);
 END;
-$$;
+$$$bootstrap_sql_9159ff7ff5da$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9159ff7ff5da$;
 
--- =====================================================
+DO $bootstrap_do_4749646d9bc2$
+BEGIN
+  EXECUTE $bootstrap_sql_4749646d9bc2$-- =====================================================
 -- PHASE 2: RECONCILIATION & DATA RECOVERY
 -- =====================================================
 
@@ -209,7 +256,7 @@ $$;
 -- Note: This assumes 'PAID' subscriptions are the source of truth for granted quota.
 CREATE OR REPLACE VIEW public.quota_discrepancy_analysis AS
 WITH purchase_summary AS (
-    SELECT 
+    SELECT
         merchant_id,
         SUM(transaction_quota) as total_granted_quota
     FROM public.merchant_subscriptions
@@ -219,7 +266,7 @@ WITH purchase_summary AS (
 usage_summary AS (
     -- If you have an orders table, you can estimate usage from there
     -- This is a fallback if used_quota in subscriptions was overwritten
-    SELECT 
+    SELECT
         merchant_id,
         COUNT(*) as estimated_usage
     FROM public.orders
@@ -227,14 +274,14 @@ usage_summary AS (
     GROUP BY merchant_id
 ),
 current_quota_summary AS (
-    SELECT 
+    SELECT
         merchant_id,
         SUM(transaction_quota - used_quota) as current_remaining_quota
     FROM public.merchant_subscriptions
     WHERE status = 'ACTIVE' AND expired_at > now()
     GROUP BY merchant_id
 )
-SELECT 
+SELECT
     m.id as merchant_id,
     m.name as merchant_name,
     COALESCE(ps.total_granted_quota, 0) as total_purchased,
@@ -246,9 +293,14 @@ FROM public.merchants m
 LEFT JOIN purchase_summary ps ON m.id = ps.merchant_id
 LEFT JOIN usage_summary us ON m.id = us.merchant_id
 LEFT JOIN current_quota_summary cqs ON m.id = cqs.merchant_id
-WHERE ABS((COALESCE(ps.total_granted_quota, 0) - COALESCE(us.estimated_usage, 0)) - COALESCE(cqs.current_remaining_quota, 0)) > 0;
+WHERE ABS((COALESCE(ps.total_granted_quota, 0) - COALESCE(us.estimated_usage, 0)) - COALESCE(cqs.current_remaining_quota, 0)) > 0$bootstrap_sql_4749646d9bc2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4749646d9bc2$;
 
--- 2. Data Patching Procedure (One-time script)
+DO $bootstrap_do_542e201e5312$
+BEGIN
+  EXECUTE $bootstrap_sql_542e201e5312$-- 2. Data Patching Procedure (One-time script)
 -- This function can be called to recalculate and fix a merchant's quota.
 CREATE OR REPLACE FUNCTION public.reconcile_merchant_quota(p_merchant_id UUID)
 RETURNS JSON
@@ -314,15 +366,20 @@ BEGIN
     );
 
     RETURN json_build_object(
-        'success', true, 
-        'expected', v_expected_remaining, 
+        'success', true,
+        'expected', v_expected_remaining,
         'previous', v_current_remaining,
         'adjustment', v_expected_remaining - v_current_remaining
     );
 END;
-$$;
+$$$bootstrap_sql_542e201e5312$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_542e201e5312$;
 
--- =====================================================
+DO $bootstrap_do_8dc7d4b81666$
+BEGIN
+  EXECUTE $bootstrap_sql_8dc7d4b81666$-- =====================================================
 -- PHASE 4: MONITORING & PREVENTION (LONG-TERM)
 -- =====================================================
 
@@ -336,7 +393,7 @@ DECLARE
     v_user_id UUID;
 BEGIN
     v_remaining := NEW.transaction_quota - NEW.used_quota;
-    
+
     -- Only alert if quota just crossed the threshold (e.g., 5)
     -- and it's a reduction in quota (used_quota increased)
     IF v_remaining <= 5 AND NEW.used_quota > OLD.used_quota AND (OLD.transaction_quota - OLD.used_quota) > 5 THEN
@@ -372,15 +429,31 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER$bootstrap_sql_8dc7d4b81666$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8dc7d4b81666$;
 
-DROP TRIGGER IF EXISTS on_quota_usage_alert ON public.merchant_subscriptions;
-CREATE TRIGGER on_quota_usage_alert
+DO $bootstrap_do_9488dabc7458$
+BEGIN
+  EXECUTE $bootstrap_sql_9488dabc7458$DROP TRIGGER IF EXISTS on_quota_usage_alert ON public.merchant_subscriptions$bootstrap_sql_9488dabc7458$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9488dabc7458$;
+
+DO $bootstrap_do_e7f46cad48ce$
+BEGIN
+  EXECUTE $bootstrap_sql_e7f46cad48ce$CREATE TRIGGER on_quota_usage_alert
     AFTER UPDATE OF used_quota ON public.merchant_subscriptions
     FOR EACH ROW
-    EXECUTE FUNCTION public.check_low_quota_alert();
+    EXECUTE FUNCTION public.check_low_quota_alert()$bootstrap_sql_e7f46cad48ce$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e7f46cad48ce$;
 
--- 2. Auto-reconciliation Job (Conceptual for Edge Function)
+DO $bootstrap_do_733961b0ce0e$
+BEGIN
+  EXECUTE $bootstrap_sql_733961b0ce0e$-- 2. Auto-reconciliation Job (Conceptual for Edge Function)
 -- This query can be run by a cron job to detect anomalies.
 CREATE OR REPLACE VIEW public.quota_anomalies AS
 WITH purchase_summary AS (
@@ -401,7 +474,7 @@ current_status AS (
     WHERE status = 'ACTIVE' AND expired_at > now()
     GROUP BY merchant_id
 )
-SELECT 
+SELECT
     m.id as merchant_id,
     m.name as merchant_name,
     COALESCE(ps.total_granted, 0) as purchased,
@@ -413,16 +486,28 @@ FROM public.merchants m
 LEFT JOIN purchase_summary ps ON m.id = ps.merchant_id
 LEFT JOIN usage_summary us ON m.id = us.merchant_id
 LEFT JOIN current_status cs ON m.id = cs.merchant_id
-WHERE ABS((COALESCE(ps.total_granted, 0) - COALESCE(us.total_used, 0)) - COALESCE(cs.current_remaining, 0)) > 0;
+WHERE ABS((COALESCE(ps.total_granted, 0) - COALESCE(us.total_used, 0)) - COALESCE(cs.current_remaining, 0)) > 0$bootstrap_sql_733961b0ce0e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_733961b0ce0e$;
 
--- 3. Admin Dashboard Helper
+DO $bootstrap_do_c0f0b964bef7$
+BEGIN
+  EXECUTE $bootstrap_sql_c0f0b964bef7$-- 3. Admin Dashboard Helper
 -- Summary of quota circulation for admin monitoring.
 CREATE OR REPLACE VIEW public.quota_circulation_summary AS
-SELECT 
+SELECT
     COUNT(DISTINCT merchant_id) as active_merchants,
     SUM(transaction_quota) as total_quota_issued,
     SUM(used_quota) as total_quota_used,
     SUM(transaction_quota - used_quota) as total_quota_remaining,
     ROUND(AVG((used_quota::numeric / NULLIF(transaction_quota, 0)) * 100), 2) as avg_usage_percentage
 FROM public.merchant_subscriptions
-WHERE status = 'ACTIVE' AND expired_at > now();
+WHERE status = 'ACTIVE' AND expired_at > now()$bootstrap_sql_c0f0b964bef7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c0f0b964bef7$;
+
+DO $bootstrap_do_daf3949b3e97$
+BEGIN
+  EXECUTE $bootstrap_sql_daf3949b3e97$

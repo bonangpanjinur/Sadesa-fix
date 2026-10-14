@@ -36,9 +36,14 @@ BEGIN
     VALUES (v_transfer_id, v_product.id, NULLIF(v_item->>'variant_id', '')::uuid, v_product.name, v_product.sku, COALESCE(v_product.unit, 'pcs'), v_qty, 0, 0);
   END LOOP;
   RETURN jsonb_build_object('transfer_id', v_transfer_id, 'status', 'pending');
-END; $$;
+END; $$$bootstrap_sql_f77067d5f872$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f77067d5f872$;
 
-CREATE OR REPLACE FUNCTION public.decide_pos_stock_transfer(p_transfer_id uuid, p_approve boolean, p_reason text DEFAULT NULL)
+DO $bootstrap_do_96d28ef987fb$
+BEGIN
+  EXECUTE $bootstrap_sql_96d28ef987fb$CREATE OR REPLACE FUNCTION public.decide_pos_stock_transfer(p_transfer_id uuid, p_approve boolean, p_reason text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_transfer public.pos_stock_transfers%ROWTYPE;
 BEGIN
@@ -53,9 +58,14 @@ BEGIN
     UPDATE public.pos_stock_transfers SET status = 'rejected', rejection_reason = COALESCE(NULLIF(trim(p_reason), ''), 'Ditolak supervisor') WHERE id = p_transfer_id;
   END IF;
   RETURN jsonb_build_object('transfer_id', p_transfer_id, 'status', CASE WHEN p_approve THEN 'approved' ELSE 'rejected' END);
-END; $$;
+END; $$$bootstrap_sql_96d28ef987fb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_96d28ef987fb$;
 
-CREATE OR REPLACE FUNCTION public.complete_pos_stock_transfer(p_transfer_id uuid, p_items jsonb)
+DO $bootstrap_do_86a18cebf5c6$
+BEGIN
+  EXECUTE $bootstrap_sql_86a18cebf5c6$CREATE OR REPLACE FUNCTION public.complete_pos_stock_transfer(p_transfer_id uuid, p_items jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_transfer public.pos_stock_transfers%ROWTYPE;
@@ -97,11 +107,53 @@ BEGIN
   END LOOP;
   UPDATE public.pos_stock_transfers SET status = 'completed', completed_by = auth.uid(), completed_at = now() WHERE id = p_transfer_id;
   RETURN jsonb_build_object('transfer_id', p_transfer_id, 'status', 'completed');
-END; $$;
+END; $$$bootstrap_sql_86a18cebf5c6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_86a18cebf5c6$;
 
-REVOKE ALL ON FUNCTION public.create_pos_stock_transfer(uuid, text, uuid, uuid, text, jsonb) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.decide_pos_stock_transfer(uuid, boolean, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.complete_pos_stock_transfer(uuid, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_pos_stock_transfer(uuid, text, uuid, uuid, text, jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.decide_pos_stock_transfer(uuid, boolean, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.complete_pos_stock_transfer(uuid, jsonb) TO authenticated;
+DO $bootstrap_do_ea91e4a8041c$
+BEGIN
+  EXECUTE $bootstrap_sql_ea91e4a8041c$REVOKE ALL ON FUNCTION public.create_pos_stock_transfer(uuid, text, uuid, uuid, text, jsonb) FROM PUBLIC, anon$bootstrap_sql_ea91e4a8041c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ea91e4a8041c$;
+
+DO $bootstrap_do_985e8cbd593d$
+BEGIN
+  EXECUTE $bootstrap_sql_985e8cbd593d$REVOKE ALL ON FUNCTION public.decide_pos_stock_transfer(uuid, boolean, text) FROM PUBLIC, anon$bootstrap_sql_985e8cbd593d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_985e8cbd593d$;
+
+DO $bootstrap_do_81b8e1381eee$
+BEGIN
+  EXECUTE $bootstrap_sql_81b8e1381eee$REVOKE ALL ON FUNCTION public.complete_pos_stock_transfer(uuid, jsonb) FROM PUBLIC, anon$bootstrap_sql_81b8e1381eee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_81b8e1381eee$;
+
+DO $bootstrap_do_10ba43fc6706$
+BEGIN
+  EXECUTE $bootstrap_sql_10ba43fc6706$GRANT EXECUTE ON FUNCTION public.create_pos_stock_transfer(uuid, text, uuid, uuid, text, jsonb) TO authenticated$bootstrap_sql_10ba43fc6706$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_10ba43fc6706$;
+
+DO $bootstrap_do_65e6317ea2af$
+BEGIN
+  EXECUTE $bootstrap_sql_65e6317ea2af$GRANT EXECUTE ON FUNCTION public.decide_pos_stock_transfer(uuid, boolean, text) TO authenticated$bootstrap_sql_65e6317ea2af$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_65e6317ea2af$;
+
+DO $bootstrap_do_61585799db5d$
+BEGIN
+  EXECUTE $bootstrap_sql_61585799db5d$GRANT EXECUTE ON FUNCTION public.complete_pos_stock_transfer(uuid, jsonb) TO authenticated$bootstrap_sql_61585799db5d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_61585799db5d$;
+
+DO $bootstrap_do_dc1f39086128$
+BEGIN
+  EXECUTE $bootstrap_sql_dc1f39086128$

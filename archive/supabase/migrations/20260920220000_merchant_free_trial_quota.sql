@@ -24,9 +24,15 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM public.transaction_packages
   WHERE name = 'Paket Gratis 2 Bulan'
-);
+)
+ON CONFLICT DO NOTHING$bootstrap_sql_10e541a8cbed$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_10e541a8cbed$;
 
-CREATE OR REPLACE FUNCTION public.grant_new_merchant_free_trial()
+DO $bootstrap_do_9ccb36343852$
+BEGIN
+  EXECUTE $bootstrap_sql_9ccb36343852$CREATE OR REPLACE FUNCTION public.grant_new_merchant_free_trial()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -81,13 +87,36 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_9ccb36343852$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9ccb36343852$;
 
-DROP TRIGGER IF EXISTS grant_new_merchant_free_trial_trigger ON public.merchants;
-CREATE TRIGGER grant_new_merchant_free_trial_trigger
+DO $bootstrap_do_a5e1dce1a62f$
+BEGIN
+  EXECUTE $bootstrap_sql_a5e1dce1a62f$DROP TRIGGER IF EXISTS grant_new_merchant_free_trial_trigger ON public.merchants$bootstrap_sql_a5e1dce1a62f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a5e1dce1a62f$;
+
+DO $bootstrap_do_c204026a54e3$
+BEGIN
+  EXECUTE $bootstrap_sql_c204026a54e3$CREATE TRIGGER grant_new_merchant_free_trial_trigger
 AFTER INSERT ON public.merchants
 FOR EACH ROW
-EXECUTE FUNCTION public.grant_new_merchant_free_trial();
+EXECUTE FUNCTION public.grant_new_merchant_free_trial()$bootstrap_sql_c204026a54e3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c204026a54e3$;
 
-COMMENT ON FUNCTION public.grant_new_merchant_free_trial() IS
-  'Automatically activates new merchants and grants the 2-month free transaction quota.';
+DO $bootstrap_do_83ec56bb217c$
+BEGIN
+  EXECUTE $bootstrap_sql_83ec56bb217c$COMMENT ON FUNCTION public.grant_new_merchant_free_trial() IS
+  'Automatically activates new merchants and grants the 2-month free transaction quota.'$bootstrap_sql_83ec56bb217c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_83ec56bb217c$;
+
+DO $bootstrap_do_2076255cf32a$
+BEGIN
+  EXECUTE $bootstrap_sql_2076255cf32a$

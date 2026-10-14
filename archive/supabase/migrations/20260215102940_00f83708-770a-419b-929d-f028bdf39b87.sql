@@ -1,11 +1,20 @@
-
 -- Tambah kolom slug ke merchants
-ALTER TABLE merchants ADD COLUMN IF NOT EXISTS slug text UNIQUE;
+ALTER TABLE merchants ADD COLUMN IF NOT EXISTS slug text UNIQUE$bootstrap_sql_33e091b446d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_33e091b446d5$;
 
--- Index untuk pencarian slug
-CREATE UNIQUE INDEX IF NOT EXISTS idx_merchants_slug ON merchants(slug) WHERE slug IS NOT NULL;
+DO $bootstrap_do_6a97a7b2d358$
+BEGIN
+  EXECUTE $bootstrap_sql_6a97a7b2d358$-- Index untuk pencarian slug
+CREATE UNIQUE INDEX IF NOT EXISTS idx_merchants_slug ON merchants(slug) WHERE slug IS NOT NULL$bootstrap_sql_6a97a7b2d358$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6a97a7b2d358$;
 
--- Function untuk generate slug dari nama
+DO $bootstrap_do_afe03730be93$
+BEGIN
+  EXECUTE $bootstrap_sql_afe03730be93$-- Function untuk generate slug dari nama
 CREATE OR REPLACE FUNCTION generate_merchant_slug(merchant_name text)
 RETURNS text
 LANGUAGE plpgsql
@@ -24,7 +33,19 @@ BEGIN
   END LOOP;
   RETURN final_slug;
 END;
-$$;
+$$$bootstrap_sql_afe03730be93$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_afe03730be93$;
 
--- Set slug untuk merchant yang sudah ada
-UPDATE merchants SET slug = generate_merchant_slug(name) WHERE slug IS NULL;
+DO $bootstrap_do_f2959d727f8b$
+BEGIN
+  EXECUTE $bootstrap_sql_f2959d727f8b$-- Set slug untuk merchant yang sudah ada
+UPDATE merchants SET slug = generate_merchant_slug(name) WHERE slug IS NULL$bootstrap_sql_f2959d727f8b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f2959d727f8b$;
+
+DO $bootstrap_do_e2a3015c2d55$
+BEGIN
+  EXECUTE $bootstrap_sql_e2a3015c2d55$

@@ -1,4 +1,3 @@
-
 -- Function to update merchant rating when reviews change
 CREATE OR REPLACE FUNCTION public.update_merchant_rating()
 RETURNS TRIGGER
@@ -36,11 +35,29 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_870015384dc4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_870015384dc4$;
 
--- Create trigger on reviews table
-DROP TRIGGER IF EXISTS trigger_update_merchant_rating ON public.reviews;
-CREATE TRIGGER trigger_update_merchant_rating
+DO $bootstrap_do_828c07855bcd$
+BEGIN
+  EXECUTE $bootstrap_sql_828c07855bcd$-- Create trigger on reviews table
+DROP TRIGGER IF EXISTS trigger_update_merchant_rating ON public.reviews$bootstrap_sql_828c07855bcd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_828c07855bcd$;
+
+DO $bootstrap_do_547cc5ae52cb$
+BEGIN
+  EXECUTE $bootstrap_sql_547cc5ae52cb$CREATE TRIGGER trigger_update_merchant_rating
 AFTER INSERT OR UPDATE OR DELETE ON public.reviews
 FOR EACH ROW
-EXECUTE FUNCTION public.update_merchant_rating();
+EXECUTE FUNCTION public.update_merchant_rating()$bootstrap_sql_547cc5ae52cb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_547cc5ae52cb$;
+
+DO $bootstrap_do_b7da336bd7ef$
+BEGIN
+  EXECUTE $bootstrap_sql_b7da336bd7ef$

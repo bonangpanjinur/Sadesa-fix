@@ -38,15 +38,38 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_1fd116080813$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1fd116080813$;
 
-DROP TRIGGER IF EXISTS validate_pos_sale_totals ON public.pos_sales;
-CREATE CONSTRAINT TRIGGER validate_pos_sale_totals
+DO $bootstrap_do_367a28f615eb$
+BEGIN
+  EXECUTE $bootstrap_sql_367a28f615eb$DROP TRIGGER IF EXISTS validate_pos_sale_totals ON public.pos_sales$bootstrap_sql_367a28f615eb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_367a28f615eb$;
+
+DO $bootstrap_do_4fd1741b22ef$
+BEGIN
+  EXECUTE $bootstrap_sql_4fd1741b22ef$CREATE CONSTRAINT TRIGGER validate_pos_sale_totals
 AFTER INSERT OR UPDATE OF subtotal, tax_amount, total, discount_amount,
   promotion_discount, voucher_discount, loyalty_discount
 ON public.pos_sales
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION public.validate_pos_sale_totals();
+EXECUTE FUNCTION public.validate_pos_sale_totals()$bootstrap_sql_4fd1741b22ef$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4fd1741b22ef$;
 
-REVOKE ALL ON FUNCTION public.validate_pos_sale_totals() FROM PUBLIC;
+DO $bootstrap_do_5c88c56a3c8c$
+BEGIN
+  EXECUTE $bootstrap_sql_5c88c56a3c8c$REVOKE ALL ON FUNCTION public.validate_pos_sale_totals() FROM PUBLIC$bootstrap_sql_5c88c56a3c8c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5c88c56a3c8c$;
+
+DO $bootstrap_do_20b1c5f31e70$
+BEGIN
+  EXECUTE $bootstrap_sql_20b1c5f31e70$

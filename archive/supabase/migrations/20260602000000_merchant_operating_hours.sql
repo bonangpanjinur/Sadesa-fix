@@ -12,32 +12,75 @@ CREATE TABLE IF NOT EXISTS public.merchant_operating_hours (
   created_at    timestamptz DEFAULT now(),
   updated_at    timestamptz DEFAULT now(),
   UNIQUE (merchant_id, day_of_week)
-);
+)$bootstrap_sql_a0632af898e6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a0632af898e6$;
 
-ALTER TABLE public.merchant_operating_hours ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_4188bbb3e0d6$
+BEGIN
+  EXECUTE $bootstrap_sql_4188bbb3e0d6$ALTER TABLE public.merchant_operating_hours ENABLE ROW LEVEL SECURITY$bootstrap_sql_4188bbb3e0d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4188bbb3e0d6$;
 
--- Merchant bisa baca dan kelola jam operasional miliknya sendiri
-DROP POLICY IF EXISTS "merchant_own_hours" ON public.merchant_operating_hours;
-CREATE POLICY "merchant_own_hours" ON public.merchant_operating_hours
+DO $bootstrap_do_a09e7acb0158$
+BEGIN
+  EXECUTE $bootstrap_sql_a09e7acb0158$-- Merchant bisa baca dan kelola jam operasional miliknya sendiri
+DROP POLICY IF EXISTS "merchant_own_hours" ON public.merchant_operating_hours$bootstrap_sql_a09e7acb0158$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a09e7acb0158$;
+
+DO $bootstrap_do_bb0b46101b39$
+BEGIN
+  EXECUTE $bootstrap_sql_bb0b46101b39$CREATE POLICY "merchant_own_hours" ON public.merchant_operating_hours
   USING (
     merchant_id IN (
       SELECT id FROM public.merchants WHERE user_id = auth.uid()
     )
-  );
+  )$bootstrap_sql_bb0b46101b39$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bb0b46101b39$;
 
--- Admin bisa baca semua
-DROP POLICY IF EXISTS "admin_read_hours" ON public.merchant_operating_hours;
-CREATE POLICY "admin_read_hours" ON public.merchant_operating_hours
+DO $bootstrap_do_986cc36e64fe$
+BEGIN
+  EXECUTE $bootstrap_sql_986cc36e64fe$-- Admin bisa baca semua
+DROP POLICY IF EXISTS "admin_read_hours" ON public.merchant_operating_hours$bootstrap_sql_986cc36e64fe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_986cc36e64fe$;
+
+DO $bootstrap_do_75d2677879b1$
+BEGIN
+  EXECUTE $bootstrap_sql_75d2677879b1$CREATE POLICY "admin_read_hours" ON public.merchant_operating_hours
   FOR SELECT USING (
     public.is_admin()
-  );
+  )$bootstrap_sql_75d2677879b1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_75d2677879b1$;
 
--- Publik bisa baca (untuk menampilkan jadwal di halaman toko)
-DROP POLICY IF EXISTS "public_read_hours" ON public.merchant_operating_hours;
-CREATE POLICY "public_read_hours" ON public.merchant_operating_hours
-  FOR SELECT USING (true);
+DO $bootstrap_do_912c23b1375c$
+BEGIN
+  EXECUTE $bootstrap_sql_912c23b1375c$-- Publik bisa baca (untuk menampilkan jadwal di halaman toko)
+DROP POLICY IF EXISTS "public_read_hours" ON public.merchant_operating_hours$bootstrap_sql_912c23b1375c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_912c23b1375c$;
 
--- Seed default 7-hari untuk setiap merchant yang sudah ada (opsional, jalankan sekali)
+DO $bootstrap_do_172b9ffe556b$
+BEGIN
+  EXECUTE $bootstrap_sql_172b9ffe556b$CREATE POLICY "public_read_hours" ON public.merchant_operating_hours
+  FOR SELECT USING (true)$bootstrap_sql_172b9ffe556b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_172b9ffe556b$;
+
+DO $bootstrap_do_8776a97002c5$
+BEGIN
+  EXECUTE $bootstrap_sql_8776a97002c5$-- Seed default 7-hari untuk setiap merchant yang sudah ada (opsional, jalankan sekali)
 -- INSERT INTO public.merchant_operating_hours (merchant_id, day_of_week)
 -- SELECT m.id, d.day FROM public.merchants m CROSS JOIN generate_series(0,6) AS d(day)
 -- ON CONFLICT (merchant_id, day_of_week) DO NOTHING;

@@ -1,6 +1,11 @@
-ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS request_context jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.approval_requests ADD COLUMN IF NOT EXISTS request_context jsonb NOT NULL DEFAULT '{}'::jsonb$bootstrap_sql_dc1f39086128$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dc1f39086128$;
 
-CREATE OR REPLACE FUNCTION public.request_pos_stock_adjustment(
+DO $bootstrap_do_67975466bbb7$
+BEGIN
+  EXECUTE $bootstrap_sql_67975466bbb7$CREATE OR REPLACE FUNCTION public.request_pos_stock_adjustment(
   p_stock_id uuid,
   p_tenant_id uuid,
   p_outlet_id uuid,
@@ -22,9 +27,14 @@ BEGIN
   VALUES (p_tenant_id, auth.uid(), 'stock_adjustment', p_stock_id, p_quantity, COALESCE(NULLIF(trim(p_notes), ''), 'Stock adjustment requires approval'), jsonb_build_object('type', p_type, 'notes', NULLIF(trim(p_notes), ''), 'outlet_id', p_outlet_id, 'quantity_before', v_stock.quantity, 'quantity_after_requested', v_after))
   RETURNING id INTO v_request_id;
   RETURN jsonb_build_object('request_id', v_request_id, 'status', 'pending');
-END; $$;
+END; $$$bootstrap_sql_67975466bbb7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_67975466bbb7$;
 
-CREATE OR REPLACE FUNCTION public.decide_pos_stock_adjustment(p_request_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
+DO $bootstrap_do_1d58ef82cf7a$
+BEGIN
+  EXECUTE $bootstrap_sql_1d58ef82cf7a$CREATE OR REPLACE FUNCTION public.decide_pos_stock_adjustment(p_request_id uuid, p_approve boolean, p_notes text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_request public.approval_requests%ROWTYPE; v_stock public.pos_stock%ROWTYPE; v_type text; v_after numeric; v_delta numeric;
 BEGIN
@@ -46,9 +56,39 @@ BEGIN
   VALUES (v_request.tenant_id, v_stock.product_id, v_stock.variant_id, (v_request.request_context->>'outlet_id')::uuid, v_type, v_delta, v_stock.quantity, v_after, COALESCE(NULLIF(trim(p_notes), ''), v_request.reason), auth.uid(), p_request_id, 'stock_adjustment_approval');
   UPDATE public.approval_requests SET status = 'approved', approved_level = required_level, decided_by = auth.uid(), decided_at = now(), decision_notes = NULLIF(trim(p_notes), '') WHERE id = p_request_id;
   RETURN jsonb_build_object('request_id', p_request_id, 'status', 'approved', 'stock_id', v_stock.id, 'quantity_before', v_stock.quantity, 'quantity_after', v_after, 'delta', v_delta);
-END; $$;
+END; $$$bootstrap_sql_1d58ef82cf7a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1d58ef82cf7a$;
 
-REVOKE ALL ON FUNCTION public.request_pos_stock_adjustment(uuid, uuid, uuid, text, numeric, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.decide_pos_stock_adjustment(uuid, boolean, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.request_pos_stock_adjustment(uuid, uuid, uuid, text, numeric, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.decide_pos_stock_adjustment(uuid, boolean, text) TO authenticated;
+DO $bootstrap_do_e6a1e98f3814$
+BEGIN
+  EXECUTE $bootstrap_sql_e6a1e98f3814$REVOKE ALL ON FUNCTION public.request_pos_stock_adjustment(uuid, uuid, uuid, text, numeric, text) FROM PUBLIC, anon$bootstrap_sql_e6a1e98f3814$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e6a1e98f3814$;
+
+DO $bootstrap_do_f68d145e58af$
+BEGIN
+  EXECUTE $bootstrap_sql_f68d145e58af$REVOKE ALL ON FUNCTION public.decide_pos_stock_adjustment(uuid, boolean, text) FROM PUBLIC, anon$bootstrap_sql_f68d145e58af$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f68d145e58af$;
+
+DO $bootstrap_do_b9fdb7f544b4$
+BEGIN
+  EXECUTE $bootstrap_sql_b9fdb7f544b4$GRANT EXECUTE ON FUNCTION public.request_pos_stock_adjustment(uuid, uuid, uuid, text, numeric, text) TO authenticated$bootstrap_sql_b9fdb7f544b4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b9fdb7f544b4$;
+
+DO $bootstrap_do_280bd8f6e2a8$
+BEGIN
+  EXECUTE $bootstrap_sql_280bd8f6e2a8$GRANT EXECUTE ON FUNCTION public.decide_pos_stock_adjustment(uuid, boolean, text) TO authenticated$bootstrap_sql_280bd8f6e2a8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_280bd8f6e2a8$;
+
+DO $bootstrap_do_6e93242f1a81$
+BEGIN
+  EXECUTE $bootstrap_sql_6e93242f1a81$

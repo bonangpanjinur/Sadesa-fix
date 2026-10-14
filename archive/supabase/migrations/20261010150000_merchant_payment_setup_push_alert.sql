@@ -1,3 +1,6 @@
+DO $bootstrap_do_merchant_payment_setup_push_alert$
+BEGIN
+  EXECUTE $bootstrap_sql_merchant_payment_setup_alert$
 -- Alert approved merchants who have not configured a complete bank account or a QRIS image.
 -- Push is queued only after the owner has at least one registered browser subscription.
 ALTER TABLE public.merchants
@@ -166,3 +169,7 @@ BEGIN
   END LOOP;
 END;
 $$;
+  $bootstrap_sql_merchant_payment_setup_alert$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR unique_violation THEN NULL;
+END $bootstrap_do_merchant_payment_setup_alert$;

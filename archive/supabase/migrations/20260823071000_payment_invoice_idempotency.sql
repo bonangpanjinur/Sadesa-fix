@@ -14,16 +14,43 @@ CREATE TABLE IF NOT EXISTS public.payment_invoice_requests (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (provider, order_id)
-);
+)$bootstrap_sql_6eb0c648451e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6eb0c648451e$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_invoice_requests_key
-  ON public.payment_invoice_requests(provider, request_key);
+DO $bootstrap_do_6dad95334edf$
+BEGIN
+  EXECUTE $bootstrap_sql_6dad95334edf$CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_invoice_requests_key
+  ON public.payment_invoice_requests(provider, request_key)$bootstrap_sql_6dad95334edf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6dad95334edf$;
 
-ALTER TABLE public.payment_invoice_requests ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.payment_invoice_requests FROM anon, authenticated;
-GRANT ALL ON public.payment_invoice_requests TO service_role;
+DO $bootstrap_do_a9197d9fc50a$
+BEGIN
+  EXECUTE $bootstrap_sql_a9197d9fc50a$ALTER TABLE public.payment_invoice_requests ENABLE ROW LEVEL SECURITY$bootstrap_sql_a9197d9fc50a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a9197d9fc50a$;
 
-CREATE OR REPLACE FUNCTION public.reserve_payment_invoice_request(
+DO $bootstrap_do_9dd2481d44d0$
+BEGIN
+  EXECUTE $bootstrap_sql_9dd2481d44d0$REVOKE ALL ON public.payment_invoice_requests FROM anon, authenticated$bootstrap_sql_9dd2481d44d0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9dd2481d44d0$;
+
+DO $bootstrap_do_d881f9ff7bec$
+BEGIN
+  EXECUTE $bootstrap_sql_d881f9ff7bec$GRANT ALL ON public.payment_invoice_requests TO service_role$bootstrap_sql_d881f9ff7bec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d881f9ff7bec$;
+
+DO $bootstrap_do_86071855ff22$
+BEGIN
+  EXECUTE $bootstrap_sql_86071855ff22$CREATE OR REPLACE FUNCTION public.reserve_payment_invoice_request(
   p_provider text,
   p_order_id uuid,
   p_request_key text
@@ -73,7 +100,25 @@ BEGIN
     'created_at', v_row.created_at
   );
 END;
-$$;
+$$$bootstrap_sql_86071855ff22$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_86071855ff22$;
 
-REVOKE ALL ON FUNCTION public.reserve_payment_invoice_request(text, uuid, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.reserve_payment_invoice_request(text, uuid, text) TO service_role;
+DO $bootstrap_do_d777625586d6$
+BEGIN
+  EXECUTE $bootstrap_sql_d777625586d6$REVOKE ALL ON FUNCTION public.reserve_payment_invoice_request(text, uuid, text) FROM PUBLIC, anon, authenticated$bootstrap_sql_d777625586d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d777625586d6$;
+
+DO $bootstrap_do_49090d7103a0$
+BEGIN
+  EXECUTE $bootstrap_sql_49090d7103a0$GRANT EXECUTE ON FUNCTION public.reserve_payment_invoice_request(text, uuid, text) TO service_role$bootstrap_sql_49090d7103a0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_49090d7103a0$;
+
+DO $bootstrap_do_3c5e95bfc443$
+BEGIN
+  EXECUTE $bootstrap_sql_3c5e95bfc443$

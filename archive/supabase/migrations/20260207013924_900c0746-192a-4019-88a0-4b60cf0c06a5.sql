@@ -1,4 +1,3 @@
-
 -- Create a function to deduct a specific number of credits from merchant quota
 -- This replaces the single-deduction version for tier-based quota costs
 CREATE OR REPLACE FUNCTION public.deduct_merchant_quota(p_merchant_id UUID, p_credits INTEGER)
@@ -32,4 +31,11 @@ BEGIN
 
   RETURN TRUE;
 END;
-$$;
+$$$bootstrap_sql_01c04dd192da$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_01c04dd192da$;
+
+DO $bootstrap_do_9b59248d9645$
+BEGIN
+  EXECUTE $bootstrap_sql_9b59248d9645$

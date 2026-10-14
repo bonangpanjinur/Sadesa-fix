@@ -2,7 +2,7 @@
 -- Deskripsi: Menambahkan kolom bukti pembayaran, catatan admin, memperbarui fungsi persetujuan kuota, dan membuat storage bucket.
 
 -- 1. Modifikasi tabel merchant_subscriptions untuk mendukung bukti pembayaran dan catatan admin
-DO $$ 
+DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='merchant_subscriptions' AND column_name='payment_proof_url') THEN
         ALTER TABLE public.merchant_subscriptions ADD COLUMN payment_proof_url TEXT;
@@ -11,9 +11,14 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='merchant_subscriptions' AND column_name='admin_notes') THEN
         ALTER TABLE public.merchant_subscriptions ADD COLUMN admin_notes TEXT;
     END IF;
-END $$;
+END $$$bootstrap_sql_daf3949b3e97$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_daf3949b3e97$;
 
--- 2. Memastikan tabel quota_tiers ada dan sesuai
+DO $bootstrap_do_e01e8fc0634f$
+BEGIN
+  EXECUTE $bootstrap_sql_e01e8fc0634f$-- 2. Memastikan tabel quota_tiers ada dan sesuai
 CREATE TABLE IF NOT EXISTS public.quota_tiers (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     min_price integer NOT NULL DEFAULT 0,
@@ -24,9 +29,14 @@ CREATE TABLE IF NOT EXISTS public.quota_tiers (
     sort_order integer DEFAULT 0,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_e01e8fc0634f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e01e8fc0634f$;
 
--- 3. Fungsi Helper untuk menghitung biaya kuota berdasarkan harga
+DO $bootstrap_do_e8aa59b305a7$
+BEGIN
+  EXECUTE $bootstrap_sql_e8aa59b305a7$-- 3. Fungsi Helper untuk menghitung biaya kuota berdasarkan harga
 CREATE OR REPLACE FUNCTION public.calculate_quota_cost(p_product_price integer)
 RETURNS integer
 LANGUAGE plpgsql
@@ -37,7 +47,7 @@ DECLARE
 BEGIN
     SELECT credit_cost INTO v_cost
     FROM public.quota_tiers
-    WHERE p_product_price >= min_price 
+    WHERE p_product_price >= min_price
     AND (max_price IS NULL OR p_product_price <= max_price)
     AND is_active = true
     ORDER BY min_price DESC
@@ -45,9 +55,14 @@ BEGIN
 
     RETURN COALESCE(v_cost, 1);
 END;
-$$;
+$$$bootstrap_sql_e8aa59b305a7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e8aa59b305a7$;
 
--- 4. Fungsi untuk menyetujui permintaan kuota (RPC)
+DO $bootstrap_do_4e3707a8f2b4$
+BEGIN
+  EXECUTE $bootstrap_sql_4e3707a8f2b4$-- 4. Fungsi untuk menyetujui permintaan kuota (RPC)
 CREATE OR REPLACE FUNCTION public.approve_quota_subscription(p_subscription_id UUID, p_admin_notes TEXT DEFAULT NULL)
 RETURNS JSON
 LANGUAGE plpgsql
@@ -69,10 +84,10 @@ BEGIN
     END IF;
 
     -- 2. Update status subscription
-    UPDATE public.merchant_subscriptions 
-    SET 
-        status = 'ACTIVE', 
-        payment_status = 'PAID', 
+    UPDATE public.merchant_subscriptions
+    SET
+        status = 'ACTIVE',
+        payment_status = 'PAID',
         paid_at = now(),
         admin_notes = p_admin_notes,
         updated_at = now()
@@ -80,16 +95,21 @@ BEGIN
 
     -- 3. Update current_subscription_id di tabel merchants
     UPDATE public.merchants
-    SET 
+    SET
         current_subscription_id = p_subscription_id,
         updated_at = now()
     WHERE id = v_sub.merchant_id;
 
     RETURN json_build_object('success', true, 'message', 'Subscription berhasil disetujui dan diaktifkan');
 END;
-$$;
+$$$bootstrap_sql_4e3707a8f2b4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4e3707a8f2b4$;
 
--- 5. Fungsi untuk menolak permintaan kuota (RPC)
+DO $bootstrap_do_e37d2b09e35c$
+BEGIN
+  EXECUTE $bootstrap_sql_e37d2b09e35c$-- 5. Fungsi untuk menolak permintaan kuota (RPC)
 CREATE OR REPLACE FUNCTION public.reject_quota_subscription(p_subscription_id UUID, p_admin_notes TEXT)
 RETURNS JSON
 LANGUAGE plpgsql
@@ -101,63 +121,127 @@ BEGIN
         RETURN json_build_object('success', false, 'message', 'Catatan admin wajib diisi saat menolak');
     END IF;
 
-    UPDATE public.merchant_subscriptions 
-    SET 
-        status = 'INACTIVE', 
-        payment_status = 'REJECTED', 
+    UPDATE public.merchant_subscriptions
+    SET
+        status = 'INACTIVE',
+        payment_status = 'REJECTED',
         admin_notes = p_admin_notes,
         updated_at = now()
     WHERE id = p_subscription_id;
 
     RETURN json_build_object('success', true, 'message', 'Subscription berhasil ditolak');
 END;
-$$;
+$$$bootstrap_sql_e37d2b09e35c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e37d2b09e35c$;
 
--- 6. Seed data awal untuk quota_tiers jika kosong
+DO $bootstrap_do_db9ad818904b$
+BEGIN
+  EXECUTE $bootstrap_sql_db9ad818904b$-- 6. Seed data awal untuk quota_tiers jika kosong
 INSERT INTO public.quota_tiers (min_price, max_price, credit_cost, description, sort_order)
 SELECT 0, 50000, 1, 'Produk Murah', 1
-WHERE NOT EXISTS (SELECT 1 FROM public.quota_tiers);
+WHERE NOT EXISTS (SELECT 1 FROM public.quota_tiers)
+ON CONFLICT DO NOTHING$bootstrap_sql_db9ad818904b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_db9ad818904b$;
 
-INSERT INTO public.quota_tiers (min_price, max_price, credit_cost, description, sort_order)
+DO $bootstrap_do_7df2518ee488$
+BEGIN
+  EXECUTE $bootstrap_sql_7df2518ee488$INSERT INTO public.quota_tiers (min_price, max_price, credit_cost, description, sort_order)
 SELECT 50001, 200000, 2, 'Produk Menengah', 2
-WHERE NOT EXISTS (SELECT 1 FROM public.quota_tiers WHERE min_price = 50001);
+WHERE NOT EXISTS (SELECT 1 FROM public.quota_tiers WHERE min_price = 50001)
+ON CONFLICT DO NOTHING$bootstrap_sql_7df2518ee488$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7df2518ee488$;
 
-INSERT INTO public.quota_tiers (min_price, max_price, credit_cost, description, sort_order)
+DO $bootstrap_do_041439a8b95a$
+BEGIN
+  EXECUTE $bootstrap_sql_041439a8b95a$INSERT INTO public.quota_tiers (min_price, max_price, credit_cost, description, sort_order)
 SELECT 200001, NULL, 5, 'Produk Mahal', 3
-WHERE NOT EXISTS (SELECT 1 FROM public.quota_tiers WHERE min_price = 200001);
+WHERE NOT EXISTS (SELECT 1 FROM public.quota_tiers WHERE min_price = 200001)
+ON CONFLICT DO NOTHING$bootstrap_sql_041439a8b95a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_041439a8b95a$;
 
--- 7. Membuat Storage Bucket 'merchants' jika belum ada
+DO $bootstrap_do_3555e8a3cb95$
+BEGIN
+  EXECUTE $bootstrap_sql_3555e8a3cb95$-- 7. Membuat Storage Bucket 'merchants' jika belum ada
 INSERT INTO storage.buckets (id, name, public)
 SELECT 'merchants', 'merchants', true
 WHERE NOT EXISTS (
     SELECT 1 FROM storage.buckets WHERE id = 'merchants'
-);
+)
+ON CONFLICT DO NOTHING$bootstrap_sql_3555e8a3cb95$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3555e8a3cb95$;
 
--- 8. Menambahkan Storage Policies untuk bucket 'merchants'
+DO $bootstrap_do_5eaeed08ec2f$
+BEGIN
+  EXECUTE $bootstrap_sql_5eaeed08ec2f$-- 8. Menambahkan Storage Policies untuk bucket 'merchants'
 -- Menggunakan DROP POLICY IF EXISTS untuk menghindari error jika policy sudah ada
-DROP POLICY IF EXISTS "Merchant upload proof" ON storage.objects;
-CREATE POLICY "Merchant upload proof"
+DROP POLICY IF EXISTS "Merchant upload proof" ON storage.objects$bootstrap_sql_5eaeed08ec2f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5eaeed08ec2f$;
+
+DO $bootstrap_do_4626870514ae$
+BEGIN
+  EXECUTE $bootstrap_sql_4626870514ae$CREATE POLICY "Merchant upload proof"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
-    bucket_id = 'merchants' AND 
+    bucket_id = 'merchants' AND
     (storage.foldername(name))[1] = 'payment-proofs'
-);
+)$bootstrap_sql_4626870514ae$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4626870514ae$;
 
-DROP POLICY IF EXISTS "Public view proof" ON storage.objects;
-CREATE POLICY "Public view proof"
+DO $bootstrap_do_922ad91ff474$
+BEGIN
+  EXECUTE $bootstrap_sql_922ad91ff474$DROP POLICY IF EXISTS "Public view proof" ON storage.objects$bootstrap_sql_922ad91ff474$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_922ad91ff474$;
+
+DO $bootstrap_do_8184a95df5b0$
+BEGIN
+  EXECUTE $bootstrap_sql_8184a95df5b0$CREATE POLICY "Public view proof"
 ON storage.objects FOR SELECT
 TO public
-USING (bucket_id = 'merchants');
+USING (bucket_id = 'merchants')$bootstrap_sql_8184a95df5b0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8184a95df5b0$;
 
-DROP POLICY IF EXISTS "Admin manage merchants bucket" ON storage.objects;
-CREATE POLICY "Admin manage merchants bucket"
+DO $bootstrap_do_3577f5fa407e$
+BEGIN
+  EXECUTE $bootstrap_sql_3577f5fa407e$DROP POLICY IF EXISTS "Admin manage merchants bucket" ON storage.objects$bootstrap_sql_3577f5fa407e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3577f5fa407e$;
+
+DO $bootstrap_do_7bc366bf0b4c$
+BEGIN
+  EXECUTE $bootstrap_sql_7bc366bf0b4c$CREATE POLICY "Admin manage merchants bucket"
 ON storage.objects FOR ALL
 TO authenticated
 USING (
     bucket_id = 'merchants' AND
     EXISTS (
-        SELECT 1 FROM public.user_roles 
+        SELECT 1 FROM public.user_roles
         WHERE user_id = auth.uid() AND role = 'admin'
     )
-);
+)$bootstrap_sql_7bc366bf0b4c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7bc366bf0b4c$;
+
+DO $bootstrap_do_fa9d4931d015$
+BEGIN
+  EXECUTE $bootstrap_sql_fa9d4931d015$

@@ -42,9 +42,14 @@ JOIN (VALUES
   ('pro', 'reports_history_days', 'limit', true, NULL::bigint, 'days'),
   ('pro', 'loyalty_rules', 'limit', true, NULL::bigint, 'rules')
 ) AS v(plan_code, feature_key, entitlement_type, enabled, limit_value, unit) ON v.plan_code = p.code
-ON CONFLICT (plan_id, feature_key) DO NOTHING;
+ON CONFLICT (plan_id, feature_key) DO NOTHING$bootstrap_sql_bdfbd81df3d6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bdfbd81df3d6$;
 
-CREATE OR REPLACE FUNCTION public.get_subscription_entitlement(
+DO $bootstrap_do_2136598eaede$
+BEGIN
+  EXECUTE $bootstrap_sql_2136598eaede$CREATE OR REPLACE FUNCTION public.get_subscription_entitlement(
   p_merchant_id uuid,
   p_feature_key text
 )
@@ -107,12 +112,28 @@ BEGIN
     'grace_period_until', v_subscription.grace_period_until
   );
 END;
-$$;
+$$$bootstrap_sql_2136598eaede$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2136598eaede$;
 
-REVOKE ALL ON FUNCTION public.get_subscription_entitlement(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.get_subscription_entitlement(uuid, text) TO authenticated, service_role;
+DO $bootstrap_do_d21046ce8ddf$
+BEGIN
+  EXECUTE $bootstrap_sql_d21046ce8ddf$REVOKE ALL ON FUNCTION public.get_subscription_entitlement(uuid, text) FROM PUBLIC, anon$bootstrap_sql_d21046ce8ddf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d21046ce8ddf$;
 
-CREATE OR REPLACE FUNCTION public.require_subscription_feature(
+DO $bootstrap_do_004ca8742d9b$
+BEGIN
+  EXECUTE $bootstrap_sql_004ca8742d9b$GRANT EXECUTE ON FUNCTION public.get_subscription_entitlement(uuid, text) TO authenticated, service_role$bootstrap_sql_004ca8742d9b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_004ca8742d9b$;
+
+DO $bootstrap_do_68ae31a6d8d2$
+BEGIN
+  EXECUTE $bootstrap_sql_68ae31a6d8d2$CREATE OR REPLACE FUNCTION public.require_subscription_feature(
   p_merchant_id uuid,
   p_feature_key text
 )
@@ -130,7 +151,25 @@ BEGIN
   END IF;
   RETURN v_entitlement;
 END;
-$$;
+$$$bootstrap_sql_68ae31a6d8d2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_68ae31a6d8d2$;
 
-REVOKE ALL ON FUNCTION public.require_subscription_feature(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.require_subscription_feature(uuid, text) TO authenticated, service_role;
+DO $bootstrap_do_5f2d857c460f$
+BEGIN
+  EXECUTE $bootstrap_sql_5f2d857c460f$REVOKE ALL ON FUNCTION public.require_subscription_feature(uuid, text) FROM PUBLIC, anon$bootstrap_sql_5f2d857c460f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5f2d857c460f$;
+
+DO $bootstrap_do_b116080529bd$
+BEGIN
+  EXECUTE $bootstrap_sql_b116080529bd$GRANT EXECUTE ON FUNCTION public.require_subscription_feature(uuid, text) TO authenticated, service_role$bootstrap_sql_b116080529bd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b116080529bd$;
+
+DO $bootstrap_do_b6262b9437fa$
+BEGIN
+  EXECUTE $bootstrap_sql_b6262b9437fa$

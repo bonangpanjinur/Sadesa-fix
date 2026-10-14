@@ -63,12 +63,35 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_950b52f9699e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_950b52f9699e$;
 
-DROP TRIGGER IF EXISTS validate_pos_sale_item_amounts ON public.pos_sale_items;
-CREATE TRIGGER validate_pos_sale_item_amounts
+DO $bootstrap_do_43a56f318d4a$
+BEGIN
+  EXECUTE $bootstrap_sql_43a56f318d4a$DROP TRIGGER IF EXISTS validate_pos_sale_item_amounts ON public.pos_sale_items$bootstrap_sql_43a56f318d4a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_43a56f318d4a$;
+
+DO $bootstrap_do_c1f9f79ad49e$
+BEGIN
+  EXECUTE $bootstrap_sql_c1f9f79ad49e$CREATE TRIGGER validate_pos_sale_item_amounts
 BEFORE INSERT OR UPDATE ON public.pos_sale_items
 FOR EACH ROW
-EXECUTE FUNCTION public.validate_pos_sale_item_amounts();
+EXECUTE FUNCTION public.validate_pos_sale_item_amounts()$bootstrap_sql_c1f9f79ad49e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c1f9f79ad49e$;
 
-REVOKE ALL ON FUNCTION public.validate_pos_sale_item_amounts() FROM PUBLIC;
+DO $bootstrap_do_d4dc71f4bafe$
+BEGIN
+  EXECUTE $bootstrap_sql_d4dc71f4bafe$REVOKE ALL ON FUNCTION public.validate_pos_sale_item_amounts() FROM PUBLIC$bootstrap_sql_d4dc71f4bafe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d4dc71f4bafe$;
+
+DO $bootstrap_do_1fd116080813$
+BEGIN
+  EXECUTE $bootstrap_sql_1fd116080813$

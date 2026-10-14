@@ -42,6 +42,25 @@ BEGIN
   VALUES (v_book_id, p_product_id, p_variant_id, p_price);
   RETURN v_book_id;
 END;
-$$;
-REVOKE ALL ON FUNCTION public.create_pos_price_book(uuid, text, text, uuid, timestamptz, timestamptz, integer, uuid, uuid, numeric) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_pos_price_book(uuid, text, text, uuid, timestamptz, timestamptz, integer, uuid, uuid, numeric) TO authenticated;
+$$$bootstrap_sql_47166d3316f4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_47166d3316f4$;
+
+DO $bootstrap_do_b6eb4d67c228$
+BEGIN
+  EXECUTE $bootstrap_sql_b6eb4d67c228$REVOKE ALL ON FUNCTION public.create_pos_price_book(uuid, text, text, uuid, timestamptz, timestamptz, integer, uuid, uuid, numeric) FROM PUBLIC, anon$bootstrap_sql_b6eb4d67c228$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b6eb4d67c228$;
+
+DO $bootstrap_do_2b2c23ded3c8$
+BEGIN
+  EXECUTE $bootstrap_sql_2b2c23ded3c8$GRANT EXECUTE ON FUNCTION public.create_pos_price_book(uuid, text, text, uuid, timestamptz, timestamptz, integer, uuid, uuid, numeric) TO authenticated$bootstrap_sql_2b2c23ded3c8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2b2c23ded3c8$;
+
+DO $bootstrap_do_f5a66db5c83f$
+BEGIN
+  EXECUTE $bootstrap_sql_f5a66db5c83f$

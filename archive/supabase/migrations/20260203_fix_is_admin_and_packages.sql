@@ -17,9 +17,14 @@ AS $$
     WHERE user_id = auth.uid()
       AND role = 'admin'
   );
-$$;
+$$$bootstrap_sql_2d863c390e29$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2d863c390e29$;
 
--- 2. Pastikan tabel transaction_packages ada
+DO $bootstrap_do_1103b673c96f$
+BEGIN
+  EXECUTE $bootstrap_sql_1103b673c96f$-- 2. Pastikan tabel transaction_packages ada
 CREATE TABLE IF NOT EXISTS public.transaction_packages (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -31,9 +36,14 @@ CREATE TABLE IF NOT EXISTS public.transaction_packages (
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_1103b673c96f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1103b673c96f$;
 
--- CREATE TABLE IF NOT EXISTS does not add columns to an existing table.
+DO $bootstrap_do_a123115794b4$
+BEGIN
+  EXECUTE $bootstrap_sql_a123115794b4$-- CREATE TABLE IF NOT EXISTS does not add columns to an existing table.
 ALTER TABLE public.transaction_packages
   ADD COLUMN IF NOT EXISTS price_per_transaction INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS kas_fee INTEGER NOT NULL DEFAULT 0,
@@ -42,23 +52,50 @@ ALTER TABLE public.transaction_packages
   ADD COLUMN IF NOT EXISTS description TEXT,
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()$bootstrap_sql_a123115794b4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a123115794b4$;
 
--- 3. Modifikasi tabel transaction_packages
+DO $bootstrap_do_4c288dc0b3af$
+BEGIN
+  EXECUTE $bootstrap_sql_4c288dc0b3af$-- 3. Modifikasi tabel transaction_packages
 -- Menghapus kolom classification_price jika ada
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transaction_packages' AND column_name='classification_price') THEN
         ALTER TABLE public.transaction_packages DROP COLUMN classification_price;
     END IF;
-END $$;
+END $$$bootstrap_sql_4c288dc0b3af$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4c288dc0b3af$;
 
--- Menambahkan komentar untuk memperjelas fungsi kolom
-COMMENT ON COLUMN public.transaction_packages.transaction_quota IS 'Total kuota transaksi (kredit) yang didapat dari paket ini';
-COMMENT ON COLUMN public.transaction_packages.price_per_transaction IS 'Biaya per transaksi dalam paket ini';
-COMMENT ON COLUMN public.transaction_packages.kas_fee IS 'Komisi kelompok/kas per transaksi';
+DO $bootstrap_do_f302da4e061a$
+BEGIN
+  EXECUTE $bootstrap_sql_f302da4e061a$-- Menambahkan komentar untuk memperjelas fungsi kolom
+COMMENT ON COLUMN public.transaction_packages.transaction_quota IS 'Total kuota transaksi (kredit) yang didapat dari paket ini'$bootstrap_sql_f302da4e061a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f302da4e061a$;
 
--- 4. Pastikan tabel quota_tiers ada
+DO $bootstrap_do_c65b48402d29$
+BEGIN
+  EXECUTE $bootstrap_sql_c65b48402d29$COMMENT ON COLUMN public.transaction_packages.price_per_transaction IS 'Biaya per transaksi dalam paket ini'$bootstrap_sql_c65b48402d29$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c65b48402d29$;
+
+DO $bootstrap_do_c2604fa663fb$
+BEGIN
+  EXECUTE $bootstrap_sql_c2604fa663fb$COMMENT ON COLUMN public.transaction_packages.kas_fee IS 'Komisi kelompok/kas per transaksi'$bootstrap_sql_c2604fa663fb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c2604fa663fb$;
+
+DO $bootstrap_do_1a4e22eecaa5$
+BEGIN
+  EXECUTE $bootstrap_sql_1a4e22eecaa5$-- 4. Pastikan tabel quota_tiers ada
 CREATE TABLE IF NOT EXISTS public.quota_tiers (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   min_price INTEGER NOT NULL,
@@ -66,59 +103,119 @@ CREATE TABLE IF NOT EXISTS public.quota_tiers (
   credit_cost INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_1a4e22eecaa5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1a4e22eecaa5$;
 
--- Aktifkan RLS
-ALTER TABLE public.transaction_packages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.quota_tiers ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_c5e1cd2a50e6$
+BEGIN
+  EXECUTE $bootstrap_sql_c5e1cd2a50e6$-- Aktifkan RLS
+ALTER TABLE public.transaction_packages ENABLE ROW LEVEL SECURITY$bootstrap_sql_c5e1cd2a50e6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c5e1cd2a50e6$;
 
--- 5. Kebijakan RLS untuk quota_tiers
-DO $$ 
+DO $bootstrap_do_8528fb652a25$
+BEGIN
+  EXECUTE $bootstrap_sql_8528fb652a25$ALTER TABLE public.quota_tiers ENABLE ROW LEVEL SECURITY$bootstrap_sql_8528fb652a25$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8528fb652a25$;
+
+DO $bootstrap_do_7d820bcc3a17$
+BEGIN
+  EXECUTE $bootstrap_sql_7d820bcc3a17$-- 5. Kebijakan RLS untuk quota_tiers
+DO $$
 BEGIN
     -- Drop existing policies if any to avoid conflicts
     DROP POLICY IF EXISTS "Anyone can view quota tiers" ON public.quota_tiers;
     DROP POLICY IF EXISTS "Admins can manage quota tiers" ON public.quota_tiers;
-    
+
     CREATE POLICY "Anyone can view quota tiers" ON public.quota_tiers FOR SELECT USING (true);
     CREATE POLICY "Admins can manage quota tiers" ON public.quota_tiers FOR ALL USING (public.is_admin());
-END $$;
+END $$$bootstrap_sql_7d820bcc3a17$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7d820bcc3a17$;
 
--- 6. Kebijakan RLS untuk transaction_packages
-DO $$ 
+DO $bootstrap_do_d184d5df4732$
+BEGIN
+  EXECUTE $bootstrap_sql_d184d5df4732$-- 6. Kebijakan RLS untuk transaction_packages
+DO $$
 BEGIN
     -- Drop existing policies if any to avoid conflicts
     DROP POLICY IF EXISTS "Anyone can view active packages" ON public.transaction_packages;
     DROP POLICY IF EXISTS "Admins can manage packages" ON public.transaction_packages;
-    
+
     CREATE POLICY "Anyone can view active packages" ON public.transaction_packages FOR SELECT USING (is_active = true);
     CREATE POLICY "Admins can manage packages" ON public.transaction_packages FOR ALL USING (public.is_admin());
-END $$;
+END $$$bootstrap_sql_d184d5df4732$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d184d5df4732$;
 
--- 7. Update data paket default (General) sesuai permintaan user
-DELETE FROM public.transaction_packages;
-INSERT INTO public.transaction_packages (name, price_per_transaction, kas_fee, transaction_quota, validity_days, description, is_active) VALUES
+DO $bootstrap_do_1d86e760013c$
+BEGIN
+  EXECUTE $bootstrap_sql_1d86e760013c$-- 7. Update data paket default (General) sesuai permintaan user
+-- Jangan menghapus paket existing ketika bootstrap dijalankan ulang.
+-- Seed di bawah memakai ON CONFLICT DO NOTHING agar hanya menambahkan
+-- paket yang belum tersedia.
+SELECT 1$bootstrap_sql_1d86e760013c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1d86e760013c$;
+
+DO $bootstrap_do_432a8cef4696$
+BEGIN
+  EXECUTE $bootstrap_sql_432a8cef4696$INSERT INTO public.transaction_packages (name, price_per_transaction, kas_fee, transaction_quota, validity_days, description, is_active) VALUES
 ('Paket Hemat', 500, 200, 50, 0, 'Paket dasar untuk pemula tanpa masa aktif', true),
 ('Paket Reguler', 450, 150, 100, 0, 'Paket standar untuk usaha menengah tanpa masa aktif', true),
-('Paket Premium', 400, 100, 250, 0, 'Paket terbaik dengan biaya transaksi termurah tanpa masa aktif', true);
+('Paket Premium', 400, 100, 250, 0, 'Paket terbaik dengan biaya transaksi termurah tanpa masa aktif', true)
+ON CONFLICT DO NOTHING$bootstrap_sql_432a8cef4696$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_432a8cef4696$;
 
--- 8. Update data tier kuota default sesuai permintaan user
-DELETE FROM public.quota_tiers;
-INSERT INTO public.quota_tiers (min_price, max_price, credit_cost) VALUES
+DO $bootstrap_do_b0cb45b1ae14$
+BEGIN
+  EXECUTE $bootstrap_sql_b0cb45b1ae14$-- 8. Update data tier kuota default sesuai permintaan user
+-- Jangan menghapus tier existing ketika bootstrap dijalankan ulang.
+-- Seed di bawah bersifat additive dan memakai ON CONFLICT DO NOTHING.
+SELECT 1$bootstrap_sql_b0cb45b1ae14$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b0cb45b1ae14$;
+
+DO $bootstrap_do_238be24ed44b$
+BEGIN
+  EXECUTE $bootstrap_sql_238be24ed44b$INSERT INTO public.quota_tiers (min_price, max_price, credit_cost) VALUES
 (0, 3000, 1),
 (3001, 5000, 1), -- Contoh user: > 3000 dan < 5000 menghabiskan 1 kuota
 (5001, 10000, 2), -- Contoh user: > 5000 dan < 10000 menghabiskan 2 kuota
-(10001, NULL, 3);
+(10001, NULL, 3)
+ON CONFLICT DO NOTHING$bootstrap_sql_238be24ed44b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_238be24ed44b$;
 
--- 9. Modifikasi tabel merchants
+DO $bootstrap_do_92615c27da15$
+BEGIN
+  EXECUTE $bootstrap_sql_92615c27da15$-- 9. Modifikasi tabel merchants
 -- Menghapus kolom classification_price jika ada
-DO $$ 
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='merchants' AND column_name='classification_price') THEN
         ALTER TABLE public.merchants DROP COLUMN classification_price;
     END IF;
-END $$;
+END $$$bootstrap_sql_92615c27da15$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_92615c27da15$;
 
--- 10. Update fungsi kalkulasi biaya kredit (kredit per transaksi)
+DO $bootstrap_do_948645f877a3$
+BEGIN
+  EXECUTE $bootstrap_sql_948645f877a3$-- 10. Update fungsi kalkulasi biaya kredit (kredit per transaksi)
 CREATE OR REPLACE FUNCTION public.calculate_item_credit_cost(p_price INTEGER)
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -129,16 +226,21 @@ DECLARE
 BEGIN
   SELECT credit_cost INTO v_credit_cost
   FROM public.quota_tiers
-  WHERE p_price >= min_price 
+  WHERE p_price >= min_price
     AND (max_price IS NULL OR p_price <= max_price)
   ORDER BY min_price DESC
   LIMIT 1;
 
   RETURN COALESCE(v_credit_cost, 1);
 END;
-$$;
+$$$bootstrap_sql_948645f877a3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_948645f877a3$;
 
--- 11. Update fungsi use_merchant_quota_v2 untuk mendukung pengurangan kuota dinamis
+DO $bootstrap_do_c6123cd02a49$
+BEGIN
+  EXECUTE $bootstrap_sql_c6123cd02a49$-- 11. Update fungsi use_merchant_quota_v2 untuk mendukung pengurangan kuota dinamis
 CREATE OR REPLACE FUNCTION public.use_merchant_quota_v2(p_merchant_id UUID, p_credits INTEGER)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -159,7 +261,7 @@ BEGIN
     AND (ms.transaction_quota - ms.used_quota) >= p_credits
   ORDER BY ms.created_at ASC -- Gunakan paket yang paling lama dulu (FIFO)
   LIMIT 1;
-  
+
   IF v_sub_id IS NULL THEN
     RETURN FALSE;
   END IF;
@@ -167,12 +269,17 @@ BEGIN
   UPDATE merchant_subscriptions
   SET used_quota = used_quota + p_credits, updated_at = now()
   WHERE id = v_sub_id;
-  
+
   RETURN TRUE;
 END;
-$$;
+$$$bootstrap_sql_c6123cd02a49$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c6123cd02a49$;
 
--- 12. Update fungsi check_merchant_quota untuk mendukung logika baru
+DO $bootstrap_do_da5421f56a21$
+BEGIN
+  EXECUTE $bootstrap_sql_da5421f56a21$-- 12. Update fungsi check_merchant_quota untuk mendukung logika baru
 CREATE OR REPLACE FUNCTION public.check_merchant_quota(p_merchant_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -184,7 +291,7 @@ DECLARE
   v_used_quota INTEGER;
 BEGIN
   -- Hitung total kuota dari semua paket aktif
-  SELECT 
+  SELECT
     COALESCE(SUM(ms.transaction_quota), 0),
     COALESCE(SUM(ms.used_quota), 0)
   INTO v_total_quota, v_used_quota
@@ -193,7 +300,7 @@ BEGIN
   WHERE ms.merchant_id = p_merchant_id
     AND ms.status = 'ACTIVE'
     AND (tp.validity_days = 0 OR ms.expired_at > now());
-  
+
   IF v_total_quota = 0 OR (v_total_quota - v_used_quota) <= 0 THEN
     RETURN jsonb_build_object(
       'can_transact', false,
@@ -201,10 +308,17 @@ BEGIN
       'remaining_quota', 0
     );
   END IF;
-  
+
   RETURN jsonb_build_object(
     'can_transact', true,
     'remaining_quota', v_total_quota - v_used_quota
   );
 END;
-$$;
+$$$bootstrap_sql_da5421f56a21$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_da5421f56a21$;
+
+DO $bootstrap_do_b3b2578bd7c3$
+BEGIN
+  EXECUTE $bootstrap_sql_b3b2578bd7c3$

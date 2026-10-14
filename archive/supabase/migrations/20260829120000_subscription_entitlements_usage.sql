@@ -15,18 +15,39 @@ CREATE TABLE IF NOT EXISTS public.subscription_plans (
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
-);
+)$bootstrap_sql_59da677d0c06$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_59da677d0c06$;
 
-ALTER TABLE public.merchant_subscriptions
+DO $bootstrap_do_a1a515a4efd5$
+BEGIN
+  EXECUTE $bootstrap_sql_a1a515a4efd5$ALTER TABLE public.merchant_subscriptions
   ADD COLUMN IF NOT EXISTS plan_id uuid REFERENCES public.subscription_plans(id),
   ADD COLUMN IF NOT EXISTS cancel_reason text,
-  ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
+  ADD COLUMN IF NOT EXISTS cancelled_at timestamptz$bootstrap_sql_a1a515a4efd5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a1a515a4efd5$;
 
-CREATE INDEX IF NOT EXISTS idx_merchant_subscriptions_plan ON public.merchant_subscriptions(plan_id);
-CREATE INDEX IF NOT EXISTS idx_merchant_subscriptions_active_merchant
-  ON public.merchant_subscriptions(merchant_id, status, expired_at DESC);
+DO $bootstrap_do_1bf1d084ce58$
+BEGIN
+  EXECUTE $bootstrap_sql_1bf1d084ce58$CREATE INDEX IF NOT EXISTS idx_merchant_subscriptions_plan ON public.merchant_subscriptions(plan_id)$bootstrap_sql_1bf1d084ce58$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1bf1d084ce58$;
 
-CREATE TABLE IF NOT EXISTS public.subscription_plan_entitlements (
+DO $bootstrap_do_05f233577cec$
+BEGIN
+  EXECUTE $bootstrap_sql_05f233577cec$CREATE INDEX IF NOT EXISTS idx_merchant_subscriptions_active_merchant
+  ON public.merchant_subscriptions(merchant_id, status, expired_at DESC)$bootstrap_sql_05f233577cec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_05f233577cec$;
+
+DO $bootstrap_do_f184f4f3a377$
+BEGIN
+  EXECUTE $bootstrap_sql_f184f4f3a377$CREATE TABLE IF NOT EXISTS public.subscription_plan_entitlements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   plan_id uuid NOT NULL REFERENCES public.subscription_plans(id) ON DELETE CASCADE,
   feature_key text NOT NULL,
@@ -38,9 +59,14 @@ CREATE TABLE IF NOT EXISTS public.subscription_plan_entitlements (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (plan_id, feature_key)
-);
+)$bootstrap_sql_f184f4f3a377$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f184f4f3a377$;
 
-CREATE TABLE IF NOT EXISTS public.merchant_subscription_entitlements (
+DO $bootstrap_do_e3760f366675$
+BEGIN
+  EXECUTE $bootstrap_sql_e3760f366675$CREATE TABLE IF NOT EXISTS public.merchant_subscription_entitlements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   subscription_id uuid NOT NULL REFERENCES public.merchant_subscriptions(id) ON DELETE CASCADE,
   feature_key text NOT NULL,
@@ -55,12 +81,22 @@ CREATE TABLE IF NOT EXISTS public.merchant_subscription_entitlements (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (subscription_id, feature_key),
   CHECK (ends_at IS NULL OR ends_at > starts_at)
-);
+)$bootstrap_sql_e3760f366675$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e3760f366675$;
 
-CREATE INDEX IF NOT EXISTS idx_merchant_entitlements_active
-  ON public.merchant_subscription_entitlements(subscription_id, feature_key, starts_at, ends_at);
+DO $bootstrap_do_5d4b05428d7e$
+BEGIN
+  EXECUTE $bootstrap_sql_5d4b05428d7e$CREATE INDEX IF NOT EXISTS idx_merchant_entitlements_active
+  ON public.merchant_subscription_entitlements(subscription_id, feature_key, starts_at, ends_at)$bootstrap_sql_5d4b05428d7e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5d4b05428d7e$;
 
-CREATE TABLE IF NOT EXISTS public.subscription_invoices (
+DO $bootstrap_do_8f19e23b6760$
+BEGIN
+  EXECUTE $bootstrap_sql_8f19e23b6760$CREATE TABLE IF NOT EXISTS public.subscription_invoices (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   subscription_id uuid NOT NULL REFERENCES public.merchant_subscriptions(id) ON DELETE CASCADE,
   provider text,
@@ -79,12 +115,22 @@ CREATE TABLE IF NOT EXISTS public.subscription_invoices (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (provider, provider_invoice_id),
   CHECK (period_end > period_start)
-);
+)$bootstrap_sql_8f19e23b6760$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8f19e23b6760$;
 
-CREATE INDEX IF NOT EXISTS idx_subscription_invoices_subscription
-  ON public.subscription_invoices(subscription_id, created_at DESC);
+DO $bootstrap_do_67f141283f02$
+BEGIN
+  EXECUTE $bootstrap_sql_67f141283f02$CREATE INDEX IF NOT EXISTS idx_subscription_invoices_subscription
+  ON public.subscription_invoices(subscription_id, created_at DESC)$bootstrap_sql_67f141283f02$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_67f141283f02$;
 
-CREATE TABLE IF NOT EXISTS public.subscription_usage_counters (
+DO $bootstrap_do_d0ff4a518fa4$
+BEGIN
+  EXECUTE $bootstrap_sql_d0ff4a518fa4$CREATE TABLE IF NOT EXISTS public.subscription_usage_counters (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   subscription_id uuid NOT NULL REFERENCES public.merchant_subscriptions(id) ON DELETE CASCADE,
   merchant_id uuid NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
@@ -97,12 +143,22 @@ CREATE TABLE IF NOT EXISTS public.subscription_usage_counters (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (subscription_id, feature_key, period_start, period_end),
   CHECK (period_end > period_start)
-);
+)$bootstrap_sql_d0ff4a518fa4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d0ff4a518fa4$;
 
-CREATE INDEX IF NOT EXISTS idx_usage_counters_merchant_period
-  ON public.subscription_usage_counters(merchant_id, feature_key, period_start, period_end);
+DO $bootstrap_do_39af6abd040e$
+BEGIN
+  EXECUTE $bootstrap_sql_39af6abd040e$CREATE INDEX IF NOT EXISTS idx_usage_counters_merchant_period
+  ON public.subscription_usage_counters(merchant_id, feature_key, period_start, period_end)$bootstrap_sql_39af6abd040e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_39af6abd040e$;
 
-CREATE TABLE IF NOT EXISTS public.subscription_usage_ledger (
+DO $bootstrap_do_d0344ac2c09a$
+BEGIN
+  EXECUTE $bootstrap_sql_d0344ac2c09a$CREATE TABLE IF NOT EXISTS public.subscription_usage_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   subscription_id uuid NOT NULL REFERENCES public.merchant_subscriptions(id) ON DELETE CASCADE,
   merchant_id uuid NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
@@ -117,75 +173,264 @@ CREATE TABLE IF NOT EXISTS public.subscription_usage_ledger (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (subscription_id, feature_key, idempotency_key),
   CHECK (period_end > period_start)
-);
+)$bootstrap_sql_d0344ac2c09a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d0344ac2c09a$;
 
-CREATE INDEX IF NOT EXISTS idx_usage_ledger_merchant_created
-  ON public.subscription_usage_ledger(merchant_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_usage_ledger_feature_period
-  ON public.subscription_usage_ledger(subscription_id, feature_key, period_start, period_end, created_at DESC);
+DO $bootstrap_do_44d5a1e8d9f7$
+BEGIN
+  EXECUTE $bootstrap_sql_44d5a1e8d9f7$CREATE INDEX IF NOT EXISTS idx_usage_ledger_merchant_created
+  ON public.subscription_usage_ledger(merchant_id, created_at DESC)$bootstrap_sql_44d5a1e8d9f7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_44d5a1e8d9f7$;
 
-ALTER TABLE public.subscription_plans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscription_plan_entitlements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.merchant_subscription_entitlements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscription_invoices ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscription_usage_counters ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.subscription_usage_ledger ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_2c0d9d9325e3$
+BEGIN
+  EXECUTE $bootstrap_sql_2c0d9d9325e3$CREATE INDEX IF NOT EXISTS idx_usage_ledger_feature_period
+  ON public.subscription_usage_ledger(subscription_id, feature_key, period_start, period_end, created_at DESC)$bootstrap_sql_2c0d9d9325e3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2c0d9d9325e3$;
 
-DROP POLICY IF EXISTS "Authenticated users view active subscription plans" ON public.subscription_plans;
-CREATE POLICY "Authenticated users view active subscription plans"
+DO $bootstrap_do_d19a242f9f38$
+BEGIN
+  EXECUTE $bootstrap_sql_d19a242f9f38$ALTER TABLE public.subscription_plans ENABLE ROW LEVEL SECURITY$bootstrap_sql_d19a242f9f38$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d19a242f9f38$;
+
+DO $bootstrap_do_f3465dc0a9c9$
+BEGIN
+  EXECUTE $bootstrap_sql_f3465dc0a9c9$ALTER TABLE public.subscription_plan_entitlements ENABLE ROW LEVEL SECURITY$bootstrap_sql_f3465dc0a9c9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f3465dc0a9c9$;
+
+DO $bootstrap_do_a207f62b384d$
+BEGIN
+  EXECUTE $bootstrap_sql_a207f62b384d$ALTER TABLE public.merchant_subscription_entitlements ENABLE ROW LEVEL SECURITY$bootstrap_sql_a207f62b384d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a207f62b384d$;
+
+DO $bootstrap_do_90a087b20b13$
+BEGIN
+  EXECUTE $bootstrap_sql_90a087b20b13$ALTER TABLE public.subscription_invoices ENABLE ROW LEVEL SECURITY$bootstrap_sql_90a087b20b13$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_90a087b20b13$;
+
+DO $bootstrap_do_a8451c01f9a6$
+BEGIN
+  EXECUTE $bootstrap_sql_a8451c01f9a6$ALTER TABLE public.subscription_usage_counters ENABLE ROW LEVEL SECURITY$bootstrap_sql_a8451c01f9a6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a8451c01f9a6$;
+
+DO $bootstrap_do_e8c0755c146e$
+BEGIN
+  EXECUTE $bootstrap_sql_e8c0755c146e$ALTER TABLE public.subscription_usage_ledger ENABLE ROW LEVEL SECURITY$bootstrap_sql_e8c0755c146e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e8c0755c146e$;
+
+DO $bootstrap_do_75eb74bf440b$
+BEGIN
+  EXECUTE $bootstrap_sql_75eb74bf440b$DROP POLICY IF EXISTS "Authenticated users view active subscription plans" ON public.subscription_plans$bootstrap_sql_75eb74bf440b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_75eb74bf440b$;
+
+DO $bootstrap_do_ae15a7e88370$
+BEGIN
+  EXECUTE $bootstrap_sql_ae15a7e88370$CREATE POLICY "Authenticated users view active subscription plans"
   ON public.subscription_plans FOR SELECT TO authenticated
-  USING (is_active OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage subscription plans" ON public.subscription_plans;
-CREATE POLICY "Admins manage subscription plans"
+  USING (is_active OR public.is_admin())$bootstrap_sql_ae15a7e88370$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ae15a7e88370$;
+
+DO $bootstrap_do_b54f209a6091$
+BEGIN
+  EXECUTE $bootstrap_sql_b54f209a6091$DROP POLICY IF EXISTS "Admins manage subscription plans" ON public.subscription_plans$bootstrap_sql_b54f209a6091$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b54f209a6091$;
+
+DO $bootstrap_do_9c48b0736dcf$
+BEGIN
+  EXECUTE $bootstrap_sql_9c48b0736dcf$CREATE POLICY "Admins manage subscription plans"
   ON public.subscription_plans FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());
+  USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_9c48b0736dcf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9c48b0736dcf$;
 
-DROP POLICY IF EXISTS "Authenticated users view plan entitlements" ON public.subscription_plan_entitlements;
-CREATE POLICY "Authenticated users view plan entitlements"
+DO $bootstrap_do_17c524123c71$
+BEGIN
+  EXECUTE $bootstrap_sql_17c524123c71$DROP POLICY IF EXISTS "Authenticated users view plan entitlements" ON public.subscription_plan_entitlements$bootstrap_sql_17c524123c71$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_17c524123c71$;
+
+DO $bootstrap_do_52c04a3512f0$
+BEGIN
+  EXECUTE $bootstrap_sql_52c04a3512f0$CREATE POLICY "Authenticated users view plan entitlements"
   ON public.subscription_plan_entitlements FOR SELECT TO authenticated
-  USING (EXISTS (SELECT 1 FROM public.subscription_plans p WHERE p.id = plan_id AND (p.is_active OR public.is_admin())));
-DROP POLICY IF EXISTS "Admins manage plan entitlements" ON public.subscription_plan_entitlements;
-CREATE POLICY "Admins manage plan entitlements"
+  USING (EXISTS (SELECT 1 FROM public.subscription_plans p WHERE p.id = plan_id AND (p.is_active OR public.is_admin())))$bootstrap_sql_52c04a3512f0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_52c04a3512f0$;
+
+DO $bootstrap_do_6287bb8546e6$
+BEGIN
+  EXECUTE $bootstrap_sql_6287bb8546e6$DROP POLICY IF EXISTS "Admins manage plan entitlements" ON public.subscription_plan_entitlements$bootstrap_sql_6287bb8546e6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6287bb8546e6$;
+
+DO $bootstrap_do_5e72b6f53f45$
+BEGIN
+  EXECUTE $bootstrap_sql_5e72b6f53f45$CREATE POLICY "Admins manage plan entitlements"
   ON public.subscription_plan_entitlements FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());
+  USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_5e72b6f53f45$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5e72b6f53f45$;
 
-DROP POLICY IF EXISTS "Merchants view own subscription entitlements" ON public.merchant_subscription_entitlements;
-CREATE POLICY "Merchants view own subscription entitlements"
+DO $bootstrap_do_422215616f2a$
+BEGIN
+  EXECUTE $bootstrap_sql_422215616f2a$DROP POLICY IF EXISTS "Merchants view own subscription entitlements" ON public.merchant_subscription_entitlements$bootstrap_sql_422215616f2a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_422215616f2a$;
+
+DO $bootstrap_do_9183e8b5cec4$
+BEGIN
+  EXECUTE $bootstrap_sql_9183e8b5cec4$CREATE POLICY "Merchants view own subscription entitlements"
   ON public.merchant_subscription_entitlements FOR SELECT TO authenticated
-  USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage merchant subscription entitlements" ON public.merchant_subscription_entitlements;
-CREATE POLICY "Admins manage merchant subscription entitlements"
+  USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin())$bootstrap_sql_9183e8b5cec4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9183e8b5cec4$;
+
+DO $bootstrap_do_62b1a49ff7ab$
+BEGIN
+  EXECUTE $bootstrap_sql_62b1a49ff7ab$DROP POLICY IF EXISTS "Admins manage merchant subscription entitlements" ON public.merchant_subscription_entitlements$bootstrap_sql_62b1a49ff7ab$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_62b1a49ff7ab$;
+
+DO $bootstrap_do_9a28d9e9cec3$
+BEGIN
+  EXECUTE $bootstrap_sql_9a28d9e9cec3$CREATE POLICY "Admins manage merchant subscription entitlements"
   ON public.merchant_subscription_entitlements FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());
+  USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_9a28d9e9cec3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9a28d9e9cec3$;
 
-DROP POLICY IF EXISTS "Merchants view own subscription invoices" ON public.subscription_invoices;
-CREATE POLICY "Merchants view own subscription invoices"
+DO $bootstrap_do_8a3d75f056af$
+BEGIN
+  EXECUTE $bootstrap_sql_8a3d75f056af$DROP POLICY IF EXISTS "Merchants view own subscription invoices" ON public.subscription_invoices$bootstrap_sql_8a3d75f056af$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8a3d75f056af$;
+
+DO $bootstrap_do_70fc19e77281$
+BEGIN
+  EXECUTE $bootstrap_sql_70fc19e77281$CREATE POLICY "Merchants view own subscription invoices"
   ON public.subscription_invoices FOR SELECT TO authenticated
-  USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage subscription invoices" ON public.subscription_invoices;
-CREATE POLICY "Admins manage subscription invoices"
+  USING (subscription_id IN (SELECT ms.id FROM public.merchant_subscriptions ms JOIN public.merchants m ON m.id = ms.merchant_id WHERE m.user_id = auth.uid()) OR public.is_admin())$bootstrap_sql_70fc19e77281$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_70fc19e77281$;
+
+DO $bootstrap_do_7adbb9466b41$
+BEGIN
+  EXECUTE $bootstrap_sql_7adbb9466b41$DROP POLICY IF EXISTS "Admins manage subscription invoices" ON public.subscription_invoices$bootstrap_sql_7adbb9466b41$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7adbb9466b41$;
+
+DO $bootstrap_do_5fa514ef616a$
+BEGIN
+  EXECUTE $bootstrap_sql_5fa514ef616a$CREATE POLICY "Admins manage subscription invoices"
   ON public.subscription_invoices FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());
+  USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_5fa514ef616a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5fa514ef616a$;
 
-DROP POLICY IF EXISTS "Merchants view own usage counters" ON public.subscription_usage_counters;
-CREATE POLICY "Merchants view own usage counters"
+DO $bootstrap_do_a40e2dc28396$
+BEGIN
+  EXECUTE $bootstrap_sql_a40e2dc28396$DROP POLICY IF EXISTS "Merchants view own usage counters" ON public.subscription_usage_counters$bootstrap_sql_a40e2dc28396$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a40e2dc28396$;
+
+DO $bootstrap_do_45755f774ea2$
+BEGIN
+  EXECUTE $bootstrap_sql_45755f774ea2$CREATE POLICY "Merchants view own usage counters"
   ON public.subscription_usage_counters FOR SELECT TO authenticated
-  USING (merchant_id IN (SELECT m.id FROM public.merchants m WHERE m.user_id = auth.uid()) OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage usage counters" ON public.subscription_usage_counters;
-CREATE POLICY "Admins manage usage counters"
+  USING (merchant_id IN (SELECT m.id FROM public.merchants m WHERE m.user_id = auth.uid()) OR public.is_admin())$bootstrap_sql_45755f774ea2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_45755f774ea2$;
+
+DO $bootstrap_do_fd7c21cdf858$
+BEGIN
+  EXECUTE $bootstrap_sql_fd7c21cdf858$DROP POLICY IF EXISTS "Admins manage usage counters" ON public.subscription_usage_counters$bootstrap_sql_fd7c21cdf858$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fd7c21cdf858$;
+
+DO $bootstrap_do_aa9e7cec2e19$
+BEGIN
+  EXECUTE $bootstrap_sql_aa9e7cec2e19$CREATE POLICY "Admins manage usage counters"
   ON public.subscription_usage_counters FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());
+  USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_aa9e7cec2e19$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aa9e7cec2e19$;
 
-DROP POLICY IF EXISTS "Merchants view own usage ledger" ON public.subscription_usage_ledger;
-CREATE POLICY "Merchants view own usage ledger"
+DO $bootstrap_do_ff1631ef79e3$
+BEGIN
+  EXECUTE $bootstrap_sql_ff1631ef79e3$DROP POLICY IF EXISTS "Merchants view own usage ledger" ON public.subscription_usage_ledger$bootstrap_sql_ff1631ef79e3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ff1631ef79e3$;
+
+DO $bootstrap_do_c85c11ccf107$
+BEGIN
+  EXECUTE $bootstrap_sql_c85c11ccf107$CREATE POLICY "Merchants view own usage ledger"
   ON public.subscription_usage_ledger FOR SELECT TO authenticated
-  USING (merchant_id IN (SELECT m.id FROM public.merchants m WHERE m.user_id = auth.uid()) OR public.is_admin());
-DROP POLICY IF EXISTS "Admins manage usage ledger" ON public.subscription_usage_ledger;
-CREATE POLICY "Admins manage usage ledger"
-  ON public.subscription_usage_ledger FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());
+  USING (merchant_id IN (SELECT m.id FROM public.merchants m WHERE m.user_id = auth.uid()) OR public.is_admin())$bootstrap_sql_c85c11ccf107$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c85c11ccf107$;
 
-CREATE OR REPLACE FUNCTION public.consume_subscription_usage(
+DO $bootstrap_do_966389d8cf2f$
+BEGIN
+  EXECUTE $bootstrap_sql_966389d8cf2f$DROP POLICY IF EXISTS "Admins manage usage ledger" ON public.subscription_usage_ledger$bootstrap_sql_966389d8cf2f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_966389d8cf2f$;
+
+DO $bootstrap_do_30c2830a3563$
+BEGIN
+  EXECUTE $bootstrap_sql_30c2830a3563$CREATE POLICY "Admins manage usage ledger"
+  ON public.subscription_usage_ledger FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_30c2830a3563$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30c2830a3563$;
+
+DO $bootstrap_do_92bf8d407902$
+BEGIN
+  EXECUTE $bootstrap_sql_92bf8d407902$CREATE OR REPLACE FUNCTION public.consume_subscription_usage(
   p_merchant_id uuid,
   p_feature_key text,
   p_quantity numeric,
@@ -280,32 +525,114 @@ BEGIN
 
   RETURN jsonb_build_object('accepted', true, 'idempotent', false, 'ledger_id', v_ledger_id, 'used_quantity', v_counter.used_quantity + p_quantity, 'limit_value', v_counter.limit_value);
 END;
-$$;
+$$$bootstrap_sql_92bf8d407902$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_92bf8d407902$;
 
-REVOKE ALL ON FUNCTION public.consume_subscription_usage(uuid, text, numeric, text, timestamptz, timestamptz, text, text, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.consume_subscription_usage(uuid, text, numeric, text, timestamptz, timestamptz, text, text, jsonb) TO authenticated, service_role;
+DO $bootstrap_do_c0bbc2bff381$
+BEGIN
+  EXECUTE $bootstrap_sql_c0bbc2bff381$REVOKE ALL ON FUNCTION public.consume_subscription_usage(uuid, text, numeric, text, timestamptz, timestamptz, text, text, jsonb) FROM PUBLIC, anon, authenticated$bootstrap_sql_c0bbc2bff381$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c0bbc2bff381$;
 
--- Seed only the plan catalog; entitlements are intentionally explicit and can be managed by admin UI.
+DO $bootstrap_do_6b39d9fd9c2a$
+BEGIN
+  EXECUTE $bootstrap_sql_6b39d9fd9c2a$GRANT EXECUTE ON FUNCTION public.consume_subscription_usage(uuid, text, numeric, text, timestamptz, timestamptz, text, text, jsonb) TO authenticated, service_role$bootstrap_sql_6b39d9fd9c2a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6b39d9fd9c2a$;
+
+DO $bootstrap_do_9e874c3e3a2e$
+BEGIN
+  EXECUTE $bootstrap_sql_9e874c3e3a2e$-- Seed only the plan catalog; entitlements are intentionally explicit and can be managed by admin UI.
 INSERT INTO public.subscription_plans (code, name, description, price, billing_interval, trial_days, sort_order)
 VALUES
   ('free', 'Free', 'Operasi marketplace dasar', 0, 'monthly', 0, 10),
   ('starter', 'Starter', 'POS dan laporan operasional', 49000, 'monthly', 14, 20),
   ('growth', 'Growth', 'Inventaris, CRM, dan automation', 149000, 'monthly', 14, 30),
   ('pro', 'Pro', 'Multi-outlet, API, dan analytics lanjutan', 399000, 'monthly', 14, 40)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) DO NOTHING$bootstrap_sql_9e874c3e3a2e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9e874c3e3a2e$;
 
-DROP TRIGGER IF EXISTS set_subscription_plans_updated_at ON public.subscription_plans;
-CREATE TRIGGER set_subscription_plans_updated_at BEFORE UPDATE ON public.subscription_plans
-FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-DROP TRIGGER IF EXISTS set_subscription_plan_entitlements_updated_at ON public.subscription_plan_entitlements;
-CREATE TRIGGER set_subscription_plan_entitlements_updated_at BEFORE UPDATE ON public.subscription_plan_entitlements
-FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-DROP TRIGGER IF EXISTS set_merchant_subscription_entitlements_updated_at ON public.merchant_subscription_entitlements;
-CREATE TRIGGER set_merchant_subscription_entitlements_updated_at BEFORE UPDATE ON public.merchant_subscription_entitlements
-FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-DROP TRIGGER IF EXISTS set_subscription_invoices_updated_at ON public.subscription_invoices;
-CREATE TRIGGER set_subscription_invoices_updated_at BEFORE UPDATE ON public.subscription_invoices
-FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-DROP TRIGGER IF EXISTS set_subscription_usage_counters_updated_at ON public.subscription_usage_counters;
-CREATE TRIGGER set_subscription_usage_counters_updated_at BEFORE UPDATE ON public.subscription_usage_counters
-FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+DO $bootstrap_do_e323abb508e9$
+BEGIN
+  EXECUTE $bootstrap_sql_e323abb508e9$DROP TRIGGER IF EXISTS set_subscription_plans_updated_at ON public.subscription_plans$bootstrap_sql_e323abb508e9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e323abb508e9$;
+
+DO $bootstrap_do_33d6d4dfdb74$
+BEGIN
+  EXECUTE $bootstrap_sql_33d6d4dfdb74$CREATE TRIGGER set_subscription_plans_updated_at BEFORE UPDATE ON public.subscription_plans
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_33d6d4dfdb74$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_33d6d4dfdb74$;
+
+DO $bootstrap_do_ed89af96cd62$
+BEGIN
+  EXECUTE $bootstrap_sql_ed89af96cd62$DROP TRIGGER IF EXISTS set_subscription_plan_entitlements_updated_at ON public.subscription_plan_entitlements$bootstrap_sql_ed89af96cd62$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ed89af96cd62$;
+
+DO $bootstrap_do_fa270e3ab3b6$
+BEGIN
+  EXECUTE $bootstrap_sql_fa270e3ab3b6$CREATE TRIGGER set_subscription_plan_entitlements_updated_at BEFORE UPDATE ON public.subscription_plan_entitlements
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_fa270e3ab3b6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fa270e3ab3b6$;
+
+DO $bootstrap_do_7cfc8acbf916$
+BEGIN
+  EXECUTE $bootstrap_sql_7cfc8acbf916$DROP TRIGGER IF EXISTS set_merchant_subscription_entitlements_updated_at ON public.merchant_subscription_entitlements$bootstrap_sql_7cfc8acbf916$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7cfc8acbf916$;
+
+DO $bootstrap_do_c2f8605882db$
+BEGIN
+  EXECUTE $bootstrap_sql_c2f8605882db$CREATE TRIGGER set_merchant_subscription_entitlements_updated_at BEFORE UPDATE ON public.merchant_subscription_entitlements
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_c2f8605882db$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c2f8605882db$;
+
+DO $bootstrap_do_8139a82146a3$
+BEGIN
+  EXECUTE $bootstrap_sql_8139a82146a3$DROP TRIGGER IF EXISTS set_subscription_invoices_updated_at ON public.subscription_invoices$bootstrap_sql_8139a82146a3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8139a82146a3$;
+
+DO $bootstrap_do_b276ccda1c23$
+BEGIN
+  EXECUTE $bootstrap_sql_b276ccda1c23$CREATE TRIGGER set_subscription_invoices_updated_at BEFORE UPDATE ON public.subscription_invoices
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_b276ccda1c23$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b276ccda1c23$;
+
+DO $bootstrap_do_5ef46bf38f20$
+BEGIN
+  EXECUTE $bootstrap_sql_5ef46bf38f20$DROP TRIGGER IF EXISTS set_subscription_usage_counters_updated_at ON public.subscription_usage_counters$bootstrap_sql_5ef46bf38f20$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ef46bf38f20$;
+
+DO $bootstrap_do_3e51ab9660fa$
+BEGIN
+  EXECUTE $bootstrap_sql_3e51ab9660fa$CREATE TRIGGER set_subscription_usage_counters_updated_at BEFORE UPDATE ON public.subscription_usage_counters
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column()$bootstrap_sql_3e51ab9660fa$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3e51ab9660fa$;
+
+DO $bootstrap_do_bdfbd81df3d6$
+BEGIN
+  EXECUTE $bootstrap_sql_bdfbd81df3d6$

@@ -11,13 +11,42 @@ CREATE TABLE IF NOT EXISTS public.merchant_product_import_jobs (
   created_at timestamptz NOT NULL DEFAULT now(),
   committed_at timestamptz,
   rolled_back_at timestamptz
-);
-CREATE INDEX IF NOT EXISTS idx_merchant_product_import_jobs_merchant ON public.merchant_product_import_jobs(merchant_id, created_at DESC);
-ALTER TABLE public.merchant_product_import_jobs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Merchant manages own product import jobs" ON public.merchant_product_import_jobs;
-CREATE POLICY "Merchant manages own product import jobs" ON public.merchant_product_import_jobs FOR ALL TO authenticated USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin()) WITH CHECK (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin());
+)$bootstrap_sql_b3e29ef0dee6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b3e29ef0dee6$;
 
-CREATE OR REPLACE FUNCTION public.commit_merchant_product_import(p_merchant_id uuid, p_rows jsonb, p_validation_errors jsonb DEFAULT '[]'::jsonb)
+DO $bootstrap_do_3513a2b7d99c$
+BEGIN
+  EXECUTE $bootstrap_sql_3513a2b7d99c$CREATE INDEX IF NOT EXISTS idx_merchant_product_import_jobs_merchant ON public.merchant_product_import_jobs(merchant_id, created_at DESC)$bootstrap_sql_3513a2b7d99c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3513a2b7d99c$;
+
+DO $bootstrap_do_5a6ba2bf3746$
+BEGIN
+  EXECUTE $bootstrap_sql_5a6ba2bf3746$ALTER TABLE public.merchant_product_import_jobs ENABLE ROW LEVEL SECURITY$bootstrap_sql_5a6ba2bf3746$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5a6ba2bf3746$;
+
+DO $bootstrap_do_7dab8554bd3c$
+BEGIN
+  EXECUTE $bootstrap_sql_7dab8554bd3c$DROP POLICY IF EXISTS "Merchant manages own product import jobs" ON public.merchant_product_import_jobs$bootstrap_sql_7dab8554bd3c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7dab8554bd3c$;
+
+DO $bootstrap_do_802baeeeb1cc$
+BEGIN
+  EXECUTE $bootstrap_sql_802baeeeb1cc$CREATE POLICY "Merchant manages own product import jobs" ON public.merchant_product_import_jobs FOR ALL TO authenticated USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin()) WITH CHECK (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()) OR public.is_admin())$bootstrap_sql_802baeeeb1cc$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_802baeeeb1cc$;
+
+DO $bootstrap_do_e7cd070bb77b$
+BEGIN
+  EXECUTE $bootstrap_sql_e7cd070bb77b$CREATE OR REPLACE FUNCTION public.commit_merchant_product_import(p_merchant_id uuid, p_rows jsonb, p_validation_errors jsonb DEFAULT '[]'::jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_job_id uuid; v_ids uuid[] := '{}'; v_row jsonb; v_product_id uuid; v_count integer := 0; v_errors integer := jsonb_array_length(COALESCE(p_validation_errors, '[]'::jsonb));
 BEGIN
@@ -33,9 +62,14 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN
   IF v_job_id IS NOT NULL THEN UPDATE public.merchant_product_import_jobs SET status = 'failed' WHERE id = v_job_id; END IF;
   RAISE;
-END; $$;
+END; $$$bootstrap_sql_e7cd070bb77b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e7cd070bb77b$;
 
-CREATE OR REPLACE FUNCTION public.rollback_merchant_product_import(p_job_id uuid)
+DO $bootstrap_do_717e3b792383$
+BEGIN
+  EXECUTE $bootstrap_sql_717e3b792383$CREATE OR REPLACE FUNCTION public.rollback_merchant_product_import(p_job_id uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_job public.merchant_product_import_jobs%ROWTYPE; v_deleted integer := 0;
 BEGIN
@@ -45,8 +79,39 @@ BEGIN
   GET DIAGNOSTICS v_deleted = ROW_COUNT;
   UPDATE public.merchant_product_import_jobs SET status = 'rolled_back', rolled_back_at = now() WHERE id = v_job.id;
   RETURN jsonb_build_object('job_id', p_job_id, 'status', 'rolled_back', 'deleted_count', v_deleted);
-END; $$;
-REVOKE ALL ON FUNCTION public.commit_merchant_product_import(uuid, jsonb, jsonb) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.rollback_merchant_product_import(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.commit_merchant_product_import(uuid, jsonb, jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.rollback_merchant_product_import(uuid) TO authenticated;
+END; $$$bootstrap_sql_717e3b792383$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_717e3b792383$;
+
+DO $bootstrap_do_ffd242b10732$
+BEGIN
+  EXECUTE $bootstrap_sql_ffd242b10732$REVOKE ALL ON FUNCTION public.commit_merchant_product_import(uuid, jsonb, jsonb) FROM PUBLIC, anon$bootstrap_sql_ffd242b10732$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ffd242b10732$;
+
+DO $bootstrap_do_d42ccd6a9055$
+BEGIN
+  EXECUTE $bootstrap_sql_d42ccd6a9055$REVOKE ALL ON FUNCTION public.rollback_merchant_product_import(uuid) FROM PUBLIC, anon$bootstrap_sql_d42ccd6a9055$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d42ccd6a9055$;
+
+DO $bootstrap_do_a71f3012f2b7$
+BEGIN
+  EXECUTE $bootstrap_sql_a71f3012f2b7$GRANT EXECUTE ON FUNCTION public.commit_merchant_product_import(uuid, jsonb, jsonb) TO authenticated$bootstrap_sql_a71f3012f2b7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a71f3012f2b7$;
+
+DO $bootstrap_do_780e1ce3e5b1$
+BEGIN
+  EXECUTE $bootstrap_sql_780e1ce3e5b1$GRANT EXECUTE ON FUNCTION public.rollback_merchant_product_import(uuid) TO authenticated$bootstrap_sql_780e1ce3e5b1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_780e1ce3e5b1$;
+
+DO $bootstrap_do_29238c01ec37$
+BEGIN
+  EXECUTE $bootstrap_sql_29238c01ec37$

@@ -7,18 +7,39 @@ CREATE TABLE IF NOT EXISTS public.merchant_quota_expiry_notifications (
   reminder_days integer NOT NULL DEFAULT 7,
   sent_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (subscription_id, reminder_days)
-);
+)$bootstrap_sql_2076255cf32a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2076255cf32a$;
 
-ALTER TABLE public.merchant_quota_expiry_notifications ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_2030610f7f23$
+BEGIN
+  EXECUTE $bootstrap_sql_2030610f7f23$ALTER TABLE public.merchant_quota_expiry_notifications ENABLE ROW LEVEL SECURITY$bootstrap_sql_2030610f7f23$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2030610f7f23$;
 
-DROP POLICY IF EXISTS "Admins can view quota expiry notification ledger"
-  ON public.merchant_quota_expiry_notifications;
-CREATE POLICY "Admins can view quota expiry notification ledger"
+DO $bootstrap_do_95e4f7806006$
+BEGIN
+  EXECUTE $bootstrap_sql_95e4f7806006$DROP POLICY IF EXISTS "Admins can view quota expiry notification ledger"
+  ON public.merchant_quota_expiry_notifications$bootstrap_sql_95e4f7806006$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_95e4f7806006$;
+
+DO $bootstrap_do_3b638becfaf4$
+BEGIN
+  EXECUTE $bootstrap_sql_3b638becfaf4$CREATE POLICY "Admins can view quota expiry notification ledger"
 ON public.merchant_quota_expiry_notifications
 FOR SELECT
-USING (public.is_admin());
+USING (public.is_admin())$bootstrap_sql_3b638becfaf4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_3b638becfaf4$;
 
-CREATE OR REPLACE FUNCTION public.notify_free_quota_expiring_merchants()
+DO $bootstrap_do_0d9019e7ecc9$
+BEGIN
+  EXECUTE $bootstrap_sql_0d9019e7ecc9$CREATE OR REPLACE FUNCTION public.notify_free_quota_expiring_merchants()
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -77,23 +98,50 @@ BEGIN
 
   RETURN v_sent_count;
 END;
-$$;
+$$$bootstrap_sql_0d9019e7ecc9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0d9019e7ecc9$;
 
-COMMENT ON FUNCTION public.notify_free_quota_expiring_merchants() IS
-  'Sends one in-app reminder per free merchant subscription when it enters the 7-day expiry window.';
+DO $bootstrap_do_c488ff07dee4$
+BEGIN
+  EXECUTE $bootstrap_sql_c488ff07dee4$COMMENT ON FUNCTION public.notify_free_quota_expiring_merchants() IS
+  'Sends one in-app reminder per free merchant subscription when it enters the 7-day expiry window.'$bootstrap_sql_c488ff07dee4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c488ff07dee4$;
 
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+DO $bootstrap_do_251f0bf45b30$
+BEGIN
+  EXECUTE $bootstrap_sql_251f0bf45b30$CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog$bootstrap_sql_251f0bf45b30$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_251f0bf45b30$;
 
-DO $$
+DO $bootstrap_do_0ab0f5231f3f$
+BEGIN
+  EXECUTE $bootstrap_sql_0ab0f5231f3f$DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'free-quota-expiry-reminders') THEN
     PERFORM cron.unschedule('free-quota-expiry-reminders');
   END IF;
 END
-$$;
+$$$bootstrap_sql_0ab0f5231f3f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0ab0f5231f3f$;
 
-SELECT cron.schedule(
+DO $bootstrap_do_ba81543ac311$
+BEGIN
+  EXECUTE $bootstrap_sql_ba81543ac311$SELECT cron.schedule(
   'free-quota-expiry-reminders',
   '15 0 * * *',
   $$SELECT public.notify_free_quota_expiring_merchants()$$
-);
+)$bootstrap_sql_ba81543ac311$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ba81543ac311$;
+
+DO $bootstrap_do_401bf2f34956$
+BEGIN
+  EXECUTE $bootstrap_sql_401bf2f34956$

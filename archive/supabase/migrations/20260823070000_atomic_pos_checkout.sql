@@ -11,16 +11,43 @@ CREATE TABLE IF NOT EXISTS public.pos_sale_requests (
   response jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, outlet_id, request_key)
-);
+)$bootstrap_sql_8693b95ec211$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8693b95ec211$;
 
-CREATE INDEX IF NOT EXISTS idx_pos_sale_requests_created_at
-  ON public.pos_sale_requests(created_at DESC);
+DO $bootstrap_do_5b4104109590$
+BEGIN
+  EXECUTE $bootstrap_sql_5b4104109590$CREATE INDEX IF NOT EXISTS idx_pos_sale_requests_created_at
+  ON public.pos_sale_requests(created_at DESC)$bootstrap_sql_5b4104109590$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5b4104109590$;
 
-ALTER TABLE public.pos_sale_requests ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.pos_sale_requests FROM anon, authenticated;
-GRANT ALL ON public.pos_sale_requests TO service_role;
+DO $bootstrap_do_f4329dd6358c$
+BEGIN
+  EXECUTE $bootstrap_sql_f4329dd6358c$ALTER TABLE public.pos_sale_requests ENABLE ROW LEVEL SECURITY$bootstrap_sql_f4329dd6358c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f4329dd6358c$;
 
-CREATE OR REPLACE FUNCTION public.process_pos_sale(
+DO $bootstrap_do_d0edacf0d8db$
+BEGIN
+  EXECUTE $bootstrap_sql_d0edacf0d8db$REVOKE ALL ON public.pos_sale_requests FROM anon, authenticated$bootstrap_sql_d0edacf0d8db$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d0edacf0d8db$;
+
+DO $bootstrap_do_076ebbe87927$
+BEGIN
+  EXECUTE $bootstrap_sql_076ebbe87927$GRANT ALL ON public.pos_sale_requests TO service_role$bootstrap_sql_076ebbe87927$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_076ebbe87927$;
+
+DO $bootstrap_do_dd6d58b74845$
+BEGIN
+  EXECUTE $bootstrap_sql_dd6d58b74845$CREATE OR REPLACE FUNCTION public.process_pos_sale(
   p_request_key text,
   p_tenant_id uuid,
   p_outlet_id uuid,
@@ -291,7 +318,25 @@ EXCEPTION WHEN OTHERS THEN
   -- The surrounding transaction rolls back sale, items, stock, and request row together.
   RAISE;
 END;
-$$;
+$$$bootstrap_sql_dd6d58b74845$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_dd6d58b74845$;
 
-REVOKE ALL ON FUNCTION public.process_pos_sale(text, uuid, uuid, uuid, jsonb, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.process_pos_sale(text, uuid, uuid, uuid, jsonb, jsonb) TO authenticated;
+DO $bootstrap_do_9e63c5845b24$
+BEGIN
+  EXECUTE $bootstrap_sql_9e63c5845b24$REVOKE ALL ON FUNCTION public.process_pos_sale(text, uuid, uuid, uuid, jsonb, jsonb) FROM PUBLIC, anon$bootstrap_sql_9e63c5845b24$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9e63c5845b24$;
+
+DO $bootstrap_do_59a0eb65cbd6$
+BEGIN
+  EXECUTE $bootstrap_sql_59a0eb65cbd6$GRANT EXECUTE ON FUNCTION public.process_pos_sale(text, uuid, uuid, uuid, jsonb, jsonb) TO authenticated$bootstrap_sql_59a0eb65cbd6$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_59a0eb65cbd6$;
+
+DO $bootstrap_do_6eb0c648451e$
+BEGIN
+  EXECUTE $bootstrap_sql_6eb0c648451e$

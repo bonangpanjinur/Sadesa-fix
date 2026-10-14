@@ -22,29 +22,90 @@ CREATE TABLE IF NOT EXISTS public.payment_reconciliation_records (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(provider, invoice_id),
   UNIQUE(provider, provider_event_id)
-);
+)$bootstrap_sql_5ff4303b46bf$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ff4303b46bf$;
 
-CREATE INDEX IF NOT EXISTS idx_payment_reconciliation_order
-  ON public.payment_reconciliation_records(order_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_payment_reconciliation_status
-  ON public.payment_reconciliation_records(reconciliation_status, created_at DESC);
+DO $bootstrap_do_f550da216e98$
+BEGIN
+  EXECUTE $bootstrap_sql_f550da216e98$CREATE INDEX IF NOT EXISTS idx_payment_reconciliation_order
+  ON public.payment_reconciliation_records(order_id, created_at DESC)$bootstrap_sql_f550da216e98$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f550da216e98$;
 
-ALTER TABLE public.payment_reconciliation_records ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.payment_reconciliation_records FROM anon, authenticated;
-GRANT SELECT ON public.payment_reconciliation_records TO authenticated;
-GRANT ALL ON public.payment_reconciliation_records TO service_role;
+DO $bootstrap_do_83aae09a7cfa$
+BEGIN
+  EXECUTE $bootstrap_sql_83aae09a7cfa$CREATE INDEX IF NOT EXISTS idx_payment_reconciliation_status
+  ON public.payment_reconciliation_records(reconciliation_status, created_at DESC)$bootstrap_sql_83aae09a7cfa$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_83aae09a7cfa$;
 
-DROP POLICY IF EXISTS "Admins can view payment reconciliation" ON public.payment_reconciliation_records;
-CREATE POLICY "Admins can view payment reconciliation"
+DO $bootstrap_do_89becf1e53a1$
+BEGIN
+  EXECUTE $bootstrap_sql_89becf1e53a1$ALTER TABLE public.payment_reconciliation_records ENABLE ROW LEVEL SECURITY$bootstrap_sql_89becf1e53a1$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_89becf1e53a1$;
+
+DO $bootstrap_do_a1ad4bb37b32$
+BEGIN
+  EXECUTE $bootstrap_sql_a1ad4bb37b32$REVOKE ALL ON public.payment_reconciliation_records FROM anon, authenticated$bootstrap_sql_a1ad4bb37b32$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a1ad4bb37b32$;
+
+DO $bootstrap_do_19dacb551236$
+BEGIN
+  EXECUTE $bootstrap_sql_19dacb551236$GRANT SELECT ON public.payment_reconciliation_records TO authenticated$bootstrap_sql_19dacb551236$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_19dacb551236$;
+
+DO $bootstrap_do_c2d35bc430e9$
+BEGIN
+  EXECUTE $bootstrap_sql_c2d35bc430e9$GRANT ALL ON public.payment_reconciliation_records TO service_role$bootstrap_sql_c2d35bc430e9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c2d35bc430e9$;
+
+DO $bootstrap_do_103bbc265d25$
+BEGIN
+  EXECUTE $bootstrap_sql_103bbc265d25$DROP POLICY IF EXISTS "Admins can view payment reconciliation" ON public.payment_reconciliation_records$bootstrap_sql_103bbc265d25$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_103bbc265d25$;
+
+DO $bootstrap_do_c2badd97612e$
+BEGIN
+  EXECUTE $bootstrap_sql_c2badd97612e$CREATE POLICY "Admins can view payment reconciliation"
   ON public.payment_reconciliation_records FOR SELECT TO authenticated
-  USING (public.is_admin());
+  USING (public.is_admin())$bootstrap_sql_c2badd97612e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c2badd97612e$;
 
-DROP POLICY IF EXISTS "Merchants can view own payment reconciliation" ON public.payment_reconciliation_records;
-CREATE POLICY "Merchants can view own payment reconciliation"
+DO $bootstrap_do_619cc2ca0f3d$
+BEGIN
+  EXECUTE $bootstrap_sql_619cc2ca0f3d$DROP POLICY IF EXISTS "Merchants can view own payment reconciliation" ON public.payment_reconciliation_records$bootstrap_sql_619cc2ca0f3d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_619cc2ca0f3d$;
+
+DO $bootstrap_do_a0e10ecd3b00$
+BEGIN
+  EXECUTE $bootstrap_sql_a0e10ecd3b00$CREATE POLICY "Merchants can view own payment reconciliation"
   ON public.payment_reconciliation_records FOR SELECT TO authenticated
-  USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()));
+  USING (merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid()))$bootstrap_sql_a0e10ecd3b00$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a0e10ecd3b00$;
 
-CREATE OR REPLACE FUNCTION public.record_payment_reconciliation(
+DO $bootstrap_do_f18770afd845$
+BEGIN
+  EXECUTE $bootstrap_sql_f18770afd845$CREATE OR REPLACE FUNCTION public.record_payment_reconciliation(
   p_provider text,
   p_provider_event_id text,
   p_invoice_id text,
@@ -115,9 +176,27 @@ BEGIN
 
   RETURN jsonb_build_object('id', v_id, 'status', v_status, 'provider', lower(trim(p_provider)), 'invoice_id', p_invoice_id);
 END;
-$$;
+$$$bootstrap_sql_f18770afd845$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f18770afd845$;
 
-REVOKE ALL ON FUNCTION public.record_payment_reconciliation(text, text, text, uuid, numeric, numeric, numeric, text, text, timestamptz, jsonb)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.record_payment_reconciliation(text, text, text, uuid, numeric, numeric, numeric, text, text, timestamptz, jsonb)
-  TO service_role;
+DO $bootstrap_do_667c8cd8da2e$
+BEGIN
+  EXECUTE $bootstrap_sql_667c8cd8da2e$REVOKE ALL ON FUNCTION public.record_payment_reconciliation(text, text, text, uuid, numeric, numeric, numeric, text, text, timestamptz, jsonb)
+  FROM PUBLIC, anon, authenticated$bootstrap_sql_667c8cd8da2e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_667c8cd8da2e$;
+
+DO $bootstrap_do_844288f26ec7$
+BEGIN
+  EXECUTE $bootstrap_sql_844288f26ec7$GRANT EXECUTE ON FUNCTION public.record_payment_reconciliation(text, text, text, uuid, numeric, numeric, numeric, text, text, timestamptz, jsonb)
+  TO service_role$bootstrap_sql_844288f26ec7$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_844288f26ec7$;
+
+DO $bootstrap_do_cd0ea4f8c191$
+BEGIN
+  EXECUTE $bootstrap_sql_cd0ea4f8c191$

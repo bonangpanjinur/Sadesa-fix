@@ -9,9 +9,14 @@ BEGIN
       RENAME TO create_marketplace_checkout_legacy;
   END IF;
 END;
-$$;
+$$$bootstrap_sql_4571a4791cfe$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_4571a4791cfe$;
 
-CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
+DO $bootstrap_do_9f0331c2a284$
+BEGIN
+  EXECUTE $bootstrap_sql_9f0331c2a284$CREATE OR REPLACE FUNCTION public.create_marketplace_checkout(
   p_items jsonb,
   p_delivery jsonb,
   p_delivery_type text,
@@ -62,9 +67,39 @@ BEGIN
   VALUES (auth.uid(), trim(p_checkout_key), v_result);
   RETURN v_result;
 END;
-$$;
+$$$bootstrap_sql_9f0331c2a284$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9f0331c2a284$;
 
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout_legacy(jsonb, jsonb, text, text, uuid, numeric) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role;
-NOTIFY pgrst, 'reload schema';
+DO $bootstrap_do_bbf162630b26$
+BEGIN
+  EXECUTE $bootstrap_sql_bbf162630b26$REVOKE ALL ON FUNCTION public.create_marketplace_checkout_legacy(jsonb, jsonb, text, text, uuid, numeric) FROM PUBLIC, anon$bootstrap_sql_bbf162630b26$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bbf162630b26$;
+
+DO $bootstrap_do_53b43b051541$
+BEGIN
+  EXECUTE $bootstrap_sql_53b43b051541$REVOKE ALL ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) FROM PUBLIC, anon$bootstrap_sql_53b43b051541$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_53b43b051541$;
+
+DO $bootstrap_do_eadfd3957e73$
+BEGIN
+  EXECUTE $bootstrap_sql_eadfd3957e73$GRANT EXECUTE ON FUNCTION public.create_marketplace_checkout(jsonb, jsonb, text, text, uuid, numeric, text) TO authenticated, service_role$bootstrap_sql_eadfd3957e73$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_eadfd3957e73$;
+
+DO $bootstrap_do_c9160327872d$
+BEGIN
+  EXECUTE $bootstrap_sql_c9160327872d$NOTIFY pgrst, 'reload schema'$bootstrap_sql_c9160327872d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c9160327872d$;
+
+DO $bootstrap_do_c74c2b2bf9fe$
+BEGIN
+  EXECUTE $bootstrap_sql_c74c2b2bf9fe$

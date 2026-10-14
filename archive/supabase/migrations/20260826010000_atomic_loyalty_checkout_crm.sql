@@ -18,35 +18,85 @@ CREATE TABLE IF NOT EXISTS public.pos_loyalty_ledger (
   created_by uuid REFERENCES auth.users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, idempotency_key)
-);
+)$bootstrap_sql_b97d9f711dec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b97d9f711dec$;
 
-CREATE INDEX IF NOT EXISTS idx_pos_loyalty_ledger_customer
-  ON public.pos_loyalty_ledger(tenant_id, customer_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_pos_loyalty_ledger_sale
-  ON public.pos_loyalty_ledger(sale_id) WHERE sale_id IS NOT NULL;
+DO $bootstrap_do_da772cfa095e$
+BEGIN
+  EXECUTE $bootstrap_sql_da772cfa095e$CREATE INDEX IF NOT EXISTS idx_pos_loyalty_ledger_customer
+  ON public.pos_loyalty_ledger(tenant_id, customer_id, created_at DESC)$bootstrap_sql_da772cfa095e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_da772cfa095e$;
 
-ALTER TABLE public.pos_loyalty_ledger ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger;
-CREATE POLICY "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger
+DO $bootstrap_do_1c3ec290103c$
+BEGIN
+  EXECUTE $bootstrap_sql_1c3ec290103c$CREATE INDEX IF NOT EXISTS idx_pos_loyalty_ledger_sale
+  ON public.pos_loyalty_ledger(sale_id) WHERE sale_id IS NOT NULL$bootstrap_sql_1c3ec290103c$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1c3ec290103c$;
+
+DO $bootstrap_do_8fb7f677fb0a$
+BEGIN
+  EXECUTE $bootstrap_sql_8fb7f677fb0a$ALTER TABLE public.pos_loyalty_ledger ENABLE ROW LEVEL SECURITY$bootstrap_sql_8fb7f677fb0a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8fb7f677fb0a$;
+
+DO $bootstrap_do_fc41fa41feab$
+BEGIN
+  EXECUTE $bootstrap_sql_fc41fa41feab$DROP POLICY IF EXISTS "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger$bootstrap_sql_fc41fa41feab$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_fc41fa41feab$;
+
+DO $bootstrap_do_b915839f7d3f$
+BEGIN
+  EXECUTE $bootstrap_sql_b915839f7d3f$CREATE POLICY "Tenant users view loyalty ledger" ON public.pos_loyalty_ledger
   FOR SELECT TO authenticated
   USING (
     tenant_id IN (SELECT tenant_id FROM public.pos_users WHERE user_id = auth.uid() AND is_active = true)
     OR tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid())
-  );
-DROP POLICY IF EXISTS "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger;
-CREATE POLICY "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger
+  )$bootstrap_sql_b915839f7d3f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_b915839f7d3f$;
+
+DO $bootstrap_do_440e73152118$
+BEGIN
+  EXECUTE $bootstrap_sql_440e73152118$DROP POLICY IF EXISTS "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger$bootstrap_sql_440e73152118$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_440e73152118$;
+
+DO $bootstrap_do_1b3a09ba9704$
+BEGIN
+  EXECUTE $bootstrap_sql_1b3a09ba9704$CREATE POLICY "Tenant owners manage loyalty ledger" ON public.pos_loyalty_ledger
   FOR ALL TO authenticated
   USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))
-  WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+  WITH CHECK (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))$bootstrap_sql_1b3a09ba9704$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1b3a09ba9704$;
 
--- Backfill the aggregate account once. This is safe to re-run.
+DO $bootstrap_do_de4419bb6e53$
+BEGIN
+  EXECUTE $bootstrap_sql_de4419bb6e53$-- Backfill the aggregate account once. This is safe to re-run.
 INSERT INTO public.pos_loyalty_points(tenant_id, customer_id, total_points, used_points, expired_points, tier)
 SELECT c.tenant_id, c.id, GREATEST(0, COALESCE(c.loyalty_points, 0)), 0, 0,
        COALESCE(NULLIF(c.loyalty_tier, ''), 'Bronze')
 FROM public.pos_customers c
-ON CONFLICT (tenant_id, customer_id) DO NOTHING;
+ON CONFLICT (tenant_id, customer_id) DO NOTHING$bootstrap_sql_de4419bb6e53$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_de4419bb6e53$;
 
-CREATE OR REPLACE FUNCTION public.pos_loyalty_actor_can_access(p_tenant_id uuid, p_actor_id uuid)
+DO $bootstrap_do_72586ee49b26$
+BEGIN
+  EXECUTE $bootstrap_sql_72586ee49b26$CREATE OR REPLACE FUNCTION public.pos_loyalty_actor_can_access(p_tenant_id uuid, p_actor_id uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
@@ -55,9 +105,14 @@ AS $$
       EXISTS (SELECT 1 FROM public.pos_tenants t WHERE t.id = p_tenant_id AND t.user_id = auth.uid())
       OR EXISTS (SELECT 1 FROM public.pos_users u WHERE u.tenant_id = p_tenant_id AND u.user_id = auth.uid() AND u.is_active = true)
     );
-$$;
+$$$bootstrap_sql_72586ee49b26$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_72586ee49b26$;
 
-CREATE OR REPLACE FUNCTION public.earn_pos_loyalty_points(
+DO $bootstrap_do_7ec12ba9e793$
+BEGIN
+  EXECUTE $bootstrap_sql_7ec12ba9e793$CREATE OR REPLACE FUNCTION public.earn_pos_loyalty_points(
   p_tenant_id uuid,
   p_customer_id uuid,
   p_amount numeric,
@@ -121,9 +176,14 @@ BEGIN
   UPDATE public.pos_customers SET loyalty_points = v_after, updated_at = now() WHERE id = p_customer_id;
   RETURN jsonb_build_object('entry_id', v_entry_id, 'points', v_points, 'balance', v_after, 'duplicate', false);
 END;
-$$;
+$$$bootstrap_sql_7ec12ba9e793$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7ec12ba9e793$;
 
-CREATE OR REPLACE FUNCTION public.redeem_pos_loyalty_points(
+DO $bootstrap_do_bff236875914$
+BEGIN
+  EXECUTE $bootstrap_sql_bff236875914$CREATE OR REPLACE FUNCTION public.redeem_pos_loyalty_points(
   p_tenant_id uuid,
   p_customer_id uuid,
   p_points integer,
@@ -165,15 +225,49 @@ BEGIN
   UPDATE public.pos_customers SET loyalty_points = v_after, updated_at = now() WHERE id = p_customer_id;
   RETURN jsonb_build_object('entry_id', v_entry_id, 'points', p_points, 'balance', v_after, 'duplicate', false);
 END;
-$$;
+$$$bootstrap_sql_bff236875914$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bff236875914$;
 
-REVOKE ALL ON FUNCTION public.pos_loyalty_actor_can_access(uuid, uuid) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.earn_pos_loyalty_points(uuid, uuid, numeric, uuid, uuid, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.redeem_pos_loyalty_points(uuid, uuid, integer, uuid, uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.earn_pos_loyalty_points(uuid, uuid, numeric, uuid, uuid, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.redeem_pos_loyalty_points(uuid, uuid, integer, uuid, uuid, text) TO authenticated;
+DO $bootstrap_do_7431eae34954$
+BEGIN
+  EXECUTE $bootstrap_sql_7431eae34954$REVOKE ALL ON FUNCTION public.pos_loyalty_actor_can_access(uuid, uuid) FROM PUBLIC, anon$bootstrap_sql_7431eae34954$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7431eae34954$;
 
--- Mirror legacy checkout point mutations into the immutable ledger exactly once.
+DO $bootstrap_do_6d64e3a15c22$
+BEGIN
+  EXECUTE $bootstrap_sql_6d64e3a15c22$REVOKE ALL ON FUNCTION public.earn_pos_loyalty_points(uuid, uuid, numeric, uuid, uuid, text) FROM PUBLIC, anon$bootstrap_sql_6d64e3a15c22$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6d64e3a15c22$;
+
+DO $bootstrap_do_257e60665794$
+BEGIN
+  EXECUTE $bootstrap_sql_257e60665794$REVOKE ALL ON FUNCTION public.redeem_pos_loyalty_points(uuid, uuid, integer, uuid, uuid, text) FROM PUBLIC, anon$bootstrap_sql_257e60665794$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_257e60665794$;
+
+DO $bootstrap_do_57dbf8f3d020$
+BEGIN
+  EXECUTE $bootstrap_sql_57dbf8f3d020$GRANT EXECUTE ON FUNCTION public.earn_pos_loyalty_points(uuid, uuid, numeric, uuid, uuid, text) TO authenticated$bootstrap_sql_57dbf8f3d020$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_57dbf8f3d020$;
+
+DO $bootstrap_do_14ffe5378f31$
+BEGIN
+  EXECUTE $bootstrap_sql_14ffe5378f31$GRANT EXECUTE ON FUNCTION public.redeem_pos_loyalty_points(uuid, uuid, integer, uuid, uuid, text) TO authenticated$bootstrap_sql_14ffe5378f31$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_14ffe5378f31$;
+
+DO $bootstrap_do_08a9fdd91f9a$
+BEGIN
+  EXECUTE $bootstrap_sql_08a9fdd91f9a$-- Mirror legacy checkout point mutations into the immutable ledger exactly once.
 CREATE OR REPLACE FUNCTION public.record_pos_sale_loyalty_ledger()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -200,9 +294,14 @@ BEGIN
     WHERE tenant_id = NEW.tenant_id AND customer_id = NEW.customer_id;
   END IF;
   RETURN NEW;
-END; $$;
+END; $$$bootstrap_sql_08a9fdd91f9a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_08a9fdd91f9a$;
 
-CREATE OR REPLACE FUNCTION public.apply_pos_sale_loyalty_rules()
+DO $bootstrap_do_daa226bffa4a$
+BEGIN
+  EXECUTE $bootstrap_sql_daa226bffa4a$CREATE OR REPLACE FUNCTION public.apply_pos_sale_loyalty_rules()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_rule public.pos_loyalty_rules%ROWTYPE;
@@ -230,16 +329,44 @@ BEGIN
   END IF;
   NEW.loyalty_points_redeemed := v_requested_redeem;
   RETURN NEW;
-END; $$;
+END; $$$bootstrap_sql_daa226bffa4a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_daa226bffa4a$;
 
-DROP TRIGGER IF EXISTS trg_apply_pos_sale_loyalty_rules ON public.pos_sales;
-CREATE TRIGGER trg_apply_pos_sale_loyalty_rules
-BEFORE INSERT ON public.pos_sales FOR EACH ROW EXECUTE FUNCTION public.apply_pos_sale_loyalty_rules();
-DROP TRIGGER IF EXISTS trg_record_pos_sale_loyalty_ledger ON public.pos_sales;
-CREATE TRIGGER trg_record_pos_sale_loyalty_ledger
-AFTER INSERT ON public.pos_sales FOR EACH ROW EXECUTE FUNCTION public.record_pos_sale_loyalty_ledger();
+DO $bootstrap_do_2602b3eb8520$
+BEGIN
+  EXECUTE $bootstrap_sql_2602b3eb8520$DROP TRIGGER IF EXISTS trg_apply_pos_sale_loyalty_rules ON public.pos_sales$bootstrap_sql_2602b3eb8520$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2602b3eb8520$;
 
--- Reusing a cart after a completed sale marks matching active carts as recovered.
+DO $bootstrap_do_e45e6ba0c67b$
+BEGIN
+  EXECUTE $bootstrap_sql_e45e6ba0c67b$CREATE TRIGGER trg_apply_pos_sale_loyalty_rules
+BEFORE INSERT ON public.pos_sales FOR EACH ROW EXECUTE FUNCTION public.apply_pos_sale_loyalty_rules()$bootstrap_sql_e45e6ba0c67b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e45e6ba0c67b$;
+
+DO $bootstrap_do_c5622aa118a5$
+BEGIN
+  EXECUTE $bootstrap_sql_c5622aa118a5$DROP TRIGGER IF EXISTS trg_record_pos_sale_loyalty_ledger ON public.pos_sales$bootstrap_sql_c5622aa118a5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_c5622aa118a5$;
+
+DO $bootstrap_do_5ed534a839dd$
+BEGIN
+  EXECUTE $bootstrap_sql_5ed534a839dd$CREATE TRIGGER trg_record_pos_sale_loyalty_ledger
+AFTER INSERT ON public.pos_sales FOR EACH ROW EXECUTE FUNCTION public.record_pos_sale_loyalty_ledger()$bootstrap_sql_5ed534a839dd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_5ed534a839dd$;
+
+DO $bootstrap_do_6c2842da2731$
+BEGIN
+  EXECUTE $bootstrap_sql_6c2842da2731$-- Reusing a cart after a completed sale marks matching active carts as recovered.
 CREATE OR REPLACE FUNCTION public.mark_crm_cart_recovered_after_pos_sale()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -249,7 +376,26 @@ BEGIN
     WHERE tenant_id = NEW.tenant_id AND customer_id = NEW.customer_id AND recovered_at IS NULL;
   END IF;
   RETURN NEW;
-END; $$;
-DROP TRIGGER IF EXISTS trg_mark_crm_cart_recovered ON public.pos_sales;
-CREATE TRIGGER trg_mark_crm_cart_recovered
-AFTER INSERT ON public.pos_sales FOR EACH ROW EXECUTE FUNCTION public.mark_crm_cart_recovered_after_pos_sale();
+END; $$$bootstrap_sql_6c2842da2731$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6c2842da2731$;
+
+DO $bootstrap_do_8293a5cc88cd$
+BEGIN
+  EXECUTE $bootstrap_sql_8293a5cc88cd$DROP TRIGGER IF EXISTS trg_mark_crm_cart_recovered ON public.pos_sales$bootstrap_sql_8293a5cc88cd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8293a5cc88cd$;
+
+DO $bootstrap_do_2f3839e312f4$
+BEGIN
+  EXECUTE $bootstrap_sql_2f3839e312f4$CREATE TRIGGER trg_mark_crm_cart_recovered
+AFTER INSERT ON public.pos_sales FOR EACH ROW EXECUTE FUNCTION public.mark_crm_cart_recovered_after_pos_sale()$bootstrap_sql_2f3839e312f4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2f3839e312f4$;
+
+DO $bootstrap_do_6d22400cabd4$
+BEGIN
+  EXECUTE $bootstrap_sql_6d22400cabd4$

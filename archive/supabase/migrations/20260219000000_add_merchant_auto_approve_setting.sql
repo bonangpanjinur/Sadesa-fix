@@ -6,4 +6,11 @@ VALUES (
     'Enable/disable automatic approval for new merchant registrations',
     'registration'
 )
-ON CONFLICT (key) DO NOTHING;
+ON CONFLICT (key) DO NOTHING$bootstrap_sql_0e21ca92bd84$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0e21ca92bd84$;
+
+DO $bootstrap_do_006c2cc346ab$
+BEGIN
+  EXECUTE $bootstrap_sql_006c2cc346ab$

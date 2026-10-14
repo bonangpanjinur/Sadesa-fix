@@ -1,11 +1,22 @@
 -- CRM campaign dispatch into the durable notification queue.
 ALTER TABLE public.notification_delivery_jobs
-  ADD COLUMN IF NOT EXISTS dedupe_key text;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_jobs_tenant_dedupe
-  ON public.notification_delivery_jobs(tenant_id, dedupe_key)
-  WHERE dedupe_key IS NOT NULL;
+  ADD COLUMN IF NOT EXISTS dedupe_key text$bootstrap_sql_cc1230dd6a96$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cc1230dd6a96$;
 
-CREATE OR REPLACE FUNCTION public.enqueue_due_crm_campaign_jobs(p_limit integer DEFAULT 100)
+DO $bootstrap_do_975affc2e3a9$
+BEGIN
+  EXECUTE $bootstrap_sql_975affc2e3a9$CREATE UNIQUE INDEX IF NOT EXISTS idx_notification_jobs_tenant_dedupe
+  ON public.notification_delivery_jobs(tenant_id, dedupe_key)
+  WHERE dedupe_key IS NOT NULL$bootstrap_sql_975affc2e3a9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_975affc2e3a9$;
+
+DO $bootstrap_do_e9db9a75a857$
+BEGIN
+  EXECUTE $bootstrap_sql_e9db9a75a857$CREATE OR REPLACE FUNCTION public.enqueue_due_crm_campaign_jobs(p_limit integer DEFAULT 100)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
@@ -58,6 +69,25 @@ BEGIN
   END LOOP;
   RETURN jsonb_build_object('queued', v_queued);
 END;
-$$;
-REVOKE ALL ON FUNCTION public.enqueue_due_crm_campaign_jobs(integer) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.enqueue_due_crm_campaign_jobs(integer) TO service_role;
+$$$bootstrap_sql_e9db9a75a857$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e9db9a75a857$;
+
+DO $bootstrap_do_47a0593118ec$
+BEGIN
+  EXECUTE $bootstrap_sql_47a0593118ec$REVOKE ALL ON FUNCTION public.enqueue_due_crm_campaign_jobs(integer) FROM PUBLIC, anon, authenticated$bootstrap_sql_47a0593118ec$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_47a0593118ec$;
+
+DO $bootstrap_do_f27096ea8680$
+BEGIN
+  EXECUTE $bootstrap_sql_f27096ea8680$GRANT EXECUTE ON FUNCTION public.enqueue_due_crm_campaign_jobs(integer) TO service_role$bootstrap_sql_f27096ea8680$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f27096ea8680$;
+
+DO $bootstrap_do_2fe2cbf30cac$
+BEGIN
+  EXECUTE $bootstrap_sql_2fe2cbf30cac$

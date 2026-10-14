@@ -16,25 +16,89 @@ CREATE TABLE IF NOT EXISTS public.pos_payment_anomalies (
   acknowledged_by uuid REFERENCES auth.users(id),
   acknowledged_at timestamptz,
   resolved_at timestamptz
-);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_anomaly_open_subject
+)$bootstrap_sql_d558dab27285$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d558dab27285$;
+
+DO $bootstrap_do_46ba12a51723$
+BEGIN
+  EXECUTE $bootstrap_sql_46ba12a51723$CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_anomaly_open_subject
   ON public.pos_payment_anomalies(anomaly_type, subject_type, subject_id)
-  WHERE status IN ('open','acknowledged');
-CREATE INDEX IF NOT EXISTS idx_pos_anomaly_tenant_status
-  ON public.pos_payment_anomalies(tenant_id, status, detected_at DESC);
+  WHERE status IN ('open','acknowledged')$bootstrap_sql_46ba12a51723$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_46ba12a51723$;
 
-ALTER TABLE public.pos_payment_anomalies ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.pos_payment_anomalies FROM anon, authenticated;
-GRANT SELECT, UPDATE ON public.pos_payment_anomalies TO authenticated;
-GRANT ALL ON public.pos_payment_anomalies TO service_role;
-DROP POLICY IF EXISTS "Admins view and manage anomalies" ON public.pos_payment_anomalies;
-CREATE POLICY "Admins view and manage anomalies" ON public.pos_payment_anomalies FOR ALL TO authenticated
-  USING (public.is_admin()) WITH CHECK (public.is_admin());
-DROP POLICY IF EXISTS "Tenant owners view anomalies" ON public.pos_payment_anomalies;
-CREATE POLICY "Tenant owners view anomalies" ON public.pos_payment_anomalies FOR SELECT TO authenticated
-  USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()));
+DO $bootstrap_do_67b1fd99968a$
+BEGIN
+  EXECUTE $bootstrap_sql_67b1fd99968a$CREATE INDEX IF NOT EXISTS idx_pos_anomaly_tenant_status
+  ON public.pos_payment_anomalies(tenant_id, status, detected_at DESC)$bootstrap_sql_67b1fd99968a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_67b1fd99968a$;
 
-CREATE OR REPLACE FUNCTION public.scan_pos_payment_anomalies(
+DO $bootstrap_do_40d26d4a901e$
+BEGIN
+  EXECUTE $bootstrap_sql_40d26d4a901e$ALTER TABLE public.pos_payment_anomalies ENABLE ROW LEVEL SECURITY$bootstrap_sql_40d26d4a901e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_40d26d4a901e$;
+
+DO $bootstrap_do_38e51b479f7f$
+BEGIN
+  EXECUTE $bootstrap_sql_38e51b479f7f$REVOKE ALL ON public.pos_payment_anomalies FROM anon, authenticated$bootstrap_sql_38e51b479f7f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_38e51b479f7f$;
+
+DO $bootstrap_do_101e7bb884c4$
+BEGIN
+  EXECUTE $bootstrap_sql_101e7bb884c4$GRANT SELECT, UPDATE ON public.pos_payment_anomalies TO authenticated$bootstrap_sql_101e7bb884c4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_101e7bb884c4$;
+
+DO $bootstrap_do_1ddb1e5e525a$
+BEGIN
+  EXECUTE $bootstrap_sql_1ddb1e5e525a$GRANT ALL ON public.pos_payment_anomalies TO service_role$bootstrap_sql_1ddb1e5e525a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1ddb1e5e525a$;
+
+DO $bootstrap_do_93502eb0ceb0$
+BEGIN
+  EXECUTE $bootstrap_sql_93502eb0ceb0$DROP POLICY IF EXISTS "Admins view and manage anomalies" ON public.pos_payment_anomalies$bootstrap_sql_93502eb0ceb0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_93502eb0ceb0$;
+
+DO $bootstrap_do_aef905774aeb$
+BEGIN
+  EXECUTE $bootstrap_sql_aef905774aeb$CREATE POLICY "Admins view and manage anomalies" ON public.pos_payment_anomalies FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin())$bootstrap_sql_aef905774aeb$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aef905774aeb$;
+
+DO $bootstrap_do_f338186b96b8$
+BEGIN
+  EXECUTE $bootstrap_sql_f338186b96b8$DROP POLICY IF EXISTS "Tenant owners view anomalies" ON public.pos_payment_anomalies$bootstrap_sql_f338186b96b8$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f338186b96b8$;
+
+DO $bootstrap_do_56ce037ab9c0$
+BEGIN
+  EXECUTE $bootstrap_sql_56ce037ab9c0$CREATE POLICY "Tenant owners view anomalies" ON public.pos_payment_anomalies FOR SELECT TO authenticated
+  USING (tenant_id IN (SELECT id FROM public.pos_tenants WHERE user_id = auth.uid()))$bootstrap_sql_56ce037ab9c0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_56ce037ab9c0$;
+
+DO $bootstrap_do_e73be89b6d64$
+BEGIN
+  EXECUTE $bootstrap_sql_e73be89b6d64$CREATE OR REPLACE FUNCTION public.scan_pos_payment_anomalies(
   p_tenant_id uuid DEFAULT NULL,
   p_since timestamptz DEFAULT now() - interval '24 hours'
 )
@@ -87,7 +151,25 @@ BEGIN
 
   RETURN v_count;
 END;
-$$;
+$$$bootstrap_sql_e73be89b6d64$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e73be89b6d64$;
 
-REVOKE ALL ON FUNCTION public.scan_pos_payment_anomalies(uuid, timestamptz) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.scan_pos_payment_anomalies(uuid, timestamptz) TO authenticated;
+DO $bootstrap_do_aee68f42b509$
+BEGIN
+  EXECUTE $bootstrap_sql_aee68f42b509$REVOKE ALL ON FUNCTION public.scan_pos_payment_anomalies(uuid, timestamptz) FROM PUBLIC, anon, authenticated$bootstrap_sql_aee68f42b509$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_aee68f42b509$;
+
+DO $bootstrap_do_ca07a4ef6b8b$
+BEGIN
+  EXECUTE $bootstrap_sql_ca07a4ef6b8b$GRANT EXECUTE ON FUNCTION public.scan_pos_payment_anomalies(uuid, timestamptz) TO authenticated$bootstrap_sql_ca07a4ef6b8b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ca07a4ef6b8b$;
+
+DO $bootstrap_do_9f92ac2d81b4$
+BEGIN
+  EXECUTE $bootstrap_sql_9f92ac2d81b4$

@@ -22,6 +22,25 @@ BEGIN
   UPDATE public.pos_sales SET subtotal = v_subtotal, total = GREATEST(0, v_subtotal - COALESCE(discount_amount, 0) + COALESCE(tax_amount, 0)), notes = concat_ws(E'\n', notes, 'Approved price override: ', v_request.id::text) WHERE id = v_sale.id;
   UPDATE public.pos_price_override_requests SET status = 'approved', approved_by = auth.uid(), decided_at = now() WHERE id = p_request_id;
   RETURN jsonb_build_object('request_id', p_request_id, 'status', 'approved', 'sale_id', v_sale.id, 'new_price', v_request.requested_price, 'new_subtotal', v_subtotal);
-END; $$;
-REVOKE ALL ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) TO authenticated;
+END; $$$bootstrap_sql_ba14d319be2e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ba14d319be2e$;
+
+DO $bootstrap_do_d92a83197157$
+BEGIN
+  EXECUTE $bootstrap_sql_d92a83197157$REVOKE ALL ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) FROM PUBLIC, anon$bootstrap_sql_d92a83197157$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d92a83197157$;
+
+DO $bootstrap_do_e5c2f3a9fe75$
+BEGIN
+  EXECUTE $bootstrap_sql_e5c2f3a9fe75$GRANT EXECUTE ON FUNCTION public.decide_pos_price_override(uuid, boolean, text) TO authenticated$bootstrap_sql_e5c2f3a9fe75$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e5c2f3a9fe75$;
+
+DO $bootstrap_do_ce0065c887e6$
+BEGIN
+  EXECUTE $bootstrap_sql_ce0065c887e6$

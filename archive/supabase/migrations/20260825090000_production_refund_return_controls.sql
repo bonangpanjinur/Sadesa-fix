@@ -6,12 +6,22 @@ ALTER TABLE public.pos_sale_returns
   ADD COLUMN IF NOT EXISTS approved_by uuid REFERENCES auth.users(id),
   ADD COLUMN IF NOT EXISTS approved_at timestamptz,
   ADD COLUMN IF NOT EXISTS processed_at timestamptz,
-  ADD COLUMN IF NOT EXISTS rejection_reason text;
+  ADD COLUMN IF NOT EXISTS rejection_reason text$bootstrap_sql_6d7fdeb68b4e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6d7fdeb68b4e$;
 
-CREATE INDEX IF NOT EXISTS idx_pos_sale_returns_status
-  ON public.pos_sale_returns(tenant_id, outlet_id, status, created_at DESC);
+DO $bootstrap_do_44e17a0322d5$
+BEGIN
+  EXECUTE $bootstrap_sql_44e17a0322d5$CREATE INDEX IF NOT EXISTS idx_pos_sale_returns_status
+  ON public.pos_sale_returns(tenant_id, outlet_id, status, created_at DESC)$bootstrap_sql_44e17a0322d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_44e17a0322d5$;
 
-CREATE OR REPLACE FUNCTION public.request_pos_sale_return(
+DO $bootstrap_do_41ec4cd5b2b0$
+BEGIN
+  EXECUTE $bootstrap_sql_41ec4cd5b2b0$CREATE OR REPLACE FUNCTION public.request_pos_sale_return(
   p_tenant_id uuid,
   p_outlet_id uuid,
   p_sale_id uuid,
@@ -83,9 +93,14 @@ BEGIN
   UPDATE public.pos_sale_returns SET total_refund = v_total WHERE id = v_return_id;
   RETURN jsonb_build_object('return_id', v_return_id, 'return_number', v_return_number, 'status', 'pending', 'total_refund', v_total);
 END;
-$$;
+$$$bootstrap_sql_41ec4cd5b2b0$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_41ec4cd5b2b0$;
 
-CREATE OR REPLACE FUNCTION public.approve_pos_sale_return(
+DO $bootstrap_do_d0a2efb63d1e$
+BEGIN
+  EXECUTE $bootstrap_sql_d0a2efb63d1e$CREATE OR REPLACE FUNCTION public.approve_pos_sale_return(
   p_return_id uuid,
   p_approve boolean,
   p_rejection_reason text DEFAULT NULL
@@ -149,9 +164,39 @@ BEGIN
   WHERE id = p_return_id;
   RETURN jsonb_build_object('return_id', p_return_id, 'status', 'processed', 'total_refund', v_return.total_refund);
 END;
-$$;
+$$$bootstrap_sql_d0a2efb63d1e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d0a2efb63d1e$;
 
-REVOKE ALL ON FUNCTION public.request_pos_sale_return(uuid, uuid, uuid, text, text, boolean, jsonb) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.approve_pos_sale_return(uuid, boolean, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.request_pos_sale_return(uuid, uuid, uuid, text, text, boolean, jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.approve_pos_sale_return(uuid, boolean, text) TO authenticated;
+DO $bootstrap_do_08ab50bd950d$
+BEGIN
+  EXECUTE $bootstrap_sql_08ab50bd950d$REVOKE ALL ON FUNCTION public.request_pos_sale_return(uuid, uuid, uuid, text, text, boolean, jsonb) FROM PUBLIC, anon$bootstrap_sql_08ab50bd950d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_08ab50bd950d$;
+
+DO $bootstrap_do_337e9329fe49$
+BEGIN
+  EXECUTE $bootstrap_sql_337e9329fe49$REVOKE ALL ON FUNCTION public.approve_pos_sale_return(uuid, boolean, text) FROM PUBLIC, anon$bootstrap_sql_337e9329fe49$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_337e9329fe49$;
+
+DO $bootstrap_do_99cf8ebf75b9$
+BEGIN
+  EXECUTE $bootstrap_sql_99cf8ebf75b9$GRANT EXECUTE ON FUNCTION public.request_pos_sale_return(uuid, uuid, uuid, text, text, boolean, jsonb) TO authenticated$bootstrap_sql_99cf8ebf75b9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_99cf8ebf75b9$;
+
+DO $bootstrap_do_6f712854c00b$
+BEGIN
+  EXECUTE $bootstrap_sql_6f712854c00b$GRANT EXECUTE ON FUNCTION public.approve_pos_sale_return(uuid, boolean, text) TO authenticated$bootstrap_sql_6f712854c00b$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_6f712854c00b$;
+
+DO $bootstrap_do_5ff4303b46bf$
+BEGIN
+  EXECUTE $bootstrap_sql_5ff4303b46bf$

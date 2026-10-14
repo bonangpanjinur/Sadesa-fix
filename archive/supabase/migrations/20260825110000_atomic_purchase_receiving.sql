@@ -80,7 +80,25 @@ BEGIN
   WHERE id = p_purchase_order_id;
   RETURN jsonb_build_object('purchase_order_id', p_purchase_order_id, 'status', CASE WHEN v_all_received THEN 'received' ELSE 'partial' END);
 END;
-$$;
+$$$bootstrap_sql_812a971e3080$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_812a971e3080$;
 
-REVOKE ALL ON FUNCTION public.receive_pos_purchase_order(uuid, uuid, uuid, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.receive_pos_purchase_order(uuid, uuid, uuid, jsonb) TO authenticated;
+DO $bootstrap_do_30f0cc30cee3$
+BEGIN
+  EXECUTE $bootstrap_sql_30f0cc30cee3$REVOKE ALL ON FUNCTION public.receive_pos_purchase_order(uuid, uuid, uuid, jsonb) FROM PUBLIC, anon$bootstrap_sql_30f0cc30cee3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_30f0cc30cee3$;
+
+DO $bootstrap_do_2dc9f28167ac$
+BEGIN
+  EXECUTE $bootstrap_sql_2dc9f28167ac$GRANT EXECUTE ON FUNCTION public.receive_pos_purchase_order(uuid, uuid, uuid, jsonb) TO authenticated$bootstrap_sql_2dc9f28167ac$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2dc9f28167ac$;
+
+DO $bootstrap_do_d558dab27285$
+BEGIN
+  EXECUTE $bootstrap_sql_d558dab27285$

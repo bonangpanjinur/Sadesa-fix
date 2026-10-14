@@ -9,29 +9,83 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   is_read BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   read_at TIMESTAMP WITH TIME ZONE
-);
+)$bootstrap_sql_1ce0873361b5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_1ce0873361b5$;
 
--- Enable RLS
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+DO $bootstrap_do_d30a30f197a4$
+BEGIN
+  EXECUTE $bootstrap_sql_d30a30f197a4$-- Enable RLS
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY$bootstrap_sql_d30a30f197a4$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d30a30f197a4$;
 
--- RLS Policies
-DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
-CREATE POLICY "Users can view own notifications" ON public.notifications
-FOR SELECT USING (auth.uid() = user_id);
+DO $bootstrap_do_345d44514531$
+BEGIN
+  EXECUTE $bootstrap_sql_345d44514531$-- RLS Policies
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications$bootstrap_sql_345d44514531$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_345d44514531$;
 
-DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
-CREATE POLICY "Users can update own notifications" ON public.notifications
-FOR UPDATE USING (auth.uid() = user_id);
+DO $bootstrap_do_7bb2b5308a29$
+BEGIN
+  EXECUTE $bootstrap_sql_7bb2b5308a29$CREATE POLICY "Users can view own notifications" ON public.notifications
+FOR SELECT USING (auth.uid() = user_id)$bootstrap_sql_7bb2b5308a29$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_7bb2b5308a29$;
 
-DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications;
-CREATE POLICY "System can insert notifications" ON public.notifications
-FOR INSERT WITH CHECK (true);
+DO $bootstrap_do_bba06ebc9c0d$
+BEGIN
+  EXECUTE $bootstrap_sql_bba06ebc9c0d$DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications$bootstrap_sql_bba06ebc9c0d$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_bba06ebc9c0d$;
 
-DROP POLICY IF EXISTS "Admins can manage all notifications" ON public.notifications;
-CREATE POLICY "Admins can manage all notifications" ON public.notifications
-FOR ALL USING (is_admin());
+DO $bootstrap_do_e6a96dc877cd$
+BEGIN
+  EXECUTE $bootstrap_sql_e6a96dc877cd$CREATE POLICY "Users can update own notifications" ON public.notifications
+FOR UPDATE USING (auth.uid() = user_id)$bootstrap_sql_e6a96dc877cd$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e6a96dc877cd$;
 
--- Enable realtime for notifications
+DO $bootstrap_do_cf68ee8310a9$
+BEGIN
+  EXECUTE $bootstrap_sql_cf68ee8310a9$DROP POLICY IF EXISTS "System can insert notifications" ON public.notifications$bootstrap_sql_cf68ee8310a9$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_cf68ee8310a9$;
+
+DO $bootstrap_do_f3fed49d53ee$
+BEGIN
+  EXECUTE $bootstrap_sql_f3fed49d53ee$CREATE POLICY "System can insert notifications" ON public.notifications
+FOR INSERT WITH CHECK (true)$bootstrap_sql_f3fed49d53ee$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_f3fed49d53ee$;
+
+DO $bootstrap_do_9589734f224f$
+BEGIN
+  EXECUTE $bootstrap_sql_9589734f224f$DROP POLICY IF EXISTS "Admins can manage all notifications" ON public.notifications$bootstrap_sql_9589734f224f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_9589734f224f$;
+
+DO $bootstrap_do_2c7c58a22372$
+BEGIN
+  EXECUTE $bootstrap_sql_2c7c58a22372$CREATE POLICY "Admins can manage all notifications" ON public.notifications
+FOR ALL USING (is_admin())$bootstrap_sql_2c7c58a22372$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_2c7c58a22372$;
+
+DO $bootstrap_do_0fb0407b7ed5$
+BEGIN
+  EXECUTE $bootstrap_sql_0fb0407b7ed5$-- Enable realtime for notifications
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -44,9 +98,14 @@ BEGIN
   END IF;
 EXCEPTION
   WHEN undefined_object THEN NULL;
-END $$;
+END $$$bootstrap_sql_0fb0407b7ed5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0fb0407b7ed5$;
 
--- Create function to send notification
+DO $bootstrap_do_d00c113d4363$
+BEGIN
+  EXECUTE $bootstrap_sql_d00c113d4363$-- Create function to send notification
 CREATE OR REPLACE FUNCTION public.send_notification(
   p_user_id UUID,
   p_title TEXT,
@@ -64,12 +123,17 @@ BEGIN
   INSERT INTO public.notifications (user_id, title, message, type, link)
   VALUES (p_user_id, p_title, p_message, p_type, p_link)
   RETURNING id INTO notification_id;
-  
+
   RETURN notification_id;
 END;
-$$;
+$$$bootstrap_sql_d00c113d4363$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d00c113d4363$;
 
--- Trigger to notify merchant when order status changes
+DO $bootstrap_do_0ebe4530ff05$
+BEGIN
+  EXECUTE $bootstrap_sql_0ebe4530ff05$-- Trigger to notify merchant when order status changes
 CREATE OR REPLACE FUNCTION public.notify_order_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -120,18 +184,33 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_0ebe4530ff05$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_0ebe4530ff05$;
 
--- Drop existing trigger if exists
-DROP TRIGGER IF EXISTS order_notification_trigger ON orders;
+DO $bootstrap_do_06fa0b0e16d5$
+BEGIN
+  EXECUTE $bootstrap_sql_06fa0b0e16d5$-- Drop existing trigger if exists
+DROP TRIGGER IF EXISTS order_notification_trigger ON orders$bootstrap_sql_06fa0b0e16d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_06fa0b0e16d5$;
 
--- Create trigger for order notifications
+DO $bootstrap_do_ad74f923229e$
+BEGIN
+  EXECUTE $bootstrap_sql_ad74f923229e$-- Create trigger for order notifications
 CREATE TRIGGER order_notification_trigger
 AFTER INSERT OR UPDATE ON orders
 FOR EACH ROW
-EXECUTE FUNCTION notify_order_change();
+EXECUTE FUNCTION notify_order_change()$bootstrap_sql_ad74f923229e$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_ad74f923229e$;
 
--- Trigger to notify merchant on withdrawal status change
+DO $bootstrap_do_e9546ecea917$
+BEGIN
+  EXECUTE $bootstrap_sql_e9546ecea917$-- Trigger to notify merchant on withdrawal status change
 CREATE OR REPLACE FUNCTION public.notify_withdrawal_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -172,16 +251,32 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_e9546ecea917$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_e9546ecea917$;
 
--- Create trigger for withdrawal notifications
-DROP TRIGGER IF EXISTS withdrawal_notification_trigger ON withdrawal_requests;
-CREATE TRIGGER withdrawal_notification_trigger
+DO $bootstrap_do_8babca6405d5$
+BEGIN
+  EXECUTE $bootstrap_sql_8babca6405d5$-- Create trigger for withdrawal notifications
+DROP TRIGGER IF EXISTS withdrawal_notification_trigger ON withdrawal_requests$bootstrap_sql_8babca6405d5$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_8babca6405d5$;
+
+DO $bootstrap_do_51f679edf78a$
+BEGIN
+  EXECUTE $bootstrap_sql_51f679edf78a$CREATE TRIGGER withdrawal_notification_trigger
 AFTER UPDATE ON withdrawal_requests
 FOR EACH ROW
-EXECUTE FUNCTION notify_withdrawal_change();
+EXECUTE FUNCTION notify_withdrawal_change()$bootstrap_sql_51f679edf78a$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_51f679edf78a$;
 
--- Trigger to notify on merchant verification
+DO $bootstrap_do_44111de59433$
+BEGIN
+  EXECUTE $bootstrap_sql_44111de59433$-- Trigger to notify on merchant verification
 CREATE OR REPLACE FUNCTION public.notify_merchant_verification()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -210,16 +305,32 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_44111de59433$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_44111de59433$;
 
--- Create trigger for merchant verification notifications
-DROP TRIGGER IF EXISTS merchant_verification_trigger ON merchants;
-CREATE TRIGGER merchant_verification_trigger
+DO $bootstrap_do_d367b829bf42$
+BEGIN
+  EXECUTE $bootstrap_sql_d367b829bf42$-- Create trigger for merchant verification notifications
+DROP TRIGGER IF EXISTS merchant_verification_trigger ON merchants$bootstrap_sql_d367b829bf42$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d367b829bf42$;
+
+DO $bootstrap_do_a7cef934dc5f$
+BEGIN
+  EXECUTE $bootstrap_sql_a7cef934dc5f$CREATE TRIGGER merchant_verification_trigger
 AFTER UPDATE ON merchants
 FOR EACH ROW
-EXECUTE FUNCTION notify_merchant_verification();
+EXECUTE FUNCTION notify_merchant_verification()$bootstrap_sql_a7cef934dc5f$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_a7cef934dc5f$;
 
--- Trigger to notify admin on new withdrawal request
+DO $bootstrap_do_94e503b2eaa2$
+BEGIN
+  EXECUTE $bootstrap_sql_94e503b2eaa2$-- Trigger to notify admin on new withdrawal request
 CREATE OR REPLACE FUNCTION public.notify_admin_new_withdrawal()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -247,11 +358,29 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$$$bootstrap_sql_94e503b2eaa2$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_94e503b2eaa2$;
 
--- Create trigger for new withdrawal notifications to admin
-DROP TRIGGER IF EXISTS admin_withdrawal_notification_trigger ON withdrawal_requests;
-CREATE TRIGGER admin_withdrawal_notification_trigger
+DO $bootstrap_do_d93f16af99f3$
+BEGIN
+  EXECUTE $bootstrap_sql_d93f16af99f3$-- Create trigger for new withdrawal notifications to admin
+DROP TRIGGER IF EXISTS admin_withdrawal_notification_trigger ON withdrawal_requests$bootstrap_sql_d93f16af99f3$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_d93f16af99f3$;
+
+DO $bootstrap_do_50f38612ba09$
+BEGIN
+  EXECUTE $bootstrap_sql_50f38612ba09$CREATE TRIGGER admin_withdrawal_notification_trigger
 AFTER INSERT ON withdrawal_requests
 FOR EACH ROW
-EXECUTE FUNCTION notify_admin_new_withdrawal();
+EXECUTE FUNCTION notify_admin_new_withdrawal()$bootstrap_sql_50f38612ba09$;
+EXCEPTION
+  WHEN duplicate_object OR duplicate_table OR duplicate_column OR duplicate_schema OR duplicate_function OR unique_violation THEN NULL;
+END $bootstrap_do_50f38612ba09$;
+
+DO $bootstrap_do_cea914ffee17$
+BEGIN
+  EXECUTE $bootstrap_sql_cea914ffee17$
