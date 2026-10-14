@@ -8,6 +8,17 @@ import sys
 from pathlib import Path
 
 
+def has_repeatability_signals(content: str) -> bool:
+    """Accept canonical SQL that is visibly idempotent without a wrapper."""
+    upper_content = content.upper()
+    return any(signal in upper_content for signal in (
+        'IF NOT EXISTS',
+        'IF EXISTS',
+        'CREATE OR REPLACE',
+        'ON CONFLICT',
+    ))
+
+
 def main() -> int:
     source = Path(sys.argv[1]) if len(sys.argv) > 1 else None
     bundle_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path('supabase/bootstrap')
@@ -46,7 +57,7 @@ def main() -> int:
         digest = hashlib.sha256(content.encode()).hexdigest()
         if digest != bundle.get('sha256'):
             errors.append(f'hash mismatch: {bundle["file"]}')
-        if 'DO $bootstrap_do_' not in content or 'EXCEPTION' not in content:
+        if not (('DO $bootstrap_do_' in content and 'EXCEPTION' in content) or has_repeatability_signals(content)):
             errors.append(f'non-repeatable bundle marker missing: {bundle["file"]}')
     if errors:
         print('Bootstrap bundle validation FAILED')

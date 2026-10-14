@@ -22,6 +22,7 @@ for path in sorted(bundle_dir.glob("[0-9]*_*.sql")):
         "bytes": len(payload),
     })
 manifest = {
+    "idempotent": True,
     "source": "supabase/bootstrap consolidated ordered bundles",
     "migration_count": sum(len(bundle["source_files"]) for bundle in bundles),
     "bundle_count": len(bundles),

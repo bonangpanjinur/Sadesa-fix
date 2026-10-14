@@ -28,6 +28,7 @@ import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
 import { isCheckoutPaymentMethodAvailable, isCheckoutPaymentSettingsReady, type CheckoutPaymentSettingsStatus } from '@/lib/checkoutPaymentReadiness';
 import { normalizeCheckoutProductQuantities } from '@/lib/normalizeCheckoutItems';
 import { getCheckoutMerchantIds, hasMultipleCheckoutMerchants } from '@/lib/cartSelection';
+import { getCartItemKey } from '@/lib/cartItemIdentity';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE';
@@ -61,6 +62,13 @@ interface MarketplaceCheckoutQuote {
   total: number;
   distance_km: number;
   quoted_at: string;
+  line_items?: Array<{
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    line_subtotal: number;
+  }>;
   shipping_contract?: {
     contract: string;
     provider_name?: string;
@@ -258,6 +266,18 @@ export default function CheckoutPage() {
   const displayVoucherDiscount = serverQuote?.voucher_discount ?? voucherDiscount;
   const total = serverQuote?.total ?? (subtotal + estimatedShippingCost - voucherDiscount);
   const checkoutQuoteReady = Boolean(serverQuote);
+  const authoritativeLinePrices = useMemo(
+    () => new Map((serverQuote?.line_items ?? []).map((line) => [line.product_id, line.unit_price])),
+    [serverQuote?.line_items],
+  );
+  const getDisplayedItemSubtotal = (item: typeof items[number]) => {
+    if (!serverQuote?.line_items?.length) return getCartItemSubtotal(item);
+    const basePrice = authoritativeLinePrices.get(item.product.id) ?? item.product.price;
+    const toppingTotal = (item.toppings || []).reduce((sum, topping) => (
+      sum + (authoritativeLinePrices.get(topping.product.id) ?? topping.product.price) * topping.quantity
+    ), 0);
+    return (basePrice + toppingTotal) * item.quantity;
+  };
 
   const deliveryRestriction = useMemo(
     () => getDeliveryRestriction(
@@ -269,8 +289,10 @@ export default function CheckoutPage() {
   );
 
   useEffect(() => {
-    if (deliveryRestriction.requiresExpedition && deliveryType === 'INTERNAL') {
-      setDeliveryType('EXPEDITION');
+    // Expedition remains supported server-side for a later rollout, but is
+    // intentionally hidden from buyer checkout for now.
+    if (deliveryType === 'EXPEDITION' || (deliveryRestriction.requiresExpedition && deliveryType === 'INTERNAL')) {
+      setDeliveryType('PICKUP');
     }
   }, [deliveryRestriction.requiresExpedition, deliveryType]);
 
@@ -778,7 +800,10 @@ export default function CheckoutPage() {
         }
       }
 
-      selectedItems.forEach(item => removeFromCart(item.product.id));
+      selectedItems.forEach(item => {
+        if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
+        else removeFromCart(item.product.id);
+      });
       checkoutKeyRef.current = null;
       if (paymentMethod === 'TRANSFER') {
         navigate(user ? `/payment/${authoritativeOrderId}` : guestOrderUrl(authoritativeOrderId, typedCheckoutResult?.guest_access_token || guestToken || '', 'payment'));
@@ -1036,8 +1061,9 @@ export default function CheckoutPage() {
           </div>
 
           <div className="space-y-3">
+            <p className="mb-3 text-xs text-muted-foreground">Harga item berasal dari keranjang; subtotal dan total akhir diverifikasi dari server sebelum pesanan dibuat.</p>
             {items.map(item => (
-              <div key={item.product.id} className="flex gap-3">
+              <div key={getCartItemKey(item)} className="flex gap-3">
                 <img
                   src={optimizeSupabaseImage(item.product.image, 160)}
                   srcSet={getOptimizedImageSrcSet(item.product.image, [160, 240])}
@@ -1051,14 +1077,14 @@ export default function CheckoutPage() {
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium line-clamp-1">{item.product.name}</p>
-                  <p className="text-xs text-muted-foreground">{item.quantity} × {formatPrice(item.product.price)}</p>
+                  <p className="text-xs text-muted-foreground">{item.quantity} × {formatPrice(authoritativeLinePrices.get(item.product.id) ?? item.product.price)}</p>
                   {item.toppings?.map(topping => (
                     <p key={topping.product.id} className="text-[11px] text-muted-foreground">
-                      {t('checkout.itemTopping', { name: topping.product.name, quantity: topping.quantity, price: formatPrice(topping.product.price) })}
+                      {t('checkout.itemTopping', { name: topping.product.name, quantity: topping.quantity, price: formatPrice(authoritativeLinePrices.get(topping.product.id) ?? topping.product.price) })}
                     </p>
                   ))}
                 </div>
-                <p className="text-sm font-bold">{formatPrice(getCartItemSubtotal(item))}</p>
+                <p className="text-sm font-bold">{formatPrice(getDisplayedItemSubtotal(item))}</p>
               </div>
             ))}
           </div>
@@ -1138,9 +1164,9 @@ export default function CheckoutPage() {
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm">
-                <p className="font-semibold text-amber-900">Alamat ini wajib menggunakan ekspedisi</p>
+                <p className="font-semibold text-amber-900">Kurir lokal tidak tersedia untuk alamat ini</p>
                 <p className="text-xs text-amber-800 mt-1">
-                  Ojek/kurir lokal hanya tersedia sampai {MAX_LOCAL_DELIVERY_DISTANCE_KM} km dan dalam kecamatan serta kabupaten/kota yang sama.
+                  Ojek/kurir lokal hanya tersedia sampai {MAX_LOCAL_DELIVERY_DISTANCE_KM} km dan dalam kecamatan serta kabupaten/kota yang sama. Untuk sementara, pilih Ambil Sendiri.
                 </p>
                 <p className="text-xs text-amber-800 mt-1">
                   Alasan: {deliveryRestriction.reasons.join(' dan ')}.
@@ -1188,22 +1214,6 @@ export default function CheckoutPage() {
             </label>
 
             <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
-              deliveryType === 'EXPEDITION' ? 'border-primary bg-primary/5' : 'border-border'
-            }`}>
-              <RadioGroupItem value="EXPEDITION" id="expedition" />
-              <div className="flex-1">
-                <p className="font-bold text-sm">Ekspedisi</p>
-                <p className="text-xs text-muted-foreground">Tarif, layanan, dan estimasi diverifikasi dari server berdasarkan tujuan dan berat barang.</p>
-              </div>
-              <span className="text-sm font-bold text-primary">
-                {serverQuote && deliveryType === 'EXPEDITION'
-                  ? formatCurrency(shippingCost)
-                  : checkoutQuoteLoading && deliveryType === 'EXPEDITION' ? 'Menghitung…' : 'Tarif server'}
-              </span>
-            </label>
-
-
-            <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
               deliveryType === 'PICKUP' ? 'border-primary bg-primary/5' : 'border-border'
             }`}>
               <RadioGroupItem value="PICKUP" id="pickup" />
@@ -1214,13 +1224,6 @@ export default function CheckoutPage() {
               <span className="text-sm font-bold text-primary">{t('shipping.freeLabel')}</span>
             </label>
           </RadioGroup>
-          {deliveryType === 'EXPEDITION' && checkoutQuoteError && !checkoutQuoteLoading && (
-            <p className="mt-2 text-xs text-destructive" role="alert">
-              {checkoutQuoteError.includes('Tarif ekspedisi')
-                ? 'Tarif ekspedisi belum tersedia untuk tujuan ini. Pilih pengiriman lokal atau ambil sendiri.'
-                : 'Tarif ekspedisi belum dapat diverifikasi. Coba lagi sebelum melanjutkan.'}
-            </p>
-          )}
           {errors.delivery && (
             <p className="text-xs text-destructive mt-2" role="alert">{errors.delivery}</p>
           )}
@@ -1373,9 +1376,7 @@ export default function CheckoutPage() {
         )}
         {checkoutQuoteError && !checkoutQuoteLoading && (
           <p className="mb-2 text-center text-xs text-destructive" role="alert">
-            {deliveryType === 'EXPEDITION' && checkoutQuoteError.includes('Tarif ekspedisi')
-              ? 'Tarif ekspedisi untuk tujuan ini belum dikonfigurasi. Checkout ekspedisi belum tersedia.'
-              : 'Quote checkout gagal dimuat. Periksa koneksi atau muat ulang sebelum melanjutkan.'}
+            Quote checkout gagal dimuat. Periksa koneksi atau muat ulang sebelum melanjutkan.
           </p>
         )}
         {serverQuote && serverQuote.shipping_cost === 0 && deliveryType !== 'PICKUP' && (
@@ -1392,14 +1393,6 @@ export default function CheckoutPage() {
           <span className="text-muted-foreground">{t('shipping.fee')}</span>
           <span className="font-bold">{serverQuote ? formatCurrency(shippingCost) : '—'}</span>
         </div>
-        {serverQuote?.shipping_contract?.contract === 'EXPEDITION_PROVIDER_WEIGHT_V1' && (
-          <p className="mb-1 text-right text-[11px] text-muted-foreground">
-            Ekspedisi {serverQuote.shipping_contract.provider_name} · {serverQuote.shipping_contract.service_name}
-            {Number.isFinite(serverQuote.shipping_contract.weight_kg) && ` · ${serverQuote.shipping_contract.weight_kg} kg`}
-            {Number.isFinite(serverQuote.shipping_contract.eta_min_days) && Number.isFinite(serverQuote.shipping_contract.eta_max_days)
-              && ` · estimasi ${serverQuote.shipping_contract.eta_min_days}–${serverQuote.shipping_contract.eta_max_days} hari`}
-          </p>
-        )}
         {(serverQuote ? displayVoucherDiscount > 0 : Boolean(appliedVoucher)) && (
           <div className="flex justify-between items-center mb-1 text-sm">
             <span className="text-primary">{t('shipping.voucherDiscount')}</span>

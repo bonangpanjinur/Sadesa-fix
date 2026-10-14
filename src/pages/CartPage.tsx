@@ -24,6 +24,7 @@ import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getMerchantOperatingStatus, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getMerchantSelectionPlan } from '@/lib/cartSelection';
+import { getCartItemKey } from '@/lib/cartItemIdentity';
 
 interface StockProductRow {
   id: string;
@@ -223,7 +224,7 @@ export default function CartPage() {
           const isOpen = merchantId ? merchantStatuses[merchantId] : undefined;
           const isClosed = isOpen === false;
           const selectionPlan = getMerchantSelectionPlan(
-            merchantItems.map(item => item.product.id),
+            merchantItems.map(getCartItemKey),
             selectedItemIds,
           );
 
@@ -271,8 +272,8 @@ export default function CartPage() {
                       <input
                         type="checkbox"
                         aria-label={`Pilih ${item.product.name}`}
-                        checked={selectedItemIds.includes(item.product.id)}
-                        onChange={() => toggleItemSelection(item.product.id)}
+                        checked={selectedItemIds.includes(getCartItemKey(item))}
+                        onChange={() => toggleItemSelection(getCartItemKey(item))}
                         className="mt-1 h-5 w-5 accent-primary flex-shrink-0"
                       />
                       <img 

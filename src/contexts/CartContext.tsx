@@ -3,12 +3,13 @@ import type { CartItem, CartTopping, Product } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { getCartStockDemand, getProductUnavailableReason } from '@/lib/productAvailability';
 import { getCartItemsSubtotal } from '@/lib/cartPricing';
+import { getCartItemKey } from '@/lib/cartItemIdentity';
 
 interface CartContextType {
   items: CartItem[];
   selectedItemIds: string[];
   selectedItems: CartItem[];
-  toggleItemSelection: (productId: string) => void;
+  toggleItemSelection: (itemKey: string) => void;
   selectAllItems: () => void;
   clearItemSelection: () => void;
   addToCart: (product: Product, quantity?: number, toppings?: CartTopping[]) => void;
@@ -62,7 +63,7 @@ function loadCartFromStorage(): CartItem[] {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(loadCartFromStorage);
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>(() => items.map(item => item.product.id));
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>(() => items.map(getCartItemKey));
 
   useEffect(() => {
     try { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items)); }
@@ -70,7 +71,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items]);
 
   useEffect(() => {
-    setSelectedItemIds(current => current.filter(id => items.some(item => item.product.id === id)));
+    setSelectedItemIds(current => current.filter(id => items.some(item => getCartItemKey(item) === id)));
   }, [items]);
 
   const addToCart = useCallback((product: Product, quantity: number = 1, toppings: CartTopping[] = []) => {
@@ -100,14 +101,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         toast({ title: 'Stok tidak mencukupi', description: 'Stok produk atau topping sudah habis.', variant: 'destructive' });
         return prev;
       }
-      setSelectedItemIds(current => current.includes(product.id) ? current : [...current, product.id]);
-      return [...prev, { product, quantity: safeQuantity, toppings: normalizedToppings.length ? normalizedToppings : undefined }];
+      const nextItem = { product, quantity: safeQuantity, toppings: normalizedToppings.length ? normalizedToppings : undefined };
+      const itemKey = getCartItemKey(nextItem);
+      setSelectedItemIds(current => current.includes(itemKey) ? current : [...current, itemKey]);
+      return [...prev, nextItem];
     });
   }, []);
 
   const removeFromCart = useCallback((productId: string, toppings?: CartTopping[]) => {
     setItems(prev => prev.filter(item => item.product.id !== productId || (toppings && getToppingKey(item.toppings) !== getToppingKey(toppings))));
-    if (!toppings) setSelectedItemIds(prev => prev.filter(id => id !== productId));
+    setSelectedItemIds(prev => prev.filter(id => !(
+      id === productId || id.startsWith(`${productId}::`)
+    )));
   }, []);
 
   const updateQuantity = useCallback((productId: string, quantity: number, toppings?: CartTopping[]) => {
@@ -149,12 +154,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const clearCart = useCallback(() => { setItems([]); setSelectedItemIds([]); }, []);
-  const toggleItemSelection = useCallback((productId: string) => {
-    setSelectedItemIds(current => current.includes(productId) ? current.filter(id => id !== productId) : [...current, productId]);
+  const toggleItemSelection = useCallback((itemKey: string) => {
+    setSelectedItemIds(current => current.includes(itemKey) ? current.filter(id => id !== itemKey) : [...current, itemKey]);
   }, []);
-  const selectAllItems = useCallback(() => setSelectedItemIds(items.map(item => item.product.id)), [items]);
+  const selectAllItems = useCallback(() => setSelectedItemIds(items.map(getCartItemKey)), [items]);
   const clearItemSelection = useCallback(() => setSelectedItemIds([]), []);
-  const selectedItems = items.filter(item => selectedItemIds.includes(item.product.id));
+  const selectedItems = items.filter(item => selectedItemIds.includes(getCartItemKey(item)));
   const getCartTotal = useCallback(() => getCartItemsSubtotal(items), [items]);
   const getItemCount = useCallback(() => items.reduce((count, item) => count + item.quantity, 0), [items]);
 
