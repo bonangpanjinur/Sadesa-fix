@@ -17,6 +17,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { resolveNotificationLink } from '@/lib/notificationRouting';
 import { playOrderNotificationSound } from '@/lib/orderNotificationSound';
+import { toast } from 'sonner';
 
 interface Notification {
   id: string;
@@ -118,6 +119,12 @@ export function NotificationDropdown() {
             if (n.type === 'ride' || /ojek/i.test(n.title || '') || /ojek/i.test(n.message || '')) {
               void playOrderNotificationSound('courier');
             }
+            if (n.type === 'favorite') {
+              toast.success(n.title || 'Produk disukai', {
+                description: n.message,
+                action: n.link ? { label: 'Lihat', onClick: () => navigate(n.link as string) } : undefined,
+              });
+            }
           }
         )
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
@@ -165,7 +172,7 @@ export function NotificationDropdown() {
       retryTimer = undefined;
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [userId, refreshNotifications]);
+  }, [navigate, userId, refreshNotifications]);
 
   // Realtime can be delayed or unavailable on some browsers/proxies. Refresh
   // when the dropdown opens and periodically while the user is signed in so a
