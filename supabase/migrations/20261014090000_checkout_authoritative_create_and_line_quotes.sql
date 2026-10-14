@@ -529,18 +529,8 @@ BEGIN
        OR jsonb_typeof(p_delivery->'lng') IS DISTINCT FROM 'number') THEN
     RAISE EXCEPTION 'Valid delivery coordinates are required' USING ERRCODE = '22023';
   END IF;
-  IF p_payment_method NOT IN ('TRANSFER', 'ONLINE') THEN
+  IF p_payment_method <> 'TRANSFER' THEN
     RAISE EXCEPTION 'Guest payment method is unavailable' USING ERRCODE = '22023';
-  END IF;
-  IF p_payment_method = 'ONLINE' AND NOT COALESCE((SELECT (value->>'enabled')::boolean FROM public.app_settings WHERE key = 'payment_xendit'), false) THEN
-    RAISE EXCEPTION 'Pembayaran online sedang tidak tersedia' USING ERRCODE = '22023';
-  END IF;
-  IF p_payment_method = 'ONLINE' AND (
-    SELECT count(DISTINCT p.merchant_id)
-    FROM jsonb_array_elements(v_items) x
-    JOIN public.products p ON p.id = NULLIF(x->>'product_id', '')::uuid
-  ) > 1 THEN
-    RAISE EXCEPTION 'Online checkout supports one merchant per invoice' USING ERRCODE = '22023';
   END IF;
 
   CREATE TEMP TABLE checkout_lines (

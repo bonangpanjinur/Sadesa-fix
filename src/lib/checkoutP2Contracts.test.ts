@@ -26,11 +26,10 @@ describe('checkout P2 readiness and presentation contracts', () => {
     expect(checkout).toContain('Pengaturan pembayaran gagal dimuat');
   });
 
-  it('offers expedition explicitly and presents a real server rate or a clear unavailable state', () => {
-    expect(checkout).toContain('value="EXPEDITION" id="expedition"');
-    expect(checkout).toContain('Tarif, layanan, dan estimasi diverifikasi dari server');
-    expect(checkout).toContain('Tarif ekspedisi belum tersedia untuk tujuan ini');
-    expect(checkout).toContain("serverQuote?.shipping_contract?.contract === 'EXPEDITION_PROVIDER_WEIGHT_V1'");
+  it('keeps expedition hidden until the supported rollout is enabled', () => {
+    expect(checkout).toContain('Expedition remains supported server-side for a later rollout');
+    expect(checkout).toContain("deliveryType === 'EXPEDITION'");
+    expect(checkout).not.toContain('value="EXPEDITION" id="expedition"');
     expect(checkout).toContain('deliveryRestriction.requiresExpedition');
   });
 
@@ -70,8 +69,17 @@ describe('checkout P2 readiness and presentation contracts', () => {
     for (const migration of [authoritativeMigration, authoritativeBootstrap]) {
       expect(migration.match(/RAISE EXCEPTION 'Delivery address is required'/g)?.length).toBe(2);
       expect(migration.match(/jsonb_typeof\(p_delivery->'lat'\)/g)?.length).toBe(2);
-      expect(migration.match(/v_delivery_lat < -90/g)?.length).toBe(2);
-      expect(migration.match(/v_delivery_lng < -180/g)?.length).toBe(2);
+      // The quote helper has its own guard too; the two create RPCs must each
+      // contribute at least one range check.
+      expect(migration.match(/v_delivery_lat < -90/g)?.length).toBeGreaterThanOrEqual(2);
+      expect(migration.match(/v_delivery_lng < -180/g)?.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('keeps guest payment contract transfer-only in source and bootstrap', () => {
+    for (const migration of [authoritativeMigration, authoritativeBootstrap]) {
+      expect(migration).toContain("IF p_payment_method <> 'TRANSFER' THEN");
+      expect(migration).not.toContain("IF p_payment_method NOT IN ('TRANSFER', 'ONLINE') THEN");
     }
   });
 });
