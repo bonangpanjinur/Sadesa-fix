@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupNewestProductsByCategory } from './homepageProductCategories';
+import { getShoppingCategoryQueryFilter, groupNewestProductsByCategory } from './homepageProductCategories';
 import type { ProductCategory } from './productCategories';
 
 const categories: ProductCategory[] = [
@@ -21,6 +21,14 @@ const products = [
 ];
 
 describe('groupNewestProductsByCategory', () => {
+  it('builds shopping query filters from active admin categories only', () => {
+    const filter = getShoppingCategoryQueryFilter(categories);
+    expect(filter.categoryIds).toContain('shop');
+    expect(filter.categoryIds).toContain('grocery');
+    expect(filter.categorySlugs).toContain('sembako');
+    expect(getShoppingCategoryQueryFilter([])).toEqual({ categoryIds: [], categorySlugs: [] });
+  });
+
   it('places combined food and shopping first, then other active categories', () => {
     const rows = groupNewestProductsByCategory(products, categories);
 
@@ -67,6 +75,15 @@ describe('groupNewestProductsByCategory', () => {
     ], categories);
 
     expect(rows[0].products.map((product) => product.id)).toEqual(['newer-shopping', 'older-shopping']);
+  });
+
+  it('shows the newest older shopping products from the fallback pool when no recent ones exist', () => {
+    const rows = groupNewestProductsByCategory([], categories, 4, [
+      { id: 'older-shopping', category: 'sembako', categoryId: 'grocery', createdAt: '2026-09-01T10:00:00.000Z' },
+      { id: 'newest-old-shopping', category: 'sembako', categoryId: 'grocery', createdAt: '2026-09-30T10:00:00.000Z' },
+    ]);
+
+    expect(rows[0].products.map((product) => product.id)).toEqual(['newest-old-shopping', 'older-shopping']);
   });
 
   it('limits each category row independently and preserves products without categories', () => {

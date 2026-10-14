@@ -22,9 +22,10 @@ import {
   getHomepageRotationBucket,
   hasEnoughBestSellingHistory,
   selectRotatingProducts,
+  selectShoppingProductsWithFallback,
   selectTopSellingProducts,
 } from '@/lib/homepageProducts';
-import { groupNewestProductsByCategory } from '@/lib/homepageProductCategories';
+import { getShoppingCategoryQueryFilter, groupNewestProductsByCategory } from '@/lib/homepageProductCategories';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { CarouselSkeleton, ProductGridSkeleton } from '@/components/home/HomeSkeletons';
@@ -102,6 +103,10 @@ const Index = () => {
   const enabledSectionIds = new Set(getEnabledSections().map((section) => section.id));
   const promoSectionEnabled = enabledSectionIds.has('promo');
   const recommendationSectionEnabled = enabledSectionIds.has('recommendations');
+  const shoppingCategoryQueryFilter = useMemo(
+    () => getShoppingCategoryQueryFilter(activeProductCategories),
+    [activeProductCategories],
+  );
   const handleBannerView = useCallback((id: string) => { void incrementPromotionView(id); }, []);
   const handleBannerClick = useCallback((id: string) => { void incrementPromotionClick(id); }, []);
 
@@ -163,6 +168,29 @@ const Index = () => {
         createdAfter: getHomepageProductCutoffISO(),
       })
     ),
+    staleTime: 60_000,
+  });
+
+  const {
+    data: shoppingCategoryCandidates = [],
+    isLoading: shoppingCategoryCandidatesLoading,
+    isError: shoppingCategoryCandidatesError,
+    refetch: refetchShoppingCategoryCandidates,
+  } = useQuery<Product[]>({
+    queryKey: ['homepage-shopping-category-products', shoppingCategoryQueryFilter.categoryIds, shoppingCategoryQueryFilter.categorySlugs],
+    queryFn: withErrorLog('shopping_products', 'homepage-shopping-category-products', {
+      categoryIds: shoppingCategoryQueryFilter.categoryIds,
+      categorySlugs: shoppingCategoryQueryFilter.categorySlugs,
+    }, () => fetchProducts({
+      limit: 48,
+      includeReviews: false,
+      cacheKey: 'homepage-shopping-category-products',
+      categoryIds: shoppingCategoryQueryFilter.categoryIds,
+      categorySlugs: shoppingCategoryQueryFilter.categorySlugs,
+      sort: 'newest',
+    })),
+    enabled: recommendationSectionEnabled
+      && (shoppingCategoryQueryFilter.categoryIds.length > 0 || shoppingCategoryQueryFilter.categorySlugs.length > 0),
     staleTime: 60_000,
   });
 
@@ -320,9 +348,35 @@ const Index = () => {
     }
     return selectedNewest;
   }, [products, promoProducts, promoSectionEnabled, rotationBucket, userLocation, newestMaxDistance]);
+  const shoppingProductsForHomepage = useMemo(() => {
+    const sourceProducts = shoppingCategoryCandidatesLoading || shoppingCategoryCandidatesError
+      ? newestProducts
+      : shoppingCategoryCandidates;
+    let candidates = filterOpenMerchantProducts(sourceProducts);
+    if (promoSectionEnabled) {
+      const promotedIds = new Set(promoProducts.map((product) => product.id));
+      candidates = candidates.filter((product) => !promotedIds.has(product.id));
+    }
+    if (userLocation && userLocation.source !== 'default' && newestMaxDistance !== 'all') {
+      candidates = candidates.filter((product) => (
+        calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= Number(newestMaxDistance)
+      ));
+    }
+    return selectShoppingProductsWithFallback(candidates, { limit: 48 });
+  }, [
+    shoppingCategoryCandidates,
+    shoppingCategoryCandidatesError,
+    shoppingCategoryCandidatesLoading,
+    newestProducts,
+    newestMaxDistance,
+    promoProducts,
+    promoSectionEnabled,
+    rotationBucket,
+    userLocation,
+  ]);
   const newestProductRows = useMemo(
-    () => groupNewestProductsByCategory(newestProducts, activeProductCategories),
-    [newestProducts, activeProductCategories],
+    () => groupNewestProductsByCategory(newestProducts, activeProductCategories, 4, shoppingProductsForHomepage),
+    [newestProducts, activeProductCategories, shoppingProductsForHomepage],
   );
   const productsAlreadyHighlighted = useMemo(() => new Set([
     ...(promoSectionEnabled ? promoProducts.map((product) => product.id) : []),
@@ -527,7 +581,7 @@ const Index = () => {
                 </div>
                 <div>
                   <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
-                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap jam · 14 hari terakhir · kategori Belanja tetap tampil</p>
+                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap jam · produk baru 14 hari · Belanja memakai produk terakhir bila kosong</p>
                   <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <MapPin className="h-3 w-3" />
                     Maks. jarak
@@ -582,9 +636,18 @@ const Index = () => {
                             deliveryEta={getDeliveryEta(getProductDistance(product))}
                           />
                         </div>
-                      )) : (
+                      )) : row.id === 'shopping' && shoppingCategoryCandidatesLoading ? (
+                        <div className="flex min-h-16 w-full items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" data-testid={`newest-category-loading-${row.id}`}>
+                          Memeriksa produk Belanja terbaru...
+                        </div>
+                      ) : row.id === 'shopping' && shoppingCategoryCandidatesError ? (
+                        <div className="flex min-h-16 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-destructive/30 bg-destructive/5 px-4 py-3 text-center text-xs text-muted-foreground" role="alert" data-testid={`newest-category-error-${row.id}`}>
+                          <span>Produk Belanja gagal dimuat. Kategori tetap tersedia.</span>
+                          <Button size="sm" variant="outline" onClick={() => void refetchShoppingCategoryCandidates()}>Coba lagi</Button>
+                        </div>
+                      ) : (
                         <div className="flex min-h-16 w-full items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" data-testid={`newest-category-empty-${row.id}`}>
-                          Belum ada produk baru dalam 14 hari terakhir. Kategori Belanja tetap tersedia di katalog.
+                          Belum ada produk Belanja yang bisa ditampilkan. Kategori tetap tersedia di katalog.
                         </div>
                       )}
                     </div>

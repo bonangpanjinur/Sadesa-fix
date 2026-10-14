@@ -93,6 +93,32 @@ export function selectRotatingProducts<T extends HomepageProduct>(
     .slice(0, limit);
 }
 
+/**
+ * Prioritize shopping products added in the last fourteen days. If none exist,
+ * keep the category useful by returning its newest older products instead.
+ */
+export function selectShoppingProductsWithFallback<T extends HomepageProduct>(
+  products: T[],
+  options: { limit?: number; now?: number; windowMs?: number } = {},
+): T[] {
+  const {
+    limit = 48,
+    now = Date.now(),
+    windowMs = HOMEPAGE_NEW_PRODUCT_WINDOW_MS,
+  } = options;
+  if (limit <= 0) return [];
+
+  const datedProducts = products
+    .filter(isCompleteProduct)
+    .map((product) => ({ product, createdAt: product.createdAt ? Date.parse(product.createdAt) : Number.NaN }))
+    .filter(({ createdAt }) => Number.isFinite(createdAt) && createdAt <= now)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  const recentProducts = datedProducts.filter(({ createdAt }) => createdAt >= now - windowMs);
+  const candidates = recentProducts.length > 0 ? recentProducts : datedProducts;
+
+  return candidates.slice(0, limit).map(({ product }) => product);
+}
+
 export function selectTopSellingProducts<T extends HomepageSalesProduct>(
   products: T[],
   alreadyHighlightedIds: ReadonlySet<string>,

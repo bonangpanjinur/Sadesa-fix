@@ -104,6 +104,24 @@ function getShoppingCategorySlugsForRows(
   return slugs;
 }
 
+/** Returns active Belanja IDs and legacy slugs for fetching its full product pool. */
+export function getShoppingCategoryQueryFilter(categories: ProductCategory[]) {
+  const categoryIds = getShoppingCategoryIds(categories);
+  const foodIds = getFoodCategoryIds(categories);
+  categoryIds.forEach((id) => {
+    if (foodIds.has(id)) categoryIds.delete(id);
+  });
+  if (categoryIds.size === 0) return { categoryIds: [], categorySlugs: [] };
+
+  const foodSlugs = getFoodCategorySlugs(categories, foodIds);
+  const categorySlugs = getShoppingCategorySlugsForRows(categories, categoryIds, foodSlugs);
+
+  return {
+    categoryIds: [...categoryIds],
+    categorySlugs: [...categorySlugs],
+  };
+}
+
 /**
  * Group the newest products using active, admin-managed categories. Combined
  * food and shopping rows collect their full category trees; remaining
@@ -114,6 +132,7 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
   products: T[],
   categories: ProductCategory[],
   productsPerCategory = 4,
+  shoppingProducts: T[] = products,
 ): HomepageProductCategoryRow<T>[] {
   const rows: HomepageProductCategoryRow<T>[] = [];
   const assignedProductIds = new Set<string>();
@@ -134,13 +153,14 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
     categorySlugs: Set<string> = new Set(),
     keepVisibleWhenEmpty = false,
     newestFirst = false,
+    sourceProducts: T[] = products,
   ) => {
     if (categoryIds.size === 0 && categorySlugs.size === 0) return;
     const resolvedSlugs = new Set([
       ...categorySlugs,
       ...getSlugsForCategoryIds(categories, categoryIds),
     ]);
-    const matchingProducts = products.filter((product) => (
+    const matchingProducts = sourceProducts.filter((product) => (
       matchesCategoryIds(product, categoryIds, resolvedSlugs)
     ));
     matchingProducts.forEach((product) => assignedProductIds.add(product.id));
@@ -162,7 +182,7 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
   };
 
   appendGroup('food-and-drinks', 'Makanan & Minuman', 'kuliner', foodIds, foodSlugs);
-  appendGroup('shopping', 'Belanja', 'belanja', shoppingIds, shoppingSlugs, shoppingIds.size > 0, true);
+  appendGroup('shopping', 'Belanja', 'belanja', shoppingIds, shoppingSlugs, shoppingIds.size > 0, true, shoppingProducts);
 
   const groupedCategoryIds = new Set([...foodIds, ...shoppingIds]);
   sortedCategories.forEach((category) => {
