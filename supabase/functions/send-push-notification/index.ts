@@ -37,6 +37,22 @@ function isAllowedNotificationUrl(value: string) {
   }
 }
 
+const PAGE_SIZE = 500;
+const DELIVERY_CONCURRENCY = 20;
+
+async function fetchAllPagedRows<T>(
+  loadPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await loadPage(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -177,10 +193,12 @@ serve(async (req) => {
       subscriptionQuery = subscriptionQuery.in("user_id", user_ids);
     } else if (role) {
       // Get users with specific role first
-      const { data: roleUsers } = await supabase
+      const roleUsers = await fetchAllPagedRows((from, to) => supabase
         .from("user_roles")
         .select("user_id")
-        .eq("role", role);
+        .eq("role", role)
+        .order("user_id", { ascending: true })
+        .range(from, to));
 
       if (!roleUsers || roleUsers.length === 0) {
         await recordPushDeliveryLog({
@@ -222,9 +240,18 @@ serve(async (req) => {
       );
     }
 
-    const { data: subscriptions, error: subError } = await subscriptionQuery;
-
-    if (subError) {
+    let subscriptions: Array<{
+      id: string;
+      user_id: string;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+    }>;
+    try {
+      subscriptions = await fetchAllPagedRows((from, to) => subscriptionQuery
+        .order("id", { ascending: true })
+        .range(from, to));
+    } catch (subError) {
       await recordPushDeliveryLog({
         source,
         recipient_user_id: user_id ?? null,
@@ -267,53 +294,57 @@ serve(async (req) => {
     let sentCount = 0;
     const failedSubscriptions: string[] = [];
 
-    // Send to all subscriptions
-    for (const sub of subscriptions) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
+    // Bound concurrency to reduce per-device latency without overwhelming the push service.
+    for (let offset = 0; offset < subscriptions.length; offset += DELIVERY_CONCURRENCY) {
+      const batch = subscriptions.slice(offset, offset + DELIVERY_CONCURRENCY);
+      await Promise.all(batch.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
             },
-          },
-          notificationPayload
-        );
-        await recordPushDeliveryLog({
-          source,
-          push_subscription_id: sub.id,
-          recipient_user_id: sub.user_id,
-          title: notificationTitle,
-          status: "sent",
-        });
-        sentCount++;
-      } catch (error: unknown) {
-        console.error(`Failed to send to ${sub.endpoint}:`, error);
-        const err = error as { statusCode?: number; message?: string };
-        const statusCode = typeof err.statusCode === "number" ? err.statusCode : null;
-        const expired = statusCode === 410 || statusCode === 404;
-        await recordPushDeliveryLog({
-          source,
-          push_subscription_id: sub.id,
-          recipient_user_id: sub.user_id,
-          title: notificationTitle,
-          status: expired ? "expired" : "failed",
-          provider_status_code: statusCode,
-          error_message: typeof err.message === "string" ? err.message : "Push provider error",
-        });
-        if (expired) {
-          failedSubscriptions.push(sub.id);
+            notificationPayload
+          );
+          await recordPushDeliveryLog({
+            source,
+            push_subscription_id: sub.id,
+            recipient_user_id: sub.user_id,
+            title: notificationTitle,
+            status: "sent",
+          });
+          sentCount++;
+        } catch (error: unknown) {
+          console.error(`Failed to send to ${sub.endpoint}:`, error);
+          const err = error as { statusCode?: number; message?: string };
+          const statusCode = typeof err.statusCode === "number" ? err.statusCode : null;
+          const expired = statusCode === 410 || statusCode === 404;
+          await recordPushDeliveryLog({
+            source,
+            push_subscription_id: sub.id,
+            recipient_user_id: sub.user_id,
+            title: notificationTitle,
+            status: expired ? "expired" : "failed",
+            provider_status_code: statusCode,
+            error_message: typeof err.message === "string" ? err.message : "Push provider error",
+          });
+          if (expired) failedSubscriptions.push(sub.id);
         }
-      }
+      }));
     }
 
     // Clean up invalid subscriptions
     if (failedSubscriptions.length > 0) {
-      await supabase
-        .from("push_subscriptions")
-        .delete()
-        .in("id", failedSubscriptions);
+      for (let offset = 0; offset < failedSubscriptions.length; offset += PAGE_SIZE) {
+        const subscriptionIds = failedSubscriptions.slice(offset, offset + PAGE_SIZE);
+        await supabase
+          .from("push_subscriptions")
+          .delete()
+          .in("id", subscriptionIds);
+      }
     }
 
     console.log(`Push notifications sent: ${sentCount}/${subscriptions.length}`);

@@ -46,6 +46,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildMerchantSalesChartData } from '@/lib/merchantDashboard';
 import { hasMerchantPaymentSetup } from '@/lib/merchantPaymentSetup';
+import { MorningOperationsReminder } from '@/components/notifications/MorningOperationsReminder';
 
 interface MerchantData {
   id: string;
@@ -387,6 +388,7 @@ export default function MerchantDashboardPage() {
   return (
     <MerchantLayout title="Dashboard" subtitle="Ringkasan toko Anda">
       <div className="space-y-6 pb-8" data-testid="merchant-dashboard">
+        <MorningOperationsReminder audience="merchant" userId={user?.id} />
         {paymentSetupMissing && (
           <Alert className="border-warning/40 bg-warning/5" data-testid="merchant-payment-setup-warning">
             <AlertCircle className="h-4 w-4 text-warning" />

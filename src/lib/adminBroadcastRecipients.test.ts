@@ -44,4 +44,11 @@ describe('admin broadcast Web Push contract', () => {
   it('reports partial VAPID delivery as unsuccessful when any subscription fails', () => {
     expect(pushSender).toContain('success: sentCount === subscriptions.length');
   });
+
+  it('pages through every matching subscription and bounds push delivery concurrency', () => {
+    expect(pushSender).toContain('const PAGE_SIZE = 500');
+    expect(pushSender).toContain('.range(from, to)');
+    expect(pushSender).toContain('const DELIVERY_CONCURRENCY = 20');
+    expect(pushSender).toContain('Promise.all(batch.map');
+  });
 });

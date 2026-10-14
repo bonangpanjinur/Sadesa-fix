@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 326,
-  "bundle_count": 120,
+  "migration_count": 327,
+  "bundle_count": 121,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1167,6 +1167,14 @@
       ],
       "sha256": "22e3faae7eef61b53fd17394ba3243d1de8b12615e801a6089c3ed39b8f2f267",
       "bytes": 3139
+    },
+    {
+      "file": "121_20261014174500_chat_message_web_push.sql",
+      "source_files": [
+        "20261014174500_chat_message_web_push.sql"
+      ],
+      "sha256": "101a117371db18694c3ab88af41f6ad6b13475109097bb195821c7a197cb8662",
+      "bytes": 6089
     }
   ]
 }
