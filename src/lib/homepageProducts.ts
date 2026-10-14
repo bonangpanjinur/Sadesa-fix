@@ -8,6 +8,10 @@ interface HomepageProduct {
   hasImage?: boolean;
 }
 
+interface HomepageMerchantProduct extends HomepageProduct {
+  isMerchantOpen?: boolean | null;
+}
+
 interface HomepageSalesProduct extends HomepageProduct {
   sold_count?: number | null;
 }
@@ -48,6 +52,10 @@ export function isCompleteProduct(product: HomepageProduct): boolean {
     && Number(product.price) > 0
     && product.category?.trim(),
   );
+}
+
+export function filterOpenMerchantProducts<T extends HomepageMerchantProduct>(products: T[]): T[] {
+  return products.filter((product) => product.isMerchantOpen === true);
 }
 
 export function selectNewestProducts<T extends HomepageProduct>(

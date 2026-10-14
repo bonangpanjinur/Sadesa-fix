@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import {
   hasEnoughBestSellingHistory,
+  filterOpenMerchantProducts,
   isCompleteProduct,
   selectRotatingProducts,
   selectNewestProducts,
   selectTopSellingProducts,
 } from './homepageProducts';
+
+describe('filterOpenMerchantProducts', () => {
+  it('keeps only products whose merchant is currently open', () => {
+    const products = [
+      { id: 'open', isMerchantOpen: true },
+      { id: 'closed', isMerchantOpen: false },
+      { id: 'unknown', isMerchantOpen: null },
+    ];
+
+    expect(filterOpenMerchantProducts(products).map((product) => product.id)).toEqual(['open']);
+  });
+});
 
 describe('selectNewestProducts', () => {
   const complete = (id: string, overrides: Record<string, unknown> = {}) => ({

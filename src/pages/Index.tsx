@@ -17,6 +17,7 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import {
+  filterOpenMerchantProducts,
   getHomepageProductCutoffISO,
   getHomepageRotationBucket,
   hasEnoughBestSellingHistory,
@@ -301,10 +302,12 @@ const Index = () => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    let selectedNewest = selectRotatingProducts(products, highlightedProductIds, {
-      limit: 48,
-      rotationBucket,
-    });
+    // Filter before rotation so closed merchants do not consume homepage slots.
+    let selectedNewest = selectRotatingProducts(
+      filterOpenMerchantProducts(products),
+      highlightedProductIds,
+      { limit: 48, rotationBucket },
+    );
     // Keep freshness as the candidate pool, then prioritize nearby merchants
     // within that pool when we know the user's actual location.
     if (userLocation && userLocation.source !== 'default') {
