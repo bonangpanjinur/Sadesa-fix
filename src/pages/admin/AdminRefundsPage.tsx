@@ -155,7 +155,9 @@ export default function AdminRefundsPage() {
         { status: newStatus, admin_notes: adminNotes }
       );
 
-      toast.success(`Refund berhasil ${processAction === 'approve' ? 'disetujui' : 'ditolak'}`);
+      toast.success(processAction === 'approve'
+        ? 'Refund disetujui. Pencairan menunggu konfirmasi provider.'
+        : 'Refund ditolak.');
       setProcessDialogOpen(false);
       setAdminNotes('');
       setSelectedRefund(null);

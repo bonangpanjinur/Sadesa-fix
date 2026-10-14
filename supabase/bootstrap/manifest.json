@@ -1221,8 +1221,8 @@
       "source_files": [
         "127_20261014200000_payment_fare_hardening.sql"
       ],
-      "sha256": "e2bf8636c8752404073f4de53ee3af6883be01f3d9208633435fceef11640b1c",
-      "bytes": 19727
+      "sha256": "c40f24b8386f6b1c75b233cebbc259acf93239479a810a87d73250e8880b3b37",
+      "bytes": 20434
     }
   ]
 }

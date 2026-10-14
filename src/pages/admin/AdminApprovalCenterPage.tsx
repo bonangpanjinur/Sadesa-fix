@@ -173,7 +173,9 @@ export default function AdminApprovalCenterPage() {
       }
       if (error) throw new Error(error.message);
       await logAdminAction(approve ? 'APPROVE_TRANSACTION_REQUEST' : 'REJECT_TRANSACTION_REQUEST', selected.kind, selected.id, { status: 'pending' }, { status: approve ? 'approved' : 'rejected', notes: decisionNotes || null });
-      toast.success(`${kindLabels[selected.kind]} berhasil ${approve ? 'disetujui' : 'ditolak'}`);
+      toast.success(selected.kind === 'refund' && approve
+        ? 'Refund disetujui. Pencairan menunggu konfirmasi provider.'
+        : `${kindLabels[selected.kind]} berhasil ${approve ? 'disetujui' : 'ditolak'}`);
       setSelected(null);
       setDecisionNotes('');
       await loadApprovals(true);

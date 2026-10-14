@@ -9,6 +9,8 @@ const migration = readFileSync(
 const paymentPage = readFileSync(resolve(process.cwd(), 'src/pages/PaymentConfirmationPage.tsx'), 'utf8');
 const courierPage = readFileSync(resolve(process.cwd(), 'src/pages/transport/CourierBookingPage.tsx'), 'utf8');
 const ridePage = readFileSync(resolve(process.cwd(), 'src/pages/ride/RideBookingPage.tsx'), 'utf8');
+const adminApprovalPage = readFileSync(resolve(process.cwd(), 'src/pages/admin/AdminApprovalCenterPage.tsx'), 'utf8');
+const adminRefundsPage = readFileSync(resolve(process.cwd(), 'src/pages/admin/AdminRefundsPage.tsx'), 'utf8');
 
 describe('payment and fare audit hardening contracts', () => {
   it('removes direct authenticated order writes and legacy insert/update policies', () => {
@@ -40,6 +42,13 @@ describe('payment and fare audit hardening contracts', () => {
     expect(migration).toContain('p_provider_amount <> v_settlement.amount');
     expect(migration).toContain('provider_status = v_status, provider_amount = p_provider_amount');
     expect(migration).toContain('complete_refund_settlement(uuid, boolean, text, integer, text, text)');
+  });
+
+  it('routes legacy refund approvals through provider settlement and reports pending provider completion', () => {
+    expect(migration).toContain('CREATE OR REPLACE FUNCTION public.decide_refund_request(');
+    expect(migration).toContain('RETURN public.process_refund_decision(p_request_id, p_approve, p_notes)');
+    expect(adminApprovalPage).toContain('Pencairan menunggu konfirmasi provider.');
+    expect(adminRefundsPage).toContain('Pencairan menunggu konfirmasi provider.');
   });
 
   it('shows courier server amount and does not price by OSRM road distance', () => {

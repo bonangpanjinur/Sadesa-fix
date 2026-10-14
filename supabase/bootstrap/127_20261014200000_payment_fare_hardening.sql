@@ -323,6 +323,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS refund_settlements_provider_reference_unique
   ON public.refund_settlements(btrim(provider_reference))
   WHERE provider_reference IS NOT NULL AND btrim(provider_reference) <> '';
 
+-- Keep the older approval-center RPC on the same provider-backed settlement path.
+CREATE OR REPLACE FUNCTION public.decide_refund_request(
+  p_request_id uuid, p_approve boolean, p_notes text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Refund approval denied' USING ERRCODE = '42501';
+  END IF;
+  RETURN public.process_refund_decision(p_request_id, p_approve, p_notes);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.decide_refund_request(uuid, boolean, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.decide_refund_request(uuid, boolean, text) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.complete_refund_settlement(
   p_settlement_id uuid, p_success boolean, p_provider_reference text,
   p_provider_amount integer, p_provider_status text, p_error text DEFAULT NULL
