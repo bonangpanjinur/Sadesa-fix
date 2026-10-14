@@ -12,6 +12,7 @@ interface CategorizedProduct {
   id: string;
   category: string;
   categoryId?: string | null;
+  createdAt?: string | null;
 }
 
 export interface HomepageProductCategoryRow<T extends CategorizedProduct> {
@@ -106,7 +107,8 @@ function getShoppingCategorySlugsForRows(
 /**
  * Group the newest products using active, admin-managed categories. Combined
  * food and shopping rows collect their full category trees; remaining
- * categories are shown individually in the configured admin order.
+ * categories are shown individually in the configured admin order. Keep the
+ * shopping row visible when its 14-day candidate set is empty.
  */
 export function groupNewestProductsByCategory<T extends CategorizedProduct>(
   products: T[],
@@ -130,6 +132,8 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
     slug: string,
     categoryIds: Set<string>,
     categorySlugs: Set<string> = new Set(),
+    keepVisibleWhenEmpty = false,
+    newestFirst = false,
   ) => {
     if (categoryIds.size === 0 && categorySlugs.size === 0) return;
     const resolvedSlugs = new Set([
@@ -140,18 +144,25 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
       matchesCategoryIds(product, categoryIds, resolvedSlugs)
     ));
     matchingProducts.forEach((product) => assignedProductIds.add(product.id));
-    if (matchingProducts.length > 0) {
+    if (matchingProducts.length > 0 || keepVisibleWhenEmpty) {
+      const orderedProducts = newestFirst
+        ? [...matchingProducts].sort((a, b) => {
+          const aTimestamp = Date.parse(a.createdAt || '');
+          const bTimestamp = Date.parse(b.createdAt || '');
+          return (Number.isFinite(bTimestamp) ? bTimestamp : 0) - (Number.isFinite(aTimestamp) ? aTimestamp : 0);
+        })
+        : matchingProducts;
       rows.push({
         id,
         label,
         slug,
-        products: matchingProducts.slice(0, productsPerCategory),
+        products: orderedProducts.slice(0, productsPerCategory),
       });
     }
   };
 
   appendGroup('food-and-drinks', 'Makanan & Minuman', 'kuliner', foodIds, foodSlugs);
-  appendGroup('shopping', 'Belanja', 'belanja', shoppingIds, shoppingSlugs);
+  appendGroup('shopping', 'Belanja', 'belanja', shoppingIds, shoppingSlugs, shoppingIds.size > 0, true);
 
   const groupedCategoryIds = new Set([...foodIds, ...shoppingIds]);
   sortedCategories.forEach((category) => {

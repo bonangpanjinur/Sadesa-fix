@@ -527,7 +527,7 @@ const Index = () => {
                 </div>
                 <div>
                   <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
-                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap jam · produk 14 hari terakhir</p>
+                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap jam · 14 hari terakhir · kategori Belanja tetap tampil</p>
                   <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <MapPin className="h-3 w-3" />
                     Maks. jarak
@@ -567,7 +567,7 @@ const Index = () => {
                       aria-label={`Produk terbaru kategori ${row.label}`}
                       data-testid={`list-newest-products-${row.id}`}
                     >
-                      {row.products.map((product, idx) => (
+                      {row.products.length > 0 ? row.products.map((product, idx) => (
                         <div
                           key={product.id}
                           className="w-[48%] shrink-0 snap-start sm:w-[32%]"
@@ -582,7 +582,11 @@ const Index = () => {
                             deliveryEta={getDeliveryEta(getProductDistance(product))}
                           />
                         </div>
-                      ))}
+                      )) : (
+                        <div className="flex min-h-16 w-full items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" data-testid={`newest-category-empty-${row.id}`}>
+                          Belum ada produk baru dalam 14 hari terakhir. Kategori Belanja tetap tersedia di katalog.
+                        </div>
+                      )}
                     </div>
                   </section>
                 ))}

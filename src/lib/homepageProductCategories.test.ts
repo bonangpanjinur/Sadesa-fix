@@ -41,7 +41,32 @@ describe('groupNewestProductsByCategory', () => {
       { id: 'mismatched', category: 'nasi-dan-mi', categoryId: 'crafts-sub' },
     ], categories);
 
-    expect(rows.map((row) => row.id)).toEqual(['crafts-sub']);
+    expect(rows.map((row) => row.id)).toEqual(['shopping', 'crafts-sub']);
+    expect(rows[1].slug).toBe('anyaman');
+  });
+
+  it('keeps the Belanja category visible when there are no products in the fourteen-day candidate set', () => {
+    const rows = groupNewestProductsByCategory([], categories);
+
+    expect(rows.map((row) => row.label)).toEqual(['Belanja']);
+    expect(rows[0].products).toEqual([]);
+  });
+
+  it('does not add an empty shopping row when no shopping category is active in admin settings', () => {
+    const rows = groupNewestProductsByCategory([], [
+      { id: 'crafts', name: 'Kerajinan', slug: 'kerajinan', parent_id: null, icon: null, sort_order: 3 },
+    ]);
+
+    expect(rows).toEqual([]);
+  });
+
+  it('shows the newest shopping products first when new products exist', () => {
+    const rows = groupNewestProductsByCategory([
+      { id: 'older-shopping', category: 'sembako', categoryId: 'grocery', createdAt: '2026-10-01T10:00:00.000Z' },
+      { id: 'newer-shopping', category: 'sembako', categoryId: 'grocery', createdAt: '2026-10-13T10:00:00.000Z' },
+    ], categories);
+
+    expect(rows[0].products.map((product) => product.id)).toEqual(['newer-shopping', 'older-shopping']);
   });
 
   it('limits each category row independently and preserves products without categories', () => {

@@ -44,6 +44,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { chunkArray, fetchAllPagedRows } from '@/lib/adminBroadcastRecipients';
 
 interface Broadcast {
 	id: string;
@@ -140,108 +141,127 @@ export default function AdminBroadcastPage() {
 		}
 
 		setSending(true);
+    let broadcastId: string | null = null;
     try {
-      // Create broadcast record
+      type AppRole = 'admin' | 'buyer' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa';
+      let userIds: string[] = [];
+
+      if (formData.target_audience === 'ALL') {
+        const profiles = await fetchAllPagedRows((from, to) => supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('is_blocked', false)
+          .order('user_id', { ascending: true })
+          .range(from, to));
+        userIds = profiles.map((profile) => profile.user_id);
+      } else {
+        const rolesFilter = formData.target_roles as AppRole[];
+        const recipients = await fetchAllPagedRows((from, to) => supabase
+          .from('user_roles')
+          .select('user_id, role')
+          .in('role', rolesFilter)
+          .order('user_id', { ascending: true })
+          .order('role', { ascending: true })
+          .range(from, to));
+        userIds = recipients.map((recipient) => recipient.user_id);
+      }
+      userIds = [...new Set(userIds)];
+      if (userIds.length === 0) throw new Error('Tidak ada pengguna yang cocok dengan target broadcast ini.');
+
       const { data: broadcast, error: createError } = await supabase
         .from('broadcast_notifications')
         .insert({
-          title: formData.title,
-			message: formData.message,
-			link,
-			target_audience: formData.target_audience,
+          title: formData.title.trim(),
+          message: formData.message.trim(),
+          link,
+          target_audience: formData.target_audience,
           target_roles: formData.target_roles,
           status: 'SENDING',
           created_by: user?.id,
         })
-        .select()
+        .select('id')
         .single();
 
       if (createError) throw createError;
+      broadcastId = broadcast.id;
 
-      // Get target users based on audience
-      let userIds: string[] = [];
-      
-      if (formData.target_audience === 'ALL') {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .eq('is_blocked', false);
-        userIds = (profiles || []).map(p => p.user_id);
-      } else if (formData.target_audience === 'ROLES' && formData.target_roles.length > 0) {
-        // Cast to proper type for query
-        type AppRole = 'admin' | 'buyer' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa';
-        const rolesFilter = formData.target_roles as AppRole[];
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .in('role', rolesFilter);
-        userIds = [...new Set((roles || []).map(r => r.user_id))];
+      const notifications = userIds.map((userId) => ({
+        user_id: userId,
+        title: formData.title.trim(),
+        message: formData.message.trim(),
+        type: 'broadcast',
+        link,
+      }));
+      for (const batch of chunkArray(notifications, 500)) {
+        const { error: notificationError } = await supabase.from('notifications').insert(batch);
+        if (notificationError) throw notificationError;
       }
 
-		// Create in-app notifications for each target user.
-		if (userIds.length > 0) {
-			const notifications = userIds.map(userId => ({
-				user_id: userId,
-				title: formData.title,
-				message: formData.message,
-				type: 'broadcast',
-				link,
-			}));
+      // The edge function accepts recipient lists up to 5,000 IDs. Keep each
+      // request smaller to avoid oversized PostgREST query URLs downstream.
+      let pushSent = 0;
+      let pushTotal = 0;
+      let pushFailed = false;
+      let pushFailureMessage = '';
+      for (const recipientBatch of chunkArray(userIds, 500)) {
+        try {
+          const { data: pushData, error: pushError } = await supabase.functions.invoke('send-push-notification', {
+            body: {
+              user_ids: recipientBatch,
+              title: formData.title.trim(),
+              body: formData.message.trim(),
+              url: link || '/',
+            },
+          });
+          if (pushError) throw pushError;
+          const result = pushData as { success?: boolean; sent?: number; total?: number; message?: string } | null;
+          if (!result) throw new Error('Server push tidak memberikan hasil pengiriman.');
+          const sent = result.sent ?? 0;
+          const total = result.total ?? 0;
+          pushSent += sent;
+          pushTotal += total;
+          if (result.success === false || (total > 0 && sent < total)) {
+            pushFailed = true;
+            pushFailureMessage ||= result.message || 'Sebagian perangkat gagal menerima push.';
+          }
+        } catch (pushError) {
+          pushFailed = true;
+          pushFailureMessage ||= pushError instanceof Error ? pushError.message : 'Pengiriman Web Push gagal.';
+          console.error('Broadcast inbox berhasil, Web Push gagal:', pushError);
+        }
+      }
 
-        const { error: notifError } = await supabase
-          .from('notifications')
-          .insert(notifications);
-
-			if (notifError) throw notifError;
-		}
-
-		// Deliver browser push to the exact same audience. Inbox delivery remains
-		// successful when VAPID is unavailable or a recipient has no subscription.
-		let pushSent = 0;
-		let pushTotal = 0;
-		let pushFailed = false;
-		if (userIds.length > 0) {
-			try {
-				const { data: pushData, error: pushError } = await supabase.functions.invoke('send-push-notification', {
-					body: {
-						user_ids: userIds,
-						title: formData.title,
-						body: formData.message,
-						url: link || '/',
-					},
-				});
-				if (pushError) throw pushError;
-				const result = pushData as { success?: boolean; sent?: number; total?: number } | null;
-				pushSent = result?.sent ?? 0;
-				pushTotal = result?.total ?? 0;
-				pushFailed = result?.success === false;
-			} catch (pushError) {
-				pushFailed = true;
-				console.error('Broadcast inbox berhasil, Web Push gagal:', pushError);
-			}
-		}
-
-		// Update broadcast status
-		await supabase
-			.from('broadcast_notifications')
-			.update({
-				status: pushFailed ? 'PARTIAL' : 'SENT',
+      const { error: statusError } = await supabase
+        .from('broadcast_notifications')
+        .update({
+          status: pushFailed ? 'PARTIAL' : 'SENT',
           sent_at: new Date().toISOString(),
           sent_count: userIds.length,
         })
-        .eq('id', broadcast.id);
+        .eq('id', broadcastId);
+      if (statusError) console.error('Gagal menyimpan status broadcast:', statusError);
 
-		toast.success(
-			pushFailed
-				? `Inbox terkirim ke ${userIds.length} pengguna; Web Push sebagian gagal`
-				: `Terkirim ke ${userIds.length} pengguna (${pushSent}/${pushTotal} perangkat push)`,
-		);
+      if (pushFailed) {
+        toast.warning(`Inbox terkirim ke ${userIds.length} pengguna; Web Push VAPID terkirim ke ${pushSent}/${pushTotal} perangkat. ${pushFailureMessage}`);
+      } else if (pushTotal === 0) {
+        toast.success(`Inbox terkirim ke ${userIds.length} pengguna. Belum ada perangkat target yang mengaktifkan Web Push.`);
+      } else {
+        toast.success(`Inbox terkirim ke ${userIds.length} pengguna; Web Push VAPID terkirim ke ${pushSent}/${pushTotal} perangkat.`);
+      }
       setDialogOpen(false);
       resetForm();
-      fetchBroadcasts();
+      void fetchBroadcasts();
     } catch (error) {
       console.error('Error sending broadcast:', error);
-      toast.error('Gagal mengirim notifikasi');
+      if (broadcastId) {
+        const { error: statusError } = await supabase
+          .from('broadcast_notifications')
+          .update({ status: 'FAILED' })
+          .eq('id', broadcastId)
+          .eq('status', 'SENDING');
+        if (statusError) console.error('Gagal menyimpan status gagal broadcast:', statusError);
+      }
+      toast.error(error instanceof Error ? error.message : 'Gagal mengirim notifikasi');
     } finally {
       setSending(false);
     }
@@ -436,9 +456,13 @@ export default function AdminBroadcastPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
+				</div>
+				)}
+
+				<div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+					<strong className="text-foreground">Kanal pengiriman:</strong> pesan masuk ke inbox aplikasi dan dikirim sebagai Web Push melalui VAPID ke perangkat target yang sudah mengaktifkan notifikasi. VAPID bukan email, jadi broadcast ini tidak mengirim surat elektronik.
+				</div>
+			</div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Batal</Button>

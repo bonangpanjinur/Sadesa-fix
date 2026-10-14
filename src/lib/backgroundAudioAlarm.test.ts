@@ -19,6 +19,7 @@ const audioManager = readFileSync(resolve(process.cwd(), 'src/lib/audioManager.t
 const notificationWorkerSchedule = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20261005150000_notification_delivery_worker_cron.sql'), 'utf8');
 const supabaseFunctionConfig = readFileSync(resolve(process.cwd(), 'supabase/config.toml'), 'utf8');
 const orderAlarmSettingsControl = readFileSync(resolve(process.cwd(), 'src/components/notifications/OrderAlarmSettingsControl.tsx'), 'utf8');
+const courierDashboard = readFileSync(resolve(process.cwd(), 'src/pages/CourierDashboardPage.tsx'), 'utf8');
 const courierRideDispatch = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20260929011000_nearest_courier_sequential_ride_dispatch.sql'), 'utf8');
 const courierDeliveryOfferPush = readFileSync(resolve(process.cwd(), 'archive/supabase/migrations/20260929133000_courier_delivery_offer_push.sql'), 'utf8');
 
@@ -45,6 +46,14 @@ describe('courier background alarm contract', () => {
     expect(alarmActivationDialog).toContain("audience === 'courier'");
     expect(alarmActivationDialog).toContain('subscribeToPush(user.id)');
     expect(courierAlarmHook).toContain('new Notification');
+  });
+
+  it('explains that couriers should keep the app running before going online and requests push permission from the confirmation action', () => {
+    expect(courierDashboard).toContain('setOnlineConfirmationOpen(true)');
+    expect(courierDashboard).toContain('jangan keluar atau force close aplikasi SaDesa');
+    expect(courierDashboard).toContain('Web Push VAPID');
+    expect(courierDashboard).toContain('const permissionRequest = requestPushPermission()');
+    expect(courierDashboard).toContain('Saya paham, aktifkan online');
   });
 
   it('queues push for targeted Ojek rides and delivery offers', () => {
