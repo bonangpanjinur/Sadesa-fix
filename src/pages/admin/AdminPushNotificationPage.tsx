@@ -319,8 +319,18 @@ export default function AdminPushNotificationPage() {
       });
       if (error) throw error;
       const json = data as { sent?: number; total?: number; message?: string; success?: boolean };
-      if (json?.success === false) throw new Error(json.message || 'Gagal broadcast');
-      toast.success(`Broadcast terkirim ke ${json?.sent ?? 0}/${json?.total ?? 0} subscription`);
+      const sent = json?.sent ?? 0;
+      const total = json?.total ?? 0;
+      if (json?.success === false && sent === 0) throw new Error(json.message || 'Gagal broadcast');
+      if (total === 0) {
+        toast.warning('Belum ada perangkat yang mengaktifkan push notification.');
+        return;
+      }
+      if (json?.success === false || sent < total) {
+        toast.warning(`Sebagian push terkirim: ${sent}/${total} perangkat. Periksa riwayat log untuk rincian.`);
+      } else {
+        toast.success(`Broadcast terkirim ke ${sent}/${total} perangkat`);
+      }
       setBroadcastTitle('');
       setBroadcastBody('');
     } catch (err) {

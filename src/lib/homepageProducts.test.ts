@@ -3,6 +3,7 @@ import {
   hasEnoughBestSellingHistory,
   filterOpenMerchantProducts,
   isCompleteProduct,
+  selectShoppingProductsWithFallback,
   selectRotatingProducts,
   selectNewestProducts,
   selectTopSellingProducts,
@@ -99,6 +100,43 @@ describe('selectRotatingProducts', () => {
     const next = selectRotatingProducts(products, new Set(), { now, rotationBucket: 11 }).map((product) => product.id);
     expect(repeat).toEqual(first);
     expect(next).not.toEqual(first);
+  });
+});
+
+describe('selectShoppingProductsWithFallback', () => {
+  const now = Date.parse('2026-10-14T12:00:00.000Z');
+  const product = (id: string, createdAt: string) => ({
+    id,
+    name: `Produk ${id}`,
+    description: 'Deskripsi produk lengkap',
+    price: 15000,
+    category: 'sembako',
+    hasImage: true,
+    createdAt,
+  });
+
+  it('shows only the newest products from the last fourteen days when any are available', () => {
+    const selected = selectShoppingProductsWithFallback([
+      product('old', '2026-09-01T12:00:00.000Z'),
+      product('recent-oldest', '2026-10-03T12:00:00.000Z'),
+      product('recent-newest', '2026-10-13T12:00:00.000Z'),
+    ], { now, limit: 4 });
+
+    expect(selected.map(({ id }) => id)).toEqual(['recent-newest', 'recent-oldest']);
+  });
+
+  it('falls back to the newest older shopping products when none were added in fourteen days', () => {
+    const selected = selectShoppingProductsWithFallback([
+      product('older', '2026-08-01T12:00:00.000Z'),
+      product('newest-old', '2026-09-29T12:00:00.000Z'),
+    ], { now, limit: 4 });
+
+    expect(selected.map(({ id }) => id)).toEqual(['newest-old', 'older']);
+  });
+
+  it('returns no products when no usable shopping products exist', () => {
+    expect(selectShoppingProductsWithFallback([], { now })).toEqual([]);
+    expect(selectShoppingProductsWithFallback([product('future', '2026-10-15T12:00:00.000Z')], { now })).toEqual([]);
   });
 });
 

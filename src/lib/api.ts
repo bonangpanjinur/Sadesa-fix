@@ -242,6 +242,8 @@ interface FetchProductsOptions {
   cacheKey?: string;
   search?: string;
   categoryIds?: string[] | null;
+  /** Slug fallback for legacy product rows whose category_id is null. */
+  categorySlugs?: string[] | null;
   merchantId?: string | null;
   createdAfter?: string;
   promoOnly?: boolean;
@@ -295,6 +297,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
     cacheKey = 'products',
     search = '',
     categoryIds,
+    categorySlugs,
     merchantId,
     createdAfter,
     promoOnly = false,
@@ -303,7 +306,7 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
     sort = 'newest',
   } = options;
   const normalizedLimit = Math.min(Math.max(limit, 1), 48);
-  const cacheSuffix = JSON.stringify({ offset, normalizedLimit, search, categoryIds, merchantId, createdAfter, promoOnly, inStockOnly, maxPrice, sort });
+  const cacheSuffix = JSON.stringify({ offset, normalizedLimit, search, categoryIds, categorySlugs, merchantId, createdAfter, promoOnly, inStockOnly, maxPrice, sort });
   const cacheKeyWithParams = `${cacheKey}:${cacheSuffix}`;
   const cached = getCached<ProductPage>(cacheKeyWithParams);
   if (cached) return cached;
@@ -351,7 +354,15 @@ export async function fetchProductPage(options: FetchProductsOptions = {}): Prom
     const merchantClause = merchantSearchIds.length ? `,merchant_id.in.(${merchantSearchIds.join(',')})` : '';
     query = query.or(`name.ilike.${term},description.ilike.${term},category.ilike.${term}${merchantClause}`);
   }
-  if (categoryIds?.length) query = query.in('category_id', categoryIds);
+  const safeCategorySlugs = (categorySlugs || []).filter((slug) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/i.test(slug));
+  // Match the active category tree by ID while retaining old rows that have no category_id.
+  if (categoryIds?.length && safeCategorySlugs.length) {
+    query = query.or(`category_id.in.(${categoryIds.join(',')}),and(category_id.is.null,category.in.(${safeCategorySlugs.join(',')}))`);
+  } else if (categoryIds?.length) {
+    query = query.in('category_id', categoryIds);
+  } else if (safeCategorySlugs.length) {
+    query = query.is('category_id', null).in('category', safeCategorySlugs);
+  }
   if (merchantId) query = query.eq('merchant_id', merchantId);
   if (createdAfter) query = query.gte('created_at', createdAfter);
   if (promoOnly) query = query.eq('is_promo', true);

@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
+import {
+  Bell,
   Package, 
   MapPin, 
   Clock, 
@@ -28,6 +29,14 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { CourierLocationUpdater } from '@/components/CourierLocationUpdater';
 import { NavigationButton } from '@/components/courier/NavigationButton';
 import { DeliveryOfferCard, type DeliveryOfferCardData } from '@/components/courier/DeliveryOfferCard';
@@ -38,7 +47,7 @@ import { toast } from '@/hooks/use-toast';
 import { formatDistance, calculateDistance } from '@/lib/etaCalculation';
 import { formatPrice } from '@/lib/utils';
 import { getRpcErrorMessage } from '@/lib/courierOrderStatus';
-import { usePushNotification } from '@/hooks/usePushNotification';
+import { getLastPushError, requestPushPermission, subscribeToPush } from '@/lib/pushNotification';
 import { useCourierDeliveryCommissionPolicy } from '@/hooks/useCourierDeliveryCommissionPolicy';
 
 interface CourierData {
@@ -95,6 +104,7 @@ export default function CourierDashboardPage() {
   const { user, signOut, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [onlineConfirmationOpen, setOnlineConfirmationOpen] = useState(false);
   const [podOrderId, setPodOrderId] = useState<string | null>(null);
   const [respondingOffer, setRespondingOffer] = useState<string | null>(null);
   const [releasingOrder, setReleasingOrder] = useState<string | null>(null);
@@ -102,7 +112,6 @@ export default function CourierDashboardPage() {
   const [realtimeOnline, setRealtimeOnline] = useState(false);
   const [batchingPanelVisible, setBatchingPanelVisible] = useState(false);
   const batchingPanelRef = useRef<HTMLDivElement>(null);
-  const { isSupported: pushSupported, permission: pushPermission, subscribe: subscribeToPush } = usePushNotification();
 
   // Query: profil kurir + status registrasi
   const { data: courierQueryData, isLoading: courierLoading, isError: fetchError } = useQuery<CourierData | null>({
@@ -255,11 +264,39 @@ export default function CourierDashboardPage() {
     return () => observer.disconnect();
   }, [courier?.id, batchingPanelVisible]);
 
-  const toggleAvailability = async (checked: boolean) => {
-    if (!courier) return;
+  const toggleAvailability = async (checked: boolean): Promise<boolean> => {
+    if (!courier) return false;
     setUpdatingStatus(true);
+    let pushReady = false;
+    let pushErrorMessage = '';
 
     try {
+      if (checked) {
+        const supportsBackgroundPush = 'Notification' in window
+          && 'serviceWorker' in navigator
+          && 'PushManager' in window;
+        if (supportsBackgroundPush && user) {
+          // Request permission synchronously from the confirmation click, before
+          // geolocation or any network request can consume the browser gesture.
+          const permissionRequest = requestPushPermission();
+          try {
+            const notificationsAllowed = await permissionRequest;
+            if (notificationsAllowed) {
+              pushReady = await subscribeToPush(user.id);
+              if (!pushReady) pushErrorMessage = getLastPushError() || 'Pendaftaran push background belum berhasil.';
+            } else {
+              pushErrorMessage = Notification.permission === 'denied'
+                ? 'Izin notifikasi diblokir di pengaturan browser/perangkat.'
+                : 'Izin notifikasi belum diberikan.';
+            }
+          } catch (error) {
+            pushErrorMessage = error instanceof Error ? error.message : 'Izin notifikasi belum dapat dipastikan.';
+          }
+        } else {
+          pushErrorMessage = 'Browser ini belum mendukung Web Push background.';
+        }
+      }
+
       if (checked) {
         if (!navigator.geolocation) throw new Error('Perangkat ini tidak mendukung GPS');
         await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -281,28 +318,39 @@ export default function CourierDashboardPage() {
       queryClient.setQueryData(['courier-global-presence', user?.id], (current: { id: string; is_available: boolean; registration_status: string } | null | undefined) =>
         current ? { ...current, is_available: checked } : current,
       );
-      if (checked && pushSupported && pushPermission !== 'denied') {
-        const subscribed = await subscribeToPush();
-        if (!subscribed) {
-          toast({
-            title: 'Notifikasi latar belum aktif',
-            description: 'Izinkan notifikasi agar bunyi dan getar tetap masuk saat aplikasi tidak dibuka.',
-            variant: 'destructive',
+      toast(checked && !pushReady
+        ? {
+            title: 'Anda online, tetapi push background belum aktif',
+            description: `${pushErrorMessage} Biarkan aplikasi SaDesa tetap terbuka agar Anda tidak melewatkan order.`
+          }
+        : {
+            title: checked ? 'Anda sekarang online' : 'Anda sekarang offline',
+            description: checked ? 'Notifikasi push aktif untuk membantu memberi tahu order baru.' : undefined,
           });
-        }
-      }
-      toast({
-        title: checked ? 'Anda sekarang online' : 'Anda sekarang offline',
-      });
+      return true;
     } catch (error) {
       console.error('Error updating availability:', error);
       toast({
         title: 'Gagal mengubah status',
         variant: 'destructive',
       });
+      return false;
     } finally {
       setUpdatingStatus(false);
     }
+  };
+
+  const handleAvailabilityChange = (checked: boolean) => {
+    if (checked) {
+      setOnlineConfirmationOpen(true);
+      return;
+    }
+    void toggleAvailability(false);
+  };
+
+  const confirmGoOnline = async () => {
+    const wentOnline = await toggleAvailability(true);
+    if (wentOnline) setOnlineConfirmationOpen(false);
   };
 
   const respondToDeliveryOffer = async (assignmentId: string, accept: boolean) => {
@@ -557,11 +605,47 @@ export default function CourierDashboardPage() {
             </div>
             <Switch
               checked={courier.is_available}
-              onCheckedChange={toggleAvailability}
+              onCheckedChange={handleAvailabilityChange}
               disabled={updatingStatus}
               className="data-[state=checked]:bg-status-online"
             />
           </div>
+          <Dialog
+            open={onlineConfirmationOpen}
+            onOpenChange={(open) => !updatingStatus && setOnlineConfirmationOpen(open)}
+          >
+            <DialogContent className="max-w-md rounded-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-left">
+                  <Bell className="h-5 w-5 text-primary" />
+                  Sebelum mulai online
+                </DialogTitle>
+                <DialogDescription className="text-left">
+                  Saat online, tawaran ojek dan pesanan pengiriman dapat masuk kapan saja.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 rounded-xl border bg-muted/30 p-4 text-sm">
+                <p className="font-medium">Jangan tutup aplikasi SaDesa selama status Anda online. Jangan keluar atau force close aplikasi. Biarkan aplikasi tetap terbuka dan berjalan agar order masuk serta pembaruan lokasi tetap aktif.</p>
+                <p className="text-muted-foreground">Notifikasi Web Push VAPID dapat membantu saat aplikasi berada di latar belakang, jika izin browser/perangkat aktif. Pengiriman di latar belakang bergantung pada browser dan pengaturan perangkat, jadi cara paling andal adalah tetap membuka aplikasi.</p>
+                <p className="text-muted-foreground">Pastikan koneksi internet, GPS/lokasi, dan izin notifikasi aktif. Jika belum mengizinkan notifikasi, browser akan meminta izin saat Anda menekan “Aktifkan Online”.</p>
+              </div>
+              <DialogFooter className="gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOnlineConfirmationOpen(false)}
+                  disabled={updatingStatus}
+                  className="sm:flex-1"
+                >
+                  Jangan dulu
+                </Button>
+                <Button type="button" onClick={() => void confirmGoOnline()} disabled={updatingStatus} className="sm:flex-1">
+                  {updatingStatus && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  {updatingStatus ? 'Mengaktifkan...' : 'Saya paham, aktifkan online'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </motion.div>
 
         {/* Balance Summary */}

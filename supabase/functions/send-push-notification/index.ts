@@ -320,7 +320,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: sentCount === subscriptions.length,
         sent: sentCount,
         total: subscriptions.length,
         cleaned: failedSubscriptions.length,
