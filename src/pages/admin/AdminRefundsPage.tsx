@@ -46,6 +46,12 @@ interface RefundRequest {
   disputeStatus: string | null;
   merchantResponse: string | null;
   settlementStatus: string | null;
+  settlementId: string | null;
+  settlementProvider: string | null;
+  settlementProviderStatus: string | null;
+  settlementProviderReference: string | null;
+  settlementEvidencePath: string | null;
+  settlementLastError: string | null;
   adminNotes: string | null;
   processedAt: string | null;
   createdAt: string;
@@ -66,6 +72,10 @@ export default function AdminRefundsPage() {
   const [processDialogOpen, setProcessDialogOpen] = useState(false);
   const [processAction, setProcessAction] = useState<'approve' | 'reject'>('approve');
   const [adminNotes, setAdminNotes] = useState('');
+  const [manualReference, setManualReference] = useState('');
+  const [manualEvidenceFile, setManualEvidenceFile] = useState<File | null>(null);
+  const [manualTransferConfirmed, setManualTransferConfirmed] = useState(false);
+  const [manualSettlementLoading, setManualSettlementLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -80,6 +90,17 @@ export default function AdminRefundsPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+
+      const settlementIds = [...new Set((data || [])
+        .map((refund) => refund.settlement_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0))];
+      const { data: settlementRows, error: settlementError } = settlementIds.length > 0
+        ? await supabase.from('refund_settlements').select(
+          'id, provider, provider_status, provider_reference, manual_evidence_path, last_error, status',
+        ).in('id', settlementIds)
+        : { data: [], error: null };
+      if (settlementError) throw settlementError;
+      const settlementMap = new Map((settlementRows || []).map((settlement) => [settlement.id, settlement]));
 
       // Fetch buyer names separately
       const buyerIds = [...new Set((data || []).map(r => r.buyer_id))];
@@ -96,6 +117,7 @@ export default function AdminRefundsPage() {
           total?: number | null;
           merchants?: { name?: string | null } | null;
         } | null;
+        const settlement = r.settlement_id ? settlementMap.get(r.settlement_id) : null;
         return {
         id: r.id,
         orderId: r.order_id,
@@ -106,7 +128,13 @@ export default function AdminRefundsPage() {
         status: r.status,
         disputeStatus: r.dispute_status || null,
         merchantResponse: r.merchant_response || null,
-        settlementStatus: r.settlement_status || null,
+        settlementStatus: r.settlement_status || settlement?.status || null,
+        settlementId: r.settlement_id || null,
+        settlementProvider: settlement?.provider || null,
+        settlementProviderStatus: settlement?.provider_status || null,
+        settlementProviderReference: settlement?.provider_reference || null,
+        settlementEvidencePath: settlement?.manual_evidence_path || null,
+        settlementLastError: settlement?.last_error || null,
         adminNotes: r.admin_notes,
         processedAt: r.processed_at,
         createdAt: r.created_at,
@@ -156,7 +184,7 @@ export default function AdminRefundsPage() {
       );
 
       toast.success(processAction === 'approve'
-        ? 'Refund disetujui. Pencairan menunggu konfirmasi provider.'
+        ? 'Refund disetujui dan masuk antrean pencairan manual. Dana belum dikirim.'
         : 'Refund ditolak.');
       setProcessDialogOpen(false);
       setAdminNotes('');
@@ -171,7 +199,11 @@ export default function AdminRefundsPage() {
   };
 
   const filteredRefunds = refunds.filter(r => {
-    const matchesStatus = statusFilter === 'all' || r.status === statusFilter || r.disputeStatus === statusFilter;
+    const isManualQueue = r.status === 'APPROVED'
+      && r.settlementProvider === 'MANUAL'
+      && r.settlementStatus !== 'COMPLETED';
+    const matchesStatus = statusFilter === 'all'
+      || (statusFilter === 'manual_queue' ? isManualQueue : r.status === statusFilter || r.disputeStatus === statusFilter);
     const matchesSearch = 
       r.orderId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.buyerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -217,12 +249,80 @@ export default function AdminRefundsPage() {
     FAILED: 'Pencairan gagal',
   }[status || ''] || status || 'Belum dibuat');
 
+  const openRefundDetails = (refund: RefundRequest) => {
+    setSelectedRefund(refund);
+    setManualReference('');
+    setManualEvidenceFile(null);
+    setManualTransferConfirmed(false);
+    setDetailDialogOpen(true);
+  };
+
+  const handleManualSettlement = async () => {
+    if (!selectedRefund?.settlementId) return;
+    const reference = manualReference.trim();
+    const file = manualEvidenceFile;
+    if (!reference || !file || !manualTransferConfirmed) {
+      toast.error('Isi reference, unggah bukti, dan konfirmasi bahwa transfer benar-benar berhasil.');
+      return;
+    }
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowedTypes.includes(file.type) || file.size > 10 * 1024 * 1024) {
+      toast.error('Bukti harus berupa JPG, PNG, WebP, atau PDF maksimal 10 MB.');
+      return;
+    }
+
+    const extensionByType: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'application/pdf': 'pdf',
+    };
+    const evidencePath = `settlements/${selectedRefund.settlementId}/${crypto.randomUUID()}.${extensionByType[file.type]}`;
+    let uploaded = false;
+    try {
+      setManualSettlementLoading(true);
+      const { error: uploadError } = await supabase.storage
+        .from('refund-settlement-evidence')
+        .upload(evidencePath, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+      if (uploadError) throw uploadError;
+      uploaded = true;
+
+      const { error } = await supabase.rpc('complete_manual_refund_settlement', {
+        p_settlement_id: selectedRefund.settlementId,
+        p_provider_reference: reference,
+        p_provider_amount: selectedRefund.amount,
+        p_evidence_path: evidencePath,
+      });
+      if (error) throw error;
+
+      await logAdminAction(
+        'COMPLETE_MANUAL_REFUND',
+        'refund_settlement',
+        selectedRefund.settlementId,
+        { status: selectedRefund.settlementStatus },
+        { status: 'COMPLETED', provider_reference: reference, amount: selectedRefund.amount, evidence_path: evidencePath },
+      );
+      toast.success('Pencairan manual tercatat; order dan settlement ditandai selesai.');
+      setDetailDialogOpen(false);
+      setSelectedRefund(null);
+      await loadRefunds();
+    } catch (error) {
+      if (uploaded) {
+        await supabase.storage.from('refund-settlement-evidence').remove([evidencePath]);
+      }
+      console.error('Error completing manual refund settlement:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal mencatat pencairan manual.');
+    } finally {
+      setManualSettlementLoading(false);
+    }
+  };
+
   const pendingCount = refunds.filter(r => r.status === 'PENDING').length;
 
   return (
     <AdminLayout title="Manajemen Refund" subtitle="Kelola permintaan pengembalian dana">
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <div className="bg-card border border-border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Total Permintaan</p>
           <p className="text-2xl font-bold">{refunds.length}</p>
@@ -237,6 +337,10 @@ export default function AdminRefundsPage() {
         <div className="bg-card border border-border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Disetujui</p>
           <p className="text-2xl font-bold text-primary">{refunds.filter(r => r.status === 'APPROVED').length}</p>
+        </div>
+        <div className="bg-card border border-amber-300 rounded-lg p-4">
+          <p className="text-sm text-muted-foreground">Antrean payout manual</p>
+          <p className="text-2xl font-bold text-amber-700">{refunds.filter(r => r.status === 'APPROVED' && r.settlementProvider === 'MANUAL' && r.settlementStatus !== 'COMPLETED').length}</p>
         </div>
         <div className="bg-card border border-border rounded-lg p-4">
           <p className="text-sm text-muted-foreground">Ditolak</p>
@@ -261,6 +365,7 @@ export default function AdminRefundsPage() {
             <SelectItem value="MERCHANT_RESPONDED">Merchant merespons</SelectItem>
             <SelectItem value="IN_MEDIATION">Dalam mediasi</SelectItem>
             <SelectItem value="APPROVED">Disetujui</SelectItem>
+            <SelectItem value="manual_queue">Antrean payout manual</SelectItem>
             <SelectItem value="REJECTED">Ditolak</SelectItem>
           </SelectContent>
         </Select>
@@ -319,10 +424,7 @@ export default function AdminRefundsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {
-                            setSelectedRefund(refund);
-                            setDetailDialogOpen(true);
-                          }}
+                          onClick={() => openRefundDetails(refund)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -388,9 +490,23 @@ export default function AdminRefundsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Status Pencairan</p>
                   <Badge variant={selectedRefund.settlementStatus === 'FAILED' ? 'destructive' : selectedRefund.settlementStatus === 'COMPLETED' ? 'success' : 'outline'}>
-                    {getSettlementLabel(selectedRefund.settlementStatus)}
+                    {selectedRefund.settlementProvider === 'MANUAL' && selectedRefund.settlementStatus !== 'COMPLETED'
+                      ? 'Antrean pencairan manual'
+                      : getSettlementLabel(selectedRefund.settlementStatus)}
                   </Badge>
                 </div>
+                {selectedRefund.settlementProvider && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Metode pencairan</p>
+                    <p className="font-medium">{selectedRefund.settlementProvider === 'MANUAL' ? 'Transfer manual (legacy)' : selectedRefund.settlementProvider}</p>
+                  </div>
+                )}
+                {selectedRefund.settlementProviderStatus && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status provider / antrean</p>
+                    <p className="font-medium">{selectedRefund.settlementProviderStatus}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm text-muted-foreground">Pembeli</p>
                   <p className="font-medium">{selectedRefund.buyerName}</p>
@@ -444,6 +560,94 @@ export default function AdminRefundsPage() {
                   </div>
                 </div>
               )}
+
+              {selectedRefund.settlementLastError && selectedRefund.settlementProvider === 'MANUAL' && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                  {selectedRefund.settlementLastError}
+                </div>
+              )}
+
+              {selectedRefund.settlementProviderReference && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Reference transfer</p>
+                  <p className="font-mono text-sm">{selectedRefund.settlementProviderReference}</p>
+                </div>
+              )}
+              {selectedRefund.settlementEvidencePath && (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Bukti pencairan sudah tersimpan secara privat.</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      const { data, error } = await supabase.storage
+                        .from('refund-settlement-evidence')
+                        .createSignedUrl(selectedRefund.settlementEvidencePath!, 60);
+                      if (error || !data?.signedUrl) {
+                        toast.error('Bukti pencairan tidak dapat dibuka.');
+                        return;
+                      }
+                      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    Lihat bukti
+                  </Button>
+                </div>
+              )}
+
+              {selectedRefund.status === 'APPROVED'
+                && selectedRefund.settlementProvider === 'MANUAL'
+                && selectedRefund.settlementStatus !== 'COMPLETED'
+                && selectedRefund.settlementId && (
+                  <div className="space-y-4 rounded-lg border border-border p-4">
+                    <div>
+                      <h3 className="font-semibold">Catat pencairan manual</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Lakukan transfer di luar sistem terlebih dahulu. Setelah transfer berhasil, masukkan reference unik dan bukti. Sistem hanya menandai refund selesai setelah data tersebut tervalidasi.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="manual-refund-reference" className="text-sm font-medium">Reference transfer</label>
+                      <input
+                        id="manual-refund-reference"
+                        value={manualReference}
+                        onChange={(event) => setManualReference(event.target.value)}
+                        maxLength={200}
+                        placeholder="Nomor referensi dari bank/provider"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div className="text-sm">
+                      Nominal yang harus dibayar: <strong>{formatPrice(selectedRefund.amount)}</strong>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="manual-refund-evidence" className="text-sm font-medium">Bukti transfer (JPG, PNG, WebP, atau PDF; maks. 10 MB)</label>
+                      <input
+                        id="manual-refund-evidence"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={(event) => setManualEvidenceFile(event.target.files?.[0] || null)}
+                        className="w-full text-sm"
+                      />
+                      {manualEvidenceFile && <p className="text-xs text-muted-foreground">{manualEvidenceFile.name}</p>}
+                    </div>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={manualTransferConfirmed}
+                        onChange={(event) => setManualTransferConfirmed(event.target.checked)}
+                        className="mt-1"
+                      />
+                      <span>Saya sudah memverifikasi transfer sebesar nominal refund berhasil dilakukan ke penerima yang benar.</span>
+                    </label>
+                    <Button
+                      onClick={() => void handleManualSettlement()}
+                      disabled={manualSettlementLoading || !manualReference.trim() || !manualEvidenceFile || !manualTransferConfirmed}
+                    >
+                      {manualSettlementLoading ? 'Menyimpan bukti...' : 'Catat payout selesai'}
+                    </Button>
+                  </div>
+                )}
             </div>
           )}
         </DialogContent>
@@ -458,7 +662,7 @@ export default function AdminRefundsPage() {
             </DialogTitle>
             <DialogDescription>
               {processAction === 'approve' 
-                ? 'Apakah Anda yakin ingin menyetujui permintaan refund ini? Sistem akan membuat proses pencairan dan dana baru dianggap cair setelah provider mengonfirmasi.'
+                ? 'Refund ini akan masuk antrean pencairan manual. Dana tidak dikirim otomatis; admin harus melakukan transfer di luar sistem dan mencatat reference serta bukti setelah transfer berhasil.'
                 : 'Berikan alasan mengapa permintaan refund ini ditolak.'}
             </DialogDescription>
           </DialogHeader>

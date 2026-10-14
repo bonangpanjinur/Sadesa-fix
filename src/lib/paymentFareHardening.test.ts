@@ -11,6 +11,7 @@ const courierPage = readFileSync(resolve(process.cwd(), 'src/pages/transport/Cou
 const ridePage = readFileSync(resolve(process.cwd(), 'src/pages/ride/RideBookingPage.tsx'), 'utf8');
 const adminApprovalPage = readFileSync(resolve(process.cwd(), 'src/pages/admin/AdminApprovalCenterPage.tsx'), 'utf8');
 const adminRefundsPage = readFileSync(resolve(process.cwd(), 'src/pages/admin/AdminRefundsPage.tsx'), 'utf8');
+const manualRefundMigration = readFileSync(resolve(process.cwd(), 'supabase/bootstrap/128_20261014230000_refund_manual_queue.sql'), 'utf8');
 
 describe('payment and fare audit hardening contracts', () => {
   it('removes direct authenticated order writes and legacy insert/update policies', () => {
@@ -44,11 +45,22 @@ describe('payment and fare audit hardening contracts', () => {
     expect(migration).toContain('complete_refund_settlement(uuid, boolean, text, integer, text, text)');
   });
 
-  it('routes legacy refund approvals through provider settlement and reports pending provider completion', () => {
+  it('routes legacy refund approvals into a manual payout queue and requires recorded evidence', () => {
     expect(migration).toContain('CREATE OR REPLACE FUNCTION public.decide_refund_request(');
     expect(migration).toContain('RETURN public.process_refund_decision(p_request_id, p_approve, p_notes)');
-    expect(adminApprovalPage).toContain('Pencairan menunggu konfirmasi provider.');
-    expect(adminRefundsPage).toContain('Pencairan menunggu konfirmasi provider.');
+    expect(manualRefundMigration).toContain('queue_legacy_refund_settlements');
+    expect(manualRefundMigration).toContain("'route-legacy-refunds-to-manual-queue'");
+    expect(manualRefundMigration).toContain("'* * * * *'");
+    expect(manualRefundMigration).toContain('provider_reference IS NULL');
+    expect(manualRefundMigration).toContain("NEW.provider := 'MANUAL'");
+    expect(manualRefundMigration).toContain('manual_evidence_path = v_path');
+    expect(manualRefundMigration).toContain("provider_status = 'SUCCEEDED'");
+    expect(manualRefundMigration).toContain('p_provider_amount <> v_settlement.amount');
+    expect(adminApprovalPage).toContain('masuk antrean pencairan manual. Dana belum dikirim.');
+    expect(adminRefundsPage).toContain('complete_manual_refund_settlement');
+    expect(adminRefundsPage).toContain('manualTransferConfirmed');
+    expect(adminRefundsPage).toContain('Antrean payout manual');
+    expect(adminRefundsPage).toContain('refund-settlement-evidence');
   });
 
   it('shows courier server amount and does not price by OSRM road distance', () => {

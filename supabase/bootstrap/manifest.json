@@ -2,7 +2,7 @@
   "idempotent": true,
   "source": "archive/supabase/migrations",
   "migration_count": 277,
-  "bundle_count": 127,
+  "bundle_count": 128,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1223,6 +1223,14 @@
       ],
       "sha256": "c40f24b8386f6b1c75b233cebbc259acf93239479a810a87d73250e8880b3b37",
       "bytes": 20434
+    },
+    {
+      "file": "128_20261014230000_refund_manual_queue.sql",
+      "source_files": [
+        "128_20261014230000_refund_manual_queue.sql"
+      ],
+      "sha256": "501a72ac779714dc36ffd7c90894e3e32d4b16c7bc9266c1c973cb1c2e15bd2e",
+      "bytes": 13579
     }
   ]
 }

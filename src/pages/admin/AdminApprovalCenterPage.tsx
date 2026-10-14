@@ -174,7 +174,7 @@ export default function AdminApprovalCenterPage() {
       if (error) throw new Error(error.message);
       await logAdminAction(approve ? 'APPROVE_TRANSACTION_REQUEST' : 'REJECT_TRANSACTION_REQUEST', selected.kind, selected.id, { status: 'pending' }, { status: approve ? 'approved' : 'rejected', notes: decisionNotes || null });
       toast.success(selected.kind === 'refund' && approve
-        ? 'Refund disetujui. Pencairan menunggu konfirmasi provider.'
+        ? 'Refund disetujui dan masuk antrean pencairan manual. Dana belum dikirim.'
         : `${kindLabels[selected.kind]} berhasil ${approve ? 'disetujui' : 'ditolak'}`);
       setSelected(null);
       setDecisionNotes('');

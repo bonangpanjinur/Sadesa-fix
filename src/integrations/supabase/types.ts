@@ -2608,20 +2608,90 @@ export type Database = {
         }
         Relationships: []
       }
+      refund_settlements: {
+        Row: {
+          amount: number
+          buyer_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          manual_evidence_path: string | null
+          manual_verified_at: string | null
+          manual_verified_by: string | null
+          merchant_id: string | null
+          order_id: string
+          provider: string
+          provider_amount: number | null
+          provider_reference: string | null
+          provider_status: string | null
+          refund_request_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          buyer_id: string
+          completed_at?: string
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          last_error?: string | null
+          manual_evidence_path?: string | null
+          manual_verified_at?: string | null
+          manual_verified_by?: string | null
+          merchant_id?: string | null
+          order_id: string
+          provider?: string
+          provider_amount?: number | null
+          provider_reference?: string | null
+          provider_status?: string | null
+          refund_request_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          buyer_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          last_error?: string | null
+          manual_evidence_path?: string | null
+          manual_verified_at?: string | null
+          manual_verified_by?: string | null
+          merchant_id?: string | null
+          order_id?: string
+          provider?: string
+          provider_amount?: number | null
+          provider_reference?: string | null
+          provider_status?: string | null
+          refund_request_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       refund_requests: {
         Row: {
           admin_notes: string | null
           amount: number
           buyer_id: string
           created_at: string
+          dispute_status: string | null
           evidence_urls: string[] | null
           id: string
           merchant_id: string | null
+          merchant_response: string | null
           order_id: string
           processed_at: string | null
           processed_by: string | null
           reason: string
           refund_type: string | null
+          settlement_id: string | null
+          settlement_status: string | null
           status: string
           updated_at: string
         }
@@ -2630,14 +2700,18 @@ export type Database = {
           amount: number
           buyer_id: string
           created_at?: string
+          dispute_status?: string | null
           evidence_urls?: string[] | null
           id?: string
           merchant_id?: string | null
+          merchant_response?: string | null
           order_id: string
           processed_at?: string | null
           processed_by?: string | null
           reason: string
           refund_type?: string | null
+          settlement_id?: string | null
+          settlement_status?: string | null
           status?: string
           updated_at?: string
         }
@@ -2646,14 +2720,18 @@ export type Database = {
           amount?: number
           buyer_id?: string
           created_at?: string
+          dispute_status?: string | null
           evidence_urls?: string[] | null
           id?: string
           merchant_id?: string | null
+          merchant_response?: string | null
           order_id?: string
           processed_at?: string | null
           processed_by?: string | null
           reason?: string
           refund_type?: string | null
+          settlement_id?: string | null
+          settlement_status?: string | null
           status?: string
           updated_at?: string
         }
@@ -3786,6 +3864,15 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_chats: { Args: never; Returns: undefined }
+      complete_manual_refund_settlement: {
+        Args: {
+          p_evidence_path: string
+          p_provider_amount: number
+          p_provider_reference: string
+          p_settlement_id: string
+        }
+        Returns: Json
+      }
       create_verifikator_trade_group: {
         Args: {
           p_code: string
