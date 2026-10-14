@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { getShoppingCategoryQueryFilter, groupNewestProductsByCategory } from './homepageProductCategories';
+import { getShoppingCategoryQueryFilter, groupNewestProductsByCategory, selectNewestFoodDrinkProducts } from './homepageProductCategories';
 import type { ProductCategory } from './productCategories';
 
 const categories: ProductCategory[] = [
   { id: 'food', name: 'Makanan & Minuman', slug: 'kuliner', parent_id: null, icon: null, sort_order: 1 },
-  { id: 'rice', name: 'Nasi dan Mi', slug: 'nasi-dan-mi', parent_id: 'food', icon: null, sort_order: 1 },
+  { id: 'food-root', name: 'Makanan', slug: 'makanan', parent_id: 'food', icon: null, sort_order: 1 },
+  { id: 'drink-root', name: 'Minuman', slug: 'minuman', parent_id: 'food', icon: null, sort_order: 2 },
+  { id: 'rice', name: 'Nasi dan Mi', slug: 'nasi-dan-mi', parent_id: 'food-root', icon: null, sort_order: 1 },
+  { id: 'drink-sub', name: 'Es Teh', slug: 'es-teh', parent_id: 'drink-root', icon: null, sort_order: 1 },
   { id: 'shop', name: 'Belanja', slug: 'belanja', parent_id: null, icon: null, sort_order: 2 },
   { id: 'grocery', name: 'Sembako', slug: 'sembako', parent_id: 'shop', icon: null, sort_order: 1 },
   { id: 'crafts', name: 'Kerajinan', slug: 'kerajinan', parent_id: null, icon: null, sort_order: 3 },
@@ -51,6 +54,21 @@ describe('groupNewestProductsByCategory', () => {
 
     expect(rows.map((row) => row.id)).toEqual(['shopping', 'crafts-sub']);
     expect(rows[1].slug).toBe('anyaman');
+  });
+
+  it('filters the admin-managed Makanan and Minuman trees and orders matches newest first', () => {
+    const foodDrinkProducts = [
+      { id: 'old-drink', category: 'es-teh', categoryId: 'drink-sub', createdAt: '2026-10-01T10:00:00.000Z' },
+      { id: 'new-food', category: 'nasi-dan-mi', categoryId: 'rice', createdAt: '2026-10-13T10:00:00.000Z' },
+      { id: 'new-drink', category: 'es-teh', categoryId: 'drink-sub', createdAt: '2026-10-14T10:00:00.000Z' },
+      { id: 'legacy-drink', category: 'es-teh', categoryId: null, createdAt: '2026-10-12T10:00:00.000Z' },
+      { id: 'stale-id', category: 'minuman', categoryId: 'grocery', createdAt: '2026-10-15T10:00:00.000Z' },
+    ];
+
+    expect(selectNewestFoodDrinkProducts(foodDrinkProducts, categories, 'makanan').map(({ id }) => id)).toEqual(['new-food']);
+    expect(selectNewestFoodDrinkProducts(foodDrinkProducts, categories, 'minuman').map(({ id }) => id)).toEqual([
+      'new-drink', 'legacy-drink', 'old-drink',
+    ]);
   });
 
   it('keeps the Belanja category visible when there are no products in the fourteen-day candidate set', () => {

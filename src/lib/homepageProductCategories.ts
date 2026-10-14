@@ -90,6 +90,40 @@ function getFoodCategorySlugs(categories: ProductCategory[], foodIds: ReadonlySe
   ]);
 }
 
+function getCategorySubtreeFilter(categories: ProductCategory[], slug: string) {
+  const categoryIds = new Set<string>();
+  categories
+    .filter((category) => normalizeSlug(category.slug) === slug)
+    .forEach((root) => {
+      categoryIds.add(root.id);
+      getCategoryDescendantIds(categories, root.id).forEach((id) => categoryIds.add(id));
+    });
+
+  return {
+    categoryIds,
+    categorySlugs: new Set([...getSlugsForCategoryIds(categories, categoryIds), slug]),
+  };
+}
+
+/** Selects the newest products under an active Makanan or Minuman category tree. */
+export function selectNewestFoodDrinkProducts<T extends CategorizedProduct>(
+  products: T[],
+  categories: ProductCategory[],
+  type: 'makanan' | 'minuman',
+  limit = 4,
+): T[] {
+  if (limit <= 0) return [];
+  const filter = getCategorySubtreeFilter(categories, type);
+  return products
+    .filter((product) => matchesCategoryIds(product, filter.categoryIds, filter.categorySlugs))
+    .sort((a, b) => {
+      const aDate = Date.parse(a.createdAt || '');
+      const bDate = Date.parse(b.createdAt || '');
+      return (Number.isFinite(bDate) ? bDate : 0) - (Number.isFinite(aDate) ? aDate : 0);
+    })
+    .slice(0, limit);
+}
+
 function getShoppingCategorySlugsForRows(
   categories: ProductCategory[],
   shoppingIds: ReadonlySet<string>,

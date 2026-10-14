@@ -25,7 +25,7 @@ import {
   selectShoppingProductsWithFallback,
   selectTopSellingProducts,
 } from '@/lib/homepageProducts';
-import { getShoppingCategoryQueryFilter, groupNewestProductsByCategory } from '@/lib/homepageProductCategories';
+import { getShoppingCategoryQueryFilter, groupNewestProductsByCategory, selectNewestFoodDrinkProducts } from '@/lib/homepageProductCategories';
 import { useHomepageLayout } from '@/hooks/useHomepageLayout';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { CarouselSkeleton, ProductGridSkeleton } from '@/components/home/HomeSkeletons';
@@ -52,6 +52,14 @@ interface HomepageFlashSaleRow {
   flash_price: number;
   end_time: string;
 }
+
+type NewestFoodDrinkFilter = 'all' | 'makanan' | 'minuman';
+
+const newestFoodDrinkFilterOptions: { value: NewestFoodDrinkFilter; label: string }[] = [
+  { value: 'all', label: 'Semua' },
+  { value: 'makanan', label: 'Makanan' },
+  { value: 'minuman', label: 'Minuman' },
+];
 
 function MerchantJoinCard({ onRetry }: { onRetry?: () => void }) {
   return (
@@ -84,6 +92,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [promoMaxDistance, setPromoMaxDistance] = useState('10');
   const [newestMaxDistance, setNewestMaxDistance] = useState('all');
+  const [newestFoodDrinkFilter, setNewestFoodDrinkFilter] = useState<NewestFoodDrinkFilter>('all');
   const [rotationBucket, setRotationBucket] = useState(() => getHomepageRotationBucket());
 
   useEffect(() => {
@@ -594,34 +603,56 @@ const Index = () => {
             </div>
             {newestProductRows.length > 0 ? (
               <div className="space-y-4">
-                {newestProductRows.map((row, rowIndex) => (
+                {newestProductRows.map((row, rowIndex) => {
+                  const visibleProducts = row.id === 'food-and-drinks' && newestFoodDrinkFilter !== 'all'
+                    ? selectNewestFoodDrinkProducts(newestProducts, activeProductCategories, newestFoodDrinkFilter)
+                    : row.products;
+                  const selectedCategorySlug = row.id === 'food-and-drinks' && newestFoodDrinkFilter !== 'all'
+                    ? newestFoodDrinkFilter
+                    : row.slug;
+                  const categoryHref = selectedCategorySlug === 'all'
+                    ? '/products'
+                    : `/products?type=${encodeURIComponent(selectedCategorySlug)}`;
+                  return (
                   <section
                     key={row.id}
                     className={rowIndex > 0 ? 'border-t border-border/60 pt-3' : undefined}
                     aria-labelledby={`newest-category-title-${row.id}`}
                     data-testid={`newest-category-row-${row.id}`}
                   >
-                    <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="mb-2 space-y-2">
                       <h3
                         id={`newest-category-title-${row.id}`}
                         className="min-w-0 truncate text-sm font-bold text-foreground"
                       >
                         {row.label}
                       </h3>
-                      <Link
-                        to={row.slug === 'all' ? '/products' : `/products?type=${encodeURIComponent(row.slug)}`}
-                        className="flex shrink-0 items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
-                        data-testid={`link-newest-category-${row.id}`}
-                      >
-                        Lihat semua <ChevronRight className="h-3 w-3" />
-                      </Link>
+                      {row.id === 'food-and-drinks' && (
+                        <div role="group" aria-label="Filter kategori makanan dan minuman" className="flex flex-wrap gap-1.5">
+                          {newestFoodDrinkFilterOptions.map((option) => {
+                            const selected = newestFoodDrinkFilter === option.value;
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                aria-pressed={selected}
+                                data-testid={`newest-food-drink-filter-${option.value}`}
+                                onClick={() => setNewestFoodDrinkFilter(option.value)}
+                                className={`rounded-full border px-3 py-1 text-[10px] font-semibold transition-colors ${selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-white text-muted-foreground hover:bg-muted'}`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                     <div
                       className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 hide-scrollbar"
                       aria-label={`Produk terbaru kategori ${row.label}`}
                       data-testid={`list-newest-products-${row.id}`}
                     >
-                      {row.products.length > 0 ? row.products.map((product, idx) => (
+                      {visibleProducts.length > 0 ? visibleProducts.map((product, idx) => (
                         <div
                           key={product.id}
                           className="w-[48%] shrink-0 snap-start sm:w-[32%]"
@@ -636,7 +667,11 @@ const Index = () => {
                             deliveryEta={getDeliveryEta(getProductDistance(product))}
                           />
                         </div>
-                      )) : row.id === 'shopping' && shoppingCategoryCandidatesLoading ? (
+                      )) : row.id === 'food-and-drinks' && newestFoodDrinkFilter !== 'all' ? (
+                        <div className="flex min-h-16 w-full items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" role="status" aria-live="polite" data-testid={`newest-category-filter-empty-${newestFoodDrinkFilter}`}>
+                          Belum ada produk {newestFoodDrinkFilter === 'makanan' ? 'makanan' : 'minuman'} terbaru yang bisa ditampilkan.
+                        </div>
+                      ) : row.id === 'shopping' && shoppingCategoryCandidatesLoading ? (
                         <div className="flex min-h-16 w-full items-center justify-center rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 text-center text-xs text-muted-foreground" data-testid={`newest-category-loading-${row.id}`}>
                           Memeriksa produk Belanja terbaru...
                         </div>
@@ -651,8 +686,18 @@ const Index = () => {
                         </div>
                       )}
                     </div>
+                    <div className="mt-1 flex justify-end">
+                      <Link
+                        to={categoryHref}
+                        className="flex shrink-0 items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
+                        data-testid={`link-newest-category-${row.id}`}
+                      >
+                        Lihat semua <ChevronRight className="h-3 w-3" />
+                      </Link>
+                    </div>
                   </section>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/70 px-5 py-6 text-center">
