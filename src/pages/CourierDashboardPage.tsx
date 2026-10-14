@@ -625,7 +625,7 @@ export default function CourierDashboardPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3 rounded-xl border bg-muted/30 p-4 text-sm">
-                <p className="font-medium">Jangan keluar atau force close aplikasi SaDesa. Biarkan aplikasi tetap berjalan agar koneksi order dan pembaruan lokasi tetap aktif.</p>
+                <p className="font-medium">Jangan tutup aplikasi SaDesa selama status Anda online. Jangan keluar atau force close aplikasi. Biarkan aplikasi tetap terbuka dan berjalan agar order masuk serta pembaruan lokasi tetap aktif.</p>
                 <p className="text-muted-foreground">Notifikasi Web Push VAPID dapat membantu saat aplikasi berada di latar belakang, jika izin browser/perangkat aktif. Pengiriman di latar belakang bergantung pada browser dan pengaturan perangkat, jadi cara paling andal adalah tetap membuka aplikasi.</p>
                 <p className="text-muted-foreground">Pastikan koneksi internet, GPS/lokasi, dan izin notifikasi aktif. Jika belum mengizinkan notifikasi, browser akan meminta izin saat Anda menekan “Aktifkan Online”.</p>
               </div>

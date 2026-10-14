@@ -50,7 +50,8 @@ describe('courier background alarm contract', () => {
 
   it('explains that couriers should keep the app running before going online and requests push permission from the confirmation action', () => {
     expect(courierDashboard).toContain('setOnlineConfirmationOpen(true)');
-    expect(courierDashboard).toContain('jangan keluar atau force close aplikasi SaDesa');
+    expect(courierDashboard).toContain('Jangan tutup aplikasi SaDesa selama status Anda online');
+    expect(courierDashboard).toContain('Jangan keluar atau force close aplikasi');
     expect(courierDashboard).toContain('Web Push VAPID');
     expect(courierDashboard).toContain('const permissionRequest = requestPushPermission()');
     expect(courierDashboard).toContain('Saya paham, aktifkan online');
