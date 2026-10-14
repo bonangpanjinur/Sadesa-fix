@@ -24,6 +24,8 @@ import { getRoadRoute, type RoadRoute } from '@/lib/routeCalculation';
 import { GoogleRideMap } from '@/components/transport/GoogleRideMap';
 import { NominatimAddressInput } from '@/components/transport/NominatimAddressInput';
 import { requestRequiredLocation } from '@/lib/requiredLocation';
+import { Textarea } from '@/components/ui/textarea';
+import { normalizeRidePickupLandmark, RIDE_PICKUP_LANDMARK_MAX_LENGTH } from '@/lib/ridePickupLandmark';
 
 interface FareSettings { base_fare: number; per_km_fare: number; min_fare: number; max_fare: number; }
 const DEFAULT_FARE: FareSettings = { base_fare: 5000, per_km_fare: 3000, min_fare: 5000, max_fare: 100000 };
@@ -49,6 +51,8 @@ export default function RideBookingPage() {
   const [fareSettings, setFareSettings] = useState<FareSettings>(DEFAULT_FARE);
   const [submitting, setSubmitting] = useState(false);
   const [gettingGps, setGettingGps] = useState(false);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [pickupLandmark, setPickupLandmark] = useState('');
   const [drivers, setDrivers] = useState<DriverMarker[]>([]);
   const [driversLoading, setDriversLoading] = useState(true);
   const [mapCenter] = useState<[number, number]>([-7.3274, 108.2207]);
@@ -106,11 +110,16 @@ export default function RideBookingPage() {
   }, []);
 
   const handleGps = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast({ title: 'GPS tidak tersedia', description: 'Perangkat atau browser ini tidak menyediakan akses lokasi.', variant: 'destructive' });
+      return;
+    }
     setGettingGps(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setPickupLocation(loc);
+        setGpsAccuracy(Math.round(pos.coords.accuracy));
         manualAddressRef.current.pickup = false;
         setGettingGps(false);
         setMode('destination');
@@ -125,7 +134,16 @@ export default function RideBookingPage() {
           setGeocoding(false);
         }
       },
-      () => { setGettingGps(false); },
+      (error) => {
+        setGettingGps(false);
+        toast({
+          title: 'Lokasi GPS belum tersedia',
+          description: error.code === error.PERMISSION_DENIED
+            ? 'Izinkan akses lokasi pada browser, lalu coba lagi.'
+            : 'Coba lagi di tempat terbuka dengan sinyal GPS yang lebih baik.',
+          variant: 'destructive',
+        });
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }, []);
@@ -168,6 +186,7 @@ export default function RideBookingPage() {
 
     if (mode === 'pickup') {
       setPickupLocation({ lat, lng });
+      setGpsAccuracy(null);
       setPickupAddress('Memuat alamat...');
       manualAddressRef.current.pickup = false;
     } else {
@@ -268,6 +287,11 @@ export default function RideBookingPage() {
 
   const handleSubmit = async () => {
     if (!user || !pickupLocation || !destLocation) return;
+    const normalizedLandmark = normalizeRidePickupLandmark(pickupLandmark);
+    if (!normalizedLandmark) {
+      toast({ title: 'Catatan patokan wajib diisi', description: 'Tuliskan patokan yang membantu driver menemukan titik jemput (3–240 karakter).', variant: 'destructive' });
+      return;
+    }
     setSubmitting(true);
     try {
       // Re-check immediately before creating the request (the page can stay open
@@ -293,14 +317,15 @@ export default function RideBookingPage() {
         toast({ title: 'GPS wajib diaktifkan', description: 'Aktifkan Lokasi untuk melanjutkan pemesanan ojek.', variant: 'destructive' });
         return;
       }
-      const { data, error } = await supabase.rpc('create_ride_request', {
+      const { data, error } = await supabase.rpc('create_ride_request_with_landmark' as never, {
         p_pickup_lat: pickupLocation.lat,
         p_pickup_lng: pickupLocation.lng,
         p_pickup_address: pickupAddress || 'Titik jemput',
         p_destination_lat: destLocation.lat,
         p_destination_lng: destLocation.lng,
         p_destination_address: destAddress || 'Titik tujuan',
-      });
+        p_pickup_landmark: normalizedLandmark,
+      } as never);
       if (error) throw error;
       toast({
         title: 'Mencari ojek terdekat...',
@@ -315,8 +340,10 @@ export default function RideBookingPage() {
       if (/already has an active ride/i.test(errorMessage)) {
         void checkActiveRide();
         toast({ title: 'Anda sudah memiliki perjalanan aktif', description: 'Buka perjalanan yang sedang berjalan sebelum memesan ojek lagi.', variant: 'destructive' });
+      } else if (/create_ride_request_with_landmark|function .* does not exist|schema cache/i.test(errorMessage)) {
+        toast({ title: 'Pembaruan database diperlukan', description: 'Fitur catatan patokan jemput belum aktif di database layanan. Minta administrator menerapkan migration Ojek terbaru.', variant: 'destructive' });
       } else {
-        toast({ title: 'Gagal memesan ojek', variant: 'destructive' });
+        toast({ title: 'Gagal memesan ojek', description: errorMessage || 'Periksa koneksi dan coba lagi.', variant: 'destructive' });
       }
     } finally {
       setSubmitting(false);
@@ -325,6 +352,7 @@ export default function RideBookingPage() {
   };
 
   const canOrder = !!pickupLocation && !!destLocation && distanceKm > 0.05
+    && !!normalizeRidePickupLandmark(pickupLandmark)
     && activeRideCheckStatus === 'ready' && !activeRide;
 
   return (
@@ -380,7 +408,7 @@ export default function RideBookingPage() {
         </div>
       )}
 
-      {/* Fullscreen Google map */}
+      {/* Fullscreen OpenStreetMap */}
       <div className="flex-1 relative z-0">
         <GoogleRideMap
           center={{ lat: mapCenter[0], lng: mapCenter[1] }}
@@ -442,7 +470,7 @@ export default function RideBookingPage() {
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="relative z-10 bg-card border-t border-border rounded-t-2xl shadow-lg px-4 pt-4 pb-6 space-y-3"
+          className="relative z-10 max-h-[52dvh] overflow-y-auto overscroll-contain bg-card border-t border-border rounded-t-2xl shadow-lg px-4 pt-4 pb-6 space-y-3"
         >
           {/* Address inputs are intentionally independent from the map-mode controls. */}
           <div className="space-y-2">
@@ -457,12 +485,14 @@ export default function RideBookingPage() {
                 onFocus={() => setMode('pickup')}
                 onChange={(value) => {
                   manualAddressRef.current.pickup = true;
+                  setGpsAccuracy(null);
                   setPickupLocation(null);
                   setPickupAddress(value);
                 }}
                 className="relative z-10 h-auto min-w-0 border-0 bg-transparent p-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
                 onPlaceSelected={({ address, location }) => {
                   manualAddressRef.current.pickup = false;
+                  setGpsAccuracy(null);
                   setPickupAddress(address);
                   setPickupLocation(location);
                   setMode('destination');
@@ -494,8 +524,26 @@ export default function RideBookingPage() {
           </div>
           <p className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
             <MapPin className="h-3 w-3 text-primary" />
-            Ketuk peta atau ketik alamat.
+            Ketuk peta atau ketik alamat. {gpsAccuracy != null && `Akurasi GPS ±${gpsAccuracy} m.`}
           </p>
+          <div className="space-y-1.5">
+            <label htmlFor="ride-pickup-landmark" className="text-xs font-semibold text-foreground">
+              Catatan / patokan rumah <span className="text-destructive"> wajib</span>
+            </label>
+            <Textarea
+              id="ride-pickup-landmark"
+              value={pickupLandmark}
+              onChange={(event) => setPickupLandmark(event.target.value)}
+              placeholder="Contoh: depan Madrasah Al-Barokah, pagar biru"
+              maxLength={RIDE_PICKUP_LANDMARK_MAX_LENGTH}
+              rows={2}
+              required
+              aria-describedby="ride-pickup-landmark-help"
+            />
+            <p id="ride-pickup-landmark-help" className="text-[10px] text-muted-foreground">
+              Bantu driver menemukan titik persis di gang atau sekitar rumah Anda. {pickupLandmark.length}/{RIDE_PICKUP_LANDMARK_MAX_LENGTH}
+            </p>
+          </div>
 
           {/* Fare estimation + Order */}
           {canOrder && (
@@ -525,7 +573,8 @@ export default function RideBookingPage() {
                activeRideCheckStatus === 'error' ? 'Perbaiki koneksi lalu coba periksa kembali sebelum memesan' :
                activeRide ? 'Perjalanan aktif sedang berjalan; buka banner di atas untuk melihat statusnya' :
                !pickupLocation ? 'Pilih titik jemput di peta atau gunakan GPS' :
-               !destLocation ? 'Tap peta untuk pilih tujuan' : 'Jarak terlalu dekat'}
+               !destLocation ? 'Tap peta untuk pilih tujuan' :
+               !normalizeRidePickupLandmark(pickupLandmark) ? 'Isi catatan patokan jemput (minimal 3 karakter)' : 'Jarak terlalu dekat'}
             </p>
           )}
         </motion.div>
@@ -557,6 +606,7 @@ export default function RideBookingPage() {
                     <div>
                       <p className="text-xs text-muted-foreground">Jemput</p>
                       <p className="font-medium text-foreground">{pickupAddress}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Patokan: {normalizeRidePickupLandmark(pickupLandmark)}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">

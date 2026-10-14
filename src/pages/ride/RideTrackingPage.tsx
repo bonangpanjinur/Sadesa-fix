@@ -37,6 +37,7 @@ interface RideData {
   id: string;
   status: string;
   pickup_address: string;
+  pickup_landmark: string | null;
   destination_address: string;
   pickup_lat: number;
   pickup_lng: number;
@@ -416,6 +417,7 @@ export default function RideTrackingPage() {
               <div>
                 <p className="text-xs text-muted-foreground">Jemput</p>
                 <p className="text-sm font-medium">{ride.pickup_address}</p>
+                {ride.pickup_landmark && <p className="mt-1 text-xs text-muted-foreground">Patokan rumah: {ride.pickup_landmark}</p>}
               </div>
             </div>
             <div className="ml-1.5 border-l-2 border-dashed border-border h-4" />
