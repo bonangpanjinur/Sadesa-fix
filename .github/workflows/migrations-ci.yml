@@ -195,6 +195,15 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Replay migrations (idempotency gate)
+        run: |
+          set -euo pipefail
+          for f in $(ls "$MIG_DIR"/*.sql | sort); do
+            echo "::group::Replay $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+            echo "::endgroup::"
+          done
+
       - name: Regression test — buyer and courier ride RLS
         run: psql -v ON_ERROR_STOP=1 -f scripts/ride-rls-smoke.sql
 

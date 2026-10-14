@@ -28,7 +28,8 @@
     "deploy:staging:db": "bash scripts/deploy-supabase-staging.sh",
     "audit:rls": "python3 scripts/audit-rls-static.py",
     "check:production-env": "bash scripts/check-production-env.sh",
-    "load:test:staging": "bash scripts/load-test-staging.sh"
+    "load:test:staging": "bash scripts/load-test-staging.sh",
+    "validate:change-safety": "bash scripts/validate-change-safety.sh"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.1.1",

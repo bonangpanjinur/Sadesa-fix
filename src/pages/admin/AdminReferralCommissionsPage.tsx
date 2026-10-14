@@ -30,9 +30,9 @@ export default function AdminReferralCommissionsPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     const [settingsResult, payoutsResult, ledgerResult] = await Promise.all([
-      (supabase as any).from('merchant_referral_commission_settings').select('*').order('owner_role'),
-      (supabase as any).from('merchant_referral_payout_requests').select('*').order('created_at', { ascending: false }).limit(200),
-      (supabase as any).from('merchant_referral_commission_ledger').select('*').order('created_at', { ascending: false }).limit(100),
+      supabase.from('merchant_referral_commission_settings' as never).select('*').order('owner_role'),
+      supabase.from('merchant_referral_payout_requests' as never).select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('merchant_referral_commission_ledger' as never).select('*').order('created_at', { ascending: false }).limit(100),
     ]);
     const nextSettings = (settingsResult.data || []) as Setting[];
     const hasBothSettings = (['VERIFIKATOR', 'ADMIN_DESA'] as Role[]).every(role => nextSettings.some(item => item.owner_role === role));
@@ -59,7 +59,7 @@ export default function AdminReferralCommissionsPage() {
     const rate = Number(percentages[role]);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) return toast.error('Tarif harus antara 0 sampai 100 persen');
     setBusy(`setting-${role}`);
-    const { error } = await (supabase as any).from('merchant_referral_commission_settings').update({ commission_percent: rate, is_enabled: enabled[role], updated_by: (await supabase.auth.getUser()).data.user?.id ?? null, updated_at: new Date().toISOString() }).eq('owner_role', role);
+    const { error } = await supabase.from('merchant_referral_commission_settings' as never).update({ commission_percent: rate, is_enabled: enabled[role], updated_by: (await supabase.auth.getUser()).data.user?.id ?? null, updated_at: new Date().toISOString() }).eq('owner_role', role);
     setBusy(null);
     if (error) return toast.error(error.message);
     toast.success(`Pengaturan ${role === 'VERIFIKATOR' ? 'verifikator' : 'admin desa'} disimpan`); await loadData();
@@ -68,12 +68,12 @@ export default function AdminReferralCommissionsPage() {
     if (status === 'PAID' && !references[item.id]?.trim()) return toast.error('Masukkan referensi transfer sebelum menandai dibayar');
     if (status === 'PAID' && !window.confirm(`Konfirmasi payout ${money(item.amount_rupiah)} ke ${item.bank_name} ${item.account_number} a.n. ${item.account_holder}, referensi ${references[item.id]?.trim()}?`)) return;
     setBusy(item.id);
-    const { error } = await (supabase as any).rpc('process_merchant_referral_payout', {
+    const { error } = await supabase.rpc('process_merchant_referral_payout' as never, {
       p_request_id: item.id,
       p_status: status,
       p_admin_notes: notes[item.id] || null,
       p_payout_reference: status === 'PAID' ? references[item.id]?.trim() : null,
-    });
+    } as never);
     setBusy(null);
     if (error) return toast.error(error.message);
     toast.success(status === 'PAID' ? 'Payout ditandai sudah dibayar' : status === 'APPROVED' ? 'Permintaan disetujui' : 'Permintaan ditolak'); await loadData();

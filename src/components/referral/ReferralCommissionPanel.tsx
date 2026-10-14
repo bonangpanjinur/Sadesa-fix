@@ -38,11 +38,11 @@ export function ReferralCommissionPanel({ ownerRole }: { ownerRole: OwnerRole })
     if (!user?.id) return;
     setLoading(true);
     const [summaryResult, codeResult, ledgerResult, payoutResult, merchantsResult] = await Promise.all([
-      (supabase as any).rpc('get_merchant_referral_commission_summary', { p_owner_role: ownerRole }),
-      (supabase as any).from('merchant_referral_codes').select('id,code,description,is_active,usage_count,max_usage,created_at').eq('owner_user_id', user.id).eq('owner_role', ownerRole).order('created_at', { ascending: false }),
-      (supabase as any).from('merchant_referral_commission_ledger').select('id,entry_type,amount_rupiah,fee_collected_base_rupiah,commission_percent,release_at,note,created_at').eq('owner_user_id', user.id).eq('owner_role', ownerRole).order('created_at', { ascending: false }).limit(50),
-      (supabase as any).from('merchant_referral_payout_requests').select('id,amount_rupiah,bank_name,account_number,account_holder,status,admin_notes,payout_reference,created_at').eq('owner_user_id', user.id).eq('owner_role', ownerRole).order('created_at', { ascending: false }).limit(20),
-      (supabase as any).rpc('get_merchant_referral_merchants', { p_owner_role: ownerRole }),
+      supabase.rpc('get_merchant_referral_commission_summary' as never, { p_owner_role: ownerRole } as never),
+      supabase.from('merchant_referral_codes' as never).select('id,code,description,is_active,usage_count,max_usage,created_at').eq('owner_user_id', user.id).eq('owner_role', ownerRole).order('created_at', { ascending: false }),
+      supabase.from('merchant_referral_commission_ledger' as never).select('id,entry_type,amount_rupiah,fee_collected_base_rupiah,commission_percent,release_at,note,created_at').eq('owner_user_id', user.id).eq('owner_role', ownerRole).order('created_at', { ascending: false }).limit(50),
+      supabase.from('merchant_referral_payout_requests' as never).select('id,amount_rupiah,bank_name,account_number,account_holder,status,admin_notes,payout_reference,created_at').eq('owner_user_id', user.id).eq('owner_role', ownerRole).order('created_at', { ascending: false }).limit(20),
+      supabase.rpc('get_merchant_referral_merchants' as never, { p_owner_role: ownerRole } as never),
     ]);
     if (summaryResult.error) toast.error(summaryResult.error.message);
     setSummary((summaryResult.data || null) as Summary | null);
@@ -57,13 +57,13 @@ export function ReferralCommissionPanel({ ownerRole }: { ownerRole: OwnerRole })
   const createCode = async () => {
     if (!code.trim()) return toast.error('Isi kode referral terlebih dahulu');
     setSaving(true);
-    const { error } = await (supabase as any).rpc('create_admin_desa_referral_code', { p_code: code.trim().toUpperCase(), p_description: description.trim() || null });
+    const { error } = await supabase.rpc('create_admin_desa_referral_code' as never, { p_code: code.trim().toUpperCase(), p_description: description.trim() || null } as never);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success('Kode referral admin desa berhasil dibuat'); setCode(''); setDescription(''); await refresh();
   };
   const toggleCode = async (item: ReferralCode) => {
-    const { error } = await (supabase as any).from('merchant_referral_codes').update({ is_active: !item.is_active }).eq('id', item.id).eq('owner_user_id', user?.id);
+    const { error } = await supabase.from('merchant_referral_codes' as never).update({ is_active: !item.is_active }).eq('id', item.id).eq('owner_user_id', user?.id);
     if (error) return toast.error(error.message);
     toast.success(item.is_active ? 'Kode dinonaktifkan' : 'Kode diaktifkan'); await refresh();
   };
@@ -71,10 +71,10 @@ export function ReferralCommissionPanel({ ownerRole }: { ownerRole: OwnerRole })
     const numericAmount = Math.floor(Number(amount));
     if (!numericAmount || numericAmount < 10000) return toast.error('Minimum penarikan Rp10.000');
     setSaving(true);
-    const { error } = await (supabase as any).rpc('create_merchant_referral_payout_request', {
+    const { error } = await supabase.rpc('create_merchant_referral_payout_request' as never, {
       p_owner_role: ownerRole, p_amount_rupiah: numericAmount, p_bank_name: bankName,
       p_account_number: accountNumber, p_account_holder: accountHolder,
-    });
+    } as never);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success('Permintaan payout dikirim untuk ditinjau admin');

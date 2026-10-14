@@ -407,7 +407,7 @@ export default function RegisterMerchantPage() {
     }
     setReferralInfo(prev => ({ ...prev, isLoading: true }));
     try {
-      const { data, error } = await (supabase as any).rpc('check_merchant_referral_code', { p_code: code.toUpperCase() });
+      const { data, error } = await supabase.rpc('check_merchant_referral_code' as never, { p_code: code.toUpperCase() } as never);
       if (requestId !== referralValidationRequestRef.current) return;
       const result = data as { valid?: boolean; owner_role?: string } | null;
       if (error || result?.valid !== true) {
