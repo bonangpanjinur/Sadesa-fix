@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 322,
-  "bundle_count": 116,
+  "migration_count": 323,
+  "bundle_count": 117,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1137,6 +1137,13 @@
       ],
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
+    },
+    {
+      "file": "117_20261014093000_to_20261014093000.sql",
+      "source_files": [
+        "20261014093000_repair_checkout_item_normalizer.sql"
+      ],
+      "sha256": "0619a63e7d52a4ab0e9d509abe7e396c1b12f929c3bc21186eaee5b6895836a2"
     }
   ]
 }

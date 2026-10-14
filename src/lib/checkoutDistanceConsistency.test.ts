@@ -19,6 +19,10 @@ const currentPricingMigration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/20261013054500_checkout_p1_item_normalization_shipping_contracts.sql'),
   'utf8',
 );
+const normalizerRepairMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20261014093000_repair_checkout_item_normalizer.sql'),
+  'utf8',
+);
 
 describe('checkout shipping distance consistency contract', () => {
   it('requests a server quote and renders its authoritative amounts', () => {
@@ -54,6 +58,12 @@ describe('checkout shipping distance consistency contract', () => {
     expect(p1Migration).toContain('public.normalize_marketplace_checkout_items(p_items)');
     expect(p1Migration).toContain('reserve_marketplace_stock_unaggregated');
     expect(p1Migration).toContain('reserve_marketplace_stock_guest_unaggregated');
+  });
+
+  it('ships a repair for databases where the quote RPC exists without its normalizer dependency', () => {
+    expect(normalizerRepairMigration).toContain('CREATE OR REPLACE FUNCTION public.normalize_marketplace_checkout_items');
+    expect(normalizerRepairMigration).toContain('jsonb_to_recordset(p_items)');
+    expect(normalizerRepairMigration).toContain('REVOKE ALL ON FUNCTION public.normalize_marketplace_checkout_items(jsonb)');
   });
 
   it('routes the quote and both checkout creation paths through one shipping contract calculator', () => {
