@@ -23,6 +23,10 @@ const normalizerRepairMigration = readFileSync(
   resolve(process.cwd(), 'supabase/migrations/20261014093000_repair_checkout_item_normalizer.sql'),
   'utf8',
 );
+const shippingColumnsRepairMigration = readFileSync(
+  resolve(process.cwd(), 'supabase/migrations/20261014104000_repair_checkout_shipping_columns.sql'),
+  'utf8',
+);
 
 describe('checkout shipping distance consistency contract', () => {
   it('requests a server quote and renders its authoritative amounts', () => {
@@ -64,6 +68,12 @@ describe('checkout shipping distance consistency contract', () => {
     expect(normalizerRepairMigration).toContain('CREATE OR REPLACE FUNCTION public.normalize_marketplace_checkout_items');
     expect(normalizerRepairMigration).toContain('jsonb_to_recordset(p_items)');
     expect(normalizerRepairMigration).toContain('REVOKE ALL ON FUNCTION public.normalize_marketplace_checkout_items(jsonb)');
+  });
+
+  it('repairs the orders and products columns required by the shipping contract RPCs', () => {
+    expect(shippingColumnsRepairMigration).toContain('ADD COLUMN IF NOT EXISTS shipping_pricing_contract jsonb');
+    expect(shippingColumnsRepairMigration).toContain('ADD COLUMN IF NOT EXISTS merchant_delivery_fee_contract text');
+    expect(shippingColumnsRepairMigration).toContain('ADD COLUMN IF NOT EXISTS shipping_weight_kg numeric');
   });
 
   it('routes the quote and both checkout creation paths through one shipping contract calculator', () => {
