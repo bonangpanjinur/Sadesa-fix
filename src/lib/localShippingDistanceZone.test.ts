@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20261013183000_local_shipping_distance_zone_surcharge.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/112_20261013183000_local_shipping_distance_zone_surcharge.sql'),
   'utf8',
 );
 const validationMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20261013210000_validate_shipping_settings_and_snapshot_courier_fees.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/113_20261013210000_validate_shipping_settings_and_snapshot_courier_fees.sql'),
   'utf8',
 );
 const checkout = readFileSync(resolve(process.cwd(), 'src/pages/CheckoutPage.tsx'), 'utf8');

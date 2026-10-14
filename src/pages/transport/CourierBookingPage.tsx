@@ -141,7 +141,8 @@ export default function CourierBookingPage() {
   const straightLineDistanceKm = pickupLocation && destinationLocation
     ? haversineDistance(pickupLocation, destinationLocation)
     : 0;
-  const distanceKm = roadRoute?.distanceKm ?? straightLineDistanceKm;
+  // Server pricing uses Haversine; OSRM remains presentation-only for map/ETA.
+  const distanceKm = straightLineDistanceKm;
 
   const routePoints = useMemo(
     () => roadRoute?.geometry.length
@@ -340,11 +341,14 @@ export default function CourierBookingPage() {
         },
       } as never);
       if (error) throw error;
-      const result = data as { order_id?: string; dispatch_status?: string } | null;
+      const result = data as { order_id?: string; dispatch_status?: string; shipping_cost?: number } | null;
       if (!result?.order_id) throw new Error('Order kurir tidak terbentuk');
+      const authoritativeShippingCost = result.shipping_cost == null ? Number.NaN : Number(result.shipping_cost);
       toast({
         title: 'Pesanan kurir dibuat',
-        description: result.dispatch_status === 'OFFERED' ? 'Mencari kurir terdekat.' : 'Pesanan menunggu kurir yang tersedia.',
+        description: Number.isFinite(authoritativeShippingCost)
+          ? `Ongkos final server: Rp${authoritativeShippingCost.toLocaleString('id-ID')}. ${result.dispatch_status === 'OFFERED' ? 'Mencari kurir terdekat.' : 'Pesanan menunggu kurir yang tersedia.'}`
+          : (result.dispatch_status === 'OFFERED' ? 'Mencari kurir terdekat.' : 'Pesanan menunggu kurir yang tersedia.'),
       });
       navigate(`/orders/${result.order_id}/tracking`);
     } catch (error) {

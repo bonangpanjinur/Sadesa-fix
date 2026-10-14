@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 const migration = readFileSync(resolve(
   process.cwd(),
-  'supabase/migrations/20261014113000_enforce_marketplace_checkout_payment_and_phone.sql',
+  'supabase/bootstrap/119_20261014113000_to_20261014113000.sql',
 ), 'utf8');
 
 const bootstrap = readFileSync(resolve(

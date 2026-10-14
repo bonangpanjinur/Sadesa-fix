@@ -2,7 +2,7 @@
   "idempotent": true,
   "source": "archive/supabase/migrations",
   "migration_count": 277,
-  "bundle_count": 126,
+  "bundle_count": 127,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1215,6 +1215,14 @@
       ],
       "sha256": "a66e55035c4d0a9d61a84ef89a0bbf72dd5bd2a8cffa8ff2b6c5bc1f09dd69a5",
       "bytes": 2562
+    },
+    {
+      "file": "127_20261014200000_payment_fare_hardening.sql",
+      "source_files": [
+        "127_20261014200000_payment_fare_hardening.sql"
+      ],
+      "sha256": "e2bf8636c8752404073f4de53ee3af6883be01f3d9208633435fceef11640b1c",
+      "bytes": 19727
     }
   ]
 }

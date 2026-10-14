@@ -9,7 +9,7 @@ const pricingMigration = readFileSync(
   'utf8',
 );
 const authoritativeMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20261014090000_checkout_authoritative_create_and_line_quotes.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/115_20261014090000_to_20261014090000.sql'),
   'utf8',
 );
 const authoritativeBootstrap = readFileSync(
@@ -46,8 +46,8 @@ describe('checkout P2 readiness and presentation contracts', () => {
 
   it('shows a waiting-for-instructions state instead of telling buyers to pay without merchant details', () => {
     expect(paymentPage).toContain('Menunggu instruksi pembayaran');
-    expect(paymentPage).toContain('!isPaymentComplete && !hasPaymentInstructions');
-    expect(paymentPage).toContain('!isPaymentComplete && hasPaymentInstructions && <motion.div');
+    expect(paymentPage).toContain('!isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions');
+    expect(paymentPage).toContain('!isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div');
   });
 
   it('clears purchased cart lines before redirecting to a successful online invoice', () => {

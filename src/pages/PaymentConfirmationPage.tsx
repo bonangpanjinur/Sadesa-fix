@@ -30,6 +30,7 @@ interface OrderInfo {
   merchant_name?: string;
   payment_proof_url?: string | null;
   confirmation_deadline?: string | null;
+  payment_destination_snapshot?: Record<string, unknown> | null;
 }
 
 export default function PaymentConfirmationPage() {
@@ -44,14 +45,13 @@ export default function PaymentConfirmationPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const loadOrderAndPaymentInfo = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
+  const loadOrderAndPaymentInfo = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    if (showLoading) setLoadError(null);
     try {
       if (!orderId) return;
       let orderData: OrderInfo | null = null;
-      let merchantData: { name?: string; bank_name?: string; bank_account_number?: string; bank_account_name?: string; qris_image_url?: string | null } | null = null;
-      let adminSettings: { value?: unknown } | null = null;
+      let paymentDestination: Record<string, unknown> = {};
 
       if (!user && guestToken) {
         const { data, error } = await supabase.rpc('get_guest_order_payment_context' as never, {
@@ -61,52 +61,58 @@ export default function PaymentConfirmationPage() {
         if (error || !data) throw new Error('Pesanan guest tidak ditemukan atau link sudah kedaluwarsa');
         const context = data as OrderInfo & { bank_name?: string; bank_account_number?: string; bank_account_name?: string; qris_image_url?: string | null };
         orderData = context;
-        merchantData = context;
+        paymentDestination = {
+          merchant_name: context.merchant_name,
+          bank_name: context.bank_name,
+          bank_account_number: context.bank_account_number,
+          bank_account_name: context.bank_account_name,
+          qris_image_url: context.qris_image_url,
+        };
       } else if (user) {
         const result = await supabase
           .from('orders')
-          .select('id, total, payment_method, payment_status, merchant_id, created_at, payment_proof_url, confirmation_deadline')
+          .select('id, total, payment_method, payment_status, merchant_id, created_at, payment_proof_url, confirmation_deadline, payment_destination_snapshot' as never)
           .eq('id', orderId)
           .eq('buyer_id', user.id)
           .maybeSingle();
         if (result.error || !result.data) throw new Error('Pesanan tidak ditemukan');
-        orderData = result.data as OrderInfo;
-        const [{ data: merchant }, { data: settings }] = await Promise.all([
-          supabase.from('merchants').select('name, bank_name, bank_account_number, bank_account_name, qris_image_url').eq('id', orderData.merchant_id).maybeSingle(),
-          supabase.from('app_settings').select('value').eq('key', 'admin_payment_info').maybeSingle(),
-        ]);
-        merchantData = merchant;
-        adminSettings = settings;
+        orderData = result.data as unknown as OrderInfo;
+        paymentDestination = orderData.payment_destination_snapshot || {};
       } else {
         throw new Error('Link pembayaran tidak memiliki token guest');
       }
 
       if (!orderData) throw new Error('Pesanan tidak ditemukan');
-      setOrder({ ...orderData, merchant_name: merchantData?.name || orderData.merchant_name || 'Merchant' });
-
-      let bankName = merchantData?.bank_name || '';
-      let bankAccountNumber = merchantData?.bank_account_number || '';
-      let bankAccountName = merchantData?.bank_account_name || '';
-      let qrisImageUrl = merchantData?.qris_image_url || null;
-      if (!bankName || !bankAccountNumber) {
-        const adminPayment = (adminSettings?.value || {}) as Record<string, string>;
-        if (!bankName) bankName = adminPayment.bank_name || '';
-        if (!bankAccountNumber) bankAccountNumber = adminPayment.bank_account_number || '';
-        if (!bankAccountName) bankAccountName = adminPayment.bank_account_name || '';
-        if (!qrisImageUrl) qrisImageUrl = adminPayment.qris_image_url || null;
-      }
-      setPaymentInfo({ bankName, bankAccountNumber, bankAccountName, qrisImageUrl });
+      setOrder({ ...orderData, merchant_name: String(paymentDestination.merchant_name || orderData.merchant_name || 'Merchant') });
+      setPaymentInfo({
+        bankName: String(paymentDestination.bank_name || ''),
+        bankAccountNumber: String(paymentDestination.bank_account_number || ''),
+        bankAccountName: String(paymentDestination.bank_account_name || ''),
+        qrisImageUrl: typeof paymentDestination.qris_image_url === 'string' ? paymentDestination.qris_image_url : null,
+      });
     } catch (error) {
       console.error('Error loading payment info:', error);
-      setLoadError(error instanceof Error ? error.message : 'Data pembayaran tidak dapat dimuat');
+      if (showLoading) setLoadError(error instanceof Error ? error.message : 'Data pembayaran tidak dapat dimuat');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [orderId, user, guestToken]);
 
   useEffect(() => {
     if (!orderId || (!user && !guestToken)) return;
     void loadOrderAndPaymentInfo();
+    const refreshInterval = window.setInterval(() => void loadOrderAndPaymentInfo(false), 15000);
+    const channel = user
+      ? supabase.channel(`payment-order-${orderId}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, () => {
+          void loadOrderAndPaymentInfo(false);
+        })
+        .subscribe()
+      : null;
+    return () => {
+      window.clearInterval(refreshInterval);
+      if (channel) void supabase.removeChannel(channel);
+    };
   }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
 
   const handleCopyAccount = () => {
@@ -150,10 +156,12 @@ export default function PaymentConfirmationPage() {
   const paymentStatus = order.payment_status.toUpperCase();
   const isPaymentComplete = ['PAID', 'VERIFIED', 'COMPLETED', 'SUCCESS'].includes(paymentStatus);
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
+  const isPaymentExpired = paymentStatus === 'EXPIRED'
+    || Boolean(order.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now() && !isPaymentComplete);
   const hasPaymentInstructions = Boolean(
     (paymentInfo.bankName && paymentInfo.bankAccountNumber) || paymentInfo.qrisImageUrl,
   );
-  const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
+  const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
     <div className="mobile-shell bg-secondary flex flex-col min-h-screen">
@@ -178,12 +186,12 @@ export default function PaymentConfirmationPage() {
                   <p className="text-sm text-muted-foreground">Pesanan untuk</p>
                   <p className="font-bold">{order.merchant_name}</p>
                 </div>
-                <Badge variant={isPaymentComplete ? 'default' : isPaymentRejected ? 'destructive' : 'secondary'} className="flex items-center gap-1">
-                  {isPaymentComplete ? <CheckCircle className="h-3 w-3" /> : isPaymentRejected ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                <Badge variant={isPaymentComplete ? 'default' : (isPaymentRejected || isPaymentExpired) ? 'destructive' : 'secondary'} className="flex items-center gap-1">
+                  {isPaymentComplete ? <CheckCircle className="h-3 w-3" /> : (isPaymentRejected || isPaymentExpired) ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
                   {statusLabel}
                 </Badge>
               </div>
-              {order.confirmation_deadline && (
+              {order.confirmation_deadline && !isPaymentExpired && (
                 <PaymentCountdown deadline={order.confirmation_deadline} />
               )}
               <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
@@ -208,7 +216,16 @@ export default function PaymentConfirmationPage() {
           </Card>
         )}
 
-        {!isPaymentComplete && !hasPaymentInstructions && (
+        {isPaymentExpired && (
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="flex items-start gap-3 p-4 text-sm" role="status">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div><p className="font-bold">Batas pembayaran telah berakhir</p><p className="mt-1">Pesanan ini tidak lagi menerima bukti transfer. Silakan buat pesanan baru atau hubungi penjual.</p></div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions && (
           <Card className="border-amber-200 bg-amber-50/70">
             <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-950" role="status">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
@@ -221,7 +238,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* Bank Transfer Info */}
-        {!isPaymentComplete && paymentInfo.bankName && paymentInfo.bankAccountNumber && (
+        {!isPaymentComplete && !isPaymentExpired && paymentInfo.bankName && paymentInfo.bankAccountNumber && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
             <Card>
               <CardContent className="p-4">
@@ -263,7 +280,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* QRIS */}
-        {!isPaymentComplete && paymentInfo.qrisImageUrl && (
+        {!isPaymentComplete && !isPaymentExpired && paymentInfo.qrisImageUrl && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card>
               <CardContent className="p-4">
@@ -288,7 +305,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* Upload Bukti Pembayaran */}
-        {!isPaymentComplete && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        {!isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
@@ -302,14 +319,14 @@ export default function PaymentConfirmationPage() {
                 guestAccessToken={!user ? guestToken : undefined}
                 currentProofUrl={order.payment_proof_url}
                 isRejected={order.payment_status === 'FAILED'}
-                onUploaded={(url) => setOrder(prev => prev ? { ...prev, payment_proof_url: url, payment_status: 'PENDING_TRANSFER' } : prev)}
+                onUploaded={() => void loadOrderAndPaymentInfo(false)}
               />
             </CardContent>
           </Card>
         </motion.div>}
 
         {/* Instructions */}
-        {!isPaymentComplete && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        {!isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>

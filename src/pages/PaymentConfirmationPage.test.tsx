@@ -4,12 +4,14 @@ import { formatPrice } from '@/lib/utils';
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
+  channel: vi.fn(),
+  removeChannel: vi.fn(),
   navigate: vi.fn(),
   user: { id: 'buyer-1' },
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
-  supabase: { from: mocks.from, rpc: vi.fn() },
+  supabase: { from: mocks.from, rpc: vi.fn(), channel: mocks.channel, removeChannel: mocks.removeChannel },
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
@@ -38,6 +40,9 @@ import PaymentConfirmationPage from './PaymentConfirmationPage';
 
 describe('PaymentConfirmationPage authoritative order total', () => {
   beforeEach(() => {
+    const realtimeChannel = { on: vi.fn(), subscribe: vi.fn() };
+    realtimeChannel.on.mockReturnValue(realtimeChannel);
+    mocks.channel.mockReturnValue(realtimeChannel);
     mocks.from.mockImplementation((table: string) => {
       const result = table === 'orders'
         ? {

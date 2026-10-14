@@ -16,15 +16,15 @@ const p1Migration = readFileSync(
   'utf8',
 );
 const currentPricingMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20261013054500_checkout_p1_item_normalization_shipping_contracts.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/115_20261014090000_to_20261014090000.sql'),
   'utf8',
 );
 const normalizerRepairMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20261014093000_repair_checkout_item_normalizer.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/117_20261014093000_to_20261014093000.sql'),
   'utf8',
 );
 const shippingColumnsRepairMigration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/20261014104000_repair_checkout_shipping_columns.sql'),
+  resolve(process.cwd(), 'supabase/bootstrap/118_20261014104000_to_20261014104000.sql'),
   'utf8',
 );
 

@@ -244,7 +244,7 @@ export default function RideBookingPage() {
 
   const estimatedFare = Math.min(
     fareSettings.max_fare,
-    Math.max(fareSettings.min_fare, Math.round(fareSettings.base_fare + distanceKm * fareSettings.per_km_fare))
+    Math.max(fareSettings.min_fare, Math.round(fareSettings.base_fare + straightLineDistanceKm * fareSettings.per_km_fare))
   );
 
   const etaMinutes = roadRoute?.durationMinutes ?? (pickupLocation && destLocation
@@ -327,11 +327,18 @@ export default function RideBookingPage() {
         p_pickup_landmark: normalizedLandmark,
       } as never);
       if (error) throw error;
+      const rideId = String(data);
+      const { data: savedRide } = await supabase
+        .from('ride_requests')
+        .select('estimated_fare')
+        .eq('id', rideId)
+        .maybeSingle();
+      const savedFare = Number(savedRide?.estimated_fare);
       toast({
-        title: 'Mencari ojek terdekat...',
+        title: Number.isFinite(savedFare) && savedRide ? `Tarif final: ${formatPrice(savedFare)}` : 'Mencari ojek terdekat...',
         description: 'Pesanan ditawarkan ke ojek aktif terdekat. Jika belum diterima dalam 30 detik, sistem akan menawarkan ke ojek berikutnya.',
       });
-      navigate(`/ride/${data}`);
+      navigate(`/ride/${rideId}`);
     } catch (err) {
       console.error(err);
       const errorMessage = err && typeof err === 'object' && 'message' in err
