@@ -139,6 +139,8 @@ export function AdminSidebar({
         { label: 'Broadcast', href: '/admin/broadcast', icon: <Bell className="h-4 w-4" /> },
         { label: 'Monitor Push', href: '/admin/push-monitoring', icon: <Activity className="h-4 w-4" /> },
         { label: 'Push Notification', href: '/admin/push-notification', icon: <Bell className="h-4 w-4" /> },
+        { label: 'Template Pengingat Makan', href: '/admin/meal-recommendations', icon: <Clock3 className="h-4 w-4" /> },
+        { label: 'Langganan Push Aktif', href: '/admin/push-subscribers', icon: <Smartphone className="h-4 w-4" /> },
         { label: 'SEO & Konten', href: '/admin/seo', icon: <Search className="h-4 w-4" /> },
       ],
     },

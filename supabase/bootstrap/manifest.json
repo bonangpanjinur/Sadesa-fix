@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "archive/supabase/migrations",
-  "migration_count": 279,
-  "bundle_count": 130,
+  "migration_count": 280,
+  "bundle_count": 131,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1247,6 +1247,14 @@
       ],
       "sha256": "391e7050819fc96edc2b27fa4222c8dc65c0cde656ca9c64c987b3f8c48ce42b",
       "bytes": 1681
+    },
+    {
+      "file": "131_20261015020000_meal_recommendation_templates.sql",
+      "source_files": [
+        "20261015020000_meal_recommendation_templates.sql"
+      ],
+      "sha256": "238d8acebf6214ca8c4b17ff8b917f4da3531cd71496762a804ba124fd38e5f6",
+      "bytes": 5868
     }
   ]
 }

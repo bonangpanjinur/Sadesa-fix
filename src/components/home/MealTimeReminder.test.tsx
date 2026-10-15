@@ -10,9 +10,15 @@ const push = vi.hoisted(() => ({
   loading: false,
   subscribe: vi.fn().mockResolvedValue(true),
 }));
+const settings = vi.hoisted(() => ({ maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }));
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => auth }));
 vi.mock('@/hooks/usePushNotification', () => ({ usePushNotification: () => push }));
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    from: vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: settings.maybeSingle })) })) })),
+  },
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 afterEach(() => {

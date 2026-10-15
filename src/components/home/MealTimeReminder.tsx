@@ -4,26 +4,16 @@ import { Bell, BellRing, Clock3, Utensils } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotification } from '@/hooks/usePushNotification';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { DEFAULT_MEAL_RECOMMENDATIONS, getMealPeriod, normalizeMealRecommendations, type MealRecommendations } from '@/lib/mealRecommendations';
 import { toast } from 'sonner';
 
-export type MealPeriod = 'pagi' | 'siang' | 'sore' | 'malam';
-
-export function getMealPeriod(hour: number): MealPeriod {
-  if (hour >= 5 && hour < 10) return 'pagi';
-  if (hour >= 10 && hour < 14) return 'siang';
-  if (hour >= 14 && hour < 18) return 'sore';
-  return 'malam';
-}
-
-const suggestions: Record<MealPeriod, { greeting: string; suggestion: string }> = {
-  pagi: { greeting: 'Selamat pagi', suggestion: 'Bubur ayam, nasi uduk, atau kopi dan jajanan lokal cocok untuk memulai hari.' },
-  siang: { greeting: 'Selamat siang', suggestion: 'Saatnya makan siang—coba nasi dengan lauk rumahan atau menu favorit dari warung sekitar.' },
-  sore: { greeting: 'Selamat sore', suggestion: 'Temani waktu santai dengan gorengan, camilan tradisional, atau minuman segar.' },
-  malam: { greeting: 'Selamat malam', suggestion: 'Cari makan malam yang mengenyangkan atau pesan minuman hangat dari merchant lokal.' },
-};
+export { getMealPeriod } from '@/lib/mealRecommendations';
+const greetings = { pagi: 'Selamat pagi', siang: 'Selamat siang', sore: 'Selamat sore', malam: 'Selamat malam' };
 
 export function MealTimeReminder() {
   const [now, setNow] = useState(() => new Date());
+  const [recommendations, setRecommendations] = useState<MealRecommendations>(DEFAULT_MEAL_RECOMMENDATIONS);
   const { user } = useAuth();
   const { isSupported, isSubscribed, loading, subscribe } = usePushNotification();
 
@@ -32,8 +22,21 @@ export function MealTimeReminder() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'meal_time_recommendations').maybeSingle();
+        if (mounted && !error && data?.value) setRecommendations(normalizeMealRecommendations(data.value));
+      } catch {
+        // Keep built-in copy when settings are temporarily unavailable.
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const period = getMealPeriod(now.getHours());
-  const copy = suggestions[period];
+  const copy = recommendations[period];
 
   const handleEnablePush = async () => {
     const success = await subscribe();
@@ -53,7 +56,7 @@ export function MealTimeReminder() {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1 text-[11px] font-extrabold text-emerald-900">
           <Clock3 className="h-3 w-3" aria-hidden="true" />
-          {copy.greeting} · {period.charAt(0).toUpperCase() + period.slice(1)}
+          {greetings[period]} · {period.charAt(0).toUpperCase() + period.slice(1)}
         </div>
         <p className="mt-0.5 text-[10px] leading-snug text-foreground">{copy.suggestion}</p>
         <Link to="/products?type=makanan" className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 underline-offset-2 hover:underline">

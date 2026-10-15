@@ -130,6 +130,8 @@ const AdminWhatsAppPage = lazy(() => import("./pages/admin/AdminWhatsAppPage"));
 const AdminApiKeysPage = lazy(() => import("./pages/admin/AdminApiKeysPage"));
 const AdminPushNotificationPage = lazy(() => import("./pages/admin/AdminPushNotificationPage"));
 const AdminPushMonitoringPage = lazy(() => import("./pages/admin/AdminPushMonitoringPage"));
+const AdminMealRecommendationsPage = lazy(() => import("./pages/admin/AdminMealRecommendationsPage"));
+const AdminPushSubscribersPage = lazy(() => import("./pages/admin/AdminPushSubscribersPage"));
 const AdminPwaDevicesPage = lazy(() => import("./pages/admin/AdminPwaDevicesPage"));
 const AdminLoginActivityPage = lazy(() => import("./pages/admin/AdminLoginActivityPage"));
 const AdminOrderFraudBlocksPage = lazy(() => import("./pages/admin/AdminOrderFraudBlocksPage"));
@@ -1044,6 +1046,16 @@ const App = () => (
               <Route path="/admin/push-monitoring" element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminPushMonitoringPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/meal-recommendations" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminMealRecommendationsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/push-subscribers" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminPushSubscribersPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/cashback" element={

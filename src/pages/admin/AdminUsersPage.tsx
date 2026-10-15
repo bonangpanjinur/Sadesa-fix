@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { 
-  Users, Search, Ban, CheckCircle, Eye, Filter, Download, CalendarDays, Copy,
+  Users, Search, Ban, CheckCircle, Eye, Filter, Download, CalendarDays, Copy, Bell,
   MoreHorizontal, ChevronLeft, ChevronRight, UserPlus, 
   Mail, Lock, Phone, User, Shield, AlertCircle, XCircle, Settings2, Trash2, MessageCircle
 } from 'lucide-react';
@@ -57,7 +57,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { logAdminAction } from '@/lib/auditLog';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { isValidIndonesianPhone } from '@/lib/phoneValidation';
 
 type AppRole = 'admin' | 'verifikator' | 'merchant' | 'courier' | 'admin_desa' | 'buyer';
@@ -506,6 +506,9 @@ export default function AdminUsersPage() {
                 <CardDescription>Kelola akun, blokir akses, dan ekspor data pengguna</CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm" className="gap-2">
+                  <Link to="/admin/push-subscribers"><Bell className="h-4 w-4" />Langganan Push</Link>
+                </Button>
                 <Button variant="outline" size="sm" onClick={exportToCSV} className="gap-2">
                   <Download className="h-4 w-4" /> Ekspor CSV
                 </Button>
