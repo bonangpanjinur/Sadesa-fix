@@ -39,7 +39,7 @@
 - Merchant dan courier mendapat halaman wallet dengan saldo, debt, tarif, mutasi yang dapat difilter per tanggal, ringkasan komisi/top-up/refund, ekspor CSV halaman ledger aktif, peringatan saldo rendah, simulator potongan transaksi, status top-up, dan pengajuan manual/Xendit. Ledger menggunakan keyset pagination 50 baris dengan tie-breaker ID.
 - Notifikasi in-app pada lonceng memberi tahu pemilik wallet ketika saldo melewati ambang atau tagihan baru timbul, hanya saat tarif komisi role itu aktif dan lebih dari 0%. Setiap siklus hanya mengirim satu peringatan; gate notifikasi di-reset saat saldo kembali di atas ambang dan tagihan lunas. Perubahan ambang atau status/tarif komisi segera mengevaluasi ulang wallet yang ada.
 - Dashboard admin mengelola tarif pedagang/ojek, tarif courier delivery, ambang saldo, jendela refund, ringkasan total saldo/debt, wallet berisiko, permintaan top-up, dan ledger dengan keyset pagination 50 baris serta ekspor halaman aktif.
-- Ringkasan implementasi dan dokumentasi API wallet tersedia di [`docs/wallet-komisi-api.md`](../wallet-komisi-api.md).
+- Ringkasan implementasi dan dokumentasi API wallet tersedia di [`docs/api/wallet-komisi-api.md`](../api/wallet-komisi-api.md).
 - Invoice Xendit memakai reservasi database/idempotency; webhook memverifikasi nominal, invoice, pemilik, dan status sebelum mengkreditkan wallet. Ini tidak mengubah pembelian checkout order yang telah ada.
 - Saldo courier wallet tetap terpisah dari `courier_deposits`/deposit operasional.
 

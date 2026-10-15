@@ -6,13 +6,15 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 
 | Folder | Isi |
 |---|---|
-| [`api/`](api/) | Kontrak autentikasi, RPC/API, escrow, dan sengketa. |
+| [`api/`](api/) | Kontrak autentikasi, RPC/API, escrow, sengketa, dan wallet komisi. |
+| [`auth/`](auth/) | Template dan konfigurasi autentikasi. |
 | [`architecture/`](architecture/) | Arsitektur dan kontrak produk lintas fitur. |
 | [`audits/`](audits/) | Audit alur, keamanan, UX, performa, dan kesiapan fitur. |
 | [`changelogs/`](changelogs/) | Catatan perubahan implementasi dan migrasi. |
 | [`database/migrations/`](database/migrations/) | Panduan migrasi dan deployment database. |
 | [`database/sql/`](database/sql/) | Skrip SQL operasional yang terdokumentasi. |
 | [`implementation/`](implementation/) | Evidence dan ringkasan implementasi per fase. |
+| [`migrations/`](migrations/) | Draft migrasi lintas domain yang belum menjadi panduan deployment. |
 | [`operations/`](operations/) | Runbook, SOP, onboarding, dan operasi layanan. |
 | [`pentest/`](pentest/) | Laporan penetration test. |
 | [`plans/`](plans/) | Rencana bisnis, analisis, dan rencana perbaikan. |
@@ -24,6 +26,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 
 - [API autentikasi](api/api-authentication.md)
 - [API marketplace jasa, escrow, dan sengketa](api/api-service-escrow-disputes.md)
+- [Wallet komisi — ringkasan fitur dan dokumentasi API](api/wallet-komisi-api.md)
 - [Pentest transaksi end-to-end](pentest/pentest-transaksi-e2e-2026-09-11.md)
 - [Laporan pengujian E2E](testing/e2e-full-test-report-2026-09-11.md)
 - [Audit kesiapan API payment gateway Xendit — 15 Oktober 2026](audits/audit-kesiapan-payment-gateway-xendit-2026-10-15.md)
@@ -36,5 +39,13 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 - [Panduan merchant: area pelanggan teramai di POS](operations/panduan-merchant-area-pelanggan-teramai.md)
 - [Hasil uji E2E pembayaran POS dan kesiapan print — 2 Oktober 2026](audits/hasil-uji-e2e-pos-payment-print-2026-10-02.md)
 - [Rencana perbaikan keseluruhan](plans/rencana-perbaikan-keseluruhan-2026-09-11.md)
+- [Rancangan UI/UX laporan dan analitik penjualan merchant](plans/desain-ui-ux-laporan-analitik-penjualan-merchant-2026-10-04.md)
 
 Untuk cara menjalankan aplikasi dan quality gates, lihat [README proyek](../README.md).
+
+## Cara menelusuri
+
+- Mulai dari kategori di atas, lalu gunakan nama berkas untuk mengenali topik dan tanggal dokumen.
+- Dokumen audit dan laporan bertanggal merupakan catatan historis; verifikasi temuan terhadap implementasi terbaru.
+- Dokumen desain dan rencana menjelaskan usulan atau arah kerja, bukan bukti bahwa fitur sudah diterapkan.
+- Pertahankan tanggal serta nama berkas saat menambah dokumen historis agar tautan dan jejak keputusan tetap dapat dilacak.
