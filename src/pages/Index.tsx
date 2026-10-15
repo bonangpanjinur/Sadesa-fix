@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { VillageCard } from '@/components/VillageCard';
 import { ProductCard } from '@/components/ProductCard';
 import { HeroCarousel, type BannerSlide } from '@/components/home/HeroCarousel';
+import { MealTimeReminder } from '@/components/home/MealTimeReminder';
 import { TourismCarousel } from '@/components/home/TourismCarousel';
 import { HomeServiceCards } from '@/components/home/HomeServiceCards';
 import { 
@@ -772,6 +773,9 @@ const Index = () => {
       <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
+          <div className="pt-3">
+            <MealTimeReminder />
+          </div>
           <div className="mt-6 space-y-6 pb-6">
           {activeOrder && (
             <Dialog>

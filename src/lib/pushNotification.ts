@@ -15,6 +15,14 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+function getBrowserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta';
+  } catch {
+    return 'Asia/Jakarta';
+  }
+}
+
 async function getSessionToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token || '';
@@ -236,7 +244,10 @@ export async function subscribeToPush(
         apikey: SUPABASE_PUBLISHABLE_KEY,
         Authorization: `Bearer ${sessionToken}`,
       },
-      body: JSON.stringify({ subscription: subscription.toJSON() }),
+      body: JSON.stringify({
+        subscription: subscription.toJSON(),
+        timezone: getBrowserTimeZone(),
+      }),
     });
     if (!response.ok) {
       throw new Error(`Subscription belum tersimpan (${response.status})${await readPushErrorDetails(response)}`);

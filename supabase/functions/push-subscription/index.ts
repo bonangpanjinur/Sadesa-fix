@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       return json(req, getVapidConfiguration())
     }
 
-    let subscriptionRequest: { action?: unknown; subscription?: PushSubscriptionInput } = {}
+    let subscriptionRequest: { action?: unknown; subscription?: PushSubscriptionInput; timezone?: unknown } = {}
     if (req.method === 'POST') {
       stage = 'parse_subscription_request'
       subscriptionRequest = await req.json().catch(() => ({}))
@@ -119,12 +119,23 @@ Deno.serve(async (req) => {
       return json(req, { error: 'Invalid push subscription' }, 400)
     }
 
+    let timezone = 'Asia/Jakarta'
+    if (typeof subscriptionRequest.timezone === 'string' && subscriptionRequest.timezone.length <= 100) {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: subscriptionRequest.timezone })
+        timezone = subscriptionRequest.timezone
+      } catch {
+        // Keep older clients and invalid browser values on SaDesa's default timezone.
+      }
+    }
+
     stage = 'save_subscription'
     const { error } = await db.from('push_subscriptions').upsert({
       user_id: user.id,
       endpoint,
       p256dh,
       auth,
+      timezone,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,endpoint' })
     if (error) {

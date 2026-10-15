@@ -72,6 +72,8 @@ describe('subscribeToPush', () => {
         Authorization: 'Bearer test-token',
       }),
     });
+    const savedSubscription = JSON.parse(String(fetchMock.mock.calls[1][1]?.body)) as { timezone?: string };
+    expect(savedSubscription.timezone).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta');
   });
 
   it('returns false when the backend rejects persistence instead of claiming activation succeeded', async () => {

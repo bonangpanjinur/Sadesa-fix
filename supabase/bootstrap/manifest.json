@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "archive/supabase/migrations",
-  "migration_count": 277,
-  "bundle_count": 128,
+  "migration_count": 278,
+  "bundle_count": 129,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -1231,6 +1231,14 @@
       ],
       "sha256": "501a72ac779714dc36ffd7c90894e3e32d4b16c7bc9266c1c973cb1c2e15bd2e",
       "bytes": 13579
+    },
+    {
+      "file": "129_20261015000000_meal_time_push_reminders.sql",
+      "source_files": [
+        "20261015000000_meal_time_push_reminders.sql"
+      ],
+      "sha256": "d4fa29eae8ec6cb56a7e15b3033e938b545b645a02c3eed81af28d5c7c8a4597",
+      "bytes": 4829
     }
   ]
 }
