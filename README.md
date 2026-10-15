@@ -25,9 +25,9 @@ Browse the [documentation index](docs/README.md) for API references, plans, audi
 ```sh
 git clone https://github.com/bonangpanjinur/remix-of-umkm-sadesa.git
 cd remix-of-umkm-sadesa
-pnpm install --frozen-lockfile
+corepack pnpm@9.15.9 install --frozen-lockfile
 cp .env.example .env
-pnpm dev
+corepack pnpm@9.15.9 dev
 ```
 
 Set the three public Supabase variables in `.env`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_SUPABASE_PROJECT_ID`. The browser bundle must only receive the publishable/anon key. Supabase RLS remains the authority for data access.

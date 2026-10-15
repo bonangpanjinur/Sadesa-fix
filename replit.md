@@ -5,7 +5,7 @@
 This repository is a Vite + React + TypeScript SPA. The configured workflow is:
 
 ```sh
-npm run dev
+corepack pnpm@9.15.9 dev
 ```
 
 The application is served on port `5000`. The workspace uses Node.js 22 to
@@ -13,15 +13,14 @@ match the repository requirement (`>=22.13.0 <25`).
 Use Replit's Run button to start the `Start application` workflow and open
 the preview. Vite listens on all interfaces and accepts Replit's proxy host.
 
-Install dependencies from the checked-in npm lockfile with:
+Install dependencies from the checked-in pnpm lockfile with:
 
 ```sh
-npm ci
+corepack pnpm@9.15.9 install --frozen-lockfile
 ```
 
-The project declares pnpm `9.15.9`, but the Replit runtime may expose a
-different pnpm version and attempt a self-install. Use the npm lockfile and
-the npm-compatible scripts in this workspace when that happens.
+The project pins pnpm `9.15.9`; use Corepack's explicit version to avoid
+Replit's globally provided pnpm trying to replace itself during startup.
 
 ## Environment
 
@@ -46,16 +45,16 @@ Edge Function configuration, never in `VITE_` variables.
 ## Quality checks
 
 ```sh
-npx tsc --noEmit
-npm run lint
-npm test
-npm run build
+corepack pnpm@9.15.9 exec tsc --noEmit
+corepack pnpm@9.15.9 lint
+corepack pnpm@9.15.9 test
+corepack pnpm@9.15.9 build
 ```
 
 Database bootstrap bundles can be checked with:
 
 ```sh
-npm run validate:db-bootstrap
+corepack pnpm@9.15.9 validate:db-bootstrap
 ```
 
 The bootstrap manifest records the SHA-256 and byte size of each release

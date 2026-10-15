@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "python-3.12", "bash", "web"]
+modules = ["nodejs-22", "python-3.12", "bash", "web"]
 [agent]
 expertMode = true
 stack = "BEST_EFFORT_FALLBACK"
@@ -9,7 +9,7 @@ channel = "stable-25_05"
 packages = ["supabase-cli"]
 
 [workflows]
-runButton = "Project"
+runButton = "Start application"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -17,7 +17,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "corepack pnpm@9.15.9 dev"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
