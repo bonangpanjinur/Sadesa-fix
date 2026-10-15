@@ -3808,6 +3808,10 @@ export type Database = {
       }
     }
     Functions: {
+      get_push_delivery_hourly_stats: {
+        Args: { p_since: string; p_until: string }
+        Returns: { attempt_count: number; hour_bucket: string; status: string }[]
+      }
       admin_create_merchant_atomic: {
         Args: { p_category_ids: string[]; p_merchant: Json; p_schedule: Json }
         Returns: string

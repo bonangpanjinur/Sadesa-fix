@@ -6,7 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { calculatePushDeliveryKpis, type PushDeliveryCounts } from '@/lib/adminPushMonitoring';
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  buildPushDeliveryHourlyTrend,
+  calculatePushDeliveryKpis,
+  type PushDeliveryCounts,
+  type PushDeliveryHourlyStat,
+} from '@/lib/adminPushMonitoring';
 
 interface PushDeliveryLog {
   id: string;
@@ -56,6 +62,16 @@ function formatDateTime(value: string): string {
   }).format(date);
 }
 
+function formatUtcDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Waktu tidak tersedia';
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
 function formatCount(value: number | null | undefined): string {
   return typeof value === 'number' ? value.toLocaleString('id-ID') : '—';
 }
@@ -64,6 +80,9 @@ export default function AdminPushMonitoringPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [counts, setCounts] = useState<PushDeliveryCounts | null>(null);
+  const [hourlyStats, setHourlyStats] = useState<PushDeliveryHourlyStat[]>([]);
+  const [hourlyWindow, setHourlyWindow] = useState<{ since: Date; until: Date } | null>(null);
+  const [hourlyError, setHourlyError] = useState<string | null>(null);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
   const [logs, setLogs] = useState<PushDeliveryLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,9 +93,11 @@ export default function AdminPushMonitoringPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const from = new Date(Date.now() - rangeMilliseconds[timeRange]).toISOString();
+    const until = new Date();
+    const since = new Date(until.getTime() - rangeMilliseconds[timeRange]);
+    const from = since.toISOString();
     try {
-      const [totalResult, sentResult, failedResult, expiredResult, subscriberResult, logsResult] = await Promise.all([
+      const [totalResult, sentResult, failedResult, expiredResult, subscriberResult, logsResult, hourlyResult] = await Promise.all([
         supabase.from('push_delivery_logs').select('id', { count: 'exact', head: true }).gte('created_at', from),
         supabase.from('push_delivery_logs').select('id', { count: 'exact', head: true }).gte('created_at', from).eq('status', 'sent'),
         supabase.from('push_delivery_logs').select('id', { count: 'exact', head: true }).gte('created_at', from).eq('status', 'failed'),
@@ -87,6 +108,7 @@ export default function AdminPushMonitoringPage() {
           .gte('created_at', from)
           .order('created_at', { ascending: false })
           .limit(100),
+        supabase.rpc('get_push_delivery_hourly_stats', { p_since: from, p_until: until.toISOString() }),
       ]);
 
       const failedRequest = [totalResult, sentResult, failedResult, expiredResult, logsResult]
@@ -101,6 +123,15 @@ export default function AdminPushMonitoringPage() {
       });
       setSubscriberCount(subscriberResult.error ? null : subscriberResult.count ?? 0);
       setLogs((logsResult.data ?? []) as PushDeliveryLog[]);
+      if (hourlyResult.error) {
+        setHourlyStats([]);
+        setHourlyWindow(null);
+        setHourlyError('Agregasi grafik belum tersedia. Pastikan migration statistik per jam sudah diterapkan.');
+      } else {
+        setHourlyStats((hourlyResult.data ?? []) as PushDeliveryHourlyStat[]);
+        setHourlyWindow({ since, until });
+        setHourlyError(null);
+      }
       setLastUpdated(new Date());
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Data pemantauan push belum dapat dimuat.');
@@ -143,6 +174,16 @@ export default function AdminPushMonitoringPage() {
   const visibleLogs = useMemo(() => statusFilter === 'all'
     ? logs
     : logs.filter((log) => log.status === statusFilter), [logs, statusFilter]);
+  const hourlyTrend = useMemo(() => hourlyWindow
+    ? buildPushDeliveryHourlyTrend(hourlyStats, hourlyWindow.since, hourlyWindow.until)
+    : [], [hourlyStats, hourlyWindow]);
+  const hourlyChartData = useMemo(() => hourlyTrend.map((point) => ({
+    ...point,
+    tickLabel: new Intl.DateTimeFormat('id-ID', timeRange === '24h'
+      ? { hour: '2-digit', timeZone: 'UTC', hourCycle: 'h23' }
+      : { day: '2-digit', month: 'short', hour: '2-digit', timeZone: 'UTC', hourCycle: 'h23' }).format(new Date(point.hour)),
+  })), [hourlyTrend, timeRange]);
+  const chartTickInterval = timeRange === '24h' ? 3 : timeRange === '7d' ? 12 : 48;
   const maxCount = Math.max(counts?.sent ?? 0, counts?.failed ?? 0, counts?.expired ?? 0, 1);
 
   return (
@@ -165,6 +206,9 @@ export default function AdminPushMonitoringPage() {
               value={timeRange}
               onChange={(event) => {
                 setCounts(null);
+                setHourlyStats([]);
+                setHourlyWindow(null);
+                setHourlyError(null);
                 setLogs([]);
                 setTimeRange(event.target.value as TimeRange);
               }}
@@ -195,6 +239,45 @@ export default function AdminPushMonitoringPage() {
           <MetricCard icon={<XCircle className="h-5 w-5 text-rose-600" />} label="Gagal / subscription kedaluwarsa" value={formatCount(kpis?.issueCount)} detail={counts ? `${formatCount(counts.failed)} gagal · ${formatCount(counts.expired)} kedaluwarsa` : 'Menunggu data status'} />
           <MetricCard icon={<Smartphone className="h-5 w-5 text-violet-600" />} label="Perangkat berlangganan" value={formatCount(subscriberCount)} detail="Subscription push yang tersimpan" />
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-primary" />Tren pengiriman per jam</CardTitle>
+            <CardDescription>Jumlah percobaan push per jam selama {rangeLabels[timeRange]}, berdasarkan waktu UTC pada log server.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {hourlyError && <p role="alert" className="mb-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-800">{hourlyError}</p>}
+            {!hourlyError && hourlyChartData.length === 0 && (
+              <p role="status" className="py-12 text-center text-sm text-muted-foreground">{loading ? 'Memuat tren per jam...' : 'Data grafik belum tersedia.'}</p>
+            )}
+            {!hourlyError && hourlyChartData.length > 0 && (
+              <>
+                {counts?.total === 0 && !loading && <p className="mb-3 text-sm text-muted-foreground">Belum ada percobaan pengiriman pada periode ini; grafik menunjukkan nol per jam.</p>}
+                <div className="h-[320px] w-full" aria-label="Grafik tren pengiriman push per jam">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={hourlyChartData} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                      <XAxis dataKey="tickLabel" interval={chartTickInterval} minTickGap={12} tickLine={false} axisLine={false} fontSize={11} className="fill-muted-foreground" />
+                      <YAxis allowDecimals={false} width={40} tickLine={false} axisLine={false} fontSize={11} className="fill-muted-foreground" />
+                      <Tooltip
+                        labelFormatter={(_, payload) => {
+                          const hour = payload?.[0]?.payload?.hour;
+                          return typeof hour === 'string' ? formatUtcDateTime(hour) : '';
+                        }}
+                        formatter={(value, name) => [Number(value).toLocaleString('id-ID'), statusLabels[String(name) as PushDeliveryLog['status']] ?? String(name)]}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }}
+                      />
+                      <Legend formatter={(value) => statusLabels[String(value) as PushDeliveryLog['status']] ?? String(value)} />
+                      <Line type="monotone" dataKey="sent" name="sent" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="failed" name="failed" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                      <Line type="monotone" dataKey="expired" name="expired" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
           <Card>
