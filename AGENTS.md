@@ -46,6 +46,10 @@ Apply these rules to every change in this repository.
 - When moving or renaming documents, preserve historical filenames/content where practical, update inbound relative links and the index, and verify local Markdown links resolve.
 - Treat dated audits, pentest reports, and deployment notes as historical snapshots, not proof of current production state. Keep tooling-owned files such as `.lovable/plan/` and database migration sources in their established locations.
 
+## Keep UI changes aligned with the design system
+- Follow `docs/frontend/design-system.md` for new or modified UI. Prefer semantic color and typography tokens plus shared primitives; keep necessary literal/arbitrary styles narrowly scoped and explain unusual exceptions.
+- Migrate legacy styling incrementally by meaning. Do not mass-replace palette classes or alter global appearance without checking affected roles, themes, responsive layouts, and states.
+
 ## Report delivery clearly
 - Summarize the precise behavior changed, files/contracts affected, blast radius considered, and checks run.
 - Call out deployment steps that are not automatic—especially database migrations—and distinguish local/CI validation from production verification.

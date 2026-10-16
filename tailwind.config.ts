@@ -24,6 +24,15 @@ export default {
         heading: ['"Sora"', 'system-ui', 'sans-serif'],
         body: ['"Manrope"', 'system-ui', 'sans-serif'],
       },
+      fontSize: {
+        display: ["var(--font-size-display)", { lineHeight: "1.15", fontWeight: "700" }],
+        "page-title": ["var(--font-size-page-title)", { lineHeight: "1.3", fontWeight: "700" }],
+        "section-title": ["var(--font-size-section-title)", { lineHeight: "1.4", fontWeight: "600" }],
+        ui: ["var(--font-size-ui)", { lineHeight: "1.25", fontWeight: "700" }],
+        body: ["var(--font-size-body)", { lineHeight: "1.55" }],
+        caption: ["var(--font-size-caption)", { lineHeight: "1.4" }],
+        overline: ["var(--font-size-overline)", { lineHeight: "1.4", letterSpacing: "0.06em", fontWeight: "600" }],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

@@ -21,7 +21,7 @@ export function PageHeader({ title, showBack = false, onBack }: PageHeaderProps)
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
-        <h1 className="font-bold text-base text-foreground">{title}</h1>
+        <h1 className="text-ui text-foreground">{title}</h1>
       </div>
     </header>
   );

@@ -13,6 +13,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 | [`changelogs/`](changelogs/) | Catatan perubahan implementasi dan migrasi. |
 | [`database/migrations/`](database/migrations/) | Panduan migrasi dan deployment database. |
 | [`database/sql/`](database/sql/) | Skrip SQL operasional yang terdokumentasi. |
+| [`frontend/`](frontend/) | Panduan UI, design system, dan kontrak frontend. |
 | [`implementation/`](implementation/) | Evidence dan ringkasan implementasi per fase. |
 | [`migrations/`](migrations/) | Draft migrasi lintas domain yang belum menjadi panduan deployment. |
 | [`operations/`](operations/) | Runbook, SOP, onboarding, dan operasi layanan. |
@@ -25,6 +26,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 ## Referensi utama
 
 - [API autentikasi](api/api-authentication.md)
+- [Design system SaDesa](frontend/design-system.md)
 - [API marketplace jasa, escrow, dan sengketa](api/api-service-escrow-disputes.md)
 - [Wallet komisi — ringkasan fitur dan dokumentasi API](api/wallet-komisi-api.md)
 - [Pentest transaksi end-to-end](pentest/pentest-transaksi-e2e-2026-09-11.md)
