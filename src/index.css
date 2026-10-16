@@ -131,6 +131,15 @@
 
 @layer base {
   :root {
+    /* Semantic type scale. Components can adopt these roles incrementally. */
+    --font-size-display: 2rem;
+    --font-size-page-title: 1.5rem;
+    --font-size-section-title: 1.125rem;
+    --font-size-ui: 1rem;
+    --font-size-body: 0.875rem;
+    --font-size-caption: 0.75rem;
+    --font-size-overline: 0.6875rem;
+
     /* Core brand - culinary red with saffron warmth */
     --brand: 4 78% 47%;
     --brand-light: 8 100% 96%;
