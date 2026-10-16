@@ -13,6 +13,7 @@ import { id as idLocale } from 'date-fns/locale';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { safeGoBack } from '@/lib/utils';
 import { logRealtimeStatus, isRealtimeFailure, type RealtimeStatus } from '@/lib/realtimeTelemetry';
+import { createCoalescedTask } from '@/lib/createCoalescedTask';
 
 interface ChatThread {
   orderId: string | null;
@@ -64,7 +65,7 @@ export default function BuyerChatPage() {
       );
       const { data: messages } = await supabase
         .from('chat_messages')
-        .select('*')
+        .select('conversation_id, order_id, chat_type, sender_id, receiver_id, message, created_at, is_read, deleted_at')
         .in('conversation_id', buyerConversationIds)
         .is('deleted_at', null)
         // Admin direct conversations use the canonical `admin_user` type.
@@ -198,14 +199,18 @@ export default function BuyerChatPage() {
 
   useEffect(() => {
     if (!user) return;
-    fetchThreads();
+    const refreshInbox = createCoalescedTask(fetchThreads, 300);
+    refreshInbox.runNow();
 
     let active = true;
     const channelName = `buyer-chats-${user.id}-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, () => {
-        if (active) fetchThreads();
+        if (active) refreshInbox.trigger();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `sender_id=eq.${user.id}` }, () => {
+        if (active) refreshInbox.trigger();
       });
 
     channel.subscribe((status, err) => {
@@ -215,6 +220,7 @@ export default function BuyerChatPage() {
 
     return () => {
       active = false;
+      refreshInbox.dispose();
       try { channel.unsubscribe(); } catch { /* noop */ }
       supabase.removeChannel(channel);
     };

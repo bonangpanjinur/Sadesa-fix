@@ -10,6 +10,7 @@ import { MessageCircle, User, Store, ShoppingBag } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { id as idLocale } from 'date-fns/locale';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { createCoalescedTask } from '@/lib/createCoalescedTask';
 
 interface ChatThread {
   orderId: string | null;
@@ -50,7 +51,7 @@ export default function CourierChatPage() {
       if (conversationIds.length === 0) { setThreads([]); setLoading(false); return; }
       const { data: messages } = await supabase
         .from('chat_messages')
-        .select('*')
+        .select('conversation_id, order_id, chat_type, sender_id, receiver_id, message, created_at, is_read, deleted_at')
         .in('conversation_id', conversationIds)
         .is('deleted_at', null)
         .in('chat_type', ['buyer_courier', 'merchant_courier', 'admin_courier'])
@@ -149,14 +150,16 @@ export default function CourierChatPage() {
 
   useEffect(() => {
     if (!user) return;
-    fetchThreads();
+    const refreshInbox = createCoalescedTask(fetchThreads, 300);
+    refreshInbox.runNow();
 
     const channel = supabase
       .channel(`courier-chats-${user.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, fetchThreads)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `receiver_id=eq.${user.id}` }, refreshInbox.trigger)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `sender_id=eq.${user.id}` }, refreshInbox.trigger)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { refreshInbox.dispose(); supabase.removeChannel(channel); };
   }, [user, fetchThreads]);
 
   useEffect(() => {
