@@ -25,6 +25,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 ## Referensi utama
 
 - [API autentikasi](api/api-authentication.md)
+- [Rancangan kesiapan skala 1.000+ pengguna](architecture/arsitektur-kesiapan-skala-1000-pengguna.md)
 - [API marketplace jasa, escrow, dan sengketa](api/api-service-escrow-disputes.md)
 - [Wallet komisi — ringkasan fitur dan dokumentasi API](api/wallet-komisi-api.md)
 - [Pentest transaksi end-to-end](pentest/pentest-transaksi-e2e-2026-09-11.md)
