@@ -13,6 +13,7 @@ const greetings = { pagi: 'Selamat pagi', siang: 'Selamat siang', sore: 'Selamat
 const DEFAULT_SCHEDULE: Record<MealPeriod, string> = { pagi: '07:00', siang: '12:00', sore: '16:00', malam: '19:00' };
 const SCHEDULE_STORAGE_KEY = 'sadesa-meal-reminder-schedule';
 const SNOOZE_STORAGE_KEY = 'sadesa-meal-reminder-snoozed-until';
+const PREFERENCE_COLUMNS: Record<MealPeriod, string> = { pagi: 'pagi_time', siang: 'siang_time', sore: 'sore_time', malam: 'malam_time' };
 
 function readSchedule(): Record<MealPeriod, string> {
   try {
@@ -39,11 +40,34 @@ export function MealTimeReminder() {
   }, []);
 
   useEffect(() => {
-    setSchedule(readSchedule());
-    const savedSnooze = Number(localStorage.getItem(SNOOZE_STORAGE_KEY));
-    if (savedSnooze > Date.now()) setSnoozedUntil(savedSnooze);
-    else localStorage.removeItem(SNOOZE_STORAGE_KEY);
-  }, []);
+    let mounted = true;
+    void (async () => {
+      const localSchedule = readSchedule();
+      const localSnooze = Number(localStorage.getItem(SNOOZE_STORAGE_KEY));
+      if (mounted) {
+        setSchedule(localSchedule);
+        if (localSnooze > Date.now()) setSnoozedUntil(localSnooze);
+      }
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('meal_reminder_preferences' as never)
+        .select('pagi_time, siang_time, sore_time, malam_time, snoozed_until')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!mounted || error || !data) return;
+      const preferences = data as unknown as Record<string, unknown>;
+      const accountSchedule = MEAL_PERIODS.reduce((result, mealPeriod) => ({
+        ...result,
+        [mealPeriod]: typeof preferences[PREFERENCE_COLUMNS[mealPeriod]] === 'string'
+          ? String(preferences[PREFERENCE_COLUMNS[mealPeriod]]).slice(0, 5)
+          : DEFAULT_SCHEDULE[mealPeriod],
+      }), {} as Record<MealPeriod, string>);
+      setSchedule(accountSchedule);
+      const accountSnooze = typeof preferences.snoozed_until === 'string' ? Date.parse(preferences.snoozed_until) : NaN;
+      if (Number.isFinite(accountSnooze) && accountSnooze > Date.now()) setSnoozedUntil(accountSnooze);
+    })();
+    return () => { mounted = false; };
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -67,35 +91,60 @@ export function MealTimeReminder() {
     else toast.error('Notifikasi belum aktif. Periksa izin browser dan coba lagi.');
   };
 
-  const handleSnooze = () => {
+  const handleSnooze = async () => {
     const until = Date.now() + 60 * 60 * 1000;
-    localStorage.setItem(SNOOZE_STORAGE_KEY, String(until));
+    if (user) {
+      const { error } = await supabase.from('meal_reminder_preferences' as never).upsert({
+        user_id: user.id,
+        ...Object.fromEntries(MEAL_PERIODS.map((mealPeriod) => [PREFERENCE_COLUMNS[mealPeriod], schedule[mealPeriod]])),
+        snoozed_until: new Date(until).toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      if (error) {
+        toast.error('Snooze belum tersimpan. Coba lagi.');
+        return;
+      }
+    } else {
+      localStorage.setItem(SNOOZE_STORAGE_KEY, String(until));
+    }
     setSnoozedUntil(until);
-    toast.success('Pengingat disnooze selama 1 jam.');
+    toast.success(user ? 'Pengingat disnooze di akun selama 1 jam.' : 'Pengingat disnooze selama 1 jam.');
   };
 
   const handleScheduleChange = (mealPeriod: MealPeriod, value: string) => {
     setSchedule((current) => ({ ...current, [mealPeriod]: value }));
   };
 
-  const handleSaveSchedule = () => {
-    localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedule));
+  const handleSaveSchedule = async () => {
+    if (user) {
+      const { error } = await supabase.from('meal_reminder_preferences' as never).upsert({
+        user_id: user.id,
+        ...Object.fromEntries(MEAL_PERIODS.map((mealPeriod) => [PREFERENCE_COLUMNS[mealPeriod], schedule[mealPeriod]])),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      if (error) {
+        toast.error('Jadwal belum tersimpan. Coba lagi.');
+        return;
+      }
+    } else {
+      localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedule));
+    }
     setIsScheduleOpen(false);
-    toast.success('Jadwal pengingat disimpan di perangkat ini.');
+    toast.success(user ? 'Jadwal pengingat tersinkron ke akun.' : 'Jadwal pengingat disimpan di perangkat ini.');
   };
 
   if (isDismissed || (snoozedUntil !== null && snoozedUntil > now.getTime())) return null;
 
   return (
     <aside
-      className="relative mx-4 flex items-start gap-3 overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-amber-50 px-3 py-3.5 shadow-[0_8px_24px_-14px_rgba(6,95,70,0.45)]"
+      className="relative mx-3 flex items-start gap-2.5 overflow-hidden rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-amber-50 px-2.5 py-3 shadow-[0_8px_24px_-14px_rgba(6,95,70,0.45)] sm:mx-4 sm:gap-3 sm:px-3 sm:py-3.5"
       aria-label={`Pengingat makan ${period}`}
       data-testid="meal-time-reminder"
     >
       <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-amber-200/30 blur-2xl" aria-hidden="true" />
       <div className="pointer-events-none absolute -bottom-12 left-1/3 h-24 w-24 rounded-full bg-emerald-200/25 blur-2xl" aria-hidden="true" />
-      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-500 text-white shadow-[0_6px_14px_-6px_rgba(4,120,87,0.9)]">
-        <Utensils className="h-5 w-5" strokeWidth={2.25} aria-hidden="true" />
+      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-500 text-white shadow-[0_6px_14px_-6px_rgba(4,120,87,0.9)] sm:h-11 sm:w-11 sm:rounded-2xl">
+        <Utensils className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.25} aria-hidden="true" />
         <Sparkles className="absolute -right-1 -top-1 h-3.5 w-3.5 fill-amber-300 text-amber-300" aria-hidden="true" />
       </div>
       <div className="relative min-w-0 flex-1">
@@ -107,20 +156,20 @@ export function MealTimeReminder() {
           <span className="text-emerald-700/60">•</span>
           <span>{period}</span>
         </div>
-        <p className="mt-1 text-[13px] font-extrabold leading-snug tracking-[-0.01em] text-slate-950">{copy.title}</p>
-        <p className="mt-0.5 max-w-2xl text-[10px] leading-snug text-slate-700">{copy.body}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <Link to="/products?type=makanan" className="inline-flex items-center gap-1.5 rounded-full bg-emerald-800 px-3 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2">
+        <p className="mt-1 text-[12px] font-extrabold leading-snug tracking-[-0.01em] text-slate-950 sm:text-[13px]">{copy.title}</p>
+        <p className="mt-0.5 max-w-2xl truncate text-[9px] leading-snug text-slate-700 sm:text-[10px]">{copy.body}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-1 sm:mt-2 sm:gap-1.5">
+          <Link to="/products?type=makanan" className="inline-flex items-center gap-1 rounded-full bg-emerald-800 px-2.5 py-1.5 text-[9px] font-bold text-white shadow-sm transition hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 sm:gap-1.5 sm:px-3 sm:text-[10px]">
             Lihat rekomendasi <ArrowRight className="h-3 w-3" aria-hidden="true" />
           </Link>
-          <button type="button" onClick={handleSnooze} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/80 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-900 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1" aria-label="Snooze pengingat selama satu jam">
-            <AlarmClock className="h-3 w-3" aria-hidden="true" /> Snooze 1 jam
+          <button type="button" onClick={() => void handleSnooze()} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/80 px-2 py-1.5 text-[9px] font-semibold text-emerald-900 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:px-2.5 sm:text-[10px]" aria-label="Snooze pengingat selama satu jam">
+            <AlarmClock className="h-3 w-3" aria-hidden="true" /><span className="hidden sm:inline">Snooze 1 jam</span><span className="sm:hidden">Snooze</span>
           </button>
-          <button type="button" onClick={() => setIsScheduleOpen((open) => !open)} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[10px] font-semibold text-emerald-800 transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1" aria-expanded={isScheduleOpen} aria-controls="meal-reminder-schedule">
-            <Settings2 className="h-3 w-3" aria-hidden="true" /> Ubah jadwal
+          <button type="button" onClick={() => setIsScheduleOpen((open) => !open)} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[9px] font-semibold text-emerald-800 transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:text-[10px]" aria-expanded={isScheduleOpen} aria-controls="meal-reminder-schedule">
+            <Settings2 className="h-3 w-3" aria-hidden="true" /><span className="hidden sm:inline">Ubah jadwal</span><span className="sm:hidden">Jadwal</span>
           </button>
         </div>
-        <p className="mt-1.5 text-[9px] leading-tight text-slate-600">Pengingat harian · {MEAL_PERIODS.map((mealPeriod) => schedule[mealPeriod].replace(':', '.')).join(' · ')}</p>
+        <p className="mt-1.5 hidden text-[9px] leading-tight text-slate-600 sm:block">Pengingat harian · {MEAL_PERIODS.map((mealPeriod) => schedule[mealPeriod].replace(':', '.')).join(' · ')}</p>
         {isScheduleOpen && (
           <div id="meal-reminder-schedule" className="mt-2 rounded-xl border border-emerald-100 bg-white/75 p-2.5 shadow-sm">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -133,7 +182,7 @@ export function MealTimeReminder() {
             </div>
             <div className="mt-2 flex justify-end gap-1.5">
               <button type="button" onClick={() => setIsScheduleOpen(false)} className="rounded-full px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
-              <button type="button" onClick={handleSaveSchedule} className="rounded-full bg-emerald-800 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-900">Simpan jadwal</button>
+              <button type="button" onClick={() => void handleSaveSchedule()} className="rounded-full bg-emerald-800 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-900">Simpan jadwal</button>
             </div>
           </div>
         )}

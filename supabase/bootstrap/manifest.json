@@ -1,8 +1,8 @@
 {
   "idempotent": true,
-  "source": "archive/supabase/migrations",
-  "migration_count": 280,
-  "bundle_count": 131,
+  "source": "supabase/bootstrap consolidated ordered bundles",
+  "migration_count": 338,
+  "bundle_count": 132,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -417,6 +417,30 @@
       "bytes": 33850
     },
     {
+      "file": "117_20261014093000_to_20261014093000.sql",
+      "source_files": [
+        "117_20261014093000_to_20261014093000.sql"
+      ],
+      "sha256": "0619a63e7d52a4ab0e9d509abe7e396c1b12f929c3bc21186eaee5b6895836a2",
+      "bytes": 2056
+    },
+    {
+      "file": "118_20261014104000_to_20261014104000.sql",
+      "source_files": [
+        "118_20261014104000_to_20261014104000.sql"
+      ],
+      "sha256": "5bd58855dc8985bc34da238e74c6337dea98f72a1c284fe018552835f0d52596",
+      "bytes": 959
+    },
+    {
+      "file": "119_20261014113000_to_20261014113000.sql",
+      "source_files": [
+        "20261014113000_enforce_marketplace_checkout_payment_and_phone.sql"
+      ],
+      "sha256": "89313f1ef70ba64fa009c99f78ee13fc83b879672c8a4cf1e8064701542643cf",
+      "bytes": 2500
+    },
+    {
       "file": "11_20260905100000_pos_legacy_reconciliation.sql",
       "source_files": [
         "11_20260905100000_pos_legacy_reconciliation.sql"
@@ -433,12 +457,116 @@
       "bytes": 1565
     },
     {
+      "file": "120_20261014160000_product_engagement_favorites.sql",
+      "source_files": [
+        "120_20261014160000_product_engagement_favorites.sql"
+      ],
+      "sha256": "22e3faae7eef61b53fd17394ba3243d1de8b12615e801a6089c3ed39b8f2f267",
+      "bytes": 3139
+    },
+    {
+      "file": "121_20261014174500_chat_message_web_push.sql",
+      "source_files": [
+        "20261014174500_chat_message_web_push.sql"
+      ],
+      "sha256": "101a117371db18694c3ab88af41f6ad6b13475109097bb195821c7a197cb8662",
+      "bytes": 6089
+    },
+    {
+      "file": "122_20261014174600_ride_pickup_landmark.sql",
+      "source_files": [
+        "122_20261014174600_ride_pickup_landmark.sql"
+      ],
+      "sha256": "057db744df194bf67f7935bc87de0222159098af72d9e18a42af10b0b0e925f2",
+      "bytes": 2611
+    },
+    {
+      "file": "123_20261014174700_courier_background_ride_offers.sql",
+      "source_files": [
+        "123_20261014174700_courier_background_ride_offers.sql"
+      ],
+      "sha256": "7ad38720854fd2896859674bdd46735db86d4fb7835e5fb1136e697e018abb1e",
+      "bytes": 7213
+    },
+    {
+      "file": "124_20261014093000_to_20261014093000.sql",
+      "source_files": [
+        "20261014093000_repair_checkout_item_normalizer.sql"
+      ],
+      "sha256": "ca26c6cef8442e01881033259c2eccd1387d374f2cb472607c4bf83157b2e621",
+      "bytes": 2512
+    },
+    {
+      "file": "125_20261014104000_to_20261014104000.sql",
+      "source_files": [
+        "20261014104000_repair_checkout_shipping_columns.sql"
+      ],
+      "sha256": "f8bb7d5cbe5f5b7b308141e070350203624213489c1ffee60c540643f8c635d8",
+      "bytes": 1425
+    },
+    {
+      "file": "126_20261014190000_to_20261014190000.sql",
+      "source_files": [
+        "20261014190000_harden_driver_cancel_ride.sql"
+      ],
+      "sha256": "a66e55035c4d0a9d61a84ef89a0bbf72dd5bd2a8cffa8ff2b6c5bc1f09dd69a5",
+      "bytes": 2562
+    },
+    {
+      "file": "127_20261014200000_payment_fare_hardening.sql",
+      "source_files": [
+        "127_20261014200000_payment_fare_hardening.sql"
+      ],
+      "sha256": "c40f24b8386f6b1c75b233cebbc259acf93239479a810a87d73250e8880b3b37",
+      "bytes": 20434
+    },
+    {
+      "file": "128_20261014230000_refund_manual_queue.sql",
+      "source_files": [
+        "128_20261014230000_refund_manual_queue.sql"
+      ],
+      "sha256": "501a72ac779714dc36ffd7c90894e3e32d4b16c7bc9266c1c973cb1c2e15bd2e",
+      "bytes": 13579
+    },
+    {
+      "file": "129_20261015000000_meal_time_push_reminders.sql",
+      "source_files": [
+        "129_20261015000000_meal_time_push_reminders.sql"
+      ],
+      "sha256": "d4fa29eae8ec6cb56a7e15b3033e938b545b645a02c3eed81af28d5c7c8a4597",
+      "bytes": 4829
+    },
+    {
       "file": "12_20260923143000_disable_cod_marketplace.sql",
       "source_files": [
         "12_20260923143000_disable_cod_marketplace.sql"
       ],
       "sha256": "cfa71087ab5484c8743792b670e22ba4bd009f4b36fb7ba47e17ef1888cd4ef0",
       "bytes": 4622
+    },
+    {
+      "file": "130_20261015010000_push_delivery_hourly_stats.sql",
+      "source_files": [
+        "130_20261015010000_push_delivery_hourly_stats.sql"
+      ],
+      "sha256": "391e7050819fc96edc2b27fa4222c8dc65c0cde656ca9c64c987b3f8c48ce42b",
+      "bytes": 1681
+    },
+    {
+      "file": "131_20261015020000_meal_recommendation_templates.sql",
+      "source_files": [
+        "131_20261015020000_meal_recommendation_templates.sql"
+      ],
+      "sha256": "238d8acebf6214ca8c4b17ff8b917f4da3531cd71496762a804ba124fd38e5f6",
+      "bytes": 5868
+    },
+    {
+      "file": "132_20261017000000_meal_reminder_user_preferences.sql",
+      "source_files": [
+        "20261017000000_meal_reminder_user_preferences.sql"
+      ],
+      "sha256": "0b524361b54e6e9ab0b1ad2724d8fe2256ceb45f721cdf6c60d5177cfa5e50b3",
+      "bytes": 6199
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",
@@ -1137,124 +1265,6 @@
       ],
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
-    },
-    {
-      "file": "117_20261014093000_to_20261014093000.sql",
-      "source_files": [
-        "20261014093000_repair_checkout_item_normalizer.sql"
-      ],
-      "sha256": "0619a63e7d52a4ab0e9d509abe7e396c1b12f929c3bc21186eaee5b6895836a2"
-    },
-    {
-      "file": "118_20261014104000_to_20261014104000.sql",
-      "source_files": [
-        "20261014104000_repair_checkout_shipping_columns.sql"
-      ],
-      "sha256": "5bd58855dc8985bc34da238e74c6337dea98f72a1c284fe018552835f0d52596"
-    },
-    {
-      "file": "119_20261014113000_to_20261014113000.sql",
-      "source_files": [
-        "20261014113000_enforce_marketplace_checkout_payment_and_phone.sql"
-      ],
-      "sha256": "89313f1ef70ba64fa009c99f78ee13fc83b879672c8a4cf1e8064701542643cf",
-      "bytes": 2500
-    },
-    {
-      "file": "120_20261014160000_product_engagement_favorites.sql",
-      "source_files": [
-        "120_20261014160000_product_engagement_favorites.sql"
-      ],
-      "sha256": "22e3faae7eef61b53fd17394ba3243d1de8b12615e801a6089c3ed39b8f2f267",
-      "bytes": 3139
-    },
-    {
-      "file": "121_20261014174500_chat_message_web_push.sql",
-      "source_files": [
-        "20261014174500_chat_message_web_push.sql"
-      ],
-      "sha256": "101a117371db18694c3ab88af41f6ad6b13475109097bb195821c7a197cb8662",
-      "bytes": 6089
-    },
-    {
-      "file": "122_20261014174600_ride_pickup_landmark.sql",
-      "source_files": [
-        "20261014174600_ride_pickup_landmark.sql"
-      ],
-      "sha256": "057db744df194bf67f7935bc87de0222159098af72d9e18a42af10b0b0e925f2",
-      "bytes": 2611
-    },
-    {
-      "file": "123_20261014174700_courier_background_ride_offers.sql",
-      "source_files": [
-        "20261014174700_courier_background_ride_offers.sql"
-      ],
-      "sha256": "7ad38720854fd2896859674bdd46735db86d4fb7835e5fb1136e697e018abb1e",
-      "bytes": 7213
-    },
-    {
-      "file": "124_20261014093000_to_20261014093000.sql",
-      "source_files": [
-        "20261014093000_repair_checkout_item_normalizer.sql"
-      ],
-      "sha256": "ca26c6cef8442e01881033259c2eccd1387d374f2cb472607c4bf83157b2e621",
-      "bytes": 2512
-    },
-    {
-      "file": "125_20261014104000_to_20261014104000.sql",
-      "source_files": [
-        "20261014104000_repair_checkout_shipping_columns.sql"
-      ],
-      "sha256": "f8bb7d5cbe5f5b7b308141e070350203624213489c1ffee60c540643f8c635d8",
-      "bytes": 1425
-    },
-    {
-      "file": "126_20261014190000_to_20261014190000.sql",
-      "source_files": [
-        "20261014190000_harden_driver_cancel_ride.sql"
-      ],
-      "sha256": "a66e55035c4d0a9d61a84ef89a0bbf72dd5bd2a8cffa8ff2b6c5bc1f09dd69a5",
-      "bytes": 2562
-    },
-    {
-      "file": "127_20261014200000_payment_fare_hardening.sql",
-      "source_files": [
-        "127_20261014200000_payment_fare_hardening.sql"
-      ],
-      "sha256": "c40f24b8386f6b1c75b233cebbc259acf93239479a810a87d73250e8880b3b37",
-      "bytes": 20434
-    },
-    {
-      "file": "128_20261014230000_refund_manual_queue.sql",
-      "source_files": [
-        "128_20261014230000_refund_manual_queue.sql"
-      ],
-      "sha256": "501a72ac779714dc36ffd7c90894e3e32d4b16c7bc9266c1c973cb1c2e15bd2e",
-      "bytes": 13579
-    },
-    {
-      "file": "129_20261015000000_meal_time_push_reminders.sql",
-      "source_files": [
-        "20261015000000_meal_time_push_reminders.sql"
-      ],
-      "sha256": "d4fa29eae8ec6cb56a7e15b3033e938b545b645a02c3eed81af28d5c7c8a4597",
-      "bytes": 4829
-    },
-    {
-      "file": "130_20261015010000_push_delivery_hourly_stats.sql",
-      "source_files": [
-        "20261015010000_push_delivery_hourly_stats.sql"
-      ],
-      "sha256": "391e7050819fc96edc2b27fa4222c8dc65c0cde656ca9c64c987b3f8c48ce42b",
-      "bytes": 1681
-    },
-    {
-      "file": "131_20261015020000_meal_recommendation_templates.sql",
-      "source_files": [
-        "20261015020000_meal_recommendation_templates.sql"
-      ],
-      "sha256": "238d8acebf6214ca8c4b17ff8b917f4da3531cd71496762a804ba124fd38e5f6",
-      "bytes": 5868
     }
   ]
 }
