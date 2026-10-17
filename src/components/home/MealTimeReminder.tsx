@@ -165,27 +165,29 @@ export function MealTimeReminder() {
           <button type="button" onClick={() => void handleSnooze()} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/80 px-2 py-1.5 text-[9px] font-semibold text-emerald-900 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:px-2.5 sm:text-[10px]" aria-label="Snooze pengingat selama satu jam">
             <AlarmClock className="h-3 w-3" aria-hidden="true" /><span className="hidden sm:inline">Snooze 1 jam</span><span className="sm:hidden">Snooze</span>
           </button>
-          <button type="button" onClick={() => setIsScheduleOpen((open) => !open)} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[9px] font-semibold text-emerald-800 transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:text-[10px]" aria-expanded={isScheduleOpen} aria-controls="meal-reminder-schedule">
-            <Settings2 className="h-3 w-3" aria-hidden="true" /><span className="hidden sm:inline">Ubah jadwal</span><span className="sm:hidden">Jadwal</span>
+          <button type="button" onClick={() => setIsScheduleOpen((open) => !open)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[9px] font-semibold text-emerald-800 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:text-[10px] ${isScheduleOpen ? 'bg-white shadow-sm ring-1 ring-emerald-200' : 'hover:bg-white/70'}`} aria-expanded={isScheduleOpen} aria-controls="meal-reminder-schedule">
+            <Settings2 className={`h-3 w-3 transition-transform duration-300 ease-out ${isScheduleOpen ? 'rotate-90' : 'rotate-0'}`} aria-hidden="true" /><span className="hidden sm:inline">Ubah jadwal</span><span className="sm:hidden">Jadwal</span>
           </button>
         </div>
         <p className="mt-1.5 hidden text-[9px] leading-tight text-slate-600 sm:block">Pengingat harian · {MEAL_PERIODS.map((mealPeriod) => schedule[mealPeriod].replace(':', '.')).join(' · ')}</p>
-        {isScheduleOpen && (
-          <div id="meal-reminder-schedule" className="mt-2 rounded-xl border border-emerald-100 bg-white/75 p-2.5 shadow-sm">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {MEAL_PERIODS.map((mealPeriod) => (
-                <label key={mealPeriod} className="flex flex-col gap-1 text-[9px] font-semibold capitalize text-slate-700">
-                  {mealPeriod}
-                  <input type="time" value={schedule[mealPeriod]} onChange={(event) => handleScheduleChange(mealPeriod, event.target.value)} className="h-8 rounded-lg border border-emerald-100 bg-white px-2 text-[11px] font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
-                </label>
-              ))}
-            </div>
-            <div className="mt-2 flex justify-end gap-1.5">
-              <button type="button" onClick={() => setIsScheduleOpen(false)} className="rounded-full px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
-              <button type="button" onClick={() => void handleSaveSchedule()} className="rounded-full bg-emerald-800 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-900">Simpan jadwal</button>
+        <div id="meal-reminder-schedule" aria-hidden={!isScheduleOpen} className={`grid transition-[grid-template-rows] duration-300 ease-out ${isScheduleOpen ? 'mt-2 grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+          <div className="min-h-0 overflow-hidden">
+            <div className={`rounded-xl border border-emerald-100 bg-white/75 p-2.5 shadow-sm transition-all duration-300 ease-out ${isScheduleOpen ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'}`}>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {MEAL_PERIODS.map((mealPeriod) => (
+                  <label key={mealPeriod} className="flex flex-col gap-1 text-[9px] font-semibold capitalize text-slate-700">
+                    {mealPeriod}
+                    <input tabIndex={isScheduleOpen ? 0 : -1} type="time" value={schedule[mealPeriod]} onChange={(event) => handleScheduleChange(mealPeriod, event.target.value)} className="h-8 rounded-lg border border-emerald-100 bg-white px-2 text-[11px] font-bold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+                  </label>
+                ))}
+              </div>
+              <div className="mt-2 flex justify-end gap-1.5">
+                <button type="button" tabIndex={isScheduleOpen ? 0 : -1} onClick={() => setIsScheduleOpen(false)} className="rounded-full px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-100">Batal</button>
+                <button type="button" tabIndex={isScheduleOpen ? 0 : -1} onClick={() => void handleSaveSchedule()} className="rounded-full bg-emerald-800 px-3 py-1.5 text-[10px] font-bold text-white transition-colors hover:bg-emerald-900">Simpan jadwal</button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
       {user && isSupported && !isSubscribed && (
         <Button type="button" size="sm" variant="outline" className="relative h-auto shrink-0 gap-1 rounded-full border-emerald-200 bg-white/90 px-2.5 py-1.5 text-[10px] font-bold text-emerald-900 shadow-sm" onClick={() => void handleEnablePush()} disabled={loading} aria-label="Aktifkan pengingat makan SaDesa">
