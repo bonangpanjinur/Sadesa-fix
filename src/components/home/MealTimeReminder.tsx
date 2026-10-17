@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlarmClock, ArrowRight, Bell, BellRing, Clock3, Settings2, Sparkles, Utensils, X } from 'lucide-react';
+import { AlarmClock, ArrowRight, Bell, BellRing, ChevronDown, Clock3, Image as ImageIcon, Settings2, Sparkles, Utensils, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePushNotification } from '@/hooks/usePushNotification';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { DEFAULT_MEAL_RECOMMENDATIONS, getMealPeriod, MEAL_PERIODS, normalizeMealRecommendations, type MealPeriod, type MealRecommendations } from '@/lib/mealRecommendations';
+import { parseHomepageServiceCardImageOverrides } from '@/lib/homeServiceCards';
 import { playSnoozeFeedback } from '@/lib/interactionFeedback';
 import { toast } from 'sonner';
 
@@ -30,7 +31,9 @@ export function MealTimeReminder() {
   const [recommendations, setRecommendations] = useState<MealRecommendations>(DEFAULT_MEAL_RECOMMENDATIONS);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [isFoodPreviewOpen, setIsFoodPreviewOpen] = useState(false);
   const [schedule, setSchedule] = useState<Record<MealPeriod, string>>(DEFAULT_SCHEDULE);
+  const [foodImageUrl, setFoodImageUrl] = useState<string | null>(null);
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null);
   const { user } = useAuth();
   const { isSupported, isSubscribed, loading, subscribe } = usePushNotification();
@@ -79,6 +82,15 @@ export function MealTimeReminder() {
       } catch {
         // Keep built-in copy when settings are temporarily unavailable.
       }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'homepage_service_card_images').maybeSingle();
+      if (mounted && !error) setFoodImageUrl(parseHomepageServiceCardImageOverrides(data?.value).food);
     })();
     return () => { mounted = false; };
   }, []);
@@ -169,6 +181,9 @@ export function MealTimeReminder() {
           <button type="button" onClick={() => setIsScheduleOpen((open) => !open)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[9px] font-semibold text-emerald-800 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:text-[10px] ${isScheduleOpen ? 'bg-white shadow-sm ring-1 ring-emerald-200' : 'hover:bg-white/70'}`} aria-expanded={isScheduleOpen} aria-controls="meal-reminder-schedule">
             <Settings2 className={`h-3 w-3 transition-transform duration-300 ease-out ${isScheduleOpen ? 'rotate-90' : 'rotate-0'}`} aria-hidden="true" /><span className="hidden sm:inline">Ubah jadwal</span><span className="sm:hidden">Jadwal</span>
           </button>
+          <button type="button" onClick={() => setIsFoodPreviewOpen((open) => !open)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[9px] font-semibold text-emerald-800 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:text-[10px] ${isFoodPreviewOpen ? 'bg-white shadow-sm ring-1 ring-emerald-200' : 'hover:bg-white/70'}`} aria-expanded={isFoodPreviewOpen} aria-controls="meal-reminder-food-preview">
+            <ImageIcon className="h-3 w-3" aria-hidden="true" /><span className="hidden sm:inline">Lihat foto</span><span className="sm:hidden">Foto</span><ChevronDown className={`h-3 w-3 transition-transform duration-200 ${isFoodPreviewOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+          </button>
         </div>
         <p className="mt-1.5 hidden text-[9px] leading-tight text-slate-600 sm:block">Pengingat harian · {MEAL_PERIODS.map((mealPeriod) => schedule[mealPeriod].replace(':', '.')).join(' · ')}</p>
         <div id="meal-reminder-schedule" aria-hidden={!isScheduleOpen} className={`grid transition-[grid-template-rows] duration-300 ease-out ${isScheduleOpen ? 'mt-2 grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
@@ -186,6 +201,19 @@ export function MealTimeReminder() {
                 <button type="button" tabIndex={isScheduleOpen ? 0 : -1} onClick={() => setIsScheduleOpen(false)} className="rounded-full px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition-colors hover:bg-slate-100">Batal</button>
                 <button type="button" tabIndex={isScheduleOpen ? 0 : -1} onClick={() => void handleSaveSchedule()} className="rounded-full bg-emerald-800 px-3 py-1.5 text-[10px] font-bold text-white transition-colors hover:bg-emerald-900">Simpan jadwal</button>
               </div>
+            </div>
+          </div>
+        </div>
+        <div id="meal-reminder-food-preview" aria-hidden={!isFoodPreviewOpen} className={`grid transition-[grid-template-rows] duration-300 ease-out ${isFoodPreviewOpen ? 'mt-2 grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+          <div className="min-h-0 overflow-hidden">
+            <div className={`relative aspect-[16/7] overflow-hidden rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-700 via-emerald-600 to-amber-500 shadow-sm transition-all duration-300 ease-out ${isFoodPreviewOpen ? 'translate-y-0 opacity-100' : '-translate-y-2 opacity-0'}`}>
+              {foodImageUrl ? (
+                <img src={foodImageUrl} alt="Aneka makanan dan minuman lokal" className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.03]" loading="lazy" decoding="async" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-white/80"><Utensils className="h-8 w-8" aria-hidden="true" /></div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" aria-hidden="true" />
+              <span className="absolute bottom-2 left-2 text-[10px] font-bold text-white drop-shadow">Menu lokal pilihan untukmu</span>
             </div>
           </div>
         </div>
