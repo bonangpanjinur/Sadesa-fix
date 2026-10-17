@@ -6,6 +6,7 @@ import { usePushNotification } from '@/hooks/usePushNotification';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { DEFAULT_MEAL_RECOMMENDATIONS, getMealPeriod, MEAL_PERIODS, normalizeMealRecommendations, type MealPeriod, type MealRecommendations } from '@/lib/mealRecommendations';
+import { playSnoozeFeedback } from '@/lib/interactionFeedback';
 import { toast } from 'sonner';
 
 export { getMealPeriod } from '@/lib/mealRecommendations';
@@ -162,7 +163,7 @@ export function MealTimeReminder() {
           <Link to="/products?type=makanan" className="inline-flex items-center gap-1 rounded-full bg-emerald-800 px-2.5 py-1.5 text-[9px] font-bold text-white shadow-sm transition hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 sm:gap-1.5 sm:px-3 sm:text-[10px]">
             Lihat rekomendasi <ArrowRight className="h-3 w-3" aria-hidden="true" />
           </Link>
-          <button type="button" onClick={() => void handleSnooze()} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/80 px-2 py-1.5 text-[9px] font-semibold text-emerald-900 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:px-2.5 sm:text-[10px]" aria-label="Snooze pengingat selama satu jam">
+          <button type="button" onClick={() => { playSnoozeFeedback(); void handleSnooze(); }} className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/80 px-2 py-1.5 text-[9px] font-semibold text-emerald-900 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:px-2.5 sm:text-[10px]" aria-label="Snooze pengingat selama satu jam">
             <AlarmClock className="h-3 w-3" aria-hidden="true" /><span className="hidden sm:inline">Snooze 1 jam</span><span className="sm:hidden">Snooze</span>
           </button>
           <button type="button" onClick={() => setIsScheduleOpen((open) => !open)} className={`inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[9px] font-semibold text-emerald-800 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-1 sm:text-[10px] ${isScheduleOpen ? 'bg-white shadow-sm ring-1 ring-emerald-200' : 'hover:bg-white/70'}`} aria-expanded={isScheduleOpen} aria-controls="meal-reminder-schedule">
