@@ -11,7 +11,21 @@ function getCorsHeaders(req: Request): Record<string, string> {
   };
 }
 
-const EMSIFA_URL = 'https://www.emsifa.com/api-wilayah-indonesia/api';
+const EMSIFA_URL = 'https://www.emsifa.com/api-wilayah-indonesia/v2';
+
+function normalizeV2Response(payload: unknown): { code: string; name: string }[] {
+  if (typeof payload !== 'object' || payload === null || !('data' in payload) || !Array.isArray(payload.data)) {
+    throw new Error('Unexpected EMSIFA v2 response: expected a data array');
+  }
+
+  return payload.data.map((item: unknown, index: number) => {
+    if (typeof item !== 'object' || item === null || !('id' in item) || !('name' in item)
+      || typeof item.id !== 'string' || typeof item.name !== 'string') {
+      throw new Error(`Unexpected EMSIFA v2 region item at index ${index}`);
+    }
+    return { code: item.id, name: item.name };
+  });
+}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -69,7 +83,12 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    if (code && !/^[A-Za-z0-9_-]{1,32}$/.test(code)) {
+    const codePatterns: Record<string, RegExp> = {
+      regencies: /^\d{2}$/,
+      districts: /^\d{2}\.\d{2}$/,
+      villages: /^\d{2}\.\d{2}\.\d{2}$/,
+    };
+    if (code && codePatterns[type] && !codePatterns[type].test(code)) {
       return new Response(JSON.stringify({ error: 'Invalid code parameter' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -83,11 +102,10 @@ Deno.serve(async (req) => {
       throw new Error(`emsifa returned ${response.status}`);
     }
 
-    const json = await response.json();
-    // Normalize emsifa {id, name} to {code, name}
-    const data = Array.isArray(json)
-      ? json.map((item: { id: string; name: string }) => ({ code: item.id, name: item.name }))
-      : json;
+    const json: unknown = await response.json();
+    // EMSIFA v2 wraps results in { data, meta } and uses { id, name } items.
+    // Keep the legacy proxy contract as a plain array of { code, name }.
+    const data = normalizeV2Response(json);
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
