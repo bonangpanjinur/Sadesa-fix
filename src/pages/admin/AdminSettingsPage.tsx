@@ -18,7 +18,6 @@ import type {
   AppSetting, 
   RegistrationSettings, 
   PaymentSettings, 
-  AddressApiSettings,
   ShippingFeeSettings,
   PlatformFeeSettings,
   ShippingZonesSettings,
@@ -107,22 +106,9 @@ export default function AdminSettingsPage() {
     setSaving(null);
   };
 
-  const handleSaveAddressApi = async (values: AddressApiSettings) => {
-    setSaving('address_api');
-    const success = await updateAppSetting('address_api', values as unknown as Record<string, unknown>);
-    if (success) {
-      toast.success('Pengaturan API alamat berhasil disimpan');
-      loadSettings();
-    } else {
-      toast.error('Gagal menyimpan pengaturan');
-    }
-    setSaving(null);
-  };
-
   const registrationVillage = getSetting('registration_village')?.value as unknown as RegistrationSettings | undefined;
   const registrationMerchant = getSetting('registration_merchant')?.value as unknown as RegistrationSettings | undefined;
   const registrationCourier = getSetting('registration_courier')?.value as unknown as RegistrationSettings | undefined;
-  const addressApi = getSetting('address_api')?.value as unknown as AddressApiSettings | undefined;
   const paymentMidtrans = getSetting('payment_midtrans')?.value as unknown as PaymentSettings | undefined;
   const paymentXendit = getSetting('payment_xendit')?.value as unknown as PaymentSettings | undefined;
   const shippingBaseFee = getSetting('shipping_base_fee')?.value as unknown as ShippingFeeSettings | undefined;
@@ -500,16 +486,12 @@ export default function AdminSettingsPage() {
                       <Globe className="h-5 w-5" />
                       API Alamat Wilayah
                     </CardTitle>
-                    <CardDescription>
-                      Konfigurasi API untuk data wilayah Indonesia
-                    </CardDescription>
+                    <CardDescription>Sumber data wilayah Indonesia yang digunakan seluruh formulir alamat</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <AddressApiForm
-                      initialValues={addressApi}
-                      onSave={handleSaveAddressApi}
-                      isSaving={saving === 'address_api'}
-                    />
+                  <CardContent className="space-y-2 text-sm">
+                    <p><span className="font-medium">Provider:</span> EMSIFA API v2</p>
+                    <p><span className="font-medium">Base URL:</span> https://www.emsifa.com/api-wilayah-indonesia/v2</p>
+                    <p className="text-muted-foreground">Data dimuat melalui Supabase Edge Function dengan fallback langsung ke EMSIFA v2. Provider ini dikunci agar semua formulir memakai sumber data yang sama.</p>
                   </CardContent>
                 </Card>
 
@@ -573,23 +555,8 @@ export default function AdminSettingsPage() {
   );
 }
 
-// Sub-form components (AddressApiForm, PaymentMidtransForm, PaymentXenditForm, ShippingFeeForm, ShippingZonesForm, PlatformFeeForm, CODSettingsForm)
+// Sub-form components (PaymentMidtransForm, PaymentXenditForm, ShippingFeeForm, ShippingZonesForm, PlatformFeeForm, CODSettingsForm)
 // [Keeping the existing implementations from the original file...]
-
-function AddressApiForm({ initialValues, onSave, isSaving }: { initialValues?: AddressApiSettings; onSave: (values: AddressApiSettings) => Promise<void>; isSaving: boolean; }) {
-  const [provider, setProvider] = useState(initialValues?.provider || 'wilayah.id');
-  const [baseUrl, setBaseUrl] = useState(initialValues?.base_url || 'https://wilayah.id/api');
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ provider, base_url: baseUrl }); };
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2"><Label>Provider</Label><Input value={provider} onChange={(e) => setProvider(e.target.value)} /></div>
-        <div className="space-y-2"><Label>Base URL</Label><Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></div>
-      </div>
-      <Button type="submit" disabled={isSaving}><Save className="h-4 w-4 mr-2" /> {isSaving ? 'Menyimpan...' : 'Simpan'}</Button>
-    </form>
-  );
-}
 
 function PaymentMidtransForm({ initialValues, onSave, isSaving }: { initialValues?: PaymentSettings; onSave: (values: PaymentSettings) => Promise<void>; isSaving: boolean; }) {
   const [serverKey, setServerKey] = useState(initialValues?.server_key || '');

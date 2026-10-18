@@ -1,5 +1,6 @@
 // EMSIFA v2 region data. Proxy and direct fallback are normalized to the
 // same { code, name } client contract.
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '@/integrations/supabase/client';
 
 export interface Region {
   code: string;
@@ -46,48 +47,6 @@ function setCache(key: string, data: Region[]): void {
   }
 }
 
-// Static fallback data for provinces
-const STATIC_PROVINCES: Region[] = [
-  { code: "11", name: "Aceh" },
-  { code: "12", name: "Sumatera Utara" },
-  { code: "13", name: "Sumatera Barat" },
-  { code: "14", name: "Riau" },
-  { code: "15", name: "Jambi" },
-  { code: "16", name: "Sumatera Selatan" },
-  { code: "17", name: "Bengkulu" },
-  { code: "18", name: "Lampung" },
-  { code: "19", name: "Kepulauan Bangka Belitung" },
-  { code: "21", name: "Kepulauan Riau" },
-  { code: "31", name: "DKI Jakarta" },
-  { code: "32", name: "Jawa Barat" },
-  { code: "33", name: "Jawa Tengah" },
-  { code: "34", name: "DI Yogyakarta" },
-  { code: "35", name: "Jawa Timur" },
-  { code: "36", name: "Banten" },
-  { code: "51", name: "Bali" },
-  { code: "52", name: "Nusa Tenggara Barat" },
-  { code: "53", name: "Nusa Tenggara Timur" },
-  { code: "61", name: "Kalimantan Barat" },
-  { code: "62", name: "Kalimantan Tengah" },
-  { code: "63", name: "Kalimantan Selatan" },
-  { code: "64", name: "Kalimantan Timur" },
-  { code: "65", name: "Kalimantan Utara" },
-  { code: "71", name: "Sulawesi Utara" },
-  { code: "72", name: "Sulawesi Tengah" },
-  { code: "73", name: "Sulawesi Selatan" },
-  { code: "74", name: "Sulawesi Tenggara" },
-  { code: "75", name: "Gorontalo" },
-  { code: "76", name: "Sulawesi Barat" },
-  { code: "81", name: "Maluku" },
-  { code: "82", name: "Maluku Utara" },
-  { code: "91", name: "Papua" },
-  { code: "92", name: "Papua Barat" },
-  { code: "93", name: "Papua Selatan" },
-  { code: "94", name: "Papua Tengah" },
-  { code: "95", name: "Papua Pegunungan" },
-  { code: "96", name: "Papua Barat Daya" },
-];
-
 const EMSIFA_V2_API_URL = 'https://www.emsifa.com/api-wilayah-indonesia/v2';
 
 function toTitleCase(str: string): string {
@@ -99,53 +58,32 @@ function toTitleCase(str: string): string {
   return str;
 }
 
-async function fetchViaLocalProxy(type: string, code: string | undefined, signal?: AbortSignal): Promise<Response | null> {
+function toEmsifaV2Code(code: string): string {
+  if (/^\d{2}(?:\.\d{2}){1,2}(?:\.\d{4})?$/.test(code)) return code;
+  if (/^\d{10}$/.test(code)) return code.replace(/^(\d{2})(\d{2})(\d{2})(\d{4})$/, '$1.$2.$3.$4');
+  if (/^\d{6}$/.test(code)) return code.replace(/^(\d{2})(\d{2})(\d{2})$/, '$1.$2.$3');
+  if (/^\d{4}$/.test(code)) return code.replace(/^(\d{2})(\d{2})$/, '$1.$2');
+  return code;
+}
+
+function toLegacyRegionCode(code: string): string {
+  return /^\d{2}(?:\.\d{2}){1,2}(?:\.\d{4})?$/.test(code) ? code.replace(/\./g, '') : code;
+}
+
+async function fetchViaSupabaseProxy(type: string, code: string | undefined, signal?: AbortSignal): Promise<Response | null> {
   const params = new URLSearchParams({ type });
-  if (code) params.append('code', code);
-
+  if (code) params.append('code', toEmsifaV2Code(code));
   try {
-    // Prefer the application's own proxy when the host provides one.
-    const localResponse = await fetch(`/api/wilayah?${params.toString()}`, { signal });
-    const contentType = localResponse.headers.get('content-type') || '';
-    if (localResponse.ok && contentType.includes('application/json')) return localResponse;
-  } catch (error) {
-    if ((error as Error).name === 'AbortError') throw error;
-  }
-
-  try {
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    if (projectId) {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/wilayah-proxy?${params.toString()}`,
-        {
-          // GET plus apikey is sufficient for a public Edge Function and avoids
-          // the unnecessary Content-Type preflight from the old implementation.
-          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '' },
-          signal,
-        },
-      );
-      if (response.ok && (response.headers.get('content-type') || '').includes('application/json')) {
-        return response;
-      }
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/wilayah-proxy?${params.toString()}`, {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+      signal,
+    });
+    if (response.ok && (response.headers.get('content-type') || '').includes('application/json')) {
+      return response;
     }
   } catch (error) {
     if ((error as Error).name === 'AbortError') throw error;
   }
-
-  try {
-    // Direct v2 is retained only as fallback while a deployment's proxy is
-    // missing or still returning the old, undotted v1 region codes.
-    const upstreamUrl = `${EMSIFA_V2_API_URL}/${type === 'provinces' ? 'provinces' : `${type}/${encodeURIComponent(code ?? '')}`}.json`;
-    const response = await fetch(upstreamUrl, {
-      headers: { Accept: 'application/json' },
-      signal,
-    });
-    const contentType = response.headers.get('content-type') || '';
-    if (response.ok && contentType.includes('application/json')) return response;
-  } catch (error) {
-    if ((error as Error).name === 'AbortError') throw error;
-  }
-
   return null;
 }
 
@@ -184,12 +122,13 @@ async function fetchWithFallbacks(type: string, code?: string): Promise<Region[]
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    // Prefer Supabase. If a deployment still serves v1 codes, fetch v2 rather
-    // than showing the incomplete legacy dataset.
-    const response = await fetchViaLocalProxy(type, code, signal);
+    // Prefer the Supabase function, then request EMSIFA v2 directly if the
+    // function is not deployed or still serves the old, undotted v1 codes.
+    const response = await fetchViaSupabaseProxy(type, code, signal);
     let result: Region[] = response ? normalizeRegionPayload(await response.json()) : [];
     if (!hasV2Codes(type, result)) {
-      const endpoint = type === 'provinces' ? 'provinces' : `${type}/${encodeURIComponent(code ?? '')}`;
+      const v2Code = code ? toEmsifaV2Code(code) : '';
+      const endpoint = type === 'provinces' ? 'provinces' : `${type}/${encodeURIComponent(v2Code)}`;
       const v2Response = await fetch(`${EMSIFA_V2_API_URL}/${endpoint}.json`, {
         headers: { Accept: 'application/json' },
         signal,
@@ -198,13 +137,14 @@ async function fetchWithFallbacks(type: string, code?: string): Promise<Region[]
       result = normalizeRegionPayload(await v2Response.json());
     }
     if (!hasV2Codes(type, result)) throw new Error('EMSIFA v2 returned an invalid or empty region list');
+    // Keep existing database/form IDs stable. Only the lookup source is v2.
+    result = result.map(({ code: regionCode, name }) => ({ code: toLegacyRegionCode(regionCode), name }));
 
     clearTimeout(timeout);
     controller.abort();
     return result;
   } catch {
     clearTimeout(timeout);
-    if (type === 'provinces') return STATIC_PROVINCES;
     console.warn(`All fetch strategies failed for ${type}/${code}`);
     return [];
   }
@@ -221,7 +161,7 @@ export async function fetchProvinces(): Promise<Region[]> {
     return data;
   } catch (error) {
     console.error('Error fetching provinces:', error);
-    return STATIC_PROVINCES;
+    return [];
   }
 }
 

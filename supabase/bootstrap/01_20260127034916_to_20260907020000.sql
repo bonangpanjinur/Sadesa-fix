@@ -1451,7 +1451,7 @@ INSERT INTO public.app_settings (key, value, description, category) VALUES
 ('registration_village', '{"enabled": true}', 'Enable/disable village registration', 'registration'),
 ('registration_merchant', '{"enabled": true}', 'Enable/disable merchant registration', 'registration'),
 ('registration_courier', '{"enabled": true}', 'Enable/disable courier registration', 'registration'),
-('address_api', '{"provider": "emsifa", "base_url": "https://emsifa.github.io/api-wilayah-indonesia/api"}', 'Address API configuration', 'integration'),
+('address_api', '{"provider": "emsifa-v2", "base_url": "https://www.emsifa.com/api-wilayah-indonesia/v2"}', 'Address API configuration', 'integration'),
 ('payment_midtrans', '{"enabled": false, "server_key": "", "client_key": "", "is_production": false}', 'Midtrans payment gateway', 'payment'),
 ('payment_xendit', '{"enabled": false, "secret_key": "", "public_key": ""}', 'Xendit payment gateway', 'payment')
 ON CONFLICT DO NOTHING$bootstrap_sql_d86a5c05bbe6$;

@@ -45,11 +45,6 @@ export interface RegistrationSettings {
   enabled: boolean;
 }
 
-export interface AddressApiSettings {
-  provider: string;
-  base_url: string;
-}
-
 export interface PaymentSettings {
   enabled: boolean;
   server_key?: string;

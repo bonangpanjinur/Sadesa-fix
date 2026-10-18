@@ -14,7 +14,7 @@ describe('addressApi EMSIFA v2', () => {
     localStorage.clear();
   });
 
-  it('ignores legacy v1 codes and uses the complete v2 village list', async () => {
+  it('loads the full v2 village list for a saved legacy district code', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(jsonResponse([
         { code: '3206132001', name: 'TARAJU' },
@@ -29,10 +29,12 @@ describe('addressApi EMSIFA v2', () => {
         meta: { level: 4 },
       }));
 
-    const villages = await fetchVillages('32.06.13');
+    const villages = await fetchVillages('320613');
 
-    expect(villages).toContainEqual({ code: '32.06.13.2003', name: 'Deudeul' });
+    expect(villages).toContainEqual({ code: '3206132003', name: 'Deudeul' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    const proxyUrl = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(proxyUrl.searchParams.get('code')).toBe('32.06.13');
     expect(String(fetchMock.mock.calls[1][0])).toContain('/v2/villages/32.06.13.json');
   });
 });
