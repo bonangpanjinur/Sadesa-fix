@@ -1,8 +1,5 @@
-// Wilayah.id API for Indonesian regions
-// Source: https://wilayah.id/
-// Uses the application proxy first, then Supabase Edge Function, then the
-// public upstream as a last resort so address selectors remain usable even
-// when one deployment's proxy is unavailable.
+// EMSIFA v2 region data. Proxy and direct fallback are normalized to the
+// same { code, name } client contract.
 
 export interface Region {
   code: string;
@@ -10,15 +7,12 @@ export interface Region {
 }
 
 interface WilayahResponse {
-  data: Region[];
-  meta?: {
-    administrative_area_level: number;
-    updated_at: string;
-  };
+  data: Array<{ id?: string; code?: string; name: string }>;
+  meta?: Record<string, unknown>;
 }
 
 // Persistent cache using localStorage
-const CACHE_PREFIX = 'address_cache_';
+const CACHE_PREFIX = 'address_cache_v2_';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 function getCacheKey(type: string, code?: string): string {
@@ -94,18 +88,7 @@ const STATIC_PROVINCES: Region[] = [
   { code: "96", name: "Papua Barat Daya" },
 ];
 
-let BASE_URL = 'https://wilayah.id/api';
-const EMSIFA_API_URL = 'https://www.emsifa.com/api-wilayah-indonesia/api';
-
-// Try to load custom API URL from localStorage (cached from system settings)
-try {
-  const customApiUrl = localStorage.getItem('custom_address_api_url');
-  if (customApiUrl) {
-    BASE_URL = customApiUrl;
-  }
-} catch (e) {
-  // Ignore localStorage errors
-}
+const EMSIFA_V2_API_URL = 'https://www.emsifa.com/api-wilayah-indonesia/v2';
 
 function toTitleCase(str: string): string {
   if (!str) return str;
@@ -114,13 +97,6 @@ function toTitleCase(str: string): string {
     return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   }
   return str;
-}
-
-export function setBaseUrl(url: string) {
-  BASE_URL = url;
-  try {
-    localStorage.setItem('custom_address_api_url', url);
-  } catch (err) { console.warn('[address] gagal menyimpan URL API wilayah:', err); }
 }
 
 async function fetchViaLocalProxy(type: string, code: string | undefined, signal?: AbortSignal): Promise<Response | null> {
@@ -157,10 +133,9 @@ async function fetchViaLocalProxy(type: string, code: string | undefined, signal
   }
 
   try {
-    // The upstream explicitly allows browser requests. Keep this as the final
-    // fallback for deployments where the local or Supabase proxy is missing,
-    // stale, or temporarily returning an error.
-    const upstreamUrl = `${EMSIFA_API_URL}/${type === 'provinces' ? 'provinces' : `${type}/${code}`}.json`;
+    // Direct v2 is retained only as fallback while a deployment's proxy is
+    // missing or still returning the old, undotted v1 region codes.
+    const upstreamUrl = `${EMSIFA_V2_API_URL}/${type === 'provinces' ? 'provinces' : `${type}/${encodeURIComponent(code ?? '')}`}.json`;
     const response = await fetch(upstreamUrl, {
       headers: { Accept: 'application/json' },
       signal,
@@ -174,6 +149,31 @@ async function fetchViaLocalProxy(type: string, code: string | undefined, signal
   return null;
 }
 
+function normalizeRegionPayload(json: unknown): Region[] {
+  const items = Array.isArray(json) ? json : (json as WilayahResponse | null)?.data;
+  if (!Array.isArray(items)) return [];
+
+  return items.flatMap((item) => {
+    if (!item || typeof item !== 'object' || typeof item.name !== 'string') return [];
+    const code = item.code ?? item.id;
+    if (typeof code !== 'string') return [];
+    return [{ code, name: toTitleCase(item.name) }];
+  });
+}
+
+function hasV2Codes(type: string, data: Region[]): boolean {
+  if (data.length === 0) return false;
+  if (type === 'provinces') return data.length >= 38 && data.every(({ code }) => /^\d{2}$/.test(code));
+
+  const codePatterns: Record<string, RegExp> = {
+    regencies: /^\d{2}\.\d{2}$/,
+    districts: /^\d{2}\.\d{2}\.\d{2}$/,
+    villages: /^\d{2}\.\d{2}\.\d{2}\.\d{4}$/,
+  };
+  const pattern = codePatterns[type];
+  return Boolean(pattern && data.every(({ code }) => pattern.test(code)));
+}
+
 async function fetchWithFallbacks(type: string, code?: string): Promise<Region[]> {
   if (!['provinces', 'regencies', 'districts', 'villages'].includes(type)) return [];
 
@@ -184,18 +184,20 @@ async function fetchWithFallbacks(type: string, code?: string): Promise<Region[]
   const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
-    // Prefer controlled proxy flows, with the public upstream retained as a
-    // last-resort fallback for production deployments that have no proxy.
+    // Prefer Supabase. If a deployment still serves v1 codes, fetch v2 rather
+    // than showing the incomplete legacy dataset.
     const response = await fetchViaLocalProxy(type, code, signal);
-    if (!response) throw new Error('Wilayah proxy unavailable');
-    const json = await response.json();
-    const result = Array.isArray(json)
-      ? json.map((item: { id?: string; code?: string; name: string }) => ({
-          code: item.code ?? item.id ?? '',
-          name: toTitleCase(item.name),
-        }))
-      : ((json as WilayahResponse).data || []);
-    if (result.length === 0) throw new Error('Wilayah proxy returned an empty result');
+    let result: Region[] = response ? normalizeRegionPayload(await response.json()) : [];
+    if (!hasV2Codes(type, result)) {
+      const endpoint = type === 'provinces' ? 'provinces' : `${type}/${encodeURIComponent(code ?? '')}`;
+      const v2Response = await fetch(`${EMSIFA_V2_API_URL}/${endpoint}.json`, {
+        headers: { Accept: 'application/json' },
+        signal,
+      });
+      if (!v2Response.ok) throw new Error(`EMSIFA v2 returned ${v2Response.status}`);
+      result = normalizeRegionPayload(await v2Response.json());
+    }
+    if (!hasV2Codes(type, result)) throw new Error('EMSIFA v2 returned an invalid or empty region list');
 
     clearTimeout(timeout);
     controller.abort();

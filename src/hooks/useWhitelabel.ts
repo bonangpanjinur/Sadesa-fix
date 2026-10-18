@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { setBaseUrl } from '@/lib/addressApi';
 
 interface PWAIcon {
   src: string;
@@ -163,10 +162,6 @@ export function useWhitelabelProvider() {
             ...storedPwa,
             icons: storedPwa.icons?.length ? storedPwa.icons : (newSettings.pwa?.icons ?? DEFAULT_PWA_ICONS),
           } as PWAConfig;
-        }
-        if (item.key === 'address_api' && item.value && typeof item.value === 'object') {
-          const addressApi = item.value as unknown as { base_url?: string };
-          if (addressApi.base_url) setBaseUrl(addressApi.base_url);
         }
       });
 
