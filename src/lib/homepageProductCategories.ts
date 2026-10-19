@@ -15,6 +15,12 @@ interface CategorizedProduct {
   createdAt?: string | null;
 }
 
+export interface HomepageCategorySelectionOptions {
+  now?: number;
+  windowMs?: number;
+  rotationBucket?: number;
+}
+
 export interface HomepageProductCategoryRow<T extends CategorizedProduct> {
   id: string;
   label: string;
@@ -23,6 +29,16 @@ export interface HomepageProductCategoryRow<T extends CategorizedProduct> {
 }
 
 const normalizeSlug = (slug: string) => slug.trim().toLowerCase();
+
+function rotationScore(productId: string, rotationBucket: number) {
+  let hash = 2166136261;
+  const key = `${rotationBucket}:${productId}`;
+  for (let index = 0; index < key.length; index += 1) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
 
 function matchesCategoryIds(
   product: CategorizedProduct,
@@ -167,6 +183,7 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
   categories: ProductCategory[],
   productsPerCategory = 4,
   shoppingProducts: T[] = products,
+  selectionOptions: HomepageCategorySelectionOptions = {},
 ): HomepageProductCategoryRow<T>[] {
   const rows: HomepageProductCategoryRow<T>[] = [];
   const assignedProductIds = new Set<string>();
@@ -199,13 +216,26 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
     ));
     matchingProducts.forEach((product) => assignedProductIds.add(product.id));
     if (matchingProducts.length > 0 || keepVisibleWhenEmpty) {
-      const orderedProducts = newestFirst
-        ? [...matchingProducts].sort((a, b) => {
-          const aTimestamp = Date.parse(a.createdAt || '');
-          const bTimestamp = Date.parse(b.createdAt || '');
-          return (Number.isFinite(bTimestamp) ? bTimestamp : 0) - (Number.isFinite(aTimestamp) ? aTimestamp : 0);
+      const now = selectionOptions.now;
+      const windowMs = selectionOptions.windowMs;
+      const rotationBucket = selectionOptions.rotationBucket;
+      const hasFreshnessRule = now !== undefined && windowMs !== undefined;
+      const recentProducts = hasFreshnessRule
+        ? matchingProducts.filter((product) => {
+          const timestamp = Date.parse(product.createdAt || '');
+          return Number.isFinite(timestamp) && timestamp >= now - windowMs && timestamp <= now;
         })
         : matchingProducts;
+      const candidates = recentProducts.length > 0 ? recentProducts : matchingProducts;
+      const orderedProducts = recentProducts.length > 0 || rotationBucket === undefined
+        ? (newestFirst
+          ? [...candidates].sort((a, b) => {
+            const aTimestamp = Date.parse(a.createdAt || '');
+            const bTimestamp = Date.parse(b.createdAt || '');
+            return (Number.isFinite(bTimestamp) ? bTimestamp : 0) - (Number.isFinite(aTimestamp) ? aTimestamp : 0);
+          })
+          : candidates)
+        : [...candidates].sort((a, b) => rotationScore(a.id, rotationBucket) - rotationScore(b.id, rotationBucket));
       rows.push({
         id,
         label,

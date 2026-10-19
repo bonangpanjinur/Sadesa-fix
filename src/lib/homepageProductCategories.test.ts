@@ -104,6 +104,20 @@ describe('groupNewestProductsByCategory', () => {
     expect(rows[0].products.map((product) => product.id)).toEqual(['newest-old-shopping', 'older-shopping']);
   });
 
+  it('falls back independently for a category without recent products', () => {
+    const rows = groupNewestProductsByCategory([
+      { id: 'recent-food', category: 'nasi-dan-mi', categoryId: 'rice', createdAt: '2026-10-13T10:00:00.000Z' },
+      { id: 'old-craft', category: 'anyaman', categoryId: 'crafts-sub', createdAt: '2026-08-01T10:00:00.000Z' },
+    ], categories, 4, [], {
+      now: Date.parse('2026-10-14T12:00:00.000Z'),
+      windowMs: 14 * 24 * 60 * 60 * 1000,
+      rotationBucket: 1,
+    });
+
+    expect(rows.find((row) => row.id === 'food-and-drinks')?.products.map((product) => product.id)).toEqual(['recent-food']);
+    expect(rows.find((row) => row.slug === 'anyaman')?.products.map((product) => product.id)).toEqual(['old-craft']);
+  });
+
   it('limits each category row independently and preserves products without categories', () => {
     const manyProducts = Array.from({ length: 6 }, (_, index) => ({
       id: `food-${index}`,

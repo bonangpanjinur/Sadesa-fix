@@ -19,11 +19,9 @@ import {
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import {
   filterOpenMerchantProducts,
-  getHomepageProductCutoffISO,
   getHomepageRotationBucket,
   hasEnoughBestSellingHistory,
   selectRotatingProducts,
-  selectShoppingProductsWithFallback,
   selectTopSellingProducts,
 } from '@/lib/homepageProducts';
 import { getShoppingCategoryQueryFilter, groupNewestProductsByCategory, selectNewestFoodDrinkProducts } from '@/lib/homepageProductCategories';
@@ -169,13 +167,12 @@ const Index = () => {
       rotationHours: 1,
       newestProductWindowDays: 14,
     }, () =>
-      // The homepage rotates a deterministic sample every hour. The server-side
-      // cutoff keeps the candidate pool limited to products from the last 14 days.
+      // Fetch a broad pool so each category can fall back independently when it
+      // has no product from the last fourteen days.
       fetchProducts({
-        limit: 48,
+        limit: 200,
         includeReviews: false,
         cacheKey: 'homepage-products-rotating',
-        createdAfter: getHomepageProductCutoffISO(),
       })
     ),
     staleTime: 60_000,
@@ -344,7 +341,7 @@ const Index = () => {
     let selectedNewest = selectRotatingProducts(
       filterOpenMerchantProducts(products),
       highlightedProductIds,
-      { limit: 48, rotationBucket },
+      { limit: 200, rotationBucket, windowMs: Number.MAX_SAFE_INTEGER },
     );
     // Keep freshness as the candidate pool, then prioritize nearby merchants
     // within that pool when we know the user's actual location.
@@ -372,7 +369,7 @@ const Index = () => {
         calculateDistance(userLocation.lat, userLocation.lng, product.locationLat, product.locationLng) <= Number(newestMaxDistance)
       ));
     }
-    return selectShoppingProductsWithFallback(candidates, { limit: 48 });
+    return candidates;
   }, [
     shoppingCategoryCandidates,
     shoppingCategoryCandidatesError,
@@ -381,12 +378,15 @@ const Index = () => {
     newestMaxDistance,
     promoProducts,
     promoSectionEnabled,
-    rotationBucket,
     userLocation,
   ]);
   const newestProductRows = useMemo(
-    () => groupNewestProductsByCategory(newestProducts, activeProductCategories, 4, shoppingProductsForHomepage),
-    [newestProducts, activeProductCategories, shoppingProductsForHomepage],
+    () => groupNewestProductsByCategory(newestProducts, activeProductCategories, 4, shoppingProductsForHomepage, {
+      now: Date.now(),
+      windowMs: 14 * 24 * 60 * 60 * 1000,
+      rotationBucket,
+    }),
+    [newestProducts, activeProductCategories, shoppingProductsForHomepage, rotationBucket],
   );
   const productsAlreadyHighlighted = useMemo(() => new Set([
     ...(promoSectionEnabled ? promoProducts.map((product) => product.id) : []),
@@ -591,7 +591,7 @@ const Index = () => {
                 </div>
                 <div>
                   <h2 id="newest-products-title" className="font-heading text-base font-bold text-foreground">Produk terbaru</h2>
-                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap jam · produk baru 14 hari · Belanja memakai produk terakhir bila kosong</p>
+                  <p className="mt-0.5 text-[9px] text-muted-foreground">Pilihan berganti setiap jam · produk baru 14 hari · kategori kosong memakai produk lain</p>
                   <label className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <MapPin className="h-3 w-3" />
                     Maks. jarak
