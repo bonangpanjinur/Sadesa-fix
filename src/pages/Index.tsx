@@ -18,7 +18,6 @@ import {
 } from '@/lib/api';
 import { fetchBannerPromotions, incrementPromotionView, incrementPromotionClick } from '@/lib/promotions';
 import {
-  filterOpenMerchantProducts,
   getHomepageRotationBucket,
   hasEnoughBestSellingHistory,
   selectRotatingProducts,
@@ -337,9 +336,10 @@ const Index = () => {
     const highlightedProductIds = promoSectionEnabled
       ? new Set(promoProducts.map((product) => product.id))
       : new Set<string>();
-    // Filter before rotation so closed merchants do not consume homepage slots.
+    // Keep closed-merchant products in the pool so a category can fall back to
+    // them when no open merchant has a product to show.
     let selectedNewest = selectRotatingProducts(
-      filterOpenMerchantProducts(products),
+      products,
       highlightedProductIds,
       { limit: 200, rotationBucket, windowMs: Number.MAX_SAFE_INTEGER },
     );
@@ -359,7 +359,7 @@ const Index = () => {
     const sourceProducts = shoppingCategoryCandidatesLoading || shoppingCategoryCandidatesError
       ? newestProducts
       : shoppingCategoryCandidates;
-    let candidates = filterOpenMerchantProducts(sourceProducts);
+    let candidates = sourceProducts;
     if (promoSectionEnabled) {
       const promotedIds = new Set(promoProducts.map((product) => product.id));
       candidates = candidates.filter((product) => !promotedIds.has(product.id));

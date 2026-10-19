@@ -13,6 +13,7 @@ interface CategorizedProduct {
   category: string;
   categoryId?: string | null;
   createdAt?: string | null;
+  isMerchantOpen?: boolean | null;
 }
 
 export interface HomepageCategorySelectionOptions {
@@ -216,17 +217,22 @@ export function groupNewestProductsByCategory<T extends CategorizedProduct>(
     ));
     matchingProducts.forEach((product) => assignedProductIds.add(product.id));
     if (matchingProducts.length > 0 || keepVisibleWhenEmpty) {
+      // Prefer products from open merchants, but do not leave a category blank
+      // when every merchant in that category is currently closed. ProductCard
+      // still presents the closed status and prevents an invalid order flow.
+      const openMerchantProducts = matchingProducts.filter((product) => product.isMerchantOpen !== false);
+      const merchantAwareProducts = openMerchantProducts.length > 0 ? openMerchantProducts : matchingProducts;
       const now = selectionOptions.now;
       const windowMs = selectionOptions.windowMs;
       const rotationBucket = selectionOptions.rotationBucket;
       const hasFreshnessRule = now !== undefined && windowMs !== undefined;
       const recentProducts = hasFreshnessRule
-        ? matchingProducts.filter((product) => {
+        ? merchantAwareProducts.filter((product) => {
           const timestamp = Date.parse(product.createdAt || '');
           return Number.isFinite(timestamp) && timestamp >= now - windowMs && timestamp <= now;
         })
-        : matchingProducts;
-      const candidates = recentProducts.length > 0 ? recentProducts : matchingProducts;
+        : merchantAwareProducts;
+      const candidates = recentProducts.length > 0 ? recentProducts : merchantAwareProducts;
       const orderedProducts = recentProducts.length > 0 || rotationBucket === undefined
         ? (newestFirst
           ? [...candidates].sort((a, b) => {

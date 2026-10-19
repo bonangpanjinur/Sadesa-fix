@@ -118,6 +118,19 @@ describe('groupNewestProductsByCategory', () => {
     expect(rows.find((row) => row.slug === 'anyaman')?.products.map((product) => product.id)).toEqual(['old-craft']);
   });
 
+  it('uses closed-merchant products when a category has no open merchant', () => {
+    const closedProducts = [
+      { id: 'closed-shopping', category: 'sembako', categoryId: 'grocery', createdAt: '2026-10-13T10:00:00.000Z', isMerchantOpen: false },
+    ];
+    const rows = groupNewestProductsByCategory(closedProducts, categories, 4, closedProducts, {
+      now: Date.parse('2026-10-14T12:00:00.000Z'),
+      windowMs: 14 * 24 * 60 * 60 * 1000,
+      rotationBucket: 1,
+    });
+
+    expect(rows.find((row) => row.id === 'shopping')?.products.map((product) => product.id)).toEqual(['closed-shopping']);
+  });
+
   it('limits each category row independently and preserves products without categories', () => {
     const manyProducts = Array.from({ length: 6 }, (_, index) => ({
       id: `food-${index}`,
