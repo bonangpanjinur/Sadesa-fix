@@ -475,7 +475,7 @@
     {
       "file": "122_20261014174600_ride_pickup_landmark.sql",
       "source_files": [
-        "122_20261014174600_ride_pickup_landmark.sql"
+        "20261014174600_ride_pickup_landmark.sql"
       ],
       "sha256": "057db744df194bf67f7935bc87de0222159098af72d9e18a42af10b0b0e925f2",
       "bytes": 2611
