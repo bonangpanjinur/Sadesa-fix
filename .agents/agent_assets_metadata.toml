@@ -28,3 +28,185 @@ uri = "file://ROADMAP_FITUR.md"
 type = "text"
 title = "Roadmap Prioritas Fitur DesaMart"
 logical_id = "31c098e1-7d3e-468b-af7f-f2375bf9d115"
+
+[[outputs]]
+id = "rLsHgGCZ15HEyK0p--r0j"
+uri = "file://screenshots/01-beranda-marketplace.jpg"
+type = "image"
+title = "Pembeli — Beranda Marketplace"
+description = "Beranda SaDesa; tangkapan ini menampilkan panduan pengenalan fitur."
+logical_id = "2a0d65ee-4cf0-440d-bd5d-926a31cec47d"
+content_hash = "sha256:a4dd3030cfaf5aadb3ba035b3009f2182fb3186445e935835612fa1c12e2f9da"
+size = 46123
+mtime_ms = 1792502992089
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/2a0d65ee-4cf0-440d-bd5d-926a31cec47d/7f16a14d-aa1b-48c4-957e-653018737a43"
+storage_version_token = "1792506341490585"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "kyvknVTrNcmog34QJ0-x2"
+uri = "file://screenshots/02-login-pendaftaran-pembeli.jpg"
+type = "image"
+title = "Pembeli — Login dan Pintu Daftar"
+description = "Halaman masuk dengan tautan untuk memulai pendaftaran akun pembeli."
+logical_id = "147b6b06-bec9-4237-b170-e6813f2f47ac"
+content_hash = "sha256:2bfb6a1858aef539cc7299748d13ec973e3893ef8ecc910425282abd520f0359"
+size = 22094
+mtime_ms = 1792502996181
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/147b6b06-bec9-4237-b170-e6813f2f47ac/3602a4dc-ef09-4fad-8ffa-4cec11e19434"
+storage_version_token = "1792506343165803"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "7XkDKRiBT6PumvS8FeVGe"
+uri = "file://screenshots/03-katalog-produk-pembeli.jpg"
+type = "image"
+title = "Pembeli — Jelajahi Katalog Produk"
+description = "Kategori dan jumlah produk yang terlihat pada preview."
+logical_id = "e4751ac0-37f2-4c64-918f-478b7bb8e947"
+content_hash = "sha256:a7cbcaebd080a59fb60e45cb18476b6a4275e2a44a969ed8badbe19866037683"
+size = 31701
+mtime_ms = 1792503002417
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/e4751ac0-37f2-4c64-918f-478b7bb8e947/5f99ce4f-7c59-48c6-99dc-05928cf8bad7"
+storage_version_token = "1792506344777070"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "UQeFVpPn5k5z_D0IwRpVn"
+uri = "file://screenshots/04-keranjang-pesanan.jpg"
+type = "image"
+title = "Pembeli — Keranjang"
+description = "Tampilan keranjang kosong pada sesi screenshot."
+logical_id = "b9195bab-2660-4cfc-b6ab-e301a235bb21"
+content_hash = "sha256:88495f6c18717ee62590b8941a3c14336009316fe6b6cd98ab8c8a508522873f"
+size = 10825
+mtime_ms = 1792503008153
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/b9195bab-2660-4cfc-b6ab-e301a235bb21/717015fc-21ed-4fd3-9c77-538e06cb8bfa"
+storage_version_token = "1792506346282681"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "D3TE-E-owIB9rT3xE00d5"
+uri = "file://screenshots/05-checkout-data-pengiriman.jpg"
+type = "image"
+title = "Pembeli — Info Checkout"
+description = "Alur checkout tamu, data pengiriman, dan pembayaran."
+logical_id = "63c0ce3a-7c2e-42fe-8238-237bb624a411"
+content_hash = "sha256:43ae18c4ea827368ba577bb16e69811fe915df71eb807db80c61e30f4197b0f6"
+size = 47676
+mtime_ms = 1792503014477
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/63c0ce3a-7c2e-42fe-8238-237bb624a411/bc977b78-e95f-46df-adf1-61be78c65078"
+storage_version_token = "1792506348144927"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "ulGgxB-M_DxTHMGjt5Oke"
+uri = "file://screenshots/06-direktori-jasa.jpg"
+type = "image"
+title = "Jasa — Direktori Penyedia"
+description = "Halaman pencarian kategori dan penyedia jasa; data preview menunjukkan belum ada penyedia."
+logical_id = "a34b3460-1b08-4ae2-a205-7ed1bbd99a9c"
+content_hash = "sha256:075fbfa48d98ac57c49c026ce41c2e4f3d61b6febe0b1f17cfb9d9a2a69ccac1"
+size = 90602
+mtime_ms = 1792503020925
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/a34b3460-1b08-4ae2-a205-7ed1bbd99a9c/a4a1c5f7-fb29-4f75-af90-f46092790707"
+storage_version_token = "1792506349787103"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "8oQZR6DHD3qOa0BcD9Crx"
+uri = "file://screenshots/07-daftar-wisata.jpg"
+type = "image"
+title = "Wisata — Jelajahi Wisata Desa"
+description = "Filter dan pencarian wisata; belum ada destinasi pada data preview."
+logical_id = "1c78417b-e29f-4a38-b2a1-d870f351fa40"
+content_hash = "sha256:8b26f03c58eadff9e1de0cc266ec2a039dd339396f4530a24ffe82cb368a60f0"
+size = 20704
+mtime_ms = 1792503024933
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/1c78417b-e29f-4a38-b2a1-d870f351fa40/57755d67-d95e-47c8-a660-247b51b723e6"
+storage_version_token = "1792506351473304"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "XX-XMDqMJYhMmiKMZo2L9"
+uri = "file://screenshots/08-layanan-ojek-transportasi.jpg"
+type = "image"
+title = "Pembeli — Pilih Ojek atau Kurir"
+description = "Pilihan Ojek penumpang dan layanan antar barang."
+logical_id = "3b3a09f3-f939-4048-b8c0-a1aacdb35f35"
+content_hash = "sha256:89b4025ad53cac7e7d3eaa8a09b34f06383b84fefb13f5dc5f15ab4524485747"
+size = 37288
+mtime_ms = 1792503029417
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/3b3a09f3-f939-4048-b8c0-a1aacdb35f35/0cf342d5-cf31-4032-89ee-9ab109dd33f0"
+storage_version_token = "1792506353073332"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "H1UWFxWmVEIcvQuJec4TG"
+uri = "file://screenshots/09-daftar-merchant-terlindungi-login.jpg"
+type = "image"
+title = "Pedagang — Akses Pendaftaran (Login Diperlukan)"
+description = "Rute pendaftaran mengarah ke login sebelum formulir dapat dibuka."
+logical_id = "69755b7e-e2a0-4443-8901-b919f75a9e72"
+content_hash = "sha256:2bfb6a1858aef539cc7299748d13ec973e3893ef8ecc910425282abd520f0359"
+size = 22094
+mtime_ms = 1792503058385
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/69755b7e-e2a0-4443-8901-b919f75a9e72/85b25f12-f289-422b-94d0-8572ac3d9449"
+storage_version_token = "1792506354548949"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "wQZzLaaLOwn9d2V4Lw9gQ"
+uri = "file://screenshots/10-daftar-ojek-terlindungi-login.jpg"
+type = "image"
+title = "Ojek — Akses Pendaftaran (Login Diperlukan)"
+description = "Rute pendaftaran kurir mengarah ke login sebelum formulir dapat dibuka."
+logical_id = "766473aa-305e-4abb-8de4-3fdc77645eec"
+content_hash = "sha256:2ec1ccc7dc201317dccc5941585dfad408826393bfbcc131c8a67503a97f8296"
+size = 22094
+mtime_ms = 1792503063629
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/766473aa-305e-4abb-8de4-3fdc77645eec/c752a627-2842-4921-811d-e437989034e7"
+storage_version_token = "1792506356358348"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "2nTDJlZDm0sKJhIjlXvXB"
+uri = "file://screenshots/11-tambah-produk-pedagang-terlindungi-login.jpg"
+type = "image"
+title = "Pedagang — Tambah Produk (Login Diperlukan)"
+description = "Halaman pengelolaan produk berada di area akun pedagang."
+logical_id = "50106cf2-a1b9-4b0c-87ac-b8fd2c64bf64"
+content_hash = "sha256:7a773e7ea2aa57d0687efd98bad95fff13c53604c5517142b88c9f29d06fe734"
+size = 33888
+mtime_ms = 1792503068589
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/50106cf2-a1b9-4b0c-87ac-b8fd2c64bf64/1740f234-e78a-4288-8f9b-2c5572080a7c"
+storage_version_token = "1792506358111603"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "nOM2A3P3b9t0TLMtWxEaL"
+uri = "file://screenshots/12-terima-pesanan-ojek-terlindungi-login.jpg"
+type = "image"
+title = "Ojek — Terima Pesanan (Login Diperlukan)"
+description = "Daftar order pengantaran berada di dashboard akun kurir."
+logical_id = "e3962b66-b957-4646-b08c-e08a69127ac6"
+content_hash = "sha256:2bfb6a1858aef539cc7299748d13ec973e3893ef8ecc910425282abd520f0359"
+size = 22094
+mtime_ms = 1792503073217
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/e3962b66-b957-4646-b08c-e08a69127ac6/77925e98-5627-4292-9b1d-46d3addc615b"
+storage_version_token = "1792506359923689"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "hbM1Vlon4cA1g81lZ4h7t"
+uri = "file://screenshots/14-permintaan-jasa.jpg"
+type = "image"
+title = "Jasa — Permintaan (Login Diperlukan)"
+description = "Rute permintaan jasa mengarahkan pengguna ke login."
+logical_id = "445c1fe4-e650-4741-a3e3-24c3765a9972"
+content_hash = "sha256:2ec1ccc7dc201317dccc5941585dfad408826393bfbcc131c8a67503a97f8296"
+size = 22094
+mtime_ms = 1792503083669
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/445c1fe4-e650-4741-a3e3-24c3765a9972/16f97c90-8164-4658-8368-438b1301b327"
+storage_version_token = "1792506361686112"
+content_type = "image/jpeg"
