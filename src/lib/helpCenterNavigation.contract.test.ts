@@ -13,6 +13,12 @@ describe('help center navigation and dynamic settings contract', () => {
     expect(account).toContain("label: 'Kontak'");
   });
 
+  it('exposes help and contact links in the public footer for anonymous users', () => {
+    const footer = read('src/components/layout/PublicFooter.tsx');
+    expect(footer).toContain('to="/help"');
+    expect(footer).toContain('to="/contact"');
+  });
+
   it('keeps both public routes mapped to the help page', () => {
     const app = read('src/App.tsx');
     expect(app).toContain('<Route path="/help" element={<HelpPage />} />');

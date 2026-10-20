@@ -27,6 +27,7 @@ export function PublicFooter() {
         <div className="text-xs sm:text-right">
           <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 sm:justify-end">
             <Link to="/about" className="font-medium hover:text-foreground hover:underline">Tentang Kami</Link>
+            <Link to="/help" className="font-medium hover:text-foreground hover:underline">Pusat Bantuan</Link>
             <Link to="/contact" className="font-medium hover:text-foreground hover:underline">Kontak</Link>
             <Link to="/products" className="hover:text-foreground hover:underline">Katalog</Link>
             <Link to="/ride" className="hover:text-foreground hover:underline">Layanan Antar</Link>
