@@ -2,12 +2,14 @@
 
 Screenshot ini adalah tangkapan langsung dari preview repository. Nama file menunjukkan fitur dan role. Beberapa halaman menggunakan data yang tersedia di preview, jadi daftar wisata/penyedia dapat terlihat kosong.
 
+Catatan: browser screenshot berjalan di sesi terpisah dari preview pengguna. Status login di preview tidak ikut terbawa, sehingga rute yang butuh autentikasi hanya dapat ditangkap sebagai gerbang login.
+
 ## Pembeli
 
 | Fitur | Rute | Screenshot | Catatan |
 |---|---|---|---|
 | Beranda marketplace | `/` | [01-beranda-marketplace.jpg](01-beranda-marketplace.jpg) | Screenshot menampilkan panduan pengenalan fitur di atas beranda. |
-| Login dan pintu masuk pendaftaran pembeli | `/auth` | [02-login-pendaftaran-pembeli.jpg](02-login-pendaftaran-pembeli.jpg) | Tombol “Daftar” mengarah ke alur pendaftaran; screenshot menangkap tampilan login awal. |
+| Login pembeli | `/auth` | [02-login-pembeli.jpg](02-login-pembeli.jpg) | Tampilan awal login; formulir pendaftaran belum dibuka pada screenshot. |
 | Jelajahi katalog produk | `/products` | [03-katalog-produk-pembeli.jpg](03-katalog-produk-pembeli.jpg) | Kategori dan jumlah produk yang tampil di preview. |
 | Keranjang | `/cart` | [04-keranjang-pesanan.jpg](04-keranjang-pesanan.jpg) | Keranjang kosong pada sesi screenshot. |
 | Info checkout dan checkout tamu | `/checkout-info` | [05-checkout-data-pengiriman.jpg](05-checkout-data-pengiriman.jpg) | Menjelaskan alur keranjang, data pengiriman, dan pembayaran. |
@@ -33,11 +35,13 @@ Screenshot ini adalah tangkapan langsung dari preview repository. Nama file menu
 | Fitur | Rute | Screenshot | Catatan |
 |---|---|---|---|
 | Direktori penyedia jasa | `/services` | [06-direktori-jasa.jpg](06-direktori-jasa.jpg) | Daftar kategori dan alur mencari penyedia; data preview saat capture menunjukkan 0 penyedia. |
-| Permintaan jasa | `/services/requests` | [14-permintaan-jasa.jpg](14-permintaan-jasa.jpg) | Rute mengarahkan pengguna ke login sebelum melihat permintaan. |
+| Permintaan jasa | `/services/requests` | [14-permintaan-jasa-terlindungi-login.jpg](14-permintaan-jasa-terlindungi-login.jpg) | Rute mengarahkan pengguna ke login sebelum melihat permintaan. |
 
-## Belum berhasil ditangkap
+## Screenshot fitur yang masih belum tersedia
 
-- **Formulir pendaftaran pedagang dan Ojek serta dashboard tambah produk/terima pesanan:** rute-rute tersebut dilindungi login. Capture browser tidak memiliki sesi pengguna dan autentikasi tidak dilewati.
+- **Formulir pendaftaran pembeli, pedagang, dan Ojek; dashboard tambah produk; serta daftar pesanan Ojek:** rute-rute tersebut membutuhkan autentikasi. Tangkapan ulang setelah pengguna login di preview tetap menampilkan halaman login karena browser screenshot memakai sesi terpisah. Empat hasil uji ulang yang hanya menampilkan login sudah dibuang agar tidak disalahartikan sebagai screenshot fitur.
 - **Pembayaran checkout:** `/checkout` menampilkan error Vite karena `@googlemaps/js-api-loader` tercantum di `package.json`, tetapi paket tidak tersedia di `node_modules`. Tidak ada screenshot error yang disajikan sebagai screenshot fitur.
 - **Konfirmasi pembayaran:** perlu order aktif agar halaman konfirmasi menampilkan data nyata.
+- **Detail produk, keranjang berisi pesanan, dan checkout aktual:** screenshot katalog dan keranjang yang tersedia tidak menunjukkan detail produk atau isi keranjang pada sesi capture.
+- **Detail dan pemesanan wisata serta detail/permintaan jasa yang berfungsi:** preview belum menyediakan data wisata maupun penyedia jasa; alur permintaan jasa juga mengarah ke login.
 
