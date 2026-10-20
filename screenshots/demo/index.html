@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7faf5">
+  <title>SaDesa — Demo fitur</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20362e;
+      --muted: #78847e;
+      --green: #087b5d;
+      --deep: #07543f;
+      --pale: #edf6ee;
+      --line: #e3e9e2;
+      --paper: #ffffff;
+      --canvas: #f7faf5;
+      --gold: #e9a92e;
+      --red: #bd453b;
+      --shadow: 0 12px 30px rgba(31, 65, 47, .08);
+      font-family: "Avenir Next", Avenir, "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--canvas); }
+    body { margin: 0; min-height: 100dvh; color: var(--ink); background: var(--canvas); }
+    button, input, select, textarea { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; text-decoration: none; }
+    .app { width: min(100%, 430px); min-height: 100dvh; margin: 0 auto; background: var(--canvas); position: relative; overflow: hidden; box-shadow: 0 0 40px rgba(38, 59, 46, .05); }
+    .topbar { height: 62px; background: rgba(255,255,255,.94); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid rgba(226,233,225,.7); }
+    .brand { display: inline-flex; align-items: center; gap: 2px; font-weight: 850; letter-spacing: -1.45px; font-size: 21px; color: #18392d; }
+    .brand b { color: #bf3f37; }
+    .brand-mark { position: relative; width: 11px; height: 15px; margin-right: 1px; }
+    .brand-mark:before { content: ""; position: absolute; height: 10px; width: 8px; left: 2px; top: 1px; border-radius: 8px 1px 8px 1px; transform: rotate(-34deg); background: #0b8a64; }
+    .brand-mark:after { content: ""; position: absolute; width: 2px; height: 6px; background: #bc4137; top: 9px; left: 5px; transform: rotate(20deg); }
+    .icon-button { border: 1px solid var(--line); width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--deep); background: #f1f8ef; cursor: pointer; }
+    .icon-button svg { width: 19px; height: 19px; }
+    .notice { margin: 12px 16px 0; min-height: 38px; border: 1px solid #f0dba9; color: #725419; background: #fff8e8; border-radius: 11px; padding: 9px 11px; display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 750; letter-spacing: .1px; }
+    .notice-mark { width: 16px; height: 16px; flex: 0 0 16px; border: 1.5px solid #b68a2d; border-radius: 50%; display: grid; place-items: center; font-size: 10px; line-height: 1; }
+    main { padding: 20px 20px calc(92px + env(safe-area-inset-bottom)); }
+    .screen-head { margin-bottom: 19px; }
+    .eyebrow { margin: 0 0 6px; text-transform: uppercase; color: var(--green); letter-spacing: 1.5px; font-size: 10px; font-weight: 800; }
+    h1 { margin: 0; font-size: 24px; line-height: 1.17; letter-spacing: -.7px; font-weight: 800; }
+    h2 { margin: 0; font-size: 16px; line-height: 1.3; letter-spacing: -.2px; }
+    h3 { margin: 0; font-size: 14px; }
+    p { margin: 0; }
+    .sub { margin-top: 7px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .card { border: 1px solid var(--line); background: var(--paper); border-radius: 17px; padding: 15px; box-shadow: 0 5px 18px rgba(29, 57, 39, .035); }
+    .stack { display: grid; gap: 12px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 11px; }
+    .section-title span { font-size: 11px; color: var(--muted); }
+    .field { display: grid; gap: 7px; }
+    .field label { font-size: 12px; font-weight: 700; }
+    .field input, .field select, .field textarea { width: 100%; min-height: 46px; padding: 12px 13px; border: 1px solid #dfe7de; border-radius: 11px; background: #fff; outline: none; color: var(--ink); font-size: 13px; }
+    .field textarea { resize: vertical; min-height: 78px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: #45a487; box-shadow: 0 0 0 3px rgba(8,123,93,.08); }
+    .two-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .button { min-height: 47px; border: 0; border-radius: 13px; background: var(--green); color: white; padding: 0 16px; font-weight: 750; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 9px; transition: transform .15s ease, opacity .15s ease; }
+    .button:active { transform: scale(.98); }
+    .button.secondary { color: var(--deep); background: var(--pale); border: 1px solid #dcebdd; }
+    .button.outline { color: var(--green); background: #fff; border: 1px solid #b9d9c8; }
+    .button.full { width: 100%; }
+    .button.small { min-height: 34px; font-size: 12px; padding: 0 12px; border-radius: 10px; }
+    .button svg, .radio-option svg, .section-title svg, .row svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .hint { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .pill { display: inline-flex; padding: 5px 9px; border-radius: 99px; background: #e8f5ec; color: #167457; font-size: 10px; font-weight: 800; letter-spacing: .25px; }
+    .pill.amber { background: #fff3d8; color: #966714; }
+    .divider { height: 1px; background: var(--line); margin: 13px 0; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .row-start { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .row-start > div:last-child { min-width: 0; }
+    .icon-tile { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 13px; display: grid; place-items: center; background: #eaf5e9; color: var(--green); }
+    .icon-tile svg { width: 22px; height: 22px; }
+    .muted { color: var(--muted); }
+    .amount { font-weight: 800; font-variant-numeric: tabular-nums; }
+    .bottom-nav { position: fixed; z-index: 5; bottom: 10px; left: 50%; transform: translateX(-50%); width: min(calc(100% - 24px), 406px); padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-radius: 24px; border: 1px solid rgba(226,233,225,.8); background: rgba(255,255,255,.96); box-shadow: 0 9px 30px rgba(38, 59, 46, .12); display: flex; justify-content: space-around; }
+    .nav-item { flex: 1; text-align: center; color: #727e77; padding: 5px 2px 3px; font-size: 10px; display: grid; justify-items: center; gap: 4px; border-radius: 16px; }
+    .nav-item.active { color: var(--deep); background: #edf6ed; font-weight: 750; }
+    .nav-item svg { width: 18px; height: 18px; }
+    .product-art { height: 225px; border-radius: 19px; overflow: hidden; position: relative; display: grid; place-items: center; background: linear-gradient(145deg,#dff1d9,#a9d2a6 54%,#6fae84); margin-bottom: 16px; }
+    .product-art:before { content:""; position:absolute; width:230px; height:230px; border:1px solid rgba(255,255,255,.44); border-radius:50%; right:-66px; top:-90px; box-shadow:0 0 0 23px rgba(255,255,255,.09),0 0 0 48px rgba(255,255,255,.08); }
+    .produce { position:relative; width:114px; height:128px; border-radius:38% 38% 31% 31%; background:linear-gradient(110deg,#f7cd68,#ee9d37 70%,#e57b32); box-shadow:inset -12px -8px 17px rgba(174,92,22,.19),0 18px 25px rgba(58,100,53,.18); transform:rotate(-5deg); }
+    .produce:before { content:""; position:absolute; width:31px;height:22px; left:47px;top:-12px; border-radius:90% 4% 90% 4%; background:#43814e; transform:rotate(-32deg); }
+    .produce:after { content:""; position:absolute;width:29px;height:19px;left:38px;top:38px;border-radius:50%;background:rgba(255,234,174,.42);filter:blur(8px); }
+    .art-caption { position:absolute; bottom:14px; left:15px; color:#24503a; font-size:10px; font-weight:800; letter-spacing:1px; }
+    .step-line { display:flex; gap:5px; margin:16px 0; }
+    .step-line i { height:4px; border-radius:4px; background:#d9e6da; flex:1; }
+    .step-line i:first-child { background:var(--green); }
+    .radio-option { border:1px solid var(--line); background:#fff; padding:12px; display:flex; align-items:center; gap:10px; border-radius:12px; cursor:pointer; }
+    .radio-option:has(input:checked) { border-color:#73b79b; background:#f3faf4; }
+    .radio-option input { accent-color:var(--green); }
+    .check-row { display:flex; gap:9px; align-items:flex-start; font-size:12px; line-height:1.45; color:#52615a; }
+    .check-row input { accent-color:var(--green); margin-top:2px; }
+    .success-circle { width:68px;height:68px;border-radius:50%; display:grid;place-items:center;background:#e7f5e9;color:#16805e;margin:0 auto 15px; }
+    .success-circle svg { width:32px;height:32px; }
+    .route-link { display:block; border:1px solid var(--line); background:white; padding:13px 14px; border-radius:13px; margin-top:8px; }
+    .route-link strong { display:block; font-size:13px; }
+    .route-link small { color:var(--muted); font-size:11px; }
+    .index-grid { display:grid; gap:9px; }
+    .index-link { display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 13px;border:1px solid var(--line);background:#fff;border-radius:13px; }
+    .index-link strong { display:block;font-size:12px; }
+    .index-link small { display:block;margin-top:3px;color:var(--muted);font-size:10px; }
+    .index-num { font-size:10px;color:#75837b;font-weight:800; }
+    .index-num svg { width:14px;height:14px;vertical-align:middle; }
+    .capture-full .bottom-nav { display:none; }
+    .capture-full main { padding-bottom:24px; }
+    .toast { position:fixed;z-index:10;bottom:92px;left:50%;transform:translate(-50%,10px);opacity:0;pointer-events:none;background:#203c31;color:white;border-radius:12px;padding:11px 15px;font-size:12px;box-shadow:var(--shadow);transition:opacity .2s,transform .2s;white-space:nowrap;max-width:calc(100vw - 32px); }
+    .toast.show { opacity:1;transform:translate(-50%,0); }
+    .wide-art { background:linear-gradient(125deg,#0d684f,#228768 62%,#d0a340); border-radius:18px; padding:19px; color:white; position:relative; overflow:hidden; min-height:125px; }
+    .wide-art:after { content:""; position:absolute; right:-31px;top:-65px;width:160px;height:160px;border:1px solid rgba(255,255,255,.25);border-radius:50%;box-shadow:0 0 0 18px rgba(255,255,255,.08),0 0 0 38px rgba(255,255,255,.06); }
+    .wide-art .eyebrow { color:#d5efba; }
+    .wide-art h2 { font-size:19px;max-width:250px;position:relative;z-index:1; }
+    .wide-art p { font-size:11px;line-height:1.5;color:rgba(255,255,255,.84);margin-top:7px;max-width:260px;position:relative;z-index:1; }
+    .store-badge { width:46px;height:46px;display:grid;place-items:center;border-radius:15px;background:#f2f7e9;color:#267a58;font-size:20px;font-weight:850; }
+    @media (min-width: 600px) {
+      body { padding:18px 0; }
+      .app { min-height: calc(100dvh - 36px); border-radius:25px; }
+      .bottom-nav { bottom:28px; }
+    }
+    @media (max-width:360px) {
+      main { padding-left:16px;padding-right:16px; }
+      h1 { font-size:22px; }
+      .two-fields { grid-template-columns:1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) { *,*:before,*:after { scroll-behavior:auto!important; transition:none!important; } }
+  </style>
+</head>
+<body>
+  <div class="app" id="app"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    const icon = (name) => {
+      const paths = {
+        home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+        search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+        cart: '<path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 1.9-1.4L21 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>',
+        user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 21v-1a7 7 0 0 1 14 0v1"/>',
+        arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+        back: '<path d="m15 18-6-6 6-6"/>',
+        check: '<path d="m5 12 4 4L19 6"/>',
+        pin: '<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+        clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        bike: '<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5 9 10h4l3 7.5M8 12h7l3.5 5.5M12 7h2"/>',
+        bag: '<path d="M5 8h14l1 13H4L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+        leaf: '<path d="M20 4c-9 0-15 4-15 11a5 5 0 0 0 5 5c7 0 11-7 10-16Z"/><path d="M5 19c3-5 7-8 12-11"/>',
+        shield: '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/>',
+        plus: '<path d="M12 5v14M5 12h14"/>',
+        minus: '<path d="M5 12h14"/>',
+        card: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18m-13 5h3"/>',
+        homepin: '<path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/>',
+        star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>',
+        box: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8m-9 5v9"/>',
+        wrench: '<path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4L14 13l-3-3 3.7-3.7Z"/>',
+      };
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || paths.star) + '</svg>';
+    };
+    const screens = [
+      ['buyer-signup','Daftar pembeli','Pembeli'],
+      ['product-detail','Detail produk','Belanja'],
+      ['cart','Keranjang','Belanja'],
+      ['checkout','Checkout','Belanja'],
+      ['payment-confirmation','Konfirmasi pembayaran','Belanja'],
+      ['merchant-signup','Daftar pedagang','Pedagang'],
+      ['merchant-add-product','Tambah produk','Pedagang'],
+      ['courier-signup','Daftar Ojek / kurir','Ojek'],
+      ['courier-incoming-order','Pesanan masuk','Ojek'],
+      ['service-provider','Profil penyedia jasa','Jasa'],
+      ['service-request','Permintaan jasa','Jasa'],
+      ['tourism-booking','Pesan wisata','Wisata'],
+    ];
+    const money = n => 'Rp' + Number(n).toLocaleString('id-ID');
+    const input = (label, placeholder, type='text', value='') => '<div class="field"><label>' + label + '</label><input type="' + type + '" placeholder="' + placeholder + '" value="' + value + '"></div>';
+    const select = (label, choices) => '<div class="field"><label>' + label + '</label><select>' + choices.map((v,i)=>'<option' + (i===0?' selected':'') + '>' + v + '</option>').join('') + '</select></div>';
+    const nav = (active='') => '<nav class="bottom-nav" aria-label="Navigasi utama">' +
+      [['Beranda','home','/'],['Jelajah','search','/products'],['Pesanan','bag','?screen=cart'],['Akun','user','?screen=buyer-signup']].map(([label,ico,url])=>'<a class="nav-item ' + (active===label?'active':'') + '" href="' + url + '">' + icon(ico) + '<span>' + label + '</span></a>').join('') + '</nav>';
+    const head = (tag, title, sub='') => '<header class="screen-head"><p class="eyebrow">' + tag + '</p><h1>' + title + '</h1>' + (sub ? '<p class="sub">' + sub + '</p>' : '') + '</header>';
+    const cardSummary = (title, sub, value, ico='bag') => '<div class="row"><div class="row-start"><div class="icon-tile">' + icon(ico) + '</div><div><h3>' + title + '</h3><p class="hint" style="margin-top:4px">' + sub + '</p></div></div><strong class="amount">' + value + '</strong></div>';
+    function renderIndex() {
+      return head('SA DESA · DEMO FITUR','Layanan dekat, urusan beres.','Pilih layar untuk melihat contoh alur marketplace desa. Seluruh data di halaman ini hanya simulasi.') +
+        '<div class="wide-art"><p class="eyebrow">Satu desa, banyak kemungkinan</p><h2>Belanja, antar, dan pesan layanan warga.</h2><p>Ruang lokal untuk produk, jasa, kurir, dan pengalaman wisata di sekitar kita.</p></div>' +
+        '<div class="section-title"><h2>Jelajahi demo</h2><span>11 layar</span></div><div class="index-grid">' +
+        screens.map(([slug,label,role],i)=>'<a class="index-link" href="?screen=' + slug + '"><span><strong>' + label + '</strong><small>' + role + ' · data contoh</small></span><span class="index-num">' + String(i+1).padStart(2,'0') + '　' + icon('arrow') + '</span></a>').join('') + '</div>';
+    }
+    function renderScreen(screen) {
+      switch(screen) {
+        case 'buyer-signup': return head('AKUN PEMBELI · LANGKAH 1 DARI 2','Mulai belanja dari desa.','Buat akun untuk menyimpan alamat dan memantau pesanan warga lokal.') +
+          '<div class="step-line"><i></i><i></i></div><form class="card stack">' + input('Nama lengkap','Mis. Rani Puspita','text','Rani Puspita') + input('Nomor WhatsApp','08xxxxxxxxxx','tel','0812 0000 0000') + input('Email (opsional)','nama@email.test','email','rani.puspita@example.test') + input('Kata sandi','Minimal 8 karakter','password','sadesademo') +
+          '<label class="check-row"><input type="checkbox" checked><span>Saya setuju dengan ketentuan layanan dan kebijakan privasi SaDesa.</span></label><button class="button full" data-message="Akun pembeli berhasil dibuat untuk demo.">Lanjutkan ' + icon('arrow') + '</button><p class="hint" style="text-align:center">Sudah punya akun? <a href="?screen=buyer-signup" style="color:var(--green);font-weight:700">Masuk</a></p></form><p class="hint" style="text-align:center;margin-top:13px">Pendaftaran ini tidak membuat akun sungguhan.</p>';
+        case 'product-detail': return '<div class="product-art"><div class="produce"></div><span class="art-caption">PANEN PAGI · DESA SUKAMAJU</span></div>' +
+          '<div class="row"><span class="pill">SEGAR HARI INI</span><span class="hint">Terjual 38 kali</span></div><div style="margin-top:10px"><h1 style="font-size:23px">Jeruk Keprok Pak Darto</h1><p class="sub">Manis segar, dipetik langsung dari kebun warga.</p></div><div class="row" style="margin-top:14px"><strong class="amount" style="font-size:22px">' + money(18000) + '</strong><span class="hint">/ 1 kg</span><span class="pill">Stok 24 kg</span></div>' +
+          '<div class="section-title"><h2>Informasi produk</h2><span>' + icon('star') + ' 4,8 (16 ulasan)</span></div><div class="card"><div class="row-start"><div class="store-badge">PD</div><div><h3>Kebun Pak Darto</h3><p class="hint" style="margin-top:4px">Dusun Krajan · 1,2 km dari Anda</p></div></div><div class="divider"></div><p class="sub" style="margin:0">Jeruk dipanen sesuai pesanan. Ukuran beragam, rasa manis dengan sedikit asam. Dikemas rapi untuk dikirim hari ini.</p></div>' +
+          '<div class="section-title"><h2>Pilih jumlah</h2><span>Minimal 1 kg</span></div><div class="card row"><span class="hint">Jumlah pesanan</span><div style="display:flex;align-items:center;gap:13px"><button class="icon-button" data-step="-1" aria-label="Kurangi">' + icon('minus') + '</button><strong id="qty">1 kg</strong><button class="icon-button" data-step="1" aria-label="Tambah">' + icon('plus') + '</button></div></div><div style="margin-top:14px"><button class="button full" data-message="Jeruk Keprok ditambahkan ke keranjang demo.">' + icon('cart') + ' Tambah ke keranjang · ' + money(18000) + '</button></div>';
+        case 'cart': return head('BELANJA LOKAL','Keranjang Anda','Pesanan dari satu toko akan diproses bersama.') +
+          '<div class="card"><div class="row-start"><div class="store-badge">PD</div><div><h3>Kebun Pak Darto</h3><p class="hint" style="margin-top:4px">Dusun Krajan · Buka sampai 17.00</p></div></div><div class="divider"></div><div class="row-start"><div class="icon-tile" style="width:60px;height:60px;flex-basis:60px;border-radius:14px"><div class="produce" style="width:32px;height:37px;box-shadow:none"></div></div><div style="flex:1"><h3>Jeruk Keprok</h3><p class="hint" style="margin-top:4px">1 kg · Segar hari ini</p><strong class="amount" style="display:block;margin-top:7px">' + money(18000) + '</strong></div><div style="display:flex;align-items:center;gap:9px"><button class="icon-button" data-step="-1" aria-label="Kurangi">' + icon('minus') + '</button><strong id="qty">1</strong><button class="icon-button" data-step="1" aria-label="Tambah">' + icon('plus') + '</button></div></div><div class="divider"></div><button class="button small outline" data-message="Produk dihapus dari keranjang demo.">Hapus produk</button></div>' +
+          '<div class="section-title"><h2>Pengantaran</h2><span>Estimasi 25 menit</span></div><div class="card row-start"><div class="icon-tile">' + icon('pin') + '</div><div><h3>Rumah Rani</h3><p class="hint" style="margin-top:4px">Jl. Melati No. 8, Desa Sukamaju</p></div></div><div class="section-title"><h2>Ringkasan belanja</h2></div><div class="card stack"><div class="row"><span class="hint">Subtotal</span><span>' + money(18000) + '</span></div><div class="row"><span class="hint">Ongkir Ojek Desa</span><span>' + money(5000) + '</span></div><div class="divider" style="margin:0"></div><div class="row"><strong>Total</strong><strong class="amount">' + money(23000) + '</strong></div></div><div style="margin-top:14px"><a class="button full" href="?screen=checkout">Lanjut ke checkout ' + icon('arrow') + '</a></div>';
+        case 'checkout': return head('LANGKAH TERAKHIR','Atur pengiriman','Pastikan detail pesanan dan alamat tujuan sudah benar.') +
+          '<div class="section-title" style="margin-top:0"><h2>Alamat penerima</h2><a class="hint" href="#" data-message="Form alamat baru dibuka pada aplikasi asli.">Ubah</a></div><div class="card"><div class="row-start"><div class="icon-tile">' + icon('pin') + '</div><div><h3>Rani Puspita</h3><p class="hint" style="margin-top:4px">0812 3456 7890</p></div></div><p class="hint" style="margin:12px 0 0 55px">Jl. Melati No. 8, RT 02 / RW 04<br>Desa Sukamaju, Kec. Cibiru</p></div>' +
+          '<div class="section-title"><h2>Pilih cara menerima</h2></div><div class="stack"><label class="radio-option"><input type="radio" name="delivery" checked><span>' + icon('bike') + '</span><span><strong style="font-size:12px">Antar oleh Ojek Desa</strong><small class="hint" style="display:block;margin-top:3px">25–35 menit · ' + money(5000) + '</small></span></label><label class="radio-option"><input type="radio" name="delivery"><span>' + icon('bag') + '</span><span><strong style="font-size:12px">Ambil sendiri di toko</strong><small class="hint" style="display:block;margin-top:3px">Siap diambil sekitar 15 menit · Gratis</small></span></label></div>' +
+          '<div class="section-title"><h2>Metode pembayaran</h2></div><div class="stack"><label class="radio-option"><input type="radio" name="payment" checked><span>' + icon('card') + '</span><span><strong style="font-size:12px">Transfer bank</strong><small class="hint" style="display:block;margin-top:3px">Instruksi pembayaran setelah pesan dibuat</small></span></label><label class="radio-option"><input type="radio" name="payment"><span>' + icon('card') + '</span><span><strong style="font-size:12px">Tunai saat pesanan diterima</strong><small class="hint" style="display:block;margin-top:3px">Bayar langsung kepada kurir</small></span></label></div>' +
+          '<div class="section-title"><h2>Total pembayaran</h2><span>Termasuk ongkir</span></div><div class="card row"><span>1 produk · 1 kg</span><strong class="amount">' + money(23000) + '</strong></div><div style="margin-top:14px"><button class="button full" data-message="Pesanan demo dibuat. Ini bukan transaksi nyata.">Buat pesanan · ' + money(23000) + '</button></div><p class="hint" style="text-align:center;margin-top:9px">Belum ada pembayaran yang diproses.</p>';
+        case 'payment-confirmation': return '<div style="text-align:center;padding:8px 7px 20px"><div class="success-circle">' + icon('check') + '</div><p class="eyebrow">PESANAN SD-240618-027</p><h1 style="font-size:23px">Menunggu pembayaran</h1><p class="sub">Pesanan Anda sudah diteruskan ke Kebun Pak Darto.</p></div>' +
+           '<div class="card stack"><div class="row"><div><p class="hint">Total pembayaran</p><strong class="amount" style="font-size:24px;display:block;margin-top:4px">' + money(23000) + '</strong></div><span class="pill amber">BELUM DIBAYAR</span></div><div class="divider"></div><div><p class="hint">Instruksi transfer · contoh demo</p><div class="row" style="margin-top:7px"><div><strong>Bank contoh</strong><p style="font-size:15px;font-weight:800;letter-spacing:1px;margin-top:4px">0000 0000 0000 0000</p><p class="hint" style="margin-top:3px">a.n. DEMO · JANGAN DITRANSFER</p></div><button class="button small secondary" data-message="Simulasi saja; tidak ada nomor rekening yang disalin.">Salin</button></div></div><div class="hint" style="padding:10px;background:#fff8e8;border-radius:10px;color:#795b24">Ini bukan rekening pembayaran dan tidak menerima transfer. Jangan melakukan pembayaran sungguhan.</div></div>' +
+          '<div class="section-title"><h2>Rincian pesanan</h2></div><div class="card stack"><div class="row"><span>Jeruk Keprok · 1 kg</span><span>' + money(18000) + '</span></div><div class="row"><span class="hint">Ongkir Ojek Desa</span><span>' + money(5000) + '</span></div><div class="row"><span class="hint">Batas pembayaran</span><span>18 Jun, 14.30</span></div></div><div style="margin-top:14px"><button class="button full" data-message="Bukti pembayaran demo diterima untuk ditinjau.">Saya sudah transfer</button></div><p class="hint" style="text-align:center;margin-top:9px">Konfirmasi ini hanya contoh. Tidak ada transfer sungguhan.</p>';
+        case 'merchant-signup': return head('MITRA SA DESA','Buka usaha lebih dekat','Daftarkan usaha agar produk dan keahlian Anda ditemukan warga sekitar.') +
+          '<div class="card stack"><div class="field"><label>Kode referral verifikator <span class="muted">(opsional)</span></label><input placeholder="Contoh: DESA-2024" value="SUKAMAJU24"></div><p class="hint" style="margin-top:-5px">Kode valid untuk kelompok usaha Sukamaju.</p><div class="divider" style="margin:0"></div><h2>Informasi usaha</h2>' + input('Nama usaha','Nama toko atau usaha','text','Kebun Pak Darto') +
+          select('Kategori usaha',['Pertanian & hasil kebun','Makanan & minuman','Belanja kebutuhan','Jasa rumah tangga','Kerajinan lokal']) + '<div class="field"><label>Ceritakan usaha Anda</label><textarea>Menjual jeruk keprok segar hasil panen kebun keluarga di Desa Sukamaju.</textarea></div>' +
+          input('Nomor WhatsApp usaha','08xxxxxxxxxx','tel','0813 8821 4502') + '<div class="field"><label>Alamat usaha</label><textarea>Dusun Krajan, Desa Sukamaju, Kecamatan Cibiru</textarea></div><div class="card" style="padding:11px;background:#f4faf3"><p class="hint"><strong style="color:var(--deep)">Langkah selanjutnya</strong><br>Tim SaDesa akan memeriksa data usaha sebelum toko ditampilkan.</p></div><button class="button full" data-message="Pendaftaran usaha demo tersimpan.">Kirim pendaftaran ' + icon('arrow') + '</button></div>';
+        case 'merchant-add-product': return head('TOKO SAYA · PRODUK','Tambah produk','Lengkapi informasi agar pelanggan tahu apa yang Anda jual.') +
+          '<div class="card stack"><div style="height:118px;border:1px dashed #b9d3c1;background:#f3f8f1;border-radius:14px;display:grid;place-items:center;text-align:center"><div><div class="icon-tile" style="margin:0 auto 7px">' + icon('plus') + '</div><p style="font-size:12px;font-weight:750">Tambah foto produk</p><p class="hint" style="margin-top:3px">JPG atau PNG · maks. 5 MB</p></div></div>' +
+          input('Nama produk','Mis. Jeruk keprok segar','text','Jeruk Keprok Kebun') + select('Kategori',['Pertanian & hasil kebun','Makanan & minuman','Belanja kebutuhan']) +
+          '<div class="two-fields">' + input('Harga','Rp','number','18000') + input('Satuan','kg, ikat, porsi','text','kg') + '</div>' +
+          '<div class="two-fields">' + input('Stok tersedia','Jumlah stok','number','24') + select('Status',['Tersedia','Habis sementara']) + '</div>' +
+          '<div class="field"><label>Deskripsi produk</label><textarea>Jeruk segar, dipetik sesuai pesanan dari kebun warga. Rasa manis dengan sedikit asam.</textarea></div>' +
+          '<label class="check-row"><input type="checkbox" checked><span>Produk ini dijual dan tersedia untuk dipesan.</span></label><button class="button full" data-message="Produk contoh berhasil disimpan di katalog demo.">Simpan produk</button></div>';
+        case 'courier-signup': return head('MITRA PENGANTAR','Daftar Ojek / kurir','Bantu warga mengantar kebutuhan, produk, dan pesanan di sekitar desa.') +
+          '<div class="row" style="margin:0 0 13px"><span class="pill">LANGKAH 1 DARI 3</span><span class="hint">Data diri</span></div><div class="step-line"><i></i><i></i><i></i></div><div class="card stack">' +
+          input('Nama lengkap','Nama sesuai KTP','text','Fajar Nugraha') + input('Nomor HP / WhatsApp','08xxxxxxxxxx','tel','0812 0000 0000') + input('Nomor KTP · data contoh','16 digit nomor KTP','text','0000000000000000') +
+          '<div class="two-fields">' + input('Tanggal lahir','DD/MM/YYYY','text','15/04/1998') + input('Nomor polisi motor','Mis. D 1234 ABC','text','D 4821 FGH') + '</div>' +
+          '<div class="field"><label>Jenis kendaraan</label><select><option>Sepeda motor</option></select><p class="hint">Saat ini pendaftaran kurir tersedia untuk sepeda motor.</p></div>' +
+          '<div class="field"><label>Kode referral verifikator <span class="muted">(opsional)</span></label><input placeholder="Masukkan kode referral" value="SUKAMAJU24"></div><button class="button full" data-message="Data kurir tersimpan untuk demo.">Lanjut ke alamat ' + icon('arrow') + '</button><p class="hint" style="text-align:center">Pendaftar kurir wajib berusia minimal 18 tahun.</p></div>';
+        case 'courier-incoming-order': return head('OJEK DESA · PESANAN MASUK','Ada pesanan di dekat Anda','Pilih pesanan yang sesuai. Detail pelanggan tampil setelah diterima.') +
+          '<div class="card" style="padding:0;overflow:hidden"><div style="padding:15px 15px 12px;background:#eff7ee"><div class="row"><span class="pill">KURIR BARANG</span><span class="hint">900 m dari Anda</span></div><h2 style="margin-top:10px">Antar pesanan toko</h2><p class="hint" style="margin-top:4px">Dibuat 3 menit lalu · Estimasi 22 menit</p></div><div style="padding:15px"><div class="row-start"><div class="icon-tile">' + icon('bag') + '</div><div><h3>Kebun Pak Darto</h3><p class="hint" style="margin-top:3px">Pengambilan · Dusun Krajan</p></div></div><div style="margin:10px 0 10px 21px;border-left:1px dashed #aac4b4;height:18px"></div><div class="row-start"><div class="icon-tile" style="background:#fff5df;color:#a37319">' + icon('pin') + '</div><div><h3>Rumah Rani</h3><p class="hint" style="margin-top:3px">Tujuan · Jl. Melati No. 8</p></div></div><div class="divider"></div><div class="row"><span class="hint">Upah pengantaran</span><strong class="amount" style="font-size:19px;color:var(--green)">' + money(5000) + '</strong></div><p class="hint" style="margin-top:4px">Barang: 1 kg jeruk · Pembayaran pelanggan: transfer</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px"><button class="button outline" data-message="Pesanan dilewati. Pesanan tetap tersedia untuk kurir lain.">Lewati</button><button class="button" data-message="Pesanan demo diterima. Hubungi toko untuk mengambil barang.">Terima pesanan</button></div></div></div>' +
+          '<div class="section-title"><h2>Info sebelum berangkat</h2></div><div class="card row-start"><div class="icon-tile">' + icon('shield') + '</div><p class="hint">Pastikan barang sesuai pesanan. Konfirmasi pengantaran setelah diterima pelanggan.</p></div><p class="hint" style="text-align:center;margin-top:14px">Data lokasi dan order ini merupakan simulasi.</p>';
+        case 'service-provider': return head('SADESA JASA · PROFIL MITRA','Asep Pratama','Teknisi rumah tangga · Desa Sukamaju') +
+          '<div class="card"><div class="row-start"><div class="store-badge" style="width:58px;height:58px;border-radius:50%;font-size:18px">AP</div><div><div class="row-start" style="gap:6px"><strong>Asep Pratama</strong><span class="pill">TERVERIFIKASI</span></div><p class="hint" style="margin-top:5px">4,9 · 28 ulasan · sekitar 1,4 km</p><p class="hint" style="margin-top:3px">Aktif menerima permintaan</p></div></div><div class="divider"></div><p class="sub" style="margin:0">Membantu perbaikan rumah ringan, instalasi keran, dan pengecekan saluran air. Berpengalaman melayani warga sekitar.</p></div>' +
+          '<div class="section-title"><h2>Layanan dan perkiraan biaya</h2></div><div class="card stack"><div class="row"><span>Perbaikan keran</span><strong>' + money(75000) + '–' + money(150000) + '</strong></div><div class="divider" style="margin:0"></div><div class="row"><span>Pengecekan pipa</span><strong>Mulai ' + money(50000) + '</strong></div><p class="hint">Harga akhir disepakati setelah penyedia memeriksa pekerjaan.</p></div>' +
+          '<div class="section-title"><h2>Jadwal layanan</h2><span>Senin–Sabtu</span></div><div class="card row"><span class="hint">08.00–17.00</span><span class="pill">TERSEDIA</span></div><div style="margin-top:14px"><a class="button full" href="?screen=service-request">Kirim permintaan jasa ' + icon('arrow') + '</a></div><p class="hint" style="text-align:center;margin-top:9px">Profil dan penyedia ini hanya contoh demo.</p>';
+        case 'service-request': return '<div class="wide-art"><p class="eyebrow">SADESA JASA · WARGA BANTU WARGA</p><h2>Keahlian dekat, solusi di rumah.</h2><p>Kirim kebutuhan Anda. Penyedia jasa setempat dapat memberi penawaran.</p></div>' +
+          '<div class="section-title"><h2>Permintaan jasa baru</h2><span>Langkah 1 dari 2</span></div><div class="card stack">' + select('Jenis layanan',['Perbaikan rumah','Jasa elektronik','Kebun & pertanian','Bersih-bersih','Lainnya']) +
+          input('Judul kebutuhan','Mis. Perbaiki keran dapur','text','Perbaikan keran dapur') + '<div class="field"><label>Ceritakan pekerjaan yang dibutuhkan</label><textarea>Keran dapur bocor dan perlu diganti. Mohon cek sambungan pipa juga.</textarea></div>' +
+          '<div class="two-fields">' + input('Perkiraan anggaran','Rp','number','150000') + input('Waktu yang diinginkan','','date','2024-06-20') + '</div><div class="field"><label>Alamat pekerjaan</label><textarea>Jl. Melati No. 8, RT 02 / RW 04, Desa Sukamaju</textarea></div>' +
+          '<div class="card" style="background:#f0f8f1;padding:12px"><div class="row-start"><div class="icon-tile">' + icon('shield') + '</div><p class="hint"><strong style="color:var(--deep)">Pembayaran lebih terjaga</strong><br>Kesepakatan dan pembayaran dilakukan melalui alur SaDesa.</p></div></div>' +
+          '<button class="button full" data-message="Permintaan jasa demo berhasil dikirim.">Kirim permintaan ' + icon('arrow') + '</button></div>';
+        case 'tourism-booking': return '<div class="product-art" style="height:190px;background:linear-gradient(150deg,#d8ead3,#9fc5a0 52%,#498c70);margin-bottom:15px"><div style="position:relative;width:100%;height:100%;display:grid;place-items:center"><svg viewBox="0 0 200 130" width="220" height="150" aria-label="Ilustrasi perbukitan desa"><path d="M0 100 47 45l34 38 39-56 80 79v24H0Z" fill="#3f896b"/><path d="m47 45 13 17-14-4-13 11Zm73-18 18 24-19-7-18 14Z" fill="#e8efd4"/><path d="M0 111c35-22 67-13 100 0s65 12 100-5v24H0Z" fill="#28684f"/><circle cx="158" cy="28" r="13" fill="#f4d687"/></svg></div><span class="art-caption" style="color:white">ALAM & BUDAYA SUKAMAJU</span></div>' +
+          '<div class="row"><span class="pill">WISATA ALAM</span><span class="hint">' + icon('star') + ' 4,9 · 27 ulasan</span></div><div style="margin-top:9px"><h1 style="font-size:23px">Jelajah Curug Cibiru</h1><p class="sub">Susuri jalur hijau menuju air terjun bersama pemandu warga.</p></div>' +
+          '<div class="section-title"><h2>Tentang pengalaman</h2><span>3 jam</span></div><div class="card"><p class="sub" style="margin:0">Perjalanan santai melewati kebun dan sungai kecil. Termasuk pemandu lokal, air minum, dan cerita tentang kehidupan desa.</p><div class="divider"></div><div class="row"><span class="hint">Titik kumpul</span><strong style="font-size:12px">Balai Desa Sukamaju</strong></div><div class="row" style="margin-top:9px"><span class="hint">Jadwal</span><strong style="font-size:12px">Setiap hari · 08.00 / 13.00</strong></div></div>' +
+          '<div class="section-title"><h2>Pilih tanggal & peserta</h2></div><div class="card stack">' + input('Tanggal kunjungan','DD/MM/YYYY','text','22/06/2024') + '<div class="row"><span class="hint">Peserta · Rp75.000 per orang</span><div style="display:flex;gap:9px;align-items:center"><button class="icon-button" data-step="-1" aria-label="Kurangi peserta">' + icon('minus') + '</button><strong id="qty">2 orang</strong><button class="icon-button" data-step="1" aria-label="Tambah peserta">' + icon('plus') + '</button></div></div></div>' +
+          '<div class="section-title"><h2>Ringkasan</h2></div><div class="card row"><span>2 peserta</span><strong class="amount">' + money(150000) + '</strong></div><div style="margin-top:13px"><button class="button full" data-message="Permintaan pemesanan wisata demo terkirim.">Ajukan pemesanan · ' + money(150000) + '</button></div><p class="hint" style="text-align:center;margin-top:8px">Pemesanan ini tidak membuat transaksi nyata.</p>';
+        default: return renderIndex();
+      }
+    }
+    const params = new URLSearchParams(location.search);
+    if (params.get('capture') === 'full') document.body.classList.add('capture-full');
+    const param = params.get('screen');
+    const known = screens.some(s => s[0] === param);
+    const screen = known ? param : 'index';
+    const indexLabels = { 'buyer-signup':'Akun','product-detail':'Jelajah','cart':'Pesanan','checkout':'Pesanan','payment-confirmation':'Pesanan','merchant-signup':'Akun','merchant-add-product':'Akun','courier-signup':'Akun','courier-incoming-order':'Pesanan','service-provider':'Jelajah','service-request':'Jelajah','tourism-booking':'Jelajah' };
+    document.title = screen === 'index' ? 'SaDesa — Demo fitur' : 'SaDesa — ' + screens.find(s=>s[0]===screen)[1] + ' (Demo)';
+    document.getElementById('app').innerHTML =
+      '<div class="topbar"><a href="?screen=index" class="brand" aria-label="SaDesa demo"><span class="brand-mark"></span>sa<b>desa</b><span style="font-size:10px;color:#75847c;letter-spacing:.1px;margin-left:3px">id</span></a><a class="icon-button" href="?screen=cart" aria-label="Keranjang">' + icon('cart') + '</a></div>' +
+      '<div class="notice"><span class="notice-mark">i</span><span>DEMO — data contoh, bukan transaksi nyata</span></div>' +
+      '<main>' + (known ? renderScreen(screen) : renderIndex()) + '</main>' + nav(indexLabels[screen] || (screen==='index'?'Beranda':''));
+    let quantity = 1;
+    document.addEventListener('click', e => {
+      const step = e.target.closest('[data-step]');
+      if (step) {
+        quantity = Math.max(1, quantity + Number(step.dataset.step));
+        const qty = document.getElementById('qty');
+        if (qty) qty.textContent = screen === 'tourism-booking' ? quantity + ' orang' : screen === 'product-detail' ? quantity + ' kg' : String(quantity);
+      }
+      const messageButton = e.target.closest('[data-message]');
+      if (messageButton) {
+        e.preventDefault();
+        const toast = document.getElementById('toast');
+        toast.textContent = messageButton.dataset.message;
+        toast.classList.add('show');
+        window.clearTimeout(window.__demoToast);
+        window.__demoToast = window.setTimeout(() => toast.classList.remove('show'), 2600);
+      }
+    });
+  </script>
+</body>
+</html>

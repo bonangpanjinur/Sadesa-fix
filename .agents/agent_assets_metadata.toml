@@ -210,3 +210,185 @@ mtime_ms = 1792503083669
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/445c1fe4-e650-4741-a3e3-24c3765a9972/16f97c90-8164-4658-8368-438b1301b327"
 storage_version_token = "1792506361686112"
 content_type = "image/jpeg"
+
+[[outputs]]
+id = "TVhQx2Gy5PCo6dj41i2dv"
+uri = "file://screenshots/19-demo-daftar-pembeli.jpg"
+type = "image"
+title = "Demo — Daftar Pembeli"
+description = "Contoh tampilan pendaftaran akun pembeli. Bukan pembuatan akun sungguhan."
+logical_id = "71eac16c-d77a-4dc2-abb1-1d4718530cf5"
+content_hash = "sha256:cfc51157e42981fad490c30f4d7e3b24abcd85f696fdf8d4c1725ae9a37c2695"
+size = 39519
+mtime_ms = 1792509750022
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/71eac16c-d77a-4dc2-abb1-1d4718530cf5/79b6a4f4-b177-4e97-ab93-ffd42ae41e9d"
+storage_version_token = "1792509851159604"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "5hFLs1wFMbAc9SeuyvCUZ"
+uri = "file://screenshots/20-demo-detail-produk-pembeli.jpg"
+type = "image"
+title = "Demo — Detail Produk"
+description = "Contoh detail produk, harga, stok, dan tombol tambah ke keranjang."
+logical_id = "bc9dc02b-3aa7-42c5-acbe-1f0079dad4c7"
+content_hash = "sha256:58b18a6a60a23a49bd3b2a75501f695c44ca855f8084c319621ad5f16a5d2a77"
+size = 40792
+mtime_ms = 1792509606045
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/bc9dc02b-3aa7-42c5-acbe-1f0079dad4c7/52f392b5-23ca-4ded-abef-ddb9a3d902cc"
+storage_version_token = "1792509852740343"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "OzSyW_Y4WCmJ6S7ITMsqS"
+uri = "file://screenshots/21-demo-keranjang-berisi.jpg"
+type = "image"
+title = "Demo — Keranjang Berisi"
+description = "Contoh ringkasan produk, alamat, ongkir, dan total."
+logical_id = "fab639c3-41de-4117-9b6a-80f11315ad66"
+content_hash = "sha256:a6cfd8a75b5be8f9f1aba0d23a252d651e68b472ec1b9c61bea070d91cb80c59"
+size = 36716
+mtime_ms = 1792509608481
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/fab639c3-41de-4117-9b6a-80f11315ad66/644bdf4b-ceeb-4d8a-9a0f-992e56249aa7"
+storage_version_token = "1792509854177801"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "uOngG3d9KDOUHdYjNWMzh"
+uri = "file://screenshots/22-demo-checkout-pembayaran.jpg"
+type = "image"
+title = "Demo — Checkout"
+description = "Contoh pilihan pengantaran dan metode pembayaran. Tidak memproses pembayaran."
+logical_id = "bd522579-f580-47cf-8d63-1b11b56335e4"
+content_hash = "sha256:270b83305c1b977846c9e49eec3a922ce3ad4a16276f5ab71bb06ccf987e2fd3"
+size = 47163
+mtime_ms = 1792509611249
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/bd522579-f580-47cf-8d63-1b11b56335e4/97c08560-4f65-4e8d-b7c4-0a8d35d02f25"
+storage_version_token = "1792509855628441"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "TCX1dquzmJgYlPf63nAWx"
+uri = "file://screenshots/23-demo-konfirmasi-pembayaran.jpg"
+type = "image"
+title = "Demo — Instruksi Pembayaran"
+description = "Contoh instruksi transfer berlabel jangan ditransfer dan status belum dibayar."
+logical_id = "d4a24723-1d1d-45da-951d-cf35f3154373"
+content_hash = "sha256:a35c8bef41d9285c999b4734e552a3d4fb9bd37445b59419db00fc5480000b1f"
+size = 40828
+mtime_ms = 1792509752597
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/d4a24723-1d1d-45da-951d-cf35f3154373/732bba79-e48a-40ba-9a5d-6fcf1d97189d"
+storage_version_token = "1792509857274678"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "DZhIvGiAj7jkf8w-wPmzJ"
+uri = "file://screenshots/24-demo-daftar-pedagang.jpg"
+type = "image"
+title = "Demo — Daftar Pedagang"
+description = "Contoh formulir pendaftaran usaha. Tidak membuat pendaftaran sungguhan."
+logical_id = "9906106e-74f3-4955-bf10-7b32a0da89d2"
+content_hash = "sha256:c6b252a8a9de7e2fb713bdd45bbfe36c7438033ec4758e7365f3493a72704ea8"
+size = 49426
+mtime_ms = 1792509616549
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/9906106e-74f3-4955-bf10-7b32a0da89d2/d928c934-5b9d-4d15-ba49-bb7b088bbeea"
+storage_version_token = "1792509858898378"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "f6mGEi84vYZrh4KljUscL"
+uri = "file://screenshots/25-demo-tambah-produk-pedagang.jpg"
+type = "image"
+title = "Demo — Tambah Produk Pedagang"
+description = "Contoh formulir produk dengan foto, kategori, harga, stok, dan deskripsi."
+logical_id = "387c7a83-d536-4271-a71a-f2b3b1771ff7"
+content_hash = "sha256:0c990da6eb15c399569a408f63c981b7f3cb49a9f8ed7dad989c1e442b4b64b5"
+size = 42150
+mtime_ms = 1792509685526
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/387c7a83-d536-4271-a71a-f2b3b1771ff7/701ce60c-6d5f-46bd-bf4c-fa7443139b63"
+storage_version_token = "1792509860329811"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "VCCw5wvy2TUY6cpRj_zNO"
+uri = "file://screenshots/26-demo-daftar-ojek.jpg"
+type = "image"
+title = "Demo — Daftar Ojek/Kurir"
+description = "Contoh data awal pendaftaran kurir. Nomor identitas pada layar berupa nol."
+logical_id = "c554f6fe-eac4-409b-bcf5-3eb1c9807a20"
+content_hash = "sha256:e0e7ea228ac1a3bad01f78a2a2b49a28846e9f2a0674e376e01eb0a4041ba07f"
+size = 44278
+mtime_ms = 1792509755093
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/c554f6fe-eac4-409b-bcf5-3eb1c9807a20/3c65a28e-2dbc-4364-b262-15ffd74c9e21"
+storage_version_token = "1792509862001290"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "E_ZlCCcOaDK1NJykDy1XY"
+uri = "file://screenshots/27-demo-terima-pesanan-ojek.jpg"
+type = "image"
+title = "Demo — Pesanan Masuk Ojek"
+description = "Contoh tawaran pengantaran dengan lokasi, upah, dan tombol terima."
+logical_id = "7a3e2dda-b888-449d-91d6-dedc7ef92a0a"
+content_hash = "sha256:6d85792888015590429e8ecb090d43652e73430a7de5a11b47d49bbaa7791f50"
+size = 42388
+mtime_ms = 1792509690968
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/7a3e2dda-b888-449d-91d6-dedc7ef92a0a/0fcbf201-3c1a-45b3-8f96-87ae9ba406f3"
+storage_version_token = "1792509863643321"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "gy35yRmaOQO_IjE0dsF4b"
+uri = "file://screenshots/28-demo-permintaan-jasa.jpg"
+type = "image"
+title = "Demo — Permintaan Jasa"
+description = "Contoh formulir kebutuhan jasa dan perkiraan anggaran."
+logical_id = "ffbec23e-d59e-44c0-aa0a-44ed6b8aa29c"
+content_hash = "sha256:c87fa457ecdaf783823e4f1f61876ee74091cae506b71274ad979cc107c00d52"
+size = 51826
+mtime_ms = 1792509693711
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/ffbec23e-d59e-44c0-aa0a-44ed6b8aa29c/5b3a0720-c297-4005-ab13-4f5bd83a84b0"
+storage_version_token = "1792509865022837"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "OiWK-8Cs5GrwJkpbMadeK"
+uri = "file://screenshots/29-demo-pemesanan-wisata.jpg"
+type = "image"
+title = "Demo — Pemesanan Wisata"
+description = "Contoh detail destinasi, tanggal kunjungan, peserta, dan ringkasan harga."
+logical_id = "19a75a44-8861-4f0e-ad34-924ad15b1768"
+content_hash = "sha256:4c77a4c0f95c00e4ace7935e536287b488919419f6b49c32a562702d997e5e8e"
+size = 49076
+mtime_ms = 1792509757861
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/19a75a44-8861-4f0e-ad34-924ad15b1768/82d30346-b6f5-47d0-bd33-c348565aafe3"
+storage_version_token = "1792509867667632"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "N2j9ZTpXLPrCjlGgPZe1I"
+uri = "file://screenshots/30-demo-profil-penyedia-jasa.jpg"
+type = "image"
+title = "Demo — Profil Penyedia Jasa"
+description = "Contoh profil, layanan, kisaran biaya, dan tombol permintaan."
+logical_id = "0cc50d3c-aaec-421d-b420-5884be08a982"
+content_hash = "sha256:70f63497649926777a8aee81e9b6373f991886f5fa8f1f234933fbd8fbf35002"
+size = 43558
+mtime_ms = 1792509698803
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/0cc50d3c-aaec-421d-b420-5884be08a982/03d36109-3a6b-457b-bfb1-df0059bb21aa"
+storage_version_token = "1792509869749005"
+content_type = "image/jpeg"
+
+[[outputs]]
+id = "dC6JZJ54mcm3VJHyhrrOo"
+uri = "file://screenshots/demo/index.html"
+type = "html"
+title = "Indeks Demo Fitur SaDesa"
+description = "Halaman demo lokal untuk membuka 12 layar contoh. Semua data dan aksi hanya simulasi."
+logical_id = "ffa58d20-e1e7-4472-a66d-28853b7b87cd"
+content_hash = "sha256:aef0b0d927911ca64262053ccb6765f2b733f54eb6cc997cc058a3b981f206a1"
+size = 39792
+mtime_ms = 1792509732863
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:bba2e2d5-f89f-41a7-8452-c60dfcce4b4e/ffa58d20-e1e7-4472-a66d-28853b7b87cd/98f676be-eade-451f-8be0-829965fc53f9"
+storage_version_token = "1792509871557417"
+content_type = "text/html"
