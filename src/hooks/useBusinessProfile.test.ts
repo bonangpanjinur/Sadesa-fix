@@ -25,6 +25,7 @@ describe('resolveProfile', () => {
       email: 'halo@sadesa.id',
       operatingHours: '08.00-21.00 WIB',
       serviceArea: 'Kabupaten Ciamis',
+      faqs: BUSINESS_PROFILE.faqs,
     });
   });
 
@@ -51,5 +52,10 @@ describe('resolveProfile', () => {
     expect(profile.whatsapp).toBe('081111111111');
     expect(profile.email).toBe('support@site-info.id');
     expect(profile.serviceArea).toBe('Area site info');
+  });
+
+  it('reads FAQ items from the public help setting', () => {
+    const profile = resolveProfile([{ key: 'help_faq', value: { items: [{ question: 'Q baru', answer: 'A baru' }] } }]);
+    expect(profile.faqs).toEqual([{ question: 'Q baru', answer: 'A baru' }]);
   });
 });

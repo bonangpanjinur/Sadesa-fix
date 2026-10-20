@@ -5,6 +5,7 @@ import { ImageUpload } from '@/components/ui/ImageUpload';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +25,7 @@ import type {
   ShippingZone,
   CODSettings,
 } from '@/types/admin';
+import { BUSINESS_PROFILE, DEFAULT_HELP_FAQS, type HelpFaqItem } from '@/config/businessProfile';
 import { toast } from 'sonner';
 
 type ShippingPricingAuditEntry = {
@@ -82,6 +84,19 @@ export default function AdminSettingsPage() {
     return settings.find(s => s.key === key);
   };
 
+  const getTextSetting = (keys: string[], fallback: string): string => {
+    for (const key of keys) {
+      const value = getSetting(key)?.value as unknown;
+      if (typeof value === 'string' && value.trim()) return value;
+      if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+      if (value && typeof value === 'object' && 'value' in value) {
+        const nested = (value as { value?: unknown }).value;
+        if (typeof nested === 'string' && nested.trim()) return nested;
+      }
+    }
+    return fallback;
+  };
+
   const handleToggleRegistration = async (key: string, currentValue: boolean) => {
     setSaving(key);
     const success = await updateAppSetting(key, { enabled: !currentValue });
@@ -118,6 +133,20 @@ export default function AdminSettingsPage() {
   const adminPaymentInfo = getSetting('admin_payment_info')?.value as unknown as { bank_name: string; bank_account_number: string; bank_account_name: string; qris_image_url: string } | undefined;
   const freeTierQuota = getSetting('free_tier_quota')?.value as unknown as { limit: number } | undefined;
   const courierMinBalance = getSetting('courier_minimum_balance')?.value as unknown as { amount: number } | undefined;
+  const helpFaqValue = getSetting('help_faq')?.value as unknown;
+  const helpFaqItems = helpFaqValue && typeof helpFaqValue === 'object' && !Array.isArray(helpFaqValue) && 'items' in helpFaqValue
+    ? (helpFaqValue as { items?: HelpFaqItem[] }).items
+    : Array.isArray(helpFaqValue) ? helpFaqValue as HelpFaqItem[] : undefined;
+  const helpCenterInitialValues = {
+    legalName: getTextSetting(['company_legal_name', 'legal_name', 'company_name'], BUSINESS_PROFILE.legalName),
+    address: getTextSetting(['business_address', 'address', 'company_address'], BUSINESS_PROFILE.address),
+    phone: getTextSetting(['business_phone', 'support_phone', 'phone'], BUSINESS_PROFILE.phone),
+    whatsapp: getTextSetting(['business_whatsapp', 'support_whatsapp', 'whatsapp'], BUSINESS_PROFILE.whatsapp),
+    email: getTextSetting(['business_email', 'support_email', 'email'], BUSINESS_PROFILE.email),
+    operatingHours: getTextSetting(['business_operating_hours', 'operating_hours', 'hours'], BUSINESS_PROFILE.operatingHours),
+    serviceArea: getTextSetting(['business_service_area', 'service_area', 'coverage_area'], BUSINESS_PROFILE.serviceArea),
+    faqs: helpFaqItems?.length ? helpFaqItems : DEFAULT_HELP_FAQS,
+  };
 
   return (
     <AdminLayout title="Pengaturan" subtitle="Konfigurasi fitur dan kustomisasi aplikasi">
@@ -137,7 +166,7 @@ export default function AdminSettingsPage() {
 
               {/* Branding & Appearance Tab */}
               <TabsContent value="branding">
-                <Card>
+                <Card className="mb-6">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Palette className="h-5 w-5" />
@@ -149,6 +178,44 @@ export default function AdminSettingsPage() {
                   </CardHeader>
                   <CardContent>
                     <BrandingAppearanceSettings isSaving={saving} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Globe className="h-5 w-5" />
+                      Informasi Kontak &amp; Pusat Bantuan
+                    </CardTitle>
+                    <CardDescription>
+                      Data ini tampil di halaman <code>/help</code> dan <code>/contact</code>. FAQ dapat diubah tanpa mengubah kode aplikasi.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <HelpCenterSettingsForm
+                      initialValues={helpCenterInitialValues}
+                      isSaving={saving === 'help_center'}
+                      onSave={async (values) => {
+                        setSaving('help_center');
+                        const updates: Array<[string, Record<string, unknown>]> = [
+                          ['company_legal_name', { value: values.legalName.trim() }],
+                          ['business_address', { value: values.address.trim() }],
+                          ['business_phone', { value: values.phone.trim() }],
+                          ['business_whatsapp', { value: values.whatsapp.trim() }],
+                          ['business_email', { value: values.email.trim() }],
+                          ['business_operating_hours', { value: values.operatingHours.trim() }],
+                          ['business_service_area', { value: values.serviceArea.trim() }],
+                          ['help_faq', { items: values.faqs }],
+                        ];
+                        const results = await Promise.all(updates.map(([key, value]) => updateAppSetting(key, value)));
+                        if (results.every(Boolean)) {
+                          toast.success('Informasi kontak dan Pusat Bantuan berhasil disimpan');
+                          await loadSettings();
+                        } else {
+                          toast.error('Sebagian pengaturan gagal disimpan');
+                        }
+                        setSaving(null);
+                      }}
+                    />
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -555,8 +622,59 @@ export default function AdminSettingsPage() {
   );
 }
 
-// Sub-form components (PaymentMidtransForm, PaymentXenditForm, ShippingFeeForm, ShippingZonesForm, PlatformFeeForm, CODSettingsForm)
-// [Keeping the existing implementations from the original file...]
+interface HelpCenterSettingsValues {
+  legalName: string;
+  address: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  operatingHours: string;
+  serviceArea: string;
+  faqs: HelpFaqItem[];
+}
+
+function HelpCenterSettingsForm({ initialValues, onSave, isSaving }: { initialValues: HelpCenterSettingsValues; onSave: (values: HelpCenterSettingsValues) => Promise<void>; isSaving: boolean }) {
+  const [values, setValues] = useState<HelpCenterSettingsValues>(() => ({ ...initialValues, faqs: initialValues.faqs.map(item => ({ ...item })) }));
+  const updateField = (field: Exclude<keyof HelpCenterSettingsValues, 'faqs'>, value: string) => setValues(prev => ({ ...prev, [field]: value }));
+  const updateFaq = (index: number, field: keyof HelpFaqItem, value: string) => setValues(prev => ({
+    ...prev,
+    faqs: prev.faqs.map((item, currentIndex) => currentIndex === index ? { ...item, [field]: value } : item),
+  }));
+  const addFaq = () => setValues(prev => ({ ...prev, faqs: [...prev.faqs, { question: '', answer: '' }] }));
+  const removeFaq = (index: number) => setValues(prev => ({ ...prev, faqs: prev.faqs.filter((_, currentIndex) => currentIndex !== index) }));
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const faqs = values.faqs
+      .map(item => ({ question: item.question.trim(), answer: item.answer.trim() }))
+      .filter(item => item.question && item.answer);
+    if (!values.email.trim() || faqs.length === 0) return;
+    void onSave({ ...values, faqs });
+  };
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2"><Label>Nama badan usaha</Label><Input value={values.legalName} onChange={event => updateField('legalName', event.target.value)} /></div>
+        <div className="space-y-2"><Label>Email bantuan <span className="text-destructive">*</span></Label><Input type="email" value={values.email} onChange={event => updateField('email', event.target.value)} required /></div>
+        <div className="space-y-2"><Label>Telepon hotline</Label><Input value={values.phone} onChange={event => updateField('phone', event.target.value)} placeholder="Contoh: 081234567890" /></div>
+        <div className="space-y-2"><Label>WhatsApp layanan</Label><Input value={values.whatsapp} onChange={event => updateField('whatsapp', event.target.value)} placeholder="Contoh: 081234567890" /></div>
+        <div className="space-y-2 md:col-span-2"><Label>Alamat operasional / unit pelayanan</Label><Textarea value={values.address} onChange={event => updateField('address', event.target.value)} rows={2} /></div>
+        <div className="space-y-2"><Label>Jam operasional</Label><Input value={values.operatingHours} onChange={event => updateField('operatingHours', event.target.value)} /></div>
+        <div className="space-y-2"><Label>Wilayah layanan</Label><Input value={values.serviceArea} onChange={event => updateField('serviceArea', event.target.value)} /></div>
+      </div>
+      <div className="space-y-3 border-t pt-5">
+        <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">Pertanyaan Umum (FAQ)</h3><p className="text-xs text-muted-foreground">Tampil di /help dan /contact.</p></div><Button type="button" variant="outline" onClick={addFaq}><Plus className="mr-2 h-4 w-4" />Tambah FAQ</Button></div>
+        {values.faqs.map((item, index) => (
+          <div key={`faq-${index}`} className="space-y-3 rounded-lg border bg-secondary/30 p-3">
+            <div className="flex items-center justify-between gap-2"><Label>Pertanyaan {index + 1}</Label><Button type="button" variant="ghost" size="icon" aria-label={`Hapus FAQ ${index + 1}`} onClick={() => removeFaq(index)} disabled={values.faqs.length <= 1}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
+            <Input value={item.question} onChange={event => updateFaq(index, 'question', event.target.value)} placeholder="Tulis pertanyaan" />
+            <Textarea value={item.answer} onChange={event => updateFaq(index, 'answer', event.target.value)} placeholder="Tulis jawaban" rows={3} />
+          </div>
+        ))}
+      </div>
+      <Button type="submit" disabled={isSaving || !values.email.trim() || !values.faqs.some(item => item.question.trim() && item.answer.trim())}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Menyimpan...' : 'Simpan Informasi Bantuan'}</Button>
+    </form>
+  );
+}
 
 function PaymentMidtransForm({ initialValues, onSave, isSaving }: { initialValues?: PaymentSettings; onSave: (values: PaymentSettings) => Promise<void>; isSaving: boolean; }) {
   const [serverKey, setServerKey] = useState(initialValues?.server_key || '');

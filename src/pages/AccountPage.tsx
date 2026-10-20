@@ -455,12 +455,13 @@ export default function AccountPage() {
               )}
 
               {/* Quick Access Grid */}
-              <div className="grid grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-5">
                 {[
                   { icon: MessageCircle, label: 'Chat', path: '/buyer/chat', color: 'text-primary bg-primary/10' },
                   { icon: Heart, label: 'Wishlist', path: '/wishlist', color: 'text-destructive bg-destructive/10' },
                   { icon: MapPin, label: 'Alamat', path: '/addresses', color: 'text-info bg-info/10' },
-                  { icon: HelpCircle, label: 'Bantuan', path: '/help', color: 'text-warning bg-warning/10' },
+                  { icon: HelpCircle, label: 'Pusat Bantuan', path: '/help', color: 'text-warning bg-warning/10' },
+                  { icon: MessageCircle, label: 'Kontak', path: '/contact', color: 'text-success bg-success/10' },
                 ].map((item) => (
                   <button
                     key={item.path}

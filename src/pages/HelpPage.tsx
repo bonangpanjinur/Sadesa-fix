@@ -14,37 +14,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { whatsappHref } from '@/config/businessProfile';
 import { useBusinessProfile } from '@/hooks/useBusinessProfile';
 
-const FAQ_ITEMS = [
-  {
-    q: 'Bagaimana cara memesan produk?',
-    a: 'Pilih produk yang diinginkan, tambahkan ke keranjang, lalu lanjutkan ke checkout. Isi alamat pengiriman dan pilih metode pembayaran.',
-  },
-  {
-    q: 'Berapa lama pengiriman pesanan?',
-    a: 'Estimasi pengiriman tergantung jarak antara toko dan alamat Anda. Umumnya 1-3 hari untuk area lokal.',
-  },
-  {
-    q: 'Bagaimana cara membatalkan pesanan?',
-    a: 'Buka halaman Pesanan Saya, pilih pesanan yang ingin dibatalkan, lalu klik tombol "Batalkan Pesanan". Pembatalan hanya bisa dilakukan sebelum pesanan diproses.',
-  },
-  {
-    q: 'Metode pembayaran apa saja yang tersedia?',
-    a: 'Kami menerima transfer bank, QRIS, dan COD (bayar di tempat) untuk area tertentu.',
-  },
-  {
-    q: 'Bagaimana cara menjadi merchant/pedagang?',
-    a: 'Buka menu Akun → Bergabung Bersama Kami → Daftar Sebagai Pedagang. Lengkapi data yang diperlukan dan tunggu persetujuan admin.',
-  },
-  {
-    q: 'Bagaimana cara mengajukan refund?',
-    a: 'Buka detail pesanan, klik "Ajukan Pengembalian", isi alasan dan lampirkan bukti foto jika diperlukan.',
-  },
-  {
-    q: 'Apakah semua produk halal?',
-    a: 'Kami mengutamakan produk halal. Cek badge sertifikat halal pada setiap produk untuk memastikan status halalnya.',
-  },
-];
-
 export default function HelpPage() {
   const navigate = useNavigate();
   const { profile, loading: isLoadingContact, error: contactError, refetch: fetchContact } = useBusinessProfile();
@@ -132,13 +101,13 @@ export default function HelpPage() {
             </CardHeader>
             <CardContent className="pt-0">
               <Accordion type="single" collapsible className="w-full">
-                {FAQ_ITEMS.map((item, i) => (
+                {profile.faqs.map((item, i) => (
                   <AccordionItem key={i} value={`faq-${i}`}>
                     <AccordionTrigger className="min-h-14 text-left text-sm leading-snug">
-                      {item.q}
+                      {item.question}
                     </AccordionTrigger>
                     <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
-                      {item.a}
+                      {item.answer}
                     </AccordionContent>
                   </AccordionItem>
                 ))}

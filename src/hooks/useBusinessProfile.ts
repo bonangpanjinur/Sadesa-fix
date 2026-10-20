@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { BUSINESS_PROFILE, type BusinessProfile } from '@/config/businessProfile';
+import { BUSINESS_PROFILE, DEFAULT_HELP_FAQS, type BusinessProfile, type HelpFaqItem } from '@/config/businessProfile';
 
 type SettingValue = string | number | boolean | Record<string, unknown> | null;
 type SettingRow = { key: string; value: SettingValue };
@@ -31,6 +31,21 @@ function readSiteInfo(settings: Map<string, SettingValue>): Record<string, unkno
   }, {});
 }
 
+function readFaqs(settings: Map<string, SettingValue>): HelpFaqItem[] {
+  const value = settings.get('help_faq');
+  const rawItems = value && typeof value === 'object' && !Array.isArray(value) && 'items' in value
+    ? (value as { items?: unknown }).items
+    : value;
+  if (!Array.isArray(rawItems)) return DEFAULT_HELP_FAQS;
+  const items = rawItems.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const question = asString((item as { question?: unknown }).question);
+    const answer = asString((item as { answer?: unknown }).answer);
+    return question && answer ? [{ question, answer }] : [];
+  });
+  return items.length > 0 ? items : DEFAULT_HELP_FAQS;
+}
+
 function resolveProfile(rows: SettingRow[]): BusinessProfile {
   const settings = new Map(rows.map((row) => [row.key, row.value]));
   const siteInfo = readSiteInfo(settings);
@@ -47,6 +62,7 @@ function resolveProfile(rows: SettingRow[]): BusinessProfile {
     email: resolve(['business_email', 'support_email', 'email'], BUSINESS_PROFILE.email),
     operatingHours: resolve(['business_operating_hours', 'operating_hours', 'hours'], BUSINESS_PROFILE.operatingHours),
     serviceArea: resolve(['business_service_area', 'service_area', 'coverage_area'], BUSINESS_PROFILE.serviceArea),
+    faqs: readFaqs(settings),
   };
 }
 
