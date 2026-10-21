@@ -118,6 +118,8 @@ export async function compressImage(
   const quality = options.quality ?? 0.8;
   const minSizeBytes = options.minSizeBytes ?? 500 * 1024;
   const force = options.force ?? false;
+  const outputFormat = options.outputFormat ?? 'jpeg';
+  const mimeType = outputFormat === 'png' ? 'image/png' : 'image/jpeg';
 
   return new Promise((resolve) => {
     // Keep current behavior for general uploads unless a caller explicitly
@@ -143,7 +145,7 @@ export async function compressImage(
         (blob) => {
           if (blob) {
             const compressedFile = new File([blob], file.name, {
-              type: 'image/jpeg',
+              type: mimeType,
               lastModified: Date.now(),
             });
             resolve(compressedFile);
@@ -151,7 +153,7 @@ export async function compressImage(
             resolve(file);
           }
         },
-        'image/jpeg',
+        mimeType,
         quality
       );
       URL.revokeObjectURL(img.src);

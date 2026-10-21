@@ -19,6 +19,7 @@ interface ImageUploadProps {
   placeholder?: string;
   disabled?: boolean;
   stableFileName?: boolean;
+  objectFit?: 'cover' | 'contain';
 }
 
 export function ImageUpload({
@@ -34,6 +35,7 @@ export function ImageUpload({
   placeholder = 'Upload gambar',
   disabled = false,
   stableFileName = false,
+  objectFit = 'cover',
 }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -171,7 +173,7 @@ export function ImageUpload({
             <img
               src={value}
               alt="Preview"
-              className="absolute inset-0 w-full h-full object-cover"
+              className={cn('absolute inset-0 h-full w-full', objectFit === 'contain' ? 'object-contain p-3' : 'object-cover')}
             />
             {!disabled && (
               <Button

@@ -766,16 +766,13 @@ const Index = () => {
   };
 
   return (
-    <div className="mobile-shell flex min-h-screen flex-col bg-background font-body">
+    <div className="mobile-shell flex min-h-screen flex-col bg-[#f5faf6] font-body">
       <Header />
 
       {/* Scrollable Content */}
       <main className="flex-1 overflow-y-auto">
         <>
           <h1 className="sr-only">Belanja kuliner dan layanan lokal di SaDesa</h1>
-          <div className="pt-3">
-            <MealTimeReminder />
-          </div>
           <div className="mt-6 space-y-6 pb-6">
           {activeOrder && (
             <Dialog>
@@ -813,7 +810,17 @@ const Index = () => {
           )}
           {orderedSections.filter((section) => section.id !== 'contextual-recommendation').map((section) => {
             const content = renderSection(section.id);
-            return content ? <div key={section.id}>{content}</div> : null;
+            if (!content) return null;
+            return (
+              <div key={section.id}>
+                {content}
+                {section.id === 'categories' && (
+                  <div className="mt-5">
+                    <MealTimeReminder />
+                  </div>
+                )}
+              </div>
+            );
           })}
           {/* Empty state when all data is empty */}
           {!loading && products.length === 0 && villages.length === 0 && tourismSpots.length === 0 && (

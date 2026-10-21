@@ -544,16 +544,16 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
         key: 'homepage_service_card_images',
         category: 'layout',
         value: homepageServiceCardImages as unknown as JsonValue,
-        description: 'Gambar untuk tiga kartu layanan utama di halaman beranda',
+        description: 'Ikon untuk tiga menu utama di halaman beranda',
         updated_at: new Date().toISOString(),
       }, { onConflict: 'key' });
 
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ['homepage-service-card-images'] });
-      toast.success('Gambar menu utama berhasil disimpan');
+      toast.success('Ikon menu utama berhasil disimpan');
     } catch (error) {
       console.error('Error saving homepage service card images:', error);
-      toast.error('Gagal menyimpan gambar menu utama');
+      toast.error('Gagal menyimpan ikon menu utama');
     } finally {
       setSaving(null);
     }
@@ -929,11 +929,11 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
           </Card>
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Gambar Menu Utama</CardTitle>
-              <CardDescription>Atur gambar untuk kartu Makanan &amp; Minuman, Ojek, dan Belanja di beranda. Tanpa gambar, kartu menampilkan ikon.</CardDescription>
+            <CardTitle>Ikon Menu Utama</CardTitle>
+            <CardDescription>Atur ikon untuk menu Makanan &amp; Minuman, Ojek, dan Belanja di beranda. Menu tampil dalam lingkaran lembut seperti aplikasi mobile.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <p className="text-sm text-muted-foreground">Ukuran yang disarankan: <span className="font-semibold text-foreground">1120 × 1000 px</span> (rasio 1,12:1). Unggahan hanya menerima rasio 1,11–1,13:1 agar gambar tampil pas tanpa distorsi atau pemotongan besar; crop gambar terlebih dahulu jika rasionya berbeda.</p>
+              <p className="text-sm text-muted-foreground">Gunakan ikon <span className="font-semibold text-foreground">persegi (1:1)</span> dengan latar transparan atau warna solid. Ukuran yang disarankan minimal 512 × 512 px agar tetap tajam pada layar ponsel.</p>
               <div className="grid gap-5 md:grid-cols-3">
                 {HOMEPAGE_SERVICE_CARDS.map((card) => (
                   <div key={card.id} className="space-y-2">
@@ -943,13 +943,14 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                       path={`homepage/service-cards/${card.id}`}
                       value={homepageServiceCardImages[card.id]}
                       onChange={(url) => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: url }))}
-                      aspectRatio="home-card"
-                      maxSizeMB={15}
-                      compressionOptions={{ maxWidth: 1120, maxHeight: 1000, quality: 0.82, force: true }}
-                      aspectRatioValidation={{ ratio: 1.12, tolerance: 0.01 }}
-                      placeholder={`Upload gambar ${card.title}`}
+                      aspectRatio="square"
+                      objectFit="contain"
+                      maxSizeMB={5}
+                      compressionOptions={{ maxWidth: 512, maxHeight: 512, quality: 0.9, force: true, outputFormat: 'png' }}
+                      aspectRatioValidation={{ ratio: 1, tolerance: 0.08 }}
+                      placeholder={`Upload ikon ${card.title}`}
                     />
-                    <p className="text-xs text-muted-foreground">Unggah JPG, PNG, WEBP, atau GIF hingga 15 MB. Gambar otomatis dikompres ke JPEG maksimal 1120 × 1000 px; GIF animasi menjadi gambar statis. Hapus gambar untuk menampilkan ikon pada kartu.</p>
+                    <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, atau GIF hingga 5 MB. File dikompres maksimal 512 × 512 px. Hapus ikon untuk kembali ke ikon bawaan.</p>
                     {homepageServiceCardImages[card.id] && (
                       <Button
                         type="button"
@@ -958,16 +959,16 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
                         className="h-auto px-0"
                         onClick={() => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: null }))}
                       >
-                        Gunakan gambar bawaan
+                        Gunakan ikon bawaan
                       </Button>
                     )}
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">Setelah mengunggah gambar, klik tombol di bawah agar URL gambar baru tersimpan dan tampil di beranda.</p>
+              <p className="text-xs text-muted-foreground">Setelah mengunggah ikon, klik tombol di bawah agar perubahan tersimpan dan tampil di beranda.</p>
               <Button onClick={handleSaveHomepageServiceCardImages} disabled={saving === 'service-card-images'} className="w-full">
                 {saving === 'service-card-images' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Simpan Gambar Menu Utama
+                Simpan Ikon Menu Utama
               </Button>
             </CardContent>
           </Card>

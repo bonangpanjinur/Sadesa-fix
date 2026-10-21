@@ -5,8 +5,8 @@ import type { HomepageLayoutSettings, HomepageSection } from '@/hooks/useHomepag
  * has not been saved yet. Runtime ordering and visibility come from Supabase.
  */
 export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
-  { id: 'hero', name: 'Hero Banner', enabled: true, order: 0 },
-  { id: 'categories', name: 'Kategori', enabled: true, order: 1 },
+  { id: 'categories', name: 'Menu Utama', enabled: true, order: 0 },
+  { id: 'hero', name: 'Hero Banner', enabled: true, order: 1 },
   { id: 'popular_tourism', name: 'Wisata Populer', enabled: false, order: 2 },
   { id: 'promo', name: 'Promo Spesial', enabled: true, order: 3 },
   { id: 'recommendations', name: 'Rekomendasi Pilihan', enabled: true, order: 4 },

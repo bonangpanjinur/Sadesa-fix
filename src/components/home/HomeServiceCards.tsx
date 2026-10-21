@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Bike, ChevronRight, ShoppingBasket, UtensilsCrossed, type LucideIcon } from 'lucide-react';
+import { Bike, ShoppingBasket, UtensilsCrossed, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
@@ -40,8 +40,8 @@ export function HomeServiceCards() {
   });
 
   return (
-    <section className="mx-4" aria-label="Kategori utama" data-feature-tour="buyer-discover">
-      <div className="grid grid-cols-3 gap-2.5">
+    <section className="mx-4" aria-label="Menu utama" data-feature-tour="buyer-discover">
+      <div className="grid grid-cols-3 overflow-hidden rounded-[1.8rem] border border-[#e3eee4] bg-white shadow-[0_16px_34px_-24px_rgba(1,87,48,0.4)]">
         {HOMEPAGE_SERVICE_CARDS.map((card) => {
           const Icon = serviceCardIcons[card.id];
           const imageUrl = imageOverrides[card.id];
@@ -51,29 +51,25 @@ export function HomeServiceCards() {
               key={card.id}
               to={card.href}
               aria-label={card.title}
-              className="group relative aspect-[1.12/1] min-w-0 overflow-hidden rounded-2xl bg-emerald-800 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.98]"
+              className="group relative flex min-w-0 flex-col items-center justify-center gap-3 border-r border-[#e4ece5] px-2 py-5 text-center transition-colors duration-200 last:border-r-0 hover:bg-[#f7fbf6] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#44a31b] active:bg-[#edf7e8]"
             >
-              <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-emerald-700 to-emerald-950 text-white/75">
-                <Icon className="h-12 w-12" />
+              <span aria-hidden="true" className="relative flex h-[4.4rem] w-[4.4rem] shrink-0 items-center justify-center rounded-full bg-[#edf7e8] text-[#08713f] transition-transform duration-200 group-hover:scale-[1.04]">
+                <Icon className="h-8 w-8 stroke-[1.8]" />
+                {imageUrl && (
+                  <img
+                    src={optimizeSupabaseImage(imageUrl, 240)}
+                    srcSet={getOptimizedImageSrcSet(imageUrl, [240, 360, 480, 640])}
+                    sizes="4.4rem"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    onError={(event) => { event.currentTarget.hidden = true; }}
+                    className="absolute h-[4.4rem] w-[4.4rem] rounded-full object-contain bg-[#edf7e8] p-3"
+                  />
+                )}
               </span>
-              {imageUrl && (
-                <img
-                  src={optimizeSupabaseImage(imageUrl, 480)}
-                  srcSet={getOptimizedImageSrcSet(imageUrl, [240, 360, 480, 640])}
-                  sizes="(min-width: 768px) 300px, 31vw"
-                  alt={card.imageAlt}
-                  loading={card.id === 'food' ? 'eager' : 'lazy'}
-                  decoding="async"
-                  onError={(event) => { event.currentTarget.hidden = true; }}
-                  className="absolute inset-0 z-[1] h-full w-full object-cover object-right transition-transform duration-300 group-hover:scale-[1.03]"
-                />
-              )}
-              <span aria-hidden="true" className="absolute inset-0 z-[2] bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-              <span className="absolute bottom-3 left-3 right-10 z-[3] text-left text-sm font-extrabold leading-tight text-white drop-shadow sm:text-base">
+              <span className="min-h-[2.5rem] text-[13px] font-bold leading-tight tracking-[-0.02em] text-[#153c2c] sm:text-sm">
                 {card.title}
-              </span>
-              <span aria-hidden="true" className="absolute bottom-2.5 right-2.5 z-[3] flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary shadow-sm transition-transform group-hover:translate-x-0.5">
-                <ChevronRight className="h-5 w-5" />
               </span>
             </Link>
           );

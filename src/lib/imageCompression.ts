@@ -4,6 +4,7 @@ export interface ImageCompressionOptions {
   quality?: number;
   minSizeBytes?: number;
   force?: boolean;
+  outputFormat?: 'jpeg' | 'png';
 }
 
 export interface ImageAspectRatioValidation {
