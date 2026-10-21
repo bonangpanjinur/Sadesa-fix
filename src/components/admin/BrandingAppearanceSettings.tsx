@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Save, Loader2, Image as ImageIcon, Palette, Globe, Type, Upload, CheckCircle2, Info, RefreshCw, Search, Plus, Edit2, Trash2, Eye, EyeOff, Share2, Layout, GripVertical, BarChart3 } from 'lucide-react';
+import { Save, Loader2, Image as ImageIcon, Palette, Globe, Type, Upload, CheckCircle2, Info, RefreshCw, Search, Plus, Edit2, Trash2, Eye, EyeOff, Share2, Layout, GripVertical, BarChart3, FileCode2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { SvgIconUpload } from '@/components/admin/SvgIconUpload';
 import { useWhitelabel } from '@/hooks/useWhitelabel';
 import {
   EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES,
@@ -929,43 +930,34 @@ export function BrandingAppearanceSettings({ isSaving: externalIsSaving, onSave 
           </Card>
           <Card className="mt-6">
             <CardHeader>
-            <CardTitle>Ikon Menu Utama</CardTitle>
-            <CardDescription>Atur ikon untuk menu Makanan &amp; Minuman, Ojek, dan Belanja di beranda. Menu tampil dalam lingkaran lembut seperti aplikasi mobile.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><FileCode2 className="h-5 w-5" /> Ikon Menu Utama</CardTitle>
+              <CardDescription>Kelola ikon SVG yang tampil pada tiga menu utama di beranda. File SVG dibersihkan sebelum disimpan agar aman ditampilkan sebagai gambar.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <p className="text-sm text-muted-foreground">Gunakan ikon <span className="font-semibold text-foreground">persegi (1:1)</span> dengan latar transparan atau warna solid. Ukuran yang disarankan minimal 512 × 512 px agar tetap tajam pada layar ponsel.</p>
-              <div className="grid gap-5 md:grid-cols-3">
+              <div className="overflow-hidden rounded-xl border">
+                <div className="hidden grid-cols-[1.4fr_1fr_1fr] gap-4 border-b bg-muted/40 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                  <span>Menu</span><span>Ikon SVG</span><span>Status</span>
+                </div>
                 {HOMEPAGE_SERVICE_CARDS.map((card) => (
-                  <div key={card.id} className="space-y-2">
-                    <Label>{card.title}</Label>
-                    <ImageUpload
-                      bucket="admin-assets"
-                      path={`homepage/service-cards/${card.id}`}
+                  <div key={card.id} className="grid gap-4 border-b p-4 last:border-b-0 md:grid-cols-[1.4fr_1fr_1fr] md:items-center">
+                    <div>
+                      <Label className="text-base">{card.title}</Label>
+                      <p className="mt-1 text-xs text-muted-foreground">Tautan: {card.href}</p>
+                    </div>
+                    <SvgIconUpload
+                      path={`homepage/service-icons/${card.id}`}
                       value={homepageServiceCardImages[card.id]}
                       onChange={(url) => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: url }))}
-                      aspectRatio="square"
-                      objectFit="contain"
-                      maxSizeMB={5}
-                      compressionOptions={{ maxWidth: 512, maxHeight: 512, quality: 0.9, force: true, outputFormat: 'png' }}
-                      aspectRatioValidation={{ ratio: 1, tolerance: 0.08 }}
-                      placeholder={`Upload ikon ${card.title}`}
+                      placeholder={`Upload SVG ${card.title}`}
                     />
-                    <p className="text-xs text-muted-foreground">JPG, PNG, WEBP, atau GIF hingga 5 MB. File dikompres maksimal 512 × 512 px. Hapus ikon untuk kembali ke ikon bawaan.</p>
-                    {homepageServiceCardImages[card.id] && (
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        className="h-auto px-0"
-                        onClick={() => setHomepageServiceCardImages((current) => ({ ...current, [card.id]: null }))}
-                      >
-                        Gunakan ikon bawaan
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className={`h-2.5 w-2.5 rounded-full ${homepageServiceCardImages[card.id] ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <span>{homepageServiceCardImages[card.id] ? 'SVG aktif' : 'Ikon bawaan'}</span>
+                    </div>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">Setelah mengunggah ikon, klik tombol di bawah agar perubahan tersimpan dan tampil di beranda.</p>
+              <p className="text-xs text-muted-foreground">Format yang diterima hanya SVG, maksimal 2 MB. Setelah upload selesai, klik tombol simpan agar ikon tampil di beranda. Jika ikon dihapus, beranda otomatis memakai ikon bawaan.</p>
               <Button onClick={handleSaveHomepageServiceCardImages} disabled={saving === 'service-card-images'} className="w-full">
                 {saving === 'service-card-images' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Simpan Ikon Menu Utama

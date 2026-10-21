@@ -16,6 +16,10 @@ const serviceCardIcons: Record<HomepageServiceCardId, LucideIcon> = {
   shopping: ShoppingBasket,
 };
 
+function isSvgUrl(url: string) {
+  return /\.svg(?:[?#]|$)/i.test(url) || url.includes('/service-icons/');
+}
+
 export function HomeServiceCards() {
   const { data: imageOverrides = EMPTY_HOMEPAGE_SERVICE_CARD_IMAGE_OVERRIDES } = useQuery({
     queryKey: ['homepage-service-card-images'],
@@ -45,6 +49,7 @@ export function HomeServiceCards() {
         {HOMEPAGE_SERVICE_CARDS.map((card) => {
           const Icon = serviceCardIcons[card.id];
           const imageUrl = imageOverrides[card.id];
+          const svgIcon = imageUrl ? isSvgUrl(imageUrl) : false;
 
           return (
             <Link
@@ -57,8 +62,8 @@ export function HomeServiceCards() {
                 <Icon className="h-8 w-8 stroke-[1.8]" />
                 {imageUrl && (
                   <img
-                    src={optimizeSupabaseImage(imageUrl, 240)}
-                    srcSet={getOptimizedImageSrcSet(imageUrl, [240, 360, 480, 640])}
+                    src={svgIcon ? imageUrl : optimizeSupabaseImage(imageUrl, 240)}
+                    {...(!svgIcon && { srcSet: getOptimizedImageSrcSet(imageUrl, [240, 360, 480, 640]) })}
                     sizes="4.4rem"
                     alt=""
                     loading="lazy"
