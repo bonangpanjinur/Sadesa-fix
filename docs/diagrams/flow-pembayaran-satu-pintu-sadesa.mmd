@@ -1,0 +1,48 @@
+flowchart TD
+    A[Buyer checkout] --> B[Supabase server validasi order<br/>harga, stok, ongkir, biaya, merchant]
+    B --> C[Order PENDING_PAYMENT<br/>payment intent unik + idempotency key]
+    C --> D[Supabase Edge Function<br/>buat invoice / QRIS dinamis]
+    D --> E[Provider payment<br/>settlement ke akun perusahaan]
+    E --> F[Buyer membayar]
+    F --> G[Provider kirim webhook]
+    G --> H{Edge Function memverifikasi<br/>signature/token, invoice, nominal, IDR, status}
+    H -->|Tidak valid / mismatch| I[Tolak atau karantina event<br/>catat exception; jangan ubah saldo]
+    H -->|Valid: PAID| J[RPC Supabase atomik<br/>lock order + deduplikasi event]
+    J --> K[Posting ledger seimbang<br/>kas perusahaan ↔ kewajiban merchant/kurir<br/>+ pendapatan/biaya sesuai alokasi]
+    K --> L[Saldo hak merchant / kurir = HELD]
+    L --> M[Order diproses dan dikirim]
+    M --> N{Fulfillment sukses<br/>dan bukti valid?}
+    N -->|Belum / gagal / hilang| O[Tahan dana<br/>operations review atau dispute]
+    O --> P{Keputusan kasus}
+    P -->|Refund disetujui| R[Refund intent idempotent<br/>ke provider / finance]
+    P -->|Order tetap valid| N
+    R --> S{Provider/finance<br/>membuktikan refund selesai?}
+    S -->|Belum / gagal| T[REFUND_PENDING / FAILED<br/>retry terkontrol + antrean finance]
+    S -->|Ya| U[Posting reversal ledger<br/>status REFUNDED]
+    N -->|Ya| Q[Masa komplain/grace period<br/>sesuai jenis pengiriman]
+    Q --> V{Ada komplain aktif?}
+    V -->|Ya| O
+    V -->|Tidak| W[Release via RPC/job terotorisasi<br/>HELD → AVAILABLE]
+    W --> X[Merchant mengajukan withdraw]
+    X --> Y[RPC validasi saldo + rekening<br/>reserve saldo atomik]
+    Y --> Z[Withdrawal PENDING<br/>saldo WITHDRAW_PENDING]
+    Z --> AA[Finance transfer dari akun perusahaan<br/>atau payout provider pada fase berikutnya]
+    AA --> AB{Transfer terverifikasi<br/>dan reference unik?}
+    AB -->|Ya| AC[Posting payout ledger<br/>PAID_OUT + reference]
+    AB -->|Gagal / status tak pasti| AD[WITHDRAW_FAILED / REVIEW<br/>jangan lepas reserve sebelum rekonsiliasi]
+    AC --> AE[Rekonsiliasi harian<br/>provider ↔ rekening ↔ ledger]
+    U --> AE
+    I --> AE
+    T --> AE
+
+    classDef money fill:#E8F5E9,stroke:#2E7D32,color:#173B1B,stroke-width:1.5px;
+    classDef secure fill:#E3F2FD,stroke:#1565C0,color:#102A43,stroke-width:1.5px;
+    classDef hold fill:#FFF3E0,stroke:#EF6C00,color:#4E342E,stroke-width:1.5px;
+    classDef refund fill:#FCE4EC,stroke:#AD1457,color:#4A1230,stroke-width:1.5px;
+    classDef audit fill:#F3E5F5,stroke:#6A1B9A,color:#311B42,stroke-width:1.5px;
+
+    class D,G,H,J,Y secure;
+    class E,F,K,AC money;
+    class L,M,O,Q,W,Z,AD hold;
+    class R,S,T,U refund;
+    class I,AE audit;

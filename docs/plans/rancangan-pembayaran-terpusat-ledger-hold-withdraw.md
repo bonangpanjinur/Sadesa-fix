@@ -350,3 +350,10 @@ Jangan memulai migration produksi atau mengaktifkan pembayaran live sebelum kepu
 - `supabase/functions/xendit-payment/index.ts`
 - `supabase/functions/xendit-webhook/index.ts`
 - `supabase/bootstrap/128_20261014230000_refund_manual_queue.sql`
+
+
+## Diagram alur
+
+Sumber Mermaid yang dapat diedit: [`flow-pembayaran-satu-pintu-sadesa.mmd`](../diagrams/flow-pembayaran-satu-pintu-sadesa.mmd). Preview PNG: [`flow-pembayaran-satu-pintu-sadesa.png`](../diagrams/rendered/flow-pembayaran-satu-pintu-sadesa.png).
+
+![Flow pembayaran satu pintu Sadesa](../diagrams/rendered/flow-pembayaran-satu-pintu-sadesa.png)
