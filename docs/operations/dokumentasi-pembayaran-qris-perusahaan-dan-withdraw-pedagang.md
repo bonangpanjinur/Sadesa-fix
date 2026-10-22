@@ -44,11 +44,17 @@ Walaupun akun penerimanya satu, sebaiknya setiap order menggunakan **QRIS dinami
 
 ---
 
-## 3. Diagram alur utama
+## 3. Diagram dan keterangan
 
-![Flow pembayaran QRIS perusahaan sampai withdraw](../diagrams/rendered/flow-pembayaran-qris-perusahaan-sampai-withdraw.png)
+Diagram utama dibuat sebagai gambar terpisah agar alurnya dapat dibaca tanpa bercampur dengan penjelasan panjang:
 
-Versi sumber diagram tersedia di [flow pembayaran QRIS perusahaan sampai withdraw](../diagrams/flow-pembayaran-qris-perusahaan-sampai-withdraw.md).
+![Flow ringkas pembayaran QRIS perusahaan sampai withdraw](../diagrams/rendered/flow-pembayaran-qris-ringkas.png)
+
+- [Buka gambar diagram ringkas PNG](../diagrams/rendered/flow-pembayaran-qris-ringkas.png)
+- [Buka sumber diagram ringkas](../diagrams/flow-pembayaran-qris-ringkas.md)
+- [Baca keterangan alur dalam teks terpisah](keterangan-flow-pembayaran-qris-dan-withdraw.md)
+
+Dokumen ini tetap berisi dokumentasi teknis dan operasional lengkap. Untuk membaca alur tanpa diagram panjang, gunakan keterangan teks terpisah pada tautan di atas.
 
 ---
 
