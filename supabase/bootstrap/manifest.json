@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 338,
-  "bundle_count": 132,
+  "migration_count": 339,
+  "bundle_count": 133,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -287,6 +287,14 @@
       ],
       "sha256": "3f6cf95c2e1e4b4301f51ac525b0ef08038df3e37a5dee27747fa48065288d4a",
       "bytes": 2231
+    },
+    {
+      "file": "100_20261022170000_restrict_cash_mutation_delete.sql",
+      "source_files": [
+        "100_20261022170000_restrict_cash_mutation_delete.sql"
+      ],
+      "sha256": "2541aae49370e241acd374ee0f063ea96921438353f404791aa96ed14aef4082",
+      "bytes": 5138
     },
     {
       "file": "101_20261011200000_courier_vehicle_history.sql",
