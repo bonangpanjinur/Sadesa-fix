@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 339,
-  "bundle_count": 133,
+  "migration_count": 340,
+  "bundle_count": 134,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -202,7 +202,7 @@
         "20260829160000_pos_workflow_transition_hardening.sql",
         "20260904090000_pos_unified_transaction_history.sql"
       ],
-      "sha256": "c5b637878b45c043fa520c95e05dbaccbe1c1876aec4f10d287a68c3669b8ff9",
+      "sha256": "422cf9c39d2ba697d44b6d25e26e9f15170083ce555a5bf6eb1900b29a81b70a",
       "bytes": 1732574
     },
     {
@@ -483,7 +483,7 @@
     {
       "file": "122_20261014174600_ride_pickup_landmark.sql",
       "source_files": [
-        "20261014174600_ride_pickup_landmark.sql"
+        "122_20261014174600_ride_pickup_landmark.sql"
       ],
       "sha256": "057db744df194bf67f7935bc87de0222159098af72d9e18a42af10b0b0e925f2",
       "bytes": 2611
@@ -575,6 +575,14 @@
       ],
       "sha256": "0b524361b54e6e9ab0b1ad2724d8fe2256ceb45f721cdf6c60d5177cfa5e50b3",
       "bytes": 6199
+    },
+    {
+      "file": "133_20261026120000_qris_merchant_application_workflow.sql",
+      "source_files": [
+        "133_20261026120000_qris_merchant_application_workflow.sql"
+      ],
+      "sha256": "b8fdef51fc1d05dd4c7d7e99201433832b17a125df03ea3547105d89c16d147c",
+      "bytes": 16011
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",

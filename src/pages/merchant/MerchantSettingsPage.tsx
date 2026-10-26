@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, Store, MapPin, FileText, Loader2, CreditCard, QrCode, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff, Navigation, Tags } from 'lucide-react';
+import { Save, Store, MapPin, FileText, Loader2, CreditCard, Bell, Shield, CheckCircle2, Link as LinkIcon, Eye, EyeOff, Navigation, Tags } from 'lucide-react';
 import { MerchantLayout } from '@/components/merchant/MerchantLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import { AddressDropdowns } from '@/components/admin/AddressDropdowns';
 import { MerchantLocationPicker } from '@/components/merchant/MerchantLocationPicker';
 import { fetchDistricts, fetchProvinces, fetchRegencies, fetchVillages } from '@/lib/addressApi';
 import { MerchantOperatingHoursCard } from '@/components/merchant/MerchantOperatingHoursCard';
+import { MerchantQrisApplicationCard } from '@/components/merchant/MerchantQrisApplicationCard';
 import { OrderAlarmSettingsControl } from '@/components/notifications/OrderAlarmSettingsControl';
 
 interface MerchantData {
@@ -76,7 +77,6 @@ export default function MerchantSettingsPage() {
   });
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
-  const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<string[] | null>(null);
 
@@ -146,7 +146,6 @@ export default function MerchantSettingsPage() {
     });
     setImageUrl(merchant.image_url);
     setCoverImageUrl(merchant.cover_image_url);
-    setQrisImageUrl(merchant.qris_image_url);
 
     let active = true;
     const resolveAddressCodes = async () => {
@@ -205,7 +204,6 @@ export default function MerchantSettingsPage() {
           payment_cod_enabled: false,
           image_url: imageUrl || null,
           cover_image_url: coverImageUrl || null,
-          qris_image_url: qrisImageUrl || null,
         },
         p_category_ids: selectedCategoryIds,
       });
@@ -531,15 +529,10 @@ export default function MerchantSettingsPage() {
                 <p className="text-xs text-muted-foreground bg-muted p-2 rounded">💡 Jika tidak diisi, akan menggunakan rekening admin sebagai default</p>
               )}
             </div>
-            <div className="space-y-4 border-t pt-4">
-              <h4 className="font-medium text-sm flex items-center gap-2"><QrCode className="h-4 w-4" />QRIS</h4>
-              <ImageUpload value={qrisImageUrl} onChange={setQrisImageUrl} bucket="merchant-images" path={`qris/${merchant.id}`} placeholder="Upload gambar QRIS" stableFileName />
-              {!qrisImageUrl && (
-                <p className="text-xs text-muted-foreground bg-muted p-2 rounded">💡 Jika tidak diisi, akan menggunakan QRIS admin sebagai default</p>
-              )}
-            </div>
           </CardContent>
         </Card>
+
+        <MerchantQrisApplicationCard merchantId={merchant.id} merchantName={merchant.name} qrisImageUrl={merchant.qris_image_url} bankName={merchant.bank_name} accountNumber={merchant.bank_account_number} accountName={merchant.bank_account_name} />
 
         <Card>
           <CardHeader>
