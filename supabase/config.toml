@@ -37,3 +37,6 @@ verify_jwt = true
 
 [functions.admin-delete-user]
 verify_jwt = true
+
+[functions.gdc-webhook]
+verify_jwt = false
