@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Copy, CheckCircle, CreditCard, QrCode, Clock, ExternalLink, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Copy, CheckCircle, QrCode, Clock, ExternalLink, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,9 +14,6 @@ import { PaymentProofUpload } from '@/components/checkout/PaymentProofUpload';
 import { PaymentCountdown } from '@/components/checkout/PaymentCountdown';
 
 interface PaymentInfo {
-  bankName: string;
-  bankAccountNumber: string;
-  bankAccountName: string;
   qrisImageUrl: string | null;
 }
 
@@ -43,7 +40,6 @@ export default function PaymentConfirmationPage() {
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const loadOrderAndPaymentInfo = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -59,13 +55,10 @@ export default function PaymentConfirmationPage() {
           p_guest_access_token: guestToken,
         } as never);
         if (error || !data) throw new Error('Pesanan guest tidak ditemukan atau link sudah kedaluwarsa');
-        const context = data as OrderInfo & { bank_name?: string; bank_account_number?: string; bank_account_name?: string; qris_image_url?: string | null };
+        const context = data as OrderInfo & { qris_image_url?: string | null };
         orderData = context;
         paymentDestination = {
           merchant_name: context.merchant_name,
-          bank_name: context.bank_name,
-          bank_account_number: context.bank_account_number,
-          bank_account_name: context.bank_account_name,
           qris_image_url: context.qris_image_url,
         };
       } else if (user) {
@@ -85,9 +78,6 @@ export default function PaymentConfirmationPage() {
       if (!orderData) throw new Error('Pesanan tidak ditemukan');
       setOrder({ ...orderData, merchant_name: String(paymentDestination.merchant_name || orderData.merchant_name || 'Merchant') });
       setPaymentInfo({
-        bankName: String(paymentDestination.bank_name || ''),
-        bankAccountNumber: String(paymentDestination.bank_account_number || ''),
-        bankAccountName: String(paymentDestination.bank_account_name || ''),
         qrisImageUrl: typeof paymentDestination.qris_image_url === 'string' ? paymentDestination.qris_image_url : null,
       });
     } catch (error) {
@@ -114,15 +104,6 @@ export default function PaymentConfirmationPage() {
       if (channel) void supabase.removeChannel(channel);
     };
   }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
-
-  const handleCopyAccount = () => {
-    if (paymentInfo?.bankAccountNumber) {
-      navigator.clipboard.writeText(paymentInfo.bankAccountNumber);
-      setCopied(true);
-      toast({ title: 'Nomor rekening disalin' });
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
 
   const handleCopyAmount = () => {
     if (order?.total) {
@@ -158,9 +139,7 @@ export default function PaymentConfirmationPage() {
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
   const isPaymentExpired = paymentStatus === 'EXPIRED'
     || Boolean(order.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now() && !isPaymentComplete);
-  const hasPaymentInstructions = Boolean(
-    (paymentInfo.bankName && paymentInfo.bankAccountNumber) || paymentInfo.qrisImageUrl,
-  );
+  const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl);
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
@@ -231,52 +210,10 @@ export default function PaymentConfirmationPage() {
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>
                 <p className="font-bold">Menunggu instruksi pembayaran</p>
-                <p className="mt-1">Penjual belum menyediakan rekening atau QRIS. Jangan melakukan transfer sebelum menerima instruksi resmi. Gunakan total pesanan di atas saat instruksi pembayaran diberikan.</p>
+                <p className="mt-1">QRIS merchant belum tersedia untuk pesanan ini. Jangan melakukan pembayaran sebelum QRIS resmi ditampilkan.</p>
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Bank Transfer Info */}
-        {!isPaymentComplete && !isPaymentExpired && paymentInfo.bankName && paymentInfo.bankAccountNumber && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                  <h3 className="font-bold">Transfer Bank</h3>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="p-3 bg-secondary/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">Bank</p>
-                    <p className="font-bold text-lg">{paymentInfo.bankName}</p>
-                  </div>
-
-                  <div className="p-3 bg-secondary/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">Nomor Rekening</p>
-                    <div className="flex items-center justify-between">
-                      <p className="font-mono font-bold text-lg tracking-wider">{paymentInfo.bankAccountNumber}</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopyAccount}
-                        className="h-8"
-                      >
-                        {copied ? <CheckCircle className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                        <span className="ml-1 text-xs">{copied ? 'Tersalin' : 'Salin'}</span>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-secondary/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground mb-1">Atas Nama</p>
-                    <p className="font-bold">{paymentInfo.bankAccountName}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
         )}
 
         {/* QRIS */}
@@ -311,7 +248,7 @@ export default function PaymentConfirmationPage() {
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
               {order.payment_status === 'FAILED' && (
                 <p role="alert" className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-muted-foreground">
-                  Bukti sebelumnya ditolak. Ganti dengan bukti transfer yang benar; status akan kembali menunggu verifikasi setelah berhasil diunggah.
+                  Bukti sebelumnya ditolak. Unggah bukti pembayaran QRIS yang benar; status akan kembali menunggu verifikasi setelah berhasil diunggah.
                 </p>
               )}
               <PaymentProofUpload
@@ -331,8 +268,8 @@ export default function PaymentConfirmationPage() {
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
               <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                <li>Transfer sesuai <strong className="text-foreground">nominal yang tertera</strong> (harus sama persis)</li>
-                <li>Pastikan transfer ke rekening yang benar</li>
+                <li>Pindai QRIS merchant dan bayar sesuai <strong className="text-foreground">nominal yang tertera</strong></li>
+                <li>Pastikan nama merchant pada aplikasi pembayaran sesuai dengan toko</li>
                 <li><strong className="text-foreground">Upload bukti pembayaran</strong> di atas</li>
                 <li>Pesanan akan diproses setelah pembayaran dikonfirmasi oleh penjual</li>
               </ol>

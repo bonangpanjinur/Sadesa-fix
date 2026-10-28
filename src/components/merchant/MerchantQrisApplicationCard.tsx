@@ -99,7 +99,7 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
   return <Card>
     <CardHeader>
       <CardTitle className="flex items-center gap-2 text-base"><QrCode className="h-5 w-5" />QRIS Sadesa</CardTitle>
-      <CardDescription>QRIS Sadesa wajib digunakan. QRIS diterbitkan dan dikelola admin; merchant tidak dapat mengunggah atau mengganti QRIS sendiri.</CardDescription>
+      <CardDescription>Ajukan data QRIS untuk toko Anda. Tim Desa akan memverifikasi dan mendaftarkan merchant ke Neo/GDC secara manual. Setelah QRIS statis diterbitkan, tim akan mengunggah dan mengaktifkannya; merchant tidak dapat mengunggah atau mengganti QRIS sendiri.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
       {loading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Memuat status pengajuan…</div> : <>

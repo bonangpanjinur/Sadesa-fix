@@ -78,7 +78,6 @@ export default function MerchantSettingsPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  const [savedPaymentMethods, setSavedPaymentMethods] = useState<string[] | null>(null);
 
   const { data: merchant, isLoading: fetchLoading } = useQuery<MerchantData | null>({
     queryKey: ['merchant-settings', guardMerchantId],
@@ -210,7 +209,6 @@ export default function MerchantSettingsPage() {
       if (error) throw error;
     },
     onSuccess: () => {
-      setSavedPaymentMethods(formData.payment_transfer_enabled ? ['Transfer Bank & QRIS'] : []);
       toast.success('Pengaturan toko berhasil disimpan. COD belum tersedia di marketplace.');
       queryClient.invalidateQueries({ queryKey: ['merchant-settings', guardMerchantId] });
       queryClient.invalidateQueries({ queryKey: ['merchant-profile', user?.id] });
@@ -477,7 +475,7 @@ export default function MerchantSettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-5 w-5" />Pengaturan Pembayaran</CardTitle>
-            <CardDescription>Kelola rekening bank dan QRIS untuk menerima pembayaran non-tunai</CardDescription>
+            <CardDescription>Simpan rekening bank untuk pengelolaan admin dan pencairan dana. Pembeli hanya membayar dengan QRIS yang diterbitkan dan diaktifkan admin.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div role="status" className="rounded-lg border border-warning/30 bg-warning/5 p-3">
@@ -486,28 +484,9 @@ export default function MerchantSettingsPage() {
                 Pembayaran tunai saat barang diterima sedang dinonaktifkan untuk marketplace. Pengaturan toko tidak dapat mengaktifkan COD; metode ini akan tetap nonaktif saat Anda menyimpan.
               </p>
             </div>
-            {savedPaymentMethods && (
-              <div role="status" className="rounded-lg border border-success/30 bg-success/5 p-3 text-sm">
-                <p className="font-medium">Metode pembayaran aktif setelah disimpan</p>
-                <p className="mt-1 text-xs text-muted-foreground">{savedPaymentMethods.length ? savedPaymentMethods.join(', ') : 'Belum ada metode pembayaran non-tunai yang dipilih.'}</p>
-                <p className="mt-1 text-xs text-muted-foreground">COD tetap nonaktif karena belum tersedia.</p>
-              </div>
-            )}
-            <div className="space-y-3">
-              {[
-                { key: 'payment_transfer_enabled', label: 'Transfer Bank & QRIS', desc: 'Terima pembayaran via transfer dan QRIS' },
-              ].map(({ key, label, desc }) => (
-                <div key={key} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-sm">{label}</p>
-                    <p className="text-xs text-muted-foreground">{desc}</p>
-                  </div>
-                  <Switch
-                    checked={formData[key as keyof typeof formData] as boolean}
-                    onCheckedChange={v => setFormData(p => ({ ...p, [key]: v }))}
-                  />
-                </div>
-              ))}
+            <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+              <p className="font-medium">Metode checkout: QRIS merchant</p>
+              <p className="mt-1 text-xs text-muted-foreground">QRIS dikelola admin setelah data merchant diverifikasi. Pengaturan pembayaran di sini tidak mengunggah atau mengubah QRIS.</p>
             </div>
             <div className="space-y-4 border-t pt-4">
               <h4 className="font-medium text-sm flex items-center gap-2"><CreditCard className="h-4 w-4" />Rekening Bank</h4>
@@ -525,9 +504,7 @@ export default function MerchantSettingsPage() {
                 <Label>Atas Nama</Label>
                 <Input name="bank_account_name" value={formData.bank_account_name} onChange={handleChange} maxLength={150} placeholder="Nama pemilik rekening" />
               </div>
-              {!formData.bank_name && !formData.bank_account_number && (
-                <p className="text-xs text-muted-foreground bg-muted p-2 rounded">💡 Jika tidak diisi, akan menggunakan rekening admin sebagai default</p>
-              )}
+              <p className="text-xs text-muted-foreground bg-muted p-2 rounded">Rekening bank ini disimpan untuk kebutuhan admin dan pencairan dana. Informasi rekening tidak ditampilkan kepada pembeli saat checkout.</p>
             </div>
           </CardContent>
         </Card>
