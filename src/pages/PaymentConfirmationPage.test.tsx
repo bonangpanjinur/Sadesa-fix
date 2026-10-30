@@ -53,6 +53,12 @@ describe('PaymentConfirmationPage authoritative order total', () => {
               payment_status: 'PENDING_TRANSFER',
               merchant_id: 'merchant-1',
               created_at: '2026-10-13T00:00:00.000Z',
+              payment_destination_snapshot: {
+                bank_name: 'Bank Test',
+                bank_account_number: '123456789',
+                bank_account_name: 'Pemilik Test',
+                qris_image_url: 'https://example.com/merchant-qris.png',
+              },
             },
             error: null,
           }
@@ -87,5 +93,8 @@ describe('PaymentConfirmationPage authoritative order total', () => {
 
     await waitFor(() => expect(screen.getByText('Total Pembayaran')).toBeInTheDocument());
     expect(screen.getByText((content) => content.replace(/[\s\u00a0]/g, '') === formatPrice(125_000).replace(/[\s\u00a0]/g, ''))).toBeInTheDocument();
+    expect(screen.getByAltText('QRIS Payment')).toHaveAttribute('src', 'https://example.com/merchant-qris.png');
+    expect(screen.queryByText('123456789')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bank Test')).not.toBeInTheDocument();
   });
 });

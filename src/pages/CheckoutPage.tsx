@@ -25,7 +25,7 @@ import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } f
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
-import { isCheckoutPaymentMethodAvailable, isCheckoutPaymentSettingsReady, type CheckoutPaymentSettingsStatus } from '@/lib/checkoutPaymentReadiness';
+import { isCheckoutPaymentSettingsReady, type CheckoutPaymentSettingsStatus } from '@/lib/checkoutPaymentReadiness';
 import { normalizeCheckoutProductQuantities } from '@/lib/normalizeCheckoutItems';
 import { getCheckoutMerchantIds, hasMultipleCheckoutMerchants } from '@/lib/cartSelection';
 import { getCartItemKey } from '@/lib/cartItemIdentity';
@@ -43,10 +43,7 @@ interface MerchantOperatingInfo {
 }
 
 interface MerchantPaymentSettings {
-  transferEnabled: boolean;
-  bankName: string | null;
-  bankAccountNumber: string | null;
-  bankAccountName: string | null;
+  qrisImageUrl: string | null;
 }
 
 interface ShippingZoneEstimate {
@@ -92,11 +89,11 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [paymentMethod] = useState<PaymentMethod>('TRANSFER');
   // The first available options are visibly selected by default, so the step
   // indicator and CTA should not pretend the buyer still needs to choose them.
   const [hasChosenDelivery, setHasChosenDelivery] = useState(true);
-  const [hasChosenPayment, setHasChosenPayment] = useState(true);
+  const hasChosenPayment = true;
   const [xenditAvailable, setXenditAvailable] = useState(false);
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
   const [retryingPayment, setRetryingPayment] = useState(false);
@@ -400,7 +397,7 @@ export default function CheckoutPage() {
         // Get location and payment settings of first merchant (simplified - assumes single merchant checkout)
         const { data, error } = await supabase
           .from('merchants')
-          .select('location_lat, location_lng, province, city, district, payment_transfer_enabled, bank_name, bank_account_number, bank_account_name, qris_image_url')
+          .select('location_lat, location_lng, province, city, district, qris_image_url')
           .eq('id', firstMerchantId)
           .maybeSingle();
         if (error) throw error;
@@ -418,35 +415,9 @@ export default function CheckoutPage() {
           districtName: data.district ?? null,
         });
 
-        // If merchant has no bank info, load admin defaults
-        let bankName = data.bank_name;
-        let bankAccountNumber = data.bank_account_number;
-        let bankAccountName = data.bank_account_name;
-        let qrisImageUrl = data.qris_image_url;
-
-        if (!bankName || !bankAccountNumber) {
-          const { data: adminSettings, error: adminSettingsError } = await supabase
-            .from('app_settings')
-            .select('value')
-            .eq('key', 'admin_payment_info')
-            .maybeSingle();
-          if (adminSettingsError) throw adminSettingsError;
-          if (adminSettings?.value) {
-            const ap = adminSettings.value as Record<string, string>;
-            if (!bankName) bankName = ap.bank_name || null;
-            if (!bankAccountNumber) bankAccountNumber = ap.bank_account_number || null;
-            if (!bankAccountName) bankAccountName = ap.bank_account_name || null;
-            if (!qrisImageUrl) qrisImageUrl = ap.qris_image_url || null;
-          }
-        }
-
         if (cancelled) return;
         setMerchantPaymentSettings({
-          transferEnabled: data.payment_transfer_enabled ?? true,
-          bankName,
-          bankAccountNumber,
-          bankAccountName,
-          qrisImageUrl,
+          qrisImageUrl: data.qris_image_url,
         });
         setPaymentSettingsLoadState({ merchantId: firstMerchantId, status: 'ready' });
       } catch (error) {
@@ -461,17 +432,6 @@ export default function CheckoutPage() {
     fetchMerchantData();
     return () => { cancelled = true; };
   }, [firstMerchantId]);
-
-  useEffect(() => {
-    if (!merchantPaymentSettings) return;
-    setPaymentMethod((current) => {
-      if (!user) return 'TRANSFER';
-      if (merchantPaymentSettings.transferEnabled) {
-        return current === 'ONLINE' && xenditAvailable ? current : 'TRANSFER';
-      }
-      return xenditAvailable ? 'ONLINE' : current;
-    });
-  }, [merchantPaymentSettings, xenditAvailable, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -561,14 +521,7 @@ export default function CheckoutPage() {
     paymentSettingsLoadState.merchantId,
     firstMerchantId,
   ) && merchantPaymentSettings !== null;
-  const transferDetailsAvailable = Boolean(
-    (merchantPaymentSettings?.bankName && merchantPaymentSettings.bankAccountNumber) || merchantPaymentSettings?.qrisImageUrl,
-  );
-  const paymentReady = paymentSettingsReady && isCheckoutPaymentMethodAvailable(
-    paymentMethod,
-    merchantPaymentSettings?.transferEnabled === true,
-    Boolean(user && xenditAvailable),
-  );
+  const paymentReady = paymentSettingsReady && Boolean(merchantPaymentSettings?.qrisImageUrl?.trim());
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -638,6 +591,15 @@ export default function CheckoutPage() {
         description: paymentSettingsLoadState.status === 'error'
           ? 'Pengaturan pembayaran toko gagal dimuat. Muat ulang halaman sebelum membuat pesanan.'
           : 'Tunggu sampai pengaturan pembayaran toko selesai dimuat sebelum membuat pesanan.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!paymentReady) {
+      toast({
+        title: 'QRIS merchant belum aktif',
+        description: 'Admin harus mengunggah dan mengaktifkan QRIS merchant sebelum checkout dapat dilanjutkan.',
         variant: 'destructive',
       });
       return;
@@ -1262,76 +1224,17 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
-          <RadioGroup
-            value={paymentMethod}
-            onValueChange={(value) => {
-              setPaymentMethod(value as PaymentMethod);
-              setHasChosenPayment(true);
-            }}
-            className="space-y-2"
-          >
-            {/* Transfer Option - Based on merchant settings */}
-            {(!user || merchantPaymentSettings?.transferEnabled !== false) && (
-              <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'
-              } ${hasMultipleMerchants ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <RadioGroupItem value="TRANSFER" id="transfer" disabled={!paymentSettingsReady || hasMultipleMerchants} />
-                <CreditCard className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="font-bold text-sm">{t('checkout.payment.transfer')}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {hasMultipleMerchants
-                      ? t('checkout.payment.oneStoreOnly')
-                      : merchantPaymentSettings?.bankName
-                      ? `Transfer ke ${merchantPaymentSettings.bankName}`
-                      : t('checkout.payment.transferToSeller')}
-                  </p>
-                </div>
-              </label>
-            )}
-
-            {/* Online Payment via Xendit */}
-            {user && xenditAvailable && (
-              <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
-                paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border'
-              } ${hasMultipleMerchants ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <RadioGroupItem value="ONLINE" id="online" disabled={!paymentSettingsReady || hasMultipleMerchants} />
-                <CreditCard className="h-5 w-5 text-muted-foreground" />
-                <div className="flex-1">
-                  <p className="font-bold text-sm">{t('checkout.payment.online')}</p>
-                  <p className="text-xs text-muted-foreground">{t('checkout.payment.onlineMethods')}</p>
-                </div>
-              </label>
-            )}
-          </RadioGroup>
-
-          {/* Bank Transfer Info */}
-          {paymentMethod === 'TRANSFER' && merchantPaymentSettings?.bankName && (
-            <div className="mt-3 p-3 bg-secondary/50 rounded-lg space-y-1">
-              <p className="text-xs font-medium text-foreground">{t('checkout.payment.accountInfo')}</p>
-              <p className="text-sm font-bold">{merchantPaymentSettings.bankName}</p>
-              <p className="text-sm font-mono">{merchantPaymentSettings.bankAccountNumber}</p>
-              <p className="text-xs text-muted-foreground">a.n. {merchantPaymentSettings.bankAccountName}</p>
-            </div>
-          )}
-
-          {/* QRIS Info */}
-          {paymentMethod === 'TRANSFER' && merchantPaymentSettings?.qrisImageUrl && (
-            <div className="mt-3 p-3 bg-secondary/50 rounded-lg">
-              <p className="text-xs font-medium text-foreground mb-2">QRIS:</p>
-              <div className="flex justify-center p-2 bg-card rounded border">
-                <img
-                  src={merchantPaymentSettings.qrisImageUrl}
-                  alt="QRIS"
-                  className="max-w-[200px] w-full h-auto"
-                />
+          {merchantPaymentSettings?.qrisImageUrl ? (
+            <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
+              <p className="mb-2 text-sm font-semibold">QRIS toko</p>
+              <div className="flex justify-center rounded border bg-card p-3">
+                <img src={merchantPaymentSettings.qrisImageUrl} alt={`QRIS ${items[0]?.product.merchantName || 'toko'}`} className="max-h-64 w-auto max-w-full" />
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">Pindai QRIS ini untuk membayar pesanan ke merchant yang dipilih.</p>
             </div>
-          )}
-
-          {merchantPaymentSettings && paymentMethod === 'TRANSFER' && !transferDetailsAvailable && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" role="alert">
-              Status pembayaran: menunggu instruksi dari penjual. Jangan melakukan transfer sebelum menerima detail pembayaran dan nominal resmi untuk pesanan ini.
+          ) : (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+              QRIS toko belum aktif. Checkout belum dapat dilanjutkan sampai admin mengunggah dan mengaktifkan QRIS merchant ini.
             </div>
           )}
 
@@ -1432,7 +1335,7 @@ export default function CheckoutPage() {
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              {paymentMethod === 'TRANSFER' ? t('checkout.payment.transfer') : t('checkout.payment.online')}
+              QRIS
             </span>
           </span>
         </div>
