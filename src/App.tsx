@@ -45,6 +45,7 @@ const TourismDetail = lazy(() => import("./pages/TourismDetail"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const PaymentConfirmationPage = lazy(() => import("./pages/PaymentConfirmationPage"));
+const GdcQrisPaymentPage = lazy(() => import("./pages/GdcQrisPaymentPage"));
 const GuestOrderStatusPage = lazy(() => import("./pages/GuestOrderStatusPage"));
 const SearchResultsPage = lazy(() => import("./pages/SearchResultsPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
@@ -606,6 +607,7 @@ const App = () => (
               <Route path="/checkout-info" element={<CheckoutInfoPage />} />
               <Route path="/checkout" element={<CheckoutRoute />} />
               <Route path="/payment/:orderId" element={<PaymentConfirmationPage />} />
+              <Route path="/payment/gdc/:orderId/:attemptId" element={<GdcQrisPaymentPage />} />
               <Route path="/guest-orders/:orderId" element={<GuestOrderStatusPage />} />
               <Route path="/guest-order/:orderId" element={<GuestOrderStatusPage />} />
               <Route path="/orders" element={

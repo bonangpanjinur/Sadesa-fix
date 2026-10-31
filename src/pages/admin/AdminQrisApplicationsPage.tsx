@@ -14,6 +14,7 @@ import { ImageUpload } from '@/components/ui/ImageUpload';
 
 type AppStatus = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
 type QrisApplication = { id: string; application_number: string; merchant_id: string; applicant_user_id: string; default_bank_name: string | null; default_account_number: string | null; default_account_name: string | null; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string,string>; status: AppStatus; decision_note: string | null; qris_reference: string | null; qris_asset_key: string | null; submitted_at: string; revision_number: number; merchant?: { name: string; city: string | null } | null };
+type GdcProfile = { id: string; merchant_id: string; status: 'PENDING_VALIDATION' | 'ACTIVE' | 'SUSPENDED'; provider_merchant_id: string; provider_account_number: string; nmid: string | null; store_id: string | null; terminal_id: string | null; service_code: string | null };
 // qris_applications is a newly introduced table not yet present in generated Supabase types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -28,6 +29,14 @@ export default function AdminQrisApplicationsPage() {
   const [correctionNote, setCorrectionNote] = useState('');
   const [qrisReference, setQrisReference] = useState('');
   const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
+  const [gdcProfile, setGdcProfile] = useState<GdcProfile | null>(null);
+  const [gdcMerchantId, setGdcMerchantId] = useState('');
+  const [gdcAccountNumber, setGdcAccountNumber] = useState('');
+  const [gdcNmid, setGdcNmid] = useState('');
+  const [gdcStoreId, setGdcStoreId] = useState('');
+  const [gdcTerminalId, setGdcTerminalId] = useState('');
+  const [gdcServiceCode, setGdcServiceCode] = useState('');
+  const [gdcStatus, setGdcStatus] = useState<GdcProfile['status']>('PENDING_VALIDATION');
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,6 +65,18 @@ export default function AdminQrisApplicationsPage() {
       setQrisReference(selected.qris_reference || '');
       setQrisImageUrl(null);
       setCorrectionNote('');
+      const { data: profile } = await db.from('gdc_payment_profiles').select('*').eq('merchant_id', selected.merchant_id).eq('provider', 'GDC').maybeSingle();
+      if (active) {
+        const typedProfile = (profile || null) as GdcProfile | null;
+        setGdcProfile(typedProfile);
+        setGdcMerchantId(typedProfile?.provider_merchant_id || '');
+        setGdcAccountNumber(typedProfile?.provider_account_number || '');
+        setGdcNmid(typedProfile?.nmid || '');
+        setGdcStoreId(typedProfile?.store_id || '');
+        setGdcTerminalId(typedProfile?.terminal_id || '');
+        setGdcServiceCode(typedProfile?.service_code || '');
+        setGdcStatus(typedProfile?.status || 'PENDING_VALIDATION');
+      }
     };
     void loadDocuments();
     return () => { active = false; };
@@ -101,6 +122,30 @@ export default function AdminQrisApplicationsPage() {
     finally { setSaving(false); }
   };
 
+  const saveGdcProfile = async () => {
+    if (!selected || !gdcMerchantId.trim() || !gdcAccountNumber.trim()) {
+      toast.error('Provider merchant ID dan account number GDC wajib diisi.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data, error } = await db.rpc('admin_upsert_gdc_payment_profile', {
+        p_merchant_id: selected.merchant_id,
+        p_provider_merchant_id: gdcMerchantId.trim(),
+        p_provider_account_number: gdcAccountNumber.trim(),
+        p_nmid: gdcNmid.trim() || null,
+        p_store_id: gdcStoreId.trim() || null,
+        p_terminal_id: gdcTerminalId.trim() || null,
+        p_service_code: gdcServiceCode.trim() || null,
+        p_status: gdcStatus,
+      });
+      if (error) throw error;
+      setGdcProfile(data as GdcProfile);
+      toast.success('Profil pembayaran GDC tersimpan.');
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Profil GDC gagal disimpan.'); }
+    finally { setSaving(false); }
+  };
+
   const shown = applications.filter((item) => filter === 'ALL' || item.status === filter);
   return <AdminLayout title="Pengajuan QRIS Sadesa" subtitle="Verifikasi dokumen, putuskan pengajuan, dan terbitkan QRIS merchant.">
     <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.5fr)]">
@@ -116,6 +161,19 @@ export default function AdminQrisApplicationsPage() {
         {selected.status === 'APPROVED_PENDING_ISSUANCE' && <div className="space-y-3 rounded-lg border border-primary/20 p-4"><h3 className="font-semibold">Penerbitan QRIS Sadesa</h3><div className="space-y-2"><Label>Nomor referensi QRIS</Label><Input value={qrisReference} onChange={(event) => setQrisReference(event.target.value)} placeholder="Masukkan ID/referensi penerbitan" /></div><div className="space-y-2"><Label>Gambar QRIS yang diterbitkan admin</Label><ImageUpload bucket="merchant-images" path={`qris/${selected.merchant_id}`} value={qrisImageUrl} onChange={setQrisImageUrl} placeholder="Unggah QRIS Sadesa" /></div><Button disabled={saving} onClick={() => void issue(selected)}>Simpan Penerbitan — Menunggu Aktivasi</Button></div>}
         {selected.status === 'ISSUED_PENDING_ACTIVATION' && <div className="rounded-lg border p-4"><p className="mb-3 text-sm">Referensi: <strong>{selected.qris_reference || '—'}</strong>. Pastikan QRIS tertaut ke merchant yang benar sebelum aktivasi.</p><Button disabled={saving} onClick={() => void activate(selected)}><ShieldCheck className="mr-2 h-4 w-4" />Aktifkan QRIS</Button></div>}
         {selected.status === 'ACTIVE' && <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">QRIS sudah aktif. Penetapan QRIS tetap dikelola oleh admin.</div>}
+        <div className="space-y-4 rounded-lg border border-sky-200 bg-sky-50/40 p-4">
+          <div><h3 className="font-semibold">Profil Pembayaran GDC</h3><p className="text-xs text-muted-foreground">Konfigurasi identifier yang dikirim ke GDC. Credential API dan signature tetap berada di Edge Function Secrets.</p></div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1"><Label>GDC merchant ID</Label><Input value={gdcMerchantId} onChange={(event) => setGdcMerchantId(event.target.value)} placeholder="Nilai merchantId dari GDC" /></div>
+            <div className="space-y-1"><Label>GDC account number</Label><Input value={gdcAccountNumber} onChange={(event) => setGdcAccountNumber(event.target.value)} placeholder="Nilai additionalInfo.accountNumber" /></div>
+            <div className="space-y-1"><Label>NMID (opsional, terpisah)</Label><Input value={gdcNmid} onChange={(event) => setGdcNmid(event.target.value)} placeholder="Tidak otomatis dipakai sebagai merchantId" /></div>
+            <div className="space-y-1"><Label>Service code (opsional)</Label><Input value={gdcServiceCode} onChange={(event) => setGdcServiceCode(event.target.value)} placeholder="Sesuai kontrak GDC" /></div>
+            <div className="space-y-1"><Label>Store ID (opsional)</Label><Input value={gdcStoreId} onChange={(event) => setGdcStoreId(event.target.value)} /></div>
+            <div className="space-y-1"><Label>Terminal ID (opsional)</Label><Input value={gdcTerminalId} onChange={(event) => setGdcTerminalId(event.target.value)} /></div>
+            <div className="space-y-1"><Label>Status profile</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={gdcStatus} onChange={(event) => setGdcStatus(event.target.value as GdcProfile['status'])}><option value="PENDING_VALIDATION">Pending validation</option><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option></select></div>
+          </div>
+          <div className="flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">{gdcProfile ? `Profile tersimpan · ${gdcProfile.status}` : 'Belum ada profile GDC untuk merchant ini.'}</p><Button disabled={saving} onClick={() => void saveGdcProfile()}>Simpan Profil GDC</Button></div>
+        </div>
       </CardContent></Card>}
     </div>
   </AdminLayout>;

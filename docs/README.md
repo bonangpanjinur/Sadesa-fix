@@ -30,6 +30,7 @@ Dokumentasi dikelompokkan berdasarkan topik. Nama dan tanggal pada dokumen histo
 - [Pentest transaksi end-to-end](pentest/pentest-transaksi-e2e-2026-09-11.md)
 - [Laporan pengujian E2E](testing/e2e-full-test-report-2026-09-11.md)
 - [Audit kesiapan API payment gateway Xendit — 15 Oktober 2026](audits/audit-kesiapan-payment-gateway-xendit-2026-10-15.md)
+- [Implementasi QRIS dinamis GDC Fase 1–3](operations/gdc-qris-dynamic-payment.md)
 - [Checklist kesiapan rilis](testing/release-readiness-checklist-2026-09-11.md)
 - [Panduan migrasi dan deployment POS](database/migrations/pos-database-migration-deployment.md)
 - [Audit fitur POS dari sisi merchant — 2 Oktober 2026](audits/audit-fitur-pos-merchant-2026-10-02.md)

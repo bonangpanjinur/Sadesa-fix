@@ -15,6 +15,7 @@ import { formatPrice, safeGoBack } from '@/lib/utils';
 import { useTranslation, useFormatters } from '@/lib/i18n';
 import { toast } from '@/hooks/use-toast';
 import { createPaymentInvoice, isXenditEnabled } from '@/lib/paymentApi';
+import { createGdcQrisPayment } from '@/lib/gdcQrisApi';
 import { CheckoutAddressForm, type CheckoutAddressData } from '@/components/checkout/CheckoutAddressForm';
 import { createEmptyCheckoutAddress } from '@/components/checkout/checkoutAddressDefaults';
 import { formatFullAddress } from '@/components/AddressSelector';
@@ -98,7 +99,10 @@ export default function CheckoutPage() {
   const [hasChosenDelivery, setHasChosenDelivery] = useState(true);
   const [hasChosenPayment, setHasChosenPayment] = useState(true);
   const [xenditAvailable, setXenditAvailable] = useState(false);
+  const [gdcAvailable, setGdcAvailable] = useState(false);
+  const [onlineProvider, setOnlineProvider] = useState<'XENDIT' | 'GDC'>('XENDIT');
   const [paymentRecoveryError, setPaymentRecoveryError] = useState(false);
+  const [paymentRecoveryProvider, setPaymentRecoveryProvider] = useState<'XENDIT' | 'GDC'>('XENDIT');
   const [retryingPayment, setRetryingPayment] = useState(false);
   const [stockConflict, setStockConflict] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
@@ -316,6 +320,26 @@ export default function CheckoutPage() {
   const hasMultipleMerchants = hasMultipleCheckoutMerchants(merchantIds);
   const firstMerchantId = merchantIds[0];
 
+  // GDC is enabled only when an administrator has activated the merchant
+  // profile. The query failing (for example before migration deployment)
+  // deliberately fails closed and keeps the existing Xendit path intact.
+  useEffect(() => {
+    let cancelled = false;
+    if (!user || !firstMerchantId || hasMultipleMerchants) {
+      setGdcAvailable(false);
+      return () => { cancelled = true; };
+    }
+    supabase.from('gdc_payment_profiles').select('id').eq('merchant_id', firstMerchantId).eq('provider', 'GDC').eq('status', 'ACTIVE').maybeSingle()
+      .then(({ data, error }) => {
+        if (!cancelled) {
+          const available = !error && Boolean(data);
+          setGdcAvailable(available);
+          if (available) setOnlineProvider('GDC');
+        }
+      });
+    return () => { cancelled = true; };
+  }, [firstMerchantId, hasMultipleMerchants, user]);
+
   useEffect(() => {
     let cancelled = false;
     if (!quoteItems.length || !firstMerchantId || hasMultipleMerchants
@@ -467,11 +491,11 @@ export default function CheckoutPage() {
     setPaymentMethod((current) => {
       if (!user) return 'TRANSFER';
       if (merchantPaymentSettings.transferEnabled) {
-        return current === 'ONLINE' && xenditAvailable ? current : 'TRANSFER';
+        return current === 'ONLINE' && (xenditAvailable || gdcAvailable) ? current : 'TRANSFER';
       }
-      return xenditAvailable ? 'ONLINE' : current;
+      return xenditAvailable || gdcAvailable ? 'ONLINE' : current;
     });
-  }, [merchantPaymentSettings, xenditAvailable, user]);
+  }, [gdcAvailable, merchantPaymentSettings, xenditAvailable, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -567,7 +591,7 @@ export default function CheckoutPage() {
   const paymentReady = paymentSettingsReady && isCheckoutPaymentMethodAvailable(
     paymentMethod,
     merchantPaymentSettings?.transferEnabled === true,
-    Boolean(user && xenditAvailable),
+    Boolean(user && (xenditAvailable || gdcAvailable)),
   );
 
   // Remove items from a specific merchant
@@ -796,8 +820,18 @@ export default function CheckoutPage() {
       }
       let paymentNeedsRecovery = false;
 
-      if (user && paymentMethod === 'ONLINE' && xenditAvailable) {
+      if (user && paymentMethod === 'ONLINE' && (xenditAvailable || gdcAvailable)) {
         try {
+          if (onlineProvider === 'GDC' && gdcAvailable) {
+            const gdcPayment = await createGdcQrisPayment(authoritativeOrderId);
+            selectedItems.forEach(item => {
+              if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
+              else removeFromCart(item.product.id);
+            });
+            checkoutKeyRef.current = null;
+            navigate(`/payment/gdc/${authoritativeOrderId}/${gdcPayment.attempt.id}`);
+            return;
+          }
           const invoice = await createPaymentInvoice({ orderId: authoritativeOrderId });
           // The order is already committed and the invoice is ready. Clear the
           // purchased lines before navigating away so a successful online
@@ -818,6 +852,7 @@ export default function CheckoutPage() {
           });
           paymentNeedsRecovery = true;
           setPaymentRecoveryError(true);
+          setPaymentRecoveryProvider(onlineProvider === 'GDC' && gdcAvailable ? 'GDC' : 'XENDIT');
         }
       }
 
@@ -878,6 +913,11 @@ export default function CheckoutPage() {
       if (!orderId || retryingPayment) return;
       setRetryingPayment(true);
       try {
+        if (paymentRecoveryProvider === 'GDC' && gdcAvailable) {
+          const gdcPayment = await createGdcQrisPayment(orderId);
+          navigate(`/payment/gdc/${orderId}/${gdcPayment.attempt.id}`);
+          return;
+        }
         const invoice = await createPaymentInvoice({ orderId });
         window.location.href = invoice.invoice_url;
       } catch (error) {
@@ -906,13 +946,13 @@ export default function CheckoutPage() {
           </h1>
           <p className="text-muted-foreground mb-6">
             {paymentRecoveryError
-              ? 'Order sudah tersimpan dan stok diamankan sementara. Invoice online belum berhasil dibuat.'
+              ? `Order sudah tersimpan dan stok diamankan sementara. ${paymentRecoveryProvider === 'GDC' ? 'QRIS dinamis belum berhasil dibuat.' : 'Invoice online belum berhasil dibuat.'}`
               : 'Pesanan Anda telah masuk ke sistem dan sedang menunggu konfirmasi dari penjual.'}
           </p>
           <div className="space-y-3">
             {paymentRecoveryError && (
               <Button onClick={retryPayment} className="w-full" disabled={retryingPayment}>
-                {retryingPayment ? 'Mencoba membuat invoice...' : 'Coba Bayar Lagi'}
+                {retryingPayment ? (paymentRecoveryProvider === 'GDC' ? 'Membuat QRIS...' : 'Mencoba membuat invoice...') : 'Coba Bayar Lagi'}
               </Button>
             )}
             <Button onClick={() => navigate(user ? '/orders' : (orderId && guestToken ? guestOrderUrl(orderId, guestToken) : '/'))} className="w-full">
@@ -1291,15 +1331,15 @@ export default function CheckoutPage() {
             )}
 
             {/* Online Payment via Xendit */}
-            {user && xenditAvailable && (
+            {user && (xenditAvailable || gdcAvailable) && (
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
                 paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border'
               } ${hasMultipleMerchants ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <RadioGroupItem value="ONLINE" id="online" disabled={!paymentSettingsReady || hasMultipleMerchants} />
                 <CreditCard className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="font-bold text-sm">{t('checkout.payment.online')}</p>
-                  <p className="text-xs text-muted-foreground">{t('checkout.payment.onlineMethods')}</p>
+                  <p className="font-bold text-sm">{gdcAvailable ? 'QRIS Dinamis GDC' : t('checkout.payment.online')}</p>
+                  <p className="text-xs text-muted-foreground">{gdcAvailable ? 'Scan QRIS setelah pesanan dibuat. Status pembayaran diperbarui otomatis.' : t('checkout.payment.onlineMethods')}</p>
                 </div>
               </label>
             )}

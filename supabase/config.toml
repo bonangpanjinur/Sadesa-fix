@@ -32,6 +32,11 @@ verify_jwt = true
 [functions.xendit-webhook]
 verify_jwt = false
 
+[functions.gdc-qris-payment]
+# Generate/query validate the Supabase user token in the handler; callback uses
+# the GDC callback token because provider callbacks do not carry a user JWT.
+verify_jwt = false
+
 [functions.admin-create-user]
 verify_jwt = true
 
