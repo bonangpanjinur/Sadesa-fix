@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 344,
-  "bundle_count": 138,
+  "migration_count": 345,
+  "bundle_count": 139,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -615,6 +615,14 @@
       ],
       "sha256": "0deb995d866aaccf505e81d0768f4331a7052326723a0c50a983bfd43f2f5f2d",
       "bytes": 33703
+    },
+    {
+      "file": "138_20261101193000_qris_legacy_import_assistant.sql",
+      "source_files": [
+        "138_20261101193000_qris_legacy_import_assistant.sql"
+      ],
+      "sha256": "33a6db03080515de000226739a9811acd80ef38e184264434cb392741972bd7b",
+      "bytes": 6011
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",

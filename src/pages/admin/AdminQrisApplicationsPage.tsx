@@ -14,6 +14,7 @@ import { ImageUpload } from '@/components/ui/ImageUpload';
 
 type AppStatus = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
 type QrisApplication = { id: string; application_number: string; merchant_id: string; applicant_user_id: string; default_bank_name: string | null; default_account_number: string | null; default_account_name: string | null; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string,string>; status: AppStatus; decision_note: string | null; qris_reference: string | null; qris_asset_key: string | null; gdc_merchant_id: string | null; gdc_account_number: string | null; submitted_at: string; revision_number: number; merchant?: { name: string; city: string | null } | null };
+type LegacyProfile = { merchant_id: string; provider_merchant_id: string; provider_account_number: string; status: string; merchant?: { name: string } | null };
 // qris_applications is a newly introduced table not yet present in generated Supabase types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -23,6 +24,7 @@ const docLabels: Record<string,string> = { OWNER_ID:'Foto KTP Pemilik', OWNER_SE
 export default function AdminQrisApplicationsPage() {
   const { user } = useAuth();
   const [applications, setApplications] = useState<QrisApplication[]>([]);
+  const [legacyProfiles, setLegacyProfiles] = useState<LegacyProfile[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [documentUrls, setDocumentUrls] = useState<Record<string,string>>({});
   const [correctionNote, setCorrectionNote] = useState('');
@@ -39,9 +41,16 @@ export default function AdminQrisApplicationsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await db.from('qris_applications').select('*, merchant:merchants(name,city)').order('submitted_at', { ascending: false });
+      const [{ data, error }, { data: legacyData, error: legacyError }] = await Promise.all([
+        db.from('qris_applications').select('*, merchant:merchants(name,city)').order('submitted_at', { ascending: false }),
+        db.from('gdc_payment_profiles').select('merchant_id,provider_merchant_id,provider_account_number,status,merchant:merchants(name)').eq('provider', 'GDC').order('updated_at', { ascending: false }),
+      ]);
       if (error) throw error;
-      setApplications((data || []) as QrisApplication[]);
+      if (legacyError) throw legacyError;
+      const nextApplications = (data || []) as QrisApplication[];
+      setApplications(nextApplications);
+      const applicationMerchantIds = new Set(nextApplications.map((item) => item.merchant_id));
+      setLegacyProfiles(((legacyData || []) as LegacyProfile[]).filter((item) => !applicationMerchantIds.has(item.merchant_id)));
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Daftar pengajuan QRIS gagal dimuat.'); }
     finally { setLoading(false); }
   };
@@ -121,10 +130,28 @@ export default function AdminQrisApplicationsPage() {
     finally { setSaving(false); }
   };
 
+  const importLegacyProfile = async (profile: LegacyProfile) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { data, error } = await db.rpc('admin_import_legacy_qris_application', {
+        p_merchant_id: profile.merchant_id,
+        p_gdc_merchant_id: profile.provider_merchant_id,
+        p_gdc_account_number: profile.provider_account_number,
+      });
+      if (error) throw error;
+      toast.success('Profil GDC legacy diimpor sebagai pengajuan QRIS. Lengkapi dokumen dan lakukan verifikasi sebelum aktivasi.');
+      await load();
+      if (data?.application_id) setSelectedId(data.application_id);
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Import profil GDC legacy gagal.'); }
+    finally { setSaving(false); }
+  };
+
   const shown = applications.filter((item) => filter === 'ALL' || item.status === filter);
   return <AdminLayout title="QRIS Merchant" subtitle="Kelola pengajuan, penerbitan, aktivasi, dan kesiapan QRIS MPM dalam satu alur.">
     <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.5fr)]">
       <Card className="h-fit"><CardHeader><div className="flex items-center justify-between gap-2"><div><CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" />Antrean Pengajuan</CardTitle><CardDescription>{pendingCount} pengajuan perlu ditangani</CardDescription></div><Button variant="outline" size="icon" onClick={() => void load()} aria-label="Muat ulang"><RefreshCw className="h-4 w-4" /></Button></div></CardHeader><CardContent className="space-y-3">
+        {legacyProfiles.length > 0 && <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-3"><div><p className="font-semibold text-amber-950">Profil GDC legacy perlu diimpor</p><p className="mt-1 text-xs text-amber-900">Import membuat pengajuan berstatus SUBMITTED dan menyalin identifier GDC. Dokumen, review, penerbitan, dan aktivasi tetap wajib dilakukan.</p></div>{legacyProfiles.map((profile) => <div key={profile.merchant_id} className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-white p-2"><div className="min-w-0"><p className="truncate text-sm font-medium">{profile.merchant?.name || profile.merchant_id}</p><p className="truncate text-[11px] text-muted-foreground">{profile.provider_merchant_id} · {profile.provider_account_number}</p></div><Button size="sm" variant="outline" disabled={saving} onClick={() => void importLegacyProfile(profile)}>Impor</Button></div>)}</div>}
         <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="ALL">Semua status</option>{Object.entries(labels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select>
         {loading ? <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Memuat pengajuan…</div> : shown.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Belum ada pengajuan pada status ini.</p> : shown.map((application) => { const mpmReady = application.status === 'ACTIVE' && Boolean(application.gdc_merchant_id?.trim() && application.gdc_account_number?.trim()); return <button key={application.id} onClick={() => setSelectedId(application.id)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === application.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/60'}`}><div className="flex items-start justify-between gap-2"><span className="font-medium">{application.merchant?.name || 'Merchant'}</span><div className="flex flex-wrap justify-end gap-1"><Badge variant={application.status === 'ACTIVE' ? 'default' : 'secondary'}>{labels[application.status]}</Badge>{application.status === 'ACTIVE' && <Badge variant={mpmReady ? 'default' : 'destructive'}>{mpmReady ? 'MPM siap' : 'MPM belum siap'}</Badge>}</div></div><p className="mt-1 text-xs text-muted-foreground">{application.application_number} · {new Date(application.submitted_at).toLocaleDateString('id-ID')}</p><p className="mt-1 text-xs text-muted-foreground">{application.business_criteria_code} · {application.qris_merchant_name}</p></button>; })}
       </CardContent></Card>
