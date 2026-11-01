@@ -129,9 +129,9 @@ BEGIN
     left(coalesce(nullif(btrim(v_merchant.name), ''), 'Merchant'), 25),
     left(coalesce(nullif(btrim(v_merchant.name), ''), 'Merchant'), 50),
     '{}'::jsonb,
-    'SUBMITTED',
+    'NEEDS_CORRECTION',
     1,
-    'Diimpor admin dari profil GDC legacy. Lengkapi dan verifikasi dokumen sebelum penerbitan QRIS.',
+    'Data diimpor dari profil legacy. Lengkapi dokumen wajib sebelum menyetujui pengajuan QRIS.',
     v_gdc_merchant_id,
     v_gdc_account_number
   )
