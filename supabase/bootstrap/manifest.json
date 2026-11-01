@@ -1359,8 +1359,8 @@
       "source_files": [
         "143_20261102200000_qris_gateway_return_fields.sql"
       ],
-      "sha256": "d4a146b14ff6ebf9c7c762db68885924992114853233092b59b3df3ed3896600",
-      "bytes": 10005
+      "sha256": "9a9fe75761728755d0e496eb9153c93e135cd0634e700f0fc313e7b88600bedc",
+      "bytes": 10279
     }
   ]
 }

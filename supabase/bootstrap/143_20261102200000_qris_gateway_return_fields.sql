@@ -112,7 +112,13 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.admin_issue_qris_mpm(uuid,text,text,text,text,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_issue_qris_mpm(uuid,text,text,text,text,text) TO authenticated;
-REVOKE ALL ON FUNCTION public.admin_issue_qris_mpm(uuid,text,text,text,text) FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.admin_issue_qris_mpm(uuid,text,text,text,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.admin_issue_qris_mpm(uuid,text,text,text,text) FROM PUBLIC, anon, authenticated';
+  END IF;
+END;
+$$;
 
 -- Keep the active application and operational GDC profile in sync if an admin
 -- corrects gateway-return values after activation.
@@ -185,7 +191,13 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.admin_configure_qris_mpm(uuid,text,text,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_configure_qris_mpm(uuid,text,text,text) TO authenticated;
-REVOKE ALL ON FUNCTION public.admin_configure_qris_mpm(uuid,text,text) FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.admin_configure_qris_mpm(uuid,text,text)') IS NOT NULL THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION public.admin_configure_qris_mpm(uuid,text,text) FROM PUBLIC, anon, authenticated';
+  END IF;
+END;
+$$;
 
 -- Promote the stored gateway profile when QRIS is activated; preserve NMID on
 -- existing profile records created during the issuance step.
