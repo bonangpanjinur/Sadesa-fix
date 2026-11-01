@@ -101,6 +101,7 @@ export function AdminSidebar({
         { label: 'Chat Admin', href: '/admin/chat', icon: <MessageCircle className="h-4 w-4" /> },
         { label: 'Pedagang', href: '/admin/merchants', icon: <Store className="h-4 w-4" />, badge: pendingMerchants },
         { label: 'Pengajuan QRIS', href: '/admin/qris-applications', icon: <QrCode className="h-4 w-4" /> },
+        { label: 'Pengaturan QRIS Merchant', href: '/admin/qris-merchant-settings', icon: <QrCode className="h-4 w-4" /> },
         { label: 'Desa Wisata', href: '/admin/villages', icon: <MapPin className="h-4 w-4" />, badge: pendingVillages },
         { label: 'Ojek', href: '/admin/couriers', icon: <Bike className="h-4 w-4" />, badge: pendingCouriers },
         { label: 'Master Ekspedisi', href: '/admin/expeditions', icon: <Truck className="h-4 w-4" /> },

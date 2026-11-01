@@ -90,6 +90,7 @@ const AdminSettingsPage = lazy(() => import("./pages/admin/AdminSettingsPage"));
 const AdminMerchantDetailPage = lazy(() => import("./pages/admin/AdminMerchantDetailPage"));
 const AdminMerchantsPage = lazy(() => import("./pages/admin/AdminMerchantsPage"));
 const AdminQrisApplicationsPage = lazy(() => import("./pages/admin/AdminQrisApplicationsPage"));
+const AdminQrisMerchantSettingsPage = lazy(() => import("./pages/admin/AdminQrisMerchantSettingsPage"));
 const AdminVillagesPage = lazy(() => import("./pages/admin/AdminVillagesPage"));
 const AdminVillageDetailPage = lazy(() => import("./pages/admin/AdminVillageDetailPage"));
 const AdminCouriersPage = lazy(() => import("./pages/admin/AdminCouriersPage"));
@@ -803,6 +804,11 @@ const App = () => (
                 <Route path="/admin/qris-applications" element={
                   <ProtectedRoute allowedRoles={['admin']}>
                     <AdminQrisApplicationsPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/qris-merchant-settings" element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminQrisMerchantSettingsPage />
                   </ProtectedRoute>
                 } />
                 <Route path="/admin/halal" element={
