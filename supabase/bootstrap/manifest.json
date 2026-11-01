@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 347,
-  "bundle_count": 141,
+  "migration_count": 348,
+  "bundle_count": 142,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -647,6 +647,14 @@
       ],
       "sha256": "93a5380b0e3597763a55cfb065ecd2c2cc42cb2bd0451602ab50f0f7049fa8aa",
       "bytes": 12659
+    },
+    {
+      "file": "141_20261102100000_qris_admin_merchant_account_details.sql",
+      "source_files": [
+        "141_20261102100000_qris_admin_merchant_account_details.sql"
+      ],
+      "sha256": "4afcb2820874c24fefa3ac94693069dfb1e031c12b6892d9824ac8934deb5e8f",
+      "bytes": 3571
     },
     {
       "file": "14_20260923152000_automatic_order_fraud_blocks.sql",
