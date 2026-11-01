@@ -79,12 +79,36 @@ export function CheckoutAddressForm({
   const isContactComplete = !!(value.name && value.phone);
   const hasDetectedLocation = !!(value.location && detectedAddress);
 
+  // Async profile/saved-address loading must never replace a draft that the
+  // buyer has already started entering. This is intentionally broader than
+  // checking only the address fields because the recipient name or phone may
+  // be entered before the address lookup finishes.
+  const hasCheckoutDraft = Boolean(
+    value.name.trim()
+      || value.phone.trim()
+      || value.fullAddress.trim()
+      || value.detailAddress?.trim()
+      || value.address.province
+      || value.address.city
+      || value.address.district
+      || value.address.village
+      || value.location,
+  );
+
   // Auto-populate from default saved address or profile on mount
   useEffect(() => {
     if (!user || profileLoaded) return;
 
     const autoPopulate = async () => {
       try {
+        // The user may have started typing while the saved address/profile
+        // requests were still loading. Preserve that draft instead of
+        // replacing it with a late auto-populated value.
+        if (hasCheckoutDraft) {
+          setProfileLoaded(true);
+          return;
+        }
+
         let selectedAddressId: string | undefined;
         try {
           const selected = JSON.parse(localStorage.getItem('sadesa-selected-address') || 'null') as { id?: string } | null;
@@ -203,7 +227,7 @@ export function CheckoutAddressForm({
     if (!savedAddressesLoading && !profileAddressLoading) {
       autoPopulate();
     }
-  }, [user, profileLoaded, savedAddressesLoading, profileAddressLoading, savedAddresses, profileAddress, onChange, value, getCoordinatesFromAddress]);
+  }, [user, profileLoaded, savedAddressesLoading, profileAddressLoading, savedAddresses, profileAddress, onChange, value, hasCheckoutDraft]);
 
   useEffect(() => {
     let cancelled = false;
