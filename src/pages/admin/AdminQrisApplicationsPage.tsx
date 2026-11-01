@@ -53,16 +53,24 @@ export default function AdminQrisApplicationsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data, error }, { data: legacyData, error: legacyError }] = await Promise.all([
-        db.from('qris_applications').select('*, merchant:merchants(name,city)').order('submitted_at', { ascending: false }),
-        db.from('gdc_payment_profiles').select('merchant_id,provider_merchant_id,provider_account_number,status,merchant:merchants(name)').eq('provider', 'GDC').order('updated_at', { ascending: false }),
-      ]);
+      const { data, error } = await db.from('qris_applications')
+        .select('*, merchant:merchants(name,city)')
+        .order('submitted_at', { ascending: false });
       if (error) throw error;
-      if (legacyError) throw legacyError;
       const nextApplications = (data || []) as QrisApplication[];
       setApplications(nextApplications);
       const applicationMerchantIds = new Set(nextApplications.map((item) => item.merchant_id));
-      setLegacyProfiles(((legacyData || []) as LegacyProfile[]).filter((item) => !applicationMerchantIds.has(item.merchant_id)));
+      try {
+        const { data: legacyData, error: legacyError } = await db.from('gdc_payment_profiles')
+          .select('merchant_id,provider_merchant_id,provider_account_number,status,merchant:merchants(name)')
+          .eq('provider', 'GDC')
+          .order('updated_at', { ascending: false });
+        if (legacyError) throw legacyError;
+        setLegacyProfiles(((legacyData || []) as LegacyProfile[]).filter((item) => !applicationMerchantIds.has(item.merchant_id)));
+      } catch (legacyError) {
+        setLegacyProfiles([]);
+        toast.error(`Daftar pengajuan sudah dimuat, tetapi profil GDC legacy gagal dimuat: ${legacyError instanceof Error ? legacyError.message : 'kesalahan tidak diketahui'}`);
+      }
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Daftar pengajuan QRIS gagal dimuat.'); }
     finally { setLoading(false); }
   };
@@ -212,18 +220,24 @@ export default function AdminQrisApplicationsPage() {
     let created = 0;
     let alreadyExists = 0;
     let failed = 0;
+    const applicationIds: string[] = [];
     try {
       for (const profile of selectedProfiles) {
         try {
           const result = await runLegacyImport(profile);
           if (result?.created === false) alreadyExists += 1;
           else created += 1;
+          if (result?.application_id) applicationIds.push(result.application_id);
         } catch {
           failed += 1;
         }
       }
       setSelectedLegacyMerchantIds([]);
       await load();
+      if (applicationIds.length > 0) {
+        setFilter('ALL');
+        setSelectedId(applicationIds[0]);
+      }
       toast.success(`Import selesai: ${created} berhasil, ${alreadyExists} sudah memiliki aplikasi, ${failed} gagal.`);
     } finally { setSaving(false); }
   };
