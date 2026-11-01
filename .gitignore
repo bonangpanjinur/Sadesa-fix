@@ -37,3 +37,4 @@ coverage
 *.local.json
 artifacts/staging-bootstrap-validation/
 secrets/gdc/
+supabase/.temp/
