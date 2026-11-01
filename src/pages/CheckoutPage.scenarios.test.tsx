@@ -126,6 +126,7 @@ vi.mock('@/components/AddressSelector', () => ({
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
+  SUPABASE_URL: 'https://example.supabase.co',
   supabase: {
     from: (table: string) => {
       const query = {
@@ -272,6 +273,17 @@ afterEach(() => {
 });
 
 describe('CheckoutPage scenario regressions', () => {
+  it('does not display a legacy merchant QR before the order is created', async () => {
+    mockCheckout.merchantRows = [{
+      ...(mockCheckout.merchantRows[0] as Record<string, unknown>),
+      qris_image_url: 'https://example.com/legacy-merchant-qris.png',
+    }];
+    await preparePickupCheckout();
+
+    await waitFor(() => expect(screen.getByText('Transfer ke Bank SaDesa')).toBeInTheDocument());
+    expect(screen.queryByAltText('QRIS')).not.toBeInTheDocument();
+  });
+
   it('blocks order creation when the merchant is closed, even after pickup and a valid server quote', async () => {
     mockCheckout.merchantIsOpen = false;
     renderCheckout();
