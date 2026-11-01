@@ -653,8 +653,8 @@
       "source_files": [
         "141_20261102100000_qris_admin_merchant_account_details.sql"
       ],
-      "sha256": "4afcb2820874c24fefa3ac94693069dfb1e031c12b6892d9824ac8934deb5e8f",
-      "bytes": 3571
+      "sha256": "8867c47123b1f4e413527c38461e77d38633b39fe5e18345a9334365ab79e6ac",
+      "bytes": 3423
     },
     {
       "file": "14_20260923152000_automatic_order_fraud_blocks.sql",

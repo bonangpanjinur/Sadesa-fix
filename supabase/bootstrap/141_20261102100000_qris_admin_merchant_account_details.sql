@@ -78,7 +78,6 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_update_qris_application_details(uuid,text,text,text,text,text,text,text,text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.admin_update_qris_application_details(uuid,text,uuid,text,text,text,text,text,text,text,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_update_qris_application_details(uuid,text,uuid,text,text,text,text,text,text,text,text) TO authenticated;
 NOTIFY pgrst, 'reload schema';
