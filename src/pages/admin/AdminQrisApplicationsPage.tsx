@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Clock3, FileText, Loader2, QrCode, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, Download, FileText, Loader2, QrCode, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/integrations/supabase/client';
@@ -53,9 +53,7 @@ export default function AdminQrisApplicationsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data, error } = await db.from('qris_applications')
-        .select('*, merchant:merchants(name,city)')
-        .order('submitted_at', { ascending: false });
+      const { data, error } = await db.rpc('admin_list_qris_applications');
       if (error) throw error;
       const nextApplications = (data || []) as QrisApplication[];
       setApplications(nextApplications);
@@ -102,6 +100,24 @@ export default function AdminQrisApplicationsPage() {
     void loadDocuments();
     return () => { active = false; };
   }, [selected]);
+
+  const downloadDocument = async (path: string, label: string) => {
+    try {
+      const { data, error } = await supabase.storage.from('qris-applications').download(path);
+      if (error || !data) throw error || new Error('File dokumen tidak tersedia.');
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      const originalName = path.split('/').pop() || 'dokumen';
+      link.href = url;
+      link.download = `${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${originalName}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Dokumen gagal diunduh.');
+    }
+  };
 
   const setStatus = async (application: QrisApplication, status: AppStatus, action: string, note?: string) => {
     if (!user) return;
@@ -256,7 +272,7 @@ export default function AdminQrisApplicationsPage() {
         {isLegacyImport && <div className="flex gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-semibold">Legacy import — perlu dokumen</p><p className="mt-1">Aplikasi ini dibuat dari <code>gdc_payment_profiles</code>. Identifier GDC sudah disalin, tetapi dokumen merchant belum tersedia atau belum lengkap.</p></div></div>}
         {!['ACTIVE', 'ISSUED_PENDING_ACTIVATION'].includes(selected.status) && <div className="space-y-3 rounded-lg border border-primary/20 p-4"><div><h3 className="font-semibold">Edit data pengajuan</h3><p className="text-xs text-muted-foreground">Admin dapat membantu mengoreksi data sebelum QRIS diterbitkan. Semua perubahan dicatat.</p></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Nama merchant (profil toko)</Label><Input value={merchantName} onChange={(event) => setMerchantName(event.target.value)} maxLength={150} /></div><div className="space-y-2"><Label>ID akun default (UUID internal, opsional)</Label><Input value={defaultAccountId} onChange={(event) => setDefaultAccountId(event.target.value)} placeholder="Kosongkan jika belum ada" /></div><div className="space-y-2"><Label>Kriteria bisnis</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={businessCriteria} onChange={(event) => setBusinessCriteria(event.target.value)}><option value="">Pilih kriteria</option><option value="UMI">UMI</option><option value="UME">UME</option><option value="UBE">UBE</option></select></div><div className="space-y-2"><Label>Lama usaha</Label><Input value={businessAge} onChange={(event) => setBusinessAge(event.target.value)} maxLength={80} /></div><div className="space-y-2"><Label>Nama QRIS pendek (maks. 25)</Label><Input value={qrisMerchantNameShort} onChange={(event) => setQrisMerchantNameShort(event.target.value)} maxLength={25} /></div><div className="space-y-2"><Label>Nama QRIS (maks. 50)</Label><Input value={qrisMerchantName} onChange={(event) => setQrisMerchantName(event.target.value)} maxLength={50} /></div><div className="space-y-2"><Label>Bank</Label><Input value={defaultBankName} onChange={(event) => setDefaultBankName(event.target.value)} /></div><div className="space-y-2"><Label>Nomor rekening</Label><Input value={defaultAccountNumber} onChange={(event) => setDefaultAccountNumber(event.target.value)} /></div><div className="space-y-2 sm:col-span-2"><Label>Nama pemilik rekening</Label><Input value={defaultAccountName} onChange={(event) => setDefaultAccountName(event.target.value)} /></div></div><Button variant="outline" disabled={saving} onClick={() => void saveApplicationDetails(selected)}>Simpan koreksi data</Button></div>}
         <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2"><p><strong>Nama merchant:</strong> {selected.merchant?.name || '—'}</p><p><strong>ID akun default:</strong> {selected.default_account_id || '—'}</p><p><strong>Kriteria bisnis:</strong> {selected.business_criteria_code}</p><p><strong>Lama usaha:</strong> {selected.business_age_code}</p><p><strong>Nama QRIS (25):</strong> {selected.qris_merchant_name_short}</p><p><strong>Nama QRIS (50):</strong> {selected.qris_merchant_name}</p><p><strong>Bank default:</strong> {selected.default_bank_name || '—'}</p><p><strong>Nomor akun:</strong> {selected.default_account_number || '—'}</p><p><strong>Atas nama:</strong> {selected.default_account_name || '—'}</p><p><strong>Kesiapan QRIS MPM:</strong> {selected.status === 'ACTIVE' && selected.gdc_merchant_id?.trim() && selected.gdc_account_number?.trim() ? <span className="font-semibold text-emerald-700">Siap digunakan</span> : <span className="font-semibold text-amber-700">Belum siap — lengkapi aktivasi dan identitas GDC</span>}</p></div>
-        <div><h3 className="mb-3 font-semibold">Dokumen Merchant</h3><div className="grid gap-3 sm:grid-cols-2">{Object.entries(docLabels).map(([type,label]) => <div key={type} className="rounded-lg border p-3"><p className="mb-2 text-sm font-medium">{label}</p>{documentUrls[type] ? <a href={documentUrls[type]} target="_blank" rel="noreferrer" className="text-sm text-primary underline">Lihat dokumen (tautan berlaku 5 menit)</a> : <p className="text-xs text-destructive">Dokumen tidak ditemukan</p>}</div>)}</div></div>
+        <div><h3 className="mb-3 font-semibold">Dokumen Merchant</h3><div className="grid gap-3 sm:grid-cols-2">{Object.entries(docLabels).map(([type,label]) => <div key={type} className="rounded-lg border p-3"><p className="mb-2 text-sm font-medium">{label}</p>{documentUrls[type] ? <div className="flex flex-wrap items-center gap-3"><a href={documentUrls[type]} target="_blank" rel="noreferrer" className="text-sm text-primary underline">Lihat dokumen</a><Button type="button" variant="outline" size="sm" onClick={() => void downloadDocument(selected.documents[type], label)}><Download className="mr-2 h-4 w-4" />Unduh</Button></div> : <p className="text-xs text-destructive">Dokumen tidak ditemukan</p>}</div>)}</div></div>
         {selected.decision_note && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"><strong>Catatan sebelumnya:</strong> {selected.decision_note}</div>}
         {selected.status === 'SUBMITTED' && missingDocuments.length > 0 && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">Setujui dinonaktifkan. Lengkapi dokumen wajib: {missingDocuments.map((code) => docLabels[code]).join(', ')}.</p>}
         {['SUBMITTED','IN_REVIEW'].includes(selected.status) && <div className="space-y-3 rounded-lg border p-4"><h3 className="font-semibold">Keputusan Verifikasi</h3><Textarea value={correctionNote} onChange={(event) => setCorrectionNote(event.target.value)} placeholder="Catatan untuk merchant, wajib untuk permintaan perbaikan atau penolakan" /><div className="flex flex-wrap gap-2"><Button variant="outline" disabled={saving} onClick={() => void setStatus(selected, 'IN_REVIEW', 'REVIEW_STARTED')}><Clock3 className="mr-2 h-4 w-4" />Mulai Verifikasi</Button><Button variant="outline" disabled={saving || correctionNote.trim().length < 8} onClick={() => void setStatus(selected, 'NEEDS_CORRECTION', 'CORRECTION_REQUESTED', correctionNote)}><FileText className="mr-2 h-4 w-4" />Minta Perbaikan</Button><Button variant="destructive" disabled={saving || correctionNote.trim().length < 8} onClick={() => void setStatus(selected, 'REJECTED', 'APPLICATION_REJECTED', correctionNote)}><XCircle className="mr-2 h-4 w-4" />Tolak</Button><Button disabled={saving || missingDocuments.length > 0} title={missingDocuments.length > 0 ? `Lengkapi dokumen: ${missingDocuments.map((code) => docLabels[code]).join(', ')}` : undefined} onClick={() => void setStatus(selected, 'APPROVED_PENDING_ISSUANCE', 'APPLICATION_APPROVED', 'Data dan dokumen telah diverifikasi.')}><CheckCircle2 className="mr-2 h-4 w-4" />Setujui</Button></div></div>}
