@@ -37,6 +37,7 @@ export default function AdminQrisApplicationsPage() {
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [selectedLegacyMerchantIds, setSelectedLegacyMerchantIds] = useState<string[]>([]);
   const selected = applications.find((item) => item.id === selectedId) || null;
   const pendingCount = useMemo(() => applications.filter((item) => ['SUBMITTED','IN_REVIEW'].includes(item.status)).length, [applications]);
 
@@ -132,23 +133,53 @@ export default function AdminQrisApplicationsPage() {
     finally { setSaving(false); }
   };
 
+  const runLegacyImport = async (profile: LegacyProfile) => {
+    const { data, error } = await db.rpc('admin_import_legacy_qris_application', {
+      p_merchant_id: profile.merchant_id,
+      p_gdc_merchant_id: profile.provider_merchant_id,
+      p_gdc_account_number: profile.provider_account_number,
+    });
+    if (error) throw error;
+    return data as { application_id?: string; created?: boolean } | null;
+  };
+
   const importLegacyProfile = async (profile: LegacyProfile) => {
     if (!user) return;
     const confirmed = window.confirm(`Impor profil GDC legacy milik ${profile.merchant?.name || profile.merchant_id}?\n\nData akan dibuat sebagai pengajuan QRIS NEEDS_CORRECTION dan memerlukan kelengkapan serta review dokumen.`);
     if (!confirmed) return;
     setSaving(true);
     try {
-      const { data, error } = await db.rpc('admin_import_legacy_qris_application', {
-        p_merchant_id: profile.merchant_id,
-        p_gdc_merchant_id: profile.provider_merchant_id,
-        p_gdc_account_number: profile.provider_account_number,
-      });
-      if (error) throw error;
-      toast.success('Profil GDC legacy diimpor sebagai pengajuan QRIS. Lengkapi dokumen sebelum persetujuan.');
+      const data = await runLegacyImport(profile);
+      toast.success(data?.created === false ? 'Merchant sudah memiliki pengajuan QRIS.' : 'Profil GDC legacy diimpor sebagai pengajuan QRIS. Lengkapi dokumen sebelum persetujuan.');
       await load();
       if (data?.application_id) setSelectedId(data.application_id);
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Import profil GDC legacy gagal.'); }
     finally { setSaving(false); }
+  };
+
+  const importSelectedLegacyProfiles = async () => {
+    if (!user || selectedLegacyMerchantIds.length === 0) return;
+    const selectedProfiles = legacyProfiles.filter((profile) => selectedLegacyMerchantIds.includes(profile.merchant_id));
+    const confirmed = window.confirm(`Impor ${selectedProfiles.length} profil GDC legacy terpilih?\n\nSemua data akan dibuat sebagai pengajuan QRIS NEEDS_CORRECTION dan tetap memerlukan kelengkapan serta review dokumen.`);
+    if (!confirmed) return;
+    setSaving(true);
+    let created = 0;
+    let alreadyExists = 0;
+    let failed = 0;
+    try {
+      for (const profile of selectedProfiles) {
+        try {
+          const result = await runLegacyImport(profile);
+          if (result?.created === false) alreadyExists += 1;
+          else created += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      setSelectedLegacyMerchantIds([]);
+      await load();
+      toast.success(`Import selesai: ${created} berhasil, ${alreadyExists} sudah memiliki aplikasi, ${failed} gagal.`);
+    } finally { setSaving(false); }
   };
 
   const shown = applications.filter((item) => filter === 'ALL' || item.status === filter);
@@ -157,7 +188,7 @@ export default function AdminQrisApplicationsPage() {
   return <AdminLayout title="QRIS Merchant" subtitle="Kelola pengajuan, penerbitan, aktivasi, dan kesiapan QRIS MPM dalam satu alur.">
     <div className="grid gap-4 xl:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.5fr)]">
       <Card className="h-fit"><CardHeader><div className="flex items-center justify-between gap-2"><div><CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" />Antrean Pengajuan</CardTitle><CardDescription>{pendingCount} pengajuan perlu ditangani</CardDescription></div><Button variant="outline" size="icon" onClick={() => void load()} aria-label="Muat ulang"><RefreshCw className="h-4 w-4" /></Button></div></CardHeader><CardContent className="space-y-3">
-        {legacyProfiles.length > 0 && <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-3"><div><p className="font-semibold text-amber-950">Profil GDC legacy perlu diimpor</p><p className="mt-1 text-xs text-amber-900">Import membuat pengajuan berstatus NEEDS_CORRECTION dan menyalin identifier GDC. Dokumen, review, penerbitan, dan aktivasi tetap wajib dilakukan.</p></div>{legacyProfiles.map((profile) => <div key={profile.merchant_id} className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-white p-2"><div className="min-w-0"><p className="truncate text-sm font-medium">{profile.merchant?.name || profile.merchant_id}</p><p className="truncate text-[11px] text-muted-foreground">{profile.provider_merchant_id} · {maskAccountNumber(profile.provider_account_number)}</p></div><Button size="sm" variant="outline" disabled={saving} onClick={() => void importLegacyProfile(profile)}>Impor</Button></div>)}</div>}
+        {legacyProfiles.length > 0 && <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-3"><div><p className="font-semibold text-amber-950">Profil GDC legacy perlu diimpor</p><p className="mt-1 text-xs text-amber-900">Import membuat pengajuan berstatus NEEDS_CORRECTION dan menyalin identifier GDC. Dokumen, review, penerbitan, dan aktivasi tetap wajib dilakukan.</p></div><div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-white p-2"><label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={selectedLegacyMerchantIds.length === legacyProfiles.length} onChange={(event) => setSelectedLegacyMerchantIds(event.target.checked ? legacyProfiles.map((profile) => profile.merchant_id) : [])} />Pilih semua ({legacyProfiles.length})</label><Button size="sm" disabled={saving || selectedLegacyMerchantIds.length === 0} onClick={() => void importSelectedLegacyProfiles()}>Impor terpilih ({selectedLegacyMerchantIds.length})</Button></div>{legacyProfiles.map((profile) => <div key={profile.merchant_id} className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-white p-2"><label className="flex min-w-0 items-center gap-2"><input type="checkbox" checked={selectedLegacyMerchantIds.includes(profile.merchant_id)} onChange={(event) => setSelectedLegacyMerchantIds((current) => event.target.checked ? [...new Set([...current, profile.merchant_id])] : current.filter((id) => id !== profile.merchant_id))} /><span className="min-w-0"><span className="block truncate text-sm font-medium">{profile.merchant?.name || profile.merchant_id}</span><span className="block truncate text-[11px] text-muted-foreground">{profile.provider_merchant_id} · {maskAccountNumber(profile.provider_account_number)}</span></span></label><Button size="sm" variant="outline" disabled={saving} onClick={() => void importLegacyProfile(profile)}>Impor</Button></div>)}</div>}
         <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="ALL">Semua status</option>{Object.entries(labels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select>
         {loading ? <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Memuat pengajuan…</div> : shown.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">Belum ada pengajuan pada status ini.</p> : shown.map((application) => { const mpmReady = application.status === 'ACTIVE' && Boolean(application.gdc_merchant_id?.trim() && application.gdc_account_number?.trim()); return <button key={application.id} onClick={() => setSelectedId(application.id)} className={`w-full rounded-lg border p-3 text-left transition-colors ${selectedId === application.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/60'}`}><div className="flex items-start justify-between gap-2"><span className="font-medium">{application.merchant?.name || 'Merchant'}</span><div className="flex flex-wrap justify-end gap-1"><Badge variant={application.status === 'ACTIVE' ? 'default' : 'secondary'}>{labels[application.status]}</Badge>{application.business_age_code === 'LEGACY_IMPORT_REQUIRES_REVIEW' && <Badge variant="outline">Legacy import</Badge>}{application.status === 'ACTIVE' && <Badge variant={mpmReady ? 'default' : 'destructive'}>{mpmReady ? 'MPM siap' : 'MPM belum siap'}</Badge>}</div></div><p className="mt-1 text-xs text-muted-foreground">{application.application_number} · {new Date(application.submitted_at).toLocaleDateString('id-ID')}</p><p className="mt-1 text-xs text-muted-foreground">{application.business_criteria_code} · {application.qris_merchant_name}</p></button>; })}
       </CardContent></Card>
