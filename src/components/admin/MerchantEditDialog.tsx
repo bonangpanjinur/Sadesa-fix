@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, CreditCard, QrCode, UserCheck, Shield, Check, X } from 'lucide-react';
+import { Save, CreditCard, UserCheck, Shield, Check, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -59,7 +59,6 @@ interface MerchantEditDialogProps {
     bank_name?: string | null;
     bank_account_number?: string | null;
     bank_account_name?: string | null;
-    qris_image_url?: string | null;
     payment_cod_enabled?: boolean | null;
     payment_transfer_enabled?: boolean | null;
     verifikator_code?: string | null;
@@ -151,7 +150,6 @@ export function MerchantEditDialog({
     bank_name: '',
     bank_account_number: '',
     bank_account_name: '',
-    qris_image_url: null as string | null,
     payment_cod_enabled: true,
     payment_transfer_enabled: true,
     verifikator_code: '',
@@ -341,7 +339,6 @@ export function MerchantEditDialog({
       bank_name: initialData.bank_name || '',
       bank_account_number: initialData.bank_account_number || '',
       bank_account_name: initialData.bank_account_name || '',
-      qris_image_url: initialData.qris_image_url || null,
       payment_cod_enabled: initialData.payment_cod_enabled ?? true,
       payment_transfer_enabled: initialData.payment_transfer_enabled ?? true,
       verifikator_code: initialData.verifikator_code || '',
@@ -472,7 +469,6 @@ export function MerchantEditDialog({
           bank_name: formData.bank_name || null,
           bank_account_number: formData.bank_account_number || null,
           bank_account_name: formData.bank_account_name || null,
-          qris_image_url: formData.qris_image_url || null,
           payment_cod_enabled: formData.payment_cod_enabled,
           payment_transfer_enabled: formData.payment_transfer_enabled,
           verifikator_code: formData.verifikator_code || null,
@@ -906,20 +902,6 @@ export function MerchantEditDialog({
                   placeholder="Nama pemilik"
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1">
-                <QrCode className="h-3.5 w-3.5" />
-                QRIS
-              </Label>
-              <ImageUpload
-                bucket="merchant-images"
-                path={`qris/${merchantId}`}
-                value={formData.qris_image_url}
-                onChange={(url) => setFormData({ ...formData, qris_image_url: url })}
-                placeholder="Upload gambar QRIS merchant"
-              />
             </div>
 
             {!formData.bank_name && !formData.bank_account_number && (

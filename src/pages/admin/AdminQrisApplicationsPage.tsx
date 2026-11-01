@@ -34,6 +34,13 @@ export default function AdminQrisApplicationsPage() {
   const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
   const [gdcMerchantId, setGdcMerchantId] = useState('');
   const [gdcAccountNumber, setGdcAccountNumber] = useState('');
+  const [businessCriteria, setBusinessCriteria] = useState('');
+  const [businessAge, setBusinessAge] = useState('');
+  const [qrisMerchantNameShort, setQrisMerchantNameShort] = useState('');
+  const [qrisMerchantName, setQrisMerchantName] = useState('');
+  const [defaultBankName, setDefaultBankName] = useState('');
+  const [defaultAccountNumber, setDefaultAccountNumber] = useState('');
+  const [defaultAccountName, setDefaultAccountName] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -68,6 +75,13 @@ export default function AdminQrisApplicationsPage() {
       }));
       if (active) setDocumentUrls(Object.fromEntries(pairs));
       setQrisReference(selected.qris_reference || '');
+      setBusinessCriteria(selected.business_criteria_code || '');
+      setBusinessAge(selected.business_age_code || '');
+      setQrisMerchantNameShort(selected.qris_merchant_name_short || '');
+      setQrisMerchantName(selected.qris_merchant_name || '');
+      setDefaultBankName(selected.default_bank_name || '');
+      setDefaultAccountNumber(selected.default_account_number || '');
+      setDefaultAccountName(selected.default_account_name || '');
       setGdcMerchantId(selected.gdc_merchant_id || '');
       setGdcAccountNumber(selected.gdc_account_number || '');
       setQrisImageUrl(null);
@@ -90,6 +104,28 @@ export default function AdminQrisApplicationsPage() {
       toast.success(`Status diperbarui: ${labels[status]}`);
       await load();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Perubahan status gagal disimpan.'); }
+    finally { setSaving(false); }
+  };
+
+  const saveApplicationDetails = async (application: QrisApplication) => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { error } = await db.rpc('admin_update_qris_application_details', {
+        p_application_id: application.id,
+        p_business_criteria_code: businessCriteria,
+        p_business_age_code: businessAge,
+        p_qris_merchant_name_short: qrisMerchantNameShort,
+        p_qris_merchant_name: qrisMerchantName,
+        p_default_bank_name: defaultBankName,
+        p_default_account_number: defaultAccountNumber,
+        p_default_account_name: defaultAccountName,
+        p_reason: 'Perubahan data dilakukan admin dari panel QRIS Merchant.',
+      });
+      if (error) throw error;
+      toast.success('Data pengajuan QRIS diperbarui dan dicatat di aktivitas.');
+      await load();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Data pengajuan QRIS gagal diperbarui.'); }
     finally { setSaving(false); }
   };
 
@@ -194,6 +230,7 @@ export default function AdminQrisApplicationsPage() {
       </CardContent></Card>
       {!selected ? <Card><CardContent className="flex min-h-64 flex-col items-center justify-center gap-3 text-center text-muted-foreground"><FileText className="h-8 w-8" /><p>Pilih pengajuan untuk melihat data dan melakukan verifikasi.</p></CardContent></Card> : <Card><CardHeader><CardTitle>{selected.merchant?.name || 'Merchant'} <span className="text-sm font-normal text-muted-foreground">· {selected.application_number}</span></CardTitle><CardDescription>Revisi {selected.revision_number} · Diajukan {new Date(selected.submitted_at).toLocaleString('id-ID')}</CardDescription></CardHeader><CardContent className="space-y-5">
         {isLegacyImport && <div className="flex gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-semibold">Legacy import — perlu dokumen</p><p className="mt-1">Aplikasi ini dibuat dari <code>gdc_payment_profiles</code>. Identifier GDC sudah disalin, tetapi dokumen merchant belum tersedia atau belum lengkap.</p></div></div>}
+        {!['ACTIVE', 'ISSUED_PENDING_ACTIVATION'].includes(selected.status) && <div className="space-y-3 rounded-lg border border-primary/20 p-4"><div><h3 className="font-semibold">Edit data pengajuan</h3><p className="text-xs text-muted-foreground">Admin dapat membantu mengoreksi data sebelum QRIS diterbitkan. Semua perubahan dicatat.</p></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Kriteria bisnis</Label><select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={businessCriteria} onChange={(event) => setBusinessCriteria(event.target.value)}><option value="">Pilih kriteria</option><option value="UMI">UMI</option><option value="UME">UME</option><option value="UBE">UBE</option></select></div><div className="space-y-2"><Label>Lama usaha</Label><Input value={businessAge} onChange={(event) => setBusinessAge(event.target.value)} maxLength={80} /></div><div className="space-y-2"><Label>Nama QRIS pendek (maks. 25)</Label><Input value={qrisMerchantNameShort} onChange={(event) => setQrisMerchantNameShort(event.target.value)} maxLength={25} /></div><div className="space-y-2"><Label>Nama QRIS (maks. 50)</Label><Input value={qrisMerchantName} onChange={(event) => setQrisMerchantName(event.target.value)} maxLength={50} /></div><div className="space-y-2"><Label>Bank</Label><Input value={defaultBankName} onChange={(event) => setDefaultBankName(event.target.value)} /></div><div className="space-y-2"><Label>Nomor rekening</Label><Input value={defaultAccountNumber} onChange={(event) => setDefaultAccountNumber(event.target.value)} /></div><div className="space-y-2 sm:col-span-2"><Label>Nama pemilik rekening</Label><Input value={defaultAccountName} onChange={(event) => setDefaultAccountName(event.target.value)} /></div></div><Button variant="outline" disabled={saving} onClick={() => void saveApplicationDetails(selected)}>Simpan koreksi data</Button></div>}
         <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2"><p><strong>Kriteria bisnis:</strong> {selected.business_criteria_code}</p><p><strong>Lama usaha:</strong> {selected.business_age_code}</p><p><strong>Nama QRIS (25):</strong> {selected.qris_merchant_name_short}</p><p><strong>Nama QRIS (50):</strong> {selected.qris_merchant_name}</p><p><strong>Bank default:</strong> {selected.default_bank_name || '—'}</p><p><strong>Nomor akun:</strong> {selected.default_account_number || '—'}</p><p><strong>Atas nama:</strong> {selected.default_account_name || '—'}</p><p><strong>Kesiapan QRIS MPM:</strong> {selected.status === 'ACTIVE' && selected.gdc_merchant_id?.trim() && selected.gdc_account_number?.trim() ? <span className="font-semibold text-emerald-700">Siap digunakan</span> : <span className="font-semibold text-amber-700">Belum siap — lengkapi aktivasi dan identitas GDC</span>}</p></div>
         <div><h3 className="mb-3 font-semibold">Dokumen Merchant</h3><div className="grid gap-3 sm:grid-cols-2">{Object.entries(docLabels).map(([type,label]) => <div key={type} className="rounded-lg border p-3"><p className="mb-2 text-sm font-medium">{label}</p>{documentUrls[type] ? <a href={documentUrls[type]} target="_blank" rel="noreferrer" className="text-sm text-primary underline">Lihat dokumen (tautan berlaku 5 menit)</a> : <p className="text-xs text-destructive">Dokumen tidak ditemukan</p>}</div>)}</div></div>
         {selected.decision_note && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm"><strong>Catatan sebelumnya:</strong> {selected.decision_note}</div>}
