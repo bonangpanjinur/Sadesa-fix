@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 343,
-  "bundle_count": 137,
+  "migration_count": 344,
+  "bundle_count": 138,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -599,6 +599,22 @@
       ],
       "sha256": "15bbee4c57c811eb69bfd4668893c31f42c4725494a60f63399a1514e0a0d279",
       "bytes": 4174
+    },
+    {
+      "file": "136_20261101143000_gdc_qris_mpm_checkout.sql",
+      "source_files": [
+        "136_20261101143000_gdc_qris_mpm_checkout.sql"
+      ],
+      "sha256": "9114d71a3e856ee0adf1df7a396f402951955a8061263d6c242d113d65793a37",
+      "bytes": 12821
+    },
+    {
+      "file": "137_20261101190000_qris_mpm_checkout_discriminator.sql",
+      "source_files": [
+        "137_20261101190000_qris_mpm_checkout_discriminator.sql"
+      ],
+      "sha256": "0deb995d866aaccf505e81d0768f4331a7052326723a0c50a983bfd43f2f5f2d",
+      "bytes": 33703
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",
@@ -1297,14 +1313,6 @@
       ],
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
-    },
-    {
-      "file": "136_20261101143000_gdc_qris_mpm_checkout.sql",
-      "source_files": [
-        "136_20261101143000_gdc_qris_mpm_checkout.sql"
-      ],
-      "sha256": "9114d71a3e856ee0adf1df7a396f402951955a8061263d6c242d113d65793a37",
-      "bytes": 12821
     }
   ]
 }
