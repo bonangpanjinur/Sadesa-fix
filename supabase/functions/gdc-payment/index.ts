@@ -152,13 +152,14 @@ async function generateQris(
   deviceId?: string,
 ) {
   const path = "/v1.0/qr/qr-mpm-generate";
+  const signaturePath = `${new URL(baseUrl).pathname.replace(/\/$/, "")}${path}`;
   const timestamp = timestampNow();
   const externalId = crypto.randomUUID();
   const rawBody = JSON.stringify(body);
 
   // Confirm the exact signature formula with GDC before production use.
   const bodyHash = await sha256Hex(rawBody);
-  const stringToSign = `POST:${path}:${accessToken}:${bodyHash}:${timestamp}`;
+  const stringToSign = `POST:${signaturePath}:${accessToken}:${bodyHash}:${timestamp}`;
 
   const signature = await hmacSha512Base64(clientSecret, stringToSign);
 
@@ -202,7 +203,7 @@ async function generateQris(
     throw new Error("GDC rejected QRIS request");
   }
 
-  return result as Record<string, unknown>;
+  return { ...result, _externalId: externalId } as Record<string, unknown>;
 }
 
 serve(async (req: Request) => {
@@ -242,7 +243,7 @@ serve(async (req: Request) => {
   // These values are optional; do not invent them.
   const channelId = Deno.env.get("GDC_CHANNEL_ID") || undefined;
   const deviceId = Deno.env.get("GDC_DEVICE_ID") || undefined;
-  const accountNumber = Deno.env.get("GDC_ACCOUNT_NUMBER") || undefined;
+  const accountNumber = Deno.env.get("GDC_ACCOUNT_NUMBER");
 
   if (
     !supabaseUrl ||
@@ -251,7 +252,8 @@ serve(async (req: Request) => {
     !clientKey ||
     !clientSecret ||
     !privateKey ||
-    !partnerId
+    !partnerId ||
+    !accountNumber
   ) {
     console.error("Required payment configuration is missing");
     return respond(
@@ -309,7 +311,7 @@ serve(async (req: Request) => {
     const { data: order, error: orderError } = await admin
       .from("orders")
       .select(
-        "id,buyer_id,total,status,payment_status,payment_invoice_id,payment_channel",
+        "id,buyer_id,merchant_id,total,status,payment_status,payment_invoice_id,payment_channel,payment_external_id,payment_qr_content,payment_qr_image,payment_qr_url",
       )
       .eq("id", orderId)
       .eq("buyer_id", authData.user.id)
@@ -352,6 +354,12 @@ serve(async (req: Request) => {
           reused: true,
           order_id: order.id,
           reference_no: order.payment_invoice_id,
+          external_id: order.payment_external_id,
+          amount: Number(order.total),
+          currency: "IDR",
+          qr_content: order.payment_qr_content,
+          qr_image: order.payment_qr_image,
+          confirmation_url: order.payment_qr_url,
           message: "Existing GDC payment reference found",
         },
         200,
@@ -369,27 +377,41 @@ serve(async (req: Request) => {
       );
     }
 
-    const accessToken = await getGdcAccessToken(baseUrl, clientKey, privateKey);
+    // GDC merchant mapping: one GDC merchantId for each Sadesa merchant.
+    const { data: merchantAccount, error: merchantAccountError } = await admin
+      .from("merchant_gdc_accounts")
+      .select("gdc_merchant_id")
+      .eq("merchant_id", order.merchant_id)
+      .eq("is_active", true)
+      .maybeSingle();
 
-    const additionalInfo: Record<string, unknown> = {};
-
-    if (accountNumber) {
-      additionalInfo.accountNumber = accountNumber;
+    if (merchantAccountError || !merchantAccount?.gdc_merchant_id) {
+      console.error("GDC merchant mapping not found", {
+        orderId: order.id,
+        merchantId: order.merchant_id,
+        error: merchantAccountError?.message ?? null,
+      });
+      return respond(
+        { success: false, error: "Merchant payment account is not configured" },
+        409,
+        origin,
+      );
     }
 
-    // Base request follows the documented QRIS MPM Generate fields.
-    // Confirm whether your GDC account requires additional fields.
+    const accessToken = await getGdcAccessToken(baseUrl, clientKey, privateKey);
+
+    // Fund flow is centralized to Sadesa's GDC payment account.
+    // merchantId identifies the individual Sadesa merchant; accountNumber
+    // identifies the central Sadesa collection/payment account.
     const requestBody: Record<string, unknown> = {
       partnerReferenceNo: order.id,
       amount: {
         value: amount.toFixed(2),
         currency: "IDR",
       },
+      merchantId: merchantAccount.gdc_merchant_id,
+      additionalInfo: { accountNumber },
     };
-
-    if (Object.keys(additionalInfo).length > 0) {
-      requestBody.additionalInfo = additionalInfo;
-    }
 
     const result = await generateQris(
       baseUrl,
@@ -427,6 +449,13 @@ serve(async (req: Request) => {
           ? extra.qrImage
           : null;
 
+    const qrUrl =
+      typeof result.qrUrl === "string"
+        ? result.qrUrl
+        : typeof extra.qrUrl === "string"
+          ? extra.qrUrl
+          : null;
+
     const confirmationUrl =
       typeof result.redirectUrl === "string"
         ? result.redirectUrl
@@ -434,7 +463,10 @@ serve(async (req: Request) => {
           ? result.url
           : typeof extra.redirectUrl === "string"
             ? extra.redirectUrl
-            : null;
+            : qrUrl;
+
+    const externalId =
+      typeof result._externalId === "string" ? result._externalId : null;
 
     if (!referenceNo || (!qrContent && !qrImage && !confirmationUrl)) {
       console.error("GDC response missing payment details", {
@@ -455,6 +487,10 @@ serve(async (req: Request) => {
       .from("orders")
       .update({
         payment_invoice_id: referenceNo,
+        payment_external_id: externalId,
+        payment_qr_content: qrContent,
+        payment_qr_image: qrImage,
+        payment_qr_url: qrUrl,
         payment_method: "ONLINE",
         payment_channel: "GDC_QRIS",
         payment_status: "PENDING",
@@ -484,10 +520,12 @@ serve(async (req: Request) => {
         order_id: order.id,
         partner_reference_no: order.id,
         reference_no: referenceNo,
+        external_id: externalId,
         amount,
         currency: "IDR",
         qr_content: qrContent,
         qr_image: qrImage,
+        qr_url: qrUrl,
         confirmation_url: confirmationUrl,
       },
       200,
