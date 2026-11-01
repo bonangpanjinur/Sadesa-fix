@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 342,
-  "bundle_count": 136,
+  "migration_count": 341,
+  "bundle_count": 135,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -585,20 +585,12 @@
       "bytes": 16011
     },
     {
-      "file": "134_20261031220000_gdc_qris_dynamic_payment.sql",
+      "file": "134_20261101143000_gdc_qris_mpm_checkout.sql",
       "source_files": [
-        "134_20261031220000_gdc_qris_dynamic_payment.sql"
+        "134_20261101143000_gdc_qris_mpm_checkout.sql"
       ],
-      "sha256": "7e64450ff7fac90fcd4e4c348ab0e127d828b704fcc932e351f5d84d26668871",
-      "bytes": 15448
-    },
-    {
-      "file": "135_20261031230000_gdc_qris_rollout_observability.sql",
-      "source_files": [
-        "135_20261031230000_gdc_qris_rollout_observability.sql"
-      ],
-      "sha256": "15bbee4c57c811eb69bfd4668893c31f42c4725494a60f63399a1514e0a0d279",
-      "bytes": 4174
+      "sha256": "9114d71a3e856ee0adf1df7a396f402951955a8061263d6c242d113d65793a37",
+      "bytes": 12821
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",
