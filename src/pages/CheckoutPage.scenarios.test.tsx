@@ -237,7 +237,7 @@ beforeEach(() => {
     bank_name: 'Bank SaDesa',
     bank_account_number: '1234567890',
     bank_account_name: 'Toko Demo',
-    qris_image_url: null,
+    qris_image_url: 'https://example.com/merchant-qris.png',
   }];
   mockCheckout.transferEnabled = true;
   mockCheckout.xenditEnabled = true;
@@ -361,21 +361,24 @@ describe('CheckoutPage scenario regressions', () => {
     expect(screen.queryByText('Pesanan Berhasil!')).not.toBeInTheDocument();
   });
 
-  it('uses online payment and preserves the order when invoice creation fails', async () => {
-    mockCheckout.transferEnabled = false;
-    mockCheckout.createPaymentInvoice.mockRejectedValueOnce(new Error('Provider sementara tidak tersedia'));
+  it('shows only the active merchant QRIS and never renders bank account details', async () => {
     await preparePickupCheckout();
 
-    await waitFor(() => expect(document.getElementById('online')).toBeChecked());
-    submitForm();
+    expect(screen.getByText('QRIS toko')).toBeInTheDocument();
+    expect(screen.getByAltText('QRIS Toko Demo')).toHaveAttribute('src', 'https://example.com/merchant-qris.png');
+    expect(screen.queryByText('1234567890')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bank SaDesa')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /online/i })).not.toBeInTheDocument();
+  });
 
-    expect(await screen.findByRole('heading', { name: 'Pesanan Dibuat, Pembayaran Tertunda' })).toBeInTheDocument();
-    expect(mockCheckout.rpc).toHaveBeenCalledWith('create_marketplace_checkout', expect.objectContaining({
-      p_payment_method: 'ONLINE',
-    }));
-    expect(mockCheckout.createPaymentInvoice).toHaveBeenCalledWith({ orderId: 'order-1' });
-    expect(mockCheckout.removeFromCart).toHaveBeenCalledWith('product-1');
-    expect(screen.getByRole('button', { name: 'Coba Bayar Lagi' })).toBeInTheDocument();
+  it('blocks checkout until the merchant has an active QRIS', async () => {
+    mockCheckout.merchantRows = [{ ...(mockCheckout.merchantRows[0] as Record<string, unknown>), qris_image_url: null }];
+    await preparePickupCheckout();
+
+    expect(screen.getByRole('alert')).toHaveTextContent('QRIS toko belum aktif');
+    const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    expect(submitButton?.disabled).toBe(true);
+    expect(mockCheckout.rpc.mock.calls.some(([name]) => name === 'create_marketplace_checkout')).toBe(false);
   });
 
   it('rejects checkout when current server stock is lower than the cart demand', async () => {

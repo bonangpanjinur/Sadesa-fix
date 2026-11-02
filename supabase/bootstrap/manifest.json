@@ -585,12 +585,12 @@
       "bytes": 16011
     },
     {
-      "file": "134_20261101143000_gdc_qris_mpm_checkout.sql",
+      "file": "134_20261029120000_marketplace_qris_only.sql",
       "source_files": [
-        "134_20261101143000_gdc_qris_mpm_checkout.sql"
+        "134_20261029120000_marketplace_qris_only.sql"
       ],
-      "sha256": "9114d71a3e856ee0adf1df7a396f402951955a8061263d6c242d113d65793a37",
-      "bytes": 12821
+      "sha256": "621c1198bbe488026ec1e78880b7d86dd09b2b851d579048d1f4eba88357666d",
+      "bytes": 8470
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",
