@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Copy, CheckCircle, QrCode, Clock, ExternalLink, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -12,6 +12,8 @@ import { getGuestOrderAccess, guestOrderUrl } from '@/lib/guestCheckout';
 import { toast } from '@/hooks/use-toast';
 import { PaymentProofUpload } from '@/components/checkout/PaymentProofUpload';
 import { PaymentCountdown } from '@/components/checkout/PaymentCountdown';
+import { QRCodeSVG } from 'qrcode.react';
+import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus, type GdcQrisMpmPayment } from '@/lib/gdcQrisMpmApi';
 
 interface PaymentInfo {
   qrisImageUrl: string | null;
@@ -22,6 +24,7 @@ interface OrderInfo {
   total: number;
   payment_method: string;
   payment_status: string;
+  payment_channel?: string | null;
   merchant_id: string;
   created_at: string;
   merchant_name?: string;
@@ -64,7 +67,7 @@ export default function PaymentConfirmationPage() {
       } else if (user) {
         const result = await supabase
           .from('orders')
-          .select('id, total, payment_method, payment_status, merchant_id, created_at, payment_proof_url, confirmation_deadline, payment_destination_snapshot' as never)
+          .select('id, total, payment_method, payment_status, payment_channel, merchant_id, created_at, payment_proof_url, confirmation_deadline, payment_destination_snapshot' as never)
           .eq('id', orderId)
           .eq('buyer_id', user.id)
           .maybeSingle();
@@ -204,7 +207,7 @@ export default function PaymentConfirmationPage() {
           </Card>
         )}
 
-        {!isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions && (
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions && (
           <Card className="border-amber-200 bg-amber-50/70">
             <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-950" role="status">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
@@ -217,7 +220,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* QRIS */}
-        {!isPaymentComplete && !isPaymentExpired && paymentInfo.qrisImageUrl && (
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && paymentInfo.qrisImageUrl && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card>
               <CardContent className="p-4">
@@ -242,7 +245,7 @@ export default function PaymentConfirmationPage() {
         )}
 
         {/* Upload Bukti Pembayaran */}
-        {!isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
@@ -263,7 +266,7 @@ export default function PaymentConfirmationPage() {
         </motion.div>}
 
         {/* Instructions */}
-        {!isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
