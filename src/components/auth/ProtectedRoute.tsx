@@ -67,6 +67,13 @@ export function ProtectedRoute({
         setAddressStatus(data?.province_id && data?.city_id && data?.district_id && data?.village_id && phoneComplete
           ? 'complete'
           : 'incomplete');
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        console.warn('Unable to verify required profile address:', error);
+        // Do not leave the route in "checking" forever when the request
+        // rejects before Supabase can return a response.
+        setAddressStatus('error');
       });
 
     return () => { cancelled = true; };
@@ -93,6 +100,12 @@ export function ProtectedRoute({
           && data?.registration_status === 'APPROVED'
           && data.status === 'ACTIVE';
         setMerchantAccessAllowed(allowed);
+        setMerchantAccessLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        console.warn('Unable to verify merchant access:', error);
+        setMerchantAccessAllowed(false);
         setMerchantAccessLoading(false);
       });
 
