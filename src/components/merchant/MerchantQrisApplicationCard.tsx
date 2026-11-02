@@ -191,7 +191,9 @@ function MerchantQrisApplicationCardContent({ merchantId, merchantName, qrisImag
       <CardDescription>Ajukan data QRIS untuk toko Anda. Tim Desa akan memverifikasi dan mendaftarkan merchant ke Neo/GDC secara manual. Setelah QRIS statis diterbitkan, tim akan mengunggah dan mengaktifkannya; merchant tidak dapat mengunggah atau mengganti QRIS sendiri.</CardDescription>
     </CardHeader>
     <CardContent className="space-y-5">
-      {loading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Memuat status pengajuan…</div> : loadError ? <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" /><div><p className="font-medium">Status QRIS belum dapat dimuat</p><p className="mt-1 text-muted-foreground">Pengaturan toko lain tetap dapat digunakan. Muat ulang halaman atau coba lagi beberapa saat.</p></div></div> : <>
+      {loading && <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Memuat status pengajuan sambil menyiapkan formulir…</div>}
+      {loadError && <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" /><div><p className="font-medium">Status QRIS belum dapat dimuat</p><p className="mt-1 text-muted-foreground">Formulir tetap dapat diisi. Muat ulang halaman sebelum mengirim jika masalah berlanjut.</p></div></div>}
+      <>
         {application && <div className={`rounded-lg border p-4 ${application.status === 'ACTIVE' ? 'border-emerald-300 bg-emerald-50' : 'border-primary/20 bg-primary/5'}`}>
           <div className="flex items-center gap-2 font-semibold">{application.status === 'ACTIVE' ? <CheckCircle2 className="h-4 w-4 text-emerald-700" /> : <Clock3 className="h-4 w-4 text-primary" />}{statusLabels[application.status]}</div>
           <p className="mt-1 text-xs text-muted-foreground">Nomor pengajuan {application.application_number} · {new Date(application.submitted_at).toLocaleDateString('id-ID')}</p>
@@ -211,7 +213,7 @@ function MerchantQrisApplicationCardContent({ merchantId, merchantName, qrisImag
           <p className="text-xs text-muted-foreground">Dengan mengirim, Anda menyatakan data benar. Dokumen disimpan privat untuk keperluan verifikasi QRIS.</p>
           <Button type="button" onClick={() => void submit()} disabled={saving} className="gap-2">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{needsCorrection ? 'Kirim Perbaikan' : 'Kirim Pengajuan QRIS'}</Button>
         </div>}
-      </>}
+      </>
     </CardContent>
   </Card>;
 }
