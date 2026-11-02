@@ -1,5 +1,5 @@
-import { Component, type ChangeEvent, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, Clock3, FileImage, Loader2, QrCode, Upload } from 'lucide-react';
+import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, Clock3, Loader2, QrCode } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 
 type Status = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
 type Application = { id: string; application_number: string; status: Status; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string, string> | null; decision_note: string | null; submitted_at: string; revision_number: number };
@@ -80,6 +81,7 @@ function MerchantQrisApplicationCardContent({ merchantId, merchantName, qrisImag
   const [shortName, setShortName] = useState('');
   const [merchantQrisName, setMerchantQrisName] = useState('');
   const [files, setFiles] = useState<Record<string, File>>({});
+  const [previews, setPreviews] = useState<Record<string, string>>({});
   const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -114,17 +116,32 @@ function MerchantQrisApplicationCardContent({ merchantId, merchantName, qrisImag
   const needsCorrection = application?.status === 'NEEDS_CORRECTION';
   const canApply = !application || needsCorrection || application.status === 'REJECTED';
 
-  const handleFileChange = (code: string, event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
+  const handleFileSelected = (code: string, file: File): boolean => {
     const error = documentError(file);
     setFileErrors((current) => {
       const next = { ...current };
       if (error) next[code] = error; else delete next[code];
       return next;
     });
-    if (!error) setFiles((current) => ({ ...current, [code]: file }));
+    if (error) return false;
+    setFiles((current) => ({ ...current, [code]: file }));
+    return true;
+  };
+
+  const handlePreviewChange = (code: string, url: string | null) => {
+    setPreviews((current) => {
+      if (current[code] && current[code] !== url) URL.revokeObjectURL(current[code]);
+      const next = { ...current };
+      if (url) next[code] = url; else delete next[code];
+      return next;
+    });
+    if (!url) {
+      setFiles((current) => {
+        const next = { ...current };
+        delete next[code];
+        return next;
+      });
+    }
   };
 
   const submit = async () => {
@@ -178,6 +195,8 @@ function MerchantQrisApplicationCardContent({ merchantId, merchantName, qrisImag
       if (error) throw error;
       setApplication({ ...(data as Application), documents: (data as Application).documents || {} });
       setFiles({});
+      Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
+      setPreviews({});
       toast.success('Pengajuan QRIS Sadesa berhasil dikirim. Admin akan memverifikasi data Anda.');
     } catch (error) {
       if (uploadedPaths.length) await supabase.storage.from('qris-applications').remove(uploadedPaths);
@@ -209,7 +228,7 @@ function MerchantQrisApplicationCardContent({ merchantId, merchantName, qrisImag
             <div className="space-y-2"><Label>Nama Merchant QRIS (maks. 25 karakter)</Label><Input maxLength={25} value={shortName} onChange={(event) => setShortName(event.target.value)} placeholder="Nama singkat merchant" /><p className="text-right text-xs text-muted-foreground">{shortName.length}/25</p></div>
             <div className="space-y-2"><Label>Nama Merchant QRIS (maks. 50 karakter)</Label><Input maxLength={50} value={merchantQrisName} onChange={(event) => setMerchantQrisName(event.target.value)} placeholder="Nama yang ditampilkan pada QRIS" /><p className="text-right text-xs text-muted-foreground">{merchantQrisName.length}/50</p></div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">{requiredDocuments.map(({ code, label }) => <div key={code} className="space-y-2"><Label>{label} <span className="text-destructive">*</span></Label><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm hover:bg-muted/60"><FileImage className="h-5 w-5 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{files[code]?.name || (application?.documents?.[code] ? 'Dokumen tersimpan · pilih untuk mengganti' : 'Pilih foto JPG/PNG')}</span><Upload className="h-4 w-4" /><input type="file" accept="image/jpeg,image/png" className="sr-only" onChange={(event) => handleFileChange(code, event)} /></label>{fileErrors[code] ? <p role="alert" className="text-xs text-destructive">{fileErrors[code]}</p> : <p className="text-xs text-muted-foreground">JPG atau PNG, maksimal 2 MB.</p>}</div>)}</div>
+          <div className="grid gap-4 sm:grid-cols-2">{requiredDocuments.map(({ code, label }) => <div key={code} className="space-y-2"><Label>{label} <span className="text-destructive">*</span></Label><ImageUpload bucket="merchant-images" path="qris-picker" value={previews[code] || null} onChange={(url) => handlePreviewChange(code, url)} onFileSelected={(file) => handleFileSelected(code, file)} deferUpload maxSizeMB={2} placeholder="Pilih foto JPG/PNG" objectFit="contain" />{fileErrors[code] ? <p role="alert" className="text-xs text-destructive">{fileErrors[code]}</p> : <p className="text-xs text-muted-foreground">JPG atau PNG, maksimal 2 MB. Upload privat dilakukan saat pengajuan dikirim.</p>}</div>)}</div>
           <p className="text-xs text-muted-foreground">Dengan mengirim, Anda menyatakan data benar. Dokumen disimpan privat untuk keperluan verifikasi QRIS.</p>
           <Button type="button" onClick={() => void submit()} disabled={saving} className="gap-2">{saving && <Loader2 className="h-4 w-4 animate-spin" />}{needsCorrection ? 'Kirim Perbaikan' : 'Kirim Pengajuan QRIS'}</Button>
         </div>}
