@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, Clock3, FileImage, Loader2, QrCode, Upload }
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { observe } from '@/lib/observability';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -148,8 +149,18 @@ function MerchantQrisApplicationCardContent({ merchantId, merchantName, qrisImag
         if (validationError) throw new Error(validationError);
         const extension = file.type === 'image/png' ? 'png' : 'jpg';
         const objectPath = `${user.id}/${applicationId}/${code.toLowerCase()}-${Date.now()}.${extension}`;
-        const { error: uploadError } = await supabase.storage.from('qris-applications').upload(objectPath, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-        if (uploadError) throw uploadError;
+        await observe('upload', 'file_upload', async () => {
+          const { error: uploadError } = await supabase.storage.from('qris-applications').upload(objectPath, file, {
+            upsert: true,
+            contentType: file.type,
+            cacheControl: '3600',
+          });
+          if (uploadError) throw uploadError;
+        }, {
+          bucket: 'qris-applications',
+          fileType: file.type || 'unknown',
+          sizeBytes: file.size,
+        });
         uploadedPaths.push(objectPath);
         documentPaths[code] = objectPath;
       }
