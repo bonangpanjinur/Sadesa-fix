@@ -388,11 +388,24 @@ describe('CheckoutPage scenario regressions', () => {
     expect(document.querySelector('button[type="submit"]')).toBeEnabled();
   });
 
-  it('blocks checkout until the merchant has an active QRIS', async () => {
+  it('allows QR MPM checkout without any static QR image', async () => {
+    mockCheckout.merchantRows = [{ ...(mockCheckout.merchantRows[0] as Record<string, unknown>), qris_image_url: null }];
+    mockCheckout.gdcMpmAvailable = true;
+    await preparePickupCheckout();
+
+    expect(screen.queryByRole('radio', { name: /QRIS statis merchant/i })).not.toBeInTheDocument();
+    const dynamicQris = screen.getByRole('radio', { name: /QRIS MPM dinamis/ });
+    expect(dynamicQris).toBeEnabled();
+    fireEvent.click(dynamicQris);
+    expect(document.querySelector('button[type="submit"]')).toBeEnabled();
+  });
+
+  it('blocks checkout when neither dynamic MPM nor static QR is configured', async () => {
     mockCheckout.merchantRows = [{ ...(mockCheckout.merchantRows[0] as Record<string, unknown>), qris_image_url: null }];
     await preparePickupCheckout();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('QRIS toko belum aktif');
+    expect(screen.queryByRole('radio', { name: /QRIS statis merchant/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /QRIS MPM dinamis/ })).toBeDisabled();
     const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     expect(submitButton?.disabled).toBe(true);
     expect(mockCheckout.rpc.mock.calls.some(([name]) => name === 'create_marketplace_checkout')).toBe(false);

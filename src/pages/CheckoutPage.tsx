@@ -622,10 +622,10 @@ export default function CheckoutPage() {
 
     if (!paymentReady) {
       toast({
-        title: paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM belum tersedia' : 'QRIS merchant belum aktif',
+        title: paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM belum tersedia' : 'Pilih metode QRIS yang tersedia',
         description: paymentMethod === 'QRIS_DYNAMIC'
           ? 'Pastikan akun Anda login dan admin sudah mengaktifkan NMID serta Account Number GDC untuk merchant ini.'
-          : 'Admin harus mengunggah dan mengaktifkan QRIS merchant sebelum checkout dapat dilanjutkan.',
+          : 'Pilih QRIS MPM dinamis jika tersedia untuk merchant ini. QRIS statis hanya muncul jika merchant memang mengaktifkannya.',
         variant: 'destructive',
       });
       return;
@@ -1257,10 +1257,12 @@ export default function CheckoutPage() {
           </div>
 
           <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} className="space-y-2">
-            <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'} ${merchantPaymentSettings?.qrisImageUrl ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
-              <RadioGroupItem value="TRANSFER" id="payment-qris-static" disabled={!merchantPaymentSettings?.qrisImageUrl} />
-              <span><span className="block text-sm font-semibold">QRIS statis merchant</span><span className="block text-xs text-muted-foreground">Pindai QRIS yang sudah diterbitkan untuk toko.</span></span>
-            </label>
+            {merchantPaymentSettings?.qrisImageUrl && (
+              <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'} cursor-pointer`}>
+                <RadioGroupItem value="TRANSFER" id="payment-qris-static" />
+                <span><span className="block text-sm font-semibold">QRIS statis merchant</span><span className="block text-xs text-muted-foreground">Pindai QRIS yang sudah diterbitkan untuk toko.</span></span>
+              </label>
+            )}
             <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'QRIS_DYNAMIC' ? 'border-primary bg-primary/5' : 'border-border'} ${user && gdcMpmAvailable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
               <RadioGroupItem value="QRIS_DYNAMIC" id="payment-qris-mpm" disabled={!user || !gdcMpmAvailable || gdcMpmAvailabilityLoading} />
               <span><span className="block text-sm font-semibold">QRIS MPM dinamis (Neo/GDC)</span><span className="block text-xs text-muted-foreground">QR unik dibuat setelah pesanan tersimpan; nominal dan identitas merchant diambil server.</span></span>
@@ -1277,10 +1279,6 @@ export default function CheckoutPage() {
                 <img src={merchantPaymentSettings.qrisImageUrl} alt={`QRIS ${items[0]?.product.merchantName || 'toko'}`} className="max-h-64 w-auto max-w-full" />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">Pindai QRIS ini untuk membayar pesanan ke merchant yang dipilih.</p>
-            </div>
-          ) : paymentMethod === 'TRANSFER' ? (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-              QRIS toko belum aktif. Checkout belum dapat dilanjutkan sampai admin mengunggah dan mengaktifkan QRIS merchant ini.
             </div>
           ) : null}
           {paymentMethod === 'QRIS_DYNAMIC' && (
