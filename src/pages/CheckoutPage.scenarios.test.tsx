@@ -10,6 +10,7 @@ const mockCheckout = vi.hoisted(() => ({
   items: [] as unknown[],
   stockRows: [] as unknown[],
   merchantRows: [] as unknown[],
+  adminPaymentInfo: null as Record<string, unknown> | null,
   merchantIsOpen: true,
   transferEnabled: true,
   gdcMpmAvailable: false,
@@ -149,6 +150,7 @@ vi.mock('@/integrations/supabase/client', () => ({
               error: null,
             };
           }
+          if (table === 'app_settings') return { data: { value: mockCheckout.adminPaymentInfo }, error: null };
           return { data: null, error: null };
         },
         in: async () => {
@@ -232,6 +234,12 @@ beforeEach(() => {
   mockCheckout.merchantIsOpen = true;
   mockCheckout.gdcMpmAvailable = false;
   mockCheckout.gdcMpmShouldFail = false;
+  mockCheckout.adminPaymentInfo = {
+    bank_name: 'Bank Admin Sadesa',
+    bank_account_number: '8881234567',
+    bank_account_name: 'Admin Sadesa',
+    qris_image_url: 'https://example.com/admin-qris.png',
+  };
   mockCheckout.merchantRows = [{
     id: 'merchant-1',
     name: 'Toko Demo',
@@ -371,13 +379,13 @@ describe('CheckoutPage scenario regressions', () => {
     expect(screen.queryByText('Pesanan Berhasil!')).not.toBeInTheDocument();
   });
 
-  it('shows only the active merchant QRIS and never renders bank account details', async () => {
+  it('shows the Admin Sadesa QR/bank fallback instead of the merchant static QR', async () => {
     await preparePickupCheckout();
 
-    expect(screen.getByText('QRIS toko')).toBeInTheDocument();
-    expect(screen.getByAltText('QRIS Toko Demo')).toHaveAttribute('src', 'https://example.com/merchant-qris.png');
-    expect(screen.queryByText('1234567890')).not.toBeInTheDocument();
-    expect(screen.queryByText('Bank SaDesa')).not.toBeInTheDocument();
+    expect(screen.getByText('Tujuan pembayaran resmi Admin Sadesa')).toBeInTheDocument();
+    expect(screen.getByAltText('QRIS Admin Sadesa')).toHaveAttribute('src', 'https://example.com/admin-qris.png');
+    expect(screen.getByText('8881234567')).toBeInTheDocument();
+    expect(screen.queryByAltText('QRIS Toko Demo')).not.toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: /online/i })).not.toBeInTheDocument();
   });
 
@@ -387,6 +395,7 @@ describe('CheckoutPage scenario regressions', () => {
 
     const dynamicQris = screen.getByRole('radio', { name: /QRIS MPM dinamis/ });
     expect(dynamicQris).toBeEnabled();
+    await waitFor(() => expect(dynamicQris).toBeChecked());
     fireEvent.click(dynamicQris);
     expect(dynamicQris).toBeChecked();
     expect(document.querySelector('button[type="submit"]')).toBeEnabled();
@@ -414,11 +423,12 @@ describe('CheckoutPage scenario regressions', () => {
     await waitFor(() => expect(screen.getByRole('radio', { name: /QRIS MPM dinamis/ })).toBeEnabled());
   });
 
-  it('blocks checkout when neither dynamic MPM nor static QR is configured', async () => {
+  it('blocks checkout when neither dynamic MPM nor Admin Sadesa manual payment is configured', async () => {
     mockCheckout.merchantRows = [{ ...(mockCheckout.merchantRows[0] as Record<string, unknown>), qris_image_url: null }];
+    mockCheckout.adminPaymentInfo = {};
     await preparePickupCheckout();
 
-    expect(screen.queryByRole('radio', { name: /QRIS statis merchant/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Admin Sadesa/i })).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: /QRIS MPM dinamis/ })).toBeDisabled();
     const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement | null;
     expect(submitButton?.disabled).toBe(true);

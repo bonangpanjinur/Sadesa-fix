@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 343,
-  "bundle_count": 137,
+  "migration_count": 344,
+  "bundle_count": 138,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -483,7 +483,7 @@
     {
       "file": "122_20261014174600_ride_pickup_landmark.sql",
       "source_files": [
-        "122_20261014174600_ride_pickup_landmark.sql"
+        "20261014174600_ride_pickup_landmark.sql"
       ],
       "sha256": "057db744df194bf67f7935bc87de0222159098af72d9e18a42af10b0b0e925f2",
       "bytes": 2611
@@ -607,6 +607,14 @@
       ],
       "sha256": "b48e5ad875100b03552d432a695ce14396812eb00c1c366404ebf4876af3df29",
       "bytes": 4443
+    },
+    {
+      "file": "136_20261103090000_qris_mpm_admin_fallback.sql",
+      "source_files": [
+        "136_20261103090000_qris_mpm_admin_fallback.sql"
+      ],
+      "sha256": "3ed1f9bfb436351913d78a19d182e5215365a3103555de31b3b27b9f8598bf38",
+      "bytes": 6720
     },
     {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",

@@ -68,7 +68,7 @@ export function ProtectedRoute({
           ? 'complete'
           : 'incomplete');
       })
-      .catch((error: unknown) => {
+      .then(undefined, (error: unknown) => {
         if (cancelled) return;
         console.warn('Unable to verify required profile address:', error);
         // Do not leave the route in "checking" forever when the request
@@ -102,7 +102,7 @@ export function ProtectedRoute({
         setMerchantAccessAllowed(allowed);
         setMerchantAccessLoading(false);
       })
-      .catch((error: unknown) => {
+      .then(undefined, (error: unknown) => {
         if (cancelled) return;
         console.warn('Unable to verify merchant access:', error);
         setMerchantAccessAllowed(false);

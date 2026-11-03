@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatPrice } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createGdcPayment: vi.fn(),
   queryGdcPayment: vi.fn(),
   user: { id: 'buyer-1' },
+  paymentDestinationSource: null as string | null,
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -49,6 +50,7 @@ import PaymentConfirmationPage from './PaymentConfirmationPage';
 describe('PaymentConfirmationPage authoritative order total', () => {
   beforeEach(() => {
     mocks.provider = '';
+    mocks.paymentDestinationSource = null;
     mocks.createGdcPayment.mockReset();
     mocks.queryGdcPayment.mockReset();
     const realtimeChannel = { on: vi.fn(), subscribe: vi.fn() };
@@ -69,6 +71,7 @@ describe('PaymentConfirmationPage authoritative order total', () => {
                 bank_account_number: '123456789',
                 bank_account_name: 'Pemilik Test',
                 qris_image_url: 'https://example.com/merchant-qris.png',
+                source: mocks.paymentDestinationSource,
               },
             },
             error: null,
@@ -125,5 +128,21 @@ describe('PaymentConfirmationPage authoritative order total', () => {
     await waitFor(() => expect(mocks.createGdcPayment).toHaveBeenCalledWith('order-1'));
     expect(await screen.findByText('QRIS MPM Dinamis')).toBeInTheDocument();
     expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('offers the Admin Sadesa snapshot when GDC QR generation fails', async () => {
+    mocks.provider = 'gdc-mpm';
+    mocks.paymentDestinationSource = 'ADMIN';
+    mocks.createGdcPayment.mockRejectedValue(new Error('Layanan QRIS belum dapat memproses pembayaran.'));
+    render(<PaymentConfirmationPage />);
+
+    const fallbackButton = await screen.findByRole('button', { name: 'Gunakan QR / transfer bank Admin Sadesa' });
+    expect(fallbackButton).toBeInTheDocument();
+    fireEvent.click(fallbackButton);
+
+    expect(await screen.findByText('Transfer Bank Admin Sadesa')).toBeInTheDocument();
+    expect(screen.getByText('123456789')).toBeInTheDocument();
+    expect(screen.getByText('Metode dialihkan ke pembayaran manual Admin Sadesa')).toBeInTheDocument();
+    expect(screen.getByText(/jangan membayar QR dinamis dan QR\/rekening admin sekaligus/i)).toBeInTheDocument();
   });
 });

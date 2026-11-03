@@ -17,6 +17,10 @@ import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus, type GdcQrisMpmPayment } 
 
 interface PaymentInfo {
   qrisImageUrl: string | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountName: string | null;
+  source: string | null;
 }
 
 interface OrderInfo {
@@ -40,6 +44,7 @@ export default function PaymentConfirmationPage() {
   const { user } = useAuth();
   const guestToken = searchParams.get('guest_token') || getGuestOrderAccess(orderId || '', null)?.token;
   const isGdcMpmRoute = searchParams.get('provider') === 'gdc-mpm';
+  const isAdminManualRoute = searchParams.get('provider') === 'admin-manual';
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -47,6 +52,7 @@ export default function PaymentConfirmationPage() {
   const [gdcPayment, setGdcPayment] = useState<GdcQrisMpmPayment | null>(null);
   const [gdcPaymentError, setGdcPaymentError] = useState<string | null>(null);
   const [gdcCreating, setGdcCreating] = useState(false);
+  const [useAdminManualFallback, setUseAdminManualFallback] = useState(false);
 
   const loadOrderAndPaymentInfo = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -62,11 +68,15 @@ export default function PaymentConfirmationPage() {
           p_guest_access_token: guestToken,
         } as never);
         if (error || !data) throw new Error('Pesanan guest tidak ditemukan atau link sudah kedaluwarsa');
-        const context = data as OrderInfo & { qris_image_url?: string | null };
+        const context = data as OrderInfo & { qris_image_url?: string | null; bank_name?: string | null; bank_account_number?: string | null; bank_account_name?: string | null; payment_destination_source?: string | null };
         orderData = context;
         paymentDestination = {
           merchant_name: context.merchant_name,
           qris_image_url: context.qris_image_url,
+          bank_name: context.bank_name,
+          bank_account_number: context.bank_account_number,
+          bank_account_name: context.bank_account_name,
+          source: context.payment_destination_source,
         };
       } else if (user) {
         const result = await supabase
@@ -86,6 +96,10 @@ export default function PaymentConfirmationPage() {
       setOrder({ ...orderData, merchant_name: String(paymentDestination.merchant_name || orderData.merchant_name || 'Merchant') });
       setPaymentInfo({
         qrisImageUrl: typeof paymentDestination.qris_image_url === 'string' ? paymentDestination.qris_image_url : null,
+        bankName: typeof paymentDestination.bank_name === 'string' ? paymentDestination.bank_name : null,
+        bankAccountNumber: typeof paymentDestination.bank_account_number === 'string' ? paymentDestination.bank_account_number : null,
+        bankAccountName: typeof paymentDestination.bank_account_name === 'string' ? paymentDestination.bank_account_name : null,
+        source: typeof paymentDestination.source === 'string' ? paymentDestination.source : null,
       });
     } catch (error) {
       console.error('Error loading payment info:', error);
@@ -129,7 +143,7 @@ export default function PaymentConfirmationPage() {
   const paymentOrderId = order?.id;
   const paymentOrderMethod = order?.payment_method;
   useEffect(() => {
-    if (!isGdcMpmRoute || !paymentOrderId || paymentOrderMethod !== 'TRANSFER' || !user) return;
+    if (!isGdcMpmRoute || isAdminManualRoute || useAdminManualFallback || !paymentOrderId || paymentOrderMethod !== 'TRANSFER' || !user) return;
     let active = true;
     let pollId: number | undefined;
     const createAndPoll = async () => {
@@ -163,7 +177,7 @@ export default function PaymentConfirmationPage() {
       active = false;
       if (pollId !== undefined) window.clearInterval(pollId);
     };
-  }, [isGdcMpmRoute, paymentOrderId, paymentOrderMethod, user]);
+  }, [isGdcMpmRoute, isAdminManualRoute, useAdminManualFallback, paymentOrderId, paymentOrderMethod, user]);
 
   const handleCopyAmount = () => {
     if (order?.total) {
@@ -199,8 +213,13 @@ export default function PaymentConfirmationPage() {
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
   const isPaymentExpired = paymentStatus === 'EXPIRED'
     || Boolean(order.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now() && !isPaymentComplete);
-  const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl);
+  const hasAdminBankInstructions = paymentInfo.source === 'ADMIN'
+    && Boolean(paymentInfo.bankName && paymentInfo.bankAccountNumber);
+  const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl || hasAdminBankInstructions);
   const isGdcMpmPayment = isGdcMpmRoute && order.payment_method === 'TRANSFER';
+  const showGdcMpmPayment = isGdcMpmPayment && !useAdminManualFallback;
+  const showAdminFallbackNotice = useAdminManualFallback || isAdminManualRoute;
+  const canUseAdminFallback = isGdcMpmPayment && paymentInfo.source === 'ADMIN' && hasPaymentInstructions;
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
@@ -265,7 +284,7 @@ export default function PaymentConfirmationPage() {
           </Card>
         )}
 
-        {isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && (
+        {showGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && (
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3"><QrCode className="h-5 w-5 text-primary" /><h3 className="font-bold">QRIS MPM Dinamis</h3></div>
@@ -281,36 +300,57 @@ export default function PaymentConfirmationPage() {
               ) : null}
               {gdcPaymentError && !gdcPayment && <Button className="mt-3 w-full" onClick={() => void createGdcPayment()} disabled={gdcCreating}>{gdcCreating ? 'Mencoba lagi…' : 'Coba buat QR lagi'}</Button>}
               {gdcPayment?.status === 'FAILED' && <p className="mt-3 text-sm text-destructive" role="status">Provider menandai pembayaran ini gagal. Silakan hubungi merchant sebelum mencoba pembayaran lain.</p>}
+              {gdcPaymentError && !canUseAdminFallback && <p className="mt-3 text-sm text-amber-700" role="status">QR/rekening fallback Admin Sadesa belum tersimpan pada pesanan ini. Jangan transfer manual ke tujuan lain; hubungi Admin Sadesa untuk verifikasi.</p>}
+              {canUseAdminFallback && ((gdcPaymentError && !gdcPayment) || gdcPayment?.status === 'FAILED') && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">Jika permintaan sebelumnya mengalami timeout, periksa dulu ke Admin Sadesa bahwa QR GDC belum berhasil dibuat agar tidak terjadi pembayaran ganda.</p>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => {
+                    setUseAdminManualFallback(true);
+                    const manualParams = new URLSearchParams(searchParams);
+                    manualParams.set('provider', 'admin-manual');
+                    navigate(`/payment/${order.id}?${manualParams.toString()}`, { replace: true });
+                  }}>Gunakan QR / transfer bank Admin Sadesa</Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions && (
+        {showAdminFallbackNotice && (
+          <Card className="border-amber-200 bg-amber-50/70">
+            <CardContent className="p-4 text-sm text-amber-950" role="status">
+              <p className="font-bold">Metode dialihkan ke pembayaran manual Admin Sadesa</p>
+              <p className="mt-1">Jangan membayar QR dinamis dan QR/rekening admin sekaligus. Jika QR GDC mungkin sudah terbentuk saat timeout, hubungi admin terlebih dahulu untuk verifikasi.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {!showGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && !hasPaymentInstructions && (
           <Card className="border-amber-200 bg-amber-50/70">
             <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-950" role="status">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>
                 <p className="font-bold">Menunggu instruksi pembayaran</p>
-                <p className="mt-1">QRIS merchant belum tersedia untuk pesanan ini. Jangan melakukan pembayaran sebelum QRIS resmi ditampilkan.</p>
+                <p className="mt-1">QR atau rekening Admin Sadesa belum tersedia pada snapshot pesanan ini. Jangan melakukan pembayaran sebelum instruksi resmi ditampilkan.</p>
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* QRIS */}
-        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && paymentInfo.qrisImageUrl && (
+        {!showGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && paymentInfo.qrisImageUrl && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <QrCode className="h-5 w-5 text-primary" />
-                  <h3 className="font-bold">QRIS</h3>
+                  <h3 className="font-bold">{paymentInfo.source === 'ADMIN' ? 'QRIS Admin Sadesa' : 'QRIS'}</h3>
                 </div>
 
                 <div className="flex justify-center p-4 bg-white rounded-lg border">
                   <img
                     src={paymentInfo.qrisImageUrl}
-                    alt="QRIS Payment"
+                    alt={paymentInfo.source === 'ADMIN' ? 'QRIS Admin Sadesa' : 'QRIS Payment'}
                     className="max-w-[280px] w-full h-auto"
                   />
                 </div>
@@ -322,8 +362,19 @@ export default function PaymentConfirmationPage() {
           </motion.div>
         )}
 
+        {hasAdminBankInstructions && !showGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && (
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-bold text-sm mb-2">Transfer Bank Admin Sadesa</h3>
+              <p className="font-semibold">{paymentInfo.bankName}</p>
+              <p className="mt-1">Nomor rekening: <strong>{paymentInfo.bankAccountNumber}</strong></p>
+              <p>a.n. {paymentInfo.bankAccountName || 'Admin Sadesa'}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Upload Bukti Pembayaran */}
-        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+        {!showGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Upload Bukti Pembayaran</h3>
@@ -344,13 +395,14 @@ export default function PaymentConfirmationPage() {
         </motion.div>}
 
         {/* Instructions */}
-        {!isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        {!showGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && hasPaymentInstructions && <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <Card>
             <CardContent className="p-4">
               <h3 className="font-bold text-sm mb-3">Petunjuk Pembayaran</h3>
+              <p className="mb-2 text-xs text-amber-700">Pilih satu metode saja—QRIS atau transfer bank. Jangan membayar keduanya.</p>
               <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
-                <li>Pindai QRIS merchant dan bayar sesuai <strong className="text-foreground">nominal yang tertera</strong></li>
-                <li>Pastikan nama merchant pada aplikasi pembayaran sesuai dengan toko</li>
+                <li>{paymentInfo.qrisImageUrl ? 'Pindai QRIS Admin Sadesa' : `Transfer ke rekening ${paymentInfo.bankName || 'Admin Sadesa'}`} sesuai <strong className="text-foreground">total pesanan</strong></li>
+                <li>Pastikan tujuan pembayaran sesuai dengan data admin yang ditampilkan</li>
                 <li><strong className="text-foreground">Upload bukti pembayaran</strong> di atas</li>
                 <li>Pesanan akan diproses setelah pembayaran dikonfirmasi oleh penjual</li>
               </ol>

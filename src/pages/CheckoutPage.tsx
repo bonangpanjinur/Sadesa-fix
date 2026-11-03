@@ -48,6 +48,13 @@ interface MerchantPaymentSettings {
   qrisImageUrl: string | null;
 }
 
+interface AdminPaymentInfo {
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  qris_image_url: string | null;
+}
+
 interface ShippingZoneEstimate {
   name: string;
   max_distance_km: number;
@@ -92,6 +99,9 @@ export default function CheckoutPage() {
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [adminPaymentInfo, setAdminPaymentInfo] = useState<AdminPaymentInfo | null>(null);
+  const [adminPaymentInfoLoading, setAdminPaymentInfoLoading] = useState(true);
+  const paymentMethodTouchedRef = useRef(false);
   const [gdcMpmAvailability, setGdcMpmAvailability] = useState<GdcMpmAvailability>('loading');
   const [gdcMpmAvailabilityAttempt, setGdcMpmAvailabilityAttempt] = useState(0);
   // The first available options are visibly selected by default, so the step
@@ -456,6 +466,36 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const loadAdminPaymentInfo = async () => {
+      setAdminPaymentInfoLoading(true);
+      try {
+        const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'admin_payment_info').maybeSingle();
+        if (error) throw error;
+        const value = data?.value && typeof data.value === 'object' ? data.value as Record<string, unknown> : {};
+        if (!cancelled) setAdminPaymentInfo({
+          bank_name: typeof value.bank_name === 'string' ? value.bank_name.trim() || null : null,
+          bank_account_number: typeof value.bank_account_number === 'string' ? value.bank_account_number.trim() || null : null,
+          bank_account_name: typeof value.bank_account_name === 'string' ? value.bank_account_name.trim() || null : null,
+          qris_image_url: typeof value.qris_image_url === 'string' ? value.qris_image_url.trim() || null : null,
+        });
+      } catch {
+        if (!cancelled) setAdminPaymentInfo(null);
+      } finally {
+        if (!cancelled) setAdminPaymentInfoLoading(false);
+      }
+    };
+    void loadAdminPaymentInfo();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (paymentMethodTouchedRef.current) return;
+    if (gdcMpmAvailability === 'available') setPaymentMethod('QRIS_DYNAMIC');
+    else if (gdcMpmAvailability === 'unavailable' || gdcMpmAvailability === 'error') setPaymentMethod('TRANSFER');
+  }, [gdcMpmAvailability]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loadMerchantOperatingHours = async () => {
       const ids = merchantIdsKey ? merchantIdsKey.split(',') : [];
       if (ids.length === 0) {
@@ -542,9 +582,11 @@ export default function CheckoutPage() {
     paymentSettingsLoadState.merchantId,
     firstMerchantId,
   ) && merchantPaymentSettings !== null;
+  const hasAdminBankFallback = Boolean(adminPaymentInfo?.bank_name && adminPaymentInfo.bank_account_number);
+  const hasAdminPaymentFallback = Boolean(adminPaymentInfo?.qris_image_url || hasAdminBankFallback);
   const paymentReady = paymentSettingsReady && (paymentMethod === 'QRIS_DYNAMIC'
     ? Boolean(user && gdcMpmAvailability === 'available')
-    : Boolean(merchantPaymentSettings?.qrisImageUrl?.trim()));
+    : Boolean(!adminPaymentInfoLoading && hasAdminPaymentFallback));
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -1255,11 +1297,11 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
-          <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} className="space-y-2">
-            {merchantPaymentSettings?.qrisImageUrl && (
+          <RadioGroup value={paymentMethod} onValueChange={(value) => { paymentMethodTouchedRef.current = true; setPaymentMethod(value as PaymentMethod); }} className="space-y-2">
+            {hasAdminPaymentFallback && (
               <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'} cursor-pointer`}>
-                <RadioGroupItem value="TRANSFER" id="payment-qris-static" />
-                <span><span className="block text-sm font-semibold">QRIS statis merchant</span><span className="block text-xs text-muted-foreground">Pindai QRIS yang sudah diterbitkan untuk toko.</span></span>
+                <RadioGroupItem value="TRANSFER" id="payment-admin-manual" />
+                <span><span className="block text-sm font-semibold">QRIS / Transfer Bank Admin Sadesa</span><span className="block text-xs text-muted-foreground">Pembayaran manual ke rekening atau QRIS resmi Sadesa, diverifikasi admin.</span></span>
               </label>
             )}
             <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'QRIS_DYNAMIC' ? 'border-primary bg-primary/5' : 'border-border'} ${user && gdcMpmAvailability === 'available' ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
@@ -1269,18 +1311,19 @@ export default function CheckoutPage() {
           </RadioGroup>
           {!user && <p className="mt-2 text-xs text-muted-foreground">QRIS MPM dinamis hanya tersedia untuk pembeli yang login.</p>}
           {user && gdcMpmAvailability === 'loading' && <p role="status" className="mt-2 text-xs text-muted-foreground">Memeriksa ketersediaan QRIS MPM merchant…</p>}
-          {user && gdcMpmAvailability === 'unavailable' && <p className="mt-2 text-xs text-muted-foreground">QRIS MPM belum tersedia untuk merchant ini. Admin dapat memeriksa status aplikasi dan kelengkapan identitas GDC.</p>}
+          {user && gdcMpmAvailability === 'unavailable' && <p className="mt-2 text-xs text-muted-foreground">QRIS MPM belum tersedia untuk merchant ini. Gunakan QRIS atau rekening admin Sadesa sebagai metode pembayaran alternatif.</p>}
+          {paymentMethod === 'QRIS_DYNAMIC' && !adminPaymentInfoLoading && !hasAdminPaymentFallback && <p className="mt-2 text-xs text-amber-700">QRIS dinamis dapat digunakan, tetapi fallback admin belum tersedia sampai Admin Sadesa mengatur QRIS atau rekening bank.</p>}
+          {!adminPaymentInfoLoading && !hasAdminPaymentFallback && paymentMethod !== 'QRIS_DYNAMIC' && <p className="mt-2 text-xs text-destructive">Metode pembayaran admin belum dikonfigurasi. Admin Sadesa perlu mengatur QRIS atau rekening bank.</p>}
           {user && gdcMpmAvailability === 'error' && <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive"><span role="alert">Ketersediaan QR MPM gagal diverifikasi. Coba lagi atau periksa layanan.</span><Button type="button" variant="outline" size="sm" onClick={() => setGdcMpmAvailabilityAttempt((attempt) => attempt + 1)}>Coba lagi</Button></div>}
 
-          {paymentMethod === 'TRANSFER' && merchantPaymentSettings?.qrisImageUrl ? (
-            <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
-              <p className="mb-2 text-sm font-semibold">QRIS toko</p>
-              <div className="flex justify-center rounded border bg-card p-3">
-                <img src={merchantPaymentSettings.qrisImageUrl} alt={`QRIS ${items[0]?.product.merchantName || 'toko'}`} className="max-h-64 w-auto max-w-full" />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">Pindai QRIS ini untuk membayar pesanan ke merchant yang dipilih.</p>
+          {paymentMethod === 'TRANSFER' && hasAdminPaymentFallback && (
+            <div className="mt-3 space-y-3 rounded-lg border bg-secondary/50 p-3">
+              <p className="text-sm font-semibold">Tujuan pembayaran resmi Admin Sadesa</p>
+              {adminPaymentInfo?.qris_image_url && <div className="rounded border bg-card p-3"><div className="flex justify-center"><img src={adminPaymentInfo.qris_image_url} alt="QRIS Admin Sadesa" className="max-h-64 w-auto max-w-full" /></div><p className="mt-2 text-center text-xs text-muted-foreground">Pindai QRIS admin dan bayar sesuai total pesanan.</p></div>}
+              {hasAdminBankFallback && <div className="rounded border bg-card p-3 text-sm"><p className="font-semibold">{adminPaymentInfo?.bank_name}</p><p>Nomor rekening: <strong>{adminPaymentInfo?.bank_account_number}</strong></p><p>a.n. {adminPaymentInfo?.bank_account_name || 'Admin Sadesa'}</p></div>}
+              <p className="text-xs text-muted-foreground">Pilih salah satu metode saja. Pembayaran manual diverifikasi Admin Sadesa setelah bukti diunggah.</p>
             </div>
-          ) : null}
+          )}
           {paymentMethod === 'QRIS_DYNAMIC' && (
             <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground" role="status">
               QR akan dibuat setelah pesanan tersimpan menggunakan Merchant ID GDC yang sudah diverifikasi admin. Pembayaran masuk langsung ke akun merchant.
@@ -1384,7 +1427,7 @@ export default function CheckoutPage() {
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              {paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM dinamis' : 'QRIS statis merchant'}
+              {paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM dinamis merchant' : 'QRIS / transfer bank Admin Sadesa'}
             </span>
           </span>
         </div>

@@ -248,8 +248,9 @@ async function processRequest(req: Request): Promise<Response> {
       .eq('id', order.id).eq('buyer_id', authData.user.id);
     if (markError) return json({ error: 'Metode pembayaran QRIS belum dapat disiapkan.' }, 503, req);
   }
-  let { data: payment, error: paymentError } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
+  const { data: existingPayment, error: paymentError } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
   if (paymentError) return json({ error: 'Data pembayaran tidak dapat dimuat.' }, 503, req);
+  let payment = existingPayment;
   if (payment?.status === 'PENDING' || payment?.status === 'PAID') return json(responsePayment(payment as PaymentRow));
   if (payment?.status === 'FAILED' && input.action === 'create' && payment.error_code !== 'QR_CREATE_FAILED') {
     return json({ error: 'Pembayaran ini sudah dinyatakan gagal oleh provider. Hubungi merchant untuk instruksi berikutnya.' }, 409, req);
@@ -261,7 +262,7 @@ async function processRequest(req: Request): Promise<Response> {
       merchant_id: order.merchant_id,
       amount,
       currency: 'IDR',
-      partner_reference_no: crypto.randomUUID(),
+      partner_reference_no: order.id,
       external_id: crypto.randomUUID(),
       status: 'CREATING',
     }).select('*').single();
