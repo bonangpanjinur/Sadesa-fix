@@ -197,8 +197,28 @@ async function processRequest(req: Request): Promise<Response> {
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData.user) return json({ error: 'Unauthorized' }, 401, req);
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const input = await req.json().catch(() => null) as { action?: string; order_id?: string } | null;
-  if (!input || !['create', 'status'].includes(input.action || '') || !input.order_id || !/^[0-9a-f-]{36}$/i.test(input.order_id)) {
+  const input = await req.json().catch(() => null) as { action?: string; order_id?: string; merchant_id?: string } | null;
+  if (!input || !['create', 'status', 'availability'].includes(input.action || '')) {
+    return json({ error: 'Permintaan pembayaran tidak valid.' }, 400, req);
+  }
+  if (input.action === 'availability') {
+    if (!input.merchant_id || !/^[0-9a-f-]{36}$/i.test(input.merchant_id)) {
+      return json({ error: 'Merchant tidak valid.' }, 400, req);
+    }
+    const { data: application, error } = await admin.from('qris_applications')
+      .select('gdc_merchant_id, gdc_account_number')
+      .eq('merchant_id', input.merchant_id)
+      .eq('status', 'ACTIVE')
+      .order('activated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error('GDC QR MPM availability check failed', error.message);
+      return json({ error: 'Ketersediaan QRIS MPM tidak dapat diperiksa.' }, 503, req);
+    }
+    return json({ available: Boolean(application?.gdc_merchant_id?.trim() && application?.gdc_account_number?.trim()) }, 200, req);
+  }
+  if (!input.order_id || !/^[0-9a-f-]{36}$/i.test(input.order_id)) {
     return json({ error: 'Permintaan pembayaran tidak valid.' }, 400, req);
   }
   const credentials = getCredentials();

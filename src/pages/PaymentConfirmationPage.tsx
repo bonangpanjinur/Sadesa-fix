@@ -39,10 +39,14 @@ export default function PaymentConfirmationPage() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const guestToken = searchParams.get('guest_token') || getGuestOrderAccess(orderId || '', null)?.token;
+  const isGdcMpmRoute = searchParams.get('provider') === 'gdc-mpm';
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [gdcPayment, setGdcPayment] = useState<GdcQrisMpmPayment | null>(null);
+  const [gdcPaymentError, setGdcPaymentError] = useState<string | null>(null);
+  const [gdcCreating, setGdcCreating] = useState(false);
 
   const loadOrderAndPaymentInfo = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -108,6 +112,59 @@ export default function PaymentConfirmationPage() {
     };
   }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
 
+  const createGdcPayment = useCallback(async () => {
+    if (!orderId) return;
+    setGdcCreating(true);
+    setGdcPaymentError(null);
+    try {
+      const payment = await createOrGetGdcQrisMpm(orderId);
+      setGdcPayment(payment);
+    } catch (error) {
+      setGdcPaymentError(error instanceof Error ? error.message : 'QR MPM belum dapat dibuat.');
+    } finally {
+      setGdcCreating(false);
+    }
+  }, [orderId]);
+
+  const paymentOrderId = order?.id;
+  const paymentOrderMethod = order?.payment_method;
+  useEffect(() => {
+    if (!isGdcMpmRoute || !paymentOrderId || paymentOrderMethod !== 'TRANSFER' || !user) return;
+    let active = true;
+    let pollId: number | undefined;
+    const createAndPoll = async () => {
+      setGdcCreating(true);
+      setGdcPaymentError(null);
+      try {
+        const payment = await createOrGetGdcQrisMpm(paymentOrderId);
+        if (!active) return;
+        setGdcPayment(payment);
+        if (payment.status === 'PENDING') {
+          pollId = window.setInterval(async () => {
+            try {
+              const status = await queryGdcQrisMpmStatus(paymentOrderId);
+              if (!active) return;
+              setGdcPaymentError(null);
+              setGdcPayment(status);
+              if (status.status !== 'PENDING' && pollId !== undefined) window.clearInterval(pollId);
+            } catch (error) {
+              if (active) setGdcPaymentError(error instanceof Error ? error.message : 'Status QR MPM belum dapat diperiksa.');
+            }
+          }, 15000);
+        }
+      } catch (error) {
+        if (active) setGdcPaymentError(error instanceof Error ? error.message : 'QR MPM belum dapat dibuat.');
+      } finally {
+        if (active) setGdcCreating(false);
+      }
+    };
+    void createAndPoll();
+    return () => {
+      active = false;
+      if (pollId !== undefined) window.clearInterval(pollId);
+    };
+  }, [isGdcMpmRoute, paymentOrderId, paymentOrderMethod, user]);
+
   const handleCopyAmount = () => {
     if (order?.total) {
       navigator.clipboard.writeText(order.total.toString());
@@ -138,11 +195,12 @@ export default function PaymentConfirmationPage() {
   }
 
   const paymentStatus = order.payment_status.toUpperCase();
-  const isPaymentComplete = ['PAID', 'VERIFIED', 'COMPLETED', 'SUCCESS'].includes(paymentStatus);
+  const isPaymentComplete = gdcPayment?.status === 'PAID' || ['PAID', 'VERIFIED', 'COMPLETED', 'SUCCESS'].includes(paymentStatus);
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
   const isPaymentExpired = paymentStatus === 'EXPIRED'
     || Boolean(order.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now() && !isPaymentComplete);
   const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl);
+  const isGdcMpmPayment = isGdcMpmRoute && order.payment_method === 'TRANSFER';
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
@@ -203,6 +261,26 @@ export default function PaymentConfirmationPage() {
             <CardContent className="flex items-start gap-3 p-4 text-sm" role="status">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
               <div><p className="font-bold">Batas pembayaran telah berakhir</p><p className="mt-1">Pesanan ini tidak lagi menerima bukti transfer. Silakan buat pesanan baru atau hubungi penjual.</p></div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isGdcMpmPayment && !isPaymentComplete && !isPaymentExpired && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3"><QrCode className="h-5 w-5 text-primary" /><h3 className="font-bold">QRIS MPM Dinamis</h3></div>
+              {gdcPaymentError && <div className="mb-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive" role="alert">{gdcPaymentError}</div>}
+              {gdcPayment?.qr_content ? (
+                <>
+                  <div className="flex justify-center rounded-lg border bg-white p-4"><QRCodeSVG value={gdcPayment.qr_content} size={256} includeMargin /></div>
+                  <p className="mt-3 text-center text-sm">Bayar tepat <strong>{formatPrice(gdcPayment.amount)}</strong> menggunakan aplikasi mobile banking atau e-wallet yang mendukung QRIS.</p>
+                  <p className="mt-1 text-center text-xs text-muted-foreground">QR dibuat khusus untuk pesanan ini. Status pembayaran diperiksa otomatis.</p>
+                </>
+              ) : !gdcPaymentError ? (
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />{gdcCreating ? 'Membuat QR pembayaran…' : 'Menyiapkan QR pembayaran…'}</div>
+              ) : null}
+              {gdcPaymentError && !gdcPayment && <Button className="mt-3 w-full" onClick={() => void createGdcPayment()} disabled={gdcCreating}>{gdcCreating ? 'Mencoba lagi…' : 'Coba buat QR lagi'}</Button>}
+              {gdcPayment?.status === 'FAILED' && <p className="mt-3 text-sm text-destructive" role="status">Provider menandai pembayaran ini gagal. Silakan hubungi merchant sebelum mencoba pembayaran lain.</p>}
             </CardContent>
           </Card>
         )}

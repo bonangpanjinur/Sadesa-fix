@@ -5,7 +5,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: { functions: { invoke } },
 }));
 
-import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus } from './gdcQrisMpmApi';
+import { createOrGetGdcQrisMpm, isGdcQrisMpmAvailable, queryGdcQrisMpmStatus } from './gdcQrisMpmApi';
 
 describe('GDC QRIS MPM client contract', () => {
   beforeEach(() => invoke.mockReset());
@@ -15,6 +15,12 @@ describe('GDC QRIS MPM client contract', () => {
     invoke.mockResolvedValue({ data: payment, error: null });
     await expect(createOrGetGdcQrisMpm('order-1')).resolves.toEqual(payment);
     expect(invoke).toHaveBeenCalledWith('gdc-qris-mpm', { body: { action: 'create', order_id: 'order-1' } });
+  });
+
+  it('checks merchant QR MPM readiness through the server function', async () => {
+    invoke.mockResolvedValue({ data: { available: true }, error: null });
+    await expect(isGdcQrisMpmAvailable('merchant-1')).resolves.toBe(true);
+    expect(invoke).toHaveBeenCalledWith('gdc-qris-mpm', { body: { action: 'availability', merchant_id: 'merchant-1' } });
   });
 
   it('queries provider status through the server function and does not accept malformed responses', async () => {

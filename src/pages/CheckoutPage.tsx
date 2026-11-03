@@ -30,6 +30,7 @@ import { normalizeCheckoutProductQuantities } from '@/lib/normalizeCheckoutItems
 import { getCheckoutMerchantIds, hasMultipleCheckoutMerchants } from '@/lib/cartSelection';
 import { getCartItemKey } from '@/lib/cartItemIdentity';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
+import { isGdcQrisMpmAvailable } from '@/lib/gdcQrisMpmApi';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE' | 'QRIS_DYNAMIC';
 
@@ -89,7 +90,9 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
-  const [paymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [gdcMpmAvailable, setGdcMpmAvailable] = useState(false);
+  const [gdcMpmAvailabilityLoading, setGdcMpmAvailabilityLoading] = useState(false);
   // The first available options are visibly selected by default, so the step
   // indicator and CTA should not pretend the buyer still needs to choose them.
   const [hasChosenDelivery, setHasChosenDelivery] = useState(true);
@@ -435,6 +438,25 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let cancelled = false;
+    if (!user || !firstMerchantId) {
+      setGdcMpmAvailable(false);
+      setGdcMpmAvailabilityLoading(false);
+      return () => { cancelled = true; };
+    }
+    setGdcMpmAvailable(false);
+    setGdcMpmAvailabilityLoading(true);
+    isGdcQrisMpmAvailable(firstMerchantId)
+      .then((available) => { if (!cancelled) setGdcMpmAvailable(available); })
+      .catch((error) => {
+        console.warn('Could not verify GDC QR MPM availability:', error);
+        if (!cancelled) setGdcMpmAvailable(false);
+      })
+      .finally(() => { if (!cancelled) setGdcMpmAvailabilityLoading(false); });
+    return () => { cancelled = true; };
+  }, [firstMerchantId, user]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loadMerchantOperatingHours = async () => {
       const ids = merchantIdsKey ? merchantIdsKey.split(',') : [];
       if (ids.length === 0) {
@@ -521,7 +543,9 @@ export default function CheckoutPage() {
     paymentSettingsLoadState.merchantId,
     firstMerchantId,
   ) && merchantPaymentSettings !== null;
-  const paymentReady = paymentSettingsReady && Boolean(merchantPaymentSettings?.qrisImageUrl?.trim());
+  const paymentReady = paymentSettingsReady && (paymentMethod === 'QRIS_DYNAMIC'
+    ? Boolean(user && gdcMpmAvailable && !gdcMpmAvailabilityLoading)
+    : Boolean(merchantPaymentSettings?.qrisImageUrl?.trim()));
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
@@ -598,8 +622,10 @@ export default function CheckoutPage() {
 
     if (!paymentReady) {
       toast({
-        title: 'QRIS merchant belum aktif',
-        description: 'Admin harus mengunggah dan mengaktifkan QRIS merchant sebelum checkout dapat dilanjutkan.',
+        title: paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM belum tersedia' : 'QRIS merchant belum aktif',
+        description: paymentMethod === 'QRIS_DYNAMIC'
+          ? 'Pastikan akun Anda login dan admin sudah mengaktifkan NMID serta Account Number GDC untuk merchant ini.'
+          : 'Admin harus mengunggah dan mengaktifkan QRIS merchant sebelum checkout dapat dilanjutkan.',
         variant: 'destructive',
       });
       return;
@@ -1230,7 +1256,21 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
-          {merchantPaymentSettings?.qrisImageUrl ? (
+          <RadioGroup value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)} className="space-y-2">
+            <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'} ${merchantPaymentSettings?.qrisImageUrl ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+              <RadioGroupItem value="TRANSFER" id="payment-qris-static" disabled={!merchantPaymentSettings?.qrisImageUrl} />
+              <span><span className="block text-sm font-semibold">QRIS statis merchant</span><span className="block text-xs text-muted-foreground">Pindai QRIS yang sudah diterbitkan untuk toko.</span></span>
+            </label>
+            <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'QRIS_DYNAMIC' ? 'border-primary bg-primary/5' : 'border-border'} ${user && gdcMpmAvailable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+              <RadioGroupItem value="QRIS_DYNAMIC" id="payment-qris-mpm" disabled={!user || !gdcMpmAvailable || gdcMpmAvailabilityLoading} />
+              <span><span className="block text-sm font-semibold">QRIS MPM dinamis (Neo/GDC)</span><span className="block text-xs text-muted-foreground">QR unik dibuat setelah pesanan tersimpan; nominal dan identitas merchant diambil server.</span></span>
+            </label>
+          </RadioGroup>
+          {!user && <p className="mt-2 text-xs text-muted-foreground">QRIS MPM dinamis hanya tersedia untuk pembeli yang login.</p>}
+          {user && gdcMpmAvailabilityLoading && <p className="mt-2 text-xs text-muted-foreground">Memeriksa konfigurasi QRIS MPM merchant…</p>}
+          {user && !gdcMpmAvailabilityLoading && !gdcMpmAvailable && <p className="mt-2 text-xs text-muted-foreground">QRIS MPM belum dikonfigurasi. Admin perlu mengisi NMID/Merchant ID dan Account Number GDC untuk merchant ini.</p>}
+
+          {paymentMethod === 'TRANSFER' && merchantPaymentSettings?.qrisImageUrl ? (
             <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
               <p className="mb-2 text-sm font-semibold">QRIS toko</p>
               <div className="flex justify-center rounded border bg-card p-3">
@@ -1238,11 +1278,11 @@ export default function CheckoutPage() {
               </div>
               <p className="mt-2 text-xs text-muted-foreground">Pindai QRIS ini untuk membayar pesanan ke merchant yang dipilih.</p>
             </div>
-          ) : (
+          ) : paymentMethod === 'TRANSFER' ? (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
               QRIS toko belum aktif. Checkout belum dapat dilanjutkan sampai admin mengunggah dan mengaktifkan QRIS merchant ini.
             </div>
-          )}
+          ) : null}
           {paymentMethod === 'QRIS_DYNAMIC' && (
             <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground" role="status">
               QR akan dibuat setelah pesanan tersimpan menggunakan Merchant ID GDC yang sudah diverifikasi admin. Pembayaran masuk langsung ke akun merchant.
@@ -1346,7 +1386,7 @@ export default function CheckoutPage() {
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              QRIS
+              {paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM dinamis' : 'QRIS statis merchant'}
             </span>
           </span>
         </div>
@@ -1391,7 +1431,9 @@ export default function CheckoutPage() {
               ? 'Pengaturan pembayaran gagal dimuat. Muat ulang halaman untuk mencoba lagi.'
               : !paymentSettingsReady
                 ? 'Menyiapkan metode pembayaran toko...'
-                : 'Pilih metode pembayaran yang tersedia untuk melanjutkan.'}
+                : paymentMethod === 'QRIS_DYNAMIC'
+                  ? 'QRIS MPM belum aktif untuk merchant ini atau Anda belum login.'
+                  : 'Pilih metode pembayaran yang tersedia untuk melanjutkan.'}
           </p>
         )}
         {hasMultipleMerchants && (

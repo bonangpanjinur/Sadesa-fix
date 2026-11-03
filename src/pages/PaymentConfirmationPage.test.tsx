@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   channel: vi.fn(),
   removeChannel: vi.fn(),
   navigate: vi.fn(),
+  provider: '',
+  createGdcPayment: vi.fn(),
+  queryGdcPayment: vi.fn(),
   user: { id: 'buyer-1' },
 }));
 
@@ -24,9 +27,14 @@ vi.mock('react-router-dom', async (importOriginal) => {
     ...actual,
     useNavigate: () => mocks.navigate,
     useParams: () => ({ orderId: 'order-1' }),
-    useSearchParams: () => [new URLSearchParams()],
+    useSearchParams: () => [new URLSearchParams(mocks.provider ? `provider=${mocks.provider}` : '')],
   };
 });
+
+vi.mock('@/lib/gdcQrisMpmApi', () => ({
+  createOrGetGdcQrisMpm: mocks.createGdcPayment,
+  queryGdcQrisMpmStatus: mocks.queryGdcPayment,
+}));
 
 vi.mock('@/components/checkout/PaymentProofUpload', () => ({
   PaymentProofUpload: () => null,
@@ -40,6 +48,9 @@ import PaymentConfirmationPage from './PaymentConfirmationPage';
 
 describe('PaymentConfirmationPage authoritative order total', () => {
   beforeEach(() => {
+    mocks.provider = '';
+    mocks.createGdcPayment.mockReset();
+    mocks.queryGdcPayment.mockReset();
     const realtimeChannel = { on: vi.fn(), subscribe: vi.fn() };
     realtimeChannel.on.mockReturnValue(realtimeChannel);
     mocks.channel.mockReturnValue(realtimeChannel);
@@ -96,5 +107,23 @@ describe('PaymentConfirmationPage authoritative order total', () => {
     expect(screen.getByAltText('QRIS Payment')).toHaveAttribute('src', 'https://example.com/merchant-qris.png');
     expect(screen.queryByText('123456789')).not.toBeInTheDocument();
     expect(screen.queryByText('Bank Test')).not.toBeInTheDocument();
+  });
+
+  it('creates and displays a dynamic GDC QR when the checkout route requests it', async () => {
+    mocks.provider = 'gdc-mpm';
+    mocks.createGdcPayment.mockResolvedValue({
+      order_id: 'order-1',
+      status: 'PENDING',
+      amount: 125_000,
+      currency: 'IDR',
+      qr_content: 'emv-qr-payload',
+      reference_no: 'gdc-ref-1',
+      paid_at: null,
+    });
+    const { container } = render(<PaymentConfirmationPage />);
+
+    await waitFor(() => expect(mocks.createGdcPayment).toHaveBeenCalledWith('order-1'));
+    expect(await screen.findByText('QRIS MPM Dinamis')).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeInTheDocument();
   });
 });

@@ -12,6 +12,7 @@ const mockCheckout = vi.hoisted(() => ({
   merchantRows: [] as unknown[],
   merchantIsOpen: true,
   transferEnabled: true,
+  gdcMpmAvailable: false,
   xenditEnabled: true,
   quote: null as unknown,
   quoteError: null as string | null,
@@ -42,6 +43,10 @@ vi.mock('@/hooks/use-toast', () => ({ toast: mockCheckout.toast }));
 vi.mock('@/lib/paymentApi', () => ({
   isXenditEnabled: () => Promise.resolve(mockCheckout.xenditEnabled),
   createPaymentInvoice: (args: { orderId: string }) => mockCheckout.createPaymentInvoice(args),
+}));
+
+vi.mock('@/lib/gdcQrisMpmApi', () => ({
+  isGdcQrisMpmAvailable: () => Promise.resolve(mockCheckout.gdcMpmAvailable),
 }));
 
 vi.mock('@/lib/merchantOperatingHours', () => ({
@@ -222,6 +227,7 @@ beforeEach(() => {
   mockCheckout.items = [cartItem()];
   mockCheckout.stockRows = [{ id: 'product-1', name: 'Produk Demo', stock: 10 }];
   mockCheckout.merchantIsOpen = true;
+  mockCheckout.gdcMpmAvailable = false;
   mockCheckout.merchantRows = [{
     id: 'merchant-1',
     name: 'Toko Demo',
@@ -369,6 +375,17 @@ describe('CheckoutPage scenario regressions', () => {
     expect(screen.queryByText('1234567890')).not.toBeInTheDocument();
     expect(screen.queryByText('Bank SaDesa')).not.toBeInTheDocument();
     expect(screen.queryByRole('radio', { name: /online/i })).not.toBeInTheDocument();
+  });
+
+  it('enables server-generated QR MPM only when the logged-in merchant is configured', async () => {
+    mockCheckout.gdcMpmAvailable = true;
+    await preparePickupCheckout();
+
+    const dynamicQris = screen.getByRole('radio', { name: /QRIS MPM dinamis/ });
+    expect(dynamicQris).toBeEnabled();
+    fireEvent.click(dynamicQris);
+    expect(dynamicQris).toBeChecked();
+    expect(document.querySelector('button[type="submit"]')).toBeEnabled();
   });
 
   it('blocks checkout until the merchant has an active QRIS', async () => {
