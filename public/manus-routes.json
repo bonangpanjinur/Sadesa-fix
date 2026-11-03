@@ -369,6 +369,14 @@
       "title": "admin · merchants"
     },
     {
+      "path": "/admin/qris-applications",
+      "title": "admin · qris-applications"
+    },
+    {
+      "path": "/admin/qris-merchant-settings",
+      "title": "Pengaturan QRIS Merchant"
+    },
+    {
       "path": "/admin/halal",
       "title": "admin · halal"
     },

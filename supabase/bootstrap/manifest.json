@@ -1,8 +1,8 @@
 {
   "idempotent": true,
   "source": "supabase/bootstrap consolidated ordered bundles",
-  "migration_count": 340,
-  "bundle_count": 134,
+  "migration_count": 350,
+  "bundle_count": 144,
   "bundles": [
     {
       "file": "01_20260127034916_to_20260907020000.sql",
@@ -585,12 +585,84 @@
       "bytes": 16011
     },
     {
+      "file": "134_20261031220000_gdc_qris_dynamic_payment.sql",
+      "source_files": [
+        "134_20261031220000_gdc_qris_dynamic_payment.sql"
+      ],
+      "sha256": "7e64450ff7fac90fcd4e4c348ab0e127d828b704fcc932e351f5d84d26668871",
+      "bytes": 15448
+    },
+    {
+      "file": "135_20261031230000_gdc_qris_rollout_observability.sql",
+      "source_files": [
+        "135_20261031230000_gdc_qris_rollout_observability.sql"
+      ],
+      "sha256": "15bbee4c57c811eb69bfd4668893c31f42c4725494a60f63399a1514e0a0d279",
+      "bytes": 4174
+    },
+    {
+      "file": "136_20261101143000_gdc_qris_mpm_checkout.sql",
+      "source_files": [
+        "136_20261101143000_gdc_qris_mpm_checkout.sql"
+      ],
+      "sha256": "9114d71a3e856ee0adf1df7a396f402951955a8061263d6c242d113d65793a37",
+      "bytes": 12821
+    },
+    {
+      "file": "137_20261101190000_qris_mpm_checkout_discriminator.sql",
+      "source_files": [
+        "137_20261101190000_qris_mpm_checkout_discriminator.sql"
+      ],
+      "sha256": "0deb995d866aaccf505e81d0768f4331a7052326723a0c50a983bfd43f2f5f2d",
+      "bytes": 33703
+    },
+    {
+      "file": "138_20261101193000_qris_legacy_import_assistant.sql",
+      "source_files": [
+        "138_20261101193000_qris_legacy_import_assistant.sql"
+      ],
+      "sha256": "efa11c1e311984698a5ce412ec3f0e1e05ea66846c15dcf41f648faf7554524a",
+      "bytes": 6014
+    },
+    {
+      "file": "139_20261101194500_qris_import_document_gate.sql",
+      "source_files": [
+        "139_20261101194500_qris_import_document_gate.sql"
+      ],
+      "sha256": "35ab1e4e80423c1d1a093ef8cc97a11e72881d53b8396e55577bccd7086c6cac",
+      "bytes": 3252
+    },
+    {
       "file": "13_20260923150000_pwa_device_ip_audit.sql",
       "source_files": [
         "13_20260923150000_pwa_device_ip_audit.sql"
       ],
       "sha256": "a9996ed0e5022a845a2d005a280767dd46dae0da168e310eacc77991af851024",
       "bytes": 6406
+    },
+    {
+      "file": "140_20261101200000_qris_workflow_hardening.sql",
+      "source_files": [
+        "140_20261101200000_qris_workflow_hardening.sql"
+      ],
+      "sha256": "93a5380b0e3597763a55cfb065ecd2c2cc42cb2bd0451602ab50f0f7049fa8aa",
+      "bytes": 12659
+    },
+    {
+      "file": "141_20261102100000_qris_admin_merchant_account_details.sql",
+      "source_files": [
+        "141_20261102100000_qris_admin_merchant_account_details.sql"
+      ],
+      "sha256": "8867c47123b1f4e413527c38461e77d38633b39fe5e18345a9334365ab79e6ac",
+      "bytes": 3423
+    },
+    {
+      "file": "142_20261101210000_admin_qris_application_list.sql",
+      "source_files": [
+        "142_20261101210000_admin_qris_application_list.sql"
+      ],
+      "sha256": "37f8a5de394fb364401cac434e158b0bf1b7ce09486648963da90cf8cf6d97c1",
+      "bytes": 973
     },
     {
       "file": "14_20260923152000_automatic_order_fraud_blocks.sql",
@@ -1281,6 +1353,14 @@
       ],
       "sha256": "b9a884191c40e44de25402837712e2f93b3d8f0fb3d20d6d2e446978c4e4b16d",
       "bytes": 3432
+    },
+    {
+      "file": "143_20261102200000_qris_gateway_return_fields.sql",
+      "source_files": [
+        "143_20261102200000_qris_gateway_return_fields.sql"
+      ],
+      "sha256": "9a9fe75761728755d0e496eb9153c93e135cd0634e700f0fc313e7b88600bedc",
+      "bytes": 10279
     }
   ]
 }

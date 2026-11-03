@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Status = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
 type Application = { id: string; application_number: string; status: Status; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string,string>; decision_note: string | null; submitted_at: string; revision_number: number };
@@ -32,7 +31,6 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
   const [saving, setSaving] = useState(false);
   const [criteria, setCriteria] = useState('');
   const [businessAge, setBusinessAge] = useState('');
-  const [shortName, setShortName] = useState('');
   const [merchantQrisName, setMerchantQrisName] = useState('');
   const [files, setFiles] = useState<Record<string, File>>({});
 
@@ -46,8 +44,7 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
           setApplication(data);
           setCriteria(data.business_criteria_code);
           setBusinessAge(data.business_age_code);
-          setShortName(data.qris_merchant_name_short);
-          setMerchantQrisName(data.qris_merchant_name);
+          setMerchantQrisName(data.qris_merchant_name || data.qris_merchant_name_short || '');
         }
       }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -58,8 +55,8 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
   const submit = async () => {
     if (!user) return;
     if (!bankName?.trim() || !accountNumber?.trim() || !accountName?.trim()) return toast.error('Lengkapi rekening bank default di Pengaturan Pembayaran sebelum mengajukan QRIS.');
-    if (!criteria || !businessAge || !shortName.trim() || !merchantQrisName.trim()) return toast.error('Lengkapi semua informasi usaha dan nama merchant QRIS.');
-    if (shortName.trim().length > 25 || merchantQrisName.trim().length > 50) return toast.error('Nama merchant QRIS melebihi batas karakter.');
+    if (!criteria || !businessAge || !merchantQrisName.trim()) return toast.error('Lengkapi semua informasi usaha dan nama merchant QRIS.');
+    if (merchantQrisName.trim().length > 25) return toast.error('Nama merchant QRIS maksimal 25 karakter.')
     const missing = requiredDocuments.filter(({ code }) => !files[code] && !application?.documents?.[code]);
     if (missing.length) return toast.error(`Lengkapi dokumen: ${missing.map((item) => item.label).join(', ')}.`);
     setSaving(true);
@@ -79,7 +76,7 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
       const payload = {
         id: applicationId, merchant_id: merchantId, applicant_user_id: user.id,
         business_criteria_code: criteria, business_age_code: businessAge,
-        qris_merchant_name_short: shortName.trim(), qris_merchant_name: merchantQrisName.trim(),
+        qris_merchant_name_short: merchantQrisName.trim(), qris_merchant_name: merchantQrisName.trim(),
         default_bank_name: bankName, default_account_number: accountNumber, default_account_name: accountName,
         documents: documentPaths, status: 'SUBMITTED', revision_number: application ? application.revision_number + 1 : 1,
         submitted_at: new Date().toISOString(), updated_at: new Date().toISOString(),
@@ -113,14 +110,9 @@ export function MerchantQrisApplicationCard({ merchantId, merchantName, qrisImag
           {!application && <div className="rounded-lg bg-muted p-3 text-sm">Lengkapi formulir untuk meminta penerbitan QRIS Sadesa bagi <strong>{merchantName}</strong>.</div>}
           <div className="rounded-lg border bg-muted/40 p-3 text-sm"><p className="font-medium">Nomor Akun Default</p><p className="mt-1 text-muted-foreground">{bankName && accountNumber && accountName ? `${bankName} · ${accountNumber} · ${accountName}` : 'Rekening penerimaan belum lengkap. Lengkapi rekening bank di bagian Pengaturan Pembayaran sebelum mengajukan.'}</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2"><Label>Kriteria Bisnis</Label><Select value={criteria} onValueChange={setCriteria}><SelectTrigger><SelectValue placeholder="Pilih kriteria bisnis" /></SelectTrigger><SelectContent>
-              <SelectItem value="UMI">UMI — Usaha Mikro (aset maks. Rp50 juta; omzet maks. Rp300 juta)</SelectItem>
-              <SelectItem value="UME">UME — Usaha Menengah (aset Rp500 juta–Rp10 miliar; omzet &gt;Rp2,5–50 miliar)</SelectItem>
-              <SelectItem value="UBE">UBE — Usaha Besar (aset di atas Rp10 miliar)</SelectItem>
-            </SelectContent></Select><p className="text-xs text-muted-foreground">Rentang kriteria yang belum tercakup akan ditinjau manual oleh admin.</p></div>
-            <div className="space-y-2"><Label>Lama Usaha</Label><Select value={businessAge} onValueChange={setBusinessAge}><SelectTrigger><SelectValue placeholder="Pilih lama usaha" /></SelectTrigger><SelectContent><SelectItem value="LT_6_MONTHS">Kurang dari 6 bulan</SelectItem><SelectItem value="6_TO_12_MONTHS">6–12 bulan</SelectItem><SelectItem value="1_TO_3_YEARS">1–3 tahun</SelectItem><SelectItem value="GT_3_YEARS">Lebih dari 3 tahun</SelectItem></SelectContent></Select></div>
-            <div className="space-y-2"><Label>Nama Merchant QRIS (maks. 25 karakter)</Label><Input maxLength={25} value={shortName} onChange={(event) => setShortName(event.target.value)} placeholder="Nama singkat merchant" /><p className="text-right text-xs text-muted-foreground">{shortName.length}/25</p></div>
-            <div className="space-y-2"><Label>Nama Merchant QRIS (maks. 50 karakter)</Label><Input maxLength={50} value={merchantQrisName} onChange={(event) => setMerchantQrisName(event.target.value)} placeholder="Nama yang ditampilkan pada QRIS" /><p className="text-right text-xs text-muted-foreground">{merchantQrisName.length}/50</p></div>
+            <div className="space-y-2"><Label htmlFor="qris-business-criteria">Kriteria Bisnis</Label><select id="qris-business-criteria" value={criteria} onChange={(event) => setCriteria(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Pilih kriteria bisnis</option><option value="UMI">UMI — Usaha Mikro (aset maks. Rp50 juta; omzet maks. Rp300 juta)</option><option value="UME">UME — Usaha Menengah (aset Rp500 juta–Rp10 miliar; omzet &gt;Rp2,5–50 miliar)</option><option value="UBE">UBE — Usaha Besar (aset di atas Rp10 miliar)</option></select><p className="text-xs text-muted-foreground">Rentang kriteria yang belum tercakup akan ditinjau manual oleh admin.</p></div>
+            <div className="space-y-2"><Label htmlFor="qris-business-age">Lama Usaha</Label><select id="qris-business-age" value={businessAge} onChange={(event) => setBusinessAge(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><option value="">Pilih lama usaha</option><option value="LT_6_MONTHS">Kurang dari 6 bulan</option><option value="6_TO_12_MONTHS">6–12 bulan</option><option value="1_TO_3_YEARS">1–3 tahun</option><option value="GT_3_YEARS">Lebih dari 3 tahun</option></select></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Nama Merchant QRIS (maks. 25 karakter)</Label><Input maxLength={25} value={merchantQrisName} onChange={(event) => setMerchantQrisName(event.target.value)} placeholder="Nama toko yang ditampilkan pada QRIS" /><p className="text-right text-xs text-muted-foreground">{merchantQrisName.length}/25 · digunakan sebagai satu-satunya nama QRIS</p></div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">{requiredDocuments.map(({ code, label }) => <div key={code} className="space-y-2"><Label>{label} <span className="text-destructive">*</span></Label><label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 text-sm hover:bg-muted/60"><FileImage className="h-5 w-5 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{files[code]?.name || (application?.documents?.[code] ? 'Dokumen tersimpan · pilih untuk mengganti' : 'Pilih foto JPG/PNG')}</span><Upload className="h-4 w-4" /><input type="file" accept="image/jpeg,image/png" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) setFiles((current) => ({ ...current, [code]: file })); }} /></label><p className="text-xs text-muted-foreground">JPG atau PNG, maksimal 2 MB.</p></div>)}</div>
           <p className="text-xs text-muted-foreground">Dengan mengirim, Anda menyatakan data benar. Dokumen disimpan privat untuk keperluan verifikasi QRIS.</p>
