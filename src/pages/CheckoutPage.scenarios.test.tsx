@@ -13,6 +13,7 @@ const mockCheckout = vi.hoisted(() => ({
   merchantIsOpen: true,
   transferEnabled: true,
   gdcMpmAvailable: false,
+  gdcMpmShouldFail: false,
   xenditEnabled: true,
   quote: null as unknown,
   quoteError: null as string | null,
@@ -46,7 +47,9 @@ vi.mock('@/lib/paymentApi', () => ({
 }));
 
 vi.mock('@/lib/gdcQrisMpmApi', () => ({
-  isGdcQrisMpmAvailable: () => Promise.resolve(mockCheckout.gdcMpmAvailable),
+  isGdcQrisMpmAvailable: () => mockCheckout.gdcMpmShouldFail
+    ? Promise.reject(new Error('endpoint unavailable'))
+    : Promise.resolve(mockCheckout.gdcMpmAvailable),
 }));
 
 vi.mock('@/lib/merchantOperatingHours', () => ({
@@ -228,6 +231,7 @@ beforeEach(() => {
   mockCheckout.stockRows = [{ id: 'product-1', name: 'Produk Demo', stock: 10 }];
   mockCheckout.merchantIsOpen = true;
   mockCheckout.gdcMpmAvailable = false;
+  mockCheckout.gdcMpmShouldFail = false;
   mockCheckout.merchantRows = [{
     id: 'merchant-1',
     name: 'Toko Demo',
@@ -398,6 +402,16 @@ describe('CheckoutPage scenario regressions', () => {
     expect(dynamicQris).toBeEnabled();
     fireEvent.click(dynamicQris);
     expect(document.querySelector('button[type="submit"]')).toBeEnabled();
+  });
+  it('shows a service verification error and retries availability without calling it unconfigured', async () => {
+    mockCheckout.gdcMpmShouldFail = true;
+    await preparePickupCheckout();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ketersediaan QR MPM gagal diverifikasi');
+    expect(screen.queryByText(/QRIS MPM belum tersedia/)).not.toBeInTheDocument();
+    mockCheckout.gdcMpmShouldFail = false;
+    mockCheckout.gdcMpmAvailable = true;
+    fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: /QRIS MPM dinamis/ })).toBeEnabled());
   });
 
   it('blocks checkout when neither dynamic MPM nor static QR is configured', async () => {
