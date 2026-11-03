@@ -31,7 +31,7 @@ interface PaymentRow {
   amount: number;
   currency: string;
   qr_content: string | null;
-  status: 'CREATING' | 'PENDING' | 'PAID' | 'FAILED';
+  status: 'CREATING' | 'PENDING' | 'PAID' | 'FAILED' | 'UNKNOWN' | 'EXPIRED' | 'MANUAL_FALLBACK_PENDING';
   paid_at: string | null;
 }
 interface GdcResponse {
@@ -163,12 +163,13 @@ function moneyValue(value: number): string {
 function responsePayment(row: PaymentRow) {
   return {
     order_id: row.order_id,
-    status: row.status === 'CREATING' ? 'PENDING' : row.status,
+    status: ['CREATING', 'UNKNOWN'].includes(row.status) ? 'PENDING' : row.status,
     amount: Number(row.amount),
     currency: 'IDR',
     qr_content: row.qr_content,
     reference_no: row.reference_no,
     paid_at: row.paid_at,
+    reconciliation_required: row.status === 'UNKNOWN',
   };
 }
 function parseAmount(value: string | undefined): number | null {
@@ -223,10 +224,12 @@ async function processRequest(req: Request): Promise<Response> {
   }
   const credentials = getCredentials();
   const { data: order, error: orderError } = await admin.from('orders')
-    .select('id, buyer_id, merchant_id, total, payment_method, payment_status, status, confirmation_deadline')
+    .select('id, buyer_id, merchant_id, total, payment_method, payment_channel, payment_intent, payment_status, status, confirmation_deadline')
     .eq('id', input.order_id).eq('buyer_id', authData.user.id).maybeSingle();
   if (orderError || !order) return json({ error: 'Pesanan tidak ditemukan.' }, 404, req);
-  if (order.payment_method !== 'TRANSFER') return json({ error: 'Pesanan ini tidak menggunakan QRIS merchant.' }, 409, req);
+  if (order.payment_method !== 'TRANSFER' || order.payment_channel !== 'QRIS_MPM_GDC' || order.payment_intent !== 'GDC_MPM') {
+    return json({ error: 'Pesanan ini tidak terikat pada QRIS MPM merchant.' }, 409, req);
+  }
   if (['PAID', 'REFUNDED'].includes(String(order.payment_status))) {
     const { data: existing } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
     if (existing) return json(responsePayment(existing as PaymentRow));
@@ -264,6 +267,9 @@ async function processRequest(req: Request): Promise<Response> {
       currency: 'IDR',
       partner_reference_no: order.id,
       external_id: crypto.randomUUID(),
+      provider_external_id: crypto.randomUUID(),
+      creating_started_at: new Date().toISOString(),
+      attempt_number: 1,
       status: 'CREATING',
     }).select('*').single();
     if (insertError) {
@@ -273,12 +279,12 @@ async function processRequest(req: Request): Promise<Response> {
     }
     payment = inserted;
   } else if (payment.status === 'FAILED' && input.action === 'create') {
-    const { data: retried, error: retryError } = await admin.from('gdc_qris_mpm_payments').update({ status: 'CREATING', error_code: null, updated_at: new Date().toISOString() })
+    const { data: retried, error: retryError } = await admin.from('gdc_qris_mpm_payments').update({ status: 'CREATING', error_code: null, last_error: null, creating_started_at: new Date().toISOString(), attempt_number: Number(payment.attempt_number || 0) + 1, updated_at: new Date().toISOString() })
       .eq('order_id', order.id).eq('status', 'FAILED').select('*').maybeSingle();
     if (retryError || !retried) return json({ error: 'QR pembayaran sedang diproses. Coba lagi sebentar.' }, 409, req);
     payment = retried;
-  } else if (payment.status === 'CREATING') {
-    return json({ error: 'QR pembayaran sedang dibuat. Coba lagi sebentar.' }, 409, req);
+  } else if (payment.status === 'CREATING' || payment.status === 'UNKNOWN') {
+    return json({ error: 'Pembuatan QR belum dapat direkonsiliasi. Jangan gunakan pembayaran manual sebelum status provider dipastikan.' }, 409, req);
   }
   if (input.action === 'create') {
     try {
@@ -302,7 +308,9 @@ async function processRequest(req: Request): Promise<Response> {
       if (saveError || !saved) throw new Error('QR pembayaran belum dapat disimpan.');
       return json(responsePayment(saved as PaymentRow), 200, req);
     } catch (error) {
-      await admin.from('gdc_qris_mpm_payments').update({ status: 'FAILED', error_code: 'QR_CREATE_FAILED', updated_at: new Date().toISOString() }).eq('order_id', order.id).eq('status', 'CREATING');
+      // A timeout is not proof that the provider did not create the QR. Keep
+      // the row recoverable and block manual fallback until reconciliation.
+      await admin.from('gdc_qris_mpm_payments').update({ status: 'UNKNOWN', error_code: 'QR_CREATE_UNKNOWN', last_error: error instanceof Error ? error.message : 'unknown', updated_at: new Date().toISOString() }).eq('order_id', order.id).eq('status', 'CREATING');
       console.error('GDC QR MPM create failed', error instanceof Error ? error.message : 'unknown');
       return json({ error: error instanceof Error ? error.message : 'QR pembayaran gagal dibuat.' }, 502, req);
     }

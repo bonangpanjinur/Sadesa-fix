@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   removeChannel: vi.fn(),
   navigate: vi.fn(),
   provider: '',
+  paymentChannel: 'ADMIN_MANUAL',
   createGdcPayment: vi.fn(),
   queryGdcPayment: vi.fn(),
   user: { id: 'buyer-1' },
@@ -50,6 +51,7 @@ import PaymentConfirmationPage from './PaymentConfirmationPage';
 describe('PaymentConfirmationPage authoritative order total', () => {
   beforeEach(() => {
     mocks.provider = '';
+    mocks.paymentChannel = 'ADMIN_MANUAL';
     mocks.paymentDestinationSource = null;
     mocks.createGdcPayment.mockReset();
     mocks.queryGdcPayment.mockReset();
@@ -63,6 +65,7 @@ describe('PaymentConfirmationPage authoritative order total', () => {
               id: 'order-1',
               total: 125_000,
               payment_method: 'TRANSFER',
+              payment_channel: mocks.paymentChannel,
               payment_status: 'PENDING_TRANSFER',
               merchant_id: 'merchant-1',
               created_at: '2026-10-13T00:00:00.000Z',
@@ -114,6 +117,7 @@ describe('PaymentConfirmationPage authoritative order total', () => {
 
   it('creates and displays a dynamic GDC QR when the checkout route requests it', async () => {
     mocks.provider = 'gdc-mpm';
+    mocks.paymentChannel = 'QRIS_MPM_GDC';
     mocks.createGdcPayment.mockResolvedValue({
       order_id: 'order-1',
       status: 'PENDING',
@@ -132,8 +136,12 @@ describe('PaymentConfirmationPage authoritative order total', () => {
 
   it('offers the Admin Sadesa snapshot when GDC QR generation fails', async () => {
     mocks.provider = 'gdc-mpm';
+    mocks.paymentChannel = 'QRIS_MPM_GDC';
     mocks.paymentDestinationSource = 'ADMIN';
-    mocks.createGdcPayment.mockRejectedValue(new Error('Layanan QRIS belum dapat memproses pembayaran.'));
+    mocks.createGdcPayment.mockResolvedValue({
+      order_id: 'order-1', status: 'FAILED', amount: 125_000, currency: 'IDR',
+      qr_content: null, reference_no: 'gdc-ref-failed', paid_at: null,
+    });
     render(<PaymentConfirmationPage />);
 
     const fallbackButton = await screen.findByRole('button', { name: 'Gunakan QR / transfer bank Admin Sadesa' });

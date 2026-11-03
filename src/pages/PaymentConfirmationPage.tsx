@@ -43,8 +43,6 @@ export default function PaymentConfirmationPage() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const guestToken = searchParams.get('guest_token') || getGuestOrderAccess(orderId || '', null)?.token;
-  const isGdcMpmRoute = searchParams.get('provider') === 'gdc-mpm';
-  const isAdminManualRoute = searchParams.get('provider') === 'admin-manual';
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,8 +109,18 @@ export default function PaymentConfirmationPage() {
 
   useEffect(() => {
     if (!orderId || (!user && !guestToken)) return;
-    void loadOrderAndPaymentInfo();
-    const refreshInterval = window.setInterval(() => void loadOrderAndPaymentInfo(false), 15000);
+    let active = true;
+    let inFlight = false;
+    let refreshTimer: number | undefined;
+    const refresh = async (showLoading = false) => {
+      if (!active || inFlight) return;
+      inFlight = true;
+      try { await loadOrderAndPaymentInfo(showLoading); } finally {
+        inFlight = false;
+        if (active) refreshTimer = window.setTimeout(() => void refresh(false), 15000);
+      }
+    };
+    void refresh(true);
     const channel = user
       ? supabase.channel(`payment-order-${orderId}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, () => {
@@ -121,7 +129,8 @@ export default function PaymentConfirmationPage() {
         .subscribe()
       : null;
     return () => {
-      window.clearInterval(refreshInterval);
+      active = false;
+      if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
@@ -142,10 +151,16 @@ export default function PaymentConfirmationPage() {
 
   const paymentOrderId = order?.id;
   const paymentOrderMethod = order?.payment_method;
+  const paymentOrderChannel = order?.payment_channel;
+  // Query parameters may select a presentation route, but never authorize a
+  // payment provider. The order's immutable channel is authoritative.
+  const isGdcMpmRoute = paymentOrderChannel === 'QRIS_MPM_GDC';
   useEffect(() => {
-    if (!isGdcMpmRoute || isAdminManualRoute || useAdminManualFallback || !paymentOrderId || paymentOrderMethod !== 'TRANSFER' || !user) return;
+    if (!isGdcMpmRoute || useAdminManualFallback || !paymentOrderId || paymentOrderMethod !== 'TRANSFER' || !user) return;
     let active = true;
     let pollId: number | undefined;
+    let inFlight = false;
+    let generation = 0;
     const createAndPoll = async () => {
       setGdcCreating(true);
       setGdcPaymentError(null);
@@ -154,17 +169,26 @@ export default function PaymentConfirmationPage() {
         if (!active) return;
         setGdcPayment(payment);
         if (payment.status === 'PENDING') {
-          pollId = window.setInterval(async () => {
+          const poll = async () => {
+            if (!active || inFlight) return;
+            inFlight = true;
+            const requestGeneration = ++generation;
             try {
               const status = await queryGdcQrisMpmStatus(paymentOrderId);
-              if (!active) return;
+              if (!active || requestGeneration !== generation) return;
               setGdcPaymentError(null);
               setGdcPayment(status);
-              if (status.status !== 'PENDING' && pollId !== undefined) window.clearInterval(pollId);
+              const deadlinePassed = Boolean(order?.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now());
+              if (status.status !== 'PENDING' || deadlinePassed) return;
+              pollId = window.setTimeout(() => void poll(), 15000);
             } catch (error) {
-              if (active) setGdcPaymentError(error instanceof Error ? error.message : 'Status QR MPM belum dapat diperiksa.');
-            }
-          }, 15000);
+              if (active) {
+                setGdcPaymentError(error instanceof Error ? error.message : 'Status QR MPM belum dapat diperiksa.');
+                pollId = window.setTimeout(() => void poll(), 15000);
+              }
+            } finally { inFlight = false; }
+          };
+          pollId = window.setTimeout(() => void poll(), 15000);
         }
       } catch (error) {
         if (active) setGdcPaymentError(error instanceof Error ? error.message : 'QR MPM belum dapat dibuat.');
@@ -175,9 +199,10 @@ export default function PaymentConfirmationPage() {
     void createAndPoll();
     return () => {
       active = false;
-      if (pollId !== undefined) window.clearInterval(pollId);
+      generation += 1;
+      if (pollId !== undefined) window.clearTimeout(pollId);
     };
-  }, [isGdcMpmRoute, isAdminManualRoute, useAdminManualFallback, paymentOrderId, paymentOrderMethod, user]);
+  }, [isGdcMpmRoute, useAdminManualFallback, paymentOrderId, paymentOrderMethod, order?.confirmation_deadline, user]);
 
   const handleCopyAmount = () => {
     if (order?.total) {
@@ -218,8 +243,9 @@ export default function PaymentConfirmationPage() {
   const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl || hasAdminBankInstructions);
   const isGdcMpmPayment = isGdcMpmRoute && order.payment_method === 'TRANSFER';
   const showGdcMpmPayment = isGdcMpmPayment && !useAdminManualFallback;
-  const showAdminFallbackNotice = useAdminManualFallback || isAdminManualRoute;
-  const canUseAdminFallback = isGdcMpmPayment && paymentInfo.source === 'ADMIN' && hasPaymentInstructions;
+  const showAdminFallbackNotice = useAdminManualFallback;
+  const hasSnapshottedAdminFallback = paymentInfo.source === 'ADMIN' || (paymentInfo.source === 'GDC_MPM' && hasPaymentInstructions);
+  const canUseAdminFallback = isGdcMpmPayment && hasSnapshottedAdminFallback && gdcPayment?.status === 'FAILED';
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
@@ -306,9 +332,6 @@ export default function PaymentConfirmationPage() {
                   <p className="text-xs text-muted-foreground">Jika permintaan sebelumnya mengalami timeout, periksa dulu ke Admin Sadesa bahwa QR GDC belum berhasil dibuat agar tidak terjadi pembayaran ganda.</p>
                   <Button type="button" variant="outline" className="w-full" onClick={() => {
                     setUseAdminManualFallback(true);
-                    const manualParams = new URLSearchParams(searchParams);
-                    manualParams.set('provider', 'admin-manual');
-                    navigate(`/payment/${order.id}?${manualParams.toString()}`, { replace: true });
                   }}>Gunakan QR / transfer bank Admin Sadesa</Button>
                 </div>
               )}

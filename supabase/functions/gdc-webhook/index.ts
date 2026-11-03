@@ -178,6 +178,7 @@ serve(async (req: Request) => {
 
   const partnerReferenceNo = payload.originalPartnerReferenceNo;
   const referenceNo = payload.originalReferenceNo;
+  const providerExternalId = payload.originalExternalId;
   const transactionStatus = payload.latestTransactionStatus;
   const paidAmount = parseAmount(payload.paidAmount);
 
@@ -257,6 +258,36 @@ serve(async (req: Request) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });
+
+  // QR MPM has its own immutable payment ledger and settlement RPC. Do not
+  // route these callbacks through the legacy invoice webhook path.
+  const { data: mpmPayment } = await supabase
+    .from("gdc_qris_mpm_payments")
+    .select("order_id, partner_reference_no, reference_no, external_id, amount, currency, status")
+    .eq("partner_reference_no", partnerReferenceNo)
+    .maybeSingle();
+  if (mpmPayment) {
+    if (
+      mpmPayment.reference_no !== referenceNo ||
+      (typeof providerExternalId === "string" && providerExternalId !== mpmPayment.external_id) ||
+      mpmPayment.currency !== "IDR" ||
+      Number(mpmPayment.amount) !== paidAmount
+    ) {
+      return jsonResponse({ responseCode: "4000000", responseMessage: "QR MPM payment details mismatch" }, 400);
+    }
+    const { error: settlementError } = await supabase.rpc("settle_gdc_qris_mpm_payment", {
+      p_order_id: mpmPayment.order_id,
+      p_partner_reference_no: mpmPayment.partner_reference_no,
+      p_reference_no: referenceNo,
+      p_paid_amount: paidAmount,
+      p_paid_at: paymentDate,
+    });
+    if (settlementError) {
+      console.error("Failed to settle GDC QR MPM callback", { code: settlementError.code, orderId: mpmPayment.order_id });
+      return jsonResponse({ responseCode: "5000000", responseMessage: "QR MPM settlement failed" }, 500);
+    }
+    return jsonResponse({ responseCode: "2000000", responseMessage: "Successful", data: { order_id: mpmPayment.order_id } });
+  }
 
   // The existing RPC checks the order, invoice reference and exact amount,
   // and deduplicates events by provider + event key.
