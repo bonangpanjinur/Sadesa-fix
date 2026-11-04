@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 
 type AppStatus = 'SUBMITTED' | 'IN_REVIEW' | 'NEEDS_CORRECTION' | 'REJECTED' | 'APPROVED_PENDING_ISSUANCE' | 'ISSUED_PENDING_ACTIVATION' | 'ACTIVE';
-type QrisApplication = { id: string; application_number: string; merchant_id: string; applicant_user_id: string; default_bank_name: string | null; default_account_number: string | null; default_account_name: string | null; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string,string>; status: AppStatus; decision_note: string | null; qris_reference: string | null; qris_asset_key: string | null; submitted_at: string; revision_number: number; merchant?: { name: string; city: string | null } | null };
+type QrisApplication = { id: string; application_number: string; merchant_id: string; applicant_user_id: string; default_bank_name: string | null; default_account_number: string | null; default_account_name: string | null; business_criteria_code: string; business_age_code: string; qris_merchant_name_short: string; qris_merchant_name: string; documents: Record<string,string>; status: AppStatus; decision_note: string | null; qris_reference: string | null; qris_asset_key: string | null; gdc_merchant_id: string | null; gdc_account_number: string | null; submitted_at: string; revision_number: number; merchant?: { name: string; city: string | null } | null };
 // qris_applications is a newly introduced table not yet present in generated Supabase types.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -28,6 +28,8 @@ export default function AdminQrisApplicationsPage() {
   const [correctionNote, setCorrectionNote] = useState('');
   const [qrisReference, setQrisReference] = useState('');
   const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null);
+  const [gdcMerchantId, setGdcMerchantId] = useState('');
+  const [gdcAccountNumber, setGdcAccountNumber] = useState('');
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,6 +56,8 @@ export default function AdminQrisApplicationsPage() {
       }));
       if (active) setDocumentUrls(Object.fromEntries(pairs));
       setQrisReference(selected.qris_reference || '');
+      setGdcMerchantId(selected.gdc_merchant_id || '');
+      setGdcAccountNumber(selected.gdc_account_number || '');
       setQrisImageUrl(null);
       setCorrectionNote('');
     };
@@ -78,14 +82,30 @@ export default function AdminQrisApplicationsPage() {
   };
 
   const issue = async (application: QrisApplication) => {
-    if (!user || !qrisReference.trim() || !qrisImageUrl) return toast.error('Isi referensi penerbitan dan unggah file QRIS Sadesa terlebih dahulu.');
+    if (!user || !qrisReference.trim() || !qrisImageUrl || !gdcMerchantId.trim() || !gdcAccountNumber.trim()) return toast.error('Isi referensi, unggah file QRIS, dan masukkan Merchant ID serta Account Number GDC.');
     setSaving(true);
     try {
-      const { error } = await db.rpc('admin_issue_qris', { p_application_id: application.id, p_qris_reference: qrisReference.trim(), p_qris_asset_key: qrisImageUrl });
+      const { error } = await db.rpc('admin_issue_qris_mpm', { p_application_id: application.id, p_qris_reference: qrisReference.trim(), p_qris_asset_key: qrisImageUrl, p_gdc_merchant_id: gdcMerchantId.trim(), p_gdc_account_number: gdcAccountNumber.trim() });
       if (error) throw error;
       toast.success('QRIS Sadesa dicatat dan menunggu aktivasi akhir.');
       await load();
     } catch (error) { toast.error(error instanceof Error ? error.message : 'Penerbitan QRIS gagal disimpan.'); }
+    finally { setSaving(false); }
+  };
+
+  const saveActiveMpmIdentity = async (application: QrisApplication) => {
+    if (!user || !gdcMerchantId.trim() || !gdcAccountNumber.trim()) return toast.error('Merchant ID dan Account Number GDC wajib diisi.');
+    setSaving(true);
+    try {
+      const { error } = await db.rpc('admin_configure_qris_mpm', {
+        p_application_id: application.id,
+        p_gdc_merchant_id: gdcMerchantId.trim(),
+        p_gdc_account_number: gdcAccountNumber.trim(),
+      });
+      if (error) throw error;
+      toast.success('Identitas GDC tersimpan untuk QRIS merchant aktif.');
+      await load();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Identitas GDC gagal disimpan.'); }
     finally { setSaving(false); }
   };
 
