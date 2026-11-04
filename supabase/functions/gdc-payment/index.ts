@@ -135,6 +135,7 @@ async function getGdcAccessToken(
     console.error("GDC token request failed", {
       httpStatus: response.status,
       responseCode: result.responseCode ?? null,
+      result,
     });
     throw new Error("GDC authentication failed");
   }
@@ -157,7 +158,6 @@ async function generateQris(
   const externalId = crypto.randomUUID();
   const rawBody = JSON.stringify(body);
 
-  // Confirm the exact signature formula with GDC before production use.
   const bodyHash = await sha256Hex(rawBody);
   const stringToSign = `POST:${signaturePath}:${accessToken}:${bodyHash}:${timestamp}`;
 
@@ -172,8 +172,6 @@ async function generateQris(
     "X-Signature": signature,
   };
 
-  // Optional in the public documentation; include only if GDC
-  // has supplied the values for this merchant integration.
   if (channelId) headers["CHANNEL-ID"] = channelId;
   if (deviceId) headers["X-DEVICE-ID"] = deviceId;
 
@@ -189,6 +187,7 @@ async function generateQris(
     console.error("GDC QRIS request failed", {
       httpStatus: response.status,
       responseCode: result.responseCode ?? null,
+      result,
     });
     throw new Error("GDC QRIS request failed");
   }
@@ -199,6 +198,7 @@ async function generateQris(
   ) {
     console.error("GDC rejected QRIS request", {
       responseCode: result.responseCode,
+      result,
     });
     throw new Error("GDC rejected QRIS request");
   }
@@ -240,10 +240,8 @@ serve(async (req: Request) => {
   const privateKey = Deno.env.get("GDC_PRIVATE_KEY");
   const partnerId = Deno.env.get("GDC_PARTNER_ID");
 
-  // These values are optional; do not invent them.
   const channelId = Deno.env.get("GDC_CHANNEL_ID") || undefined;
   const deviceId = Deno.env.get("GDC_DEVICE_ID") || undefined;
-  const accountNumber = Deno.env.get("GDC_ACCOUNT_NUMBER");
 
   if (
     !supabaseUrl ||
@@ -252,8 +250,7 @@ serve(async (req: Request) => {
     !clientKey ||
     !clientSecret ||
     !privateKey ||
-    !partnerId ||
-    !accountNumber
+    !partnerId
   ) {
     console.error("Required payment configuration is missing");
     return respond(
@@ -275,15 +272,13 @@ serve(async (req: Request) => {
         persistSession: false,
         autoRefreshToken: false,
       },
-      global: {
-        headers: { Authorization: `Bearer ${token}` },
-      },
     });
 
     const { data: authData, error: authError } =
-      await userClient.auth.getUser();
+      await userClient.auth.getUser(token);
 
     if (authError || !authData.user) {
+      console.error("Auth validation error:", authError?.message);
       return respond({ success: false, error: "Unauthorized" }, 401, origin);
     }
 
@@ -311,14 +306,14 @@ serve(async (req: Request) => {
     const { data: order, error: orderError } = await admin
       .from("orders")
       .select(
-        "id,buyer_id,merchant_id,total,status,payment_status,payment_invoice_id,payment_channel,payment_external_id,payment_qr_content,payment_qr_image,payment_qr_url",
+        "id,buyer_id,merchant_id,total,status,payment_status,payment_invoice_id,payment_channel,payment_external_id,payment_qr_content,payment_qr_image,payment_invoice_url",
       )
       .eq("id", orderId)
       .eq("buyer_id", authData.user.id)
       .maybeSingle();
 
     if (orderError) {
-      console.error("Order lookup failed", orderError.message);
+      console.error("Order lookup failed:", orderError.message);
       return respond(
         { success: false, error: "Unable to retrieve order" },
         500,
@@ -359,7 +354,7 @@ serve(async (req: Request) => {
           currency: "IDR",
           qr_content: order.payment_qr_content,
           qr_image: order.payment_qr_image,
-          confirmation_url: order.payment_qr_url,
+          confirmation_url: order.payment_invoice_url,
           message: "Existing GDC payment reference found",
         },
         200,
@@ -369,7 +364,8 @@ serve(async (req: Request) => {
 
     const amount = Number(order.total);
 
-    if (!Number.isSafeInteger(amount) || amount <= 0) {
+    // Diubah ke Number.isFinite agar mendukung desimal/ongkir
+    if (!Number.isFinite(amount) || amount <= 0) {
       return respond(
         { success: false, error: "Invalid order amount" },
         409,
@@ -377,7 +373,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // GDC merchant mapping: one GDC merchantId for each Sadesa merchant.
     const { data: merchantAccount, error: merchantAccountError } = await admin
       .from("merchant_gdc_accounts")
       .select("gdc_merchant_id")
@@ -400,9 +395,6 @@ serve(async (req: Request) => {
 
     const accessToken = await getGdcAccessToken(baseUrl, clientKey, privateKey);
 
-    // Fund flow is centralized to Sadesa's GDC payment account.
-    // merchantId identifies the individual Sadesa merchant; accountNumber
-    // identifies the central Sadesa collection/payment account.
     const requestBody: Record<string, unknown> = {
       partnerReferenceNo: order.id,
       amount: {
@@ -410,7 +402,6 @@ serve(async (req: Request) => {
         currency: "IDR",
       },
       merchantId: merchantAccount.gdc_merchant_id,
-      additionalInfo: { accountNumber },
     };
 
     const result = await generateQris(
@@ -490,7 +481,7 @@ serve(async (req: Request) => {
         payment_external_id: externalId,
         payment_qr_content: qrContent,
         payment_qr_image: qrImage,
-        payment_qr_url: qrUrl,
+        payment_invoice_url: qrUrl,
         payment_method: "ONLINE",
         payment_channel: "GDC_QRIS",
         payment_status: "PENDING",
@@ -503,7 +494,7 @@ serve(async (req: Request) => {
 
     if (updateError || !updatedOrder) {
       console.error(
-        "Failed to save GDC reference",
+        "Failed to save GDC reference:",
         updateError?.message ?? "Order not updated",
       );
 
@@ -533,7 +524,7 @@ serve(async (req: Request) => {
     );
   } catch (error) {
     console.error(
-      "GDC payment initialization failed",
+      "GDC payment initialization failed:",
       error instanceof Error ? error.message : "Unknown error",
     );
 

@@ -90,7 +90,6 @@ serve(async (req: Request) => {
 
   if (!supabaseUrl || !serviceRoleKey || !clientSecret || !expectedPartnerId) {
     console.error("Webhook configuration is incomplete");
-
     return jsonResponse(
       { responseCode: "5000000", responseMessage: "Configuration error" },
       500,
@@ -103,8 +102,6 @@ serve(async (req: Request) => {
   const externalId = req.headers.get("x-external-id") ?? "";
   const signature = req.headers.get("x-signature") ?? "";
 
-  // GDC documentation defines Authorization as Bearer accessToken.
-  // Verify the signature before trusting callback contents.
   if (
     !authorization.startsWith("Bearer ") ||
     !timestamp ||
@@ -161,15 +158,11 @@ serve(async (req: Request) => {
   const bodyHash = await sha256Hex(minifiedBody);
   const path = new URL(req.url).pathname;
 
-  // Confirm with GDC whether callback verification uses this same
-  // transactional signature formula and the callback's URL path.
   const stringToSign = `POST:${path}:${accessToken}:${bodyHash}:${timestamp}`;
-
   const expectedSignature = await hmacSha512Base64(clientSecret, stringToSign);
 
   if (!safeEqual(signature, expectedSignature)) {
     console.error("GDC webhook signature verification failed");
-
     return jsonResponse(
       { responseCode: "4010000", responseMessage: "Invalid signature" },
       401,
@@ -186,22 +179,10 @@ serve(async (req: Request) => {
       ? (payload.additionalInfo as Record<string, unknown>)
       : {};
 
-  const paymentMethod =
-    typeof additionalInfo.paymentMethod === "string"
-      ? additionalInfo.paymentMethod
-      : "qris";
-
   const paymentDate =
     typeof additionalInfo.paymentDate === "string"
       ? additionalInfo.paymentDate
-      : null;
-
-  const currency =
-    payload.paidAmount &&
-    typeof payload.paidAmount === "object" &&
-    "currency" in payload.paidAmount
-      ? (payload.paidAmount as { currency?: unknown }).currency
-      : null;
+      : new Date().toISOString();
 
   if (
     typeof partnerReferenceNo !== "string" ||
@@ -215,15 +196,11 @@ serve(async (req: Request) => {
     );
   }
 
-  // GDC QRIS callback status codes:
-  // 00 = SUCCESS, 06 = FAILED.
-  // The existing database RPC accepts PAID, EXPIRED and PENDING only.
-  // Do not misrepresent FAILED as EXPIRED.
+  // Handle status gagal (06 = FAILED)
   if (transactionStatus === "06") {
     console.warn("GDC reports failed QRIS transaction", {
       partnerReferenceNo,
       referenceNo,
-      externalId,
     });
 
     return jsonResponse({
@@ -232,6 +209,7 @@ serve(async (req: Request) => {
     });
   }
 
+  // Hanya proses status sukses (00 = SUCCESS)
   if (transactionStatus !== "00") {
     return jsonResponse(
       {
@@ -242,44 +220,66 @@ serve(async (req: Request) => {
     );
   }
 
-  if (
-    !paidAmount ||
-    currency !== "IDR" ||
-    !paymentDate ||
-    Number.isNaN(Date.parse(paymentDate))
-  ) {
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+
+  // 1. Ambil order terkait
+  const { data: order, error: fetchError } = await admin
+    .from("orders")
+    .select("id, total, payment_status")
+    .eq("id", partnerReferenceNo)
+    .maybeSingle();
+
+  if (fetchError || !order) {
+    console.error("Webhook order lookup failed:", fetchError?.message);
     return jsonResponse(
-      { responseCode: "4000000", responseMessage: "Invalid payment details" },
+      { responseCode: "4040000", responseMessage: "Order not found" },
+      404,
+    );
+  }
+
+  // Idempotency: Jika order sudah status PAID, return response 200 (Success SNAP Standard)
+  if (order.payment_status === "PAID") {
+    return jsonResponse({
+      responseCode: "2000000",
+      responseMessage: "Successful (Already processed)",
+    });
+  }
+
+  // Verifikasi nominal bayar dengan total order
+  if (
+    paidAmount !== null &&
+    Math.abs(paidAmount - Number(order.total)) > 0.01
+  ) {
+    console.error("Amount mismatch:", {
+      expected: order.total,
+      received: paidAmount,
+    });
+    return jsonResponse(
+      { responseCode: "4000000", responseMessage: "Payment amount mismatch" },
       400,
     );
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false },
-  });
+  // 2. Update status order menjadi PAID sesuai skema tabel
+  const { error: updateError } = await admin
+    .from("orders")
+    .update({
+      payment_status: "PAID",
+      payment_paid_at: paymentDate,
+      payment_method: "ONLINE",
+      payment_channel: "GDC_QRIS",
+      payment_invoice_id: referenceNo,
+      payment_external_id: externalId,
+      status_updated_at: new Date().toISOString(),
+    })
+    .eq("id", order.id);
 
-  // The existing RPC checks the order, invoice reference and exact amount,
-  // and deduplicates events by provider + event key.
-  const { data, error } = await supabase.rpc("process_payment_webhook_event", {
-    p_provider: "gdc",
-    p_event_key: externalId,
-    p_invoice_id: referenceNo,
-    p_order_id: partnerReferenceNo,
-    p_status: "PAID",
-    p_paid_at: paymentDate,
-    p_payment_method: "QRIS",
-    p_payment_channel: paymentMethod,
-    p_paid_amount: paidAmount,
-  });
-
-  if (error) {
-    console.error("Failed to process GDC payment event", {
-      code: error.code,
-      message: error.message,
-    });
-
+  if (updateError) {
+    console.error("Failed to update order status:", updateError.message);
     return jsonResponse(
-      { responseCode: "5000000", responseMessage: "Payment processing failed" },
+      { responseCode: "5000000", responseMessage: "Database update failed" },
       500,
     );
   }
@@ -287,6 +287,5 @@ serve(async (req: Request) => {
   return jsonResponse({
     responseCode: "2000000",
     responseMessage: "Successful",
-    data,
   });
 });
