@@ -137,7 +137,9 @@ async function getGdcAccessToken(
       responseCode: result.responseCode ?? null,
       result,
     });
-    throw new Error("GDC authentication failed");
+    throw new Error(
+      `GDC auth failed (${response.status}): ${result.responseMessage || result.error || "Invalid credentials/signature"}`,
+    );
   }
 
   return result.accessToken;
@@ -189,7 +191,9 @@ async function generateQris(
       responseCode: result.responseCode ?? null,
       result,
     });
-    throw new Error("GDC QRIS request failed");
+    throw new Error(
+      `GDC QRIS failed (${response.status}): ${result.responseMessage || result.error || "Gateway error"}`,
+    );
   }
 
   if (
@@ -200,7 +204,9 @@ async function generateQris(
       responseCode: result.responseCode,
       result,
     });
-    throw new Error("GDC rejected QRIS request");
+    throw new Error(
+      `GDC rejected QRIS: ${result.responseMessage || result.responseCode}`,
+    );
   }
 
   return { ...result, _externalId: externalId } as Record<string, unknown>;
@@ -254,7 +260,7 @@ serve(async (req: Request) => {
   ) {
     console.error("Required payment configuration is missing");
     return respond(
-      { success: false, error: "Payment service unavailable" },
+      { success: false, error: "Payment service configuration missing" },
       503,
       origin,
     );
@@ -303,6 +309,7 @@ serve(async (req: Request) => {
       auth: { persistSession: false },
     });
 
+    // 1. Query Order
     const { data: order, error: orderError } = await admin
       .from("orders")
       .select(
@@ -315,7 +322,11 @@ serve(async (req: Request) => {
     if (orderError) {
       console.error("Order lookup failed:", orderError.message);
       return respond(
-        { success: false, error: "Unable to retrieve order" },
+        {
+          success: false,
+          error: "Unable to retrieve order",
+          details: orderError.message,
+        },
         500,
         origin,
       );
@@ -338,6 +349,7 @@ serve(async (req: Request) => {
       );
     }
 
+    // Reused Payment jika QRIS sudah pernah di-generate sebelumnya
     if (
       order.payment_channel === "GDC_QRIS" &&
       order.payment_invoice_id &&
@@ -364,7 +376,6 @@ serve(async (req: Request) => {
 
     const amount = Number(order.total);
 
-    // Diubah ke Number.isFinite agar mendukung desimal/ongkir
     if (!Number.isFinite(amount) || amount <= 0) {
       return respond(
         { success: false, error: "Invalid order amount" },
@@ -373,18 +384,18 @@ serve(async (req: Request) => {
       );
     }
 
-    const { data: merchantAccount, error: merchantAccountError } = await admin
-      .from("merchant_gdc_accounts")
+    // 2. Query Merchant (langsung dari tabel merchants)
+    const { data: merchant, error: merchantError } = await admin
+      .from("merchants")
       .select("gdc_merchant_id")
-      .eq("merchant_id", order.merchant_id)
-      .eq("is_active", true)
+      .eq("id", order.merchant_id)
       .maybeSingle();
 
-    if (merchantAccountError || !merchantAccount?.gdc_merchant_id) {
+    if (merchantError || !merchant?.gdc_merchant_id) {
       console.error("GDC merchant mapping not found", {
         orderId: order.id,
         merchantId: order.merchant_id,
-        error: merchantAccountError?.message ?? null,
+        error: merchantError?.message ?? null,
       });
       return respond(
         { success: false, error: "Merchant payment account is not configured" },
@@ -393,6 +404,7 @@ serve(async (req: Request) => {
       );
     }
 
+    // 3. Handshake B2B Token & Request QRIS
     const accessToken = await getGdcAccessToken(baseUrl, clientKey, privateKey);
 
     const requestBody: Record<string, unknown> = {
@@ -401,7 +413,7 @@ serve(async (req: Request) => {
         value: amount.toFixed(2),
         currency: "IDR",
       },
-      merchantId: merchantAccount.gdc_merchant_id,
+      merchantId: merchant.gdc_merchant_id,
     };
 
     const result = await generateQris(
@@ -474,6 +486,7 @@ serve(async (req: Request) => {
       );
     }
 
+    // 4. Update data order di Database
     const { data: updatedOrder, error: updateError } = await admin
       .from("orders")
       .update({
@@ -499,7 +512,11 @@ serve(async (req: Request) => {
       );
 
       return respond(
-        { success: false, error: "Unable to save payment reference" },
+        {
+          success: false,
+          error: "Unable to save payment reference",
+          details: updateError?.message,
+        },
         500,
         origin,
       );
@@ -523,13 +540,15 @@ serve(async (req: Request) => {
       origin,
     );
   } catch (error) {
-    console.error(
-      "GDC payment initialization failed:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
+    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error("GDC payment initialization failed:", errorMsg);
 
     return respond(
-      { success: false, error: "Payment service unavailable" },
+      {
+        success: false,
+        error: "Payment service failed",
+        debug_message: errorMsg,
+      },
       502,
       origin,
     );
