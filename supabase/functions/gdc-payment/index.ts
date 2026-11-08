@@ -48,8 +48,11 @@ function base64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+// Format ISO 8601 standar SNAP Indonesia dengan offset timezone WIB (+07:00)
 function timestampNow(): string {
-  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  const date = new Date();
+  const wibDate = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+  return wibDate.toISOString().replace(/\.\d{3}Z$/, "+07:00");
 }
 
 async function sha256Hex(value: string): Promise<string> {
@@ -155,13 +158,13 @@ async function generateQris(
   deviceId?: string,
 ) {
   const path = "/v1.0/qr/qr-mpm-generate";
-  const signaturePath = `${new URL(baseUrl).pathname.replace(/\/$/, "")}${path}`;
   const timestamp = timestampNow();
   const externalId = crypto.randomUUID();
   const rawBody = JSON.stringify(body);
 
+  // SNAP Signature stringToSign menggunakan path murni (/v1.0/qr/qr-mpm-generate)
   const bodyHash = await sha256Hex(rawBody);
-  const stringToSign = `POST:${signaturePath}:${accessToken}:${bodyHash}:${timestamp}`;
+  const stringToSign = `POST:${path}:${accessToken}:${bodyHash}:${timestamp}`;
 
   const signature = await hmacSha512Base64(clientSecret, stringToSign);
 
@@ -172,9 +175,9 @@ async function generateQris(
     "X-PARTNER-ID": partnerId,
     "X-EXTERNAL-ID": externalId,
     "X-Signature": signature,
+    "CHANNEL-ID": channelId || "95221",
   };
 
-  if (channelId) headers["CHANNEL-ID"] = channelId;
   if (deviceId) headers["X-DEVICE-ID"] = deviceId;
 
   const response = await fetch(`${baseUrl}${path}`, {
@@ -192,7 +195,7 @@ async function generateQris(
       result,
     });
     throw new Error(
-      `GDC QRIS failed (${response.status}): ${result.responseMessage || result.error || "Gateway error"}`,
+      `GDC QRIS failed (${response.status}): ${result.responseMessage || result.error || JSON.stringify(result)}`,
     );
   }
 
@@ -246,8 +249,11 @@ serve(async (req: Request) => {
   const privateKey = Deno.env.get("GDC_PRIVATE_KEY");
   const partnerId = Deno.env.get("GDC_PARTNER_ID");
 
-  const channelId = Deno.env.get("GDC_CHANNEL_ID") || undefined;
+  const channelId = Deno.env.get("GDC_CHANNEL_ID") || "95221";
   const deviceId = Deno.env.get("GDC_DEVICE_ID") || undefined;
+
+  // Payment Account Balance Number (000237709506) dari Dashboard GDC
+  const accountNumber = Deno.env.get("GDC_ACCOUNT_NUMBER") || "000237709506";
 
   if (
     !supabaseUrl ||
@@ -407,6 +413,7 @@ serve(async (req: Request) => {
     // 3. Handshake B2B Token & Request QRIS
     const accessToken = await getGdcAccessToken(baseUrl, clientKey, privateKey);
 
+    // Menyusun requestBody lengkap dengan additionalInfo.accountNumber
     const requestBody: Record<string, unknown> = {
       partnerReferenceNo: order.id,
       amount: {
@@ -414,6 +421,9 @@ serve(async (req: Request) => {
         currency: "IDR",
       },
       merchantId: merchant.gdc_merchant_id,
+      additionalInfo: {
+        accountNumber: accountNumber,
+      },
     };
 
     const result = await generateQris(
