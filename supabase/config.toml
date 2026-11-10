@@ -40,3 +40,8 @@ verify_jwt = true
 
 [functions.gdc-webhook]
 verify_jwt = false
+
+[functions.gdc-qris-mpm]
+# The function validates the authenticated user inside the handler.
+verify_jwt = false
+
