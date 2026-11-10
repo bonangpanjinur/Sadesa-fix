@@ -22,6 +22,7 @@ import { validatePhone } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
+import { clearCheckoutAttempt, createCheckoutAttemptScope, getOrCreateCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
@@ -30,8 +31,10 @@ import { normalizeCheckoutProductQuantities } from '@/lib/normalizeCheckoutItems
 import { getCheckoutMerchantIds, hasMultipleCheckoutMerchants } from '@/lib/cartSelection';
 import { getCartItemKey } from '@/lib/cartItemIdentity';
 import { getOptimizedImageSrcSet, optimizeSupabaseImage } from '@/components/ui/OptimizedImage';
+import { isGdcQrisMpmAvailable } from '@/lib/gdcQrisMpmApi';
 
 type PaymentMethod = 'TRANSFER' | 'ONLINE' | 'QRIS_DYNAMIC';
+type GdcMpmAvailability = 'loading' | 'available' | 'unavailable' | 'error';
 
 interface MerchantOperatingInfo {
   id: string;
@@ -44,6 +47,13 @@ interface MerchantOperatingInfo {
 
 interface MerchantPaymentSettings {
   qrisImageUrl: string | null;
+}
+
+interface AdminPaymentInfo {
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  qris_image_url: string | null;
 }
 
 interface ShippingZoneEstimate {
@@ -80,7 +90,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { enabled: guestCheckoutEnabled, loading: guestCheckoutFlagLoading } = useGuestCheckoutEnabled(Boolean(user));
-  const { selectedItems, removeFromCart } = useCart();
+  const { selectedItems, removeCartItem } = useCart();
   const items = selectedItems;
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
@@ -89,7 +99,12 @@ export default function CheckoutPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [guestToken, setGuestToken] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'INTERNAL' | 'EXPEDITION'>('INTERNAL');
-  const [paymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER');
+  const [adminPaymentInfo, setAdminPaymentInfo] = useState<AdminPaymentInfo | null>(null);
+  const [adminPaymentInfoLoading, setAdminPaymentInfoLoading] = useState(true);
+  const paymentMethodTouchedRef = useRef(false);
+  const [gdcMpmAvailability, setGdcMpmAvailability] = useState<GdcMpmAvailability>('loading');
+  const [gdcMpmAvailabilityAttempt, setGdcMpmAvailabilityAttempt] = useState(0);
   // The first available options are visibly selected by default, so the step
   // indicator and CTA should not pretend the buyer still needs to choose them.
   const [hasChosenDelivery, setHasChosenDelivery] = useState(true);
@@ -435,6 +450,53 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let cancelled = false;
+    if (!user || !firstMerchantId) {
+      setGdcMpmAvailability('unavailable');
+      return () => { cancelled = true; };
+    }
+    setGdcMpmAvailability('loading');
+    isGdcQrisMpmAvailable(firstMerchantId)
+      .then((available) => { if (!cancelled) setGdcMpmAvailability(available ? 'available' : 'unavailable'); })
+      .catch(() => {
+        // Do not log endpoint errors or response payloads; they may contain sensitive data.
+        console.warn('Could not verify GDC QR MPM availability.');
+        if (!cancelled) setGdcMpmAvailability('error');
+      })
+    return () => { cancelled = true; };
+  }, [firstMerchantId, user, gdcMpmAvailabilityAttempt]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAdminPaymentInfo = async () => {
+      setAdminPaymentInfoLoading(true);
+      try {
+        const { data, error } = await supabase.from('app_settings').select('value').eq('key', 'admin_payment_info').maybeSingle();
+        if (error) throw error;
+        const value = data?.value && typeof data.value === 'object' ? data.value as Record<string, unknown> : {};
+        if (!cancelled) setAdminPaymentInfo({
+          bank_name: typeof value.bank_name === 'string' ? value.bank_name.trim() || null : null,
+          bank_account_number: typeof value.bank_account_number === 'string' ? value.bank_account_number.trim() || null : null,
+          bank_account_name: typeof value.bank_account_name === 'string' ? value.bank_account_name.trim() || null : null,
+          qris_image_url: typeof value.qris_image_url === 'string' ? value.qris_image_url.trim() || null : null,
+        });
+      } catch {
+        if (!cancelled) setAdminPaymentInfo(null);
+      } finally {
+        if (!cancelled) setAdminPaymentInfoLoading(false);
+      }
+    };
+    void loadAdminPaymentInfo();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (paymentMethodTouchedRef.current) return;
+    if (gdcMpmAvailability === 'available') setPaymentMethod('QRIS_DYNAMIC');
+    else if (gdcMpmAvailability === 'unavailable' || gdcMpmAvailability === 'error') setPaymentMethod('TRANSFER');
+  }, [gdcMpmAvailability]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loadMerchantOperatingHours = async () => {
       const ids = merchantIdsKey ? merchantIdsKey.split(',') : [];
       if (ids.length === 0) {
@@ -521,13 +583,17 @@ export default function CheckoutPage() {
     paymentSettingsLoadState.merchantId,
     firstMerchantId,
   ) && merchantPaymentSettings !== null;
-  const paymentReady = paymentSettingsReady && Boolean(merchantPaymentSettings?.qrisImageUrl?.trim());
+  const hasAdminBankFallback = Boolean(adminPaymentInfo?.bank_name && adminPaymentInfo.bank_account_number);
+  const hasAdminPaymentFallback = Boolean(adminPaymentInfo?.qris_image_url || hasAdminBankFallback);
+  const paymentReady = paymentSettingsReady && (paymentMethod === 'QRIS_DYNAMIC'
+    ? Boolean(user && gdcMpmAvailability === 'available')
+    : Boolean(!adminPaymentInfoLoading && hasAdminPaymentFallback));
 
   // Remove items from a specific merchant
   const handleRemoveMerchantItems = (merchantId: string) => {
     const merchantItems = itemsByMerchant[merchantId]?.items || [];
     merchantItems.forEach(item => {
-      removeFromCart(item.product.id);
+      removeCartItem(getCartItemKey(item));
     });
     toast({
       title: 'Produk dihapus',
@@ -598,8 +664,10 @@ export default function CheckoutPage() {
 
     if (!paymentReady) {
       toast({
-        title: 'QRIS merchant belum aktif',
-        description: 'Admin harus mengunggah dan mengaktifkan QRIS merchant sebelum checkout dapat dilanjutkan.',
+        title: paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM belum tersedia' : 'Pilih metode QRIS yang tersedia',
+        description: paymentMethod === 'QRIS_DYNAMIC'
+          ? 'Pastikan akun Anda login dan admin sudah mengaktifkan NMID serta Account Number GDC untuk merchant ini.'
+          : 'Pilih QRIS MPM dinamis jika tersedia untuk merchant ini. QRIS statis hanya muncul jika merchant memang mengaktifkannya.',
         variant: 'destructive',
       });
       return;
@@ -673,7 +741,8 @@ export default function CheckoutPage() {
     setStockConflict(null);
 
     try {
-      checkoutKeyRef.current ??= crypto.randomUUID();
+      const guestCheckoutSessionKey = user ? null : (guestSessionKeyRef.current ?? getGuestCheckoutSessionKey());
+      if (guestCheckoutSessionKey) guestSessionKeyRef.current = guestCheckoutSessionKey;
       // Validate stock before creating orders
       const allProductIds = items.flatMap(item => [item.product.id, ...(item.toppings || []).map(topping => topping.product.id)]);
       const { data: currentStocks, error: stockCheckError } = await supabase
@@ -711,7 +780,7 @@ export default function CheckoutPage() {
       }
 
       const fullAddress = [formatFullAddress(addressData.address), addressData.detailAddress?.trim()].filter(Boolean).join(', ');
-      const checkoutPayload = {
+      const checkoutValues = {
         p_items: quoteItems,
         p_delivery: {
           name: addressData.name,
@@ -728,14 +797,28 @@ export default function CheckoutPage() {
           notes: notes || null,
         },
         p_delivery_type: deliveryType,
-        // The order RPC uses its existing transfer workflow; GDC MPM is
-        // generated by the server once this authoritative order exists.
         p_payment_method: paymentMethod === 'QRIS_DYNAMIC' ? 'TRANSFER' : paymentMethod,
+        // Bind the buyer's payment intent in the same transaction as the order.
+        // The URL provider query is presentation-only and is never authorization.
+        p_payment_channel: paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS_MPM_GDC' : paymentMethod === 'TRANSFER' ? 'ADMIN_MANUAL' : paymentMethod,
         p_voucher_id: user ? appliedVoucher?.id ?? null : null,
+        p_distance_km: null,
         // The server derives distance from the submitted destination and the
         // merchant's stored coordinates; never trust a client-supplied rate input.
-        p_checkout_key: checkoutKeyRef.current,
-        ...(user ? {} : { p_guest_checkout_key: guestSessionKeyRef.current ?? getGuestCheckoutSessionKey() }),
+      };
+      const checkoutAttemptScope = await createCheckoutAttemptScope(
+        user ? `user:${user.id}` : `guest:${guestCheckoutSessionKey}`,
+        checkoutValues,
+      );
+      const checkoutAttempt = getOrCreateCheckoutAttempt(checkoutAttemptScope, !user);
+      checkoutKeyRef.current = checkoutAttempt.key;
+      const checkoutPayload = {
+        ...checkoutValues,
+        p_checkout_key: checkoutAttempt.key,
+        ...(user ? {} : {
+          p_guest_checkout_key: guestCheckoutSessionKey,
+          p_guest_access_token: checkoutAttempt.guestAccessToken,
+        }),
       };
       const { data: checkoutResult, error: checkoutError } = await supabase.rpc(
         (user ? 'create_marketplace_checkout' : 'create_guest_marketplace_checkout') as never,
@@ -767,9 +850,9 @@ export default function CheckoutPage() {
           // purchased lines before navigating away so a successful online
           // checkout cannot leave stale items in the cart.
           selectedItems.forEach(item => {
-            if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
-            else removeFromCart(item.product.id);
+            removeCartItem(getCartItemKey(item));
           });
+          clearCheckoutAttempt(checkoutAttemptScope, checkoutAttempt.key);
           checkoutKeyRef.current = null;
           window.location.href = invoice.invoice_url;
           return;
@@ -786,9 +869,9 @@ export default function CheckoutPage() {
       }
 
       selectedItems.forEach(item => {
-        if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
-        else removeFromCart(item.product.id);
+        removeCartItem(getCartItemKey(item));
       });
+      clearCheckoutAttempt(checkoutAttemptScope, checkoutAttempt.key);
       checkoutKeyRef.current = null;
       if (paymentMethod === 'QRIS_DYNAMIC') {
         navigate(`/payment/${authoritativeOrderId}?provider=gdc-mpm`);
@@ -1230,17 +1313,31 @@ export default function CheckoutPage() {
             <h3 className="font-bold text-foreground">{t('checkout.payment.title')}</h3>
           </div>
 
-          {merchantPaymentSettings?.qrisImageUrl ? (
-            <div className="mt-3 rounded-lg border bg-secondary/50 p-3">
-              <p className="mb-2 text-sm font-semibold">QRIS toko</p>
-              <div className="flex justify-center rounded border bg-card p-3">
-                <img src={merchantPaymentSettings.qrisImageUrl} alt={`QRIS ${items[0]?.product.merchantName || 'toko'}`} className="max-h-64 w-auto max-w-full" />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">Pindai QRIS ini untuk membayar pesanan ke merchant yang dipilih.</p>
-            </div>
-          ) : (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
-              QRIS toko belum aktif. Checkout belum dapat dilanjutkan sampai admin mengunggah dan mengaktifkan QRIS merchant ini.
+          <RadioGroup value={paymentMethod} onValueChange={(value) => { paymentMethodTouchedRef.current = true; setPaymentMethod(value as PaymentMethod); }} className="space-y-2">
+            {hasAdminPaymentFallback && (
+              <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'TRANSFER' ? 'border-primary bg-primary/5' : 'border-border'} cursor-pointer`}>
+                <RadioGroupItem value="TRANSFER" id="payment-admin-manual" />
+                <span><span className="block text-sm font-semibold">QRIS / Transfer Bank Admin Sadesa</span><span className="block text-xs text-muted-foreground">Pembayaran manual ke rekening atau QRIS resmi Sadesa, diverifikasi admin.</span></span>
+              </label>
+            )}
+            <label className={`flex items-start gap-3 rounded-lg border p-3 ${paymentMethod === 'QRIS_DYNAMIC' ? 'border-primary bg-primary/5' : 'border-border'} ${user && gdcMpmAvailability === 'available' ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+              <RadioGroupItem value="QRIS_DYNAMIC" id="payment-qris-mpm" disabled={!user || gdcMpmAvailability !== 'available'} />
+              <span><span className="block text-sm font-semibold">QRIS MPM dinamis (Neo/GDC)</span><span className="block text-xs text-muted-foreground">QR unik dibuat setelah pesanan tersimpan; nominal dan identitas merchant diambil server.</span></span>
+            </label>
+          </RadioGroup>
+          {!user && <p className="mt-2 text-xs text-muted-foreground">QRIS MPM dinamis hanya tersedia untuk pembeli yang login.</p>}
+          {user && gdcMpmAvailability === 'loading' && <p role="status" className="mt-2 text-xs text-muted-foreground">Memeriksa ketersediaan QRIS MPM merchant…</p>}
+          {user && gdcMpmAvailability === 'unavailable' && <p className="mt-2 text-xs text-muted-foreground">QRIS MPM belum tersedia untuk merchant ini. Gunakan QRIS atau rekening admin Sadesa sebagai metode pembayaran alternatif.</p>}
+          {paymentMethod === 'QRIS_DYNAMIC' && !adminPaymentInfoLoading && !hasAdminPaymentFallback && <p className="mt-2 text-xs text-amber-700">QRIS dinamis dapat digunakan, tetapi fallback admin belum tersedia sampai Admin Sadesa mengatur QRIS atau rekening bank.</p>}
+          {!adminPaymentInfoLoading && !hasAdminPaymentFallback && paymentMethod !== 'QRIS_DYNAMIC' && <p className="mt-2 text-xs text-destructive">Metode pembayaran admin belum dikonfigurasi. Admin Sadesa perlu mengatur QRIS atau rekening bank.</p>}
+          {user && gdcMpmAvailability === 'error' && <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive"><span role="alert">Ketersediaan QR MPM gagal diverifikasi. Coba lagi atau periksa layanan.</span><Button type="button" variant="outline" size="sm" onClick={() => setGdcMpmAvailabilityAttempt((attempt) => attempt + 1)}>Coba lagi</Button></div>}
+
+          {paymentMethod === 'TRANSFER' && hasAdminPaymentFallback && (
+            <div className="mt-3 space-y-3 rounded-lg border bg-secondary/50 p-3">
+              <p className="text-sm font-semibold">Tujuan pembayaran resmi Admin Sadesa</p>
+              {adminPaymentInfo?.qris_image_url && <div className="rounded border bg-card p-3"><div className="flex justify-center"><img src={adminPaymentInfo.qris_image_url} alt="QRIS Admin Sadesa" className="max-h-64 w-auto max-w-full" /></div><p className="mt-2 text-center text-xs text-muted-foreground">Pindai QRIS admin dan bayar sesuai total pesanan.</p></div>}
+              {hasAdminBankFallback && <div className="rounded border bg-card p-3 text-sm"><p className="font-semibold">{adminPaymentInfo?.bank_name}</p><p>Nomor rekening: <strong>{adminPaymentInfo?.bank_account_number}</strong></p><p>a.n. {adminPaymentInfo?.bank_account_name || 'Admin Sadesa'}</p></div>}
+              <p className="text-xs text-muted-foreground">Pilih salah satu metode saja. Pembayaran manual diverifikasi Admin Sadesa setelah bukti diunggah.</p>
             </div>
           )}
           {paymentMethod === 'QRIS_DYNAMIC' && (
@@ -1346,7 +1443,7 @@ export default function CheckoutPage() {
           <CreditCard className="h-3.5 w-3.5" />
           <span>
             {t('shipping.payVia')}: <span className="font-medium text-foreground">
-              QRIS
+              {paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS MPM dinamis merchant' : 'QRIS / transfer bank Admin Sadesa'}
             </span>
           </span>
         </div>
@@ -1391,7 +1488,9 @@ export default function CheckoutPage() {
               ? 'Pengaturan pembayaran gagal dimuat. Muat ulang halaman untuk mencoba lagi.'
               : !paymentSettingsReady
                 ? 'Menyiapkan metode pembayaran toko...'
-                : 'Pilih metode pembayaran yang tersedia untuk melanjutkan.'}
+                : paymentMethod === 'QRIS_DYNAMIC'
+                  ? 'QRIS MPM belum aktif untuk merchant ini atau Anda belum login.'
+                  : 'Pilih metode pembayaran yang tersedia untuk melanjutkan.'}
           </p>
         )}
         {hasMultipleMerchants && (

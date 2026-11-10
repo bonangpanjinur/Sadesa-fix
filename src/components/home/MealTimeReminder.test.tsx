@@ -44,26 +44,26 @@ describe('MealTimeReminder', () => {
     vi.setSystemTime(new Date(2026, 9, 15, 12, 30));
     render(<MemoryRouter><MealTimeReminder /></MemoryRouter>);
     expect(screen.getByTestId('meal-time-reminder')).toHaveAttribute('aria-label', 'Pengingat makan siang');
-    expect(screen.getByText(/makan siang/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Aktifkan push notification SaDesa' })).toBeInTheDocument();
+    expect(screen.getAllByText(/makan siang/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Aktifkan pengingat makan SaDesa' })).toBeInTheDocument();
   });
 
   it('does not offer push when already subscribed and requests subscription on click', () => {
     push.isSubscribed = false;
     render(<MemoryRouter><MealTimeReminder /></MemoryRouter>);
-    fireEvent.click(screen.getByRole('button', { name: 'Aktifkan push notification SaDesa' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aktifkan pengingat makan SaDesa' }));
     expect(push.subscribe).toHaveBeenCalledTimes(1);
   });
 
   it('hides the subscription control for anonymous visitors and already subscribed users', () => {
     auth.user = null;
     const { rerender } = render(<MemoryRouter><MealTimeReminder /></MemoryRouter>);
-    expect(screen.queryByRole('button', { name: 'Aktifkan push notification SaDesa' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aktifkan pengingat makan SaDesa' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Masuk' })).toHaveAttribute('href', '/auth');
 
     auth.user = { id: 'user-1' };
     push.isSubscribed = true;
     rerender(<MemoryRouter><MealTimeReminder /></MemoryRouter>);
-    expect(screen.queryByRole('button', { name: 'Aktifkan push notification SaDesa' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aktifkan pengingat makan SaDesa' })).not.toBeInTheDocument();
   });
 });

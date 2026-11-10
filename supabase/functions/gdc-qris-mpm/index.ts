@@ -27,11 +27,12 @@ interface PaymentRow {
   merchant_id: string;
   partner_reference_no: string;
   external_id: string;
+  provider_external_id: string;
   reference_no: string | null;
   amount: number;
   currency: string;
   qr_content: string | null;
-  status: 'CREATING' | 'PENDING' | 'PAID' | 'FAILED';
+  status: 'CREATING' | 'PENDING' | 'PAID' | 'FAILED' | 'UNKNOWN' | 'EXPIRED' | 'MANUAL_FALLBACK_PENDING';
   paid_at: string | null;
 }
 interface GdcResponse {
@@ -163,12 +164,13 @@ function moneyValue(value: number): string {
 function responsePayment(row: PaymentRow) {
   return {
     order_id: row.order_id,
-    status: row.status === 'CREATING' ? 'PENDING' : row.status,
+    status: row.status,
     amount: Number(row.amount),
-    currency: 'IDR',
-    qr_content: row.qr_content,
+    currency: row.currency,
+    qr_content: row.status === 'PENDING' ? row.qr_content : null,
     reference_no: row.reference_no,
     paid_at: row.paid_at,
+    reconciliation_required: row.status === 'UNKNOWN',
   };
 }
 function parseAmount(value: string | undefined): number | null {
@@ -197,23 +199,83 @@ async function processRequest(req: Request): Promise<Response> {
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData.user) return json({ error: 'Unauthorized' }, 401, req);
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const input = await req.json().catch(() => null) as { action?: string; order_id?: string } | null;
-  if (!input || !['create', 'status'].includes(input.action || '') || !input.order_id || !/^[0-9a-f-]{36}$/i.test(input.order_id)) {
+  const input = await req.json().catch(() => null) as { action?: string; order_id?: string; merchant_id?: string } | null;
+  if (!input || !['create', 'status', 'fallback', 'availability'].includes(input.action || '')) {
     return json({ error: 'Permintaan pembayaran tidak valid.' }, 400, req);
   }
-  const credentials = getCredentials();
+  if (input.action === 'availability') {
+    if (!input.merchant_id || !/^[0-9a-f-]{36}$/i.test(input.merchant_id)) {
+      return json({ error: 'Merchant tidak valid.' }, 400, req);
+    }
+    const { data: application, error } = await admin.from('qris_applications')
+      .select('gdc_merchant_id, gdc_account_number')
+      .eq('merchant_id', input.merchant_id)
+      .eq('status', 'ACTIVE')
+      .order('activated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error('GDC QR MPM availability check failed', error.message);
+      return json({ error: 'Ketersediaan QRIS MPM tidak dapat diperiksa.' }, 503, req);
+    }
+    return json({ available: Boolean(application?.gdc_merchant_id?.trim() && application?.gdc_account_number?.trim()) }, 200, req);
+  }
+  if (!input.order_id || !/^[0-9a-f-]{36}$/i.test(input.order_id)) {
+    return json({ error: 'Permintaan pembayaran tidak valid.' }, 400, req);
+  }
   const { data: order, error: orderError } = await admin.from('orders')
-    .select('id, buyer_id, merchant_id, total, payment_method, payment_status, status, confirmation_deadline')
+    .select('id, buyer_id, merchant_id, total, payment_method, payment_channel, payment_intent, payment_status, status, confirmation_deadline')
     .eq('id', input.order_id).eq('buyer_id', authData.user.id).maybeSingle();
   if (orderError || !order) return json({ error: 'Pesanan tidak ditemukan.' }, 404, req);
-  if (order.payment_method !== 'TRANSFER') return json({ error: 'Pesanan ini tidak menggunakan QRIS merchant.' }, 409, req);
+  if (order.payment_method !== 'TRANSFER' || order.payment_channel !== 'QRIS_MPM_GDC' || order.payment_intent !== 'GDC_MPM') {
+    return json({ error: 'Pesanan ini tidak terikat pada QRIS MPM merchant.' }, 409, req);
+  }
+  const { data: paymentRecord, error: paymentError } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
+  if (paymentError) return json({ error: 'Data pembayaran tidak dapat dimuat.' }, 503, req);
+  let payment = paymentRecord;
   if (['PAID', 'REFUNDED'].includes(String(order.payment_status))) {
-    const { data: existing } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
+    const existing = payment;
     if (existing) return json(responsePayment(existing as PaymentRow));
     return json({ error: 'Pesanan tidak lagi menunggu pembayaran.' }, 409, req);
   }
-  if (input.action === 'create' && (order.payment_status === 'EXPIRED' || order.status === 'CANCELLED' || order.status === 'CANCELED' || order.status === 'REFUNDED')) return json({ error: 'Pesanan telah dibatalkan atau kedaluwarsa.' }, 409, req);
-  if (input.action === 'create' && order.confirmation_deadline && new Date(order.confirmation_deadline).getTime() <= Date.now()) return json({ error: 'Batas pembayaran pesanan telah berakhir.' }, 409, req);
+  const amount = Number(order.total);
+  if (!Number.isSafeInteger(amount) || amount <= 0) return json({ error: 'Nominal pesanan tidak valid.' }, 409, req);
+
+  if (input.action === 'status') {
+    if (!payment) return json({ error: 'QRIS pembayaran belum dibuat.' }, 404, req);
+    if (!['PENDING', 'CREATING', 'UNKNOWN'].includes(payment.status)) return json(responsePayment(payment as PaymentRow), 200, req);
+  }
+
+  if (input.action === 'fallback') {
+    if (!payment) return json({ error: 'QRIS pembayaran belum dibuat.' }, 404, req);
+    if (!['FAILED', 'EXPIRED'].includes(payment.status)) return json({ error: 'Fallback manual hanya tersedia setelah provider menyatakan QR gagal atau kedaluwarsa.' }, 409, req);
+    const { error: fallbackError } = await admin.rpc('request_gdc_qris_mpm_manual_fallback', { p_order_id: order.id });
+    if (fallbackError) {
+      console.error('GDC QR MPM manual fallback rejected', { code: fallbackError.code || null, orderId: order.id });
+      return json({ error: fallbackError.message || 'Fallback manual belum dapat dikunci.' }, 409, req);
+    }
+    const { data: fallbackPayment, error: fallbackReadError } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
+    if (fallbackReadError || !fallbackPayment || fallbackPayment.status !== 'MANUAL_FALLBACK_PENDING') {
+      return json({ error: 'Status fallback manual belum dapat dipastikan.' }, 503, req);
+    }
+    return json(responsePayment(fallbackPayment as PaymentRow), 200, req);
+  }
+
+  const credentials = getCredentials();
+  if (input.action === 'create') {
+  if (order.payment_status === 'EXPIRED' || order.status === 'CANCELLED' || order.status === 'CANCELED' || order.status === 'REFUNDED') return json({ error: 'Pesanan telah dibatalkan atau kedaluwarsa.' }, 409, req);
+  if (order.confirmation_deadline && new Date(order.confirmation_deadline).getTime() <= Date.now()) return json({ error: 'Batas pembayaran pesanan telah berakhir.' }, 409, req);
+  if (payment?.status === 'PENDING' || payment?.status === 'PAID') return json(responsePayment(payment as PaymentRow), 200, req);
+  if (payment?.status === 'FAILED' && payment.error_code !== 'QR_CREATE_FAILED') {
+    return json({ error: 'Provider telah menyatakan QR gagal. Minta fallback manual agar status pembayaran dikunci.' }, 409, req);
+  }
+  if (payment?.status === 'EXPIRED' || payment?.status === 'MANUAL_FALLBACK_PENDING') {
+    return json({ error: 'Pembayaran QRIS ini sudah ditutup dan tidak dapat dibuat ulang.' }, 409, req);
+  }
+  if (payment?.status === 'CREATING' || payment?.status === 'UNKNOWN') {
+    return json({ error: 'Pembuatan QR belum dapat direkonsiliasi. Jangan gunakan pembayaran manual sebelum status provider dipastikan.' }, 409, req);
+  }
+
   const { data: application, error: applicationError } = await admin.from('qris_applications')
     .select('gdc_merchant_id, gdc_account_number, qris_merchant_name')
     .eq('merchant_id', order.merchant_id).eq('status', 'ACTIVE')
@@ -221,43 +283,35 @@ async function processRequest(req: Request): Promise<Response> {
   if (applicationError || !application?.gdc_merchant_id || !application?.gdc_account_number) {
     return json({ error: 'QRIS MPM merchant belum aktif atau data akun GDC belum lengkap. Hubungi merchant.' }, 409, req);
   }
-  const amount = Number(order.total);
-  if (!Number.isSafeInteger(amount) || amount <= 0) return json({ error: 'Nominal pesanan tidak valid.' }, 409, req);
-  if (input.action === 'create') {
-    const { error: markError } = await admin.from('orders').update({ payment_channel: 'QRIS_MPM_GDC' })
-      .eq('id', order.id).eq('buyer_id', authData.user.id);
-    if (markError) return json({ error: 'Metode pembayaran QRIS belum dapat disiapkan.' }, 503, req);
-  }
-  let { data: payment, error: paymentError } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
-  if (paymentError) return json({ error: 'Data pembayaran tidak dapat dimuat.' }, 503, req);
-  if (payment?.status === 'PENDING' || payment?.status === 'PAID') return json(responsePayment(payment as PaymentRow));
-  if (payment?.status === 'FAILED' && input.action === 'create' && payment.error_code !== 'QR_CREATE_FAILED') {
-    return json({ error: 'Pembayaran ini sudah dinyatakan gagal oleh provider. Hubungi merchant untuk instruksi berikutnya.' }, 409, req);
-  }
-  if (input.action === 'status' && !payment) return json({ error: 'QRIS pembayaran belum dibuat.' }, 404, req);
+  const { error: markError } = await admin.from('orders').update({ payment_channel: 'QRIS_MPM_GDC' })
+    .eq('id', order.id).eq('buyer_id', authData.user.id);
+  if (markError) return json({ error: 'Metode pembayaran QRIS belum dapat disiapkan.' }, 503, req);
+
   if (!payment) {
+    const providerExternalId = crypto.randomUUID();
     const { data: inserted, error: insertError } = await admin.from('gdc_qris_mpm_payments').insert({
       order_id: order.id,
       merchant_id: order.merchant_id,
       amount,
       currency: 'IDR',
-      partner_reference_no: crypto.randomUUID(),
+      partner_reference_no: order.id,
       external_id: crypto.randomUUID(),
+      provider_external_id: providerExternalId,
+      creating_started_at: new Date().toISOString(),
+      attempt_number: 1,
       status: 'CREATING',
     }).select('*').single();
     if (insertError) {
       const { data: raced } = await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
-      if (raced) return json(responsePayment(raced as PaymentRow));
+      if (raced && ['PENDING', 'PAID', 'FAILED', 'EXPIRED', 'MANUAL_FALLBACK_PENDING'].includes(raced.status)) return json(responsePayment(raced as PaymentRow), 200, req);
       return json({ error: 'QR pembayaran belum dapat disiapkan.' }, 503, req);
     }
     payment = inserted;
   } else if (payment.status === 'FAILED' && input.action === 'create') {
-    const { data: retried, error: retryError } = await admin.from('gdc_qris_mpm_payments').update({ status: 'CREATING', error_code: null, updated_at: new Date().toISOString() })
+    const { data: retried, error: retryError } = await admin.from('gdc_qris_mpm_payments').update({ status: 'CREATING', error_code: null, last_error: null, provider_external_id: crypto.randomUUID(), creating_started_at: new Date().toISOString(), attempt_number: Number(payment.attempt_number || 0) + 1, updated_at: new Date().toISOString() })
       .eq('order_id', order.id).eq('status', 'FAILED').select('*').maybeSingle();
     if (retryError || !retried) return json({ error: 'QR pembayaran sedang diproses. Coba lagi sebentar.' }, 409, req);
     payment = retried;
-  } else if (payment.status === 'CREATING') {
-    return json({ error: 'QR pembayaran sedang dibuat. Coba lagi sebentar.' }, 409, req);
   }
   if (input.action === 'create') {
     try {
@@ -267,7 +321,7 @@ async function processRequest(req: Request): Promise<Response> {
         merchantId: String(application.gdc_merchant_id),
         additionalInfo: { accountNumber: String(application.gdc_account_number) },
       };
-      const generated = await gdcPost(credentials, API_PATHS.generate, requestBody, payment.external_id);
+      const generated = await gdcPost(credentials, API_PATHS.generate, requestBody, payment.provider_external_id);
       if (generated.responseCode !== '2004700' || generated.partnerReferenceNo !== payment.partner_reference_no || !generated.referenceNo || !generated.qrContent || generated.qrContent.length > 4000) {
         throw new Error('Provider mengembalikan data QR yang tidak lengkap.');
       }
@@ -281,39 +335,74 @@ async function processRequest(req: Request): Promise<Response> {
       if (saveError || !saved) throw new Error('QR pembayaran belum dapat disimpan.');
       return json(responsePayment(saved as PaymentRow), 200, req);
     } catch (error) {
-      await admin.from('gdc_qris_mpm_payments').update({ status: 'FAILED', error_code: 'QR_CREATE_FAILED', updated_at: new Date().toISOString() }).eq('order_id', order.id).eq('status', 'CREATING');
-      console.error('GDC QR MPM create failed', error instanceof Error ? error.message : 'unknown');
-      return json({ error: error instanceof Error ? error.message : 'QR pembayaran gagal dibuat.' }, 502, req);
+      // A timeout is not proof that the provider did not create the QR. Keep
+      // the row recoverable and block manual fallback until reconciliation.
+      const { error: unknownError } = await admin.from('gdc_qris_mpm_payments').update({ status: 'UNKNOWN', error_code: 'QR_CREATE_UNKNOWN', last_error: 'Provider create outcome requires reconciliation', updated_at: new Date().toISOString() }).eq('order_id', order.id).eq('status', 'CREATING');
+      console.error('GDC QR MPM create outcome requires reconciliation', { orderId: order.id, updateFailed: Boolean(unknownError) });
+      const { data: unresolved, error: unresolvedReadError } = await admin.from('gdc_qris_mpm_payments')
+        .select('*').eq('order_id', order.id).maybeSingle();
+      if (unresolvedReadError || !unresolved) {
+        return json({ error: 'Status pembuatan QR belum pasti. Jangan membayar manual; status provider perlu direkonsiliasi.' }, 503, req);
+      }
+      return json(responsePayment(unresolved as PaymentRow), 200, req);
     }
   }
+  }
+
   const existingPayment = payment as PaymentRow;
-  if (!existingPayment.reference_no || !existingPayment.qr_content) return json({ error: 'QR pembayaran belum tersedia.' }, 409, req);
   try {
-    const queryBody = {
-      originalReferenceNo: existingPayment.reference_no,
+    const queryBody: Record<string, unknown> = {
       originalPartnerReferenceNo: existingPayment.partner_reference_no,
-      originalExternalId: existingPayment.external_id,
+      originalExternalId: existingPayment.provider_external_id,
       serviceCode: '47',
       additionalInfo: {},
     };
+    if (existingPayment.reference_no) queryBody.originalReferenceNo = existingPayment.reference_no;
     const queried = await gdcPost(credentials, API_PATHS.query, queryBody);
     if (queried.responseCode !== '2005100'
-      || queried.originalReferenceNo !== existingPayment.reference_no
+      || (existingPayment.reference_no !== null && queried.originalReferenceNo !== existingPayment.reference_no)
       || queried.originalPartnerReferenceNo !== existingPayment.partner_reference_no
-      || queried.originalExternalId !== existingPayment.external_id
+      || queried.originalExternalId !== existingPayment.provider_external_id
       || queried.serviceCode !== '47') {
       throw new Error('Respons status pembayaran GDC tidak cocok dengan order.');
     }
+    const providerReferenceNo = queried.originalReferenceNo || queried.referenceNo || existingPayment.reference_no;
+    const recoveredQrContent = typeof queried.qrContent === 'string' && queried.qrContent.trim().length <= 4000
+      ? queried.qrContent.trim()
+      : null;
+    if (providerReferenceNo && !existingPayment.reference_no) {
+      const recoveryPatch: Record<string, unknown> = {
+        reference_no: providerReferenceNo,
+        updated_at: new Date().toISOString(),
+      };
+      if (['CREATING', 'UNKNOWN'].includes(existingPayment.status)
+        && queried.latestTransactionStatus === '01'
+        && recoveredQrContent) {
+        recoveryPatch.status = 'PENDING';
+        recoveryPatch.qr_content = recoveredQrContent;
+      }
+      const { data: recovered, error: recoverError } = await admin.from('gdc_qris_mpm_payments')
+        .update(recoveryPatch)
+        .eq('order_id', order.id)
+        .in('status', ['PENDING', 'CREATING', 'UNKNOWN'])
+        .select('*')
+        .maybeSingle();
+      if (recoverError) return json({ error: 'Reference pembayaran belum dapat disimpan.' }, 503, req);
+      if (recovered) Object.assign(existingPayment, recovered);
+    }
     if (queried.latestTransactionStatus === '00') {
+      if (!providerReferenceNo) return json({ error: 'Provider mengonfirmasi pembayaran tanpa reference yang dapat diverifikasi.' }, 503, req);
       const paidAmount = parseAmount(queried.amount?.value);
       if (queried.amount?.currency !== 'IDR' || paidAmount !== amount) {
         console.error('GDC payment amount mismatch', { orderId: order.id, hasAmount: paidAmount !== null });
         return json({ error: 'Nominal pembayaran tidak cocok. Status memerlukan pemeriksaan admin.' }, 409, req);
       }
-      const { data: settled, error: settleError } = await admin.rpc('settle_gdc_qris_mpm_payment', {
+      const { error: settleError } = await admin.rpc('settle_gdc_qris_mpm_payment', {
         p_order_id: order.id,
         p_partner_reference_no: existingPayment.partner_reference_no,
-        p_reference_no: existingPayment.reference_no,
+        p_reference_no: providerReferenceNo,
+        p_external_id: existingPayment.provider_external_id,
+        p_currency: queried.amount.currency,
         p_paid_amount: paidAmount,
         p_paid_at: queried.paidTime || null,
       });
@@ -326,9 +415,28 @@ async function processRequest(req: Request): Promise<Response> {
       return json(responsePayment(paidPayment as PaymentRow), 200, req);
     }
     if (queried.latestTransactionStatus === '06') {
-      const { data: failed } = await admin.from('gdc_qris_mpm_payments').update({ status: 'FAILED', provider_response_code: queried.latestTransactionStatus, updated_at: new Date().toISOString() })
-        .eq('order_id', order.id).eq('status', 'PENDING').select('*').maybeSingle();
-      return json(responsePayment((failed || existingPayment) as PaymentRow), 200, req);
+      const { data: failed, error: failedError } = await admin.from('gdc_qris_mpm_payments').update({
+        reference_no: providerReferenceNo,
+        status: 'FAILED',
+        error_code: 'QR_PROVIDER_FAILED',
+        provider_response_code: queried.latestTransactionStatus,
+        last_error: 'Provider reported a failed QR transaction',
+        updated_at: new Date().toISOString(),
+      }).eq('order_id', order.id).in('status', ['PENDING', 'CREATING', 'UNKNOWN']).select('*').maybeSingle();
+      if (failedError) return json({ error: 'Status gagal belum dapat disimpan.' }, 503, req);
+      const { data: latest } = failed ? { data: failed } : await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
+      return json(responsePayment((latest || existingPayment) as PaymentRow), 200, req);
+    }
+    if (['05', '07'].includes(queried.latestTransactionStatus)) {
+      const { data: expired, error: expiredError } = await admin.from('gdc_qris_mpm_payments').update({
+        reference_no: providerReferenceNo,
+        status: 'EXPIRED',
+        provider_response_code: queried.latestTransactionStatus,
+        updated_at: new Date().toISOString(),
+      }).eq('order_id', order.id).in('status', ['PENDING', 'CREATING', 'UNKNOWN']).select('*').maybeSingle();
+      if (expiredError) return json({ error: 'Status kedaluwarsa belum dapat disimpan.' }, 503, req);
+      const { data: latest } = expired ? { data: expired } : await admin.from('gdc_qris_mpm_payments').select('*').eq('order_id', order.id).maybeSingle();
+      return json(responsePayment((latest || existingPayment) as PaymentRow), 200, req);
     }
     return json(responsePayment(existingPayment), 200, req);
   } catch (error) {

@@ -45,6 +45,6 @@ describe('mobile commerce responsive contract', () => {
     expect(homeServiceCards).toContain('getOptimizedImageSrcSet(imageUrl, [240, 360, 480, 640])');
     expect(heroCarousel).toContain('getOptimizedImageSrcSet(currentSlide.image, [480, 768, 960, 1280])');
     expect(checkoutPage).toContain('getOptimizedImageSrcSet(item.product.image, [160, 240])');
-    expect(checkoutPage).toContain('src={merchantPaymentSettings.qrisImageUrl}');
+    expect(checkoutPage).toContain('src={adminPaymentInfo.qris_image_url}');
   });
 });

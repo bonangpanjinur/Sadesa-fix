@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Store, Eye, Check, X, MoreHorizontal, Plus, Trash2, User, Power } from 'lucide-react';
+import { Store, Eye, Check, X, MoreHorizontal, Plus, Trash2, User, Power, Copy } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAdminCategories } from '@/hooks/useAdminCategories';
 import { DataTable } from '@/components/admin/DataTable';
@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { approveMerchant, rejectMerchant, deleteMerchant, setMerchantStatus } from '@/lib/adminApi';
 import { MerchantAddDialog } from '@/components/admin/MerchantAddDialog';
+import { getMerchantStorePath } from '@/lib/merchantStoreLink';
 
 interface MerchantRow {
   id: string;
@@ -32,6 +33,7 @@ interface MerchantRow {
   status: string;
   registered_at: string | null;
   user_id: string | null;
+  slug: string | null;
   villages: { name: string } | null;
   // Joined from profiles
   ownerName: string | null;
@@ -51,7 +53,7 @@ export default function AdminMerchantsPage() {
   const fetchMerchantsData = async (): Promise<MerchantRow[]> => {
     const { data, error } = await supabase
       .from('merchants')
-      .select('id, name, phone, city, district, business_category, registration_status, status, registered_at, user_id, villages(name)')
+      .select('id, name, phone, city, district, business_category, registration_status, status, registered_at, user_id, slug, villages(name)')
       .order('registered_at', { ascending: false });
     if (error) throw error;
     const userIds = (data || []).map(m => m.user_id).filter(Boolean) as string[];
@@ -99,6 +101,16 @@ export default function AdminMerchantsPage() {
       toast.error(error instanceof Error ? error.message : 'Status pedagang gagal diperbarui');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleCopyStoreLink = async (merchant: MerchantRow) => {
+    const storeUrl = new URL(getMerchantStorePath(merchant), window.location.origin).toString();
+    try {
+      await navigator.clipboard.writeText(storeUrl);
+      toast.success('Link toko berhasil disalin');
+    } catch {
+      toast.error('Gagal menyalin link toko. Silakan buka tokonya dan salin URL dari browser.');
     }
   };
 
@@ -221,6 +233,16 @@ export default function AdminMerchantsPage() {
             <DropdownMenuItem onClick={() => navigate(`/admin/merchants/${item.id}`)}>
               <Eye className="h-4 w-4 mr-2" />
               Lihat Detail
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={getMerchantStorePath(item)} target="_blank" rel="noopener noreferrer">
+                <Eye className="h-4 w-4 mr-2" />
+                Lihat Toko
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void handleCopyStoreLink(item)}>
+              <Copy className="h-4 w-4 mr-2" />
+              Salin Link Toko
             </DropdownMenuItem>
             {item.registration_status === 'PENDING' && (
               <>

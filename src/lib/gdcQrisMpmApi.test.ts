@@ -5,7 +5,7 @@ vi.mock('@/integrations/supabase/client', () => ({
   supabase: { functions: { invoke } },
 }));
 
-import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus } from './gdcQrisMpmApi';
+import { createOrGetGdcQrisMpm, isGdcQrisMpmAvailable, queryGdcQrisMpmStatus, requestGdcQrisMpmAdminFallback } from './gdcQrisMpmApi';
 
 describe('GDC QRIS MPM client contract', () => {
   beforeEach(() => invoke.mockReset());
@@ -17,11 +17,23 @@ describe('GDC QRIS MPM client contract', () => {
     expect(invoke).toHaveBeenCalledWith('gdc-qris-mpm', { body: { action: 'create', order_id: 'order-1' } });
   });
 
+  it('checks merchant QR MPM readiness through the server function', async () => {
+    invoke.mockResolvedValue({ data: { available: true }, error: null });
+    await expect(isGdcQrisMpmAvailable('merchant-1')).resolves.toBe(true);
+    expect(invoke).toHaveBeenCalledWith('gdc-qris-mpm', { body: { action: 'availability', merchant_id: 'merchant-1' } });
+  });
+
   it('queries provider status through the server function and does not accept malformed responses', async () => {
     invoke.mockResolvedValue({ data: { order_id: 'order-2', status: 'PAID', amount: 10000, currency: 'IDR', qr_content: null, reference_no: 'gdc-2', paid_at: '2026-11-01T06:00:00Z' }, error: null });
     const result = await queryGdcQrisMpmStatus('order-2');
     expect(result.status).toBe('PAID');
     expect(invoke).toHaveBeenCalledWith('gdc-qris-mpm', { body: { action: 'status', order_id: 'order-2' } });
+
+    invoke.mockResolvedValue({ data: {
+      order_id: 'order-2', status: 'UNKNOWN', amount: 10000, currency: 'IDR',
+      qr_content: null, reference_no: null, paid_at: null, reconciliation_required: true,
+    }, error: null });
+    await expect(queryGdcQrisMpmStatus('order-2')).resolves.toMatchObject({ status: 'UNKNOWN', reconciliation_required: true });
 
     invoke.mockResolvedValue({ data: null, error: null });
     await expect(queryGdcQrisMpmStatus('order-2')).rejects.toThrow('Respons pembayaran QRIS tidak valid.');
@@ -30,5 +42,12 @@ describe('GDC QRIS MPM client contract', () => {
   it('surfaces backend errors without requiring provider secrets in the browser', async () => {
     invoke.mockResolvedValue({ data: null, error: new Error('401 Unauthorized') });
     await expect(createOrGetGdcQrisMpm('order-3')).rejects.toThrow('401 Unauthorized');
+  });
+
+  it('requests manual fallback through the backend and accepts only its explicit ledger state', async () => {
+    const payment = { order_id: 'order-4', status: 'MANUAL_FALLBACK_PENDING', amount: 10000, currency: 'IDR', qr_content: null, reference_no: 'ref-4', paid_at: null };
+    invoke.mockResolvedValue({ data: payment, error: null });
+    await expect(requestGdcQrisMpmAdminFallback('order-4')).resolves.toEqual(payment);
+    expect(invoke).toHaveBeenCalledWith('gdc-qris-mpm', { body: { action: 'fallback', order_id: 'order-4' } });
   });
 });
