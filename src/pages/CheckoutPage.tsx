@@ -22,6 +22,7 @@ import { validatePhone } from '@/lib/phoneValidation';
 import { getMerchantOperatingStatus, formatTime, type OperatingDaySchedule } from '@/lib/merchantOperatingHours';
 import { getDeliveryRestriction, MAX_LOCAL_DELIVERY_DISTANCE_KM } from '@/lib/deliveryRestriction';
 import { getGuestCheckoutSessionKey, guestOrderUrl, rememberGuestOrderAccess } from '@/lib/guestCheckout';
+import { clearCheckoutAttempt, createCheckoutAttemptScope, getOrCreateCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { useGuestCheckoutEnabled } from '@/hooks/useGuestCheckoutEnabled';
 import { getCartStockDemand } from '@/lib/productAvailability';
 import { getCartItemSubtotal, getCartItemsSubtotal } from '@/lib/cartPricing';
@@ -89,7 +90,7 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { enabled: guestCheckoutEnabled, loading: guestCheckoutFlagLoading } = useGuestCheckoutEnabled(Boolean(user));
-  const { selectedItems, removeFromCart } = useCart();
+  const { selectedItems, removeCartItem } = useCart();
   const items = selectedItems;
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
@@ -592,7 +593,7 @@ export default function CheckoutPage() {
   const handleRemoveMerchantItems = (merchantId: string) => {
     const merchantItems = itemsByMerchant[merchantId]?.items || [];
     merchantItems.forEach(item => {
-      removeFromCart(item.product.id);
+      removeCartItem(getCartItemKey(item));
     });
     toast({
       title: 'Produk dihapus',
@@ -740,7 +741,8 @@ export default function CheckoutPage() {
     setStockConflict(null);
 
     try {
-      checkoutKeyRef.current ??= crypto.randomUUID();
+      const guestCheckoutSessionKey = user ? null : (guestSessionKeyRef.current ?? getGuestCheckoutSessionKey());
+      if (guestCheckoutSessionKey) guestSessionKeyRef.current = guestCheckoutSessionKey;
       // Validate stock before creating orders
       const allProductIds = items.flatMap(item => [item.product.id, ...(item.toppings || []).map(topping => topping.product.id)]);
       const { data: currentStocks, error: stockCheckError } = await supabase
@@ -778,7 +780,7 @@ export default function CheckoutPage() {
       }
 
       const fullAddress = [formatFullAddress(addressData.address), addressData.detailAddress?.trim()].filter(Boolean).join(', ');
-      const checkoutPayload = {
+      const checkoutValues = {
         p_items: quoteItems,
         p_delivery: {
           name: addressData.name,
@@ -800,10 +802,23 @@ export default function CheckoutPage() {
         // The URL provider query is presentation-only and is never authorization.
         p_payment_channel: paymentMethod === 'QRIS_DYNAMIC' ? 'QRIS_MPM_GDC' : paymentMethod === 'TRANSFER' ? 'ADMIN_MANUAL' : paymentMethod,
         p_voucher_id: user ? appliedVoucher?.id ?? null : null,
+        p_distance_km: null,
         // The server derives distance from the submitted destination and the
         // merchant's stored coordinates; never trust a client-supplied rate input.
-        p_checkout_key: checkoutKeyRef.current,
-        ...(user ? {} : { p_guest_checkout_key: guestSessionKeyRef.current ?? getGuestCheckoutSessionKey() }),
+      };
+      const checkoutAttemptScope = await createCheckoutAttemptScope(
+        user ? `user:${user.id}` : `guest:${guestCheckoutSessionKey}`,
+        checkoutValues,
+      );
+      const checkoutAttempt = getOrCreateCheckoutAttempt(checkoutAttemptScope, !user);
+      checkoutKeyRef.current = checkoutAttempt.key;
+      const checkoutPayload = {
+        ...checkoutValues,
+        p_checkout_key: checkoutAttempt.key,
+        ...(user ? {} : {
+          p_guest_checkout_key: guestCheckoutSessionKey,
+          p_guest_access_token: checkoutAttempt.guestAccessToken,
+        }),
       };
       const { data: checkoutResult, error: checkoutError } = await supabase.rpc(
         (user ? 'create_marketplace_checkout' : 'create_guest_marketplace_checkout') as never,
@@ -835,9 +850,9 @@ export default function CheckoutPage() {
           // purchased lines before navigating away so a successful online
           // checkout cannot leave stale items in the cart.
           selectedItems.forEach(item => {
-            if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
-            else removeFromCart(item.product.id);
+            removeCartItem(getCartItemKey(item));
           });
+          clearCheckoutAttempt(checkoutAttemptScope, checkoutAttempt.key);
           checkoutKeyRef.current = null;
           window.location.href = invoice.invoice_url;
           return;
@@ -854,9 +869,9 @@ export default function CheckoutPage() {
       }
 
       selectedItems.forEach(item => {
-        if (item.toppings?.length) removeFromCart(item.product.id, item.toppings);
-        else removeFromCart(item.product.id);
+        removeCartItem(getCartItemKey(item));
       });
+      clearCheckoutAttempt(checkoutAttemptScope, checkoutAttempt.key);
       checkoutKeyRef.current = null;
       if (paymentMethod === 'QRIS_DYNAMIC') {
         navigate(`/payment/${authoritativeOrderId}?provider=gdc-mpm`);

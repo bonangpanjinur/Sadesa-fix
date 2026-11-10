@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { setLocale } from '@/lib/i18n';
+import { getCartItemKey } from '@/lib/cartItemIdentity';
 import type { CartItem, Product } from '@/types';
 
 const mockCart = vi.hoisted(() => ({
@@ -12,6 +13,8 @@ const mockCart = vi.hoisted(() => ({
   updateQuantity: vi.fn(),
   syncProductStock: vi.fn(),
   removeFromCart: vi.fn(),
+  removeCartItem: vi.fn(),
+  selectItemKeys: vi.fn(),
   clearCart: vi.fn(),
   toast: vi.fn(),
 }));
@@ -22,6 +25,7 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 vi.mock('@/contexts/CartContext', async () => {
   const React = await import('react');
+  const { getCartItemKey: getMockCartItemKey } = await import('@/lib/cartItemIdentity');
   return {
     useCart: () => {
       const items = mockCart.items as CartItem[];
@@ -34,11 +38,13 @@ vi.mock('@/contexts/CartContext', async () => {
       return {
         items,
         selectedItemIds,
-        selectedItems: items.filter((item) => selectedItemIds.includes(item.product.id)),
+        selectedItems: items.filter((item) => selectedItemIds.includes(getMockCartItemKey(item))),
         toggleItemSelection,
+        selectItemKeys: mockCart.selectItemKeys,
         updateQuantity: mockCart.updateQuantity,
         syncProductStock: mockCart.syncProductStock,
         removeFromCart: mockCart.removeFromCart,
+        removeCartItem: mockCart.removeCartItem,
         clearCart: mockCart.clearCart,
       };
     },
@@ -150,6 +156,18 @@ describe('CartPage selection and checkout guard', () => {
     expect(checkboxes[1]).not.toBeChecked();
   });
 
+  it('checks out one merchant and selects only that merchant’s cart-line keys', () => {
+    const merchantAItem = item(product('a', 'merchant-a', 'Toko A'), 'cheese');
+    const merchantBItem = item(product('b', 'merchant-b', 'Toko B'));
+    mockCart.items = [merchantAItem, merchantBItem];
+    renderCart();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Checkout Toko Ini' })[0]);
+
+    expect(mockCart.selectItemKeys).toHaveBeenCalledWith([getCartItemKey(merchantAItem)]);
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/checkout');
+  });
+
   it('does not navigate to checkout when no cart product is selected', () => {
     mockCart.items = [item(product('a', 'merchant-a', 'Toko A'))];
     renderCart();
@@ -174,7 +192,9 @@ describe('CartPage selection and checkout guard', () => {
   });
 
   it('blocks checkout when the refreshed server stock is exhausted', async () => {
-    mockCart.items = [item(product('a', 'merchant-a', 'Toko A'))];
+    const cartItem = item(product('a', 'merchant-a', 'Toko A'));
+    mockCart.items = [cartItem];
+    mockCart.selectedItemIds = [getCartItemKey(cartItem)];
     mockCart.loadProductStock = true;
     mockCart.stockRows = [{ id: 'a', stock: 0, is_active: true, price: 10_000, name: 'Produk a' }];
     renderCart();

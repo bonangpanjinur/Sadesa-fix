@@ -22,6 +22,7 @@ const mockCheckout = vi.hoisted(() => ({
   rpc: vi.fn(),
   createPaymentInvoice: vi.fn(),
   removeFromCart: vi.fn(),
+  removeCartItem: vi.fn(),
   toast: vi.fn(),
 }));
 
@@ -33,6 +34,7 @@ vi.mock('@/contexts/CartContext', () => ({
   useCart: () => ({
     selectedItems: mockCheckout.items,
     removeFromCart: mockCheckout.removeFromCart,
+    removeCartItem: mockCheckout.removeCartItem,
   }),
 }));
 

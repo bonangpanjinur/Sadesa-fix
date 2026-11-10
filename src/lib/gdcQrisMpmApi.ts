@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface GdcQrisMpmPayment {
   order_id: string;
-  status: 'PENDING' | 'PAID' | 'FAILED';
+  status: 'CREATING' | 'UNKNOWN' | 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'MANUAL_FALLBACK_PENDING';
   amount: number;
   currency: 'IDR';
   qr_content: string | null;
@@ -14,7 +14,7 @@ export interface GdcQrisMpmPayment {
 function isValidPayment(data: unknown, expectedOrderId: string): data is GdcQrisMpmPayment {
   if (!data || typeof data !== 'object') return false;
   const value = data as Partial<GdcQrisMpmPayment>;
-  if (value.order_id !== expectedOrderId || !['PENDING', 'PAID', 'FAILED'].includes(String(value.status))) return false;
+  if (value.order_id !== expectedOrderId || !['CREATING', 'UNKNOWN', 'PENDING', 'PAID', 'FAILED', 'EXPIRED', 'MANUAL_FALLBACK_PENDING'].includes(String(value.status))) return false;
   if (typeof value.amount !== 'number' || !Number.isSafeInteger(value.amount) || value.amount <= 0) return false;
   if (value.currency !== 'IDR') return false;
   if (value.status === 'PENDING' && (typeof value.qr_content !== 'string' || !value.qr_content.trim())) return false;
@@ -23,7 +23,7 @@ function isValidPayment(data: unknown, expectedOrderId: string): data is GdcQris
   return true;
 }
 
-async function requestPayment(action: 'create' | 'status', orderId: string): Promise<GdcQrisMpmPayment> {
+async function requestPayment(action: 'create' | 'status' | 'fallback', orderId: string): Promise<GdcQrisMpmPayment> {
   const { data, error } = await supabase.functions.invoke('gdc-qris-mpm', {
     body: { action, order_id: orderId },
   });
@@ -52,4 +52,8 @@ export function createOrGetGdcQrisMpm(orderId: string): Promise<GdcQrisMpmPaymen
 
 export function queryGdcQrisMpmStatus(orderId: string): Promise<GdcQrisMpmPayment> {
   return requestPayment('status', orderId);
+}
+
+export function requestGdcQrisMpmAdminFallback(orderId: string): Promise<GdcQrisMpmPayment> {
+  return requestPayment('fallback', orderId);
 }

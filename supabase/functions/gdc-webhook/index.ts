@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { parseGdcCallbackPaymentDate, validateGdcMpmCallback } from "../_shared/gdcMpmCallback.ts";
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -60,19 +61,14 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 function parseAmount(value: unknown): number | null {
-  if (!value || typeof value !== "object" || !("value" in value)) {
-    return null;
-  }
-
-  const raw = (value as { value: unknown }).value;
-
-  if (typeof raw !== "string" && typeof raw !== "number") {
-    return null;
-  }
-
+  const raw = value && typeof value === "object" && !Array.isArray(value) && "value" in value
+    ? (value as { value: unknown }).value
+    : value;
+  if (typeof raw !== "string" && typeof raw !== "number") return null;
+  if (typeof raw === "string" && !/^\d+(?:\.\d{1,2})?$/.test(raw)) return null;
   const amount = Number(raw);
-
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
+  const cents = Math.round(amount * 100);
+  return Number.isFinite(amount) && amount > 0 && Number.isSafeInteger(cents) ? cents / 100 : null;
 }
 
 serve(async (req: Request) => {
@@ -178,9 +174,9 @@ serve(async (req: Request) => {
 
   const partnerReferenceNo = payload.originalPartnerReferenceNo;
   const referenceNo = payload.originalReferenceNo;
-  const providerExternalId = payload.originalExternalId;
   const transactionStatus = payload.latestTransactionStatus;
-  const paidAmount = parseAmount(payload.paidAmount);
+  const amountPayload = payload.amount ?? payload.paidAmount;
+  const paidAmount = parseAmount(amountPayload);
 
   const additionalInfo =
     payload.additionalInfo && typeof payload.additionalInfo === "object"
@@ -192,17 +188,15 @@ serve(async (req: Request) => {
       ? additionalInfo.paymentMethod
       : "qris";
 
-  const paymentDate =
-    typeof additionalInfo.paymentDate === "string"
-      ? additionalInfo.paymentDate
-      : null;
-
-  const currency =
-    payload.paidAmount &&
-    typeof payload.paidAmount === "object" &&
-    "currency" in payload.paidAmount
-      ? (payload.paidAmount as { currency?: unknown }).currency
-      : null;
+  const paymentDate = parseGdcCallbackPaymentDate(payload);
+  const amountCurrency = (value: unknown): unknown => value && typeof value === "object" && !Array.isArray(value) && "currency" in value
+    ? (value as { currency?: unknown }).currency
+    : null;
+  const amountCurrencies = [payload.amount, payload.paidAmount]
+    .filter((value) => value !== undefined && value !== null)
+    .map(amountCurrency)
+    .filter((value) => value !== null);
+  const currency = amountCurrencies.length > 0 ? amountCurrencies[0] : payload.currency;
 
   if (
     typeof partnerReferenceNo !== "string" ||
@@ -216,70 +210,55 @@ serve(async (req: Request) => {
     );
   }
 
-  // GDC QRIS callback status codes:
-  // 00 = SUCCESS, 06 = FAILED.
-  // The existing database RPC accepts PAID, EXPIRED and PENDING only.
-  // Do not misrepresent FAILED as EXPIRED.
-  if (transactionStatus === "06") {
-    console.warn("GDC reports failed QRIS transaction", {
-      partnerReferenceNo,
-      referenceNo,
-      externalId,
-    });
-
-    return jsonResponse({
-      responseCode: "2000000",
-      responseMessage: "Failure notification acknowledged",
-    });
-  }
-
-  if (transactionStatus !== "00") {
-    return jsonResponse(
-      {
-        responseCode: "4000000",
-        responseMessage: "Unsupported transaction status",
-      },
-      400,
-    );
-  }
-
-  if (
-    !paidAmount ||
-    currency !== "IDR" ||
-    !paymentDate ||
-    Number.isNaN(Date.parse(paymentDate))
-  ) {
-    return jsonResponse(
-      { responseCode: "4000000", responseMessage: "Invalid payment details" },
-      400,
-    );
-  }
-
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });
 
   // QR MPM has its own immutable payment ledger and settlement RPC. Do not
   // route these callbacks through the legacy invoice webhook path.
-  const { data: mpmPayment } = await supabase
+  const { data: mpmPayment, error: mpmLookupError } = await supabase
     .from("gdc_qris_mpm_payments")
-    .select("order_id, partner_reference_no, reference_no, external_id, amount, currency, status")
+    .select("order_id, partner_reference_no, reference_no, provider_external_id, amount, currency, status")
     .eq("partner_reference_no", partnerReferenceNo)
     .maybeSingle();
+  if (mpmLookupError) {
+    console.error("Failed to load GDC QR MPM ledger", { code: mpmLookupError.code });
+    return jsonResponse({ responseCode: "5000000", responseMessage: "QR MPM ledger unavailable" }, 500);
+  }
   if (mpmPayment) {
-    if (
-      mpmPayment.reference_no !== referenceNo ||
-      (typeof providerExternalId === "string" && providerExternalId !== mpmPayment.external_id) ||
-      mpmPayment.currency !== "IDR" ||
-      Number(mpmPayment.amount) !== paidAmount
-    ) {
+    const validation = validateGdcMpmCallback(payload, {
+      ...mpmPayment,
+      external_id: mpmPayment.provider_external_id,
+    });
+    if (!validation.ok) {
+      console.warn("Rejected GDC QR MPM callback", { reason: validation.reason, orderId: mpmPayment.order_id });
       return jsonResponse({ responseCode: "4000000", responseMessage: "QR MPM payment details mismatch" }, 400);
+    }
+    if (transactionStatus === "06") {
+      const { error: failureError } = await supabase.rpc("record_gdc_qris_mpm_failure", {
+        p_order_id: mpmPayment.order_id,
+        p_partner_reference_no: mpmPayment.partner_reference_no,
+        p_reference_no: referenceNo,
+        p_external_id: mpmPayment.provider_external_id,
+        p_currency: validation.currency,
+        p_paid_amount: validation.paidAmount,
+      });
+      if (failureError) {
+        console.error("Failed to record GDC QR MPM failure", { code: failureError.code, orderId: mpmPayment.order_id });
+        return jsonResponse({ responseCode: "5000000", responseMessage: "QR MPM failure notification failed" }, 500);
+      }
+      return jsonResponse({ responseCode: "2000000", responseMessage: "Failure notification acknowledged" });
+    }
+    if (!paymentDate) {
+      return jsonResponse({ responseCode: "4000000", responseMessage: "Invalid payment date" }, 400);
     }
     const { error: settlementError } = await supabase.rpc("settle_gdc_qris_mpm_payment", {
       p_order_id: mpmPayment.order_id,
       p_partner_reference_no: mpmPayment.partner_reference_no,
       p_reference_no: referenceNo,
-      p_paid_amount: paidAmount,
+      p_external_id: mpmPayment.provider_external_id,
+      p_currency: validation.currency,
+      p_paid_amount: validation.paidAmount,
       p_paid_at: paymentDate,
     });
     if (settlementError) {
@@ -287,6 +266,26 @@ serve(async (req: Request) => {
       return jsonResponse({ responseCode: "5000000", responseMessage: "QR MPM settlement failed" }, 500);
     }
     return jsonResponse({ responseCode: "2000000", responseMessage: "Successful", data: { order_id: mpmPayment.order_id } });
+  }
+
+  const { data: order, error: orderLookupError } = await supabase
+    .from("orders")
+    .select("id, payment_channel")
+    .eq("id", partnerReferenceNo)
+    .maybeSingle();
+  if (orderLookupError) {
+    console.error("Failed to determine GDC webhook order channel", { code: orderLookupError.code });
+    return jsonResponse({ responseCode: "5000000", responseMessage: "Order channel unavailable" }, 500);
+  }
+  if (order?.payment_channel === "QRIS_MPM_GDC") {
+    return jsonResponse({ responseCode: "4090000", responseMessage: "QR MPM payment ledger not found" }, 409);
+  }
+
+  if (transactionStatus === "06") {
+    return jsonResponse({ responseCode: "2000000", responseMessage: "Failure notification acknowledged" });
+  }
+  if (transactionStatus !== "00" || !paidAmount || currency !== "IDR" || amountCurrencies.some((value) => value !== currency) || !paymentDate) {
+    return jsonResponse({ responseCode: "4000000", responseMessage: "Invalid payment details" }, 400);
   }
 
   // The existing RPC checks the order, invoice reference and exact amount,

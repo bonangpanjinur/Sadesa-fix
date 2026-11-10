@@ -10,10 +10,12 @@ interface CartContextType {
   selectedItemIds: string[];
   selectedItems: CartItem[];
   toggleItemSelection: (itemKey: string) => void;
+  selectItemKeys: (itemKeys: string[]) => void;
   selectAllItems: () => void;
   clearItemSelection: () => void;
   addToCart: (product: Product, quantity?: number, toppings?: CartTopping[]) => void;
   removeFromCart: (productId: string, toppings?: CartTopping[]) => void;
+  removeCartItem: (itemKey: string) => void;
   updateQuantity: (productId: string, quantity: number, toppings?: CartTopping[]) => void;
   syncProductStock: (stockByProductId: Record<string, number>) => void;
   clearCart: () => void;
@@ -109,16 +111,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeFromCart = useCallback((productId: string, toppings?: CartTopping[]) => {
-    setItems(prev => prev.filter(item => item.product.id !== productId || (toppings && getToppingKey(item.toppings) !== getToppingKey(toppings))));
-    setSelectedItemIds(prev => prev.filter(id => !(
-      id === productId || id.startsWith(`${productId}::`)
-    )));
+    const targetKey = `${productId}::${getToppingKey(toppings) || 'base'}`;
+    setItems(prev => prev.filter(item => item.product.id !== productId || getToppingKey(item.toppings) !== getToppingKey(toppings)));
+    setSelectedItemIds(prev => prev.filter(id => id !== targetKey));
+  }, []);
+
+  const removeCartItem = useCallback((itemKey: string) => {
+    setItems(prev => prev.filter(item => getCartItemKey(item) !== itemKey));
+    setSelectedItemIds(prev => prev.filter(id => id !== itemKey));
   }, []);
 
   const updateQuantity = useCallback((productId: string, quantity: number, toppings?: CartTopping[]) => {
     if (quantity <= 0) { removeFromCart(productId, toppings); return; }
     setItems(prev => prev.map(item => {
-      if (item.product.id !== productId || (toppings && getToppingKey(item.toppings) !== getToppingKey(toppings))) return item;
+      if (item.product.id !== productId || getToppingKey(item.toppings) !== getToppingKey(toppings)) return item;
       const otherItems = prev.filter(candidate => candidate !== item);
       const maxQuantity = getMaxQuantityAgainstOtherLines(item.product, item.toppings, otherItems);
       return { ...item, quantity: Math.min(maxQuantity, MAX_CART_QUANTITY, Math.max(1, Math.trunc(quantity))) };
@@ -157,13 +163,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const toggleItemSelection = useCallback((itemKey: string) => {
     setSelectedItemIds(current => current.includes(itemKey) ? current.filter(id => id !== itemKey) : [...current, itemKey]);
   }, []);
+  const selectItemKeys = useCallback((itemKeys: string[]) => {
+    const validKeys = new Set(items.map(getCartItemKey));
+    setSelectedItemIds([...new Set(itemKeys.filter(itemKey => validKeys.has(itemKey)))]);
+  }, [items]);
   const selectAllItems = useCallback(() => setSelectedItemIds(items.map(getCartItemKey)), [items]);
   const clearItemSelection = useCallback(() => setSelectedItemIds([]), []);
   const selectedItems = items.filter(item => selectedItemIds.includes(getCartItemKey(item)));
   const getCartTotal = useCallback(() => getCartItemsSubtotal(items), [items]);
   const getItemCount = useCallback(() => items.reduce((count, item) => count + item.quantity, 0), [items]);
 
-  return <CartContext.Provider value={{ items, selectedItemIds, selectedItems, toggleItemSelection, selectAllItems, clearItemSelection, addToCart, removeFromCart, updateQuantity, syncProductStock, clearCart, getCartTotal, getItemCount }}>{children}</CartContext.Provider>;
+  return <CartContext.Provider value={{ items, selectedItemIds, selectedItems, toggleItemSelection, selectItemKeys, selectAllItems, clearItemSelection, addToCart, removeFromCart, removeCartItem, updateQuantity, syncProductStock, clearCart, getCartTotal, getItemCount }}>{children}</CartContext.Provider>;
 }
 
 export function useCart() {

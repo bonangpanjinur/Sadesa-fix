@@ -11,8 +11,10 @@ const mocks = vi.hoisted(() => ({
   paymentChannel: 'ADMIN_MANUAL',
   createGdcPayment: vi.fn(),
   queryGdcPayment: vi.fn(),
+  requestAdminFallback: vi.fn(),
   user: { id: 'buyer-1' },
   paymentDestinationSource: null as string | null,
+  paymentFallbackSource: null as string | null,
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -36,6 +38,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
 vi.mock('@/lib/gdcQrisMpmApi', () => ({
   createOrGetGdcQrisMpm: mocks.createGdcPayment,
   queryGdcQrisMpmStatus: mocks.queryGdcPayment,
+  requestGdcQrisMpmAdminFallback: mocks.requestAdminFallback,
 }));
 
 vi.mock('@/components/checkout/PaymentProofUpload', () => ({
@@ -53,8 +56,10 @@ describe('PaymentConfirmationPage authoritative order total', () => {
     mocks.provider = '';
     mocks.paymentChannel = 'ADMIN_MANUAL';
     mocks.paymentDestinationSource = null;
+    mocks.paymentFallbackSource = null;
     mocks.createGdcPayment.mockReset();
     mocks.queryGdcPayment.mockReset();
+    mocks.requestAdminFallback.mockReset();
     const realtimeChannel = { on: vi.fn(), subscribe: vi.fn() };
     realtimeChannel.on.mockReturnValue(realtimeChannel);
     mocks.channel.mockReturnValue(realtimeChannel);
@@ -75,6 +80,7 @@ describe('PaymentConfirmationPage authoritative order total', () => {
                 bank_account_name: 'Pemilik Test',
                 qris_image_url: 'https://example.com/merchant-qris.png',
                 source: mocks.paymentDestinationSource,
+                fallback_source: mocks.paymentFallbackSource,
               },
             },
             error: null,
@@ -103,6 +109,7 @@ describe('PaymentConfirmationPage authoritative order total', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('renders the persisted database total as the amount to pay', async () => {
@@ -137,9 +144,14 @@ describe('PaymentConfirmationPage authoritative order total', () => {
   it('offers the Admin Sadesa snapshot when GDC QR generation fails', async () => {
     mocks.provider = 'gdc-mpm';
     mocks.paymentChannel = 'QRIS_MPM_GDC';
-    mocks.paymentDestinationSource = 'ADMIN';
+    mocks.paymentDestinationSource = 'GDC_MPM';
+    mocks.paymentFallbackSource = 'ADMIN';
     mocks.createGdcPayment.mockResolvedValue({
       order_id: 'order-1', status: 'FAILED', amount: 125_000, currency: 'IDR',
+      qr_content: null, reference_no: 'gdc-ref-failed', paid_at: null,
+    });
+    mocks.requestAdminFallback.mockResolvedValue({
+      order_id: 'order-1', status: 'MANUAL_FALLBACK_PENDING', amount: 125_000, currency: 'IDR',
       qr_content: null, reference_no: 'gdc-ref-failed', paid_at: null,
     });
     render(<PaymentConfirmationPage />);
@@ -149,8 +161,42 @@ describe('PaymentConfirmationPage authoritative order total', () => {
     fireEvent.click(fallbackButton);
 
     expect(await screen.findByText('Transfer Bank Admin Sadesa')).toBeInTheDocument();
+    expect(mocks.requestAdminFallback).toHaveBeenCalledWith('order-1');
     expect(screen.getByText('123456789')).toBeInTheDocument();
     expect(screen.getByText('Metode dialihkan ke pembayaran manual Admin Sadesa')).toBeInTheDocument();
-    expect(screen.getByText(/jangan membayar QR dinamis dan QR\/rekening admin sekaligus/i)).toBeInTheDocument();
+    expect(screen.getByText(/server telah mengunci pesanan ini/i)).toBeInTheDocument();
+  });
+
+  it('does not offer manual fallback after an ambiguous create timeout', async () => {
+    mocks.provider = 'gdc-mpm';
+    mocks.paymentChannel = 'QRIS_MPM_GDC';
+    mocks.paymentDestinationSource = 'GDC_MPM';
+    mocks.paymentFallbackSource = 'ADMIN';
+    mocks.createGdcPayment.mockRejectedValue(new Error('Provider timeout; reconciliation required'));
+    render(<PaymentConfirmationPage />);
+
+    expect(await screen.findByText(/status QR belum dinyatakan gagal oleh provider/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Gunakan QR / transfer bank Admin Sadesa' })).not.toBeInTheDocument();
+    expect(mocks.requestAdminFallback).not.toHaveBeenCalled();
+  });
+
+  it('keeps polling an UNKNOWN QR attempt without offering manual fallback', async () => {
+    mocks.provider = 'gdc-mpm';
+    mocks.paymentChannel = 'QRIS_MPM_GDC';
+    mocks.paymentDestinationSource = 'GDC_MPM';
+    mocks.paymentFallbackSource = 'ADMIN';
+    const unknownPayment = {
+      order_id: 'order-1', status: 'UNKNOWN', amount: 125_000, currency: 'IDR',
+      qr_content: null, reference_no: null, paid_at: null, reconciliation_required: true,
+    } as const;
+    mocks.createGdcPayment.mockResolvedValue(unknownPayment);
+    mocks.queryGdcPayment.mockResolvedValue(unknownPayment);
+    const timerSpy = vi.spyOn(window, 'setTimeout');
+    render(<PaymentConfirmationPage />);
+
+    expect(await screen.findByText(/sistem sedang mengecek ke provider/i)).toBeInTheDocument();
+    expect(timerSpy).toHaveBeenCalledWith(expect.any(Function), 15000);
+    expect(screen.queryByRole('button', { name: 'Gunakan QR / transfer bank Admin Sadesa' })).not.toBeInTheDocument();
+    expect(mocks.requestAdminFallback).not.toHaveBeenCalled();
   });
 });

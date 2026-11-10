@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { PaymentProofUpload } from '@/components/checkout/PaymentProofUpload';
 import { PaymentCountdown } from '@/components/checkout/PaymentCountdown';
 import { QRCodeSVG } from 'qrcode.react';
-import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus, type GdcQrisMpmPayment } from '@/lib/gdcQrisMpmApi';
+import { createOrGetGdcQrisMpm, queryGdcQrisMpmStatus, requestGdcQrisMpmAdminFallback, type GdcQrisMpmPayment } from '@/lib/gdcQrisMpmApi';
 
 interface PaymentInfo {
   qrisImageUrl: string | null;
@@ -21,6 +21,7 @@ interface PaymentInfo {
   bankAccountNumber: string | null;
   bankAccountName: string | null;
   source: string | null;
+  fallbackSource: string | null;
 }
 
 interface OrderInfo {
@@ -51,6 +52,7 @@ export default function PaymentConfirmationPage() {
   const [gdcPaymentError, setGdcPaymentError] = useState<string | null>(null);
   const [gdcCreating, setGdcCreating] = useState(false);
   const [useAdminManualFallback, setUseAdminManualFallback] = useState(false);
+  const [gdcRetryNonce, setGdcRetryNonce] = useState(0);
 
   const loadOrderAndPaymentInfo = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -75,6 +77,7 @@ export default function PaymentConfirmationPage() {
           bank_account_number: context.bank_account_number,
           bank_account_name: context.bank_account_name,
           source: context.payment_destination_source,
+          fallback_source: null,
         };
       } else if (user) {
         const result = await supabase
@@ -98,6 +101,7 @@ export default function PaymentConfirmationPage() {
         bankAccountNumber: typeof paymentDestination.bank_account_number === 'string' ? paymentDestination.bank_account_number : null,
         bankAccountName: typeof paymentDestination.bank_account_name === 'string' ? paymentDestination.bank_account_name : null,
         source: typeof paymentDestination.source === 'string' ? paymentDestination.source : null,
+        fallbackSource: typeof paymentDestination.fallback_source === 'string' ? paymentDestination.fallback_source : null,
       });
     } catch (error) {
       console.error('Error loading payment info:', error);
@@ -135,15 +139,24 @@ export default function PaymentConfirmationPage() {
     };
   }, [orderId, user, guestToken, loadOrderAndPaymentInfo]);
 
-  const createGdcPayment = useCallback(async () => {
+  const createGdcPayment = useCallback(() => {
+    setGdcPaymentError(null);
+    setGdcRetryNonce((nonce) => nonce + 1);
+  }, []);
+
+  const handleAdminManualFallback = useCallback(async () => {
     if (!orderId) return;
     setGdcCreating(true);
     setGdcPaymentError(null);
     try {
-      const payment = await createOrGetGdcQrisMpm(orderId);
+      const payment = await requestGdcQrisMpmAdminFallback(orderId);
+      if (payment.status !== 'MANUAL_FALLBACK_PENDING') {
+        throw new Error('Fallback manual belum dikunci oleh server. Jangan lakukan pembayaran manual dulu.');
+      }
       setGdcPayment(payment);
+      setUseAdminManualFallback(true);
     } catch (error) {
-      setGdcPaymentError(error instanceof Error ? error.message : 'QR MPM belum dapat dibuat.');
+      setGdcPaymentError(error instanceof Error ? error.message : 'Fallback manual belum dapat diverifikasi.');
     } finally {
       setGdcCreating(false);
     }
@@ -161,6 +174,34 @@ export default function PaymentConfirmationPage() {
     let pollId: number | undefined;
     let inFlight = false;
     let generation = 0;
+    const isReconcilable = (status: GdcQrisMpmPayment['status']) => ['PENDING', 'CREATING', 'UNKNOWN'].includes(status);
+    const schedulePoll = () => {
+      if (active) pollId = window.setTimeout(() => void poll(), 15000);
+    };
+    const poll = async () => {
+      if (!active || inFlight) return;
+      inFlight = true;
+      const requestGeneration = ++generation;
+      try {
+        const status = await queryGdcQrisMpmStatus(paymentOrderId);
+        if (!active || requestGeneration !== generation) return;
+        setGdcPaymentError(null);
+        setGdcPayment(status);
+        if (status.status === 'MANUAL_FALLBACK_PENDING') {
+          setUseAdminManualFallback(true);
+          return;
+        }
+        const deadlinePassed = Boolean(order?.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now());
+        if (isReconcilable(status.status) && !(status.status === 'PENDING' && deadlinePassed)) schedulePoll();
+      } catch (error) {
+        if (active) {
+          setGdcPaymentError(error instanceof Error ? error.message : 'Status QR MPM belum dapat diperiksa.');
+          schedulePoll();
+        }
+      } finally {
+        inFlight = false;
+      }
+    };
     const createAndPoll = async () => {
       setGdcCreating(true);
       setGdcPaymentError(null);
@@ -168,30 +209,27 @@ export default function PaymentConfirmationPage() {
         const payment = await createOrGetGdcQrisMpm(paymentOrderId);
         if (!active) return;
         setGdcPayment(payment);
-        if (payment.status === 'PENDING') {
-          const poll = async () => {
-            if (!active || inFlight) return;
-            inFlight = true;
-            const requestGeneration = ++generation;
-            try {
-              const status = await queryGdcQrisMpmStatus(paymentOrderId);
-              if (!active || requestGeneration !== generation) return;
-              setGdcPaymentError(null);
-              setGdcPayment(status);
-              const deadlinePassed = Boolean(order?.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now());
-              if (status.status !== 'PENDING' || deadlinePassed) return;
-              pollId = window.setTimeout(() => void poll(), 15000);
-            } catch (error) {
-              if (active) {
-                setGdcPaymentError(error instanceof Error ? error.message : 'Status QR MPM belum dapat diperiksa.');
-                pollId = window.setTimeout(() => void poll(), 15000);
-              }
-            } finally { inFlight = false; }
-          };
+        if (payment.status === 'MANUAL_FALLBACK_PENDING') {
+          setUseAdminManualFallback(true);
+          return;
+        }
+        if (isReconcilable(payment.status)) {
           pollId = window.setTimeout(() => void poll(), 15000);
         }
       } catch (error) {
-        if (active) setGdcPaymentError(error instanceof Error ? error.message : 'QR MPM belum dapat dibuat.');
+        if (active) {
+          setGdcPaymentError(error instanceof Error ? error.message : 'QR MPM belum dapat dibuat.');
+          try {
+            const status = await queryGdcQrisMpmStatus(paymentOrderId);
+            if (!active) return;
+            setGdcPaymentError(null);
+            setGdcPayment(status);
+            if (status.status === 'MANUAL_FALLBACK_PENDING') setUseAdminManualFallback(true);
+            else if (isReconcilable(status.status)) pollId = window.setTimeout(() => void poll(), 15000);
+          } catch (statusError) {
+            if (active) setGdcPaymentError(statusError instanceof Error ? statusError.message : 'Status QR MPM belum dapat diperiksa.');
+          }
+        }
       } finally {
         if (active) setGdcCreating(false);
       }
@@ -202,7 +240,7 @@ export default function PaymentConfirmationPage() {
       generation += 1;
       if (pollId !== undefined) window.clearTimeout(pollId);
     };
-  }, [isGdcMpmRoute, useAdminManualFallback, paymentOrderId, paymentOrderMethod, order?.confirmation_deadline, user]);
+  }, [isGdcMpmRoute, useAdminManualFallback, paymentOrderId, paymentOrderMethod, order?.confirmation_deadline, user, gdcRetryNonce]);
 
   const handleCopyAmount = () => {
     if (order?.total) {
@@ -238,14 +276,17 @@ export default function PaymentConfirmationPage() {
   const isPaymentRejected = paymentStatus === 'FAILED' || paymentStatus === 'REJECTED';
   const isPaymentExpired = paymentStatus === 'EXPIRED'
     || Boolean(order.confirmation_deadline && Date.parse(order.confirmation_deadline) <= Date.now() && !isPaymentComplete);
-  const hasAdminBankInstructions = paymentInfo.source === 'ADMIN'
+  const isAdminPaymentInstructions = paymentInfo.source === 'ADMIN'
+    || (paymentInfo.source === 'GDC_MPM' && paymentInfo.fallbackSource === 'ADMIN');
+  const hasAdminBankInstructions = isAdminPaymentInstructions
     && Boolean(paymentInfo.bankName && paymentInfo.bankAccountNumber);
   const hasPaymentInstructions = Boolean(paymentInfo.qrisImageUrl || hasAdminBankInstructions);
   const isGdcMpmPayment = isGdcMpmRoute && order.payment_method === 'TRANSFER';
-  const showGdcMpmPayment = isGdcMpmPayment && !useAdminManualFallback;
-  const showAdminFallbackNotice = useAdminManualFallback;
-  const hasSnapshottedAdminFallback = paymentInfo.source === 'ADMIN' || (paymentInfo.source === 'GDC_MPM' && hasPaymentInstructions);
-  const canUseAdminFallback = isGdcMpmPayment && hasSnapshottedAdminFallback && gdcPayment?.status === 'FAILED';
+  const showGdcMpmPayment = isGdcMpmPayment && !useAdminManualFallback && gdcPayment?.status !== 'MANUAL_FALLBACK_PENDING';
+  const showAdminFallbackNotice = useAdminManualFallback || gdcPayment?.status === 'MANUAL_FALLBACK_PENDING';
+  const hasSnapshottedAdminFallback = paymentInfo.fallbackSource === 'ADMIN' && hasPaymentInstructions;
+  const canUseAdminFallback = isGdcMpmPayment && hasSnapshottedAdminFallback
+    && (gdcPayment?.status === 'FAILED' || gdcPayment?.status === 'EXPIRED');
   const statusLabel = isPaymentComplete ? 'Pembayaran Diterima' : isPaymentExpired ? 'Pembayaran Kedaluwarsa' : isPaymentRejected ? 'Bukti Ditolak' : 'Menunggu Pembayaran';
 
   return (
@@ -322,17 +363,18 @@ export default function PaymentConfirmationPage() {
                   <p className="mt-1 text-center text-xs text-muted-foreground">QR dibuat khusus untuk pesanan ini. Status pembayaran diperiksa otomatis.</p>
                 </>
               ) : !gdcPaymentError ? (
-                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />{gdcCreating ? 'Membuat QR pembayaran…' : 'Menyiapkan QR pembayaran…'}</div>
+                <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"><div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />{gdcPayment?.status === 'UNKNOWN' || gdcPayment?.status === 'CREATING' ? 'Memeriksa status provider…' : gdcCreating ? 'Membuat QR pembayaran…' : 'Menyiapkan QR pembayaran…'}</div>
               ) : null}
+              {(gdcPayment?.status === 'UNKNOWN' || gdcPayment?.status === 'CREATING') && <p className="mt-2 text-center text-sm text-amber-700" role="status">Hasil pembuatan QR belum pasti. Sistem sedang mengecek ke provider; jangan membayar manual atau membuat pembayaran lain.</p>}
               {gdcPaymentError && !gdcPayment && <Button className="mt-3 w-full" onClick={() => void createGdcPayment()} disabled={gdcCreating}>{gdcCreating ? 'Mencoba lagi…' : 'Coba buat QR lagi'}</Button>}
-              {gdcPayment?.status === 'FAILED' && <p className="mt-3 text-sm text-destructive" role="status">Provider menandai pembayaran ini gagal. Silakan hubungi merchant sebelum mencoba pembayaran lain.</p>}
-              {gdcPaymentError && !canUseAdminFallback && <p className="mt-3 text-sm text-amber-700" role="status">QR/rekening fallback Admin Sadesa belum tersimpan pada pesanan ini. Jangan transfer manual ke tujuan lain; hubungi Admin Sadesa untuk verifikasi.</p>}
-              {canUseAdminFallback && ((gdcPaymentError && !gdcPayment) || gdcPayment?.status === 'FAILED') && (
+              {(gdcPayment?.status === 'FAILED' || gdcPayment?.status === 'EXPIRED') && <p className="mt-3 text-sm text-destructive" role="status">Provider telah memastikan QR gagal atau kedaluwarsa. Jangan membuat pembayaran lain sebelum pesanan dialihkan oleh server.</p>}
+              {gdcPaymentError && !canUseAdminFallback && <p className="mt-3 text-sm text-amber-700" role="status">Status QR belum dinyatakan gagal oleh provider. Jangan transfer manual; hubungi Admin Sadesa untuk rekonsiliasi.</p>}
+              {canUseAdminFallback && (gdcPayment?.status === 'FAILED' || gdcPayment?.status === 'EXPIRED') && (
                 <div className="mt-3 space-y-2">
-                  <p className="text-xs text-muted-foreground">Jika permintaan sebelumnya mengalami timeout, periksa dulu ke Admin Sadesa bahwa QR GDC belum berhasil dibuat agar tidak terjadi pembayaran ganda.</p>
-                  <Button type="button" variant="outline" className="w-full" onClick={() => {
-                    setUseAdminManualFallback(true);
-                  }}>Gunakan QR / transfer bank Admin Sadesa</Button>
+                  <p className="text-xs text-muted-foreground">Provider telah menyatakan QR GDC gagal atau kedaluwarsa. Server akan mengunci transaksi ini ke pembayaran manual sebelum instruksi Admin ditampilkan.</p>
+                  <Button type="button" variant="outline" className="w-full" disabled={gdcCreating} onClick={() => void handleAdminManualFallback()}>
+                    {gdcCreating ? 'Mengunci fallback…' : 'Gunakan QR / transfer bank Admin Sadesa'}
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -343,7 +385,7 @@ export default function PaymentConfirmationPage() {
           <Card className="border-amber-200 bg-amber-50/70">
             <CardContent className="p-4 text-sm text-amber-950" role="status">
               <p className="font-bold">Metode dialihkan ke pembayaran manual Admin Sadesa</p>
-              <p className="mt-1">Jangan membayar QR dinamis dan QR/rekening admin sekaligus. Jika QR GDC mungkin sudah terbentuk saat timeout, hubungi admin terlebih dahulu untuk verifikasi.</p>
+              <p className="mt-1">Server telah mengunci pesanan ini ke instruksi manual Admin dan menolak settlement QR GDC berikutnya. Gunakan satu metode pembayaran saja.</p>
             </CardContent>
           </Card>
         )}
@@ -367,13 +409,13 @@ export default function PaymentConfirmationPage() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <QrCode className="h-5 w-5 text-primary" />
-                  <h3 className="font-bold">{paymentInfo.source === 'ADMIN' ? 'QRIS Admin Sadesa' : 'QRIS'}</h3>
+                  <h3 className="font-bold">{isAdminPaymentInstructions ? 'QRIS Admin Sadesa' : 'QRIS'}</h3>
                 </div>
 
                 <div className="flex justify-center p-4 bg-white rounded-lg border">
                   <img
                     src={paymentInfo.qrisImageUrl}
-                    alt={paymentInfo.source === 'ADMIN' ? 'QRIS Admin Sadesa' : 'QRIS Payment'}
+                    alt={isAdminPaymentInstructions ? 'QRIS Admin Sadesa' : 'QRIS Payment'}
                     className="max-w-[280px] w-full h-auto"
                   />
                 </div>

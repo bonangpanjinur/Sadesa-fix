@@ -37,7 +37,7 @@ interface StockProductRow {
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, selectedItems, selectedItemIds, toggleItemSelection, updateQuantity, syncProductStock, removeFromCart, clearCart } = useCart();
+  const { items, selectedItems, selectedItemIds, toggleItemSelection, selectItemKeys, updateQuantity, syncProductStock, removeCartItem, clearCart } = useCart();
   const { enabled: guestCheckoutEnabled, loading: guestCheckoutFlagLoading } = useGuestCheckoutEnabled(Boolean(user));
   const { t } = useTranslation();
   const { formatCurrency } = useFormatters();
@@ -143,7 +143,13 @@ export default function CartPage() {
       toast({ title: 'Pilih produk terlebih dahulu', description: 'Centang minimal satu produk untuk checkout.', variant: 'destructive' });
       return;
     }
-    if (Object.keys(stockWarnings).length > 0) {
+    const selectedMerchantIds = new Set(selectedItems.map(item => item.product.merchantId || `unknown:${item.product.merchantName || 'Toko'}`));
+    if (selectedMerchantIds.size > 1) {
+      toast({ title: 'Pilih satu toko untuk checkout', description: 'Gunakan tombol Checkout Toko Ini pada toko yang ingin dipesan.', variant: 'destructive' });
+      return;
+    }
+    const selectedProductIds = new Set(selectedItems.flatMap(item => [item.product.id, ...(item.toppings || []).map(topping => topping.product.id)]));
+    if ([...selectedProductIds].some(productId => stockWarnings[productId])) {
       toast({
         title: 'Periksa isi keranjang',
         description: 'Hapus atau sesuaikan produk yang stoknya berubah sebelum checkout.',
@@ -155,6 +161,25 @@ export default function CartPage() {
       navigate('/auth');
       return;
     }
+    navigate('/checkout');
+  };
+
+  const handleCheckoutForMerchant = (merchantItems: typeof items) => {
+    if (!merchantItems.length) return;
+    const merchantIds = new Set(merchantItems.flatMap(item => [item.product.id, ...(item.toppings || []).map(topping => topping.product.id)]));
+    if ([...merchantIds].some(productId => stockWarnings[productId])) {
+      toast({ title: 'Periksa isi toko', description: 'Sesuaikan atau hapus produk yang stoknya berubah sebelum checkout.', variant: 'destructive' });
+      return;
+    }
+    if (merchantItems[0]?.product.merchantId && merchantStatuses[merchantItems[0].product.merchantId] === false) {
+      toast({ title: 'Toko sedang tutup', description: 'Pesanan dari toko ini belum dapat dibuat.', variant: 'destructive' });
+      return;
+    }
+    if (!user && !guestCheckoutEnabled) {
+      navigate('/auth');
+      return;
+    }
+    selectItemKeys(merchantItems.map(getCartItemKey));
     navigate('/checkout');
   };
 
@@ -249,6 +274,16 @@ export default function CartPage() {
                 >
                   {selectionPlan.allSelected ? 'Batal pilih' : 'Pilih semua'}
                 </button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 text-xs"
+                  onClick={() => handleCheckoutForMerchant(merchantItems)}
+                  disabled={guestCheckoutFlagLoading || isClosed || merchantItems.some(item => stockWarnings[item.product.id] || (item.toppings || []).some(topping => stockWarnings[topping.product.id]))}
+                >
+                  Checkout Toko Ini
+                </Button>
               </div>
 
               {/* Closed warning */}
@@ -305,7 +340,7 @@ export default function CartPage() {
                     
                     <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
                       <button
-                        onClick={() => removeFromCart(item.product.id, item.toppings)}
+                        onClick={() => removeCartItem(getCartItemKey(item))}
                         aria-label={`Hapus ${item.product.name} dari keranjang`}
                         className="text-destructive hover:bg-destructive/10 p-2 rounded-lg transition"
                       >
@@ -343,7 +378,7 @@ export default function CartPage() {
 
       {/* Checkout Summary */}
       <div className="mobile-action-safe fixed bottom-0 left-0 right-0 mx-auto max-w-[480px] border-t border-border bg-card p-5 shadow-lg">
-        {Object.keys(stockWarnings).length > 0 && (
+        {selectedItems.some(item => stockWarnings[item.product.id] || (item.toppings || []).some(topping => stockWarnings[topping.product.id])) && (
           <div className="mb-3 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
             <span>Checkout diblokir. Hapus atau sesuaikan produk yang stoknya habis atau berubah.</span>
@@ -362,9 +397,9 @@ export default function CartPage() {
           onClick={handleCheckout}
           className="w-full shadow-brand font-bold"
           size="lg"
-          disabled={guestCheckoutFlagLoading || Object.keys(stockWarnings).length > 0}
+          disabled={guestCheckoutFlagLoading || selectedItems.some(item => stockWarnings[item.product.id] || (item.toppings || []).some(topping => stockWarnings[topping.product.id]))}
         >
-          {Object.keys(stockWarnings).length > 0
+          {selectedItems.some(item => stockWarnings[item.product.id] || (item.toppings || []).some(topping => stockWarnings[topping.product.id]))
             ? 'Periksa Stok Produk'
             : guestCheckoutFlagLoading
             ? 'Memeriksa Checkout...'
