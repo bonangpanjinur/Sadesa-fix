@@ -40,3 +40,7 @@ verify_jwt = true
 
 [functions.gdc-webhook]
 verify_jwt = false
+
+[functions.gdc-qris-mpm]
+# The handler validates the authenticated user inside the Edge Function.
+verify_jwt = false
