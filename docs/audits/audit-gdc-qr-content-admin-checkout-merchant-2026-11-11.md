@@ -1,6 +1,6 @@
 # Audit Integrasi GDC QRIS MPM Dinamis
 
-Tanggal audit: 2026-11-11  
+Tanggal audit: 2026-11-11
 Scope: Admin QRIS/GDC, checkout marketplace, payment confirmation, Edge Function GDC, webhook, settlement, merchant readiness, dan deployment.
 
 ## Kesimpulan eksekutif
